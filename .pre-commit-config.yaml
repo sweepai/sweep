@@ -1,0 +1,18 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 23.1.0
+    hooks:
+      - id: black
+        files: ^(src|tests)/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.1.1
+    hooks:
+      - id: mypy
+        files: ^(src|tests)/
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
+        files: ^(src|tests)/
