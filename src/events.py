@@ -31,7 +31,7 @@ class CommentCreatedRequest(BaseModel):
         class Head(BaseModel):
             ref: str
         number: int
-        body: str
+        body: str | None
         state: str  # "closed" or "open"
         head: Head
         title: str
@@ -94,10 +94,3 @@ class IssueCommentRequest(IssueRequest):
         id: int
         body: str
     comment: Comment
-
-class ReviewSubmittedRequest(IssueRequest):
-    class Review(BaseModel):
-        class User(BaseModel):
-            login: str
-        user: User
-        body: str
