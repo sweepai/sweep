@@ -2,105 +2,119 @@
 On Github ticket, get ChatGPT to deal with it
 """
 
+# TODO: Add file validation
+
 import os
 import openai
 
 from loguru import logger
-from github import Github, UnknownObjectException
 
-from src.core.models import ChatGPT, FileChange, PullRequest
-from src.core.prompts import (
-    pr_code_prompt,
-    pull_request_prompt,
+from src.core.sweep_bot import SweepBot
+from src.handlers.on_review import get_pr_diffs
+from src.utils.event_logger import posthog
+from src.utils.github_utils import (
+    get_github_client,
+    search_snippets,
 )
-
-from src.utils.github_utils import get_relevant_directories_remote, make_valid_string
+from src.utils.prompt_constructor import HumanMessageCommentPrompt
+from src.utils.constants import PREFIX
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
-g = Github(github_access_token)
-
 
 def on_comment(
-    title: str,
-    summary: str,
-    issue_number: int,
-    issue_url: str,
-    username: str,
     repo_full_name: str,
     repo_description: str,
-    ref: str,
+    comment: str,
+    pr_path: str | None,
+    pr_line_position: int | None,
+    username: str,
+    installation_id: int,
+    pr_number: int = None,
 ):
-    _, repo_name = repo_full_name.split("/")
+    # Flow:
+    # 1. Get relevant files
+    # 2: Get human message
+    # 3. Get files to change
+    # 4. Get file changes
+    # 5. Create PR
+    logger.info(f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
+    organization, repo_name = repo_full_name.split("/")
+    metadata = {
+        "repo_full_name": repo_full_name,
+        "repo_name": repo_name,
+        "organization": organization,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "username": username,
+        "function": "on_comment",
+        "mode": PREFIX,
+    }
 
-    repo = g.get_repo(repo_full_name)
-    # src_contents = repo.get_contents("src", ref=ref)
-    relevant_directories, relevant_files = get_relevant_directories_remote(title)  # type: ignore
-
-    chatGPT = ChatGPT()
-    parsed_files: list[FileChange] = []
-    while not parsed_files:
-        pr_code_response = chatGPT.chat(pr_code_prompt)
-        if pr_code_response:
-            files = pr_code_response.split("File: ")[1:]
-            while files and files[0] == "":
-                files = files[1:]
-            if not files:
-                # TODO(wzeng): Fuse changes back using GPT4
-                parsed_files = []
-                chatGPT.undo()
-                continue
-            for file in files:
-                try:
-                    parsed_file = FileChange.from_string(file)
-                    parsed_files.append(parsed_file)
-                except Exception:
-                    parsed_files = []
-                    chatGPT.undo()
-                    continue
-    logger.info("Accepted ChatGPT result")
-
-    pr_texts: PullRequest | None = None
-    while pr_texts is None:
-        pr_texts_response = chatGPT.chat(pull_request_prompt)
-        try:
-            pr_texts = PullRequest.from_string(pr_texts_response)
-        except Exception:
-            chatGPT.undo()
-
-    branch_name = make_valid_string(
-        f"sweep/Issue_{issue_number}_{make_valid_string(title.strip())}"
-    ).replace(" ", "_")[:250]
-    base_branch = repo.get_branch(repo.default_branch)
+    posthog.capture(username, "started", properties=metadata)
+    logger.info(f"Getting repo {repo_full_name}")
     try:
-        repo.create_git_ref(f"refs/heads/{branch_name}", base_branch.commit.sha)
+        g = get_github_client(installation_id)
+        repo = g.get_repo(repo_full_name)
+        pr = repo.get_pull(pr_number)
+        branch_name = pr.head.ref
+        pr_title = pr.title
+        pr_body = pr.body
+        diffs = get_pr_diffs(repo, pr)
+        snippets, tree = search_snippets(repo, comment, installation_id, branch=branch_name, num_files=5)
+        pr_line = None
+        pr_file_path = None
+        if pr_path and pr_line_position:
+            pr_file = repo.get_contents(pr_path, ref=branch_name).decoded_content.decode("utf-8")
+            pr_lines = pr_file.splitlines()
+            pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
+            pr_file_path = pr_path.strip()
+
+        logger.info("Getting response from ChatGPT...")
+        human_message = HumanMessageCommentPrompt(
+            comment=comment,
+            repo_name=repo_name,
+            repo_description=repo_description if repo_description else "",
+            diffs=diffs,
+            issue_url=pr.html_url,
+            username=username,
+            title=pr_title,
+            tree=tree,
+            summary=pr_body,
+            snippets=snippets,
+            pr_file_path=pr_file_path, # may be None
+            pr_line=pr_line, # may be None
+        )
+        logger.info(f"Human prompt{human_message.construct_prompt()}")
+        sweep_bot = SweepBot.from_system_message_content(
+            # human_message=human_message, model="claude-v1.3-100k", repo=repo
+            human_message=human_message, repo=repo
+        )
     except Exception as e:
-        logger.error(f"Error: {e}")
+        posthog.capture(username, "failed", properties={
+            "error": str(e),
+            "reason": "Failed to get files",
+            **metadata
+        })
+        raise e
 
-    for file in parsed_files:
-        commit_message = f"sweep: {file.description[:50]}"
+    try:
+        logger.info("Fetching files to modify/create...")
+        file_change_requests = sweep_bot.get_files_to_change()
 
-        try:
-            # TODO: check this is single file
-            contents = repo.get_contents(file.filename)
-            assert not isinstance(contents, list)
-            repo.update_file(
-                file.filename,
-                commit_message,
-                file.code,
-                contents.sha,
-                branch=branch_name,
-            )
-        except UnknownObjectException:
-            repo.create_file(
-                file.filename, commit_message, file.code, branch=branch_name
-            )
+        logger.info("Making Code Changes...")
+        sweep_bot.change_files_in_github(file_change_requests, branch_name)
 
-    repo.create_pull(
-        title=pr_texts.title,
-        body=pr_texts.content,
-        head=branch_name,
-        base=repo.default_branch,
-    )
+        logger.info("Done!")
+    except Exception as e:
+        posthog.capture(username, "failed", properties={
+            "error": str(e),
+            "reason": "Failed to make changes",
+            **metadata
+        })
+        raise e
+
+    posthog.capture(username, "success", properties={**metadata})
+    logger.info("on_comment success")
     return {"success": True}

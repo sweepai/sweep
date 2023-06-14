@@ -2,7 +2,9 @@ import os
 import requests  # type: ignore
 from loguru import logger
 
-import modal  # type: ignore
+import modal
+
+from src.utils.constants import BOT_TOKEN_NAME  # type: ignore
 
 
 stub = modal.Stub("tests")
@@ -12,7 +14,7 @@ image = (
     .pip_install("openai", "PyGithub", "loguru")
 )
 secrets = [
-    modal.Secret.from_name("bot-token"),
+    modal.Secret.from_name(BOT_TOKEN_NAME),
     modal.Secret.from_name("openai-secret"),
 ]
 
