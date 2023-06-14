@@ -14,7 +14,7 @@ Unlike copilot, this can solve entire tickets and can be parallelized: someone c
 - Modal Labs for infra + deployment
 
 ## Installation
-Install at https://github.com/apps/sweep-ai, add your repo, and make a Github issue such as "Sweep: Write tests" (need the prefix). Eyes emoji 👀 means Sweep's taking a look and rocket 🚀 means it's done. 
+Install at https://github.com/apps/sweep-ai, add your repo, and make a Github issue such as "Sweep: Write tests" (need the prefix). Eyes 👀 means Sweep's taking a look and rocket 🚀 means it's done. 
 
 ## Roadmap
 * External search (Anthropic docs, as GPT 3.5/4 is trained on pre-2019)
