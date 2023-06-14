@@ -1,30 +1,24 @@
-# Sweep
+# :broom: Sweep
 
-Sweep is a Github assistant bot that completes tickets by making a PR and responds to PR comments.
+Sweep is a Github assistant bot that solves tickets by writing a PR.
 
 ## Story
 
-We were frustrated by small tickets such simple bug fixes, annoying refactors and small features and realized ChatGPT/GPT-4 could easily do it. Unlike copilot, this can solve entire tickets and can be parallelized: someone can spin up 10 tickets and have it solve them all at once. 
+We were frustrated by small tickets such as simple bug fixes, annoying refactors and small features that could just be fed to ChatGPT. So we fed it to ChatGPT.
 
-## Setup
+Unlike copilot, this can solve entire tickets and can be parallelized: someone can spin up 10 tickets and have it solve them all at once. 
 
-To set up the project, follow these steps:
+## The Stack
+- GPT-4 32k 0613 (default) / Claude v1.3 100k
+- ActiveLoop DeepLake for Vector DB with MiniLM L12 as our embeddings model
+- Modal Labs for infra + deployment
 
-1. Clone the repository
-2. Install poetry using `pip install poetry`
-3. Install the dependencies using `poetry install`
-4. Set up your environment variables in a `.env` file. You will need to set the following variables:
-    - `BOT_TOKEN`: Your Github bot token
-    - `OPENAI_SECRET`: Your OpenAI API secret key
-5. Run the bot using `modal serve src/api.py` and add the endpoint URL to the repo webhooks.
-6. (Optional) Index your codebase and relevant documents into Jina
+## Installation
+Install at https://github.com/apps/sweep-ai, add your repo, and make a ticket like "Sweep: Write tests" (need the prefix). Eyes emoji means and rocket means it's done. 
 
-## Tools
-- Modal
-- OpenAI
-- PyGithub
-- Jina
-
-## Usage
-
-Once the bot is running, it will listen for new issues by creating a PR and will respond to PR comments, being aware of the line numbers.
+## Roadmap
+* External search (Anthropic docs, as GPT 3.5/4 is trained on pre-2019)
+* CLI access ("install puppeteer" or "fix all mypy type-check errors")
+* Deleting old Sweep branches / PRs to declutter
+* `sweep.toml` configuration file
+* On-prem hosting
