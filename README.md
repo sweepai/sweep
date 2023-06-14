@@ -2,7 +2,7 @@
 
 Sweep is a Github assistant bot that solves tickets by writing a PR.
 
-## Story
+## 📚 Story
 
 We were frustrated by small tickets such as simple bug fixes, annoying refactors and small features that could just be fed to ChatGPT. So we fed it to ChatGPT.
 
@@ -13,14 +13,14 @@ Unlike copilot, this can solve entire tickets and can be parallelized: someone c
 - ActiveLoop DeepLake for Vector DB with MiniLM L12 as our embeddings model
 - Modal Labs for infra + deployment
 
-## Installation
+## 🚀 Quickstart
 Install at https://github.com/apps/sweep-ai, add your repo, and make an issue such as "Sweep: Write tests" (need the prefix). Eyes :eyes: means it's taking a look and rocket 🚀 means it's done. 
 
-## Features
+## 🌠 Features
 * Vector search using DeepLake
+* CoT internal search using GPT Functions
 * Issue comment reply handling
-* PR auto self-review
-* PR comment handling
+* PR auto self-review + comment handling (effectively Reflexion https://arxiv.org/abs/2303.11366)
 
 ## Roadmap
 * External search (Anthropic docs, as GPT 3.5/4 is trained on pre-2019)
