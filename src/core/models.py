@@ -413,6 +413,7 @@ class Snippet(BaseModel):
     def xml(self):
 snippet_content = self.get_snippet()
         if not self.is_snippet_file_start:
+
             snippet_content = "...\n" + snippet_content
         if not self.is_snippet_file_end:
             snippet_content += "\n..."
