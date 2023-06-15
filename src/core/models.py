@@ -142,13 +142,14 @@ class ChatGPT(BaseModel):
         content: str,
         model: ChatModel | None = None,
         message_key: str | None = None,
-        functions: list[Function] = []
+        functions: list[Function] = [],
+        function_name: dict | None = None,
     ):
         self.messages.append(Message(role="user", content=content, key=message_key))
         model = model or self.model
         if model in ["gpt-3.5-turbo", "gpt-4", "gpt-4-32k", "gpt-4-32k-0613"]:
             # might be a bug here in all of this
-            response = self.call_openai(model=model, functions=functions)
+            response = self.call_openai(model=model, functions=functions, function_name=function_name)
             if functions:
                 response, is_function_call = response
                 if is_function_call:
@@ -175,7 +176,8 @@ class ChatGPT(BaseModel):
     def call_openai(
         self, 
         model: ChatModel | None = None,
-        functions: list[Function] = []
+        functions: list[Function] = [],
+        function_name: dict | None = None,
     ):
         if model is None:
             model = self.model
@@ -197,19 +199,33 @@ class ChatGPT(BaseModel):
 
         if functions:
             @backoff.on_exception(
-                backoff.fibo,
+                backoff.expo,
                 Exception,
                 max_tries=5,
                 jitter=backoff.random_jitter,
+
             )
             def fetch():
-                return (
+                if function_name:
+                    return (
+                        openai.ChatCompletion.create(
+                            model=model,
+                            messages=self.messages_dicts,
+                            max_tokens=max_tokens,
+                            temperature=0.1,
+                            functions=[json.loads(function.json()) for function in functions],
+                            function_call=function_name,
+                        )
+                        .choices[0].message
+                    )
+                else:
+                    return (
                     openai.ChatCompletion.create(
                         model=model,
                         messages=self.messages_dicts,
                         max_tokens=max_tokens,
                         temperature=0.1,
-                        functions=[json.loads(function.json()) for function in functions]
+                        functions=[json.loads(function.json()) for function in functions],
                     )
                     .choices[0].message
                 )
@@ -224,7 +240,7 @@ class ChatGPT(BaseModel):
 
         else:
             @backoff.on_exception(
-                backoff.fibo,
+                backoff.expo,
                 Exception,
                 max_tries=5,
                 jitter=backoff.random_jitter,
@@ -260,7 +276,7 @@ class ChatGPT(BaseModel):
         client = anthropic.Client(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
         @backoff.on_exception(
-            backoff.fibo,
+            backoff.expo,
             Exception,
             max_tries=5,
             jitter=backoff.random_jitter,
