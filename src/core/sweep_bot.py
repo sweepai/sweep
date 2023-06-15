@@ -324,3 +324,16 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
             else:
                 raise Exception("Invalid change type")
+
+def add_eyes_emoji(self, comment_id: int):
+    comment = self.github_api.get_comment(comment_id)
+    comment.body += '👀'
+    comment.update()
+def add_rocket_emoji(self, comment_id: int):
+    comment = self.github_api.get_comment(comment_id)
+    comment.body += '🚀'
+    comment.update()
+def remove_eyes_emoji(self, comment_id: int):
+    comment = self.github_api.get_comment(comment_id)
+    comment.body = comment.body.replace('👀', '')
+    comment.update()
