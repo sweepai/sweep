@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "swiip"
+name = "sweep"
 version = "0.1.0"
-description = "Swiips software chores"
+description = "Sweep software chores"
 authors = ["Kevin Lu"]
 
 [tool.poetry.dependencies]
