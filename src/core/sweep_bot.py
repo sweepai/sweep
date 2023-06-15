@@ -330,8 +330,13 @@ def add_eyes_emoji(self, comment_id: int):
     comment.body += '👀'
     comment.update()
 def add_rocket_emoji(self, comment_id: int):
-    comment = self.github_api.get_comment(comment_id)
-    comment.body += '🚀'
+    try:
+        comment = self.github_api.get_comment(comment_id)
+        comment.body += '🚀'
+        comment.update()
+    except Exception as e:
+        logger.error(f'Failed to add rocket emoji to comment {comment_id}: {e}')
+        raise e
     comment.update()
 def remove_eyes_emoji(self, comment_id: int):
     comment = self.github_api.get_comment(comment_id)
