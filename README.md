@@ -8,13 +8,13 @@ We were frustrated by small tickets such as simple bug fixes, annoying refactors
 
 Unlike copilot, this can solve entire tickets and can be parallelized: someone can spin up 10 tickets and have it solve them all at once. 
 
+## 🚀 Quickstart
+Install at https://github.com/apps/sweep-ai, add your repo, and make an issue such as "Sweep: Write tests" (need the prefix). Eyes :eyes: means it's taking a look and rocket 🚀 means it's done. For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
+
 ## The Stack
 - GPT-4 32k 0613 (default) / Claude v1.3 100k
 - ActiveLoop DeepLake for Vector DB with MiniLM L12 as our embeddings model
 - Modal Labs for infra + deployment
-
-## 🚀 Quickstart
-Install at https://github.com/apps/sweep-ai, add your repo, and make an issue such as "Sweep: Write tests" (need the prefix). Eyes :eyes: means it's taking a look and rocket 🚀 means it's done. For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
 
 ## 🌠 Features
 * Vector search using DeepLake
