@@ -373,7 +373,7 @@ class Snippet(BaseModel):
     start: int
     end: int
     file_path: str
-    is_snippet_file_start: bool
+
     is_snippet_file_end: bool
 
     def get_snippet(self):
