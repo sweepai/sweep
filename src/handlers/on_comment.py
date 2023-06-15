@@ -24,6 +24,7 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 
 def on_comment(
+    comment_id: int,
     repo_full_name: str,
     repo_description: str,
     comment: str,
@@ -33,6 +34,7 @@ def on_comment(
     installation_id: int,
     pr_number: int = None,
 ):
+):
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -40,6 +42,7 @@ def on_comment(
     # 4. Get file changes
     # 5. Create PR
     logger.info(f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
+comment_obj = github_api.get_comment(comment_id)
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "repo_full_name": repo_full_name,
