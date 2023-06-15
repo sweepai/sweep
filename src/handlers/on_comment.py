@@ -43,6 +43,9 @@ def on_comment(
     # 5. Create PR
     logger.info(f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
 comment_obj = github_api.get_comment(comment_id)
+comment_obj = github_api.get_comment(comment_id)
+sweep_bot = SweepBot(repo=repo)
+sweep_bot.add_eyes_emoji(comment_id)
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "repo_full_name": repo_full_name,
