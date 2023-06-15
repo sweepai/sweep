@@ -373,6 +373,7 @@ class Snippet(BaseModel):
     start: int
     end: int
     file_path: str
+    is_snippet_file_start: bool
 
     is_snippet_file_end: bool
 
@@ -412,5 +413,11 @@ class Snippet(BaseModel):
     @property
     def xml(self):
         return f'''<snippet filepath="{self.file_path}" start="{self.start}" end="{self.end}">\n{self.get_snippet()}\n</snippet>'''
+class DiffSummarization(RegexMatchableBaseModel):
+    content: str
+    _regex = r"""<file_summarization>(?P<content>.*)</file_summarization>"""
 
+class PullRequestComment(RegexMatchableBaseModel):
+    content: str
+    _regex = r"""<review_comment>(?P<content>.*)</review_comment>"""
     _regex = r"""<review_comment>(?P<content>.*)<\/review_comment>"""
