@@ -411,6 +411,12 @@ class Snippet(BaseModel):
     
     @property
     def xml(self):
+snippet_content = self.get_snippet()
+        if not self.is_snippet_file_start:
+            snippet_content = "...\n" + snippet_content
+        if not self.is_snippet_file_end:
+            snippet_content += "\n..."
+        return f'''<snippet filepath="{self.file_path}" start="{self.start}" end="{self.end}">\n{snippet_content}\n</snippet>'''
         return f'''<snippet filepath="{self.file_path}" start="{self.start}" end="{self.end}">\n{self.get_snippet()}\n</snippet>'''
 
     _regex = r"""<review_comment>(?P<content>.*)<\/review_comment>"""
