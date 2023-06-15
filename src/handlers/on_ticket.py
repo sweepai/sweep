@@ -143,7 +143,7 @@ def on_ticket(
     snippets: list[Snippet] = snippets[::-1]
 
     num_full_files = 2
-    num_extended_snippets = 5
+    num_extended_snippets = 2
 
     most_relevant_snippets = snippets[-num_full_files:]
     snippets = snippets[:-num_full_files]
