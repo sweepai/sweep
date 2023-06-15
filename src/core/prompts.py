@@ -222,19 +222,16 @@ Commit Message: {{commit_message}}
 </new_file>
 """
 
-modify_file_prompt = """
+modify_file_plan_prompt = """
 Think step-by-step regarding the instructions and how that can be applied to the current file to improve the current codebase.
 Then create a plan of parts of the code to modify, with low-level, detailed references to lines and sections of code to modify.
-Then modify the following file with the following context.
 
 File Name: {filename}
 <old_file>
 {code}
 </old_file>
 
-Your instructions to modify the file are: "{instructions}". You need to apply the following changes to "old_file" and output the new code with the changes in "new_file".
-
-Reply in the following format. DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}".
+Your instructions to modify the file are: "{instructions}".
 
 Step-by-step chain of thoughts: 
 * Thought 1
@@ -244,11 +241,12 @@ Detailed plan of modifications:
 * Modification 1
 * Modification 2
 ...
-Detailed 
-Commit Message: {{commit_message}}
-<new_file>
-{{new_file}}
-</new_file>
+"""
+
+modify_file_prompt = """
+Pass in start_line and end_line to the `modify` function. 
+Make sure `end_line` covers the code you wish to delete and that `new_code` is properly formatted.
+Also make sure start_line is in ascending order and that the code_edits do not overlap.
 """
 
 pr_code_prompt = ""  # TODO: deprecate this

@@ -21,9 +21,11 @@ from src.core.prompts import (
     pull_request_prompt,
     create_file_prompt,
     modify_file_prompt,
+    modify_file_plan_prompt,
     cot_retrieval_prompt
 )
 from src.core.react import REACT_INITIAL_PROMPT, ReadFiles, Finish, Toolbox
+from src.utils.file_change_functions import modify_file_function, apply_code_edits
 from src.utils.diff import fuse_files
 
 
@@ -214,39 +216,42 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def modify_file(
         self, file_change_request: FileChangeRequest, contents: str = ""
-    ) -> FileChange:
+    ) -> tuple[str, str]:
         if not contents:
             contents = self.get_file(
                 file_change_request.filename
             ).decoded_content.decode("utf-8")
-        file_change: FileChange | None = None
+        # Add line numbers to the contents; goes in prompts but not github
+        contents_line_numbers = "\n".join([f"{i}: {line}" for i, line in enumerate(contents.split("\n"))])
+        contents_line_numbers = contents_line_numbers.replace('"""', "'''")
         for count in range(5):
-            modify_file_response = self.chat(
-                modify_file_prompt.format(
-                    filename=file_change_request.filename,
-                    instructions=file_change_request.instructions,
-                    code=contents,
-                ),
-                message_key=f"file_change_{file_change_request.filename}",
-            )
-            # Add file to list of changed_files
-            self.file_change_paths.append(file_change_request.filename)
-            # self.delete_file_from_system_message(file_path=file_change_request.filename)
-            try:
-                file_change = FileChange.from_string(modify_file_response)
-                file_change.code = fuse_files(contents, file_change.code)
-            except Exception as e:
-                logger.warning(f"Recieved error {e}")
-                logger.warning(
-                    f"Failed to parse. Retrying for the {count}th time..."
+            if self.model == "gpt-4-32k-0613":
+                _ = self.chat( # We don't use the plan in the next call
+                    modify_file_plan_prompt.format(
+                        filename=file_change_request.filename,
+                        instructions=file_change_request.instructions,
+                        code=contents_line_numbers,
+                    ),
+                    message_key=f"file_change_{file_change_request.filename}",
                 )
-                self.undo()
-                continue
-            else:
-                assert file_change is not None
-                file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
-                return file_change
-                 
+                modify_file_response = self.chat(
+                    modify_file_prompt,
+                    message_key=f"file_change_{file_change_request.filename}",
+                    functions=[modify_file_function],
+                    function_name={"name": "modify_file"}, # Force it to call modify_file
+                )
+                try:
+                    code_edits = json.loads(json.loads(modify_file_response)["arguments"])["code_edits"]
+                    edited_file = apply_code_edits(contents, code_edits)
+                    return (fuse_files(contents, edited_file), file_change_request.filename)
+                except Exception as e:
+                    logger.warning(f"Recieved error {e}")
+                    logger.warning(
+                        f"Failed to parse. Retrying for the {count}th time..."
+                    )
+                    self.undo()
+                    self.undo()
+                    continue
         raise Exception("Failed to parse response after 5 attempts.")
  
     def change_file(self, file_change_request: FileChangeRequest):
@@ -309,16 +314,16 @@ class SweepBot(CodeGenBot, GithubBot):
                         branch=branch,
                     )
                 else:
-                    file_change = self.modify_file(
+                    new_file_contents, file_name = self.modify_file(
                         file_change_request, contents.decoded_content.decode("utf-8")
                     )
                     logger.debug(
-                        f"{file_change_request.filename}, {file_change.commit_message}, {file_change.code}, {branch}"
+                        f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
                     )
                     self.repo.update_file(
-                        file_change_request.filename,
-                        file_change.commit_message,
-                        file_change.code,
+                        file_name,
+                        f'Update {file_name}',
+                        new_file_contents,
                         contents.sha,
                         branch=branch,
                     )
