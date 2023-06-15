@@ -365,14 +365,16 @@ class PullRequest(RegexMatchableBaseModel):
 
 
 class Snippet(BaseModel):
-    """
+    '''
     Start and end refer to line numbers
-    """
+    '''
     
     content: str
     start: int
     end: int
     file_path: str
+    is_snippet_file_start: bool
+    is_snippet_file_end: bool
 
     def get_snippet(self):
         return "\n".join(self.content.splitlines()[self.start:self.end])
@@ -388,9 +390,9 @@ class Snippet(BaseModel):
         )
     
     def __xor__(self, other: "Snippet") -> bool:
-        """
+        '''
         Returns True if there is an overlap between two snippets.
-        """
+        '''
         if self.file_path != other.file_path:
             return False
         return self.file_path == other.file_path and (
@@ -409,12 +411,6 @@ class Snippet(BaseModel):
     
     @property
     def xml(self):
-        return f"""<snippet filepath="{self.file_path}" start="{self.start}" end="{self.end}">\n{self.get_snippet()}\n</snippet>"""
-    
-class DiffSummarization(RegexMatchableBaseModel):
-    content: str
-    _regex = r"""<file_summarization>(?P<content>.*)<\/file_summarization>"""
+        return f'''<snippet filepath="{self.file_path}" start="{self.start}" end="{self.end}">\n{self.get_snippet()}\n</snippet>'''
 
-class PullRequestComment(RegexMatchableBaseModel):
-    content: str
     _regex = r"""<review_comment>(?P<content>.*)<\/review_comment>"""
