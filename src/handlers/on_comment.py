@@ -62,7 +62,7 @@ def on_comment(
         pr_title = pr.title
         pr_body = pr.body
         diffs = get_pr_diffs(repo, pr)
-        snippets, tree = search_snippets(repo, comment, installation_id, branch=branch_name, num_files=5)
+        snippets, tree = search_snippets(repo, comment, installation_id, branch=branch_name, num_files=3 if pr_path else 1)
         pr_line = None
         pr_file_path = None
         if pr_path and pr_line_position:

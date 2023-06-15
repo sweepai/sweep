@@ -1,5 +1,0 @@
-[flake8]
-# for black (https://black.readthedocs.io/en/stable/guides/using_black_with_other_tools.html)
-ignore = E501
-max-line-length = 88
-extend-ignore = E203,W503

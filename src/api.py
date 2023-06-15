@@ -165,7 +165,8 @@ async def webhook(raw_request: Request):
                     )
                 # Todo: update index on comments
             case "pull_request_review", "submitted":
-                request = ReviewSubmittedRequest(**request_dict)
+                # request = ReviewSubmittedRequest(**request_dict)
+                pass
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
