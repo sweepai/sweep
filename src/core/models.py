@@ -412,7 +412,13 @@ class Snippet(BaseModel):
     
     @property
     def xml(self):
+class DiffSummarization(RegexMatchableBaseModel):
+    content: str
+    _regex = r'''<file_summarization>(?P<content>.*)</file_summarization>'''
         return f'''<snippet filepath="{self.file_path}" start="{self.start}" end="{self.end}">\n{self.get_snippet()}\n</snippet>'''
+class PullRequestComment(RegexMatchableBaseModel):
+    content: str
+    _regex = r'''<review_comment>(?P<content>.*)</review_comment>'''
 class DiffSummarization(RegexMatchableBaseModel):
     content: str
     _regex = r"""<file_summarization>(?P<content>.*)</file_summarization>"""
