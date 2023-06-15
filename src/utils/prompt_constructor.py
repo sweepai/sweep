@@ -46,7 +46,7 @@ class HumanMessagePrompt(BaseModel):
             repo_description=self.repo_description,
             tree=self.tree,
             title=self.title,
-            description=self.summary,
+            description=self.summary if self.summary else "No description provided.",
             relevant_snippets=self.render_snippets(),
             relevant_directories=self.get_relevant_directories(),
         )
@@ -126,7 +126,7 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
             username=self.username,
             title=self.title,
             tree=self.tree,
-            description=self.summary,
+            description=self.summary if self.summary else "No description provided.",
             relevant_directories=self.get_relevant_directories(),
             relevant_snippets=self.render_snippets()
         )
