@@ -256,13 +256,14 @@ def on_ticket(
             "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. I'll try again in a minute. If this error persists contact team@sweep.dev."
         )
 posthog.capture(
+posthog.capture(
     username,
     "on_ticket_failure",
     properties={
         "error": str(e),
         "reason": "Invalid request error / context length",
         **metadata,
-    },
+    }
 )
         posthog.capture(
             username,
@@ -281,14 +282,11 @@ posthog.capture(
         )
         posthog.capture(
 posthog.capture(
+posthog.capture(
     username,
     "on_ticket_failure",
-    properties={"error": str(e), "reason": "Generic error", **metadata},
+    properties={"error": str(e), "reason": "Generic error", **metadata}
 )
-            username,
-            "failed",
-            properties={"error": str(e), "reason": "Generic error", **metadata},
-        )
         raise e
     else:
         try:
