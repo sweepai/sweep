@@ -1,3 +1,4 @@
+import json
 import re
 from typing import ClassVar, Literal, Self, Type
 from loguru import logger
@@ -5,10 +6,18 @@ from pydantic import BaseModel
 
 
 class Message(BaseModel):
-    role: Literal["system"] | Literal["user"] | Literal["assistant"]
+    role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal["function"]
     content: str
     key: str | None = None
-    is_function_call: bool = False
+
+    def to_openai(self) -> str:
+        obj = {"role": self.role}
+        if self.role == "function":
+            obj["function_call"] = json.loads(self.content)
+        else:
+            obj["content"] = self.content
+        print(obj)
+        return obj
 
 class Function(BaseModel):
     class Parameters(BaseModel):

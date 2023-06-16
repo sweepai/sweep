@@ -143,7 +143,7 @@ These are the file changes.
 We have the file_path, the previous_file_content, the new_file_content, and the diffs.
 The file_path is the name of the file.
 The previous_file_content is the content of the file before the changes.
-The new_file_content is the content of the file after the changes.
+The new_file_content is the content of the file after the changes.https://github.com/sweepai/dummy-repo/blob/main/blob/HelloWorld.tsx#L1-L11
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
 {diff}
@@ -253,7 +253,7 @@ pr_code_prompt = ""  # TODO: deprecate this
 
 
 pull_request_prompt = """
-Awesome! Could you also provide a PR message in the following format? Content should be in markdown. Thanks!
+Awesome! Could you also provide a PR message in the following format? Content shoulhttps://github.com/sweepai/dummy-repo/blob/main/blob/HelloWorld.tsx#L1-L11d be in markdown. Thanks!
 
 Title: {title}
 Branch Name: {branch_name}
@@ -278,4 +278,21 @@ Be sure to repeat each method signature and docstring. You may also add addition
 Do not repeat the code in the file stubs.
 Code Changes:
 {message_content}
+"""
+
+slack_slash_command_prompt = """
+Relevant snippets provided by search engine (decreasing relevance):
+<relevant_snippets_in_repo>
+{relevant_snippets}
+</relevant_snippets_in_repo>
+
+<relevant_paths_in_repo>
+{relevant_directories}
+</relevant_paths_in_repo>
+
+Repo: {repo_name}: {repo_description}
+Username: {username}
+Query: {query}
+
+Gather information (i.e. fetch more snippets) to solve the problem. Answer the users question or generate a PR. 
 """

@@ -35,7 +35,7 @@ model_to_max_tokens = {
     "claude-v1.3-100k": 100000,
     "claude-instant-v1.3-100k": 100000,
 }
-count_tokens = modal.Function.lookup("utils", "Tiktoken.count")
+# count_tokens = modal.Function.lookup("utils", "Tiktoken.count")
 
 def format_for_anthropic(messages: list[Message]) -> str:
     if len(messages) > 1:
@@ -138,7 +138,7 @@ class ChatGPT(BaseModel):
                 response, is_function_call = response
                 if is_function_call:
                     self.messages.append(
-                        Message(role="assistant", content=json.dumps(response), key=message_key, is_function_call=is_function_call)
+                        Message(role="function", content=json.dumps(response), key=message_key)
                     )
                 else:
                     self.messages.append(
@@ -165,6 +165,7 @@ class ChatGPT(BaseModel):
     ):
         if model is None:
             model = self.model
+        count_tokens = modal.Function.lookup("utils", "Tiktoken.count")
         messages_length = sum(
             [count_tokens.call(message.content) for message in self.messages]
         )
@@ -248,6 +249,7 @@ class ChatGPT(BaseModel):
     def call_anthropic(self, model: ChatModel | None = None) -> str:
         if model is None:
             model = self.model
+        count_tokens = modal.Function.lookup("utils", "Tiktoken.count")
         messages_length = sum(
             [int(count_tokens.call(message.content) * 1.1) for message in self.messages]
         )
@@ -293,7 +295,7 @@ class ChatGPT(BaseModel):
     def messages_dicts(self):
         # Remove the key from the message object before sending to OpenAI
         cleaned_messages = [
-            {k: v for k, v in message.dict().items() if k != "key" and k != "is_function_call"}
+            message.to_openai()
             for message in self.messages
         ]
         return cleaned_messages

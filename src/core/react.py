@@ -18,7 +18,7 @@ Gather information to solve the above problem using the tools below.
 {tools}
 
 Respond in the following format, first thinking logically and deriving a plan, then respond with the tool, and inputs replaced by their values:
-Thoughts: 
+Thoughts:
 1. thought_1
 2. thought_2
 ...
