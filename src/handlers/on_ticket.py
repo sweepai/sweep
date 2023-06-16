@@ -119,6 +119,9 @@ def on_ticket(
                 error = e
                 continue
         posthog.capture(
+posthog.capture(
+    username, "on_ticket_failure", properties={"error": error, **metadata}
+)
             username, "fetching_failed", properties={"error": error, **metadata}
         )
         raise error
@@ -253,6 +256,15 @@ def on_ticket(
         comment_reply(
             "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. I'll try again in a minute. If this error persists contact team@sweep.dev."
         )
+posthog.capture(
+    username,
+    "on_ticket_failure",
+    properties={
+        "error": str(e),
+        "reason": "Invalid request error / context length",
+        **metadata,
+    },
+)
         posthog.capture(
             username,
             "failed",
@@ -269,6 +281,11 @@ def on_ticket(
             "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. I'll try again in a minute. If this error persists contact team@sweep.dev."
         )
         posthog.capture(
+posthog.capture(
+    username,
+    "on_ticket_failure",
+    properties={"error": str(e), "reason": "Generic error", **metadata},
+)
             username,
             "failed",
             properties={"error": str(e), "reason": "Generic error", **metadata},
@@ -280,7 +297,7 @@ def on_ticket(
         except:
             pass
         item_to_react_to.create_reaction("rocket")
-
+posthog.capture(username, "on_ticket_success", properties={**metadata})
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
     return {"success": True}
