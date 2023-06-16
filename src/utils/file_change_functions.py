@@ -18,7 +18,7 @@ modify_file_function = Function(
                     "properties": {
                         "start_line": {
                             "type": "integer",
-                            "description": "The line number where the change should start."
+                            "description": "The line number where the change should start. This is inclusive."
                         },
                         "end_line": {
                             "type": "integer",
@@ -57,5 +57,20 @@ def apply_code_edits(file_contents, code_edits):
     modifications.sort(key=lambda x: x[0], reverse=True)
     lines = file_contents.split('\n')
     for start_line, end_line, new_code in modifications:
+        start_formatted = False # Don't modify the start line if it's already formatted
+        end_formatted = False # Don't modify the end line if it's already formatted
+        if (start_line > 1 and len(new_code) > 1 
+            and new_code[0:2] == lines[start_line - 2:start_line]):
+            new_code = new_code[2:]
+            start_formatted = True
+        if (end_line + 1 < len(lines) and len(new_code) > 1 
+            and new_code[-2:] == lines[end_line:end_line + 2]):
+            new_code = new_code[:-2]
+            end_formatted = True
+        # Handle duplicate lines between the existing code and new code
+        if start_line > 0 and new_code[0] == lines[start_line-1] and not start_formatted:
+            new_code = new_code[1:]
+        if end_line < len(lines) and new_code[-1] == lines[end_line] and not end_formatted:
+            new_code = new_code[:-1]
         lines[start_line:end_line] = new_code
     return '\n'.join(lines)
