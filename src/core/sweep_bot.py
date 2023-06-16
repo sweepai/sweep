@@ -26,7 +26,7 @@ from src.core.prompts import (
 )
 from src.core.react import REACT_INITIAL_PROMPT, ReadFiles, Finish, Toolbox
 from src.utils.file_change_functions import modify_file_function, apply_code_edits
-from src.utils.diff import fuse_files
+from src.utils.diff import format_file, fuse_files
 
 
 class CodeGenBot(ChatGPT):
@@ -307,6 +307,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     logger.debug(
                         f"{file_change_request.filename}, {file_change.commit_message}, {file_change.code}, {branch}"
                     )
+                    file_change.code = format_file(file_change.code)
                     self.repo.create_file(
                         file_change_request.filename,
                         file_change.commit_message,
@@ -317,6 +318,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     new_file_contents, file_name = self.modify_file(
                         file_change_request, contents.decoded_content.decode("utf-8")
                     )
+                    new_file_contents = format_file(new_file_contents)
                     logger.debug(
                         f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
                     )

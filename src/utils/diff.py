@@ -47,3 +47,12 @@ def fuse_files(old_file_content: str, new_file_content: str):
         result_lines.insert(j2, '\n'.join(lines))
     result_lines = [line.rstrip() for line in result_lines]
     return '\n'.join(result_lines).strip('\n') + '\n'
+
+def format_file(file_contents):
+    """
+    Add arbitrary postprocessing here 
+    """
+    lines = file_contents.split('\n')
+    if lines[-1] == '```':
+        lines[-1] = ''
+    return '\n'.join(lines)
