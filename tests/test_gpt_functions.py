@@ -61,12 +61,25 @@ response = openai.ChatCompletion.create(
         {
             "role": "user",
             "content": prompt
-        }
+        },
+        # {
+        #     "role": "assistant",
+        #     "content": None,
+        #     "function_call": {
+        #         "name": "Google",
+        #         "arguments": "{\"query\": \"Anthropic Claude v1 model API reference\"}"
+        #     }
+        # },
+        # {
+        #     "role": "function",
+        #     "content": "Anthropic Claude v1 is a helpful and harmless LLM.",
+        #     "name": "Google",
+        # }
     ],
     functions=functions
 )
 
-print(response)
+print(dict(response.choices[0].message.function_call))
 
 # from serpapi import GoogleSearch
 

@@ -7,16 +7,18 @@ from pydantic import BaseModel
 
 class Message(BaseModel):
     role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal["function"]
-    content: str
+    content: str | None = None
     key: str | None = None
+    function_call: dict | None = None
 
     def to_openai(self) -> str:
-        obj = {"role": self.role}
-        if self.role == "function":
-            obj["function_call"] = json.loads(self.content)
-        else:
-            obj["content"] = self.content
-        print(obj)
+        obj = {
+            "role": self.role,
+            "content": self.content,
+        }
+        if self.function_call:
+            obj["name"] = self.function_call["name"]
+            obj["function_call"] = self.function_call["arguments"]
         return obj
 
 class Function(BaseModel):

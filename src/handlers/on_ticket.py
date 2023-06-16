@@ -9,8 +9,8 @@ import openai
 
 from loguru import logger
 import modal
-from src.core.models import Snippet
 
+from src.core.entities import Snippet
 from src.core.prompts import (
     reply_prompt,
 )
@@ -204,6 +204,7 @@ def on_ticket(
         logger.info("CoT retrieval...")
         if sweep_bot.model == "gpt-4-32k-0613":
             sweep_bot.cot_retrieval()
+        return
         logger.info("Fetching files to modify/create...")
         file_change_requests = sweep_bot.get_files_to_change()
         logger.info("Getting response from ChatGPT...")
