@@ -10,6 +10,7 @@ from src.events import (
     InstallationCreatedRequest,
     IssueCommentRequest,
     IssueRequest,
+    PRRequest,
     ReposAddedRequest,
 )
 from src.utils.event_logger import posthog
@@ -55,7 +56,6 @@ retries = modal.Retries(
 
 handle_ticket = stub.function(**FUNCTION_SETTINGS, retries=retries)(on_ticket)
 handle_comment = stub.function(**FUNCTION_SETTINGS, retries=retries)(on_comment)
-update_index = modal.Function.lookup(DB_NAME, "update_index")
 
 
 @stub.function(**FUNCTION_SETTINGS)
@@ -201,12 +201,21 @@ async def webhook(raw_request: Request):
                         repo.full_name,
                         installation_id=repos_added_request.installation.id,
                     )
-            case ("push", None) | ("pull_request", "closed"):
-                if event != "pull_request" or request_dict["base"]["merged"] == True:
-                    update_index.spawn(
-                        request_dict["repository"]["full_name"],
-                        installation_id=request_dict["installation"]["id"],
-                    )
+            case ("pull_request", "closed"):
+                pr_request = PRRequest(**request_dict)
+                organization, repo_name = pr_request.repository.full_name.split("/")
+                commit_author = pr_request.pull_request.user.login
+                merged_by = pr_request.pull_request.merged_by.login
+                if SWEEP_LOGIN == commit_author:
+                    posthog.capture(
+                        merged_by, 
+                        "merged_sweep_pr", 
+                        properties={
+                            "repo_name": repo_name,
+                            "organization": organization,
+                            "repo_full_name": pr_request.repository.full_name,
+                            "username": merged_by
+                    })
             case "ping", None:
                 return {"message": "pong"}
             case _:
