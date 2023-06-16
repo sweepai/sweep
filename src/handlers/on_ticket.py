@@ -105,22 +105,20 @@ def on_ticket(
     def fetch_file_contents_with_retry():
         retries = 3
         error = None
-        for i in range(retries):
-            try:
-                logger.info(f"Fetching relevant files for the {i}th time...")
-                return search_snippets(
-                    repo,
-                    f"{title}\n{summary}\n{replies_text}",
-                    num_files=num_of_snippets_to_query,
-                    branch=None,
-                    installation_id=installation_id,
-                )
-            except Exception as e:
-                error = e
-                continue
-        posthog.capture(
-            username, "fetching_failed", properties={"error": error, **metadata}
-        )
+if current_issue.state == 'closed':
+    break
+try:
+    logger.info(f"Fetching relevant files for the {i}th time...")
+    return search_snippets(
+        repo,
+        f"{title}\n{summary}\n{replies_text}",
+        num_files=num_of_snippets_to_query,
+        branch=None,
+        installation_id=installation_id,
+    )
+except Exception as e:
+    error = e
+    continue
         raise error
 
     # update_index.call(
@@ -201,78 +199,82 @@ def on_ticket(
     )
 
     try:
-        logger.info("CoT retrieval...")
-        if sweep_bot.model == "gpt-4-32k-0613":
-            sweep_bot.cot_retrieval()
-        logger.info("Fetching files to modify/create...")
-        file_change_requests = sweep_bot.get_files_to_change()
-        logger.info("Getting response from ChatGPT...")
-        reply = sweep_bot.chat(reply_prompt, message_key="reply")
-        sweep_bot.delete_messages_from_chat("reply")
-        logger.info("Sending response...")
-        new_line = '\n'
-        comment_reply(
-            reply
-            + "\n\n"
-            + collapsible_template.format(
-                summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
-                body="\n".join(
-                    [
-                        f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(new_line))}\n"
-                        for snippet in snippets[::-1]
-                    ]
-                ),
-            )
+if current_issue.state == 'closed':
+    break
+try:
+    logger.info("CoT retrieval...")
+    if sweep_bot.model == "gpt-4-32k-0613":
+        sweep_bot.cot_retrieval()
+    logger.info("Fetching files to modify/create...")
+    file_change_requests = sweep_bot.get_files_to_change()
+    logger.info("Getting response from ChatGPT...")
+    reply = sweep_bot.chat(reply_prompt, message_key="reply")
+    sweep_bot.delete_messages_from_chat("reply")
+    logger.info("Sending response...")
+    new_line = '\n'
+    comment_reply(
+        reply
+        + "\n\n"
+        + collapsible_template.format(
+            summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
+            body="\n".join(
+                [
+                    f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(new_line))}\n"
+                    for snippet in snippets[::-1]
+                ]
+            ),
         )
+    )
 
-        logger.info("Generating PR...")
-        pull_request = sweep_bot.generate_pull_request()
+    logger.info("Generating PR...")
+    pull_request = sweep_bot.generate_pull_request()
 
-        logger.info("Making PR...")
-        pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
-        sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
+    logger.info("Making PR...")
+    pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
+    sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
 
-        # Include issue number in PR description
-        pr_description = f"{pull_request.content}\n\nFixes #{issue_number}."
+    # Include issue number in PR description
+    pr_description = f"{pull_request.content}\n\nFixes #{issue_number}."
 
-        pr = repo.create_pull(
-            title=pull_request.title,
-            body=pr_description,
-            head=pull_request.branch_name,
-            base=repo.default_branch,
-        )
-        current_issue.create_reaction("rocket")
-        try:
-            review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username, 
-                    repo_description=repo_description, title=title, 
-                    summary=summary, replies_text=replies_text, installation_id=installation_id, snippets=snippets, tree=tree)
-        except Exception as e:
-            logger.error(e)
-    except openai.error.InvalidRequestError as e:
-        logger.error(e)
-        comment_reply(
-            "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. I'll try again in a minute. If this error persists contact team@sweep.dev."
-        )
-        posthog.capture(
-            username,
-            "failed",
-            properties={
-                "error": str(e),
-                "reason": "Invalid request error / context length",
-                **metadata,
-            },
-        )
-        raise e
+    pr = repo.create_pull(
+        title=pull_request.title,
+        body=pr_description,
+        head=pull_request.branch_name,
+        base=repo.default_branch,
+    )
+    current_issue.create_reaction("rocket")
+    try:
+        review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
+                repo_description=repo_description, title=title,
+                summary=summary, replies_text=replies_text, installation_id=installation_id, snippets=snippets, tree=tree)
     except Exception as e:
         logger.error(e)
-        comment_reply(
-            "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. I'll try again in a minute. If this error persists contact team@sweep.dev."
-        )
-        posthog.capture(
-            username,
-            "failed",
-            properties={"error": str(e), "reason": "Generic error", **metadata},
-        )
+except openai.error.InvalidRequestError as e:
+    logger.error(e)
+    comment_reply(
+        "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. I'll try again in a minute. If this error persists contact team@sweep.dev."
+    )
+    posthog.capture(
+        username,
+        "failed",
+        properties={
+            "error": str(e),
+            "reason": "Invalid request error / context length",
+            **metadata,
+        },
+    )
+    raise e
+except Exception as e:
+    logger.error(e)
+    comment_reply(
+        "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. I'll try again in a minute. If this error persists contact team@sweep.dev."
+    )
+    posthog.capture(
+        username,
+        "failed",
+        properties={"error": str(e), "reason": "Generic error", **metadata},
+    )
+    raise e
         raise e
     else:
         try:
