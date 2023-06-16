@@ -15,13 +15,7 @@ from src.core.entities import (
     RegexMatchError,
     Function
 )
-<<<<<<< HEAD
 from src.core.chat import ChatGPT
-=======
-from src.core.chat import (
-    ChatGPT,
-)
->>>>>>> main
 from src.core.prompts import (
     files_to_change_prompt,
     pull_request_prompt,
