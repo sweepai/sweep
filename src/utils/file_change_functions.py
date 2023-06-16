@@ -46,10 +46,11 @@ modify_file_function = Function(
 def apply_code_edits(file_contents, code_edits):
     modifications = []
     for edit in code_edits:
-        logger.info(f"Edit: {edit}")
         start_line = int(edit['start_line'])
         end_line = int(edit['end_line'])
         new_code = edit['new_code'].split('\n')
+        if new_code[-1] == '```':
+            new_code[-1] = ''
         modifications.append((start_line, end_line, new_code))
 
     # Sort modifications by start line in reverse order
