@@ -159,7 +159,7 @@ and on this line: {pr_line}
 
 cot_retrieval_prompt = """
 Gather information to solve the problem. Use "finish" when you feel like you have sufficient information.
-"""
+""" 
 
 files_to_change_prompt = """
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.

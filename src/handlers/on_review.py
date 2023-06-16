@@ -1,14 +1,10 @@
 """
 Take a PR and provide an AI generated review of the PR.
 """
-import os 
-from github import Github
 from loguru import logger
-import modal
-from src.core.chat import DiffSummarization, PullRequestComment, format_for_anthropic
+from src.core.entities import DiffSummarization, PullRequestComment
 from src.core.prompts import review_prompt
 from src.core.sweep_bot import SweepBot
-from src.utils.constants import API_NAME, BOT_TOKEN_NAME
 
 from src.utils.github_utils import get_file_contents
 from src.utils.prompt_constructor import HumanMessageFinalPRComment, HumanMessagePromptReview, HumanMessageReviewFollowup

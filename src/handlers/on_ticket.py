@@ -9,8 +9,8 @@ import openai
 
 from loguru import logger
 import modal
-from src.core.chat import Snippet
 
+from src.core.entities import Snippet
 from src.core.prompts import (
     reply_prompt,
 )

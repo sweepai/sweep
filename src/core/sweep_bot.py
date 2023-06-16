@@ -15,7 +15,13 @@ from src.core.entities import (
     RegexMatchError,
     Function
 )
+<<<<<<< HEAD
 from src.core.chat import ChatGPT
+=======
+from src.core.chat import (
+    ChatGPT,
+)
+>>>>>>> main
 from src.core.prompts import (
     files_to_change_prompt,
     pull_request_prompt,
@@ -24,7 +30,6 @@ from src.core.prompts import (
     modify_file_plan_prompt,
     cot_retrieval_prompt
 )
-from src.core.react import REACT_INITIAL_PROMPT, ReadFiles, Finish, Toolbox
 from src.utils.file_change_functions import modify_file_function, apply_code_edits
 from src.utils.diff import fuse_files
 
@@ -151,18 +156,21 @@ class SweepBot(CodeGenBot, GithubBot):
             ),
         ]
 
-        response = self.chat(
+
+        self.chat(
             cot_retrieval_prompt, 
             message_key="cot_retrieval",
-            functions=functions
+            functions=functions,
+            function_name={"name": "cat"},
         )
-        is_function_call = self.messages[-1].role == "function"
+        is_function_call = self.messages[-1].function_call is not None
         for _retry in range(3):
             logger.info("Got response.")
             if not is_function_call:
                 break
 
-            response = json.loads(response)
+            response = self.messages[-1].function_call
+            # response = json.loads(response)
             function_name = response["name"]
             arguments = response["arguments"]
             logger.info(f"Fetching file {function_name} with arguments {arguments}.")
