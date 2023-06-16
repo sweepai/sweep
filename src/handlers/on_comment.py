@@ -24,6 +24,7 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 
 def on_comment(
+    comment_id: int,
     repo_full_name: str,
     repo_description: str,
     comment: str,
@@ -56,7 +57,13 @@ def on_comment(
     logger.info(f"Getting repo {repo_full_name}")
     try:
         g = get_github_client(installation_id)
+repo = g.get_repo(repo_full_name)
+comment = repo.get_comment(comment_id)
         repo = g.get_repo(repo_full_name)
+pr = repo.get_pull(pr_number)
+comment.edit(body=comment.body + ' 👀')
+comment.edit(body=comment.body.replace(' 👀', ''))
+comment.edit(body=comment.body + ' 🚀')
         pr = repo.get_pull(pr_number)
         branch_name = pr.head.ref
         pr_title = pr.title
