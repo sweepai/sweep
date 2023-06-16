@@ -137,12 +137,12 @@ class ChatGPT(BaseModel):
         if self.messages[-1].function_call is None:
             self.messages.append(Message(role="user", content=content, key=message_key))
         else:
-            self.messages.append(Message(role="function", content=content, key=message_key))
+            name = self.messages[-1].function_call["name"]
+            self.messages.append(Message(role="function", content=content, key=message_key, name=name))
         model = model or self.model
         if model in ["gpt-3.5-turbo", "gpt-4", "gpt-4-32k", "gpt-4-32k-0613"]:
             # might be a bug here in all of this
             response = self.call_openai(model=model, functions=functions, function_name=function_name)
-            print(response)
             if functions:
                 response, is_function_call = response
                 if is_function_call:

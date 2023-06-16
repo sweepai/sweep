@@ -8,8 +8,9 @@ from pydantic import BaseModel
 class Message(BaseModel):
     role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal["function"]
     content: str | None = None
-    key: str | None = None
+    name: str | None = None
     function_call: dict | None = None
+    key: str | None = None
 
     def to_openai(self) -> str:
         obj = {
@@ -17,8 +18,9 @@ class Message(BaseModel):
             "content": self.content,
         }
         if self.function_call:
-            obj["name"] = self.function_call["name"]
-            obj["function_call"] = self.function_call["arguments"]
+            obj["function_call"] = self.function_call
+        if self.role == "function":
+            obj["name"] = self.name
         return obj
 
 class Function(BaseModel):
