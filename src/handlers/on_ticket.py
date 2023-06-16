@@ -9,7 +9,7 @@ import openai
 
 from loguru import logger
 import modal
-from src.core.models import Snippet
+from src.core.chat import Snippet
 
 from src.core.prompts import (
     reply_prompt,

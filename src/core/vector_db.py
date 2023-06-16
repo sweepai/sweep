@@ -13,8 +13,8 @@ from modal import method
 from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from github import Github
 from git import Repo
-from src.core.models import Snippet
 
+from src.core.entities import Snippet
 from src.utils.event_logger import posthog
 from src.utils.hash import hash_sha256
 

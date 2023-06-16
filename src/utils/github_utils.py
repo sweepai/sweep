@@ -12,7 +12,7 @@ from git import Repo
 from jwt import encode
 import requests
 from tqdm import tqdm
-from src.core.models import Snippet
+from src.core.entities import Snippet
 from src.utils.config import SweepConfig
 from src.utils.constants import APP_ID, DB_NAME
 from src.utils.event_logger import posthog

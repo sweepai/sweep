@@ -7,7 +7,7 @@ from github.GithubException import GithubException
 from pydantic import BaseModel
 
 
-from src.core.models import (
+from src.core.chat import (
     ChatGPT,
     FileChange,
     FileChangeRequest,
