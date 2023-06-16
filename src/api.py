@@ -138,7 +138,7 @@ async def webhook(raw_request: Request):
                         request.installation.id,
                         request.comment.id
                     )
-                elif request.issue.pull_request and request.issue.user.login == SWEEP_LOGIN and request.issue.user.type == "User": # TODO(sweep): set a limit                    
+                elif request.issue.pull_request and request.issue.user.login == SWEEP_LOGIN and request.comment.user.type == "User": # TODO(sweep): set a limit                    
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     handle_comment.spawn(
                         repo_full_name=request.repository.full_name,
