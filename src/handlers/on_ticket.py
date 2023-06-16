@@ -119,8 +119,7 @@ def on_ticket(
                 error = e
                 continue
         posthog.capture(
-posthog.capture(
-    username, "on_ticket_failure", properties={"error": error, **metadata}
+
 )
             username, "fetching_failed", properties={"error": error, **metadata}
         )
