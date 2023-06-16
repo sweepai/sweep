@@ -7,8 +7,7 @@ from github.GithubException import GithubException
 from pydantic import BaseModel
 
 
-from src.core.chat import (
-    ChatGPT,
+from src.core.entities import (
     FileChange,
     FileChangeRequest,
     FilesToChange,
@@ -16,6 +15,7 @@ from src.core.chat import (
     RegexMatchError,
     Function
 )
+from src.core.chat import ChatGPT
 from src.core.prompts import (
     files_to_change_prompt,
     pull_request_prompt,
@@ -151,13 +151,12 @@ class SweepBot(CodeGenBot, GithubBot):
             ),
         ]
 
-
         response = self.chat(
             cot_retrieval_prompt, 
             message_key="cot_retrieval",
             functions=functions
         )
-        is_function_call = self.messages[-1].is_function_call
+        is_function_call = self.messages[-1].role == "function"
         for _retry in range(3):
             logger.info("Got response.")
             if not is_function_call:
