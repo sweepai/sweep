@@ -2,7 +2,7 @@
 This file should be split into environment and config files
 """
 
-PREFIX = "dev"
+PREFIX = "dev2"
 DB_NAME = PREFIX + "-db"
 API_NAME = PREFIX + "-api"
 SWEEP_LOGIN = "sweep-ai[bot]"
