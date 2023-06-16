@@ -17,8 +17,6 @@ from src.utils.config import SweepConfig
 from src.utils.constants import APP_ID, DB_NAME
 from src.utils.event_logger import posthog
 
-# from src.utils.event_logger import log_info_event  # type: ignore
-
 
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"

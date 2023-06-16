@@ -55,6 +55,7 @@ class IssueRequest(BaseModel):
     class Issue(BaseModel):
         class User(BaseModel):
             login: str
+            type: str
 
         class Assignee(BaseModel):
             login: str
@@ -94,3 +95,16 @@ class IssueCommentRequest(IssueRequest):
         id: int
         body: str
     comment: Comment
+
+class PRRequest(BaseModel):
+    class PullRequest(BaseModel):
+        class User(BaseModel):
+            login: str
+        class MergedBy(BaseModel):
+            login: str
+        user: User
+        merged_by: MergedBy
+    class Repository(BaseModel):
+        full_name: str
+    pull_request: PullRequest
+    repository: Repository

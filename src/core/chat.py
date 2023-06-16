@@ -10,6 +10,11 @@ from loguru import logger
 from pydantic import BaseModel
 import backoff
 
+from src.core.entities import (
+    Function,
+    Message,
+    DiffSummarization,
+)
 from src.core.prompts import (
     system_message_prompt,
     system_message_issue_comment_prompt,
@@ -129,7 +134,11 @@ class ChatGPT(BaseModel):
         functions: list[Function] = [],
         function_name: dict | None = None,
     ):
-        self.messages.append(Message(role="user", content=content, key=message_key))
+        if self.messages[-1].function_call is None:
+            self.messages.append(Message(role="user", content=content, key=message_key))
+        else:
+            name = self.messages[-1].function_call["name"]
+            self.messages.append(Message(role="function", content=content, key=message_key, name=name))
         model = model or self.model
         if model in ["gpt-3.5-turbo", "gpt-4", "gpt-4-32k", "gpt-4-32k-0613"]:
             # might be a bug here in all of this
@@ -138,7 +147,7 @@ class ChatGPT(BaseModel):
                 response, is_function_call = response
                 if is_function_call:
                     self.messages.append(
-                        Message(role="function", content=json.dumps(response), key=message_key)
+                        Message(role="assistant", content=None, function_call=response, key=message_key)
                     )
                 else:
                     self.messages.append(
@@ -167,9 +176,9 @@ class ChatGPT(BaseModel):
             model = self.model
         count_tokens = modal.Function.lookup("utils", "Tiktoken.count")
         messages_length = sum(
-            [count_tokens.call(message.content) for message in self.messages]
+            [count_tokens.call(message.content or "") for message in self.messages]
         )
-        max_tokens = model_to_max_tokens[model] - int(messages_length)
+        max_tokens = model_to_max_tokens[model] - int(messages_length) - 200 # this is for the function tokens
         # TODO: Add a check to see if the message is too long
         logger.info("file_change_paths" + str(self.file_change_paths))
         if len(self.file_change_paths) > 0:
@@ -179,7 +188,7 @@ class ChatGPT(BaseModel):
                 pass
             else:
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
-        messages_raw = "\n".join([message.content for message in self.messages])
+        messages_raw = "\n".join([(message.content or "") for message in self.messages])
         logger.info(f"Input to call openai:\n{messages_raw}")
 
         if functions:
@@ -217,7 +226,7 @@ class ChatGPT(BaseModel):
 
             result = fetch()
             if "function_call" in result:
-                result = result["function_call"], True
+                result = dict(result["function_call"]), True
             else:
                 result = result["content"], False
             logger.info(f"Output to call openai:\n{result}")
