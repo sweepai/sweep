@@ -55,6 +55,7 @@ class IssueRequest(BaseModel):
     class Issue(BaseModel):
         class User(BaseModel):
             login: str
+            type: str
 
         class Assignee(BaseModel):
             login: str
