@@ -1,6 +1,6 @@
 import json
 import openai
-from src.core.models import ChatGPT
+from src.core.chat import ChatGPT
 from src.core.prompts import system_message_prompt
 from src.utils.file_change_functions import apply_code_edits, modify_file_function
 from src.utils.prompt_constructor import HumanMessagePrompt
