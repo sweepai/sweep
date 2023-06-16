@@ -492,62 +492,91 @@ def parse_diff():
     z = 3
     return x + y + z
 '''
+#     expected_code = '''\
+# def parse_diff():
+#     x = 1
+#     y = 3
+#     z = 4
+#     return x + y + z
+# '''
+#     code_edits = [
+#         {
+#             "start_line": 2,
+#             "end_line": 4,
+#             "old_code": "    y = 2\n    z = 3",
+#             "new_code": "    y = 3\n    z = 4"
+#         }
+#     ]
+#     print(apply_code_edits(code, code_edits))
+#     assert apply_code_edits(code, code_edits) == expected_code
+#     code_edits = [
+#         {
+#             "start_line": 2,
+#             "end_line": 4,
+#             "old_code": "    y = 2\n    z = 3",
+#             "new_code": "    y = 3\n    z = 4\n    return x + y + z"
+#         }
+#     ]
+#     print(apply_code_edits(code, code_edits))
+#     assert apply_code_edits(code, code_edits) == expected_code
+#     code_edits = [
+#         {
+#             "start_line": 1,
+#             "end_line": 4,
+#             "old_code": "    y = 2\n    z = 3",
+#             "new_code": "    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
+#         }
+#     ]
+#     print(apply_code_edits(code, code_edits))
+#     assert apply_code_edits(code, code_edits) == expected_code
+#     code_edits = [
+#         {
+#             "start_line": 2,
+#             "end_line": 4,
+#             "old_code": "    y = 2\n    z = 3",
+#             "new_code": "    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
+#         }
+#     ]
+#     print(apply_code_edits(code, code_edits))
+#     assert apply_code_edits(code, code_edits) == expected_code
+#     code_edits = [
+#         {
+#             "start_line": 1,
+#             "end_line": 4,
+#             "old_code": "    y = 2\n    z = 3",
+#             "new_code": "def parse_diff():\n    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
+#         }
+#     ]
+#     print(apply_code_edits(code, code_edits))
+#     assert apply_code_edits(code, code_edits) == expected_code
+#     code_edits = [
+#         {
+#             "start_line": 4,
+#             "end_line": 5,
+#             "old_code": "return x + y + z",
+#             "new_code": ''
+#         }
+#     ]
     expected_code = '''\
-def parse_diff():
+def new_fn():
+    print("hello")
     x = 1
-    y = 3
-    z = 4
+    y = 2
+    z = 3
     return x + y + z
 '''
+#     new_code = apply_code_edits(code, code_edits)
+    # assert new_code == expected_code
     code_edits = [
         {
-            "start_line": 2,
-            "end_line": 4,
-            "old_code": "    y = 2\n    z = 3",
-            "new_code": "    y = 3\n    z = 4"
+            "start_line": 0,
+            "end_line": 2,
+            "old_code": "def parse_diff():\n    x = 1",
+            "new_code": "def new_fn():\n    print(\"hello\")\n    x = 1"
         }
     ]
-    print(apply_code_edits(code, code_edits))
-    assert apply_code_edits(code, code_edits) == expected_code
-    code_edits = [
-        {
-            "start_line": 2,
-            "end_line": 4,
-            "old_code": "    y = 2\n    z = 3",
-            "new_code": "    y = 3\n    z = 4\n    return x + y + z"
-        }
-    ]
-    print(apply_code_edits(code, code_edits))
-    assert apply_code_edits(code, code_edits) == expected_code
-    code_edits = [
-        {
-            "start_line": 1,
-            "end_line": 4,
-            "old_code": "    y = 2\n    z = 3",
-            "new_code": "    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
-        }
-    ]
-    print(apply_code_edits(code, code_edits))
-    assert apply_code_edits(code, code_edits) == expected_code
-    code_edits = [
-        {
-            "start_line": 2,
-            "end_line": 4,
-            "old_code": "    y = 2\n    z = 3",
-            "new_code": "    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
-        }
-    ]
-    print(apply_code_edits(code, code_edits))
-    assert apply_code_edits(code, code_edits) == expected_code
-    code_edits = [
-        {
-            "start_line": 1,
-            "end_line": 4,
-            "old_code": "    y = 2\n    z = 3",
-            "new_code": "def parse_diff():\n    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
-        }
-    ]
-    print(apply_code_edits(code, code_edits))
-    assert apply_code_edits(code, code_edits) == expected_code
+    import pdb; pdb.set_trace()
+    new_code = apply_code_edits(code, code_edits)
+    assert new_code == expected_code
     
 test_apply_code_edits()

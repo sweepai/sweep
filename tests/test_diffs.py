@@ -1,4 +1,4 @@
-from src.utils.diff import fuse_files
+from src.utils.diff import format_contents, fuse_files
 
 # Test real one line change
 old_file_content = """print("Hello World")"""
@@ -166,3 +166,39 @@ if __name__ == "__main__":
     assert replaced_new_file_content == old_file_content_i
     replaced_new_file_content = fuse_files(old_file_content_j, new_file_content_j)
     assert replaced_new_file_content == old_file_content_j
+
+    test_file = """import torch
+import torchvision
+import torchvision.transforms as transforms
+
+def load_data():
+    # Load the training and testing data
+    # This is just a placeholder and should be replaced with your actual data loading code
+    pass
+
+def init_model():
+    # Initialize the model
+    # This is just a placeholder and should be replaced with your actual model initialization code
+    pass
+
+def train_model():
+    # Train the model
+    # This is just a placeholder and should be replaced with your actual model training code
+    pass
+
+def main():
+    # Load the data
+    load_data()
+
+    # Initialize the model
+    init_model()
+
+    # Train the model
+    train_model()
+
+if __name__ == "__main__":
+    main()
+```
+
+    """
+    print(format_contents(test_file))
