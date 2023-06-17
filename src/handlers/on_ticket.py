@@ -81,13 +81,13 @@ def on_ticket(
     if comment_id:
         logger.info(f"Replying to comment {comment_id}...")
     logger.info(f"Getting repo {repo_full_name}")
-repo = g.get_repo(repo_full_name)
-current_issue = repo.get_issue(number=issue_number)
-if current_issue.state == 'closed':
-    posthog.capture(username, "issue_closed", properties=metadata)
-    return {"success": False, "reason": "Issue is closed"}
-item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
-eyes_reaction = item_to_react_to.create_reaction("eyes")
+    repo = g.get_repo(repo_full_name)
+    current_issue = repo.get_issue(number=issue_number)
+    if current_issue.state == 'closed':
+        posthog.capture(username, "issue_closed", properties=metadata)
+        return {"success": False, "reason": "Issue is closed"}
+    item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
+    eyes_reaction = item_to_react_to.create_reaction("eyes")
 
     def comment_reply(message: str):
         current_issue.create_comment(message + "\n\n---\n" + bot_suffix)
