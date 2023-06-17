@@ -29,16 +29,18 @@ AnthropicModel = (
     | Literal["claude-v1.3-100k"]
     | Literal["claude-instant-v1.1-100k"]
 )
-OpenAIModel = Literal["gpt-3.5-turbo"] | Literal["gpt-4"] | Literal["gpt-4-32k"]
+OpenAIModel = Literal["gpt-3.5-turbo"] | Literal["gpt-4"] | Literal["gpt-4-32k"] | Literal["gpt-4-0613"] | Literal["gpt-4-32k-0613"] | Literal["gpt-3.5-turbo-16k-0613"]
 ChatModel = OpenAIModel | AnthropicModel
 model_to_max_tokens = {
     "gpt-3.5-turbo": 4096,
-    "gpt-4": 8096,
+    "gpt-4": 8192,
+    "gpt-4-0613": 8192,
     "gpt-4-32k": 32000,
     "gpt-4-32k-0613": 32000,
     "claude-v1": 9000,
     "claude-v1.3-100k": 100000,
     "claude-instant-v1.3-100k": 100000,
+    "gpt-3.5-turbo-16k-0613": 16000,
 }
 # count_tokens = modal.Function.lookup("utils", "Tiktoken.count")
 
@@ -140,7 +142,8 @@ class ChatGPT(BaseModel):
             name = self.messages[-1].function_call["name"]
             self.messages.append(Message(role="function", content=content, key=message_key, name=name))
         model = model or self.model
-        if model in ["gpt-3.5-turbo", "gpt-4", "gpt-4-32k", "gpt-4-32k-0613"]:
+        is_function_call = False
+        if model in [args.__args__[0] for args in OpenAIModel.__args__]:
             # might be a bug here in all of this
             response = self.call_openai(model=model, functions=functions, function_name=function_name)
             if functions:
@@ -149,6 +152,8 @@ class ChatGPT(BaseModel):
                     self.messages.append(
                         Message(role="assistant", content=None, function_call=response, key=message_key)
                     )
+                    self.prev_message_states.append(self.messages)
+                    return self.messages[-1].function_call
                 else:
                     self.messages.append(
                         Message(role="assistant", content=response, key=message_key)
@@ -178,7 +183,7 @@ class ChatGPT(BaseModel):
         messages_length = sum(
             [count_tokens.call(message.content or "") for message in self.messages]
         )
-        max_tokens = model_to_max_tokens[model] - int(messages_length) - 200 # this is for the function tokens
+        max_tokens = model_to_max_tokens[model] - int(messages_length) - 400 # this is for the function tokens
         # TODO: Add a check to see if the message is too long
         logger.info("file_change_paths" + str(self.file_change_paths))
         if len(self.file_change_paths) > 0:
@@ -191,6 +196,11 @@ class ChatGPT(BaseModel):
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
         logger.info(f"Input to call openai:\n{messages_raw}")
 
+        gpt_4_buffer = 800
+        if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
+            model = "gpt-4-0613"
+            max_tokens = model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer # this is for the function tokens
+        logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
         if functions:
             @backoff.on_exception(
                 backoff.expo,
@@ -223,7 +233,6 @@ class ChatGPT(BaseModel):
                     )
                     .choices[0].message
                 )
-
             result = fetch()
             if "function_call" in result:
                 result = dict(result["function_call"]), True
@@ -250,7 +259,6 @@ class ChatGPT(BaseModel):
                     .choices[0]
                     .message["content"]
                 )
-
             result = fetch()
             logger.info(f"Output to call openai:\n{result}")
             return result
