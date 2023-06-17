@@ -178,7 +178,7 @@ class ChatGPT(BaseModel):
         messages_length = sum(
             [count_tokens.call(message.content or "") for message in self.messages]
         )
-        max_tokens = model_to_max_tokens[model] - int(messages_length) - 200 # this is for the function tokens
+        max_tokens = model_to_max_tokens[model] - int(messages_length) - 1000 # this is for the function tokens
         # TODO: Add a check to see if the message is too long
         logger.info("file_change_paths" + str(self.file_change_paths))
         if len(self.file_change_paths) > 0:

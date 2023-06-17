@@ -280,6 +280,8 @@ Code Changes:
 {message_content}
 """
 
+slack_system_message_prompt = "Your name is Sweep bot. You are an engineer assigned to assisting the following Slack user. You will be helpful and friendly, but informal and concise: get to the point. You will use Slack-style markdown when needed to structure your responses."
+
 slack_slash_command_prompt = """
 Relevant snippets provided by search engine (decreasing relevance):
 <relevant_snippets_in_repo>
@@ -294,5 +296,5 @@ Repo: {repo_name}: {repo_description}
 Username: {username}
 Query: {query}
 
-Gather information (i.e. fetch more snippets) to solve the problem. Answer the users question or generate a PR. 
+Gather information (i.e. fetch more snippets) to solve the problem. Use "create_pr" if you think code changes are needed.
 """
