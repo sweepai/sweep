@@ -50,7 +50,7 @@ def fuse_files(old_file_content: str, new_file_content: str):
 
 def format_contents(file_contents):
     """
-    Add arbitrary postprocessing here 
+    Add arbitrary postprocessing here, this affects files and diffs
     """
     lines = file_contents.split('\n')
     for i in range(len(lines) - 1, -1, -1):

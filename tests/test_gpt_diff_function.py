@@ -341,21 +341,21 @@ def test_chat_gpt_call():
     cgpt = ChatGPT.from_system_message_content(human_message=human_message, model="gpt-4"
         )
     response = cgpt.call_openai(model="gpt-4-32k-0613", functions=[modify_file_function], function_name={"name": "modify_file"})
-    # response = openai.ChatCompletion.create(
-    #     model="gpt-4-32k-0613",
-    #     messages=[
-    #         {
-    #             "role": "system",
-    #             "content": system_message_prompt
-    #         },
-    #         {
-    #             "role": "user",
-    #             "content": first_user_prompt
-    #         },
-    #     ],
-    #     functions=modify_file_function,
-    #     function_call={"name": "modify_file"}
-    # )
+    response = openai.ChatCompletion.create(
+        model="gpt-4-32k-0613",
+        messages=[
+            {
+                "role": "system",
+                "content": system_message_prompt
+            },
+            {
+                "role": "user",
+                "content": first_user_prompt
+            },
+        ],
+        functions=modify_file_function,
+        function_call={"name": "modify_file"}
+    )
     assistant_response = response.choices[0]
     arguments = assistant_response["message"]["function_call"]["arguments"]
     json_args = json.loads(arguments)
@@ -693,4 +693,3 @@ code_edits = [
       "new_code": "@app.get(\"/logout\")\nasync def logout(token: str = Depends(oauth2_scheme)):\n    try:\n        remove_token(token)\n        return {\"detail\": \"Logged out\"}\n    except Exception:\n        raise HTTPException(\n            status_code=400, \n            detail=\"Invalid token\"\n        )"
     }]
 new_code = apply_code_edits(code, code_edits)
-import pdb; pdb.set_trace()
