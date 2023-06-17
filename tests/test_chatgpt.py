@@ -1,6 +1,6 @@
 from loguru import logger
 import openai
-from src.core.models import (
+from src.core.chat import (
     ChatGPT,
     Message
 )

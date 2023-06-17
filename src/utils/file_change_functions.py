@@ -1,5 +1,5 @@
 from loguru import logger
-from src.core.models import Function
+from src.core.chat import Function
 from src.utils.diff import format_contents
 
 modify_file_function = Function(

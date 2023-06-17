@@ -2,7 +2,7 @@ from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from loguru import logger
 import modal
 
-from src.core.models import Snippet
+from src.core.chat import Snippet
 from src.utils.config import SweepConfig
 from src.utils.constants import DB_NAME
 
