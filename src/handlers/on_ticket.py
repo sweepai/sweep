@@ -127,8 +127,9 @@ def on_ticket(
     #     repo_full_name,
     #     installation_id=installation_id,
     # )
-
-    logger.info("Fetching relevant files...")
+    if current_issue.state == 'closed':
+        logger.info('Issue is closed, not retrying.')
+        return
     try:
         snippets, tree = fetch_file_contents_with_retry()
         assert len(snippets) > 0
