@@ -1,6 +1,7 @@
 from loguru import logger
 import modal
-from pydantic import ValidationError  # type: ignore
+from pydantic import ValidationError
+from src.handlers.create_pr import create_pr  # type: ignore
 
 from src.handlers.on_ticket import on_ticket
 from src.handlers.on_comment import on_comment
@@ -56,6 +57,7 @@ retries = modal.Retries(
 
 handle_ticket = stub.function(**FUNCTION_SETTINGS, retries=retries)(on_ticket)
 handle_comment = stub.function(**FUNCTION_SETTINGS, retries=retries)(on_comment)
+handle_pr = stub.function(**FUNCTION_SETTINGS, retries=retries)(create_pr)
 
 
 @stub.function(**FUNCTION_SETTINGS)

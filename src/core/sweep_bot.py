@@ -4,6 +4,7 @@ import github
 from github.Repository import Repository
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException
+import modal
 from pydantic import BaseModel
 
 
@@ -13,7 +14,8 @@ from src.core.entities import (
     FilesToChange,
     PullRequest,
     RegexMatchError,
-    Function
+    Function,
+    Snippet
 )
 from src.core.chat import ChatGPT
 from src.core.prompts import (
@@ -24,6 +26,7 @@ from src.core.prompts import (
     modify_file_plan_prompt,
     cot_retrieval_prompt
 )
+from src.utils.constants import DB_NAME
 from src.utils.file_change_functions import modify_file_function, apply_code_edits
 from src.utils.diff import fuse_files
 
@@ -124,6 +127,26 @@ class GithubBot(BaseModel):
                 except GithubException:
                     pass
             raise e
+    
+    def populate_snippets(self, snippets: list[Snippet]):
+        for snippet in snippets:
+            snippet.content = self.repo.get_contents(snippet.file_path).decoded_content.decode("utf-8")
+    
+    def search_snippets(
+        self, 
+        query: str, 
+        installation_id: str,
+        num_snippets: int = 5,
+    ) -> list[Snippet]:
+        get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
+        snippets: list[Snippet] = get_relevant_snippets.call(
+            self.repo.full_name, 
+            query=query,
+            n_results=num_snippets,
+            installation_id=installation_id,
+        )
+        self.populate_snippets(snippets)
+        return snippets
 
 
 class SweepBot(CodeGenBot, GithubBot):
