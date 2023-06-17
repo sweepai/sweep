@@ -130,7 +130,8 @@ def on_ticket(
     if current_issue.state == 'closed':
 logger.info(f'Issue is closed, not retrying. User: {username}')
     logger.info(f'Issue is closed, not retrying. User: {username}')
-    posthog.capture("closed_issue", properties={})
+logger.info(f'Issue is closed, not retrying. User: {username}')
+posthog.capture('closed_issue', properties={})
     except Exception as e:
         logger.error(e)
         comment_reply(
