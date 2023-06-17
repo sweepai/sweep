@@ -129,7 +129,8 @@ def on_ticket(
     # )
     if current_issue.state == 'closed':
         logger.info('Issue is closed, not retrying.')
-        return
+logger.info('Issue is closed, not retrying.')
+    posthog.capture("closed_issue", properties={})
     try:
         snippets, tree = fetch_file_contents_with_retry()
         assert len(snippets) > 0
