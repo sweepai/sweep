@@ -62,7 +62,7 @@ def on_comment(
         pr_title = pr.title
         pr_body = pr.body
         diffs = get_pr_diffs(repo, pr)
-        snippets, tree = search_snippets(repo, comment, installation_id, branch=branch_name, num_files=3 if pr_path else 1)
+        snippets, tree = search_snippets(repo, comment, installation_id, branch=branch_name, num_files=1 if pr_path else 3)
         pr_line = None
         pr_file_path = None
         if pr_path and pr_line_position:
@@ -89,7 +89,7 @@ def on_comment(
         logger.info(f"Human prompt{human_message.construct_prompt()}")
         sweep_bot = SweepBot.from_system_message_content(
             # human_message=human_message, model="claude-v1.3-100k", repo=repo
-            human_message=human_message, repo=repo
+            human_message=human_message, repo=repo, 
         )
     except Exception as e:
         posthog.capture(username, "failed", properties={
