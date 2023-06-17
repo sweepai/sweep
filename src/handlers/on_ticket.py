@@ -82,11 +82,8 @@ def on_ticket(
         logger.info(f"Replying to comment {comment_id}...")
     logger.info(f"Getting repo {repo_full_name}")
     repo = g.get_repo(repo_full_name)
-    current_issue = repo.get_issue(number=issue_number)
-    if current_issue.state == 'closed':
-        posthog.capture(username, "issue_closed", properties=metadata)
-        return {"success": False, "reason": "Issue is closed"}
-    item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
+current_issue = repo.get_issue(number=issue_number)
+item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
     eyes_reaction = item_to_react_to.create_reaction("eyes")
 
     def comment_reply(message: str):
@@ -103,27 +100,28 @@ def on_ticket(
                 ) for comment in comments
             ]
         )
-
-    def fetch_file_contents_with_retry():
-        retries = 3
-        error = None
-        for i in range(retries):
-            try:
-                logger.info(f"Fetching relevant files for the {i}th time...")
-                return search_snippets(
-                    repo,
-                    f"{title}\n{summary}\n{replies_text}",
-                    num_files=num_of_snippets_to_query,
-                    branch=None,
-                    installation_id=installation_id,
-                )
-            except Exception as e:
-                error = e
-                continue
-        posthog.capture(
-            username, "fetching_failed", properties={"error": error, **metadata}
-        )
-        raise error
+def fetch_file_contents_with_retry():
+    retries = 3
+    error = None
+    for i in range(retries):
+        if current_issue.state == 'closed':
+            return {"success": False, "reason": "Issue is closed"}
+        try:
+            logger.info(f"Fetching relevant files for the {i}th time...")
+            return search_snippets(
+                repo,
+                f"{title}\n{summary}\n{replies_text}",
+                num_files=num_of_snippets_to_query,
+                branch=None,
+                installation_id=installation_id,
+            )
+        except Exception as e:
+            error = e
+            continue
+    posthog.capture(
+        username, "fetching_failed", properties={"error": error, **metadata}
+    )
+    raise error
 
     # update_index.call(
     #     repo_full_name,
@@ -131,15 +129,18 @@ def on_ticket(
     # )
 
     logger.info("Fetching relevant files...")
-    try:
-        snippets, tree = fetch_file_contents_with_retry()
-        assert len(snippets) > 0
-    except Exception as e:
-        logger.error(e)
-        comment_reply(
-            "It looks like an issue has occured around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev."
-        )
-        raise e
+logger.info("Fetching relevant files...")
+try:
+    snippets, tree = fetch_file_contents_with_retry()
+    if current_issue.state == 'closed':
+        return {"success": False, "reason": "Issue is closed"}
+    assert len(snippets) > 0
+except Exception as e:
+    logger.error(e)
+    comment_reply(
+        "It looks like an issue has occured around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev."
+    )
+    raise e
 
     # reversing to put most relevant at the bottom
     snippets: list[Snippet] = snippets[::-1]
@@ -201,16 +202,16 @@ def on_ticket(
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message, repo=repo, is_reply=bool(comments)
     )
-
-    try:
-        logger.info("CoT retrieval...")
-        if sweep_bot.model == "gpt-4-32k-0613":
-            sweep_bot.cot_retrieval()
-        logger.info("Fetching files to modify/create...")
-        file_change_requests = sweep_bot.get_files_to_change()
-        logger.info("Getting response from ChatGPT...")
-        reply = sweep_bot.chat(reply_prompt, message_key="reply")
-        sweep_bot.delete_messages_from_chat("reply")
+try:
+    if current_issue.state == 'closed':
+        return {"success": False, "reason": "Issue is closed"}
+    logger.info("CoT retrieval...")
+    if sweep_bot.model == "gpt-4-32k-0613":
+        sweep_bot.cot_retrieval()
+    logger.info("Fetching files to modify/create...")
+    file_change_requests = sweep_bot.get_files_to_change()
+    logger.info("Getting response from ChatGPT...")
+    reply = sweep_bot.chat(reply_prompt, message_key="reply")
         logger.info("Sending response...")
         new_line = '\n'
         comment_reply(
@@ -226,16 +227,17 @@ def on_ticket(
                 ),
             )
         )
+logger.info("Generating PR...")
+if current_issue.state == 'closed':
+    return {"success": False, "reason": "Issue is closed"}
+pull_request = sweep_bot.generate_pull_request()
 
-        logger.info("Generating PR...")
-        pull_request = sweep_bot.generate_pull_request()
+logger.info("Making PR...")
+pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
+sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
 
-        logger.info("Making PR...")
-        pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
-        sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
-
-        # Include issue number in PR description
-        pr_description = f"{pull_request.content}\n\nFixes #{issue_number}."
+# Include issue number in PR description
+pr_description = f"{pull_request.content}\n\nFixes #{issue_number}."
 
         pr = repo.create_pull(
             title=pull_request.title,
