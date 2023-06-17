@@ -358,7 +358,6 @@ def test_chat_gpt_call():
     # )
     assistant_response = response.choices[0]
     arguments = assistant_response["message"]["function_call"]["arguments"]
-    print(arguments)
     json_args = json.loads(arguments)
     code = '''
     """
@@ -482,7 +481,6 @@ def test_chat_gpt_call():
         logger.info("on_comment success")
         return {"success": True}
     '''
-    print(apply_code_edits(code, json_args['code_edits']))
 
 def test_apply_code_edits():
     code = '''\
@@ -492,71 +490,69 @@ def parse_diff():
     z = 3
     return x + y + z
 '''
-#     expected_code = '''\
-# def parse_diff():
-#     x = 1
-#     y = 3
-#     z = 4
-#     return x + y + z
-# '''
-#     code_edits = [
-#         {
-#             "start_line": 2,
-#             "end_line": 4,
-#             "old_code": "    y = 2\n    z = 3",
-#             "new_code": "    y = 3\n    z = 4"
-#         }
-#     ]
-#     print(apply_code_edits(code, code_edits))
-#     assert apply_code_edits(code, code_edits) == expected_code
-#     code_edits = [
-#         {
-#             "start_line": 2,
-#             "end_line": 4,
-#             "old_code": "    y = 2\n    z = 3",
-#             "new_code": "    y = 3\n    z = 4\n    return x + y + z"
-#         }
-#     ]
-#     print(apply_code_edits(code, code_edits))
-#     assert apply_code_edits(code, code_edits) == expected_code
-#     code_edits = [
-#         {
-#             "start_line": 1,
-#             "end_line": 4,
-#             "old_code": "    y = 2\n    z = 3",
-#             "new_code": "    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
-#         }
-#     ]
-#     print(apply_code_edits(code, code_edits))
-#     assert apply_code_edits(code, code_edits) == expected_code
-#     code_edits = [
-#         {
-#             "start_line": 2,
-#             "end_line": 4,
-#             "old_code": "    y = 2\n    z = 3",
-#             "new_code": "    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
-#         }
-#     ]
-#     print(apply_code_edits(code, code_edits))
-#     assert apply_code_edits(code, code_edits) == expected_code
-#     code_edits = [
-#         {
-#             "start_line": 1,
-#             "end_line": 4,
-#             "old_code": "    y = 2\n    z = 3",
-#             "new_code": "def parse_diff():\n    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
-#         }
-#     ]
-#     print(apply_code_edits(code, code_edits))
-#     assert apply_code_edits(code, code_edits) == expected_code
-#     code_edits = [
-#         {
-#             "start_line": 4,
-#             "end_line": 5,
-#             "old_code": "return x + y + z",
-#             "new_code": ''
-#         }
-#     ]
+    expected_code = '''\
+def parse_diff():
+    x = 1
+    y = 3
+    z = 4
+    return x + y + z
+'''
+    code_edits = [
+        {
+            "start_line": 2,
+            "end_line": 4,
+            "old_code": "    y = 2\n    z = 3",
+            "new_code": "    y = 3\n    z = 4\n    return x + y + z"
+        }
+    ]
+    print(apply_code_edits(code, code_edits))
+    assert apply_code_edits(code, code_edits) == expected_code
+    code_edits = [
+        {
+            "start_line": 1,
+            "end_line": 4,
+            "old_code": "    y = 2\n    z = 3",
+            "new_code": "    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
+        }
+    ]
+    print(apply_code_edits(code, code_edits))
+    assert apply_code_edits(code, code_edits) == expected_code
+    code_edits = [
+        {
+            "start_line": 2,
+            "end_line": 4,
+            "old_code": "    y = 2\n    z = 3",
+            "new_code": "    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
+        }
+    ]
+    print(apply_code_edits(code, code_edits))
+    assert apply_code_edits(code, code_edits) == expected_code
+    code_edits = [
+        {
+            "start_line": 1,
+            "end_line": 4,
+            "old_code": "    y = 2\n    z = 3",
+            "new_code": "def parse_diff():\n    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
+        }
+    ]
+    print(apply_code_edits(code, code_edits))
+    assert apply_code_edits(code, code_edits) == expected_code
+    code_edits = [
+        {
+            "start_line": 4,
+            "end_line": 5,
+            "old_code": "return x + y + z",
+            "new_code": ''
+        }
+    ]
+    expected_code = '''\
+def parse_diff():
+    x = 1
+    y = 2
+    z = 3
+'''
+    new_code = apply_code_edits(code, code_edits)
+    assert new_code == expected_code
     expected_code = '''\
 def new_fn():
     print("hello")
@@ -565,18 +561,136 @@ def new_fn():
     z = 3
     return x + y + z
 '''
-#     new_code = apply_code_edits(code, code_edits)
-    # assert new_code == expected_code
     code_edits = [
         {
             "start_line": 0,
-            "end_line": 2,
+            "end_line": 1,
             "old_code": "def parse_diff():\n    x = 1",
             "new_code": "def new_fn():\n    print(\"hello\")\n    x = 1"
         }
     ]
-    import pdb; pdb.set_trace()
     new_code = apply_code_edits(code, code_edits)
     assert new_code == expected_code
     
 test_apply_code_edits()
+
+code_numbered = """\
+0: from fastapi import FastAPI, Depends, HTTPException
+1: from .database import check_user_credentials, store_token, verify_token
+2: from .database import check_user_credentials
+3: from fastapi import FastAPI, Depends, HTTPException
+4: from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+5: from pydantic import BaseModel
+6: import jwt
+7: import datetime
+8: 
+9: app = FastAPI()
+10: 
+11: oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+12: 
+13: def authenticate_user(username: str, password: str):
+14:     user = check_user_credentials(username, password)
+15:     if not user:
+16:         raise HTTPException(
+17:             status_code=400,
+18:             detail="Incorrect username or password"
+19:         )
+20:     return user
+21:     )
+22: 
+23: @app.post("/token")
+24: async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+25:     user = authenticate_user(form_data.username, form_data.password)
+26:     if not user:
+27:         raise HTTPException(
+28:             status_code=400, 
+29:             detail="Incorrect username or password"
+30:         )
+31: 
+32:     token = jwt.encode(user, "secret", algorithm="HS256")
+33:     store_token(token, user)
+34:     if not verify_token(token):
+35:         raise HTTPException(
+36:             status_code=400,
+37:             detail="Invalid token"
+38:         )
+39:     return {"access_token": token, "token_type": "bearer"}
+40: 
+41: @app.get("/logout")
+42: async def logout(token: str = Depends(oauth2_scheme)):
+43:     # This endpoint should invalidate the provided token
+44:     # For simplicity, we assume the token is invalidated if it's "logout"
+45:     if token == "logout":
+46:         return {"detail": "Logged out"}
+47: 
+48:     raise HTTPException(
+49:         status_code=400, 
+50:         detail="Invalid token"
+51:     )
+"""
+
+code = """\
+from fastapi import FastAPI, Depends, HTTPException
+from .database import check_user_credentials, store_token, verify_token
+from .database import check_user_credentials
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel
+import jwt
+import datetime
+
+app = FastAPI()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+def authenticate_user(username: str, password: str):
+    user = check_user_credentials(username, password)
+    if not user:
+        raise HTTPException(
+            status_code=400,
+            detail="Incorrect username or password"
+        )
+    return user
+    )
+
+@app.post("/token")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=400, 
+            detail="Incorrect username or password"
+        )
+
+    token = jwt.encode(user, "secret", algorithm="HS256")
+    store_token(token, user)
+    if not verify_token(token):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid token"
+        )
+    return {"access_token": token, "token_type": "bearer"}
+
+@app.get("/logout")
+async def logout(token: str = Depends(oauth2_scheme)):
+    # This endpoint should invalidate the provided token
+    # For simplicity, we assume the token is invalidated if it's "logout"
+    if token == "logout":
+        return {"detail": "Logged out"}
+
+    raise HTTPException(
+        status_code=400, 
+        detail="Invalid token"
+    )
+"""
+code_lines = code.split("\n")
+numbered_lines = code_numbered.split("\n")
+code_edits = [
+    {
+      "start_line": 41,
+      "end_line": 51,
+      "old_code": "@app.get(\"/logout\")\nasync def logout(token: str = Depends(oauth2_scheme)):\n    # This endpoint should invalidate the provided token\n    # For simplicity, we assume the token is invalidated if it's \"logout\"\n    if token == \"logout\":\n        return {\"detail\": \"Logged out\"}\n\n    raise HTTPException(\n        status_code=400, \n        detail=\"Invalid token\"\n    )",
+      "new_code": "@app.get(\"/logout\")\nasync def logout(token: str = Depends(oauth2_scheme)):\n    try:\n        remove_token(token)\n        return {\"detail\": \"Logged out\"}\n    except Exception:\n        raise HTTPException(\n            status_code=400, \n            detail=\"Invalid token\"\n        )"
+    }]
+new_code = apply_code_edits(code, code_edits)
+import pdb; pdb.set_trace()

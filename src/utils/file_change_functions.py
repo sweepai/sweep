@@ -61,12 +61,31 @@ def apply_code_edits(file_contents, code_edits):
     modifications.sort(key=lambda x: x[0], reverse=True)
     lines = file_contents.split('\n')
     for start_line, end_line, new_code in modifications:
-        start_formatted = False # Don't modify the start line if it's already formatted
-        end_formatted = False # Don't modify the end line if it's already formatted
+        if start_line > end_line:
+            logger.error(f"Start line {start_line} is greater than end line {end_line}")
+            continue
+        if start_line < 0:
+            logger.error(f"Start line {start_line} is less than 0")
+            continue
+        if end_line > len(lines) - 1:
+            logger.error(f"End line {end_line} is greater than the number of lines in the file {len(lines)}")
+            continue
         # Handle duplicate lines between the existing code and new code
-        if start_line > 0 and new_code[0] == lines[start_line-1] and not start_formatted:
+        if start_line > 0 and end_line < len(lines) \
+            and new_code[0] == lines[start_line-1] and new_code[-1] == lines[end_line]:
+            new_code = new_code[1:-1]
+            lines[start_line:end_line] = new_code
+            continue
+        elif start_line > 0 and new_code[0] == lines[start_line-1]:
             new_code = new_code[1:]
-        if end_line < len(lines) and new_code[-1] == lines[end_line] and not end_formatted:
+            lines[start_line-1:end_line + 1] = new_code # Exit and merge first line
+            continue
+        elif end_line < len(lines) and new_code[-1] == lines[end_line]:
             new_code = new_code[:-1]
-        lines[start_line:end_line] = new_code
+            lines[start_line:end_line] = new_code # Exit and merge last line
+            continue
+        # Check index error
+        if end_line > len(lines) - 1:
+            end_line = len(lines) - 1
+        lines[start_line:end_line + 1] = new_code # Start and end are inclusive
     return '\n'.join(lines)
