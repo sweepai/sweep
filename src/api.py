@@ -70,8 +70,7 @@ async def webhook(raw_request: Request):
         match event, request_dict.get("action", None):
             case "issues", "opened":
 request = IssueRequest(**request_dict)
-issue_title_lower = request.issue.title.lower().replace('sweep: ', '').replace('sweep ', '')
-if issue_title_lower:
+issue_title_lower = request.issue.title.lower()
                     g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
 
@@ -96,26 +95,27 @@ if issue_title_lower:
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(LABEL_NAME)
             case "issues", "labeled":
-                request = IssueRequest(**request_dict)
-                if request.issue is not None and (
-                    "sweep" in [label.name.lower() for label in request.issue.labels]
-                ):
-                    request.issue.body = request.issue.body or ""
-                    request.repository.description = (
-                        request.repository.description or ""
-                    )
-                    # Update before we handle the ticket to make sure index is up to date
-                    # other ways suboptimal
-                    handle_ticket.spawn(
-                        request.issue.title,
-                        request.issue.body,
-                        request.issue.number,
-                        request.issue.html_url,
-                        request.issue.user.login,
-                        request.repository.full_name,
-                        request.repository.description,
-                        request.installation.id,
-                    )
+request = IssueRequest(**request_dict)
+if request.issue is not None and (
+    "sweep" in [label.name.lower() for label in request.issue.labels]
+):
+    request.issue.title = request.issue.title.lower().replace('sweep: ', '').replace('sweep ', '')
+    request.issue.body = request.issue.body or ""
+    request.repository.description = (
+        request.repository.description or ""
+    )
+    # Update before we handle the ticket to make sure index is up to date
+    # other ways suboptimal
+    handle_ticket.spawn(
+        request.issue.title,
+        request.issue.body,
+        request.issue.number,
+        request.issue.html_url,
+        request.issue.user.login,
+        request.repository.full_name,
+        request.repository.description,
+        request.installation.id,
+    )
             case "issue_comment", "created":
                 request = IssueCommentRequest(**request_dict)
                 if request.issue is not None \
