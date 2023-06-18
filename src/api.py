@@ -71,7 +71,6 @@ async def webhook(raw_request: Request):
             case "issues", "opened":
 request = IssueRequest(**request_dict)
 issue_title_lower = request.issue.title.lower()
-                    g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
 
                     labels = repo.get_labels()
