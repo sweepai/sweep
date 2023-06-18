@@ -2,7 +2,7 @@ from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from loguru import logger
 import modal
 
-from src.core.chat import Snippet
+from src.core.entities import Snippet
 from src.utils.config import SweepConfig
 from src.utils.constants import DB_NAME
 
@@ -93,15 +93,19 @@ results = deeplake_vector_store_e.search(
 # import pdb; pdb.set_trace()
 # test concurrency
 get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
-get_relevant_snippets.spawn(
+# get_relevant_snippets.spawn(
+#     repo_name="sweepai/bot-internal",
+#     installation_id=36855882,
+#     query = "Sweep: Add eyes reaction on comment replies",
+#     n_results = 10,
+#     )
+import time
+s = time.time()
+get_relevant_snippets.call(
     repo_name="sweepai/bot-internal",
     installation_id=36855882,
     query = "Sweep: Add eyes reaction on comment replies",
     n_results = 10,
     )
-get_relevant_snippets.spawn(
-    repo_name="sweepai/bot-internal",
-    installation_id=36855882,
-    query = "Sweep: Add eyes reaction on comment replies",
-    n_results = 10,
-    )
+e = time.time()
+print("Time taken: {}".format(e - s))
