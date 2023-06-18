@@ -2805,7 +2805,7 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.11"
-content-hash = "0683fecf68cd2acbac942a4c3551e961e31fe398a94df970e00588062bcc58a3"
+content-hash = "f0062ab49b36975eae0d0d78937887cf0dc40b32c02dab7cd3f7c7aac4d32ebb"
 
 [metadata.files]
 aiohttp = [
