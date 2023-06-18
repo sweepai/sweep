@@ -1,7 +1,10 @@
 from loguru import logger
 from src.core.chat import Function
 from src.utils.diff import format_contents
-
+modify_file_function = Function(
+    name="modify_file",
+    description="Edits the code in a file. Be sure to properly indent and format the code in `new_code`. Output the code in the order it should appear in the file. Make sure `start_line` and `end_line` do not overlap between code edits.",
+    parameters={
 modify_file_function = Function(
     name="modify_file",
     description="Edits the code in a file. Be sure to properly indent and format the code in `new_code`. Output the code in the order it should appear in the file. Make sure `start_line` and `end_line` do not overlap between code edits.",
@@ -11,6 +14,10 @@ modify_file_function = Function(
             "file_name": {
                 "type": "string",
                 "description": "The name of the file to modify."
+            },
+            "indentation": {
+                "type": "integer",
+                "description": "The number of tabs to indent the new code."
             },
             "code_edits": {
                 "type": "array",
@@ -39,8 +46,9 @@ modify_file_function = Function(
                 "description": "An array of edits. Each `code_edit` represents a span delimited by `start_line` and `end_line`. Both `start_line` and `end_line` are zero-indexed and inclusive."
             }
         },
-        "required": ["file_name", "code_edits"]
+        "required": ["file_name", "indentation", "code_edits"]
         }
+)
 )
 
 def apply_code_edits(file_contents, code_edits):
@@ -54,8 +62,10 @@ def apply_code_edits(file_contents, code_edits):
             new_code = "''" + new_code[2:]
         elif len(new_code) >= 2 and new_code[-2:] == '""':
             new_code = new_code[:-2] + "''"
-        new_code = edit['new_code'].split('\n')
-        modifications.append((start_line, end_line, new_code))
+new_code = edit['new_code'].split('
+')
+new_code = ["\t" * edit['indentation'] + line for line in new_code]
+modifications.append((start_line, end_line, new_code))
 
     # Sort modifications by start line in reverse order
     modifications.sort(key=lambda x: x[0], reverse=True)
