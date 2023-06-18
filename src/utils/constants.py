@@ -2,11 +2,13 @@
 This file should be split into environment and config files
 """
 
-PREFIX = "dev2"
+PREFIX = "prod"
 DB_NAME = PREFIX + "-db"
 API_NAME = PREFIX + "-api"
 SLACK_NAME = PREFIX + "-slack"
 BOT_TOKEN_NAME = PREFIX + "-bot-token"
+if PREFIX == "prod":
+    BOT_TOKEN_NAME = "bot-token"
 SWEEP_LOGIN = "sweep-ai[bot]"
 
 if PREFIX == "prod":

@@ -2,12 +2,14 @@ import json
 import os
 
 from fastapi import Request, Response
+
 import modal
 from pydantic import BaseModel
 from src.core.entities import FileChangeRequest, Function, PullRequest, Snippet
 
 from src.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, SLACK_NAME
 from src.core.prompts import slack_slash_command_prompt
+from src.utils.github_utils import get_installation_id
 
 image = modal.Image \
     .debian_slim() \
@@ -83,16 +85,20 @@ functions = [
     )
 ]
 
-installation_id = 37093089
-
 pr_format = """I'm going to create a PR with the following:
 
-*{title}*
-
-{summary}
+> *{title}*
+> {summary}
 
 I have the following plan:
-{plan}
+> {plan}
+
+:hourglass_flowing_sand: Creating...
+"""
+
+pr_done_format = """:white_check_mark: Done creating PR at {url} with the following:
+> *{title}*
+> {summary}
 """
 
 class SlackSlashCommandRequest(BaseModel):
@@ -115,13 +121,33 @@ def reply_slack(request: SlackSlashCommandRequest):
 
     create_pr = modal.Function.lookup(API_NAME, "create_pr")
 
-    repo_name = "sweepai/dummy-repo"
+    client = slack_sdk.WebClient(token=os.environ["SLACK_BOT_TOKEN"])
+    # channel_description = client
+    
+    channel_info = client.conversations_info(channel=request.channel_id)
+    channel_description: str = channel_info['channel']['purpose']['value']
+    logger.info(f"Channel description: {channel_description}")
 
+    repo_full_name = channel_description.split()[-1]
+    logger.info(f"Repo name: {repo_full_name}")
+
+    organization_name, repo_name = repo_full_name.split("/")
+    
+    try:
+        installation_id = get_installation_id(organization_name)
+    except:
+        # TODO: provide better instructions for installation
+        client.chat_postMessage(
+            channel=request.channel_id,
+            text=f"An error has occurred with fetching the credentials for {repo_full_name}. Please ensure that the app is installed.",
+        )
+        raise Exception("Could not find installation_id")
+
+    print(installation_id)
     g = get_github_client(installation_id)
-    repo = g.get_repo(repo_name)
+    repo = g.get_repo(repo_full_name)
     sweep_bot = SweepBot(repo=repo)
 
-    client = slack_sdk.WebClient(token=os.environ["SLACK_BOT_TOKEN"])
     thread = client.chat_postMessage(
         channel=request.channel_id,
         text=f">{request.text}\n- <@{request.user_name}>",
@@ -194,7 +220,7 @@ def reply_slack(request: SlackSlashCommandRequest):
                 summary = arguments["summary"]
                 branch = arguments["branch"]
                 plan = arguments["plan"]
-                print(plan)
+                # print(plan)
                 plan_message = "\n".join(f"`{file['file_path']}`: {file['instructions']}" for file in plan)
 
                 creating_pr_message = client.chat_postMessage(
@@ -228,7 +254,11 @@ def reply_slack(request: SlackSlashCommandRequest):
                 pr = results["pull_request"]
                 client.chat_update(
                     channel=request.channel_id,
-                    text=f"Created PR at {pr.html_url}.",
+                    text=pr_done_format.format(
+                        url=pr.html_url,
+                        title=title,
+                        summary=summary,
+                    ),
                     ts=creating_pr_message["ts"],
                 )
                 break

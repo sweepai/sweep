@@ -50,6 +50,22 @@ def get_github_client(installation_id: int):
     return Github(token)
 
 
+def get_installation_id(username: str):
+    jwt = get_jwt()
+    response = requests.get(
+        f"https://api.github.com/users/{username}/installation",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": "Bearer " + jwt,
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
+    obj = response.json()
+    try:
+        return obj["id"]
+    except:
+        raise Exception("Could not get installation id, probably not installed")
+
 def display_directory_tree(
     root_path,
     includes: list[str] = [],
