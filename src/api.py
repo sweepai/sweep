@@ -71,28 +71,28 @@ async def webhook(raw_request: Request):
             case "issues", "opened":
 request = IssueRequest(**request_dict)
 issue_title_lower = request.issue.title.lower()
-                    repo = g.get_repo(request.repository.full_name)
+repo = g.get_repo(request.repository.full_name)
 
-                    labels = repo.get_labels()
-                    label_names = [label.name for label in labels]
+labels = repo.get_labels()
+label_names = [label.name for label in labels]
 
-                    if LABEL_NAME not in label_names:
-                        repo.create_label(
-                            name=LABEL_NAME,
-                            color=LABEL_COLOR,
-                            description=LABEL_DESCRIPTION,
-                        )
-                    # TODO(sweep): figure out why this is breaking
-                    # else:
-                    #     label = repo.get_label(LABEL_NAME)
-                    #     label.edit(
-                    #         name=LABEL_NAME,
-                    #         color=LABEL_COLOR, 
-                    #         description=LABEL_DESCRIPTION
-                    #     )
-                    
-                    current_issue = repo.get_issue(number=request.issue.number)
-                    current_issue.add_to_labels(LABEL_NAME)
+if LABEL_NAME not in label_names:
+    repo.create_label(
+        name=LABEL_NAME,
+        color=LABEL_COLOR,
+        description=LABEL_DESCRIPTION,
+    )
+# TODO(sweep): figure out why this is breaking
+# else:
+#     label = repo.get_label(LABEL_NAME)
+#     label.edit(
+#         name=LABEL_NAME,
+#         color=LABEL_COLOR,
+#         description=LABEL_DESCRIPTION
+#     )
+
+current_issue = repo.get_issue(number=request.issue.number)
+current_issue.add_to_labels(LABEL_NAME)
             case "issues", "labeled":
 request = IssueRequest(**request_dict)
 if request.issue is not None and (
