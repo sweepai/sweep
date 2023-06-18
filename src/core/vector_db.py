@@ -1,12 +1,13 @@
+import json
 import os
 import re
 import time
 import shutil
 import glob
 
-import diskcache
 from modal import stub
 from loguru import logger
+from redis import Redis
 from tqdm import tqdm
 import modal
 from modal import method
@@ -38,7 +39,7 @@ image = (
     modal.Image.debian_slim()
     .apt_install("git")
     .pip_install("deeplake==3.6.3", "sentence-transformers")
-    .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "highlight-io", "anthropic", "posthog", "diskcache")
+    .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "highlight-io", "anthropic", "posthog", "redis")
 )
 secrets = [
     modal.Secret.from_name(BOT_TOKEN_NAME),
@@ -47,6 +48,7 @@ secrets = [
     modal.Secret.from_name("chroma-endpoint"),
     modal.Secret.from_name("posthog"),
     modal.Secret.from_name("highlight"),
+    modal.Secret.from_name("redis_url"),
     modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
 ]
 
@@ -71,11 +73,11 @@ def list_collection_names():
     image=image,
     secrets=secrets,
     shared_volumes={MODEL_DIR: model_volume},
-    gpu="any",
+    keep_warm=1,
+    gpu="T4",
     retries=modal.Retries(max_retries=5, backoff_coefficient=2, initial_delay=5),
 )
 class Embedding:
-
     def __enter__(self):
         from sentence_transformers import SentenceTransformer
 
@@ -195,18 +197,16 @@ def get_deeplake_vs_from_repo(
         embeddings = [None] * len(documents)
         cache_success = True
         try:
-            fanout_cache = diskcache.Cache(directory = f"{DISKCACHE_DIR}", timeout=30)
-            cache = fanout_cache.cache(name=f"{collection_name}_cache")
-            logger.info(f"Succesfully got cache for {collection_name} with {len(cache)} items")
+            cache = Redis.from_url(os.environ.get("redis_url"))
+            logger.info(f"Succesfully got cache for {collection_name}")
         except:
             cache_success = False
         if cache_success:
-            for idx, doc in enumerate(documents):
-                hashed_doc = hash_sha256(doc)
-                if hashed_doc in cache:
-                    embeddings[idx] = cache[hashed_doc]
-                else:
-                    logger.info(f"Did not find {doc[0:10]} in cache")
+            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL for doc in documents]
+            cache_values = cache.mget(cache_keys)
+            for idx, value in enumerate(cache_values):
+                if value is not None:
+                    embeddings[idx] = json.loads(value)
         logger.info(f"Found {len([x for x in embeddings if x is not None])} embeddings in cache")
         indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
@@ -220,15 +220,10 @@ def get_deeplake_vs_from_repo(
             embedding = embeddings,
             metadata = metadatas
         )
-        # TODO: make cache writes async
-        if cache_success:
+        if cache_success and len(documents_to_compute) > 0:
             logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
-            with cache.transact():
-                for doc, embedding in zip(documents_to_compute, computed_embeddings):
-                    hashed_doc = hash_sha256(doc)
-                    logger.info(f"Adding {doc[0:10]} to cache")
-                    cache[hashed_doc] = embedding
-            cache.close()
+            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL for doc in documents_to_compute]
+            cache.mset({key: json.dumps(value) for key, value in zip(cache_keys, computed_embeddings)})
         return deeplake_vs
     else:
         logger.error("No documents found in repository")
