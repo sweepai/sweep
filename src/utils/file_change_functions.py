@@ -15,8 +15,7 @@ modify_file_function = Function(
             "code_edits": {
                 "type": "array",
                 "items": {
-                    "type": "object",
-                    "properties": {
+"properties": {
                         "start_line": {
                             "type": "integer",
                             "description": "The index where the change should start."
@@ -32,7 +31,12 @@ modify_file_function = Function(
                         "new_code": {
                             "type": "string",
                             "description": "The code to insert into the file. Format this code keeping in mind indentation. If you want to delete a line, set this to '' (single quoted empty string)."
+                        },
+                        "indentation": {
+                            "type": "integer",
+                            "description": "The number of tabs to indent the new code."
                         }
+                    },
                     },
                     "required": ["start_line", "end_line", "old_code", "new_code"]
                 },
@@ -48,13 +52,15 @@ def apply_code_edits(file_contents, code_edits):
     for edit in code_edits:
         start_line = int(edit['start_line'])
         end_line = int(edit['end_line'])
-        new_code = format_contents(edit['new_code'])
+new_code = format_contents(edit['new_code'])
         # Starts with or ends with "" should be swapped to '' for json
         if len(new_code) >= 2 and new_code[:1] == '""':
             new_code = "''" + new_code[2:]
         elif len(new_code) >= 2 and new_code[-2:] == '""':
             new_code = new_code[:-2] + "''"
         new_code = edit['new_code'].split('\n')
+        indentation = edit.get('indentation', 0)
+        new_code = ["\t" * indentation + line for line in new_code]
         modifications.append((start_line, end_line, new_code))
 
     # Sort modifications by start line in reverse order
