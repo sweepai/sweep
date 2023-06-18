@@ -135,6 +135,8 @@ def reply_slack(request: SlackSlashCommandRequest):
     
     try:
         installation_id = get_installation_id(organization_name)
+        g = get_github_client(installation_id)
+        repo = g.get_repo(repo_full_name)
     except:
         # TODO: provide better instructions for installation
         client.chat_postMessage(
@@ -143,9 +145,6 @@ def reply_slack(request: SlackSlashCommandRequest):
         )
         raise Exception("Could not find installation_id")
 
-    print(installation_id)
-    g = get_github_client(installation_id)
-    repo = g.get_repo(repo_full_name)
     sweep_bot = SweepBot(repo=repo)
 
     thread = client.chat_postMessage(
@@ -153,26 +152,19 @@ def reply_slack(request: SlackSlashCommandRequest):
         text=f">{request.text}\n- <@{request.user_name}>",
     )
 
-    default_snippets = [
-        Snippet(file_path="app/test.py", start=0, end=2, content=""),
-        Snippet(file_path="README.md", start=0, end=1, content=""),
-        Snippet(file_path="HelloWorld.tsx", start=0, end=11, content=""),
-    ]
-    sweep_bot.populate_snippets(default_snippets)
-
     try:
         logger.info("Fetching relevant snippets...")
         searching_message = client.chat_postMessage(
             channel=request.channel_id,
-            text="Searching for relevant snippets...",
+            text=":mag_right: Searching for relevant snippets...",
             thread_ts=thread["ts"],
         )
-        snippets = default_snippets
-        # snippets = sweep_bot.search_snippets(
-        #     request.text,
-        #     installation_id=installation_id
-        # )
-        message = "Some relevant snippets I found:\n\n"
+        # snippets = default_snippets
+        snippets = sweep_bot.search_snippets(
+            request.text,
+            installation_id=installation_id
+        )
+        message = ":mag_right: Some relevant snippets I found:\n\n"
         message += "\n".join(f"{snippet.get_slack_link(repo_name)}\n```{snippet.get_preview()}```" for snippet in snippets)
         client.chat_update(
             channel=request.channel_id,
@@ -198,15 +190,15 @@ def reply_slack(request: SlackSlashCommandRequest):
                 logger.info("Searching for relevant snippets...")
                 search_message = client.chat_postMessage(
                     channel=request.channel_id,
-                    text=f"Searching \"{arguments['query']}\" in the codebase...",
+                    text=f":mag_right: Searching \"{arguments['query']}\" in the codebase...",
                     thread_ts=thread["ts"],
                 )
-                # additional_snippets = sweep_bot.search_snippets(
-                #     arguments["query"],
-                #     installation_id=installation_id
-                # )
-                additional_snippets = default_snippets
-                additional_snippets_message = f"Found {len(additional_snippets)} additional snippets:\n\n" +  "\n".join(
+                additional_snippets = sweep_bot.search_snippets(
+                    arguments["query"],
+                    installation_id=installation_id
+                )
+                # additional_snippets = default_snippets
+                additional_snippets_message = f":mag_right: Found {len(additional_snippets)} additional snippets:\n\n" +  "\n".join(
                     f"{snippet.get_slack_link(repo_name)}\n```{snippet.get_preview()}```" for snippet in additional_snippets
                 )
                 client.chat_update(
@@ -274,13 +266,16 @@ def reply_slack(request: SlackSlashCommandRequest):
     except Exception as e:
         client.chat_postMessage(
             channel=request.channel_id,
-            text="Sorry, something went wrong.",
+            text=":exclamation: Sorry, something went wrong.",
             thread_ts=thread["ts"],
         )
         raise e
 
 
-@stub.function(image=image)
+@stub.function(
+    image=image,
+    keep_warm=1
+)
 @modal.web_endpoint(method="POST")
 async def entrypoint(request: Request):
     body = await request.form()
