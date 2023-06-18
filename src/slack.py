@@ -122,35 +122,41 @@ def reply_slack(request: SlackSlashCommandRequest):
     create_pr = modal.Function.lookup(API_NAME, "create_pr")
 
     client = slack_sdk.WebClient(token=os.environ["SLACK_BOT_TOKEN"])
-    # channel_description = client
-    
-    channel_info = client.conversations_info(channel=request.channel_id)
-    channel_description: str = channel_info['channel']['purpose']['value']
-    logger.info(f"Channel description: {channel_description}")
-
-    repo_full_name = channel_description.split()[-1]
-    logger.info(f"Repo name: {repo_full_name}")
-
-    organization_name, repo_name = repo_full_name.split("/")
     
     try:
-        installation_id = get_installation_id(organization_name)
-        g = get_github_client(installation_id)
-        repo = g.get_repo(repo_full_name)
-    except:
-        # TODO: provide better instructions for installation
+        channel_info = client.conversations_info(channel=request.channel_id)
+        channel_description: str = channel_info['channel']['purpose']['value']
+        logger.info(f"Channel description: {channel_description}")
+
+        repo_full_name = channel_description.split()[-1]
+        logger.info(f"Repo name: {repo_full_name}")
+
+        organization_name, repo_name = repo_full_name.split("/")
+        
+        try:
+            installation_id = get_installation_id(organization_name)
+            g = get_github_client(installation_id)
+            repo = g.get_repo(repo_full_name)
+        except Exception as e:
+            # TODO: provide better instructions for installation
+            client.chat_postMessage(
+                channel=request.channel_id,
+                text=f"An error has occurred with fetching the credentials for {repo_full_name}. Please ensure that the app is installed on the Github repo.",
+            )
+            raise e
+
+        sweep_bot = SweepBot(repo=repo)
+
+        thread = client.chat_postMessage(
+            channel=request.channel_id,
+            text=f">{request.text}\n- <@{request.user_name}>",
+        )
+    except Exception as e:
         client.chat_postMessage(
             channel=request.channel_id,
-            text=f"An error has occurred with fetching the credentials for {repo_full_name}. Please ensure that the app is installed.",
+            text=":exclamation: Sorry, something went wrong.",
         )
-        raise Exception("Could not find installation_id")
-
-    sweep_bot = SweepBot(repo=repo)
-
-    thread = client.chat_postMessage(
-        channel=request.channel_id,
-        text=f">{request.text}\n- <@{request.user_name}>",
-    )
+        raise e
 
     try:
         logger.info("Fetching relevant snippets...")
@@ -212,7 +218,6 @@ def reply_slack(request: SlackSlashCommandRequest):
                 summary = arguments["summary"]
                 branch = arguments["branch"]
                 plan = arguments["plan"]
-                # print(plan)
                 plan_message = "\n".join(f"`{file['file_path']}`: {file['instructions']}" for file in plan)
 
                 creating_pr_message = client.chat_postMessage(
@@ -243,6 +248,7 @@ def reply_slack(request: SlackSlashCommandRequest):
                     username=request.user_name,
                     installation_id=installation_id,
                 )
+                logger.debug(results)
                 pr = results["pull_request"]
                 client.chat_update(
                     channel=request.channel_id,
