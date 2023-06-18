@@ -47,3 +47,18 @@ def fuse_files(old_file_content: str, new_file_content: str):
         result_lines.insert(j2, '\n'.join(lines))
     result_lines = [line.rstrip() for line in result_lines]
     return '\n'.join(result_lines).strip('\n') + '\n'
+
+def format_contents(file_contents):
+    """
+    Add arbitrary postprocessing here, this affects files and diffs
+    """
+    lines = file_contents.split('\n')
+    for i in range(len(lines) - 1, -1, -1):
+        # If a line is a triple backtick or empty (whitespace),
+        # replace it with an empty string
+        if lines[i].strip() == '```' or not lines[i].strip():
+            lines = lines[:i]
+        else:
+            # Stop when we hit a non-whitespace and non-backtick line
+            break
+    return '\n'.join(lines)

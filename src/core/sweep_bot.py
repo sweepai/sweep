@@ -28,7 +28,7 @@ from src.core.prompts import (
 )
 from src.utils.constants import DB_NAME
 from src.utils.file_change_functions import modify_file_function, apply_code_edits
-from src.utils.diff import fuse_files
+from src.utils.diff import format_contents, fuse_files
 
 
 class CodeGenBot(ChatGPT):
@@ -175,10 +175,9 @@ class SweepBot(CodeGenBot, GithubBot):
 
 
         self.chat(
-            cot_retrieval_prompt, 
+            cot_retrieval_prompt,
             message_key="cot_retrieval",
             functions=functions,
-            function_name={"name": "cat"},
         )
         is_function_call = self.messages[-1].function_call is not None
         for _retry in range(3):
@@ -249,7 +248,7 @@ class SweepBot(CodeGenBot, GithubBot):
         contents_line_numbers = "\n".join([f"{i}: {line}" for i, line in enumerate(contents.split("\n"))])
         contents_line_numbers = contents_line_numbers.replace('"""', "'''")
         for count in range(5):
-            if self.model == "gpt-4-32k-0613":
+            if "0613" in self.model:
                 _ = self.chat( # We don't use the plan in the next call
                     modify_file_plan_prompt.format(
                         filename=file_change_request.filename,
@@ -265,7 +264,9 @@ class SweepBot(CodeGenBot, GithubBot):
                     function_name={"name": "modify_file"}, # Force it to call modify_file
                 )
                 try:
-                    code_edits = json.loads(json.loads(modify_file_response)["arguments"])["code_edits"]
+                    logger.info(f"modify_file_response: {modify_file_response}")
+                    arguments = json.loads(modify_file_response["arguments"])
+                    code_edits = arguments["code_edits"]
                     edited_file = apply_code_edits(contents, code_edits)
                     return (fuse_files(contents, edited_file), file_change_request.filename)
                 except Exception as e:
@@ -300,6 +301,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     logger.debug(
                         f"{file_change_request.filename}, {file_change.commit_message}, {file_change.code}, {branch}"
                     )
+                    file_change.code = format_contents(file_change.code)
                     self.repo.create_file(
                         file_change_request.filename,
                         file_change.commit_message,
@@ -310,6 +312,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     logger.info(e)
                     try: # Try to modify
                         contents = self.get_file(file_change_request.filename, branch=branch)
+                        file_change.code = format_contents(file_change.code)
                         self.repo.update_file(
                             file_change_request.filename,
                             file_change.commit_message,
@@ -331,6 +334,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     logger.debug(
                         f"{file_change_request.filename}, {file_change.commit_message}, {file_change.code}, {branch}"
                     )
+                    file_change.code = format_contents(file_change.code)
                     self.repo.create_file(
                         file_change_request.filename,
                         file_change.commit_message,
@@ -341,6 +345,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     new_file_contents, file_name = self.modify_file(
                         file_change_request, contents.decoded_content.decode("utf-8")
                     )
+                    new_file_contents = format_contents(new_file_contents)
                     logger.debug(
                         f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
                     )
