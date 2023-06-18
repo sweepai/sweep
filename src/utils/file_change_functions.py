@@ -16,7 +16,7 @@ modify_file_function = Function(
                 "type": "array",
                 "items": {
                     "type": "object",
-                    "properties": {
+"properties": {
                         "start_line": {
                             "type": "integer",
                             "description": "The index where the change should start."
@@ -32,6 +32,10 @@ modify_file_function = Function(
                         "new_code": {
                             "type": "string",
                             "description": "The code to insert into the file. Format this code keeping in mind indentation. If you want to delete a line, set this to '' (single quoted empty string)."
+                        },
+                        "indentation": {
+                            "type": "integer",
+                            "description": "The number of tabs to indent."
                         }
                     },
                     "required": ["start_line", "end_line", "old_code", "new_code"]
@@ -54,7 +58,7 @@ def apply_code_edits(file_contents, code_edits):
             new_code = "''" + new_code[2:]
         elif len(new_code) >= 2 and new_code[-2:] == '""':
             new_code = new_code[:-2] + "''"
-        new_code = edit['new_code'].split('\n')
+new_code = [\t*edit['indentation'] + line for line in edit['new_code'].split('\n')]
         modifications.append((start_line, end_line, new_code))
 
     # Sort modifications by start line in reverse order
