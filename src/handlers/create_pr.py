@@ -69,8 +69,8 @@ def create_pr(
             base=sweep_bot.repo.default_branch,
         )
         # try:
-        #     review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username, 
-        #             repo_description=repo_description, title=title, 
+        #     review_pr(repo=sweep_bot.repo, pr=pr, issue_url=issue_url, username=username, 
+        #             repo_description=sweep_bot.repo.description,  title=pull_request.title,
         #             summary=summary, replies_text=replies_text, installation_id=installation_id, snippets=snippets, tree=tree)
         # except Exception as e:
         #     logger.error(e)
