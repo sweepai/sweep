@@ -12,30 +12,36 @@ modify_file_function = Function(
                 "type": "string",
                 "description": "The name of the file to modify."
             },
-            "code_edits": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "start_line": {
-                            "type": "integer",
-                            "description": "The index where the change should start."
-                        },
-                        "end_line": {
-                            "type": "integer",
-                            "description": "The index where the code should end. Add 1 to this number to include the line."
-                        },
-                        "old_code": {
-                            "type": "string",
-                            "description": "The code to replace. Format this code with the same indents, brackets as it appears in the file."
-                        },
-                        "new_code": {
-                            "type": "string",
-                            "description": "The code to insert into the file. Format this code keeping in mind indentation. If you want to delete a line, set this to '' (single quoted empty string)."
-                        }
-                    },
-                    "required": ["start_line", "end_line", "old_code", "new_code"]
-                },
+"code_edits": {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "start_line": {
+                "type": "integer",
+                "description": "The index where the change should start."
+            },
+            "end_line": {
+                "type": "integer",
+                "description": "The index where the code should end. Add 1 to this number to include the line."
+            },
+            "old_code": {
+                "type": "string",
+                "description": "The code to replace. Format this code with the same indents, brackets as it appears in the file."
+            },
+            "new_code": {
+                "type": "string",
+                "description": "The code to insert into the file. Format this code keeping in mind indentation. If you want to delete a line, set this to '' (single quoted empty string)."
+            },
+            "indentation": {
+                "type": "integer",
+                "description": "The number of tabs to indent the new code."
+            }
+        },
+        "required": ["start_line", "end_line", "old_code", "new_code", "indentation"]
+    },
+    "description": "An array of edits. Each `code_edit` represents a span delimited by `start_line` and `end_line`. Both `start_line` and `end_line` are zero-indexed and inclusive."
+}
                 "description": "An array of edits. Each `code_edit` represents a span delimited by `start_line` and `end_line`. Both `start_line` and `end_line` are zero-indexed and inclusive."
             }
         },
@@ -48,13 +54,14 @@ def apply_code_edits(file_contents, code_edits):
     for edit in code_edits:
         start_line = int(edit['start_line'])
         end_line = int(edit['end_line'])
+        indentation = int(edit['indentation'])
         new_code = format_contents(edit['new_code'])
         # Starts with or ends with "" should be swapped to '' for json
         if len(new_code) >= 2 and new_code[:1] == '""':
             new_code = "''" + new_code[2:]
         elif len(new_code) >= 2 and new_code[-2:] == '""':
             new_code = new_code[:-2] + "''"
-        new_code = edit['new_code'].split('\n')
+        new_code = ['\t' * indentation + line for line in edit['new_code'].split('\n')]
         modifications.append((start_line, end_line, new_code))
 
     # Sort modifications by start line in reverse order
