@@ -128,14 +128,11 @@ def get_deeplake_vs_from_repo(
 
     start = time.time()
     logger.info("Recursively getting list of files...")
-
-    repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
+repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
+    if commit_hash is not None:
+        repo_url += f"/{commit_hash}"
     shutil.rmtree("repo", ignore_errors=True)
     Repo.clone_from(repo_url, "repo")
-
-    file_list = glob.iglob("repo/**", recursive=True)
-    file_list = [
-        file
         for file in tqdm(file_list)
         if os.path.isfile(file)
         and all(not file.endswith(ext) for ext in sweep_config.exclude_exts)
@@ -228,22 +225,23 @@ def get_deeplake_vs_from_repo(
     else:
         logger.error("No documents found in repository")
         return deeplake_vs
-
-@stub.function(image=image, secrets=secrets, timeout=15 * 60, shared_volumes={DISKCACHE_DIR: model_volume})
 def init_index(
     repo_name: str,
     installation_id: int,
+    commit_hash: str = None,
     sweep_config: SweepConfig = SweepConfig(),
 ):
     pass
+    pass
 
 
-@stub.function(image=image, secrets=secrets, timeout=30 * 60, shared_volumes={DISKCACHE_DIR: model_volume})
 def update_index(
     repo_name,
     installation_id: int,
+    commit_hash: str = None,
     sweep_config: SweepConfig = SweepConfig(),
 ) -> int:
+    pass
     pass
 
 
