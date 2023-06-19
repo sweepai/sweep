@@ -1,4 +1,5 @@
 import shutil
+import yaml
 import modal
 import os
 import time
@@ -211,10 +212,20 @@ def index_full_repository(
     installation_id: int = None,
     sweep_config: SweepConfig = SweepConfig(),
 ):
+    # Read the commit-hash from the sweep.yaml file
+    commit_hash = None
+    try:
+        with open('sweep.yaml', 'r') as file:
+            config = yaml.safe_load(file)
+            commit_hash = config.get('commit-hash')
+    except Exception as e:
+        logger.warning("Failed to read commit-hash from sweep.yaml: ", e)
+
     init_index = modal.Function.lookup(DB_NAME, "init_index")
     num_indexed_docs = init_index.spawn(
         repo_name=repo_name,
         installation_id=installation_id,
+        commit_hash=commit_hash,
         sweep_config=sweep_config,
     )
     try:
