@@ -143,7 +143,7 @@ These are the file changes.
 We have the file_path, the previous_file_content, the new_file_content, and the diffs.
 The file_path is the name of the file.
 The previous_file_content is the content of the file before the changes.
-The new_file_content is the content of the file after the changes.https://github.com/sweepai/dummy-repo/blob/main/blob/HelloWorld.tsx#L1-L11
+The new_file_content is the content of the file after the changes.
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
 {diff}
@@ -206,12 +206,7 @@ File Name: {filename}
 
 Instructions: {instructions}
 
-Reply in the format below. 
-* You MUST use the new_file XML tags
-* DO NOT write ``` anywhere, unless it's markdown
-* DO NOT write "pass" or "Rest of code"
-* Do not literally write "{{new_file}}".
-* Format:
+Reply in the following format. DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}".
 
 Step-by-step chain of thoughts: 
 * Thought 1
@@ -225,6 +220,15 @@ Commit Message: {{commit_message}}
 <new_file>
 {{new_file}}
 </new_file>
+"""
+
+"""
+Reply in the format below. 
+* You MUST use the new_file XML tags
+* DO NOT write ``` anywhere, unless it's markdown
+* DO NOT write "pass" or "Rest of code"
+* Do not literally write "{{new_file}}".
+* Format:
 """
 
 modify_file_plan_prompt = """
@@ -258,7 +262,7 @@ pr_code_prompt = ""  # TODO: deprecate this
 
 
 pull_request_prompt = """
-Awesome! Could you also provide a PR message in the following format? Content shoulhttps://github.com/sweepai/dummy-repo/blob/main/blob/HelloWorld.tsx#L1-L11d be in markdown. Thanks!
+Awesome! Could you also provide a PR message in the following format? Content should be in markdown. Thanks!
 
 Title: {title}
 Branch Name: {branch_name}
