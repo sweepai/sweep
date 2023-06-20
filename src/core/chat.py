@@ -42,7 +42,7 @@ model_to_max_tokens = {
     "claude-instant-v1.3-100k": 100000,
     "gpt-3.5-turbo-16k-0613": 16000,
 }
-temperature = 0.3
+temperature = 0.1
 
 def format_for_anthropic(messages: list[Message]) -> str:
     if len(messages) > 1:
