@@ -75,6 +75,9 @@ class FileChange(RegexMatchableBaseModel):
         result.code = result.code.strip()
         if result.code.endswith("</new_file>"):
             result.code = result.code[: -len("</new_file>")]
+        if len(result.code) == 1:
+            result.code = result.code.replace("```", "")
+            return result.code + "\n"
         if result.code.startswith("```"):
             first_newline = result.code.find("\n")
             last_newline = result.code.rfind("\n")
