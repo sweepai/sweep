@@ -67,7 +67,8 @@ class FileChangeRequest(RegexMatchableBaseModel):
 class FileChange(RegexMatchableBaseModel):
     commit_message: str
     code: str
-    _regex = r"""Commit Message:(?P<commit_message>.*)<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)$"""
+    # _regex = r"""Commit Message:(?P<commit_message>.*)<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)$"""
+    _regex = r"""Commit Message:(?P<commit_message>.*)(<new_file>|```)(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)($|```)"""
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
@@ -153,7 +154,7 @@ class Snippet(BaseModel):
         return f"<{self.get_url(repo_name, commit_id)}|{base}{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}>"
 
     def get_preview(self, max_lines: int  = 5):
-        return "\n".join(self.content.splitlines()[:min(max_lines, self.content.count("\n") + 1)])
+        return "\n".join(self.content.splitlines()[self.start:min(self.start + max_lines, self.end)])
 
 class DiffSummarization(RegexMatchableBaseModel):
     content: str

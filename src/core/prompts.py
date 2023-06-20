@@ -206,7 +206,12 @@ File Name: {filename}
 
 Instructions: {instructions}
 
-Reply in the following format. DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}".
+Reply in the format below. 
+* You MUST use the new_file XML tags
+* DO NOT write ``` anywhere, unless it's markdown
+* DO NOT write "pass" or "Rest of code"
+* Do not literally write "{{new_file}}".
+* Format:
 
 Step-by-step chain of thoughts: 
 * Thought 1
@@ -296,5 +301,5 @@ Repo: {repo_name}: {repo_description}
 Username: {username}
 Query: {query}
 
-Gather information (i.e. fetch more snippets) to solve the problem. Use "create_pr" if you think code changes are needed.
+Gather information (i.e. fetch more snippets) to solve the problem. Use "create_pr" if the user asks for changes or you think code changes are needed.
 """

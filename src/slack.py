@@ -6,7 +6,11 @@ from fastapi import Request, Response
 import modal
 from pydantic import BaseModel
 from src.core.entities import FileChangeRequest, Function, PullRequest, Snippet
+import slack_sdk
+from loguru import logger
 
+from src.core.sweep_bot import SweepBot
+from src.utils.github_utils import get_github_client
 from src.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, SLACK_NAME
 from src.core.prompts import slack_slash_command_prompt
 from src.utils.github_utils import get_installation_id
@@ -62,7 +66,7 @@ functions = [
                 },
                 "summary": {
                     "type": "string",
-                    "description": "Summary of PR",
+                    "description": "Detailed summary of PR",
                 },
                 "branch": {
                     "type": "string",
@@ -91,7 +95,7 @@ pr_format = """I'm going to create a PR with the following:
 > {summary}
 
 I have the following plan:
-> {plan}
+{plan}
 
 :hourglass_flowing_sand: Creating...
 """
@@ -111,16 +115,10 @@ class SlackSlashCommandRequest(BaseModel):
 @stub.function(
     image=image,
     secrets=secrets,
+    timeout=15 * 60,
 )
 def reply_slack(request: SlackSlashCommandRequest):
-    import slack_sdk
-    import github
-    from loguru import logger
-    from src.core.sweep_bot import SweepBot
-    from src.utils.github_utils import get_github_client
-
     create_pr = modal.Function.lookup(API_NAME, "create_pr")
-
     client = slack_sdk.WebClient(token=os.environ["SLACK_BOT_TOKEN"])
     
     try:
@@ -204,7 +202,7 @@ def reply_slack(request: SlackSlashCommandRequest):
                     installation_id=installation_id
                 )
                 # additional_snippets = default_snippets
-                additional_snippets_message = f":mag_right: Found {len(additional_snippets)} additional snippets:\n\n" +  "\n".join(
+                additional_snippets_message = f":mag_right: Found {len(additional_snippets)} additional snippets with the query \"{arguments['query']}\":\n\n" +  "\n".join(
                     f"{snippet.get_slack_link(repo_name)}\n```{snippet.get_preview()}```" for snippet in additional_snippets
                 )
                 client.chat_update(
@@ -219,6 +217,7 @@ def reply_slack(request: SlackSlashCommandRequest):
                 branch = arguments["branch"]
                 plan = arguments["plan"]
                 plan_message = "\n".join(f"`{file['file_path']}`: {file['instructions']}" for file in plan)
+                plan_message = ">" + plan_message.replace("\n", "\n> ")
 
                 creating_pr_message = client.chat_postMessage(
                     channel=request.channel_id,
