@@ -5,7 +5,7 @@ from src.handlers.create_pr import create_pr  # type: ignore
 
 from src.handlers.on_ticket import on_ticket
 from src.handlers.on_comment import on_comment
-from src.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, LABEL_COLOR, LABEL_DESCRIPTION, LABEL_NAME, SWEEP_LOGIN
+from src.utils.constants import API_NAME, BOT_TOKEN_NAME, LABEL_COLOR, LABEL_DESCRIPTION, LABEL_NAME, SWEEP_LOGIN
 from src.events import (
     CommentCreatedRequest,
     InstallationCreatedRequest,

@@ -130,7 +130,10 @@ class GithubBot(BaseModel):
     
     def populate_snippets(self, snippets: list[Snippet]):
         for snippet in snippets:
-            snippet.content = self.repo.get_contents(snippet.file_path).decoded_content.decode("utf-8")
+            try:
+                snippet.content = self.repo.get_contents(snippet.file_path).decoded_content.decode("utf-8")
+            except Exception as e:
+                logger.error(snippet)
     
     def search_snippets(
         self, 
