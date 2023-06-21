@@ -183,7 +183,7 @@ def reply_slack(request: SlackSlashCommandRequest):
             username=request.user_name,
             query=request.text
         )
-        response = sweep_bot.chat(prompt, functions=functions)
+        response = sweep_bot.chat(prompt, functions=functions, function_name={"name": "create_pr"})
         logger.info(response)
 
         while sweep_bot.messages[-1].function_call is not None:
