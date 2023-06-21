@@ -100,13 +100,13 @@ class Snippet(BaseModel):
     start: int
     end: int
     file_path: str
-def get_snippet(self):
-    snippet = "\n".join(self.content.splitlines()[self.start:self.end])
-    if self.start > 1:
-        snippet = '...' + snippet
-    if self.end < self.content.count('\n') + 1:
-        snippet = snippet + '...'
-    return snippet
+    def get_snippet(self):
+        snippet = "\n".join(self.content.splitlines()[self.start:self.end])
+        if self.start > 1:
+            snippet = '...' + snippet
+        if self.end < self.content.count('\n') + 1:
+            snippet = snippet + '...'
+        return snippet
 
     def __add__(self, other):
         assert self.content == other.content
