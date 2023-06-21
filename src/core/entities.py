@@ -67,8 +67,8 @@ class FileChangeRequest(RegexMatchableBaseModel):
 class FileChange(RegexMatchableBaseModel):
     commit_message: str
     code: str
-    # _regex = r"""Commit Message:(?P<commit_message>.*)<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)$"""
-    _regex = r"""Commit Message:(?P<commit_message>.*)(<new_file>|```)(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)($|```)"""
+    _regex = r"""Commit Message:(?P<commit_message>.*)<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)$"""
+    # _regex = r"""Commit Message:(?P<commit_message>.*)(<new_file>|```)(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)($|```)"""
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
