@@ -42,7 +42,7 @@ model_to_max_tokens = {
     "claude-instant-v1.3-100k": 100000,
     "gpt-3.5-turbo-16k-0613": 16000,
 }
-# count_tokens = modal.Function.lookup("utils", "Tiktoken.count")
+temperature = 0.1
 
 def format_for_anthropic(messages: list[Message]) -> str:
     if len(messages) > 1:
@@ -216,7 +216,7 @@ class ChatGPT(BaseModel):
                             model=model,
                             messages=self.messages_dicts,
                             max_tokens=max_tokens,
-                            temperature=0.1,
+                            temperature=temperature,
                             functions=[json.loads(function.json()) for function in functions],
                             function_call=function_name,
                         )
@@ -228,7 +228,7 @@ class ChatGPT(BaseModel):
                         model=model,
                         messages=self.messages_dicts,
                         max_tokens=max_tokens,
-                        temperature=0.1,
+                        temperature=temperature,
                         functions=[json.loads(function.json()) for function in functions],
                     )
                     .choices[0].message
@@ -254,7 +254,7 @@ class ChatGPT(BaseModel):
                         model=model,
                         messages=self.messages_dicts,
                         max_tokens=max_tokens,
-                        temperature=0.1,
+                        temperature=temperature,
                     )
                     .choices[0]
                     .message["content"]
@@ -292,7 +292,7 @@ class ChatGPT(BaseModel):
                 model=model,
                 max_tokens_to_sample=max_tokens,
                 disable_checks=True,
-                temperature=0.1,
+                temperature=temperature,
             )
             return results["completion"], results["stop_reason"]
 

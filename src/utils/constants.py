@@ -2,23 +2,24 @@
 This file should be split into environment and config files
 """
 
-PREFIX = "dev"
+PREFIX = "prod"
 DB_NAME = PREFIX + "-db"
 API_NAME = PREFIX + "-api"
+SLACK_NAME = PREFIX + "-slack"
+BOT_TOKEN_NAME = PREFIX + "-bot-token"
+if PREFIX == "prod":
+    BOT_TOKEN_NAME = "bot-token"
 SWEEP_LOGIN = "sweep-ai[bot]"
 
 if PREFIX == "prod":
     APP_ID = 307814
-    BOT_TOKEN_NAME = "bot-token"
     ENV = PREFIX
 elif PREFIX == "dev2":
     APP_ID = 327588
-    BOT_TOKEN_NAME = "dev2-bot-token"
     ENV = PREFIX
     SWEEP_LOGIN = "sweep-canary[bot]"
 elif PREFIX == "dev":
     APP_ID = 324098
-    BOT_TOKEN_NAME = "dev-bot-token"
     ENV = PREFIX
     SWEEP_LOGIN = "sweep-nightly[bot]"
 LABEL_NAME = "sweep"
