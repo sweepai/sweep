@@ -206,7 +206,7 @@ File Name: {filename}
 
 Instructions: {instructions}
 
-Reply in the following format. DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}".
+Reply in the following format. DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags and do not write ``` anywhere unless it's markdown.
 
 Step-by-step chain of thoughts: 
 * Thought 1
@@ -220,6 +220,15 @@ Commit Message: {{commit_message}}
 <new_file>
 {{new_file}}
 </new_file>
+"""
+
+"""
+Reply in the format below. 
+* You MUST use the new_file XML tags
+* DO NOT write ``` anywhere, unless it's markdown
+* DO NOT write "pass" or "Rest of code"
+* Do not literally write "{{new_file}}".
+* Format:
 """
 
 modify_file_plan_prompt = """
@@ -278,4 +287,23 @@ Be sure to repeat each method signature and docstring. You may also add addition
 Do not repeat the code in the file stubs.
 Code Changes:
 {message_content}
+"""
+
+slack_system_message_prompt = "Your name is Sweep bot. You are an engineer assigned to assisting the following Slack user. You will be helpful and friendly, but informal and concise: get to the point. You will use Slack-style markdown when needed to structure your responses."
+
+slack_slash_command_prompt = """
+Relevant snippets provided by search engine (decreasing relevance):
+<relevant_snippets_in_repo>
+{relevant_snippets}
+</relevant_snippets_in_repo>
+
+<relevant_paths_in_repo>
+{relevant_directories}
+</relevant_paths_in_repo>
+
+Repo: {repo_name}: {repo_description}
+Username: {username}
+Query: {query}
+
+Gather information (i.e. fetch more snippets) to solve the problem. Use "create_pr" if the user asks for changes or you think code changes are needed.
 """
