@@ -177,43 +177,43 @@ class SweepBot(CodeGenBot, GithubBot):
         ]
 
 
-        self.chat(
-            cot_retrieval_prompt,
-            message_key="cot_retrieval",
-            functions=functions,
-        )
-        is_function_call = self.messages[-1].function_call is not None
-        for _retry in range(3):
-            logger.info("Got response.")
-            if not is_function_call:
-                break
+        # self.chat(
+        #     cot_retrieval_prompt,
+        #     message_key="cot_retrieval",
+        #     functions=functions,
+        # )
+        # is_function_call = self.messages[-1].function_call is not None
+        # for _retry in range(3):
+        #     logger.info("Got response.")
+        #     if not is_function_call:
+        #         break
 
-            response = self.messages[-1].function_call
-            # response = json.loads(response)
-            function_name = response["name"]
-            arguments = response["arguments"]
-            logger.info(f"Fetching file {function_name} with arguments {arguments}.")
-            arguments = json.loads(arguments)
-            if function_name == "finish":
-                return
-            elif function_name == "cat":
-                path = arguments["filepath"]
-                try:
-                    logger.info("Retrieving file...")
-                    content = self.get_file(path).decoded_content.decode("utf-8")
-                    logger.info("Received file")
-                except github.GithubException:
-                    response = self.chat(
-                        f"File not found: {path}",
-                        message_key=path,
-                        functions=functions,
-                    )
-                else:
-                    response = self.chat(
-                        f"Here is the file: <file path=\"{path}\">\n\n{content[:10000]}</file>. Fetch more content or call finish.", 
-                        message_key=path,
-                        functions=functions
-                    ) # update this constant
+        #     response = self.messages[-1].function_call
+        #     # response = json.loads(response)
+        #     function_name = response["name"]
+        #     arguments = response["arguments"]
+        #     logger.info(f"Fetching file {function_name} with arguments {arguments}.")
+        #     arguments = json.loads(arguments)
+        #     if function_name == "finish":
+        #         return
+        #     elif function_name == "cat":
+        #         path = arguments["filepath"]
+        #         try:
+        #             logger.info("Retrieving file...")
+        #             content = self.get_file(path).decoded_content.decode("utf-8")
+        #             logger.info("Received file")
+        #         except github.GithubException:
+        #             response = self.chat(
+        #                 f"File not found: {path}",
+        #                 message_key=path,
+        #                 functions=functions,
+        #             )
+        #         else:
+        #             response = self.chat(
+        #                 f"Here is the file: <file path=\"{path}\">\n\n{content[:10000]}</file>. Fetch more content or call finish.", 
+        #                 message_key=path,
+        #                 functions=functions
+        #             ) # update this constant
         return
 
     def create_file(self, file_change_request: FileChangeRequest) -> FileChange:

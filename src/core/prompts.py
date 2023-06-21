@@ -206,7 +206,7 @@ File Name: {filename}
 
 Instructions: {instructions}
 
-Reply in the following format. DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}".
+Reply in the following format. DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags and do not write ``` anywhere unless it's markdown.
 
 Step-by-step chain of thoughts: 
 * Thought 1
