@@ -103,9 +103,9 @@ class Snippet(BaseModel):
     def get_snippet(self):
         snippet = "\n".join(self.content.splitlines()[self.start:self.end])
         if self.start > 1:
-            snippet = '...' + snippet
+            snippet = '...\n' + snippet
         if self.end < self.content.count('\n') + 1:
-            snippet = snippet + '...'
+            snippet = snippet + '\n...'
         return snippet
 
     def __add__(self, other):
