@@ -3,8 +3,8 @@ List of common prompts used across the codebase.
 """
 
 # Following two should be fused
-system_message_prompt = "Your name is Sweep bot. You are an engineer assigned to the following Github ticket. You will be helpful and friendly, but informal and concise: get to the point. You will use Github-style markdown when needed to structure your responses."
-system_message_issue_comment_prompt = "Your name is Sweep bot. You are an engineer assigned to the following Github ticket, and a user has just responded with feedback. You will be helpful and friendly, but informal and concise: get to the point. You will use Github-style markdown when needed to structure your responses."
+system_message_prompt = "Your name is Sweep bot. You are a brilliant and thorough engineer assigned to the following Github ticket. You will be helpful and friendly, but informal and concise: get to the point. When you write code, you always think through it and format it properly."
+system_message_issue_comment_prompt = "Your name is Sweep bot. You are an engineer assigned to the following Github ticket, and a user has just responded with feedback. You will be helpful and friendly, but informal and concise: get to the point."
 
 human_message_prompt = """
 <relevant_snippets_in_repo>
@@ -106,7 +106,7 @@ Given these summaries write a direct and concise GitHub review comment. If there
 In case changes are required, keep in mind the author is an inexperienced programmer and may need a pointer to the files and specific changes.
 Follow this format:
 <review_comment>
-Mention any changes that need to be made in GitHub markdown:
+Mention any changes that need to be made, using GitHub markdown to format the comment.
 - Change required in file on line x1-x2
 - Change required in file on line y1-y2
 ...
@@ -195,6 +195,7 @@ Write a response to this user:
 * Tell them you have started working on this PR and a rough summary of your plan. 
 * Do not start with "Here is a draft", just write the response.
 * End with "Give me a minute!".
+* Use github markdown to format the response.
 """
 
 create_file_prompt = """
@@ -262,7 +263,7 @@ pr_code_prompt = ""  # TODO: deprecate this
 
 
 pull_request_prompt = """
-Awesome! Could you also provide a PR message in the following format? Content should be in markdown. Thanks!
+Awesome! Could you also provide a PR message in the following format? Content should be in Github style markdown. Thanks!
 
 Title: {title}
 Branch Name: {branch_name}
