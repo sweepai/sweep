@@ -61,7 +61,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
     filename: str
     instructions: str
     change_type: Literal["modify"] | Literal["create"]
-    _regex = r"""^ *(?P<filename>\S*):(?P<instructions>.*)"""
+    _regex = r"""^ *`?(?P<filename>\S*)`?:(?P<instructions>.*)"""
 
 
 class FileChange(RegexMatchableBaseModel):

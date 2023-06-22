@@ -501,7 +501,6 @@ def parse_diff():
         {
             "start_line": 2,
             "end_line": 4,
-            "old_code": "    y = 2\n    z = 3",
             "new_code": "    y = 3\n    z = 4\n    return x + y + z"
         }
     ]
@@ -511,7 +510,6 @@ def parse_diff():
         {
             "start_line": 1,
             "end_line": 4,
-            "old_code": "    y = 2\n    z = 3",
             "new_code": "    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
         }
     ]
@@ -521,7 +519,6 @@ def parse_diff():
         {
             "start_line": 2,
             "end_line": 4,
-            "old_code": "    y = 2\n    z = 3",
             "new_code": "    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
         }
     ]
@@ -531,7 +528,6 @@ def parse_diff():
         {
             "start_line": 1,
             "end_line": 4,
-            "old_code": "    y = 2\n    z = 3",
             "new_code": "def parse_diff():\n    x = 1\n    y = 3\n    z = 4\n    return x + y + z"
         }
     ]
@@ -541,7 +537,6 @@ def parse_diff():
         {
             "start_line": 4,
             "end_line": 5,
-            "old_code": "return x + y + z",
             "new_code": ''
         }
     ]
@@ -565,7 +560,6 @@ def new_fn():
         {
             "start_line": 0,
             "end_line": 1,
-            "old_code": "def parse_diff():\n    x = 1",
             "new_code": "def new_fn():\n    print(\"hello\")\n    x = 1"
         }
     ]
@@ -689,7 +683,6 @@ code_edits = [
     {
       "start_line": 41,
       "end_line": 51,
-      "old_code": "@app.get(\"/logout\")\nasync def logout(token: str = Depends(oauth2_scheme)):\n    # This endpoint should invalidate the provided token\n    # For simplicity, we assume the token is invalidated if it's \"logout\"\n    if token == \"logout\":\n        return {\"detail\": \"Logged out\"}\n\n    raise HTTPException(\n        status_code=400, \n        detail=\"Invalid token\"\n    )",
       "new_code": "@app.get(\"/logout\")\nasync def logout(token: str = Depends(oauth2_scheme)):\n    try:\n        remove_token(token)\n        return {\"detail\": \"Logged out\"}\n    except Exception:\n        raise HTTPException(\n            status_code=400, \n            detail=\"Invalid token\"\n        )"
     }]
 new_code = apply_code_edits(code, code_edits)
