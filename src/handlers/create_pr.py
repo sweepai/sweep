@@ -61,12 +61,12 @@ def create_pr(
             pr_description = f"{pull_request.content}\n\nFixes #{issue_number}."
         else:
             pr_description = pull_request.content
-
-        pr = sweep_bot.repo.create_pull(
-            title=pull_request.title,
-            body=pr_description,
-            head=pull_request.branch_name,
-            base=sweep_bot.repo.default_branch,
+pr = sweep_bot.repo.create_pull(
+    title=pull_request.title,
+    body=pr_description,
+    head=pull_request.branch_name,
+    base=sweep_bot.repo.default_branch,
+)
         )
         # try:
         #     review_pr(repo=sweep_bot.repo, pr=pr, issue_url=issue_url, username=username, 
