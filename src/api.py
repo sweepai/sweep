@@ -72,8 +72,12 @@ async def webhook(raw_request: Request):
         match event, request_dict.get("action", None):
             case "issues", "opened":
                 request = IssueRequest(**request_dict)
-                issue_title_lower = request.issue.title.lower()
-                if issue_title_lower.startswith("sweep") or "sweep:" in issue_title_lower:
+issue_title_lower = request.issue.title.lower()
+if issue_title_lower.startswith('sweep'):
+    issue_title_lower = issue_title_lower[5:].strip()
+elif issue_title_lower.startswith('sweep:'):
+    issue_title_lower = issue_title_lower[6:].strip()
+request.issue.title = issue_title_lower
                     g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
 
