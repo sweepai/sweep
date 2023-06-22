@@ -54,6 +54,17 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None
 ):
+    title = title.replace('sweep: ', '').replace('sweep ', '') if title.lower().startswith(('sweep: ', 'sweep ')) else title
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int = None
+):
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
