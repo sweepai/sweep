@@ -272,7 +272,7 @@ def get_relevant_snippets(
     results = {"metadata": [], "text": []}
     for n_result in range(n_results, 0, -1):
         try:
-            query_embedding = embedding_function([query])[0]
+			query_embedding = embedding_function(["Query: " + query])[0]
             results = deeplake_vs.search(embedding=query_embedding, k=n_result)
             break
         except Exception:
