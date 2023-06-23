@@ -50,17 +50,11 @@ FUNCTION_SETTINGS = {
     "secrets": secrets,
     "timeout": 15 * 60,
 }
-retries = modal.Retries(
-    max_retries=0,
-    backoff_coefficient=2,
-    initial_delay=60,
-)
 
-handle_ticket_retries = 3
 
-handle_ticket = stub.function(**FUNCTION_SETTINGS, retries=retries)(on_ticket)
-handle_comment = stub.function(**FUNCTION_SETTINGS, retries=retries)(on_comment)
-handle_pr = stub.function(**FUNCTION_SETTINGS, retries=retries)(create_pr)
+handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
+handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
+handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
 
 
 @stub.function(**FUNCTION_SETTINGS)

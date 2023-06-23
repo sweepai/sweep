@@ -171,9 +171,9 @@ Then, provide a list of files you would like to modify, abiding by the following
 * You may make at most 3 changes in total
 * You MUST follow the following format:
 
-Step-by-step chain of thoughts: 
-* Thought 1
-* Thought 2
+Step-by-step thoughts with explanations: 
+* Thought 1 - Explanation 1
+* Thought 2 - Explanation 2
 ...
 
 <create>
@@ -209,9 +209,9 @@ Instructions: {instructions}
 
 Reply in the following format. DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags and do not write ``` anywhere unless it's markdown.
 
-Step-by-step chain of thoughts: 
-* Thought 1
-* Thought 2
+Step-by-step thoughts with explanations: 
+* Thought 1 - Explanation 1
+* Thought 2 - Explanation 2
 ...
 Detailed plan of additions:
 * Addition 1
@@ -234,7 +234,7 @@ Reply in the format below.
 
 modify_file_plan_prompt = """
 Think step-by-step regarding the instructions and how that can be applied to the current file to improve the current codebase.
-Then create a plan of parts of the code to modify, with low-level, detailed references to lines and sections of code to modify.
+Then create a plan of parts of the code to modify with detailed references to functions to modify.
 
 File Name: {filename}
 <old_file>
@@ -243,9 +243,9 @@ File Name: {filename}
 
 Your instructions to modify the file are: "{instructions}".
 
-Step-by-step chain of thoughts: 
-* Thought 1
-* Thought 2
+Step-by-step thoughts with explanations: 
+* Thought 1 - Explanation 1
+* Thought 2 - Explanation 2
 ...
 Detailed plan of modifications:
 * Modification 1
@@ -253,10 +253,21 @@ Detailed plan of modifications:
 ...
 """
 
+modify_file_example_prompt = """
+Modify the following file given the above plan:
+File Name: {filename}
+Instructions: {instructions}
+Reply in the following format:
+Commit Message: {{commit_message}}
+New Code: {{new_code}}
+"""
+
 modify_file_prompt = """
-Pass in start_line and end_line to the `modify` function. 
-Make sure `end_line` covers the code you wish to delete and that `new_code` is properly formatted.
-Also make sure start_line is in ascending order and that the code_edits do not overlap.
+Use the `modify` function to turn the above changes into code_edits. 
+Make sure: 
+1. start_line and end_line cover the code that was replaced. 
+2. The code is properly formatted using num_indents.
+3. start_line is in ascending order and that the code_edits do not overlap.
 """
 
 pr_code_prompt = ""  # TODO: deprecate this
