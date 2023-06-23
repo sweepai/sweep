@@ -116,8 +116,15 @@ def on_comment(
             **metadata
         })
         raise e
-
-    posthog.capture(username, "success", properties={**metadata})
+def revert_file(repo_full_name: str, pr_path: str, installation_id: int):
+    try:
+        g = get_github_client(installation_id)
+        repo = g.get_repo(repo_full_name)
+        file = repo.get_contents(pr_path)
+        repo.update_file(file.path, "Revert file changes", file.decoded_content, file.sha)
+    except Exception as e:
+        logger.error(f"Failed to revert file: {e}")
+        raise e
     logger.info("on_comment success")
 def revert_file(repo_full_name: str, pr_path: str, installation_id: int):
     try:
