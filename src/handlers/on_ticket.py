@@ -202,18 +202,21 @@ current_issue.edit(title=new_title)
         i += 1
 
     snippets = snippets[:min(len(snippets), max_num_of_snippets)]
+if title.startswith("sweep: "):
+    title = title.replace("sweep: ", "", 1)
+elif title.startswith("sweep"):
+    title = title.replace("sweep", "", 1)
 
-    human_message = HumanMessagePrompt(
-        repo_name=repo_name,
-        issue_url=issue_url,
-        username=username,
-        repo_description=repo_description,
-        title=title,
-        summary=summary + replies_text,
-        snippets=snippets,
-        tree=tree, # TODO: Anything in repo tree that has something going through is expanded
-    )
-    sweep_bot = SweepBot.from_system_message_content(
+human_message = HumanMessagePrompt(
+    repo_name=repo_name,
+    issue_url=issue_url,
+    username=username,
+    repo_description=repo_description,
+    title=title,  # updated title without "sweep" prefix
+    summary=summary + replies_text,
+    snippets=snippets,
+    tree=tree,
+)
         human_message=human_message, repo=repo, is_reply=bool(comments)
     )
 
