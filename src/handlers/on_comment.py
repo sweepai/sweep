@@ -57,5 +57,20 @@ def on_comment(
             pr_file_path = pr_path.strip()
 
 def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
-    # Code to rollback the file to its previous version
-    pass
+    # Get the Github client
+    g = get_github_client(installation_id)
+
+    # Get the repo
+    repo = g.get_repo(repo_full_name)
+
+    # Get the file at the specified path
+    file = repo.get_contents(pr_path)
+
+    # Get the SHA of the previous commit of the file
+    previous_commit_sha = repo.get_commits(path=file.path)[1].sha
+
+    # Get the file at the previous commit
+    previous_file = repo.get_git_blob(previous_commit_sha)
+
+    # Replace the current file with the previous version
+    repo.update_file(file.path, "Reverted file to previous version", previous_file.content, file.sha)
