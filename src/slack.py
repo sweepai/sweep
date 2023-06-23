@@ -17,6 +17,7 @@ from src.utils.github_utils import get_github_client
 from src.utils.constants import API_NAME, BOT_TOKEN_NAME, PREFIX, SLACK_NAME
 from src.core.prompts import slack_slash_command_prompt
 from src.utils.github_utils import get_installation_id
+import src.utils.event_logger
 
 image = modal.Image \
     .debian_slim() \
@@ -129,18 +130,22 @@ class SlackSlashCommandRequest(BaseModel):
     timeout=15 * 60,
 )
 def reply_slack(request: SlackSlashCommandRequest):
-    create_pr = modal.Function.lookup(API_NAME, "create_pr")
+    try:
+        create_pr = modal.Function.lookup(API_NAME, "create_pr")
 
-    mongo_client = MongoClient(os.environ['MONGODB_URI'])
-    db = mongo_client["slack"]
-    collection = db["oauth_tokens"]
+        mongo_client = MongoClient(os.environ['MONGODB_URI'])
+        db = mongo_client["slack"]
+        collection = db["oauth_tokens"]
 
-    token = collection.find_one({
-        "user_id": request.user_id,
-        "prefix": PREFIX,
-        "workspace_id": request.team_id
-    })["access_token"]
-    client = slack_sdk.WebClient(token=token)
+        token = collection.find_one({
+            "user_id": request.user_id,
+            "prefix": PREFIX,
+            "workspace_id": request.team_id
+        })["access_token"]
+        client = slack_sdk.WebClient(token=token)
+    except Exception as e:
+        logger.error(f"Error initializing Slack client: {e}")
+        raise e
     
     try:
         channel_info = client.conversations_info(channel=request.channel_id)
@@ -237,8 +242,8 @@ def reply_slack(request: SlackSlashCommandRequest):
                 summary = arguments["summary"]
                 branch = arguments["branch"]
                 plan = arguments["plan"]
-                plan_message = "\n".join(f"`{file['file_path']}`: {file['instructions']}" for file in plan)
-                plan_message = ">" + plan_message.replace("\n", "\n> • ")
+                plan_message = "\n".join(f"• `{file['file_path']}`: {file['instructions']}" for file in plan)
+                plan_message = ">" + plan_message.replace("\n", "\n> ")
 
                 creating_pr_message = client.chat_postMessage(
                     channel=request.channel_id,
@@ -295,6 +300,7 @@ def reply_slack(request: SlackSlashCommandRequest):
             text=":exclamation: Sorry, something went wrong.",
             thread_ts=thread["ts"],
         )
+        logger.error(f"Error creating PR: {e}")
         raise e
 
 
@@ -317,36 +323,40 @@ async def entrypoint(request: Request):
 )
 @modal.web_endpoint(method="GET")
 async def oauth_redirect(request: Request):
-    code = request.query_params.get('code')
+    try:
+        code = request.query_params.get('code')
 
-    mongo_client = MongoClient(os.environ['MONGODB_URI'])
-    db = mongo_client["slack"]
-    collection = db["oauth_tokens"]
+        mongo_client = MongoClient(os.environ['MONGODB_URI'])
+        db = mongo_client["slack"]
+        collection = db["oauth_tokens"]
 
-    if not code:
-        raise HTTPException(status_code=400, detail="Missing code parameter")
+        if not code:
+            raise HTTPException(status_code=400, detail="Missing code parameter")
 
-    response = requests.post('https://slack.com/api/oauth.v2.access', {
-        'client_id': os.environ['SLACK_CLIENT_ID'],
-        'client_secret': os.environ['SLACK_CLIENT_SECRET'],
-        'code': code,
-    }).json()
+        response = requests.post('https://slack.com/api/oauth.v2.access', {
+            'client_id': os.environ['SLACK_CLIENT_ID'],
+            'client_secret': os.environ['SLACK_CLIENT_SECRET'],
+            'code': code,
+        }).json()
 
-    if not response.get('ok'):
-        raise HTTPException(status_code=400, detail="Error obtaining access token")
+        if not response.get('ok'):
+            raise HTTPException(status_code=400, detail="Error obtaining access token")
 
-    logger.info(response)
+        logger.info(response)
 
-    result = collection.insert_one({
-        "user_id": response["authed_user"]["id"],
-        "bot_user_id": response["bot_user_id"],
-        "workspace_id": response["team"]["id"],
-        "channel": response["incoming_webhook"]["channel"],
-        "prefix": PREFIX,
-        "access_token": response["access_token"],
-    })
+        result = collection.insert_one({
+            "user_id": response["authed_user"]["id"],
+            "bot_user_id": response["bot_user_id"],
+            "workspace_id": response["team"]["id"],
+            "channel": response["incoming_webhook"]["channel"],
+            "prefix": PREFIX,
+            "access_token": response["access_token"],
+        })
 
-    return RedirectResponse(url=slack_app_page)
+        return RedirectResponse(url=slack_app_page)
+    except Exception as e:
+        logger.error(f"Error with OAuth: {e}")
+        raise e
 
 @stub.function(image=image, keep_warm=1)
 @modal.web_endpoint(method="GET")
