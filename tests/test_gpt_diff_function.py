@@ -693,3 +693,37 @@ code_edits = [
       "new_code": "@app.get(\"/logout\")\nasync def logout(token: str = Depends(oauth2_scheme)):\n    try:\n        remove_token(token)\n        return {\"detail\": \"Logged out\"}\n    except Exception:\n        raise HTTPException(\n            status_code=400, \n            detail=\"Invalid token\"\n        )"
     }]
 new_code = apply_code_edits(code, code_edits)
+def test_revert_file():
+    # Initialize SweepBot
+    sweep_bot = SweepBot.from_system_message_content(
+        human_message=HumanMessagePrompt(
+            repo_name='test_repo',
+            issue_url='https://github.com/test_user/test_repo/issues/1',
+            username='test_user',
+            title='Test Issue',
+            tree='',
+            summary='Test Summary',
+            snippets=[],
+        ),
+        repo=repo,
+    )
+
+    # Make a change to a file
+    file_path = 'test_file.py'
+    old_content = sweep_bot.get_file(file_path).decoded_content.decode("utf-8")
+    new_content = old_content + '\n# Test change'
+    sweep_bot.repo.update_file(
+        path=file_path,
+        message='Test change',
+        content=new_content,
+        sha=sweep_bot.get_file(file_path).sha,
+    )
+
+    # Call rollback_file function
+    sweep_bot.rollback_file(sweep_bot.repo, file_path)
+
+    # Check if the file's content is the same as before the change was made
+    reverted_content = sweep_bot.get_file(file_path).decoded_content.decode("utf-8")
+    assert reverted_content == old_content, 'The file was not correctly reverted'
+
+test_revert_file()
