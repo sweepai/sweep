@@ -42,8 +42,7 @@ chunker = modal.Function.lookup("utils", "Chunking.chunk")
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
-
-def on_ticket(
+	title = title.replace("sweep: ", "").replace("sweep", "")
     title: str,
     summary: str,
     issue_number: int,
