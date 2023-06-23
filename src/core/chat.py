@@ -201,21 +201,26 @@ class ChatGPT(BaseModel):
             model = "gpt-4-0613"
             max_tokens = model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer # this is for the function tokens
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
+        global retry_counter
+        retry_counter = 0
         if functions:
             @backoff.on_exception(
                 backoff.expo,
                 Exception,
-                max_tries=5,
+                max_tries=8,
                 jitter=backoff.random_jitter,
 
             )
             def fetch():
+                global retry_counter
+                retry_counter += 1
+                token_sub = retry_counter * 200
                 if function_name:
                     return (
                         openai.ChatCompletion.create(
                             model=model,
                             messages=self.messages_dicts,
-                            max_tokens=max_tokens,
+                            max_tokens=max_tokens - token_sub,
                             temperature=temperature,
                             functions=[json.loads(function.json()) for function in functions],
                             function_call=function_name,
@@ -227,7 +232,7 @@ class ChatGPT(BaseModel):
                     openai.ChatCompletion.create(
                         model=model,
                         messages=self.messages_dicts,
-                        max_tokens=max_tokens,
+                        max_tokens=max_tokens - token_sub,
                         temperature=temperature,
                         functions=[json.loads(function.json()) for function in functions],
                     )
@@ -245,15 +250,18 @@ class ChatGPT(BaseModel):
             @backoff.on_exception(
                 backoff.expo,
                 Exception,
-                max_tries=5,
+                max_tries=8,
                 jitter=backoff.random_jitter,
             )
             def fetch():
+                global retry_counter
+                retry_counter += 1
+                token_sub = retry_counter * 200
                 return (
                     openai.ChatCompletion.create(
                         model=model,
                         messages=self.messages_dicts,
-                        max_tokens=max_tokens,
+                        max_tokens=max_tokens - token_sub,
                         temperature=temperature,
                     )
                     .choices[0]
