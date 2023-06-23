@@ -11,6 +11,18 @@ Unlike copilot, this can solve entire tickets and can be parallelized: someone c
 ## 🚀 Quickstart
 Install at https://github.com/apps/sweep-ai, add your repo, and make an issue such as "Sweep: Write tests" (need the prefix). Eyes :eyes: means it's taking a look and rocket 🚀 means it's done. For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
 
+### For the slack addon:
+
+0. Ensure the Sweep GitHub app is installed. For the rest of this guide, we will call the target repository’s full name {repo} (like org_name/repo_name, ex: sweepai/sweep).
+
+1. [Install our slackbot](https://slack.com/oauth/v2/authorize?client_id=5364586338420.5448326076609&scope=channels:read,chat:write,chat:write.public,commands,groups:read,im:read,incoming-webhook,mpim:read&user_scope=)
+
+2. Make a new channel
+Set the description to “Sweep for {repo}”. It will not work without this. This channel will only serve {repo}.
+
+3. Make a slash command
+Type a command like “/sweep Write a unit test“.
+
 ## The Stack
 - GPT-4 32k 0613 (default) / Claude v1.3 100k
 - ActiveLoop DeepLake for Vector DB with MiniLM L12 as our embeddings model
