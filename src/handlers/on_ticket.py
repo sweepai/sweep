@@ -54,6 +54,12 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None
 ):
+    # Check if the title starts with "sweep" or "sweep: " and remove it
+    if title.lower().startswith("sweep: "):
+        title = title[7:]
+    elif title.lower().startswith("sweep "):
+        title = title[6:]
+
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
