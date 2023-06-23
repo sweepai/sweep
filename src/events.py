@@ -72,7 +72,11 @@ class IssueRequest(BaseModel):
             pass
 
         pull_request: PullRequest | None
-        title: str
+		def clean_title(self):
+		    if self.title.startswith('sweep'):
+		        self.title = self.title.replace('sweep', '').strip()
+		    elif self.title.startswith('sweep:'):
+		        self.title = self.title.replace('sweep:', '').strip()
         number: int
         html_url: str
         user: User
@@ -81,7 +85,8 @@ class IssueRequest(BaseModel):
         assignees: list[Assignee]
 
     action: str
-    issue: Issue
+	issue: Issue
+	issue.clean_title()
     repository: Issue.Repository
     assignee: Issue.Assignee | None
     installation: Installation
