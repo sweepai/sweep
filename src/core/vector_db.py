@@ -167,6 +167,7 @@ def get_deeplake_vs_from_repo(
             # Can parallelize this
             try:
                 contents = f.read()
+                contents = f"Represent this code snippet from {file} for retrieval:\n" + contents
             except UnicodeDecodeError as e:
                 logger.warning(f"Received warning {e}, skipping...")
                 continue
@@ -271,6 +272,7 @@ def get_relevant_snippets(
     results = {"metadata": [], "text": []}
     for n_result in range(n_results, 0, -1):
         try:
+            query = "Represent this natural language query for code retrieval:\n" + query
             query_embedding = embedding_function([query])[0]
             results = deeplake_vs.search(embedding=query_embedding, k=n_result)
             break

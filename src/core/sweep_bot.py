@@ -24,6 +24,7 @@ from src.core.prompts import (
     create_file_prompt,
     modify_file_prompt,
     modify_file_plan_prompt,
+    modify_file_example_prompt,
     cot_retrieval_prompt
 )
 from src.utils.constants import DB_NAME
@@ -260,6 +261,13 @@ class SweepBot(CodeGenBot, GithubBot):
                     ),
                     message_key=f"file_change_{file_change_request.filename}",
                 )
+                _ = self.chat( # Force it to create an actual file
+                    modify_file_example_prompt.format(
+                        filename=file_change_request.filename,
+                        instructions=file_change_request.instructions,
+                    ),
+                    message_key=f"file_change_{file_change_request.filename}"
+                )
                 modify_file_response = self.chat(
                     modify_file_prompt,
                     message_key=f"file_change_{file_change_request.filename}",
@@ -277,6 +285,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     logger.warning(
                         f"Failed to parse. Retrying for the {count}th time..."
                     )
+                    self.undo()
                     self.undo()
                     self.undo()
                     continue

@@ -251,6 +251,7 @@ def on_ticket(
                         summary=summary, replies_text=replies_text, installation_id=installation_id, snippets=snippets, tree=tree)
             except Exception as e:
                 logger.error(e)
+            break
     except openai.error.InvalidRequestError as e:
         logger.error(e)
         comment_reply(

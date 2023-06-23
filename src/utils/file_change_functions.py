@@ -4,7 +4,7 @@ from src.utils.diff import format_contents
 
 modify_file_function = Function(
     name="modify_file",
-    description="Edits the code in a file. Indent and format the code in the edits. Output the code in the order it should appear in the file. Make sure start_line and end_line do not overlap between code edits.",
+    description="Edits the code in a file. Use start_line and end_line to completely cover the line indexes of code that should be replaced. Indent and format the code in the edits. Output the code in the order it should appear in the file. Make sure start_line and end_line do not overlap between code edits.",
     parameters={
         "type": "object",
         "properties": {
@@ -19,15 +19,15 @@ modify_file_function = Function(
                     "properties": {
                         "start_line": {
                             "type": "integer",
-                            "description": "The index where the change should start."
+                            "description": "The index where the code should start being inserted/replaced."
                         },
                         "end_line": {
                             "type": "integer",
-                            "description": "The index where the code should end. Add 1 to this number to include the line."
+                            "description": "The index where the code should stop being inserted/replaced. Add 1 to this number to include the line."
                         },
-                        "code": {
+                        "inserted_code": {
                             "type": "string",
-                            "description": "The new code to insert into the file. Indent and format this code properly using \t for tab(4 spaces). If you want to delete a line, set this to '' (single quoted empty string)."
+                            "description": "Only the new code to insert into the file. Indent and format this code properly using \t for tab(4 spaces). To delete a line, set this to '' (single quoted empty string)."
                         },
                         "num_indents": {
                             "type": "integer",
@@ -36,7 +36,7 @@ modify_file_function = Function(
                     },
                     "required": ["start_line", "end_line", "code", "num_indents"]
                 },
-                "description": "An array of edits. Each `code_edit` represents a span delimited by `start_line` and `end_line`. Both `start_line` and `end_line` are zero-indexed and inclusive."
+                "description": "An array of edits. Each `code_edit` represents a slice of the code split by newlines and delimited by `start_line` and `end_line`. Both `start_line` and `end_line` are zero-indexed and inclusive."
             }
         },
         "required": ["file_name", "code_edits"]
@@ -48,7 +48,7 @@ def apply_code_edits(file_contents, code_edits):
     for edit in code_edits:
         start_line = int(edit['start_line'])
         end_line = int(edit['end_line'])
-        new_code = format_contents(edit['code'])
+        new_code = format_contents(edit['inserted_code'])
         # Indentation
         indentation = int(edit['num_indents'])
         logger.info(f"The code {new_code} has {indentation} indents")
@@ -57,7 +57,7 @@ def apply_code_edits(file_contents, code_edits):
             new_code = "''" + new_code[2:]
         elif len(new_code) >= 2 and new_code[-2:] == '""':
             new_code = new_code[:-2] + "''"
-        new_code = edit['new_code'].split('\n')
+        new_code = edit['inserted_code'].split('\n')
         modifications.append((start_line, end_line, new_code, indentation))
 
     # Sort modifications by start line in reverse order
@@ -74,22 +74,26 @@ def apply_code_edits(file_contents, code_edits):
             logger.error(f"End line {end_line} is greater than the number of lines in the file {len(lines)}")
             continue
         # Handle duplicate lines between the existing code and new code
-        indents = '\t' * indentation
-        if start_line > 0 and end_line < len(lines) \
-            and new_code[0] == lines[start_line-1] and new_code[-1] == lines[end_line]:
-            new_code = new_code[1:-1]
-            lines[start_line:end_line] = indents + new_code
-            continue
-        elif start_line > 0 and new_code[0] == lines[start_line-1]:
-            new_code = new_code[1:]
-            lines[start_line-1:end_line + 1] = indents + new_code # Exit and merge first line
-            continue
-        elif end_line < len(lines) and new_code[-1] == lines[end_line]:
-            new_code = new_code[:-1]
-            lines[start_line:end_line] = indents + new_code # Exit and merge last line
-            continue
+        indents = '  ' * indentation
+        # if start_line > 0 and end_line < len(lines) \
+        #     and new_code[0] == lines[start_line-1] and new_code[-1] == lines[end_line]:
+        #     new_code = new_code[1:-1]
+        #     new_code = [indents + line for line in new_code]
+        #     lines[start_line:end_line] = new_code
+        #     continue
+        # elif start_line > 0 and new_code[0] == lines[start_line-1]:
+        #     new_code = new_code[1:]
+        #     new_code = [indents + line for line in new_code]
+        #     lines[start_line-1:end_line + 1] = new_code # Exit and merge first line
+        #     continue
+        # elif end_line < len(lines) and new_code[-1] == lines[end_line]:
+        #     new_code = new_code[:-1]
+        #     new_code = [indents + line for line in new_code]
+        #     lines[start_line:end_line] = new_code # Exit and merge last line
+        #     continue
         # Check index error
         if end_line > len(lines) - 1:
             end_line = len(lines) - 1
-        lines[start_line:end_line + 1] = indents + new_code # Start and end are inclusive
+        new_code = [indents + line for line in new_code]
+        lines[start_line:end_line + 1] = new_code # Start and end are inclusive
     return '\n'.join(lines)
