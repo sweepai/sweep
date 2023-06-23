@@ -239,11 +239,11 @@ def on_ticket(
         logger.info("Making PR...")
         pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
         sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
+    # Include issue number in PR description
+    pr_description = f"{pull_request.content}\n\nFixes #{issue_number}."
 
-        # Include issue number in PR description
-        pr_description = f"{pull_request.content}\n\nFixes #{issue_number}."
-
-        pr = repo.create_pull(
+    # Append zsh script to PR description
+    pr_description += f"\n\nTo checkout to this branch, run:\n```zsh\ngit checkout '{pull_request.branch_name}'\n```"
             title=pull_request.title,
             body=pr_description,
             head=pull_request.branch_name,
