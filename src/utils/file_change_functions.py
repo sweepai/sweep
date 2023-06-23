@@ -27,11 +27,11 @@ modify_file_function = Function(
                         },
                         "inserted_code": {
                             "type": "string",
-                            "description": "Only the new code to insert into the file. Indent and format this code properly using \t for tab(4 spaces). To delete a line, set this to '' (single quoted empty string)."
+                            "description": "Only the new code to insert into the file. Indent and format this code properly using spaces, keeping in mind the entire block will be affected by num_indents. To delete a line, set this to '' (single quoted empty string)."
                         },
                         "num_indents": {
                             "type": "integer",
-                            "description": "The number of tabs to indent the entire edit. This can be set to 0 if you indent the code string directly."
+                            "description": "Use this to indent the entire inserted_code. BE SURE to match the indentation to be inline. There will be two spaces for however many num_indents are set. num_indents can be set to 0, but ONLY IF NEEDED. When it is ambiguous, set as many num_indents as possible. "
                         }
                     },
                     "required": ["start_line", "end_line", "code", "num_indents"]
@@ -75,22 +75,22 @@ def apply_code_edits(file_contents, code_edits):
             continue
         # Handle duplicate lines between the existing code and new code
         indents = '  ' * indentation
-        # if start_line > 0 and end_line < len(lines) \
-        #     and new_code[0] == lines[start_line-1] and new_code[-1] == lines[end_line]:
-        #     new_code = new_code[1:-1]
-        #     new_code = [indents + line for line in new_code]
-        #     lines[start_line:end_line] = new_code
-        #     continue
-        # elif start_line > 0 and new_code[0] == lines[start_line-1]:
-        #     new_code = new_code[1:]
-        #     new_code = [indents + line for line in new_code]
-        #     lines[start_line-1:end_line + 1] = new_code # Exit and merge first line
-        #     continue
-        # elif end_line < len(lines) and new_code[-1] == lines[end_line]:
-        #     new_code = new_code[:-1]
-        #     new_code = [indents + line for line in new_code]
-        #     lines[start_line:end_line] = new_code # Exit and merge last line
-        #     continue
+        if start_line > 0 and end_line < len(lines) \
+            and new_code[0] == lines[start_line-1] and new_code[-1] == lines[end_line]:
+            new_code = new_code[1:-1]
+            new_code = [indents + line for line in new_code]
+            lines[start_line:end_line] = new_code
+            continue
+        elif start_line > 0 and new_code[0] == lines[start_line-1]:
+            new_code = new_code[1:]
+            new_code = [indents + line for line in new_code]
+            lines[start_line-1:end_line + 1] = new_code # Exit and merge first line
+            continue
+        elif end_line < len(lines) and new_code[-1] == lines[end_line]:
+            new_code = new_code[:-1]
+            new_code = [indents + line for line in new_code]
+            lines[start_line:end_line] = new_code # Exit and merge last line
+            continue
         # Check index error
         if end_line > len(lines) - 1:
             end_line = len(lines) - 1
