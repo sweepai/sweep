@@ -57,10 +57,13 @@ def create_pr(
         sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
 
         # Include issue number in PR description
-        if issue_number:
-            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}."
-        else:
-            pr_description = pull_request.content
+    if issue_number:
+        pr_description = f"{pull_request.content}\n\nFixes #{issue_number}."
+    else:
+        pr_description = pull_request.content
+
+    # Append zsh script to PR description
+    pr_description += f"\n\nTo checkout to this branch, run:\n```zsh\ngit checkout '{pull_request.branch_name}'\n```"
 
         pr = sweep_bot.repo.create_pull(
             title=pull_request.title,
