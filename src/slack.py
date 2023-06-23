@@ -319,7 +319,7 @@ async def entrypoint(request: Request):
 async def oauth_redirect(request: Request):
     code = request.query_params.get('code')
 
-    mongo_client = MongoClient(os.environ['MONGODB_URL'])
+    mongo_client = MongoClient(os.environ['MONGODB_URI'])
     db = mongo_client["slack"]
     collection = db["oauth_tokens"]
 
