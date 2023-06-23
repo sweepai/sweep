@@ -361,29 +361,29 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
             else:
                 raise Exception("Invalid change type")
-  def rollback_file(self, repo, file_path):
-      """
-      Rollback the file to the previous commit.
-      """
-      try:
-          # Get the file's commit history
-          commits = repo.get_commits(path=file_path)
-          if commits.totalCount < 2:
-              logger.error("Cannot revert file because there is no previous commit.")
-              return
-
-          # Get the previous commit
-          previous_commit = commits[1]
-          previous_file = previous_commit.get_file_contents(file_path)
-
-          # Create a new commit that reverts the changes
-          repo.update_file(
-              path=file_path,
-              message=f"Revert to commit {previous_commit.sha}",
-              content=previous_file.decoded_content,
-              sha=commits[0].get_file_contents(file_path).sha,
-          )
-          logger.info(f"Reverted {file_path} to commit {previous_commit.sha}")
-      except Exception as e:
-          logger.error(f"Failed to revert file: {e}")
-          raise e
+    def rollback_file(self, repo, file_path):
+        """
+        Rollback the file to the previous commit.
+        """
+        try:
+            # Get the file's commit history
+            commits = repo.get_commits(path=file_path)
+            if commits.totalCount < 2:
+                logger.error("Cannot revert file because there is no previous commit.")
+                return
+  
+            # Get the previous commit
+            previous_commit = commits[1]
+            previous_file = previous_commit.get_file_contents(file_path)
+  
+            # Create a new commit that reverts the changes
+            repo.update_file(
+                path=file_path,
+                message=f"Revert to commit {previous_commit.sha}",
+                content=previous_file.decoded_content,
+                sha=commits[0].get_file_contents(file_path).sha,
+            )
+            logger.info(f"Reverted {file_path} to commit {previous_commit.sha}")
+        except Exception as e:
+            logger.error(f"Failed to revert file: {e}")
+            raise e
