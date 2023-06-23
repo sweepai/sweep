@@ -114,3 +114,8 @@ class Toolbox(BaseModel):
         tool = next((tool for tool in self.tools if tool._name == parsed_results.tool_name), None)
         return tool(parsed_results.inputs)
 
+# New function to react to a comment
+def react_to_comment(comment_id: str, reaction: str):
+    g = Github("<access_token>")  # Replace <access_token> with the actual Github access token
+    comment = g.get_comment(comment_id)
+    comment.create_reaction(reaction)
