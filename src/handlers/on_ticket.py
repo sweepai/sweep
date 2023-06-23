@@ -3,8 +3,7 @@ On Github ticket, get ChatGPT to deal with it
 """
 
 # TODO: Add file validation
-
-import os
+import shlex
 import openai
 
 from loguru import logger
@@ -237,7 +236,7 @@ def on_ticket(
         pull_request = sweep_bot.generate_pull_request()
 
         logger.info("Making PR...")
-        pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
+    pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {shlex.quote(pull_request.branch_name)}\n```"
 
         pr = repo.create_pull(
             title=pull_request.title,
