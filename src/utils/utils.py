@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 from dataclasses import dataclass
 
@@ -141,6 +142,7 @@ extension_to_language = {
     "erb": "embedded-template",
     "ejs": "embedded-template",
     "html": "embedded-template",
+    "vue": "vue",
 }
 
 @stub.cls(
@@ -160,29 +162,30 @@ class Chunking:
             subprocess.run(f"cp cache/build/{language}.so /tmp/{language}.so", shell=True) # copying for executability
         self.languages = {language: Language(f"/tmp/{language}.so", language) for language in LANGUAGE_NAMES}
 
-        # typescript uses a slightly different process as it's under ./tsx
         subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-typescript cache/tree-sitter-typescript", shell=True)
         Language.build_library(f'cache/build/typescript.so', [f"cache/tree-sitter-typescript/tsx"]) 
         subprocess.run(f"cp cache/build/typescript.so /tmp/typescript.so", shell=True)
         self.languages["tsx"] = Language("/tmp/typescript.so", "tsx")
 
-        # c_sharp uses a stupid different naming convention
         subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-c-sharp cache/tree-sitter-c-sharp", shell=True)
         Language.build_library(f'cache/build/c-sharp.so', [f"cache/tree-sitter-c-sharp"]) 
         subprocess.run(f"cp cache/build/c-sharp.so /tmp/c-sharp.so", shell=True)
         self.languages["c-sharp"] = Language("/tmp/c-sharp.so", "c_sharp")
 
-        # embedded-template uses a stupid different naming convention
         subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-embedded-template cache/tree-sitter-embedded-template", shell=True)
         Language.build_library(f'cache/build/embedded-template.so', [f"cache/tree-sitter-embedded-template"]) 
         subprocess.run(f"cp cache/build/embedded-template.so /tmp/embedded-template.so", shell=True)
         self.languages["embedded-template"] = Language("/tmp/embedded-template.so", "embedded_template")
         
-        # ruby uses a stupid different naming convention
         subprocess.run(f"git clone https://github.com/MDeiml/tree-sitter-markdown cache/tree-sitter-markdown", shell=True)
         Language.build_library(f'cache/build/markdown.so', [f"cache/tree-sitter-markdown/tree-sitter-markdown"]) 
         subprocess.run(f"cp cache/build/markdown.so /tmp/markdown.so", shell=True)
         self.languages["markdown"] = Language("/tmp/markdown.so", "markdown")
+
+        subprocess.run(f"git clone https://github.com/ikatyang/tree-sitter-vue cache/tree-sitter-vue", shell=True)
+        Language.build_library(f'cache/build/vue.so', [f"cache/tree-sitter-vue"]) 
+        subprocess.run(f"cp cache/build/vue.so /tmp/vue.so", shell=True)
+        self.languages["vue"] = Language("/tmp/vue.so", "vue")
         
 
     @method()
