@@ -1,17 +1,20 @@
 import json
 import os
 
-from fastapi import Request, Response
+from fastapi import HTTPException, Request, Response
+from fastapi.responses import RedirectResponse
 
 import modal
 from pydantic import BaseModel
-from src.core.entities import FileChangeRequest, Function, PullRequest, Snippet
+from pymongo import MongoClient
+import requests
+from src.core.entities import FileChangeRequest, Function, PullRequest
 import slack_sdk
 from loguru import logger
 
 from src.core.sweep_bot import SweepBot
 from src.utils.github_utils import get_github_client
-from src.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, SLACK_NAME
+from src.utils.constants import API_NAME, BOT_TOKEN_NAME, PREFIX, SLACK_NAME
 from src.core.prompts import slack_slash_command_prompt
 from src.utils.github_utils import get_installation_id
 
@@ -20,6 +23,8 @@ image = modal.Image \
     .apt_install("git") \
     .pip_install(
         "slack-sdk",
+        "slack-bolt",
+        "pymongo",
         "PyGithub",
         "gitpython",
         "openai",
@@ -34,6 +39,7 @@ secrets = [
     modal.Secret.from_name("slack"),
     modal.Secret.from_name("openai-secret"),
     modal.Secret.from_name(BOT_TOKEN_NAME),
+    modal.Secret.from_name("mongodb"),
 ]
 
 functions = [
@@ -105,12 +111,17 @@ pr_done_format = """:white_check_mark: Done creating PR at {url} with the follow
 > {summary}
 """
 
+# TODO(sweep): move to constants
+slack_app_page = "https://sweepusers.slack.com/apps/A05D69L28HX-sweep"
+slack_install_link = "https://slack.com/oauth/v2/authorize?client_id=5364586338420.5448326076609&scope=channels:read,chat:write,chat:write.public,commands,groups:read,im:read,incoming-webhook,mpim:read&user_scope="
+
 class SlackSlashCommandRequest(BaseModel):
     channel_name: str
     channel_id: str
     text: str
     user_name: str
     user_id: str
+    team_id: str
 
 @stub.function(
     image=image,
@@ -119,7 +130,17 @@ class SlackSlashCommandRequest(BaseModel):
 )
 def reply_slack(request: SlackSlashCommandRequest):
     create_pr = modal.Function.lookup(API_NAME, "create_pr")
-    client = slack_sdk.WebClient(token=os.environ["SLACK_BOT_TOKEN"])
+
+    mongo_client = MongoClient(os.environ['MONGODB_URI'])
+    db = mongo_client["slack"]
+    collection = db["oauth_tokens"]
+
+    token = collection.find_one({
+        "user_id": request.user_id,
+        "prefix": PREFIX,
+        "workspace_id": request.team_id
+    })["access_token"]
+    client = slack_sdk.WebClient(token=token)
     
     try:
         channel_info = client.conversations_info(channel=request.channel_id)
@@ -217,7 +238,7 @@ def reply_slack(request: SlackSlashCommandRequest):
                 branch = arguments["branch"]
                 plan = arguments["plan"]
                 plan_message = "\n".join(f"`{file['file_path']}`: {file['instructions']}" for file in plan)
-                plan_message = ">" + plan_message.replace("\n", "\n> ")
+                plan_message = ">" + plan_message.replace("\n", "\n> • ")
 
                 creating_pr_message = client.chat_postMessage(
                     channel=request.channel_id,
@@ -287,3 +308,47 @@ async def entrypoint(request: Request):
     request = SlackSlashCommandRequest(**dict(body))
     reply_slack.spawn(request)
     return Response(status_code=200)
+
+
+@stub.function(
+    image=image,
+    secrets=secrets,
+    keep_warm=1,
+)
+@modal.web_endpoint(method="GET")
+async def oauth_redirect(request: Request):
+    code = request.query_params.get('code')
+
+    mongo_client = MongoClient(os.environ['MONGODB_URL'])
+    db = mongo_client["slack"]
+    collection = db["oauth_tokens"]
+
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing code parameter")
+
+    response = requests.post('https://slack.com/api/oauth.v2.access', {
+        'client_id': os.environ['SLACK_CLIENT_ID'],
+        'client_secret': os.environ['SLACK_CLIENT_SECRET'],
+        'code': code,
+    }).json()
+
+    if not response.get('ok'):
+        raise HTTPException(status_code=400, detail="Error obtaining access token")
+
+    logger.info(response)
+
+    result = collection.insert_one({
+        "user_id": response["authed_user"]["id"],
+        "bot_user_id": response["bot_user_id"],
+        "workspace_id": response["team"]["id"],
+        "channel": response["incoming_webhook"]["channel"],
+        "prefix": PREFIX,
+        "access_token": response["access_token"],
+    })
+
+    return RedirectResponse(url=slack_app_page)
+
+@stub.function(image=image, keep_warm=1)
+@modal.web_endpoint(method="GET")
+def install():
+    return RedirectResponse(url=slack_install_link)

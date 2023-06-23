@@ -33,6 +33,8 @@ google-search-results = "^2.4.2"
 slack-sdk = "^3.21.3"
 flake8 = "^6.0.0"
 redis = "^4.5.5"
+slack-bolt = "^1.18.0"
+pymongo = "^4.4.0"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"
