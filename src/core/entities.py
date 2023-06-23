@@ -110,7 +110,7 @@ class Snippet(BaseModel):
 	        snippet = '...\n' + snippet
 	    if self.end < self.content.count('\n') + 1:
 	        snippet = snippet + '\n...'
-	    return self.file_path + ": " + snippet
+	    return snippet
 
     def __add__(self, other):
         assert self.content == other.content
