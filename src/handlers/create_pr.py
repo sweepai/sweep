@@ -60,7 +60,7 @@ def create_pr(
         if issue_number:
             pr_description = f"{pull_request.content}\n\nFixes #{issue_number}."
         else:
-            pr_description = pull_request.content
+    pr_description += f"\n\nTo checkout to this branch, copy and run the following command:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
 
         pr = sweep_bot.repo.create_pull(
             title=pull_request.title,
