@@ -59,8 +59,8 @@ def create_pr(
         # Include issue number in PR description
         if issue_number:
             pr_description = f"{pull_request.content}\n\nFixes #{issue_number}."
-        else:
-            pr_description = pull_request.content
+else:
+    pr_description = pull_request.content + "\n\nTo checkout to this branch, use the following command:\n\n```zsh\ngit checkout " + pull_request.branch_name + "\n```"
 
         pr = sweep_bot.repo.create_pull(
             title=pull_request.title,
