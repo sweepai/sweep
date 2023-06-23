@@ -5,8 +5,7 @@ List of common prompts used across the codebase.
 # Following two should be fused
 system_message_prompt = "Your name is Sweep bot. You are an engineer assigned to the following Github ticket. You will be helpful and friendly, but informal and concise: get to the point. You will use Github-style markdown when needed to structure your responses."
 system_message_issue_comment_prompt = "Your name is Sweep bot. You are an engineer assigned to the following Github ticket, and a user has just responded with feedback. You will be helpful and friendly, but informal and concise: get to the point. You will use Github-style markdown when needed to structure your responses."
-
-human_message_prompt = """
+human_message_prompt = '''
 <relevant_snippets_in_repo>
 {relevant_snippets}
 </relevant_snippets_in_repo>
@@ -24,9 +23,11 @@ Issue Url: {issue_url}
 Username: {username}
 Issue Title: {title}
 Issue Description: {description}
-"""
+'''
+
 
 human_message_review_prompt = """
+human_message_review_prompt = '''
 <relevant_snippets_in_repo>
 {relevant_snippets}
 </relevant_snippets_in_repo>
@@ -47,7 +48,8 @@ The new_file_content is the content of the file after the changes.
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
 {diffs}
-"""
+'''
+
 
 diff_section_prompt = """
 <file_path>
