@@ -45,6 +45,8 @@ max_num_of_snippets = 5
 
 def on_ticket(
     title: str,
+    title = title.replace('sweep: ', '').replace('sweep ', '').strip() if title.lower().startswith(('sweep: ', 'sweep ')) else title
+    title: str,
     summary: str,
     issue_number: int,
     issue_url: str,
