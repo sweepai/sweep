@@ -1,8 +1,7 @@
 """
 Creates PR given description.
 """
-
-import os
+import shlex
 import openai
 
 from loguru import logger
@@ -57,9 +56,9 @@ def create_pr(
         sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
 
         # Include issue number in PR description
-        if issue_number:
+      pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {shlex.quote(pull_request.branch_name)}\n```"
             pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
-        else:
+      pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {shlex.quote(pull_request.branch_name)}\n```"
             pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
 
         pr = sweep_bot.repo.create_pull(
