@@ -81,18 +81,18 @@ functions = [
             }
         }
     ),
-    Function(
-        name="get_relevant_snippets",
-        description="Search engine for relevant snippets in the current repo in natural language.",
-        parameters={
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "Natural language query to search."
-                }
+Function(
+    name="get_relevant_snippets",
+    description="Search engine for relevant snippets in the current repo in natural language.",
+    parameters={
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": f"Represent this natural language query for code retrieval: {arguments['query']}"
             }
         }
-    )
+    }
+)
 ]
 
 pr_format = """I'm going to create a PR with the following:
