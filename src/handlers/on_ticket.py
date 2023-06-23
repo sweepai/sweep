@@ -54,6 +54,12 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None
 ):
+    # Check if the title starts with "sweep" or "sweep: " and remove it
+    if title.lower().startswith("sweep: "):
+        title = title[7:]
+    elif title.lower().startswith("sweep "):
+        title = title[6:]
+
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -235,8 +241,7 @@ def on_ticket(
             pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
             sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
 
-            # Include issue number in PR description
-            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}."
+            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
 
             pr = repo.create_pull(
                 title=pull_request.title,
