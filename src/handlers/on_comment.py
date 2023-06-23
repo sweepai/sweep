@@ -39,7 +39,9 @@ def on_comment(
     # 3. Get files to change
     # 4. Get file changes
     # 5. Create PR
-    logger.info(f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
+  if comment.strip().upper() == "REVERT":
+      revert_file(repo_full_name, pr_path, installation_id)
+      return {"success": True}
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "repo_full_name": repo_full_name,
@@ -117,4 +119,12 @@ def on_comment(
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_comment success")
-    return {"success": True}
+def revert_file(repo_full_name: str, pr_path: str, installation_id: int):
+    try:
+        g = get_github_client(installation_id)
+        repo = g.get_repo(repo_full_name)
+        file = repo.get_contents(pr_path)
+        repo.update_file(file.path, "Revert file changes", file.decoded_content, file.sha)
+    except Exception as e:
+        logger.error(f"Failed to revert file: {e}")
+        raise e
