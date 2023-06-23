@@ -81,8 +81,23 @@ def on_ticket(
     if comment_id:
         logger.info(f"Replying to comment {comment_id}...")
     logger.info(f"Getting repo {repo_full_name}")
-    repo = g.get_repo(repo_full_name)
-    current_issue = repo.get_issue(number=issue_number)
+g = get_github_client(installation_id)
+
+if comment_id:
+    logger.info(f"Replying to comment {comment_id}...")
+logger.info(f"Getting repo {repo_full_name}")
+repo = g.get_repo(repo_full_name)
+current_issue = repo.get_issue(number=issue_number)
+
+# New code to check and modify issue title
+issue_title = current_issue.title
+if issue_title.startswith("sweep: "):
+    new_title = issue_title.replace("sweep: ", "", 1)
+elif issue_title.startswith("sweep"):
+    new_title = issue_title.replace("sweep", "", 1)
+else:
+    new_title = issue_title
+current_issue.edit(title=new_title)
     if current_issue.state == 'closed':
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
