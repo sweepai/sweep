@@ -42,8 +42,12 @@ chunker = modal.Function.lookup("utils", "Chunking.chunk")
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
+	    # Remove "sweep" or "sweep: " from the title if it exists
+	    if title.lower().startswith("sweep: "):
+	        title = title[7:]
+	    elif title.lower().startswith("sweep "):
+	        title = title[6:]
 
-def on_ticket(
     title: str,
     summary: str,
     issue_number: int,
