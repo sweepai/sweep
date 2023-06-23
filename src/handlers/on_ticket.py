@@ -60,8 +60,7 @@ def on_ticket(
     # 3. Get files to change
     # 4. Get file changes
     # 5. Create PR
-
-    organization, repo_name = repo_full_name.split("/")
+	title = title.replace("sweep: ", "").replace("sweep ", "")
     metadata = {
         "issue_url": issue_url,
         "issue_number": issue_number,
