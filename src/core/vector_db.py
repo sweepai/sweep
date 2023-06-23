@@ -34,6 +34,7 @@ DISKCACHE_DIR = "/root/cache/diskcache/"
 DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 256
 SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-MiniLM-L12-v2"
+timeout = 60 * 30 # 30 minutes
 
 image = (
     modal.Image.debian_slim()
@@ -230,7 +231,7 @@ def get_deeplake_vs_from_repo(
         logger.error("No documents found in repository")
         return deeplake_vs
 
-@stub.function(image=image, secrets=secrets, timeout=15 * 60, shared_volumes={DISKCACHE_DIR: model_volume})
+@stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
 def init_index(
     repo_name: str,
     installation_id: int,
@@ -239,7 +240,7 @@ def init_index(
     pass
 
 
-@stub.function(image=image, secrets=secrets, timeout=30 * 60, shared_volumes={DISKCACHE_DIR: model_volume})
+@stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
 def update_index(
     repo_name,
     installation_id: int,
@@ -248,7 +249,7 @@ def update_index(
     pass
 
 
-@stub.function(image=image, secrets=secrets, shared_volumes={DEEPLAKE_DIR: model_volume})
+@stub.function(image=image, secrets=secrets, shared_volumes={DEEPLAKE_DIR: model_volume}, timeout=timeout)
 def get_relevant_snippets(
     repo_name: str,
     query: str,
