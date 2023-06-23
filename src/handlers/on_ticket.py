@@ -89,15 +89,6 @@ logger.info(f"Getting repo {repo_full_name}")
 repo = g.get_repo(repo_full_name)
 current_issue = repo.get_issue(number=issue_number)
 
-# New code to check and modify issue title
-issue_title = current_issue.title
-if issue_title.startswith("sweep: "):
-    new_title = issue_title.replace("sweep: ", "", 1)
-elif issue_title.startswith("sweep"):
-    new_title = issue_title.replace("sweep", "", 1)
-else:
-    new_title = issue_title
-current_issue.edit(title=new_title)
     if current_issue.state == 'closed':
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
@@ -202,10 +193,7 @@ current_issue.edit(title=new_title)
         i += 1
 
     snippets = snippets[:min(len(snippets), max_num_of_snippets)]
-if title.startswith("sweep: "):
-    title = title.replace("sweep: ", "", 1)
-elif title.startswith("sweep"):
-    title = title.replace("sweep", "", 1)
+
 
 human_message = HumanMessagePrompt(
     repo_name=repo_name,
