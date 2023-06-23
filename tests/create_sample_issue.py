@@ -13,4 +13,5 @@ def create_issue(repo_name, title, body):
 if __name__ == "__main__":
     # create_issue("sweepai/bot-internal", "Sweep: Modify the logic in tree to only show the sibling files where a snippet was retrieved from", " ")
     # create_issue("sweepai/bot-internal", "Sweep: Add eyes reaction on comment replies", " ")
-    create_issue("sweepai/dev-sandbox", "Sweep: Add some more requirements to train a pytorch model, and add a new file which does so", " ")
+    create_issue("sweepai/sweep","Sweep: Add eyes reaction to replies in on_comment when they have been addressed using comment id", " ")
+    create_issue("sweepai/sweep","Sweep: Add an option for the user to comment REVERT In src/handlers/on_comment.py which will rollback that file one commit", " ")

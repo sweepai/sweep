@@ -207,55 +207,60 @@ def on_ticket(
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message, repo=repo, is_reply=bool(comments)
     )
-
+    sweepbot_retries = 3
     try:
-        logger.info("CoT retrieval...")
-        if sweep_bot.model == "gpt-4-32k-0613":
-            sweep_bot.cot_retrieval()
-        logger.info("Fetching files to modify/create...")
-        file_change_requests = sweep_bot.get_files_to_change()
-        logger.info("Getting response from ChatGPT...")
-        reply = sweep_bot.chat(reply_prompt, message_key="reply")
-        sweep_bot.delete_messages_from_chat("reply")
-        logger.info("Sending response...")
-        new_line = '\n'
-        comment_reply(
-            reply
-            + "\n\n"
-            + collapsible_template.format(
-                summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
-                body="\n".join(
-                    [
-                        f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(new_line))}\n"
-                        for snippet in snippets[::-1]
-                    ]
-                ),
+        for i in range(sweepbot_retries):
+            logger.info("CoT retrieval...")
+            if sweep_bot.model == "gpt-4-32k-0613":
+                sweep_bot.cot_retrieval()
+            logger.info("Fetching files to modify/create...")
+            file_change_requests = sweep_bot.get_files_to_change()
+            logger.info("Getting response from ChatGPT...")
+            reply = sweep_bot.chat(reply_prompt, message_key="reply")
+            sweep_bot.delete_messages_from_chat("reply")
+            logger.info("Sending response...")
+            new_line = '\n'
+            comment_reply(
+                reply
+                + "\n\n"
+                + collapsible_template.format(
+                    summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
+                    body="\n".join(
+                        [
+                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(new_line))}\n"
+                            for snippet in snippets[::-1]
+                        ]
+                    ),
+                )
             )
-        )
 
-        logger.info("Generating PR...")
-        pull_request = sweep_bot.generate_pull_request()
+            logger.info("Generating PR...")
+            pull_request = sweep_bot.generate_pull_request()
 
-        logger.info("Making PR...")
-        pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
+            logger.info("Making PR...")
+            pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
+            sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
 
-        pr = repo.create_pull(
-            title=pull_request.title,
-            body=pr_description,
-            head=pull_request.branch_name,
-            base=repo.default_branch,
-        )
-        current_issue.create_reaction("rocket")
-        try:
-            review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username, 
-                    repo_description=repo_description, title=title, 
-                    summary=summary, replies_text=replies_text, installation_id=installation_id, snippets=snippets, tree=tree)
-        except Exception as e:
-            logger.error(e)
+            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
+
+            pr = repo.create_pull(
+                title=pull_request.title,
+                body=pr_description,
+                head=pull_request.branch_name,
+                base=repo.default_branch,
+            )
+            current_issue.create_reaction("rocket")
+            try:
+                review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username, 
+                        repo_description=repo_description, title=title, 
+                        summary=summary, replies_text=replies_text, installation_id=installation_id, snippets=snippets, tree=tree)
+            except Exception as e:
+                logger.error(e)
+            break
     except openai.error.InvalidRequestError as e:
         logger.error(e)
         comment_reply(
-            "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. I'll try again in a minute. If this error persists contact team@sweep.dev."
+            "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev."
         )
         posthog.capture(
             username,
@@ -270,7 +275,7 @@ def on_ticket(
     except Exception as e:
         logger.error(e)
         comment_reply(
-            "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. I'll try again in a minute. If this error persists contact team@sweep.dev."
+            "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev."
         )
         posthog.capture(
             username,
