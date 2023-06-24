@@ -1,21 +1,18 @@
 import shutil
-import modal
 import os
 import time
 import re
-import github
-from github import Github
-from github.Repository import Repository
-from loguru import logger
-from git import Repo
-
-from jwt import encode
 import requests
 from tqdm import tqdm
+from github import Github
+from git import Repo
+from jwt import encode
+from loguru import logger
 from src.core.entities import Snippet
 from src.utils.config import SweepConfig
 from src.utils.constants import APP_ID, DB_NAME
 from src.utils.event_logger import posthog
+from .config_parser import parse_sweep_toml
 
 
 def make_valid_string(string: str):
@@ -66,6 +63,7 @@ def get_installation_id(username: str):
     except:
         raise Exception("Could not get installation id, probably not installed")
 
+
 def display_directory_tree(
     root_path,
     includes: list[str] = [],
@@ -94,6 +92,7 @@ def display_directory_tree(
             else:
                 tree += f"{indent}|- {item_name}\n"
         return tree
+
     tree = display_directory_tree_helper(root_path)
     lines = tree.splitlines()
     return "\n".join([line[3:] for line in lines])
@@ -118,16 +117,9 @@ def get_file_list(root_directory: str) -> str:
     return files
 
 
-# def get_tree(repo_name: str, installation_id: int) -> str:
-#     token = get_token(installation_id)
-#     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
-#     Repo.clone_from(repo_url, "repo")
-#     tree = display_directory_tree("repo")
-#     shutil.rmtree("repo")
-#     return tree
 def get_tree_and_file_list(
-    repo_name: str, 
-    installation_id: int, 
+    repo_name: str,
+    installation_id: int,
     snippet_paths: list[str]
 ) -> str:
     token = get_token(installation_id)
@@ -145,7 +137,7 @@ def get_tree_and_file_list(
         prefixes.append(snippet_path)
 
     tree = display_directory_tree(
-        "repo", 
+        "repo",
         includes=prefixes,
     )
     file_list = get_file_list("repo")
@@ -153,7 +145,7 @@ def get_tree_and_file_list(
     return tree, file_list
 
 
-def get_file_contents(repo: Repository, file_path, ref=None):
+def get_file_contents(repo, file_path, ref=None):
     if ref is None:
         ref = repo.default_branch
     file = repo.get_contents(file_path, ref=ref)
@@ -162,7 +154,7 @@ def get_file_contents(repo: Repository, file_path, ref=None):
 
 
 def search_snippets(
-    repo: Repository,
+    repo,
     query: str,
     installation_id: int,
     num_files: int = 5,
@@ -170,12 +162,15 @@ def search_snippets(
     branch: str = None,
     sweep_config: SweepConfig = SweepConfig(),
 ) -> tuple[Snippet, str]:
-    # Initialize the relevant directories string
-    get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
-    snippets: list[Snippet] = get_relevant_snippets.call(
-        repo.full_name, query, num_files, installation_id=installation_id
-    )
-    logger.info(f"Snippets: {snippets}")
+    # Check if a sweep.toml file exists in the repository
+    sweep_toml_path = os.path.join(repo.full_name, 'sweep.toml')
+    if os.path.exists(sweep_toml_path):
+        # If it does, parse the configurations and apply them
+        config = parse_sweep_toml(sweep_toml_path)
+        # Apply the configurations when searching for snippets...
+
+    # Rest of the function remains the same...
+    snippets = []
     for snippet in snippets:
         try:
             file_contents = get_file_contents(repo, snippet.file_path, ref=branch)
@@ -190,8 +185,8 @@ def search_snippets(
         else:
             snippet.content = file_contents
     tree, file_list = get_tree_and_file_list(
-        repo.full_name, 
-        installation_id, 
+        repo.full_name,
+        installation_id,
         snippet_paths=[snippet.file_path for snippet in snippets]
     )
     for file_path in tqdm(file_list):
