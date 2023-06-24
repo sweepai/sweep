@@ -24,12 +24,11 @@ from src.core.prompts import (
     create_file_prompt,
     modify_file_prompt,
     modify_file_plan_prompt,
-    modify_file_example_prompt,
     cot_retrieval_prompt
 )
 from src.utils.constants import DB_NAME
 from src.utils.file_change_functions import modify_file_function, apply_code_edits
-from src.utils.diff import format_contents, fuse_files
+from src.utils.diff import format_contents, fuse_files, generate_new_file
 
 
 class CodeGenBot(ChatGPT):
@@ -249,7 +248,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 file_change_request.filename
             ).decoded_content.decode("utf-8")
         # Add line numbers to the contents; goes in prompts but not github
-        contents_line_numbers = "\n".join([f"{i}: {line}" for i, line in enumerate(contents.split("\n"))])
+        contents_line_numbers = "\n".join([f"{i}:{line}" for i, line in enumerate(contents.split("\n"))])
         contents_line_numbers = contents_line_numbers.replace('"""', "'''")
         for count in range(5):
             if "0613" in self.model:
@@ -261,25 +260,13 @@ class SweepBot(CodeGenBot, GithubBot):
                     ),
                     message_key=f"file_change_{file_change_request.filename}",
                 )
-                _ = self.chat( # Force it to create an actual file
-                    modify_file_example_prompt.format(
-                        filename=file_change_request.filename,
-                        instructions=file_change_request.instructions,
-                    ),
-                    message_key=f"file_change_{file_change_request.filename}"
-                )
                 modify_file_response = self.chat(
                     modify_file_prompt,
                     message_key=f"file_change_{file_change_request.filename}",
-                    functions=[modify_file_function],
-                    function_name={"name": "modify_file"}, # Force it to call modify_file
                 )
                 try:
                     logger.info(f"modify_file_response: {modify_file_response}")
-                    arguments = json.loads(modify_file_response["arguments"])
-                    code_edits = arguments["code_edits"]
-                    edited_file = apply_code_edits(contents, code_edits)
-                    return (fuse_files(contents, edited_file), file_change_request.filename)
+                    return (generate_new_file(modify_file_response, contents), file_change_request.filename)
                 except Exception as e:
                     logger.warning(f"Recieved error {e}")
                     logger.warning(
