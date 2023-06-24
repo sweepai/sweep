@@ -1,21 +1,10 @@
-"""
-On Github ticket, get ChatGPT to deal with it
-"""
-
-# TODO: Add file validation
-
 import os
 import openai
-
 from loguru import logger
-
 from src.core.sweep_bot import SweepBot
 from src.handlers.on_review import get_pr_diffs
 from src.utils.event_logger import posthog
-from src.utils.github_utils import (
-    get_github_client,
-    search_snippets,
-)
+from src.utils.github_utils import get_github_client, search_snippets
 from src.utils.prompt_constructor import HumanMessageCommentPrompt
 from src.utils.constants import PREFIX
 
@@ -39,6 +28,9 @@ def on_comment(
     # 3. Get files to change
     # 4. Get file changes
     # 5. Create PR
+    if comment.strip().upper() == "REVERT":
+        revert_file(repo_full_name, pr_path, pr_number)
+        return {"success": True}
     logger.info(f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
     organization, repo_name = repo_full_name.split("/")
     metadata = {
@@ -88,8 +80,7 @@ def on_comment(
         )
         logger.info(f"Human prompt{human_message.construct_prompt()}")
         sweep_bot = SweepBot.from_system_message_content(
-            # human_message=human_message, model="claude-v1.3-100k", repo=repo
-            human_message=human_message, repo=repo, 
+            human_message=human_message, repo=repo
         )
     except Exception as e:
         posthog.capture(username, "failed", properties={
@@ -117,4 +108,13 @@ def on_comment(
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_comment success")
+
+
+def revert_file(repo_full_name, pr_path, pr_number):
+    g = get_github_client()
+    repo = g.get_repo(repo_full_name)
+    pr = repo.get_pull(pr_number)
+    branch_name = pr.head.ref
+    file_content = repo.get_contents(pr_path, ref=branch_name+"^").decoded_content.decode("utf-8")
+    repo.update_file(pr_path, "Revert file to previous commit", file_content, repo.get_contents(pr_path, ref=branch_name).sha, branch=branch_name)
     return {"success": True}
