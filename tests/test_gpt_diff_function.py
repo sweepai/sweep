@@ -994,4 +994,16 @@ code_edits = [
     }]
 
 new_code = apply_code_edits(code, code_edits)
-import pdb; pdb.set_trace()
+
+def test_on_comment_revert():
+    # Create a mock PR and a file in it
+    pr = MockPullRequest()
+    file_path = "test_file.py"
+    file_content = "print('Hello, world!')"
+    pr.create_file(file_path, file_content)
+
+    # Call the on_comment function with the comment set to "REVERT" and the pr_path set to the path of the file
+    on_comment("test_repo", "Test repo", "REVERT", file_path, None, "test_user", 1, pr.number)
+
+    # Check if the file in the PR is the same as the file at the previous commit
+    assert pr.get_file(file_path) == pr.get_file_at_previous_commit(file_path)
