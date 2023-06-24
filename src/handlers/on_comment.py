@@ -26,7 +26,9 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 def on_comment(
     repo_full_name: str,
     repo_description: str,
-    comment: str,
+    if comment.strip().upper() == "REVERT":
+        rollback_file(pr_path, branch_name)
+        return {"success": True, "message": "File has been rolled back to the previous commit."}
     pr_path: str | None,
     pr_line_position: int | None,
     username: str,
@@ -118,3 +120,15 @@ def on_comment(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_comment success")
     return {"success": True}
+
+def rollback_file(file_path, branch_name):
+    try:
+        # Get the file at the previous commit
+        previous_commit = repo.get_commits(path=file_path)[1]
+        previous_file = repo.get_contents(file_path, ref=previous_commit.sha)
+
+        # Replace the current file with the previous file
+        repo.update_file(file_path, "Rollback file to previous commit", previous_file.decoded_content, repo.get_contents(file_path).sha, branch=branch_name)
+    except Exception as e:
+        logger.error(f"Failed to rollback file: {str(e)}")
+        raise e
