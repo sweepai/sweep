@@ -19,6 +19,7 @@ from src.core.prompts import (
     system_message_prompt,
     system_message_issue_comment_prompt,
 )
+from src.utils.constants import UTILS_NAME
 from src.utils.prompt_constructor import HumanMessagePrompt
 from src.core.entities import Message, Function
 
@@ -179,7 +180,7 @@ class ChatGPT(BaseModel):
     ):
         if model is None:
             model = self.model
-        count_tokens = modal.Function.lookup("utils", "Tiktoken.count")
+        count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
         messages_length = sum(
             [count_tokens.call(message.content or "") for message in self.messages]
         )
@@ -274,7 +275,7 @@ class ChatGPT(BaseModel):
     def call_anthropic(self, model: ChatModel | None = None) -> str:
         if model is None:
             model = self.model
-        count_tokens = modal.Function.lookup("utils", "Tiktoken.count")
+        count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
         messages_length = sum(
             [int(count_tokens.call(message.content) * 1.1) for message in self.messages]
         )
