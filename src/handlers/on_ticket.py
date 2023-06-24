@@ -231,7 +231,24 @@ def on_ticket(
                             for snippet in snippets[::-1]
                         ]
                     ),
+            comment_reply(
+                reply
+                + "\n\n"
+                + collapsible_template.format(
+                    summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
+                    body="\n".join(
+                        [
+                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(new_line))}\n"
+                            for snippet in snippets[::-1]
+                        ]
+                    ),
                 )
+            )
+
+            # Check if the comment has been addressed
+            if sweep_bot.comment_addressed(comment_id):
+                # Add an "eyes" reaction to the comment
+                sweep_bot.add_reaction_to_comment(comment_id, "eyes")
             )
 
             logger.info("Generating PR...")
