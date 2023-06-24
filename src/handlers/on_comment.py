@@ -102,7 +102,12 @@ def on_comment(
     try:
         logger.info("Fetching files to modify/create...")
         file_change_requests = sweep_bot.get_files_to_change()
-
+        # Add "eyes" reaction to the comment after it has been addressed
+        try:
+            comment = repo.get_comment(comment_id)
+            comment.create_reaction('eyes')
+        except Exception as e:
+            logger.error(f"Failed to add reaction to comment: {e}")
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
 
