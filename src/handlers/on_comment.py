@@ -109,8 +109,9 @@ def on_comment(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_comment success")
 
+
 def revert_file(repo_full_name, pr_path, pr_number):
-    g = get_github_client(installation_id)
+    g = get_github_client()
     repo = g.get_repo(repo_full_name)
     pr = repo.get_pull(pr_number)
     branch_name = pr.head.ref
