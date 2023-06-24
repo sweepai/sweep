@@ -1,4 +1,3 @@
-import os
 import re
 import subprocess
 from src.core.chat import ChatGPT
@@ -9,11 +8,14 @@ response_regex = r"```[^\n]*(?P<response>.+)```"
 
 
 class CodeRepairer(ChatGPT):
-    messages = [Message(role="system", content=code_repair_system_prompt)]
-    model = "gpt-3.5-turbo-16k-0613"
+    # idk why this part breaks
+    # messages: list[Message] = [Message(role="system", content=code_repair_system_prompt)]
+    # model = "gpt-3.5-turbo-16k-0613"
 
     @staticmethod
     def check_syntax(old_code, file_extension: str) -> bool:
+        # this is WIP
+        raise NotImplementedError()
         if file_extension == '.py':
             # Use Python's built-in formatter "Black"
             result = subprocess.run(['black', '--check', filename], text=True, capture_output=True)
@@ -43,8 +45,13 @@ class CodeRepairer(ChatGPT):
 
 
     def repair_code(self, old_code: str) -> str:
+        self.messages = [Message(role="system", content=code_repair_system_prompt)]
+        self.model = "gpt-3.5-turbo-16k-0613" # can be optimized
         response = self.chat(old_code)
         self.undo()
         match = re.search(response_regex, response, flags=re.DOTALL)
-        return match.group("response")
+        if match is None:
+            return response.strip() + "\n"
+        else:
+            return match.group("response").strip() + "\n"
 
