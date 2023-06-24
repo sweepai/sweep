@@ -6,6 +6,7 @@ from github.ContentFile import ContentFile
 from github.GithubException import GithubException
 import modal
 from pydantic import BaseModel
+from src.core.code_repair import CodeRepairer
 
 
 from src.core.entities import (
@@ -266,13 +267,15 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
                 try:
                     logger.info(f"modify_file_response: {modify_file_response}")
-                    return (generate_new_file(modify_file_response, contents), file_change_request.filename)
+                    new_file = generate_new_file(modify_file_response, contents)
+                    code_repairer = CodeRepairer()
+                    new_file = code_repairer.repair_code(new_file)
+                    return (new_file, file_change_request.filename)
                 except Exception as e:
                     logger.warning(f"Recieved error {e}")
                     logger.warning(
                         f"Failed to parse. Retrying for the {count}th time..."
                     )
-                    self.undo()
                     self.undo()
                     self.undo()
                     continue
