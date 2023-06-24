@@ -2,9 +2,10 @@
 This file should be split into environment and config files
 """
 
-PREFIX = "dev"
+PREFIX = "dev2"
 DB_NAME = PREFIX + "-db"
 API_NAME = PREFIX + "-api"
+UTILS_NAME = PREFIX + "-utils"
 SLACK_NAME = PREFIX + "-slack"
 BOT_TOKEN_NAME = PREFIX + "-bot-token"
 if PREFIX == "prod":

@@ -20,7 +20,7 @@ from src.handlers.on_review import review_pr
 from src.utils.event_logger import posthog
 from src.utils.github_utils import get_github_client, search_snippets
 from src.utils.prompt_constructor import HumanMessagePrompt
-from src.utils.constants import DB_NAME, PREFIX
+from src.utils.constants import DB_NAME, PREFIX, UTILS_NAME
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -38,7 +38,7 @@ collapsible_template = """
 </details>
 """
 
-chunker = modal.Function.lookup("utils", "Chunking.chunk")
+chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5

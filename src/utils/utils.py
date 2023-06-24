@@ -1,5 +1,4 @@
 import os
-import shutil
 import subprocess
 from dataclasses import dataclass
 
@@ -7,7 +6,9 @@ import modal
 from modal import method
 from loguru import logger
 
-stub = modal.Stub("utils")
+from src.utils.constants import UTILS_NAME
+
+stub = modal.Stub(UTILS_NAME)
 tiktoken_image = modal.Image.debian_slim().pip_install("tiktoken", "loguru", "anthropic")
 
 TIKTOKEN_CACHE_DIR = "/root/cache/tiktoken"
