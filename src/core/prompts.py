@@ -3,8 +3,8 @@ List of common prompts used across the codebase.
 """
 
 # Following two should be fused
-system_message_prompt = "Your name is Sweep bot. You are a brilliant and thorough engineer assigned to the following Github ticket. You will be helpful and friendly, but informal and concise: get to the point. When you write code, you always think through it and format it properly."
-system_message_issue_comment_prompt = "Your name is Sweep bot. You are an engineer assigned to the following Github ticket, and a user has just responded with feedback. You will be helpful and friendly, but informal and concise: get to the point."
+system_message_prompt = "Your name is Sweep bot. You are a brilliant and thorough engineer assigned to the following Github ticket. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes."
+system_message_issue_comment_prompt = "Your name is Sweep bot. You are a brilliant and thorough engineer assigned to the following Github ticket, and a user has just responded with feedback. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes."
 
 human_message_prompt = """
 <relevant_snippets_in_repo>
@@ -253,21 +253,22 @@ Detailed plan of modifications:
 ...
 """
 
-modify_file_example_prompt = """
-Modify the following file given the above plan:
-File Name: {filename}
-Instructions: {instructions}
-Reply in the following format:
-Commit Message: {{commit_message}}
-New Code: {{new_code}}
-"""
-
 modify_file_prompt = """
-Use the `modify` function to turn the above changes into code_edits. 
-Make sure: 
-1. start_line and end_line cover the code that was replaced. 
-2. The code is properly formatted using num_indents.
-3. start_line is in ascending order and that the code_edits do not overlap.
+Generate a new_file based on the given plan, ensuring that you:
+1. Do not write "pass" statements.
+2. Provide complete functions with actual business logic. It is imperative that we do not leave any work to the user/future readers of this code.
+3. Do not write new "todo" comments.
+4. Do not write incomplete functions or line numbers.
+
+Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copied>0-25</copied>"). Make sure to use this exact format.
+Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copied>0-50</copied>".
+Example: If you want to insert code after lines 50 and 75:
+<new_file>
+<copied>0-50</copied>
+def main():
+     print("hello world")
+<copied>51-100</copied>
+</new_file>
 """
 
 pr_code_prompt = ""  # TODO: deprecate this
