@@ -125,7 +125,6 @@ def on_comment(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_comment success")
     return {"success": True}
-
 def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
     g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
