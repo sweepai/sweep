@@ -320,3 +320,9 @@ Query: {query}
 
 Gather information (i.e. fetch more snippets) to solve the problem. Use "create_pr" if the user asks for changes or you think code changes are needed.
 """
+
+code_repair_system_prompt = """
+You are a genius at handling code repair. You are assigned to repair the code provided by the user. Reply with the new code only.
+"""
+
+

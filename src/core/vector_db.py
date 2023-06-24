@@ -20,13 +20,13 @@ from src.utils.event_logger import posthog
 from src.utils.hash import hash_sha256
 
 from ..utils.github_utils import get_token
-from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV
+from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
 import time
 
 # TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_NAME)
-chunker = modal.Function.lookup("utils", "Chunking.chunk")
+chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 model_volume = modal.SharedVolume().persist(f"{ENV}-storage")
 MODEL_DIR = "/root/cache/model"
 DEEPLAKE_DIR = "/root/cache/"

@@ -3,8 +3,9 @@ from loguru import logger
 import modal
 
 from src.core.chat import Snippet
+from src.utils.constants import UTILS_NAME
 
-chunker = modal.Function.lookup("utils", "Chunking.chunk")
+chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 
 def format_snippets(snippets: list[Snippet]):
     snippets: list[Snippet] = snippets[::-1]
