@@ -38,8 +38,6 @@ def on_comment(
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
         return {"success": True, "message": "File has been reverted to the previous commit."}
 
-    # Rest of the original code
-):
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -125,6 +123,7 @@ def on_comment(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_comment success")
     return {"success": True}
+
 def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
     g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
@@ -132,8 +131,28 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
     branch_name = pr.head.ref
 
     # Get the file's content from the previous commit
-    previous_commit = repo.get_commits()[1]
-    previous_file_content = repo.get_contents(pr_path, ref=previous_commit.sha).decoded_content.decode("utf-8")
+    commits = repo.get_commits(sha=branch_name)
+    if commits.totalCount < 2:
+        current_file = repo.get_contents(pr_path, ref=commits[0].sha)
+        current_file_sha = current_file.sha
+        previous_content = repo.get_contents(pr_path, ref=repo.default_branch)
+        previous_file_content = previous_content.decoded_content.decode("utf-8")
+        repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha, branch=branch_name)
+        return
+    previous_commit = commits[1]
+    
+    # Get current file SHA
+    current_file = repo.get_contents(pr_path, ref=commits[0].sha)
+    current_file_sha = current_file.sha
 
-    # Create a new commit with the previous file content
-    repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, repo.get_contents(pr_path).sha, branch=branch_name)
+    # Check if the file exists in the previous commit
+    try:
+        previous_content = repo.get_contents(pr_path, ref=previous_commit.sha)
+        previous_file_content = previous_content.decoded_content.decode("utf-8")
+        # Create a new commit with the previous file content
+        repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha, branch=branch_name)
+    except Exception as e:
+        if e.status == 404:
+            logger.warning(f"File {pr_path} was not found in previous commit {previous_commit.sha}")
+        else:
+            raise e
