@@ -1,5 +1,7 @@
 import modal
 
+from src.utils.constants import UTILS_NAME
+
 code_examples = ["""
 import numpy as np
 
@@ -43,7 +45,7 @@ Test
 """
 
 if __name__ == "__main__":
-    chunk_string = modal.Function.lookup("utils", "Chunking.chunk")
+    chunk_string = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
     files = [
         "tests/example_code/chroma_fastapi.py", 
         "tests/example_code/query_builder.tsx",
