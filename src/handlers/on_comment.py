@@ -33,6 +33,13 @@ def on_comment(
     installation_id: int,
     pr_number: int = None,
 ):
+    # Check if the comment is "REVERT"
+    if comment.strip().upper() == "REVERT":
+        rollback_file(repo_full_name, pr_path, installation_id, pr_number)
+        return {"success": True, "message": "File has been reverted to the previous commit."}
+
+    # Rest of the original code
+):
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -118,3 +125,16 @@ def on_comment(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_comment success")
     return {"success": True}
+
+def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
+    g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    pr = repo.get_pull(pr_number)
+    branch_name = pr.head.ref
+
+    # Get the file's content from the previous commit
+    previous_commit = repo.get_commits()[1]
+    previous_file_content = repo.get_contents(pr_path, ref=previous_commit.sha).decoded_content.decode("utf-8")
+
+    # Create a new commit with the previous file content
+    repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, repo.get_contents(pr_path).sha, branch=branch_name)
