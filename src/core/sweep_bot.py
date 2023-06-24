@@ -155,8 +155,8 @@ class GithubBot(BaseModel):
 
 class SweepBot(CodeGenBot, GithubBot):
     def cot_retrieval(self):
-        # TODO(sweep): add semantic search using vector db
-        # TODO(sweep): add search using webpilot + github
+        # TODO: add semantic search using vector db
+        # TODO: add search using webpilot + github
         functions = [
             Function(
                 name="cat",
@@ -290,15 +290,10 @@ class SweepBot(CodeGenBot, GithubBot):
             raise Exception("Not a valid file type")
 
     def change_files_in_github(
-        self,
-        file_change_requests: list[FileChangeRequest],
-        branch: str,
-    ):
-        # should check if branch exists, if not, create it
-        logger.debug(file_change_requests)
+        revert_history = {}  # Initialize a dictionary to keep track of the revert history of each file
         for file_change_request in file_change_requests:
             if file_change_request.change_type == "create":
-                try: # Try to create
+                try:  # Try to create
                     file_change = self.create_file(file_change_request)
                     logger.debug(
                         f"{file_change_request.filename}, {file_change.commit_message}, {file_change.code}, {branch}"
@@ -310,9 +305,10 @@ class SweepBot(CodeGenBot, GithubBot):
                         file_change.code,
                         branch=branch,
                     )
+                    revert_history[file_change_request.filename] = 0  # Reset the revert count for this file
                 except github.GithubException as e:
                     logger.info(e)
-                    try: # Try to modify
+                    try:  # Try to modify
                         contents = self.get_file(file_change_request.filename, branch=branch)
                         file_change.code = format_contents(file_change.code)
                         self.repo.update_file(
@@ -322,41 +318,53 @@ class SweepBot(CodeGenBot, GithubBot):
                             contents.sha,
                             branch=branch,
                         )
+                        revert_history[file_change_request.filename] = 0  # Reset the revert count for this file
                     except:
                         pass
             elif file_change_request.change_type == "modify":
-                # TODO(sweep): Cleanup this
-                try:
-                    contents = self.get_file(file_change_request.filename, branch=branch)
-                except github.UnknownObjectException as e:
-                    logger.warning(f"Received error {e}, trying creating file...")
-                    file_change_request.change_type = "create"
-                    self.create_file(file_change_request)
-                    file_change = self.create_file(file_change_request)
-                    logger.debug(
-                        f"{file_change_request.filename}, {file_change.commit_message}, {file_change.code}, {branch}"
-                    )
-                    file_change.code = format_contents(file_change.code)
-                    self.repo.create_file(
-                        file_change_request.filename,
-                        file_change.commit_message,
-                        file_change.code,
-                        branch=branch,
-                    )
+                # Check the revert history
+                if revert_history.get(file_change_request.filename, 0) >= 2:
+                    # If the file has been reverted twice in a row, go two commits back
+                    self.repo.git.revert('HEAD~2')
                 else:
-                    new_file_contents, file_name = self.modify_file(
-                        file_change_request, contents.decoded_content.decode("utf-8")
-                    )
-                    new_file_contents = format_contents(new_file_contents)
-                    logger.debug(
-                        f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
-                    )
-                    self.repo.update_file(
-                        file_name,
-                        f'Update {file_name}',
-                        new_file_contents,
-                        contents.sha,
-                        branch=branch,
-                    )
+                    # TODO: Cleanup this
+                    try:
+                        contents = self.get_file(file_change_request.filename, branch=branch)
+                    except github.UnknownObjectException as e:
+                        logger.warning(f"Received error {e}, trying creating file...")
+                        file_change_request.change_type = "create"
+                        self.create_file(file_change_request)
+                        file_change = self.create_file(file_change_request)
+                        logger.debug(
+                            f"{file_change_request.filename}, {file_change.commit_message}, {file_change.code}, {branch}"
+                        )
+                        file_change.code = format_contents(file_change.code)
+                        self.repo.create_file(
+                            file_change_request.filename,
+                            file_change.commit_message,
+                            file_change.code,
+                            branch=branch,
+                        )
+                    else:
+                        new_file_contents, file_name = self.modify_file(
+                            file_change_request, contents.decoded_content.decode("utf-8")
+                        )
+                        new_file_contents = format_contents(new_file_contents)
+                        logger.debug(
+                            f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
+                        )
+                        self.repo.update_file(
+                            file_name,
+                            f'Update {file_name}',
+                            new_file_contents,
+                            contents.sha,
+                            branch=branch,
+                        )
+                        # Update the revert history
+                        if 'revert' in f'Update {file_name}'.lower():
+                            revert_history[file_name] = revert_history.get(file_name, 0) + 1
+                        else:
+                            revert_history[file_name] = 0
             else:
+                raise Exception("Invalid change type")
                 raise Exception("Invalid change type")
