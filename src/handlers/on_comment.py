@@ -128,4 +128,3 @@ def on_comment(
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_comment success")
-    return {"success": True}
