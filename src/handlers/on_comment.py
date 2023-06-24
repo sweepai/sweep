@@ -5,7 +5,8 @@ On Github ticket, get ChatGPT to deal with it
 # TODO: Add file validation
 
 import os
-import openai
+
+import git
 
 from loguru import logger
 
@@ -33,6 +34,24 @@ def on_comment(
     installation_id: int,
     pr_number: int = None,
 ):
+    # Flow:
+
+def on_comment(
+    repo_full_name: str,
+    repo_description: str,
+    comment: str,
+    pr_path: str | None,
+    pr_line_position: int | None,
+    username: str,
+    installation_id: int,
+    pr_number: int = None,
+):
+    if comment.strip().upper() == "REVERT":
+        repo = git.Repo(repo_full_name)
+        commits = list(repo.iter_commits('master', max_count=2))
+        repo.git.revert(commits[1].hexsha)
+        return {"success": True}
+
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
