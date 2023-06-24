@@ -1,3 +1,4 @@
+
 """
 On Github ticket, get ChatGPT to deal with it
 """
@@ -32,7 +33,27 @@ def on_comment(
     username: str,
     installation_id: int,
     pr_number: int = None,
+def on_comment(
+    repo_full_name: str,
+    repo_description: str,
+    comment: str,
+    pr_path: str | None,
+    pr_line_position: int | None,
+    username: str,
+    installation_id: int,
+    pr_number: int = None,
 ):
+    # Check if the comment is "REVERT"
+    if comment.strip().upper() == "REVERT":
+        from git import Repo
+        # Assuming that the repo is cloned in the current directory
+        repo = Repo('.')
+        # Get the last commit of the file
+        last_commit = repo.git.log('-n', '1', '--pretty=format:%H', pr_path)
+        # Revert the last commit of the file
+        repo.git.revert(last_commit)
+        return {"success": True, "message": f"Reverted {pr_path} to the previous commit."}
+
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
