@@ -21,7 +21,7 @@ from src.utils.constants import PREFIX
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
-
+from src.core.react import react
 
 def on_comment(
     repo_full_name: str,
@@ -90,6 +90,15 @@ def on_comment(
         sweep_bot = SweepBot.from_system_message_content(
             # human_message=human_message, model="claude-v1.3-100k", repo=repo
             human_message=human_message, repo=repo, 
+    try:
+        # Check if the comment has been addressed
+        if comment.id in addressed_comments:
+            try:
+                # Add "eyes" reaction to the comment
+                react(comment.id, 'eyes')
+            except Exception as e:
+                logger.error(f"Failed to add reaction to comment {comment.id}: {str(e)}")
+    
         )
     except Exception as e:
         posthog.capture(username, "failed", properties={
