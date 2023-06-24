@@ -124,9 +124,15 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
     repo = g.get_repo(repo_full_name)
     pr = repo.get_pull(pr_number)
     branch_name = pr.head.ref
-
     # Get the file's content from the previous commit
     commits = repo.get_commits(sha=branch_name)
+    if commits.totalCount < 2:
+        current_file = repo.get_contents(pr_path, ref=commits[0].sha)
+        current_file_sha = current_file.sha
+        previous_content = repo.get_contents(pr_path, ref=repo.default_branch)
+        previous_file_content = previous_content.decoded_content.decode("utf-8")
+        repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha, branch=branch_name)
+        return
     last_commit_message = commits[0].commit.message
     second_last_commit_message = commits[1].commit.message
 
