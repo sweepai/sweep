@@ -1,3 +1,4 @@
+
 """
 On Github ticket, get ChatGPT to deal with it
 """
@@ -102,7 +103,8 @@ def on_comment(
     try:
         logger.info("Fetching files to modify/create...")
         file_change_requests = sweep_bot.get_files_to_change()
-
+        logger.info("Adding 'eyes' reaction to the comment...")
+        sweep_bot.add_reaction_to_comment('eyes')
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
 
