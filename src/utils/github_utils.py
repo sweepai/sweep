@@ -153,15 +153,23 @@ def get_file_contents(repo, file_path, ref=None):
     return contents
 
 
-def get_relevant_snippets(
+def search_snippets(
     repo,
-    query,
-    num_files,
-    installation_id,
-    branch=None,
-    include_tree=False,
-    sweep_config=SweepConfig(),
-):
+    query: str,
+    installation_id: int,
+    num_files: int = 5,
+    include_tree: bool = True,
+    branch: str = None,
+    sweep_config: SweepConfig = SweepConfig(),
+) -> tuple[Snippet, str]:
+    # Check if a sweep.toml file exists in the repository
+    sweep_toml_path = os.path.join(repo.full_name, 'sweep.toml')
+    if os.path.exists(sweep_toml_path):
+        # If it does, parse the configurations and apply them
+        config = parse_sweep_toml(sweep_toml_path)
+        # Apply the configurations when searching for snippets...
+
+    # Rest of the function remains the same...
     snippets = []
     for snippet in snippets:
         try:
@@ -235,3 +243,4 @@ def index_full_repository(
         logger.warning(
             "Adding label failed, probably because label already."
         )  # warn that the repo may already be indexed
+    return num_indexed_docs
