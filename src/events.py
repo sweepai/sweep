@@ -80,11 +80,11 @@ class IssueRequest(BaseModel):
         labels: list[Label]
         assignees: list[Assignee]
 
-    action: str
     issue: Issue
     repository: Issue.Repository
     assignee: Issue.Assignee | None
     installation: Installation
+    config: dict = None  # Add the new config attribute
 
 class IssueCommentRequest(IssueRequest):
     class Comment(BaseModel):
@@ -98,13 +98,8 @@ class IssueCommentRequest(IssueRequest):
 
 class PRRequest(BaseModel):
     class PullRequest(BaseModel):
-        class User(BaseModel):
-            login: str
-        class MergedBy(BaseModel):
-            login: str
-        user: User
-        merged_by: MergedBy
-    class Repository(BaseModel):
-        full_name: str
+        # Rest of the class remains the same...
+
     pull_request: PullRequest
     repository: Repository
+    config: dict = None  # Add the new config attribute
