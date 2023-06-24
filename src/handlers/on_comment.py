@@ -18,8 +18,15 @@ from src.utils.github_utils import (
 )
 from src.utils.prompt_constructor import HumanMessageCommentPrompt
 from src.utils.constants import PREFIX
+def add_reaction_to_comment(g, comment_id):
+    """
+    Add an "eyes" reaction to a comment using the Github API.
 
-github_access_token = os.environ.get("GITHUB_TOKEN")
+    Args:
+        g: The Github client.
+        comment_id: The id of the comment to react to.
+    """
+    g.get_repo().get_issue_comment(comment_id).create_reaction('eyes')
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 
@@ -104,7 +111,7 @@ def on_comment(
         file_change_requests = sweep_bot.get_files_to_change()
 
         logger.info("Making Code Changes...")
-        sweep_bot.change_files_in_github(file_change_requests, branch_name)
+add_reaction_to_comment(g, comment.id)
 
         logger.info("Done!")
     except Exception as e:
