@@ -22,6 +22,15 @@ from src.utils.constants import PREFIX
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
+def is_comment_addressed(comment: str) -> bool:
+    addressed_keywords = ["addressed", "resolved", "fixed"]
+    return any(keyword in comment.lower() for keyword in addressed_keywords)
+
+def react_to_comment(comment_id: int):
+    g = get_github_client(installation_id)
+    comment = g.get_comment(comment_id)
+    comment.create_reaction('eyes')
+
 
 def on_comment(
     repo_full_name: str,
@@ -88,9 +97,11 @@ def on_comment(
         )
         logger.info(f"Human prompt{human_message.construct_prompt()}")
         sweep_bot = SweepBot.from_system_message_content(
-            # human_message=human_message, model="claude-v1.3-100k", repo=repo
-            human_message=human_message, repo=repo, 
+            human_message=human_message, repo=repo
         )
+
+        if is_comment_addressed(comment):
+            react_to_comment(comment_id)
     except Exception as e:
         posthog.capture(username, "failed", properties={
             "error": str(e),
