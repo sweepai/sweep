@@ -369,4 +369,17 @@ class SweepBot(CodeGenBot, GithubBot):
                         branch=branch,
                     )
             else:
-                raise Exception("Invalid change type")
+
+    def add_reaction_to_comment(self, comment_id: int, reaction_type: str):
+        """
+        Add a reaction to a comment.
+
+        Args:
+            comment_id (int): The ID of the comment to react to.
+            reaction_type (str): The type of reaction to add.
+        """
+        try:
+            comment = self.repo.get_comment(comment_id)
+            comment.create_reaction(reaction_type)
+        except github.GithubException as e:
+            logger.error(f"Failed to add reaction to comment: {e}")
