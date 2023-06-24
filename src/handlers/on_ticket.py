@@ -96,7 +96,11 @@ def on_ticket(
     eyes_reaction = item_to_react_to.create_reaction("eyes")
 
     def comment_reply(message: str):
-        current_issue.create_comment(message + "\n\n---\n" + bot_suffix)
+
+    def comment_reply(message: str):
+        comment = current_issue.create_comment(message + "\n\n---\n" + bot_suffix)
+        comment.create_reaction("eyes")
+
 
     comments = current_issue.get_comments()
     replies_text = ""
@@ -109,7 +113,6 @@ def on_ticket(
                 ) for comment in comments
             ]
         )
-
     def fetch_file_contents_with_retry():
         retries = 3
         error = None
