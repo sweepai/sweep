@@ -32,7 +32,21 @@ def on_comment(
     username: str,
     installation_id: int,
     pr_number: int = None,
+def on_comment(
+    repo_full_name: str,
+    repo_description: str,
+    comment: str,
+    pr_path: str | None,
+    pr_line_position: int | None,
+    username: str,
+    installation_id: int,
+    pr_number: int = None,
 ):
+    # Check if the comment is "REVERT"
+    if comment.strip().upper() == "REVERT":
+        revert_file_to_previous_commit(repo_full_name, pr_path, installation_id)
+        return {"success": True}
+
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -118,3 +132,14 @@ def on_comment(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_comment success")
     return {"success": True}
+
+
+def revert_file_to_previous_commit(repo_full_name: str, pr_path: str, installation_id: int):
+    """
+    Reverts the file at pr_path in the repo to its previous commit.
+    """
+    g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    file = repo.get_contents(pr_path)
+    commit = repo.get_commits(path=file.path)[1]  # Get the second latest commit
+    repo.update_file(file.path, "Revert file to previous commit", commit.commit.tree[file.path].content, file.sha)
