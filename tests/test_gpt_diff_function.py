@@ -985,13 +985,26 @@ def on_ticket(
     return {"success": True}
 '''
 
-code_edits = [
-    {
-      "start_line": 45,
-      "end_line": 45,
-      "inserted_code": "def on_ticket(\\n    title: str,\\n    summary: str,\\n    issue_number: int,\\n    issue_url: str,\\n    username: str,\\n    repo_full_name: str,\\n    repo_description: str,\\n    installation_id: int,\\n    comment_id: int = None\\n):\\n    title = title.replace(\'sweep: \', \'\').replace(\'sweep \', \'\') if title.lower().startswith((\'sweep: \', \'sweep \')) else title",
-      "num_indents": 1
-    }]
 
-new_code = apply_code_edits(code, code_edits)
-import pdb; pdb.set_trace()
+def test_eyes_reaction():
+    # Simulate the process of addressing a comment
+    on_comment(
+        repo_full_name="sweepai/sweep-test",
+        repo_description="Test repo for Sweep AI",
+        comment="Test comment",
+        pr_path=None,
+        pr_line_position=None,
+        username="test_user",
+        installation_id=12345,
+        pr_number=1
+    )
+
+    # Get the comment object
+    g = get_github_client(12345)
+    repo = g.get_repo("sweepai/sweep-test")
+    pr = repo.get_pull(1)
+    comment = pr.get_issue_comments()[-1]
+
+    # Check if the "eyes" reaction has been added
+    reactions = comment.get_reactions()
+    assert "eyes" in [reaction.content for reaction in reactions]
