@@ -237,15 +237,121 @@ def init_index(
     installation_id: int,
     sweep_config: SweepConfig = SweepConfig(),
 ):
-    pass
+    import yaml
+    with open("sweep.yaml", 'r') as stream:
+        try:
+            config = yaml.safe_load(stream)
+            commit_hash = config.get('commit-hash', '')
+        except yaml.YAMLError as exc:
+            print(exc)
+    repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git#{commit_hash}"
+    repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
+    shutil.rmtree("repo", ignore_errors=True)
+    Repo.clone_from(repo_url, "repo")
 
+    file_list = glob.iglob("repo/**", recursive=True)
+    file_list = [
+        file
+        for file in tqdm(file_list)
+        if os.path.isfile(file)
+        and all(not file.endswith(ext) for ext in sweep_config.exclude_exts)
+        and all(not file[len("repo/"):].startswith(dir_name) for dir_name in sweep_config.exclude_dirs)
+    ]
+
+    branch_name = repo.default_branch
+
+    file_paths = []
+    file_contents = []
+
+    for file in tqdm(file_list):
+        with open(file, "rb") as f:
+            is_binary = False
+            for block in iter(lambda: f.read(1024), b''):
+                if b'\0' in block:
+                    is_binary = True
+                    break
+            if is_binary:
+                logger.debug("Skipping binary file...")
+                continue
+        
+        with open(file, "rb") as f:
+            if len(f.read()) > sweep_config.max_file_limit:
+                logger.debug("Skipping large file...")
+                continue
+
+        with open(file, "r") as f:
+            # Can parallelize this
+            try:
+                contents = f.read()
+                contents = f"Represent this code snippet from {file} for retrieval:\n" + contents
+            except UnicodeDecodeError as e:
+                logger.warning(f"Received warning {e}, skipping...")
+                continue
+            file_path = file[len("repo/") :]
+            file_paths.append(file_path)
+            file_contents.append(contents)
+        
+    chunked_results = chunker.map(file_contents, file_paths, kwargs={
+        "additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}
+    })
+
+    documents, metadatas, ids = zip(*chunked_results)
+    documents = [item for sublist in documents for item in sublist]
+    metadatas = [item for sublist in metadatas for item in sublist]
+    ids = [item for sublist in ids for item in sublist]
+    
+    logger.info(f"Used {len(file_paths)} files...")
+
+    shutil.rmtree("repo")
+    logger.info(f"Getting list of all files took {time.time() -start}")
+    logger.info(f"Received {len(documents)} documents from repository {repo_name}")
+    collection_name = parse_collection_name(repo_name)
+
+    deeplake_vs = init_deeplake_vs(collection_name)
+    if len(documents) > 0:
+        logger.info("Computing embeddings...")
+        # Check cache here for all documents
+        embeddings = [None] * len(documents)
+        cache_success = True
+        try:
+            cache = Redis.from_url(os.environ.get("redis_url"))
+            logger.info(f"Succesfully got cache for {collection_name}")
+        except:
+            cache_success = False
+        if cache_success:
+            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL for doc in documents]
+            cache_values = cache.mget(cache_keys)
+            for idx, value in enumerate(cache_values):
+                if value is not None:
+                    embeddings[idx] = json.loads(value)
+        logger.info(f"Found {len([x for x in embeddings if x is not None])} embeddings in cache")
+        indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
+        documents_to_compute = [documents[idx] for idx in indices_to_compute]
+
+        computed_embeddings = embedding_function(documents_to_compute)
+
+        for idx, embedding in zip(indices_to_compute, computed_embeddings):
+            embeddings[idx] = embedding
+        deeplake_vs.add(
+            text = ids,
+            embedding = embeddings,
+            metadata = metadatas
+        )
+        if cache_success and len(documents_to_compute) > 0:
+            logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
+            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL for doc in documents_to_compute]
+            cache.mset({key: json.dumps(value) for key, value in zip(cache_keys, computed_embeddings)})
+        return deeplake_vs
+    else:
+        logger.error("No documents found in repository")
+        return deeplake_vs
 
 @stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
-def update_index(
-    repo_name,
+def init_index(
+    repo_name: str,
     installation_id: int,
     sweep_config: SweepConfig = SweepConfig(),
-) -> int:
+):
     pass
 
 
