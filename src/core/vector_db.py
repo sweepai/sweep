@@ -130,8 +130,6 @@ class ModalEmbeddingFunction:
 
 
 embedding_function = ModalEmbeddingFunction()
-
-
 def get_deeplake_vs_from_repo(
     repo_name: str,
     installation_id: int = None,
@@ -190,7 +188,7 @@ def get_deeplake_vs_from_repo(
             if is_binary:
                 logger.debug("Skipping binary file...")
                 continue
-
+        
         with open(file, "rb") as f:
             if len(f.read()) > sweep_config.max_file_limit:
                 logger.debug("Skipping large file...")
@@ -210,7 +208,7 @@ def get_deeplake_vs_from_repo(
             file_path = file[len("repo/") :]
             file_paths.append(file_path)
             file_contents.append(contents)
-
+        
     chunked_results = chunker.map(
         file_contents,
         file_paths,
@@ -221,7 +219,7 @@ def get_deeplake_vs_from_repo(
     documents = [item for sublist in documents for item in sublist]
     metadatas = [item for sublist in metadatas for item in sublist]
     ids = [item for sublist in ids for item in sublist]
-
+    
     logger.info(f"Used {len(file_paths)} files...")
 
     shutil.rmtree("repo")
@@ -368,4 +366,3 @@ def get_relevant_snippets(
             file_path=file_path,
         )
         for metadata, file_path in zip(metadatas, relevant_paths)
-    ]
