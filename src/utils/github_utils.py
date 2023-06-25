@@ -1,22 +1,18 @@
 import shutil
-import modal
 import os
 import time
 import re
-import github
-from github import Github
-from github.Repository import Repository
-from loguru import logger
-from git import Repo
-
-from jwt import encode
 import requests
 from tqdm import tqdm
 from src.core.entities import Snippet
 from src.utils.config import SweepConfig
 from src.utils.constants import APP_ID, DB_NAME
-from src.utils.event_logger import posthog
-
+from loguru import logger
+from git import Repo
+from jwt import encode
+from github import Github
+from github.Repository import Repository
+import yaml
 
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"
@@ -118,21 +114,20 @@ def get_file_list(root_directory: str) -> str:
     return files
 
 
-# def get_tree(repo_name: str, installation_id: int) -> str:
-#     token = get_token(installation_id)
-#     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
-#     Repo.clone_from(repo_url, "repo")
-#     tree = display_directory_tree("repo")
-#     shutil.rmtree("repo")
-#     return tree
 def get_tree_and_file_list(
     repo_name: str, 
     installation_id: int, 
     snippet_paths: list[str]
 ) -> str:
     token = get_token(installation_id)
+    # Load commit-hash from sweep.yaml
+    with open("sweep.yaml", "r") as f:
+        config = yaml.safe_load(f)
+    commit_hash = config.get("commit-hash", "")
+
+    # Modify repo_url to clone at specific commit
+    repo_url = f"https://github.com/{repo_name}.git/{commit_hash}"
     shutil.rmtree("repo", ignore_errors=True)
-    repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
     Repo.clone_from(repo_url, "repo")
 
     prefixes = []
