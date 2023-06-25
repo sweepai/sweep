@@ -4,6 +4,7 @@ import re
 import time
 import shutil
 import glob
+import toml
 
 from modal import stub
 from loguru import logger
@@ -22,6 +23,7 @@ from src.utils.hash import hash_sha256
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
+
 import time
 
 # TODO: Lots of cleanups can be done here with these constants
@@ -102,7 +104,6 @@ class ModalEmbeddingFunction():
         return Embedding.compute.call(texts)
 
 embedding_function = ModalEmbeddingFunction()
-
 def get_deeplake_vs_from_repo(
     repo_name: str,
     sweep_config: SweepConfig = SweepConfig(),
@@ -133,6 +134,13 @@ def get_deeplake_vs_from_repo(
     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
     shutil.rmtree("repo", ignore_errors=True)
     Repo.clone_from(repo_url, "repo")
+
+    # Parse sweep.toml for exclude_directories
+    try:
+        sweep_toml = toml.load("repo/sweep.toml")
+        sweep_config.exclude_dirs = sweep_toml.get("exclude_directories", sweep_config.exclude_dirs)
+    except Exception as e:
+        logger.warning(f"Could not parse sweep.toml, using default exclude_dirs: {e}")
 
     file_list = glob.iglob("repo/**", recursive=True)
     file_list = [
