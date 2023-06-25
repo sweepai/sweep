@@ -269,7 +269,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     logger.info(f"modify_file_response: {modify_file_response}")
                     new_file = generate_new_file(modify_file_response, contents)
                     code_repairer = CodeRepairer()
-                    new_file = code_repairer.repair_code(new_file)
+                    new_file = code_repairer.repair_code(old_code=contents, user_code=new_file)
                     return (new_file, file_change_request.filename)
                 except Exception as e:
                     logger.warning(f"Recieved error {e}")
