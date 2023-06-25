@@ -173,8 +173,12 @@ def get_deeplake_vs_from_repo(
                 logger.warning(f"Received warning {e}, skipping...")
                 continue
             file_path = file[len("repo/") :]
-            file_paths.append(file_path)
-            file_contents.append(contents)
+        exclusion_list = sweep_config.get_exclusion_list()
+        if file_path in exclusion_list:
+            logger.debug(f"Skipping excluded file {file_path}...")
+            continue
+        file_paths.append(file_path)
+        file_contents.append(contents)
         
     chunked_results = chunker.map(file_contents, file_paths, kwargs={
         "additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}
