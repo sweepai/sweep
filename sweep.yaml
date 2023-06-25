@@ -1,0 +1,5 @@
+sweep.yaml:
+```yaml
+# This is the configuration file for Sweep AI
+# The commit-hash parameter specifies the commit at which the repository should be indexed
+commit-hash: "your-commit-hash-here"
