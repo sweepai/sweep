@@ -20,8 +20,14 @@ from src.utils.event_logger import posthog
 from src.utils.hash import hash_sha256
 
 from ..utils.github_utils import get_token
-from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
+import yaml
 from ..utils.config import SweepConfig
+
+def parse_sweep_config():
+    with open("sweep.yaml", "r") as file:
+        config_dict = yaml.safe_load(file)
+    return SweepConfig(**config_dict)
+
 import time
 
 # TODO: Lots of cleanups can be done here with these constants
@@ -102,10 +108,9 @@ class ModalEmbeddingFunction():
         return Embedding.compute.call(texts)
 
 embedding_function = ModalEmbeddingFunction()
-
 def get_deeplake_vs_from_repo(
     repo_name: str,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: SweepConfig = parse_sweep_config(),
     installation_id: int = None,
     branch_name: str = None,
 ):
@@ -235,10 +240,9 @@ def get_deeplake_vs_from_repo(
 def init_index(
     repo_name: str,
     installation_id: int,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: SweepConfig = parse_sweep_config(),
 ):
     pass
-
 
 @stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
 def update_index(
@@ -248,7 +252,6 @@ def update_index(
 ) -> int:
     pass
 
-
 @stub.function(image=image, secrets=secrets, shared_volumes={DEEPLAKE_DIR: model_volume}, timeout=timeout)
 def get_relevant_snippets(
     repo_name: str,
@@ -256,7 +259,7 @@ def get_relevant_snippets(
     n_results: int,
     installation_id: int,
     username: str = None,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: SweepConfig = parse_sweep_config(),
 ):
     collection_names = list_collection_names()
     logger.info("DeepLake collections: {}".format(collection_names))
