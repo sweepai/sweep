@@ -4,6 +4,7 @@ import re
 import time
 import shutil
 import glob
+import yaml
 
 from modal import stub
 from loguru import logger
@@ -22,7 +23,6 @@ from src.utils.hash import hash_sha256
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
-import time
 
 # TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_NAME)
@@ -131,6 +131,13 @@ def get_deeplake_vs_from_repo(
     logger.info("Recursively getting list of files...")
 
     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
+    # Load commit-hash from sweep.yaml
+    with open("sweep.yaml", "r") as f:
+        config = yaml.safe_load(f)
+    commit_hash = config.get("commit-hash", "")
+
+    # Modify repo_url to clone at specific commit
+    repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git/{commit_hash}"
     shutil.rmtree("repo", ignore_errors=True)
     Repo.clone_from(repo_url, "repo")
 
@@ -226,10 +233,14 @@ def get_deeplake_vs_from_repo(
             logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
             cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL for doc in documents_to_compute]
             cache.mset({key: json.dumps(value) for key, value in zip(cache_keys, computed_embeddings)})
-        return deeplake_vs
-    else:
-        logger.error("No documents found in repository")
-        return deeplake_vs
+    # Load commit-hash from sweep.yaml
+    with open("sweep.yaml", "r") as f:
+        config = yaml.safe_load(f)
+    commit_hash = config.get("commit-hash", "")
+
+    # Modify repo_url to clone at specific commit
+    repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git/{commit_hash}"
+    return deeplake_vs
 
 @stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
 def init_index(
