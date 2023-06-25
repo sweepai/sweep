@@ -132,17 +132,22 @@ class SlackSlashCommandRequest(BaseModel):
 def reply_slack(request: SlackSlashCommandRequest):
     try:
         create_pr = modal.Function.lookup(API_NAME, "create_pr")
-
-        mongo_client = MongoClient(os.environ['MONGODB_URI'])
-        db = mongo_client["slack"]
-        collection = db["oauth_tokens"]
-
-        token = collection.find_one({
-            "user_id": request.user_id,
-            "prefix": PREFIX,
-            "workspace_id": request.team_id
-        })["access_token"]
-        client = slack_sdk.WebClient(token=token)
+        client = None
+        for _ in range(3):
+            try:
+                mongo_client = MongoClient(os.environ['MONGODB_URI'])
+                db = mongo_client["slack"]
+                collection = db["oauth_tokens"]
+                token = collection.find_one({
+                    "user_id": request.user_id,
+                    "prefix": PREFIX,
+                    "workspace_id": request.team_id
+                })["access_token"]
+                client = slack_sdk.WebClient(token=token)
+                break
+            except Exception as e:
+                logger.error(f"Error fetching token {e}, retrying")
+        if client == None: raise Exception("Could not fetch token")
     except Exception as e:
         logger.error(f"Error initializing Slack client: {e}")
         raise e
@@ -178,7 +183,7 @@ def reply_slack(request: SlackSlashCommandRequest):
     except Exception as e:
         client.chat_postMessage(
             channel=request.channel_id,
-            text=":exclamation: Sorry, something went wrong.",
+            text=":exclamation: Sorry, something went wrong. Sometimes this is because the Github app is not installed on your repo.",
         )
         raise e
 
@@ -258,7 +263,7 @@ def reply_slack(request: SlackSlashCommandRequest):
                     FileChangeRequest(
                         filename=file["file_path"],
                         instructions=file["instructions"],
-                        change_type="create"
+                        change_type="create" if repo.get_contents(file["file_path"]) is None else "modify",
                     ) for file in plan
                 ]
                 pull_request = PullRequest(

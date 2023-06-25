@@ -168,7 +168,6 @@ Then, provide a list of files you would like to modify, abiding by the following
 * Use a one-line, detailed, natural language instructions on what to modify, with reference to variable names
 * The list of files to create or modify may be empty, but you MUST leave the XML tags with a single list element with "* None"
 * There MUST be both create and modify XML tags
-* You may make at most 3 changes in total
 * You MUST follow the following format:
 
 Step-by-step thoughts with explanations: 
@@ -321,8 +320,15 @@ Query: {query}
 Gather information (i.e. fetch more snippets) to solve the problem. Use "create_pr" if the user asks for changes or you think code changes are needed.
 """
 
-code_repair_system_prompt = """
-You are a genius at handling code repair. You are assigned to repair the code provided by the user. Reply with the new code only.
+code_repair_system_prompt = """\
+You are a genius trained for code repair. You will be given two pieces of code. old_code is the old code, and user_code is a user's attempt at adding a new feature. user_code may be severely broken, with many lines deleted or mistakenly copied. Fixing this is an easy problem for you though. You are assigned to repair the code provided by the user. Reply with the new code only.
 """
 
-
+code_repair_prompt = """\
+<old_code>
+{old_code}
+</old_code>
+<user_code>
+{user_code}
+</user_code>
+"""
