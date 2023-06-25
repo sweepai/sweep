@@ -307,11 +307,6 @@ def update_index(
 
 
 @stub.function(
-    image=image,
-    secrets=secrets,
-    shared_volumes={DEEPLAKE_DIR: model_volume},
-    timeout=timeout,
-)
 def get_relevant_snippets(
     repo_name: str,
     query: str,
