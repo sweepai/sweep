@@ -1,35 +1,27 @@
 import shutil
-import modal
 import os
 import time
 import re
-import github
-from github import Github
-from github.Repository import Repository
-from loguru import logger
-from git import Repo
-
-from jwt import encode
 import requests
 from tqdm import tqdm
 from src.core.entities import Snippet
 from src.utils.config import SweepConfig
 from src.utils.constants import APP_ID, DB_NAME
-from src.utils.event_logger import posthog
-
+from loguru import logger
+from git import Repo
+from jwt import encode
+from github import Github
+from github.Repository import Repository
 
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"
     return re.sub(pattern, "_", string)
 
-
 def get_jwt():
     signing_key = os.environ["GITHUB_APP_PEM"]
     app_id = APP_ID
     payload = {"iat": int(time.time()), "exp": int(time.time()) + 600, "iss": app_id}
-
     return encode(payload, signing_key, algorithm="RS256")
-
 
 def get_token(installation_id: int):
     jwt = get_jwt()
@@ -44,11 +36,9 @@ def get_token(installation_id: int):
     )
     return response.json()["token"]
 
-
 def get_github_client(installation_id: int):
     token = get_token(installation_id)
     return Github(token)
-
 
 def get_installation_id(username: str):
     jwt = get_jwt()
@@ -98,7 +88,6 @@ def display_directory_tree(
     lines = tree.splitlines()
     return "\n".join([line[3:] for line in lines])
 
-
 def get_file_list(root_directory: str) -> str:
     files = []
 
@@ -117,14 +106,6 @@ def get_file_list(root_directory: str) -> str:
     files = [file[len(root_directory) + 1 :] for file in files]
     return files
 
-
-# def get_tree(repo_name: str, installation_id: int) -> str:
-#     token = get_token(installation_id)
-#     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
-#     Repo.clone_from(repo_url, "repo")
-#     tree = display_directory_tree("repo")
-#     shutil.rmtree("repo")
-#     return tree
 def get_tree_and_file_list(
     repo_name: str, 
     installation_id: int, 
@@ -152,14 +133,12 @@ def get_tree_and_file_list(
     shutil.rmtree("repo")
     return tree, file_list
 
-
 def get_file_contents(repo: Repository, file_path, ref=None):
     if ref is None:
         ref = repo.default_branch
     file = repo.get_contents(file_path, ref=ref)
     contents = file.decoded_content.decode("utf-8")
     return contents
-
 
 def search_snippets(
     repo: Repository,
@@ -220,7 +199,6 @@ def search_snippets(
     else:
         return snippets
 
-
 def index_full_repository(
     repo_name: str,
     installation_id: int = None,
@@ -249,3 +227,6 @@ def index_full_repository(
             "Adding label failed, probably because label already."
         )  # warn that the repo may already be indexed
     return num_indexed_docs
+
+def get_repo_source_at_commit(user: str, project_name: str, commit_hash: str) -> str:
+    return f"https://github.com/{user}/{project_name}/tree/{commit_hash}"
