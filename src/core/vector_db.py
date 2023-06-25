@@ -23,10 +23,15 @@ from ..utils.github_utils import get_token
 import yaml
 from ..utils.config import SweepConfig
 
+
 def parse_sweep_config():
-    with open("sweep.yaml", "r") as file:
-        config_dict = yaml.safe_load(file)
-    return SweepConfig(**config_dict)
+    try:
+        with open("/sweep.yaml", "r") as file:
+            config_dict = yaml.safe_load(file)
+        return SweepConfig(**config_dict)
+    except FileNotFoundError:
+        return SweepConfig()
+
 
 import time
 
@@ -40,13 +45,24 @@ DISKCACHE_DIR = "/root/cache/diskcache/"
 DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 256
 SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-MiniLM-L12-v2"
-timeout = 60 * 30 # 30 minutes
+timeout = 60 * 30  # 30 minutes
 
 image = (
     modal.Image.debian_slim()
     .apt_install("git")
     .pip_install("deeplake==3.6.3", "sentence-transformers")
-    .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "highlight-io", "anthropic", "posthog", "redis")
+    .pip_install(
+        "openai",
+        "PyGithub",
+        "loguru",
+        "docarray",
+        "GitPython",
+        "tqdm",
+        "highlight-io",
+        "anthropic",
+        "posthog",
+        "redis",
+    )
 )
 secrets = [
     modal.Secret.from_name(BOT_TOKEN_NAME),
@@ -59,10 +75,12 @@ secrets = [
     modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
 ]
 
+
 def init_deeplake_vs(repo_name):
     deeplake_repo_path = f"mem://{DEEPLAKE_FOLDER}{repo_name}"
-    deeplake_vector_store = DeepLakeVectorStore(path = deeplake_repo_path)
+    deeplake_vector_store = DeepLakeVectorStore(path=deeplake_repo_path)
     return deeplake_vector_store
+
 
 def parse_collection_name(name: str) -> str:
     # Replace any non-alphanumeric characters with hyphens
@@ -71,10 +89,12 @@ def parse_collection_name(name: str) -> str:
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
     return name
 
+
 def list_collection_names():
     """Returns a list of all collection names."""
     collections = []
     return collections
+
 
 @stub.cls(
     image=image,
@@ -100,20 +120,24 @@ class Embedding:
     def ping(self):
         return "pong"
 
-class ModalEmbeddingFunction():
+
+class ModalEmbeddingFunction:
     def __init__(self):
         pass
 
     def __call__(self, texts):
         return Embedding.compute.call(texts)
 
+
 embedding_function = ModalEmbeddingFunction()
+
+
 def get_deeplake_vs_from_repo(
     repo_name: str,
-    sweep_config: SweepConfig = parse_sweep_config(),
     installation_id: int = None,
     branch_name: str = None,
 ):
+    sweep_config = parse_sweep_config()
     logger.info(f"Downloading repository and indexing for {repo_name}...")
     token = get_token(installation_id)
     g = Github(token)
@@ -145,7 +169,10 @@ def get_deeplake_vs_from_repo(
         for file in tqdm(file_list)
         if os.path.isfile(file)
         and all(not file.endswith(ext) for ext in sweep_config.exclude_exts)
-        and all(not file[len("repo/"):].startswith(dir_name) for dir_name in sweep_config.exclude_dirs)
+        and all(
+            not file[len("repo/") :].startswith(dir_name)
+            for dir_name in sweep_config.exclude_dirs
+        )
     ]
 
     branch_name = repo.default_branch
@@ -156,14 +183,14 @@ def get_deeplake_vs_from_repo(
     for file in tqdm(file_list):
         with open(file, "rb") as f:
             is_binary = False
-            for block in iter(lambda: f.read(1024), b''):
-                if b'\0' in block:
+            for block in iter(lambda: f.read(1024), b""):
+                if b"\0" in block:
                     is_binary = True
                     break
             if is_binary:
                 logger.debug("Skipping binary file...")
                 continue
-        
+
         with open(file, "rb") as f:
             if len(f.read()) > sweep_config.max_file_limit:
                 logger.debug("Skipping large file...")
@@ -173,27 +200,32 @@ def get_deeplake_vs_from_repo(
             # Can parallelize this
             try:
                 contents = f.read()
-                contents = f"Represent this code snippet from {file} for retrieval:\n" + contents
+                contents = (
+                    f"Represent this code snippet from {file} for retrieval:\n"
+                    + contents
+                )
             except UnicodeDecodeError as e:
                 logger.warning(f"Received warning {e}, skipping...")
                 continue
             file_path = file[len("repo/") :]
             file_paths.append(file_path)
             file_contents.append(contents)
-        
-    chunked_results = chunker.map(file_contents, file_paths, kwargs={
-        "additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}
-    })
+
+    chunked_results = chunker.map(
+        file_contents,
+        file_paths,
+        kwargs={"additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}},
+    )
 
     documents, metadatas, ids = zip(*chunked_results)
     documents = [item for sublist in documents for item in sublist]
     metadatas = [item for sublist in metadatas for item in sublist]
     ids = [item for sublist in ids for item in sublist]
-    
+
     logger.info(f"Used {len(file_paths)} files...")
 
     shutil.rmtree("repo")
-    logger.info(f"Getting list of all files took {time.time() -start}")
+    logger.info(f"Getting list of all files took {time.time() - start}")
     logger.info(f"Received {len(documents)} documents from repository {repo_name}")
     collection_name = parse_collection_name(repo_name)
 
@@ -209,13 +241,19 @@ def get_deeplake_vs_from_repo(
         except:
             cache_success = False
         if cache_success:
-            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL for doc in documents]
+            cache_keys = [
+                hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL for doc in documents
+            ]
             cache_values = cache.mget(cache_keys)
             for idx, value in enumerate(cache_values):
                 if value is not None:
                     embeddings[idx] = json.loads(value)
-        logger.info(f"Found {len([x for x in embeddings if x is not None])} embeddings in cache")
-        indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
+        logger.info(
+            f"Found {len([x for x in embeddings if x is not None])} embeddings in cache"
+        )
+        indices_to_compute = [
+            idx for idx, x in enumerate(embeddings) if x is None
+        ]
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
 
         computed_embeddings = embedding_function(documents_to_compute)
@@ -223,44 +261,67 @@ def get_deeplake_vs_from_repo(
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
         deeplake_vs.add(
-            text = ids,
-            embedding = embeddings,
-            metadata = metadatas
+            text=ids,
+            embedding=embeddings,
+            metadata=metadatas,
         )
         if cache_success and len(documents_to_compute) > 0:
             logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
-            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL for doc in documents_to_compute]
-            cache.mset({key: json.dumps(value) for key, value in zip(cache_keys, computed_embeddings)})
+            cache_keys = [
+                hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL
+                for doc in documents_to_compute
+            ]
+            cache.mset(
+                {key: json.dumps(value) for key, value in zip(cache_keys, computed_embeddings)}
+            )
         return deeplake_vs
     else:
         logger.error("No documents found in repository")
         return deeplake_vs
 
-@stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
+
+@stub.function(
+    image=image,
+    secrets=secrets,
+    shared_volumes={DISKCACHE_DIR: model_volume},
+    timeout=timeout,
+)
 def init_index(
     repo_name: str,
     installation_id: int,
-    sweep_config: SweepConfig = parse_sweep_config(),
 ):
+    sweep_config = parse_sweep_config()
     pass
 
-@stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
+
+@stub.function(
+    image=image,
+    secrets=secrets,
+    shared_volumes={DISKCACHE_DIR: model_volume},
+    timeout=timeout,
+)
 def update_index(
     repo_name,
     installation_id: int,
-    sweep_config: SweepConfig = SweepConfig(),
-) -> int:
+):
+    sweep_config = parse_sweep_config()
     pass
 
-@stub.function(image=image, secrets=secrets, shared_volumes={DEEPLAKE_DIR: model_volume}, timeout=timeout)
+
+@stub.function(
+    image=image,
+    secrets=secrets,
+    shared_volumes={DEEPLAKE_DIR: model_volume},
+    timeout=timeout,
+)
 def get_relevant_snippets(
     repo_name: str,
     query: str,
     n_results: int,
     installation_id: int,
     username: str = None,
-    sweep_config: SweepConfig = parse_sweep_config(),
 ):
+    sweep_config = parse_sweep_config()
     collection_names = list_collection_names()
     logger.info("DeepLake collections: {}".format(collection_names))
     collection_name = parse_collection_name(repo_name)
@@ -268,10 +329,10 @@ def get_relevant_snippets(
         init_index(
             repo_name=repo_name,
             installation_id=installation_id,
-            sweep_config=sweep_config,
         )
     deeplake_vs = get_deeplake_vs_from_repo(
-        repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
+        repo_name=repo_name,
+        installation_id=installation_id,
     )
     results = {"metadata": [], "text": []}
     for n_result in range(n_results, 0, -1):
@@ -291,9 +352,9 @@ def get_relevant_snippets(
             {
                 "reason": "Results query was empty",
                 "repo_name": repo_name,
-                "installation_id": installation_id, 
-                "query": query, 
-                "n_results": n_results
+                "installation_id": installation_id,
+                "query": query,
+                "n_results": n_results,
             },
         )
     metadatas = results["metadata"]
@@ -302,8 +363,9 @@ def get_relevant_snippets(
     return [
         Snippet(
             content="",
-            start=metadata["start"], 
-            end=metadata["end"], 
-            file_path=file_path
-        ) for metadata, file_path in zip(metadatas, relevant_paths)
+            start=metadata["start"],
+            end=metadata["end"],
+            file_path=file_path,
+        )
+        for metadata, file_path in zip(metadatas, relevant_paths)
     ]
