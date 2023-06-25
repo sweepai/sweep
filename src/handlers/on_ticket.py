@@ -10,12 +10,13 @@ import openai
 from loguru import logger
 import modal
 
-from src.core.entities import Snippet
+from src.core.entities import FileChangeRequest, Snippet
 from src.core.prompts import (
     reply_prompt,
 )
 from src.core.sweep_bot import SweepBot
 from src.core.prompts import issue_comment_prompt
+from src.handlers.create_pr import create_pr
 from src.handlers.on_review import review_pr
 from src.utils.event_logger import posthog
 from src.utils.github_utils import get_github_client, search_snippets
@@ -215,6 +216,15 @@ def on_ticket(
                 sweep_bot.cot_retrieval()
             logger.info("Fetching files to modify/create...")
             file_change_requests = sweep_bot.get_files_to_change()
+            for file_change_request in file_change_requests:
+                try:
+                    contents = repo.get_contents(file_change_request.filename)
+                    if contents:
+                        file_change_request.change_type = "modify"
+                    else:
+                        file_change_request.change_type = "create"
+                except:
+                    file_change_request.change_type = "create"
             logger.info("Getting response from ChatGPT...")
             reply = sweep_bot.chat(reply_prompt, message_key="reply")
             sweep_bot.delete_messages_from_chat("reply")
@@ -238,18 +248,14 @@ def on_ticket(
             pull_request = sweep_bot.generate_pull_request()
 
             logger.info("Making PR...")
-            pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
-            sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
-
-            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
-
-            pr = repo.create_pull(
-                title=pull_request.title,
-                body=pr_description,
-                head=pull_request.branch_name,
-                base=repo.default_branch,
-            )
+            response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
+            if not response or not response["success"]: raise Exception("Failed to create PR")
+            pr = response["pull_request"]
             current_issue.create_reaction("rocket")
+            try:
+                eyes_reaction.delete()
+            except:
+                pass
             try:
                 review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username, 
                         repo_description=repo_description, title=title, 
