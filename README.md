@@ -9,6 +9,9 @@ We were frustrated by small tickets such as simple bug fixes, annoying refactors
 Unlike copilot, this can solve entire tickets and can be parallelized: someone can spin up 10 tickets and have it solve them all at once. 
 
 ## 🚀 Quickstart
+## 🛠️ Installation
+We have provided an installation script to help you set up the repo. This script installs the necessary poetry packages and the `deeplake` package using pip.
+To run the script, navigate to the root directory of the repo in your terminal and enter the following command: `./install.sh`
 Install at https://github.com/apps/sweep-ai, add your repo, and make an issue such as "Sweep: Write tests" (need the prefix). Eyes :eyes: means it's taking a look and rocket 🚀 means it's done. For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
 
 ### For the slack addon:
