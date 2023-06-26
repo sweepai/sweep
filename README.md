@@ -15,7 +15,7 @@ Install at https://github.com/apps/sweep-ai, add your repo, and make an issue su
 
 0. Ensure the Sweep GitHub app is installed. For the rest of this guide, we will call the target repository’s full name {repo} (like org_name/repo_name, ex: sweepai/sweep).
 
-1. [Install our slackbot](https://slack.com/oauth/v2/authorize?client_id=5364586338420.5448326076609&scope=channels:read,chat:write,chat:write.public,commands,groups:read,im:read,incoming-webhook,mpim:read&user_scope=)
+1. [Install our slackbot](https://sweepai--prod-slack-bot.modal.run)
 
 2. Make a new channel
 Set the description to “Sweep for {repo}”. It will not work without this. This channel will only serve {repo}.
