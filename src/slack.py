@@ -123,6 +123,7 @@ class SlackSlashCommandRequest(BaseModel):
     user_name: str
     user_id: str
     team_id: str
+    enterprise_id: str
 
 @stub.function(
     image=image,
@@ -344,6 +345,8 @@ async def oauth_redirect(request: Request):
         db = mongo_client["slack"]
         collection = db["oauth_tokens"]
 
+        logger.info(request)
+
         if not code:
             raise HTTPException(status_code=400, detail="Missing code parameter")
 
@@ -362,6 +365,7 @@ async def oauth_redirect(request: Request):
             "user_id": response["authed_user"]["id"],
             "bot_user_id": response["bot_user_id"],
             "workspace_id": response["team"]["id"],
+            "enterprise_id": response["enterprise"]["id"] if response["is_enterprise_install"] else None,
             "channel": response["incoming_webhook"]["channel"],
             "prefix": PREFIX,
             "access_token": response["access_token"],
