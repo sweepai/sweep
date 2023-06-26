@@ -418,48 +418,6 @@ async def entrypoint(request: Request):
     return Response(status_code=200)
 
 
-# @stub.function(
-#     image=image,
-#     secrets=secrets,
-#     keep_warm=1,
-# )
-# @modal.web_endpoint(method="GET")
-# async def oauth_redirect(request: Request):
-#     try:
-#         code = request.query_params.get('code')
-
-#         mongo_client = MongoClient(os.environ['MONGODB_URI'])
-#         db = mongo_client["slack"]
-#         collection = db["oauth_tokens"]
-
-#         if not code:
-#             raise HTTPException(status_code=400, detail="Missing code parameter")
-
-#         response = requests.post('https://slack.com/api/oauth.v2.access', {
-#             'client_id': os.environ['SLACK_CLIENT_ID'],
-#             'client_secret': os.environ['SLACK_CLIENT_SECRET'],
-#             'code': code,
-#         }).json()
-
-#         if not response.get('ok'):
-#             raise HTTPException(status_code=400, detail="Error obtaining access token")
-
-#         logger.info(response)
-
-#         result = collection.insert_one({
-#             "user_id": response["authed_user"]["id"],
-#             "bot_user_id": response["bot_user_id"],
-#             "workspace_id": response["team"]["id"],
-#             "channel": response["incoming_webhook"]["channel"],
-#             "prefix": PREFIX,
-#             "access_token": response["access_token"],
-#         })
-
-#         return RedirectResponse(url=slack_app_page)
-#     except Exception as e:
-#         logger.error(f"Error with OAuth: {e}")
-#         raise e
-
 @stub.function(image=image, keep_warm=1)
 @modal.web_endpoint(method="GET")
 def install():
@@ -488,7 +446,6 @@ def get_oauth_settings():
         ],
         install_page_rendering_enabled=False,
         installation_store=MongoDBInstallationStore(),
-
     )
 
 @stub.function(
@@ -518,6 +475,7 @@ def _asgi_app():
     @slack_app.event("message")
     def handle_message(body, ack, message, client):
         ack()
+        print(message)
         if "thread_ts" in message:
             # checking if the message is in a thread
             conversation = client.conversations_replies(
@@ -542,6 +500,7 @@ def _asgi_app():
                             user_name=message["user"],
                             user_id=message["user"],
                             team_id=message["team"],
+                            is_enterprise_install=False,
                         ),
                         thread_ts=message["thread_ts"]
                     )
@@ -552,12 +511,6 @@ def _asgi_app():
         ack()
         respond("I'm working on it!")
         reply_slack.spawn(SlackSlashCommandRequest(**command))
-    # async def sweep(request: Request):
-    #     body = await request.form()
-    #     print(body)
-    #     request = SlackSlashCommandRequest(**dict(body))
-    #     reply_slack.spawn(request)
-    #     return Response(status_code=200)
 
     @fastapi_app.post("/")
     async def root(request: Request):
