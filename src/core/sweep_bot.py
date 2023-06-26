@@ -29,7 +29,7 @@ from src.core.prompts import (
 )
 from src.utils.constants import DB_NAME
 from src.utils.file_change_functions import modify_file_function, apply_code_edits
-from src.utils.diff import format_contents, fuse_files, generate_new_file
+from src.utils.diff import format_contents, fuse_files, generate_new_file, is_markdown
 
 
 class CodeGenBot(ChatGPT):
@@ -297,13 +297,14 @@ class SweepBot(CodeGenBot, GithubBot):
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
         for file_change_request in file_change_requests:
+            file_markdown = is_markdown(file_change_request.filename)
             if file_change_request.change_type == "create":
                 try: # Try to create
                     file_change = self.create_file(file_change_request)
                     logger.debug(
                         f"{file_change_request.filename}, {file_change.commit_message}, {file_change.code}, {branch}"
                     )
-                    file_change.code = format_contents(file_change.code)
+                    file_change.code = format_contents(file_change.code, file_markdown)
                     self.repo.create_file(
                         file_change_request.filename,
                         file_change.commit_message,
@@ -314,7 +315,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     logger.info(e)
                     try: # Try to modify
                         contents = self.get_file(file_change_request.filename, branch=branch)
-                        file_change.code = format_contents(file_change.code)
+                        file_change.code = format_contents(file_change.code, file_markdown)
                         self.repo.update_file(
                             file_change_request.filename,
                             file_change.commit_message,
@@ -336,7 +337,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     logger.debug(
                         f"{file_change_request.filename}, {file_change.commit_message}, {file_change.code}, {branch}"
                     )
-                    file_change.code = format_contents(file_change.code)
+                    file_change.code = format_contents(file_change.code, file_markdown)
                     self.repo.create_file(
                         file_change_request.filename,
                         file_change.commit_message,
@@ -347,7 +348,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     new_file_contents, file_name = self.modify_file(
                         file_change_request, contents.decoded_content.decode("utf-8")
                     )
-                    new_file_contents = format_contents(new_file_contents)
+                    new_file_contents = format_contents(new_file_contents, file_markdown)
                     logger.debug(
                         f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
                     )
