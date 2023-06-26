@@ -259,13 +259,22 @@ def reply_slack(request: SlackSlashCommandRequest):
                     ),
                     thread_ts=thread["ts"],
                 )
-                file_change_requests = [
-                    FileChangeRequest(
-                        filename=file["file_path"],
-                        instructions=file["instructions"],
-                        change_type="create" if repo.get_contents(file["file_path"]) is None else "modify",
-                    ) for file in plan
-                ]
+                file_change_requests = []
+                for file in plan:
+                    change_type = "create"
+                    try:
+                        contents = repo.get_contents(file["file_path"])
+                        if contents:
+                            change_type = "modify"
+                    except:
+                        pass
+                    file_change_requests.append(
+                        FileChangeRequest(
+                            filename=file["file_path"],
+                            instructions=file["instructions"],
+                            change_type=change_type
+                        )
+                    )
                 pull_request = PullRequest(
                     title=title,
                     branch_name=branch,
