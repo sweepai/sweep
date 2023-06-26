@@ -1,14 +1,6 @@
-"""
-On Github ticket, get ChatGPT to deal with it
-"""
-
-# TODO: Add file validation
-
 import os
 import openai
-
 from loguru import logger
-
 from src.core.sweep_bot import SweepBot
 from src.handlers.on_review import get_pr_diffs
 from src.utils.event_logger import posthog
@@ -18,11 +10,8 @@ from src.utils.github_utils import (
 )
 from src.utils.prompt_constructor import HumanMessageCommentPrompt
 from src.utils.constants import PREFIX
-
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
-
-
 def on_comment(
     repo_full_name: str,
     repo_description: str,
@@ -37,7 +26,6 @@ def on_comment(
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
         return {"success": True, "message": "File has been reverted to the previous commit."}
-
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -56,13 +44,15 @@ def on_comment(
         "function": "on_comment",
         "mode": PREFIX,
     }
-
     posthog.capture(username, "started", properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
     try:
         g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
+        # Check if the PR is closed
+        if pr.closed:
+            return {"success": True, "message": "PR is closed. No event fired."}
         branch_name = pr.head.ref
         pr_title = pr.title
         pr_body = pr.body
@@ -75,7 +65,6 @@ def on_comment(
             pr_lines = pr_file.splitlines()
             pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
             pr_file_path = pr_path.strip()
-
         logger.info("Getting response from ChatGPT...")
         human_message = HumanMessageCommentPrompt(
             comment=comment,
@@ -103,14 +92,11 @@ def on_comment(
             **metadata
         })
         raise e
-
     try:
         logger.info("Fetching files to modify/create...")
         file_change_requests = sweep_bot.get_files_to_change()
-
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
-
         logger.info("Done!")
     except Exception as e:
         posthog.capture(username, "failed", properties={
@@ -119,17 +105,14 @@ def on_comment(
             **metadata
         })
         raise e
-
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_comment success")
     return {"success": True}
-
 def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
     g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
     pr = repo.get_pull(pr_number)
     branch_name = pr.head.ref
-
     # Get the file's content from the previous commit
     commits = repo.get_commits(sha=branch_name)
     if commits.totalCount < 2:
@@ -140,11 +123,9 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
         repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha, branch=branch_name)
         return
     previous_commit = commits[1]
-    
     # Get current file SHA
     current_file = repo.get_contents(pr_path, ref=commits[0].sha)
     current_file_sha = current_file.sha
-
     # Check if the file exists in the previous commit
     try:
         previous_content = repo.get_contents(pr_path, ref=previous_commit.sha)
