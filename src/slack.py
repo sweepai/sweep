@@ -119,13 +119,6 @@ thread_query_format = "Message thread: {messages}"
 slack_app_page = "https://sweepusers.slack.com/apps/A05D69L28HX-sweep"
 slack_install_link = "https://slack.com/oauth/v2/authorize?client_id=5364586338420.5448326076609&scope=channels:read,chat:write,chat:write.public,commands,groups:read,im:read,incoming-webhook,mpim:read&user_scope="
 
-def file_exists(repo, file_path):
-    try:
-        repo.get_file(file_path)
-        return True
-    except:
-        return False
-
 class SlackSlashCommandRequest(BaseModel):
     channel_name: str
     channel_id: str
@@ -280,14 +273,22 @@ def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None)
                     ),
                     thread_ts=thread_ts
                 )
-                file_change_requests = [
-                    FileChangeRequest(
-                        filename=file["file_path"],
-                        instructions=file["instructions"],
-                        # change_type="create" if repo.get_contents(file["file_path"]) is None else "modify",
-                        change_type="create" if file_exists(repo, file["file_path"]) else "modify",
-                    ) for file in plan
-                ]
+                file_change_requests = []
+                for file in plan:
+                    change_type = "create"
+                    try:
+                        contents = repo.get_contents(file["file_path"])
+                        if contents:
+                            change_type = "modify"
+                    except:
+                        pass
+                    file_change_requests.append(
+                        FileChangeRequest(
+                            filename=file["file_path"],
+                            instructions=file["instructions"],
+                            change_type=change_type
+                        )
+                    )
                 pull_request = PullRequest(
                     title=title,
                     branch_name=branch,

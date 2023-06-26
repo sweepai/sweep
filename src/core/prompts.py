@@ -206,7 +206,7 @@ File Name: {filename}
 
 Instructions: {instructions}
 
-Reply in the following format. DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags and do not write ``` anywhere unless it's markdown.
+Reply in the following format. DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags, and all text inside these tags will be placed in the newly created file.
 
 Step-by-step thoughts with explanations: 
 * Thought 1 - Explanation 1
@@ -321,7 +321,7 @@ Gather information (i.e. fetch more snippets) to solve the problem. Use "create_
 """
 
 code_repair_system_prompt = """\
-You are a genius trained for code repair. You will be given two pieces of code. old_code is the old code, and user_code is a user's attempt at adding a new feature. user_code may be severely broken, with many lines deleted or mistakenly copied. Fixing this is an easy problem for you though. You are assigned to repair the code provided by the user. Reply with the new code only.
+You are a genius trained for code repair. This entails fixing syntax errors and duplicated/missing lines, but not code cleanup/style changes. You will be given two pieces of code. old_code is the old code, and user_code is a user's attempt at adding a new feature. user_code may be severely broken, with many lines deleted or mistakenly copied. old_code should be working. We want to include changes from user_code, and also fix any issues using our knowledge of both the old_code and user_code files. This is an easy problem for you. You are assigned to repair the code provided by the user. Reply with the new code only.
 """
 
 code_repair_prompt = """\
@@ -331,4 +331,5 @@ code_repair_prompt = """\
 <user_code>
 {user_code}
 </user_code>
+This is the old_code and user_code. Please return the repaired user_code without xml tags, and all of the text you return will be placed in the file.
 """
