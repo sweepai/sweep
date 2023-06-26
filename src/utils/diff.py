@@ -57,10 +57,6 @@ def format_contents(file_contents, is_markdown=False):
     in_code_block = False
 
     if is_markdown:
-        if lines[0].startswith('```'):
-            lines = lines[1:]
-        if lines[-1].startswith('```'):
-            lines = lines[:-1]
         return '\n'.join(lines) + '\n'
     for line in lines:
         stripped_line = line.strip()
