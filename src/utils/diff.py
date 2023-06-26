@@ -53,15 +53,28 @@ def format_contents(file_contents):
     Add arbitrary postprocessing here, this affects files and diffs
     """
     lines = file_contents.split('\n')
-    for i in range(len(lines) - 1, -1, -1):
-        # If a line is a triple backtick or empty (whitespace),
-        # replace it with an empty string
-        if lines[i].strip() == '```' or not lines[i].strip():
-            lines = lines[:i]
-        else:
-            # Stop when we hit a non-whitespace and non-backtick line
-            break
-    return '\n'.join(lines)
+    code_lines = []
+    in_code_block = False
+
+    for line in lines:
+        stripped_line = line.strip()
+
+        # Check if line starts a code block
+        if stripped_line.startswith('```') and not in_code_block:
+            in_code_block = True
+            continue
+
+        # Check if line ends a code block
+        if stripped_line.endswith('```') and in_code_block:
+            in_code_block = False
+            continue
+
+        # Append line if it's inside a code block or if it's not an empty line
+        if in_code_block or stripped_line:
+            code_lines.append(line)
+
+    return '\n'.join(code_lines) + '\n'
+
 
 def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
     import re

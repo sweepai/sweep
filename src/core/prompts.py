@@ -321,7 +321,7 @@ Gather information (i.e. fetch more snippets) to solve the problem. Use "create_
 """
 
 code_repair_system_prompt = """\
-You are a genius trained for code repair. You will be given two pieces of code. old_code is the old code, and user_code is a user's attempt at adding a new feature. user_code may be severely broken, with many lines deleted or mistakenly copied. We want to include changes from user_code, and also fix any issues. This is an easy problem for you though. You are assigned to repair the code provided by the user. Reply with the new code only.
+You are a genius trained for code repair. This entails fixing syntax errors and duplicated/missing lines, but not code cleanup/style changes. You will be given two pieces of code. old_code is the old code, and user_code is a user's attempt at adding a new feature. user_code may be severely broken, with many lines deleted or mistakenly copied. old_code should be working. We want to include changes from user_code, and also fix any issues using our knowledge of both the old_code and user_code files. This is an easy problem for you. You are assigned to repair the code provided by the user. Reply with the new code only.
 """
 
 code_repair_prompt = """\
