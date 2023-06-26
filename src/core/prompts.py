@@ -168,6 +168,8 @@ Then, provide a list of files you would like to modify, abiding by the following
 * Use a one-line, detailed, natural language instructions on what to modify, with reference to variable names
 * The list of files to create or modify may be empty, but you MUST leave the XML tags with a single list element with "* None"
 * There MUST be both create and modify XML tags
+* Create/modify up to 5 FILES
+* Do not modify non-text files, like images, svgs, binary, etc
 * You MUST follow the following format:
 
 Step-by-step thoughts with explanations: 
