@@ -119,6 +119,85 @@ thread_query_format = "Message thread: {messages}"
 slack_app_page = "https://sweepusers.slack.com/apps/A05D69L28HX-sweep"
 slack_install_link = "https://slack.com/oauth/v2/authorize?client_id=5364586338420.5448326076609&scope=channels:read,chat:write,chat:write.public,commands,groups:read,im:read,incoming-webhook,mpim:read&user_scope="
 
+class MongoDBInstallationStore(InstallationStore):
+    def __init__(self):
+        self.client = MongoClient(os.environ['MONGODB_URI'])
+        self.db = self.client["slack"]
+        self.installation_collection = self.db["installation"]
+        self.bot_collection = self.db["bot"]
+    
+    def save(self, installation: Installation):
+        self.installation_collection.replace_one({
+            "user_id": installation.user_id,
+            "team_id": installation.team_id,
+            "enterprise_id": installation.enterprise_id,
+            "is_enterprise_install": installation.is_enterprise_install,
+        }, {
+            "installation": installation.to_dict(),
+            "user_id": installation.user_id,
+            "team_id": installation.team_id,
+            "enterprise_id": installation.enterprise_id,
+            "is_enterprise_install": installation.is_enterprise_install,
+            "prefix": PREFIX,
+            "access_token": installation.bot_token,
+        }, upsert=True)
+
+    def save_bot(self, bot: Bot):
+        self.bot_collection.replace_one({
+            "team_id": bot.team_id,
+            "enterprise_id": bot.enterprise_id,
+            "is_enterprise_install": bot.is_enterprise_install,
+        }, {
+            "installation": bot.to_dict(),
+            "team_id": bot.team_id,
+            "enterprise_id": bot.enterprise_id,
+            "is_enterprise_install": bot.is_enterprise_install,
+            "prefix": PREFIX,
+            "access_token": bot.bot_token,
+        }, upsert=True)
+    
+    def find_installation(
+        self,
+        *,
+        enterprise_id: str,
+        team_id: str,
+        # user_id: str,
+        is_enterprise_install: bool
+    ):
+        return Installation(**self.installation_collection.find_one({
+            # "user_id": user_id,
+            "team_id": team_id,
+            "enterprise_id": enterprise_id,
+            "is_enterprise_install": is_enterprise_install
+        })["installation"])
+
+    def find_bot(
+        self,
+        *
+        enterprise_id: str,
+        team_id: str,
+        is_enterprise_install: bool
+    ):
+        return Installation(**self.bot_collection.find_one({
+            "enterprise_id": enterprise_id,
+            "team_id": team_id,
+            "is_enterprise_install": is_enterprise_install
+        })["installation"])
+        
+    def delete_installation(self, *, enterprise_id: str, team_id: str):
+        self.installation_collection.delete_one({
+            "enterprise_id": enterprise_id,
+            "team_id": team_id,
+        })
+
+    def delete_bot(self, *, enterprise_id: str, team_id: str, user_id: str):
+        self.installation_collection.delete_one({
+            "enterprise_id": enterprise_id,
+            "team_id": team_id,
+            "user_id": user_id
+        })
+    
+
 class SlackSlashCommandRequest(BaseModel):
     channel_name: str
     channel_id: str
@@ -126,6 +205,8 @@ class SlackSlashCommandRequest(BaseModel):
     user_name: str
     user_id: str
     team_id: str
+    is_enterprise_install: bool
+    enterprise_id: str | None = None
 
 @stub.function(
     image=image,
@@ -136,21 +217,13 @@ def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None)
     try:
         create_pr = modal.Function.lookup(API_NAME, "create_pr")
         client = None
-        for _ in range(3):
-            try:
-                mongo_client = MongoClient(os.environ['MONGODB_URI'])
-                db = mongo_client["slack"]
-                collection = db["oauth_tokens"]
-                token = collection.find_one({
-                    # "user_id": request.user_id,
-                    # "prefix": PREFIX,
-                    "workspace_id": request.team_id
-                })["access_token"]
-                client = slack_sdk.WebClient(token=token)
-                break
-            except Exception as e:
-                logger.error(f"Error fetching token {e}, retrying")
-        if client == None: raise Exception("Could not fetch token")
+        installation_store = MongoDBInstallationStore()
+        token = installation_store.find_installation(
+            team_id=request.team_id,
+            enterprise_id=request.enterprise_id,
+            is_enterprise_install=request.is_enterprise_install
+        ).bot_token
+        client = slack_sdk.WebClient(token=token)
     except Exception as e:
         logger.error(f"Error initializing Slack client: {e}")
         raise e
@@ -179,13 +252,14 @@ def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None)
 
         sweep_bot = SweepBot(repo=repo)
 
+        search_already_done = bool(thread_ts)
         if not thread_ts:
             thread = client.chat_postMessage(
                 channel=request.channel_id,
                 text=f">{request.text}\n- <@{request.user_name}>",
             )
             thread_ts = thread["ts"]
-            query = thread.text
+            query = request.text
         else:
             messages = client.conversations_replies(
                 channel=request.channel_id,
@@ -200,7 +274,7 @@ def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None)
         raise e
 
     try:
-        if not thread_ts:
+        if not search_already_done:
             logger.info("Fetching relevant snippets...")
             searching_message = client.chat_postMessage(
                 channel=request.channel_id,
@@ -344,108 +418,52 @@ async def entrypoint(request: Request):
     return Response(status_code=200)
 
 
-@stub.function(
-    image=image,
-    secrets=secrets,
-    keep_warm=1,
-)
-@modal.web_endpoint(method="GET")
-async def oauth_redirect(request: Request):
-    try:
-        code = request.query_params.get('code')
+# @stub.function(
+#     image=image,
+#     secrets=secrets,
+#     keep_warm=1,
+# )
+# @modal.web_endpoint(method="GET")
+# async def oauth_redirect(request: Request):
+#     try:
+#         code = request.query_params.get('code')
 
-        mongo_client = MongoClient(os.environ['MONGODB_URI'])
-        db = mongo_client["slack"]
-        collection = db["oauth_tokens"]
+#         mongo_client = MongoClient(os.environ['MONGODB_URI'])
+#         db = mongo_client["slack"]
+#         collection = db["oauth_tokens"]
 
-        if not code:
-            raise HTTPException(status_code=400, detail="Missing code parameter")
+#         if not code:
+#             raise HTTPException(status_code=400, detail="Missing code parameter")
 
-        response = requests.post('https://slack.com/api/oauth.v2.access', {
-            'client_id': os.environ['SLACK_CLIENT_ID'],
-            'client_secret': os.environ['SLACK_CLIENT_SECRET'],
-            'code': code,
-        }).json()
+#         response = requests.post('https://slack.com/api/oauth.v2.access', {
+#             'client_id': os.environ['SLACK_CLIENT_ID'],
+#             'client_secret': os.environ['SLACK_CLIENT_SECRET'],
+#             'code': code,
+#         }).json()
 
-        if not response.get('ok'):
-            raise HTTPException(status_code=400, detail="Error obtaining access token")
+#         if not response.get('ok'):
+#             raise HTTPException(status_code=400, detail="Error obtaining access token")
 
-        logger.info(response)
+#         logger.info(response)
 
-        result = collection.insert_one({
-            "user_id": response["authed_user"]["id"],
-            "bot_user_id": response["bot_user_id"],
-            "workspace_id": response["team"]["id"],
-            "channel": response["incoming_webhook"]["channel"],
-            "prefix": PREFIX,
-            "access_token": response["access_token"],
-        })
+#         result = collection.insert_one({
+#             "user_id": response["authed_user"]["id"],
+#             "bot_user_id": response["bot_user_id"],
+#             "workspace_id": response["team"]["id"],
+#             "channel": response["incoming_webhook"]["channel"],
+#             "prefix": PREFIX,
+#             "access_token": response["access_token"],
+#         })
 
-        return RedirectResponse(url=slack_app_page)
-    except Exception as e:
-        logger.error(f"Error with OAuth: {e}")
-        raise e
+#         return RedirectResponse(url=slack_app_page)
+#     except Exception as e:
+#         logger.error(f"Error with OAuth: {e}")
+#         raise e
 
 @stub.function(image=image, keep_warm=1)
 @modal.web_endpoint(method="GET")
 def install():
     return RedirectResponse(url=slack_install_link)
-
-class MongoDBInstallationStore(InstallationStore):
-    def __init__(self):
-        self.client = MongoClient(os.environ['MONGODB_URI'])
-        self.db = self.client["slack"]
-        self.collection = self.db["auth_tokens"]
-    
-    def store(self, installation: Installation):
-        self.collection.insert_one({
-            "installation": installation.to_dict(),
-            # "user_id": installation.user_id,
-            # "bot_user_id": installation.bot_id,
-            "team_id": installation.team_id,
-            "enterprise_id": installation.enterprise_id,
-            "prefix": PREFIX,
-            "access_token": installation.bot_token,
-        })
-    
-    def fetch(
-        self,
-        enterprise_id: str,
-        team_id: str,
-        is_enterprise_install: bool
-    ):
-        result = self.collection.find_one({"team_id": team_id, "enterprise_id": enterprise_id})
-        if result is None:
-            return None
-        else:
-            return Installation.from_dict(result)
-        
-    def delete(self, *, enterprise_id: str, team_id: str, is_enterprise_install: bool):
-        self.collection.delete_one({
-            "team_id": team_id,
-            "enterprise_id": enterprise_id
-        })
-    
-    def find_installation(
-        self, 
-        *, 
-        enterprise_id: str=None, 
-        team_id: str=None, 
-        is_enterprise_install: bool=False,
-        install_to_bot: Bot=None
-    ):
-        if install_to_bot:
-            return self.fetch(
-                enterprise_id=install_to_bot.enterprise_id,
-                team_id=install_to_bot.team_id,
-                is_enterprise_install=install_to_bot.is_enterprise_install
-            )
-        else:
-            return self.fetch(
-                enterprise_id=enterprise_id,
-                team_id=team_id,
-                is_enterprise_install=is_enterprise_install
-            )
 
 def get_oauth_settings():
     from slack_bolt.oauth.oauth_settings import OAuthSettings
@@ -456,13 +474,17 @@ def get_oauth_settings():
         scopes=[
             "app_mentions:read",
             "channels:history",
-            "channels:join",
             "channels:read",
             "chat:write",
             "chat:write.customize",
+            "chat:write.public",
             "commands",
+            "groups:read",
+            "im:read",
             "users.profile:read",
             "users:read",
+            "incoming-webhook",
+            "mpim:read",
         ],
         install_page_rendering_enabled=False,
         installation_store=MongoDBInstallationStore(),
@@ -472,8 +494,9 @@ def get_oauth_settings():
 @stub.function(
     image=image,
     secrets=secrets,
+    keep_warm=1
 )
-@modal.asgi_app(label="slack-bot")
+@modal.asgi_app(label=PREFIX + "-slack-bot")
 def _asgi_app():
     from slack_bolt import App
     from slack_bolt.adapter.fastapi import SlackRequestHandler
@@ -522,6 +545,19 @@ def _asgi_app():
                         ),
                         thread_ts=message["thread_ts"]
                     )
+    
+    @slack_app.command("/sweep")
+    def sweep(ack, respond, command, client):
+        print(ack, respond, command, client)
+        ack()
+        respond("I'm working on it!")
+        reply_slack.spawn(SlackSlashCommandRequest(**command))
+    # async def sweep(request: Request):
+    #     body = await request.form()
+    #     print(body)
+    #     request = SlackSlashCommandRequest(**dict(body))
+    #     reply_slack.spawn(request)
+    #     return Response(status_code=200)
 
     @fastapi_app.post("/")
     async def root(request: Request):
