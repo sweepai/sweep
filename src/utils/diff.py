@@ -48,7 +48,7 @@ def fuse_files(old_file_content: str, new_file_content: str):
     result_lines = [line.rstrip() for line in result_lines]
     return '\n'.join(result_lines).strip('\n') + '\n'
 
-def format_contents(file_contents):
+def format_contents(file_contents, is_markdown=False):
     """
     Add arbitrary postprocessing here, this affects files and diffs
     """
@@ -56,6 +56,12 @@ def format_contents(file_contents):
     code_lines = []
     in_code_block = False
 
+    if is_markdown:
+        if lines[0].startswith('```'):
+            lines = lines[1:]
+        if lines[-1].startswith('```'):
+            lines = lines[:-1]
+        return '\n'.join(lines) + '\n'
     for line in lines:
         stripped_line = line.strip()
 
@@ -126,3 +132,5 @@ def join_contents_k(first, second, k):
             return "\n".join(first_lines) + "\n" + "\n".join(second_lines[i:])
     return "\n".join(first_lines) + "\n" + "\n".join(second_lines)
 
+def is_markdown(filename):
+    return filename.endswith(".md") or filename.endswith(".rst") or filename.endswith(".txt")
