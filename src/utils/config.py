@@ -9,6 +9,7 @@ class SweepConfig(BaseModel):
     exclude_exts: list[str] = ['.min.js', '.min.js.map', '.min.css', '.min.css.map']
     max_file_limit: int = 60_000
     sweep_branch: str | None = None # defaults to the default github branch
+    slack_workspace: str | None = None # slack workspace, only for slack bot
     
     @classmethod
     def from_yaml(cls, yaml_str: str) -> "SweepConfig":

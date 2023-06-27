@@ -14,6 +14,7 @@ from loguru import logger
 from slack_sdk.oauth.installation_store import Installation, InstallationStore, Bot
 
 from src.core.sweep_bot import SweepBot
+from src.utils.config import SweepConfig
 from src.utils.github_utils import get_github_client
 from src.utils.constants import API_NAME, BOT_TOKEN_NAME, PREFIX, SLACK_NAME
 from src.core.prompts import slack_slash_command_prompt
@@ -118,6 +119,10 @@ thread_query_format = "Message thread: {messages}"
 # TODO(sweep): move to constants
 slack_app_page = "https://sweepusers.slack.com/apps/A05D69L28HX-sweep"
 slack_install_link = "https://slack.com/oauth/v2/authorize?client_id=5364586338420.5448326076609&scope=channels:read,chat:write,chat:write.public,commands,groups:read,im:read,incoming-webhook,mpim:read&user_scope="
+
+class NoConfigException(Exception):
+    def __init__(self, slack_domain):
+        self.slack_domain = slack_domain
 
 class MongoDBInstallationStore(InstallationStore):
     def __init__(self):
@@ -252,6 +257,12 @@ def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None)
 
         sweep_bot = SweepBot(repo=repo)
 
+        # Check if
+        sweep_config = SweepConfig.from_repo(repo=repo)
+        domain = client.team_info()["team"]["email_domain"]
+        if sweep_config.slack_workspace != domain:
+            raise NoConfigException(sweep_config.slack_workspace, domain)
+
         search_already_done = bool(thread_ts)
         if not thread_ts:
             thread = client.chat_postMessage(
@@ -266,6 +277,13 @@ def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None)
                 ts=thread_ts,
             )["messages"]
             query = thread_query_format.format(messages="\n".join([f"<message user={message['user']}>\n{message['text']}\n</message>" for message in messages]))
+    except NoConfigException as config_e:
+        slack_domain = config_e.slack_domain
+        client.chat_postMessage(
+            channel=request.channel_id,
+            text=f""":exclamation: The config for GitHub has not yet been completed! Please add the following file to the root of your GitHub repo:\n\n*sweep.yaml*```slack_workspace: {slack_domain}```""",
+        )
+        raise config_e
     except Exception as e:
         client.chat_postMessage(
             channel=request.channel_id,
