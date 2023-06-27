@@ -34,7 +34,8 @@ image = (
         "highlight-io",
         "GitPython",
         "posthog",
-        "tqdm"
+        "tqdm",
+        "pyyaml"
     )
 )
 secrets = [
