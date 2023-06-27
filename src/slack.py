@@ -162,7 +162,7 @@ class MongoDBInstallationStore(InstallationStore):
         enterprise_id: str,
         team_id: str,
         user_id: str,
-        is_enterprise_install: bool
+        is_enterprise_install: bool,
     ):
         return Installation(**self.installation_collection.find_one({
             "user_id": user_id,
@@ -221,6 +221,7 @@ def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None)
         token = installation_store.find_installation(
             team_id=request.team_id,
             enterprise_id=request.enterprise_id,
+            user_id=request.user_id,
             is_enterprise_install=request.is_enterprise_install
         ).bot_token
         client = slack_sdk.WebClient(token=token)
