@@ -35,7 +35,8 @@ image = modal.Image \
         "loguru",
         "tqdm",
         "highlight-io",
-        "posthog"
+        "posthog",
+        "pyyaml"
     )
 stub = modal.Stub(SLACK_NAME)
 secrets = [
