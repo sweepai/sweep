@@ -11,6 +11,7 @@ BOT_TOKEN_NAME = PREFIX + "-bot-token"
 if PREFIX == "prod":
     BOT_TOKEN_NAME = "bot-token"
 SWEEP_LOGIN = "sweep-ai[bot]"
+SLACK_SECRET_NAME = "slack"
 
 if PREFIX == "prod":
     APP_ID = 307814
@@ -23,6 +24,7 @@ elif PREFIX == "dev":
     APP_ID = 324098
     ENV = PREFIX
     SWEEP_LOGIN = "sweep-nightly[bot]"
+    SLACK_SECRET_NAME = "dev-slack"
 LABEL_NAME = "sweep"
 LABEL_COLOR = "#9400D3"
 LABEL_DESCRIPTION = "Sweep your software chores"
