@@ -168,10 +168,12 @@ def search_snippets(
     num_files: int = 5,
     include_tree: bool = True,
     branch: str = None,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: SweepConfig | None = None,
 ) -> tuple[Snippet, str]:
     # Initialize the relevant directories string
     get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
+    if sweep_config is None:
+        sweep_config = SweepConfig.from_repo()
     snippets: list[Snippet] = get_relevant_snippets.call(
         repo.full_name, query, num_files, installation_id=installation_id
     )
@@ -224,7 +226,7 @@ def search_snippets(
 def index_full_repository(
     repo_name: str,
     installation_id: int = None,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: SweepConfig | None = None,
 ):
     init_index = modal.Function.lookup(DB_NAME, "init_index")
     num_indexed_docs = init_index.spawn(
@@ -234,6 +236,8 @@ def index_full_repository(
     )
     try:
         repo = get_github_client(installation_id).get_repo(repo_name)
+        if sweep_config is None:
+            sweep_config = SweepConfig.from_repo(repo)
         labels = repo.get_labels()
         label_names = [label.name for label in labels]
 

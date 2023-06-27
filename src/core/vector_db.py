@@ -105,7 +105,7 @@ embedding_function = ModalEmbeddingFunction()
 
 def get_deeplake_vs_from_repo(
     repo_name: str,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: SweepConfig | None = None,
     installation_id: int = None,
     branch_name: str = None,
 ):
@@ -113,6 +113,8 @@ def get_deeplake_vs_from_repo(
     token = get_token(installation_id)
     g = Github(token)
     repo = g.get_repo(repo_name)
+    if sweep_config is None:
+        sweep_config = SweepConfig.from_repo(repo)
     try:
         labels = repo.get_labels()
         label_names = [label.name for label in labels]
@@ -256,7 +258,7 @@ def get_relevant_snippets(
     n_results: int,
     installation_id: int,
     username: str = None,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: SweepConfig | None = None,
 ):
     collection_names = list_collection_names()
     logger.info("DeepLake collections: {}".format(collection_names))
