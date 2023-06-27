@@ -161,15 +161,22 @@ class MongoDBInstallationStore(InstallationStore):
         *,
         enterprise_id: str,
         team_id: str,
-        user_id: str,
         is_enterprise_install: bool,
+        user_id: str | None = None,
     ):
-        return Installation(**self.installation_collection.find_one({
-            "user_id": user_id,
-            "team_id": team_id,
-            "enterprise_id": enterprise_id,
-            "is_enterprise_install": is_enterprise_install
-        })["installation"])
+        if user_id:
+            return Installation(**self.installation_collection.find_one({
+                "user_id": user_id,
+                "team_id": team_id,
+                "enterprise_id": enterprise_id,
+                "is_enterprise_install": is_enterprise_install
+            })["installation"])
+        else:
+            return Installation(**self.installation_collection.find_one({
+                "team_id": team_id,
+                "enterprise_id": enterprise_id,
+                "is_enterprise_install": is_enterprise_install
+            })["installation"])
 
     def find_bot(
         self,
