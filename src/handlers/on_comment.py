@@ -63,6 +63,10 @@ def on_comment(
         g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
+        # Check if the PR is closed
+        if pr.state == "closed":
+            return
+        pr = repo.get_pull(pr_number)
         branch_name = pr.head.ref
         pr_title = pr.title
         pr_body = pr.body
