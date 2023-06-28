@@ -13,7 +13,6 @@ import backoff
 from src.core.entities import (
     Function,
     Message,
-    DiffSummarization,
 )
 from src.core.prompts import (
     system_message_prompt,
