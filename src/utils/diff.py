@@ -86,6 +86,8 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
 
     # Extract content between <new_file> tags
     new_file = re.search(r"<new_file>(.*?)<\/new_file>", modify_file_response, re.DOTALL).group(1).strip()
+    if "<copied>" not in new_file:
+        return new_file
 
     # Find all <copied> tags and their content
     copied_sections = re.findall(r"<copied>(.*?)<\/copied>", new_file, re.DOTALL)
