@@ -148,7 +148,7 @@ class Snippet(BaseModel):
     
     def get_url(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
-        return f"https://github.com/{repo_name}/blob/{commit_id}/blob/{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}"
+        return f"https://github.com/{repo_name}/blob/{commit_id}/{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}"
     
     def get_markdown_link(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
@@ -160,8 +160,13 @@ class Snippet(BaseModel):
         base = commit_id + "/" if commit_id != "main" else ""
         return f"<{self.get_url(repo_name, commit_id)}|{base}{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}>"
 
-    def get_preview(self, max_lines: int  = 5):
-        return "\n".join(self.content.splitlines()[self.start:min(self.start + max_lines, self.end)])
+    def get_preview(self, max_lines: int = 5):
+        snippet = "\n".join(self.content.splitlines()[self.start:min(self.start + max_lines, self.end)])
+        if self.start > 1:
+            snippet = '...\n' + snippet
+        if self.end < self.content.count('\n') + 1 and self.end > max_lines:
+            snippet = snippet + '\n...'
+        return snippet
 
 class DiffSummarization(RegexMatchableBaseModel):
     content: str

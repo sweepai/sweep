@@ -8,7 +8,6 @@ import modal
 from pydantic import BaseModel
 from src.core.code_repair import CodeRepairer
 
-
 from src.core.entities import (
     FileChange,
     FileChangeRequest,
@@ -25,11 +24,9 @@ from src.core.prompts import (
     create_file_prompt,
     modify_file_prompt,
     modify_file_plan_prompt,
-    cot_retrieval_prompt
 )
 from src.utils.constants import DB_NAME
-from src.utils.file_change_functions import modify_file_function, apply_code_edits
-from src.utils.diff import format_contents, fuse_files, generate_new_file, is_markdown
+from src.utils.diff import format_contents, generate_new_file, is_markdown
 
 
 class CodeGenBot(ChatGPT):
