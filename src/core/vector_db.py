@@ -51,11 +51,12 @@ secrets = [
     modal.Secret.from_name("highlight"),
     modal.Secret.from_name("redis_url"),
     modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
+    modal.Secret.from_dict("activeloop"),
 ]
 
 def init_deeplake_vs(repo_name):
-    deeplake_repo_path = f"mem://{DEEPLAKE_FOLDER}{repo_name}"
-    deeplake_vector_store = DeepLakeVectorStore(path = deeplake_repo_path)
+    deeplake_repo_path = f"hub://{os.environ.get['ORG_ID']}/{repo_name}"
+    deeplake_vector_store = DeepLakeVectorStore(path = deeplake_repo_path, runtime = {"tensor_db": True})
     return deeplake_vector_store
 
 def parse_collection_name(name: str) -> str:
@@ -237,7 +238,9 @@ def init_index(
     installation_id: int,
     sweep_config: SweepConfig = SweepConfig(),
 ):
-    pass
+    deeplake_vs = get_deeplake_vs_from_repo(
+        repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
+    )
 
 
 @stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
@@ -246,7 +249,9 @@ def update_index(
     installation_id: int,
     sweep_config: SweepConfig = SweepConfig(),
 ) -> int:
-    pass
+    deeplake_vs = get_deeplake_vs_from_repo(
+        repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
+    )
 
 
 @stub.function(image=image, secrets=secrets, shared_volumes={DEEPLAKE_DIR: model_volume}, timeout=timeout)
