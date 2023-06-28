@@ -3,6 +3,7 @@ from loguru import logger
 import modal
 from pydantic import ValidationError
 from src.handlers.create_pr import create_pr  # type: ignore
+
 from src.handlers.on_ticket import on_ticket
 from src.handlers.on_comment import on_comment
 from src.utils.constants import API_NAME, BOT_TOKEN_NAME, LABEL_COLOR, LABEL_DESCRIPTION, LABEL_NAME, SWEEP_LOGIN
@@ -17,6 +18,7 @@ from src.events import (
 from src.utils.event_logger import posthog
 from src.utils.github_utils import get_github_client, index_full_repository
 from fastapi import HTTPException, Request
+
 stub = modal.Stub(API_NAME)
 image = (
     modal.Image.debian_slim()
@@ -32,7 +34,8 @@ image = (
         "highlight-io",
         "GitPython",
         "posthog",
-        "tqdm"
+        "tqdm",
+        "pyyaml"
     )
 )
 secrets = [
@@ -42,14 +45,19 @@ secrets = [
     modal.Secret.from_name("posthog"),
     modal.Secret.from_name("highlight"),
 ]
+
 FUNCTION_SETTINGS = {
     "image": image,
     "secrets": secrets,
     "timeout": 15 * 60,
 }
+
+
 handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
 handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
+
+
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
 async def webhook(raw_request: Request):
@@ -66,8 +74,10 @@ async def webhook(raw_request: Request):
                 if issue_title_lower.startswith("sweep") or "sweep:" in issue_title_lower:
                     g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
+
                     labels = repo.get_labels()
                     label_names = [label.name for label in labels]
+
                     if LABEL_NAME not in label_names:
                         repo.create_label(
                             name=LABEL_NAME,
@@ -82,6 +92,7 @@ async def webhook(raw_request: Request):
                     #         color=LABEL_COLOR, 
                     #         description=LABEL_DESCRIPTION
                     #     )
+                    
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(LABEL_NAME)
             case "issues", "labeled":
@@ -129,29 +140,6 @@ async def webhook(raw_request: Request):
                     )
                 elif request.issue.pull_request and request.issue.user.login == SWEEP_LOGIN and request.comment.user.type == "User": # TODO(sweep): set a limit                    
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
-                    handle_comment.spawn(
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        comment=request.comment.body,
-                        pr_path=None,
-                        pr_line_position=None,
-                        username=request.comment.user.login,
-                        installation_id=request.installation.id,
-                        pr_number=request.issue.number,
-                    )
-                    # Check the response from the on_comment function
-                    response = handle_comment.spawn(
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        comment=request.comment.body,
-                        pr_path=None,
-                        pr_line_position=None,
-                        username=request.comment.user.login,
-                        installation_id=request.installation.id,
-                        pr_number=request.issue.number,
-                    )
-                    if response.get("message") == "PR is closed. No event fired.":
-                        return {"success": True, "message": "PR is closed. No event fired."}
                     handle_comment.spawn(
                         repo_full_name=request.repository.full_name,
                         repo_description=request.repository.description,
