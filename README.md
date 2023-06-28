@@ -66,23 +66,12 @@ We're currently working on responding to linters and external search. For more, 
 
 ---
 
-<h2 align="center">
-💝 Our GitHub sponsors 💝
-</h2>
-
-<p align="center">
-Join us in fueling the development of AgentGPT, an open-source project pushing the boundaries of AI agents! Your sponsorship would drive progress by helping us scale up resources, enhance features and functionality, and continue to iterate on this exciting project! 🚀
-</p>
-
-<p align="center">
-<!-- sponsors --><a href="https://github.com/lukejagg"><img src="https://github.com/lukejagg.png" width="60px" alt="Arthur" /></a><!-- sponsors -->
-</p>
 
 <h2 align="center">
-    💪 Contributors 💪
+    Contributors
 </h2>
 <p align="center">
-    Our contributors have made this project possible. Thank you! 🙏
+    Thank you for your contribution!
 </p>
 <p align="center">
     <a href="https://github.com/sweepai/sweep/graphs/contributors">
