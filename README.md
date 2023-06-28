@@ -20,7 +20,8 @@ It will plan out what needs to be done, what changes to make, and write the chan
 ## ✨ Demo
 For the best experience, [install Sweep](https://github.com/apps/sweep-ai) to one of your repos and see the magic happen.
 
-[Demo Trailer](https://sweep.dev/static/media/demo.a3807f8039e48b346851.mp4)
+[Demo](https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47)
+
 
 ## 🚀 Getting Started
 Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
