@@ -105,6 +105,9 @@ This were the file summaries you provided:
 Given these summaries write a direct and concise GitHub review comment. If there are no changes required, simply say "No changes required."
 In case changes are required, keep in mind the author is an inexperienced programmer and may need a pointer to the files and specific changes.
 Follow this format:
+<changes_required>
+Write Yes if the changes are required or No if they are not required.
+</changes_required>
 <review_comment>
 Mention any changes that need to be made, using GitHub markdown to format the comment.
 - Change required in file on line x1-x2
@@ -323,15 +326,26 @@ Gather information (i.e. fetch more snippets) to solve the problem. Use "create_
 """
 
 code_repair_system_prompt = """\
-You are a genius trained for code repair. This entails fixing syntax errors and duplicated/missing lines, but not code cleanup/style changes. You will be given two pieces of code. old_code is the old code, and user_code is a user's attempt at adding a new feature.  We want to include all of the changes from user_code. We should also fix any issues using our knowledge of both the old_code and user_code files. This is an easy problem for you. You are assigned to repair the code provided by the user. Reply with the new code only.
+You are a genius trained for code repair. 
+You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the difference betwen the user_code and the original code, and the code inside <user_code></user_code> is a user's attempt at adding a change described as {feature}. 
+Our goal is to return a working version of user_code that follows {feature}.
+
+Instructions:
+* Keep the logic changes from user_code.
+* Fix any issues using our knowledge of both the diff and user_code files. 
+* Fix syntax errors and accidentally deleted lines.
+* Do not perform code style cleanup.
+* Do not add or remove any whitespace besides what is necessary to fix syntax errors.
+* Do not add or remove any comments.
 """
 
 code_repair_prompt = """\
-<old_code>
-{old_code}
-</old_code>
+<diff>
+{diff}
+</diff>
 <user_code>
 {user_code}
 </user_code>
-This is the old_code and user_code. Please return the repaired user_code without xml tags, and all of the text you return will be placed in the file. Avoid changing, adding, or removing any logic in user_code.
+This is the user_code. 
+Return the repaired user_code without xml tags. All of the text you return will be placed in the file. Revert any unrelated deletions to user_code, using the diff and described change.
 """
