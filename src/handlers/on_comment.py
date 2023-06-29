@@ -63,6 +63,9 @@ def on_comment(
         g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
+        # Check if the PR is closed
+        if pr.state == "closed":
+            return {"success": True, "message": "The PR is closed. No event has been fired."}
         branch_name = pr.head.ref
         pr_title = pr.title
         pr_body = pr.body
@@ -156,3 +159,4 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
             logger.warning(f"File {pr_path} was not found in previous commit {previous_commit.sha}")
         else:
             raise e
+
