@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 import os
-from typing import Literal, Self
+from typing import Generator, Iterator, Literal, Self
 
 import modal
 import openai
@@ -127,7 +127,6 @@ class ChatGPT(BaseModel):
             message_key, message_role=message_role
         ).content = new_content
 
-
     def chat(
         self,
         content: str,
@@ -170,7 +169,7 @@ class ChatGPT(BaseModel):
             )
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
-
+    
     def call_openai(
         self, 
         model: ChatModel | None = None,
@@ -215,29 +214,33 @@ class ChatGPT(BaseModel):
                 global retry_counter
                 retry_counter += 1
                 token_sub = retry_counter * 200
-                if function_name:
-                    return (
+                try:
+                    if function_name:
+                        return (
+                            openai.ChatCompletion.create(
+                                model=model,
+                                messages=self.messages_dicts,
+                                max_tokens=max_tokens - token_sub,
+                                temperature=temperature,
+                                functions=[json.loads(function.json()) for function in functions],
+                                function_call=function_name,
+                            )
+                            .choices[0].message
+                        )
+                    else:
+                        return (
                         openai.ChatCompletion.create(
                             model=model,
                             messages=self.messages_dicts,
                             max_tokens=max_tokens - token_sub,
                             temperature=temperature,
                             functions=[json.loads(function.json()) for function in functions],
-                            function_call=function_name,
                         )
                         .choices[0].message
                     )
-                else:
-                    return (
-                    openai.ChatCompletion.create(
-                        model=model,
-                        messages=self.messages_dicts,
-                        max_tokens=max_tokens - token_sub,
-                        temperature=temperature,
-                        functions=[json.loads(function.json()) for function in functions],
-                    )
-                    .choices[0].message
-                )
+                except Exception as e:
+                    logger.warning(e)
+                    raise e
             result = fetch()
             if "function_call" in result:
                 result = dict(result["function_call"]), True
@@ -257,20 +260,22 @@ class ChatGPT(BaseModel):
                 global retry_counter
                 retry_counter += 1
                 token_sub = retry_counter * 200
-                return (
-                    openai.ChatCompletion.create(
-                        model=model,
-                        messages=self.messages_dicts,
-                        max_tokens=max_tokens - token_sub,
-                        temperature=temperature,
-                    )
-                    .choices[0]
-                    .message["content"]
-                )
+                try:
+                    return openai.ChatCompletion.create(
+                            model=model,
+                            messages=self.messages_dicts,
+                            max_tokens=max_tokens - token_sub,
+                            temperature=temperature,
+                        ) \
+                        .choices[0] \
+                        .message["content"]
+                except Exception as e:
+                    logger.warn(e)
+                    raise e
             result = fetch()
             logger.info(f"Output to call openai:\n{result}")
             return result
-
+    
     def call_anthropic(self, model: ChatModel | None = None) -> str:
         if model is None:
             model = self.model
@@ -315,6 +320,68 @@ class ChatGPT(BaseModel):
             return result + extension
         logger.info(f"Output to call anthropic:\n{result}")
         return result
+    
+    def chat_stream(
+        self,
+        content: str,
+        model: ChatModel | None = None,
+        message_key: str | None = None,
+        # functions: list[Function] = [],
+        # function_name: dict | None = None,
+    ) -> Iterator[str]:
+        if self.messages[-1].function_call is None:
+            self.messages.append(Message(role="user", content=content, key=message_key))
+        else:
+            name = self.messages[-1].function_call["name"]
+            self.messages.append(Message(role="function", content=content, key=message_key, name=name))
+        model = model or self.model
+        is_function_call = False
+        # might be a bug here in all of this
+        # return self.stream_openai(model=model, functions=functions, function_name=function_name)
+        return self.stream_openai(model=model)
+    
+    def stream_openai(
+        self,
+        model: ChatModel | None = None,
+        # functions: list[Function] = [],
+        # function_name: dict | None = None,
+    ) -> Iterator[str]:
+        model = model or self.model
+        count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
+        messages_length = sum(
+            [count_tokens.call(message.content or "") for message in self.messages]
+        )
+        max_tokens = model_to_max_tokens[model] - int(messages_length) - 400 # this is for the function tokens
+        # TODO: Add a check to see if the message is too long
+        logger.info("file_change_paths" + str(self.file_change_paths))
+        if len(self.file_change_paths) > 0:
+            self.file_change_paths.remove(self.file_change_paths[0])
+        if max_tokens < 0:
+            if len(self.file_change_paths) > 0:
+                pass
+            else:
+                raise ValueError(f"Message is too long, max tokens is {max_tokens}")
+        messages_raw = "\n".join([(message.content or "") for message in self.messages])
+        logger.info(f"Input to call openai:\n{messages_raw}")
+
+        gpt_4_buffer = 800
+        if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
+            model = "gpt-4-0613"
+            max_tokens = model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer # this is for the function tokens
+
+        logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
+        def generator() -> Iterator[str]:
+            stream = openai.ChatCompletion.create(
+                model=model,
+                messages=self.messages_dicts,
+                temperature=temperature,
+                stream=True
+            )
+            for data in stream:
+                chunk = data.choices[0].delta
+                if "content" in chunk:
+                    yield chunk["content"]
+        return generator()
 
     @property
     def messages_dicts(self):
