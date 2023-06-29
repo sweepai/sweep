@@ -7,3 +7,4 @@ def select_model():
     models = ["gpt-4", "gpt-4-32k", "gpt-4-0613", "gpt-4-32k-0613"]
     selected_model = random.choice(models)
     return selected_model
+
