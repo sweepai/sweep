@@ -54,6 +54,8 @@ def query_to_snippets_text(query, repo):
                     num_files=10,
                     installation_id=36855882,
                 )
+    # Add a new test case that checks if the search results are correctly ranked using fuzzywuzzy
+    assert snippets == process.extract(query, snippets, limit=10)
     snippets_text = format_snippets(snippets)
     return snippets_text, tree  
 
@@ -114,3 +116,4 @@ if __name__ == "__main__":
     reply = sweep_bot.chat(final_review_prompt, message_key="final_review")
     review_coment = PullRequestComment.from_string(reply)
     pr.create_review(body=review_coment.content, event="COMMENT", comments=[])
+
