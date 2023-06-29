@@ -34,7 +34,7 @@ slack-sdk = "^3.21.3"
 flake8 = "^6.0.0"
 redis = "^4.5.5"
 slack-bolt = "^1.18.0"
-pymongo = "^4.4.0"
+fuzzywuzzy = "^0.18.0"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"
@@ -48,3 +48,4 @@ build-backend = "poetry.core.masonry.api"
 
 [mypy]
 check_untyped_defs = true
+
