@@ -71,4 +71,5 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
     reply = sweep_bot.chat(final_review_prompt, message_key="final_review")
     review_comment = PullRequestComment.from_string(reply)
     pr.create_review(body=review_comment.content, event="COMMENT", comments=[])
-    return review_comment.content
+    changes_required = 'yes' in review_comment.changes_required.lower()
+    return changes_required, review_comment.content

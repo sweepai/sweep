@@ -96,7 +96,7 @@ class HumanMessageReviewFollowup(BaseModel):
             previous_file_content=old_file_contents.rstrip("\n"),
             diffs=file_patch
         )
-        return review_follow_up_prompt+ format_diff
+        return review_follow_up_prompt + format_diff
 
 class HumanMessageCommentPrompt(HumanMessagePrompt):
     comment: str
