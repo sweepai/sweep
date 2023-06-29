@@ -32,17 +32,6 @@ Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating 
 4. "🚀" means the bot has finished its job and created a PR
 
 For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
-
-### Slack Add-on
-
-Sweep AI also works on Slack! These instructions will demonstrate how it can be installed. For these instructions, "repo" will refer to the repository's full name, like org_name/repo_name (Example: sweepai/sweep)
-
-1. Ensure the [Sweep GitHub app](https://github.com/apps/sweep-ai) is installed
-2. Install [our Slackbot](https://sweepai--prod-slack-bot.modal.run)
-3. Assign Slackbot to channel
-4. For the designated channel, add this to the description: "Sweep for repo" (Example: "Sweep for sweepai/sweep")
-5. Type a command like “/sweep Write a unit test“
-
 ---
 
 ## 📚 Story
