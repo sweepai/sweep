@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from fuzzywuzzy import process
 import time
 import shutil
 import glob
@@ -22,7 +23,6 @@ from src.utils.hash import hash_sha256
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
-import time
 
 # TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_NAME)
@@ -276,8 +276,10 @@ def get_relevant_snippets(
             query = "Represent this natural language query for code retrieval:\n" + query
             query_embedding = embedding_function([query])[0]
             results = deeplake_vs.search(embedding=query_embedding, k=n_result)
+            results = process.extract(query, results, limit=n_result)
             break
         except Exception:
+            pass
             pass
     if len(results["text"]) == 0:
         if username is None:
@@ -304,3 +306,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(metadatas, relevant_paths)
     ]
+
