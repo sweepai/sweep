@@ -1,9 +1,10 @@
 import json
 import os
-import re
+from fuzzywuzzy import fuzz
 import time
 import shutil
 import glob
+import re
 
 from modal import stub
 from loguru import logger
@@ -22,7 +23,6 @@ from src.utils.hash import hash_sha256
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
-import time
 
 # TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_NAME)
@@ -247,9 +247,6 @@ def update_index(
     sweep_config: SweepConfig = SweepConfig(),
 ) -> int:
     pass
-
-
-@stub.function(image=image, secrets=secrets, shared_volumes={DEEPLAKE_DIR: model_volume}, timeout=timeout)
 def get_relevant_snippets(
     repo_name: str,
     query: str,
@@ -276,6 +273,11 @@ def get_relevant_snippets(
             query = "Represent this natural language query for code retrieval:\n" + query
             query_embedding = embedding_function([query])[0]
             results = deeplake_vs.search(embedding=query_embedding, k=n_result)
+            # Calculate the similarity between the search query and each of the search results
+            similarity_scores = [fuzz.ratio(query, result) for result in results["text"]]
+            # Rerank the results based on the similarity scores
+            results["text"] = [x for _, x in sorted(zip(similarity_scores, results["text"]), key=lambda pair: pair[0], reverse=True)]
+            results["metadata"] = [x for _, x in sorted(zip(similarity_scores, results["metadata"]), key=lambda pair: pair[0], reverse=True)]
             break
         except Exception:
             pass
@@ -304,3 +306,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(metadatas, relevant_paths)
     ]
+
