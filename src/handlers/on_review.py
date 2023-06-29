@@ -36,7 +36,7 @@ def get_pr_diffs(repo, pr):
             logger.info(f"File status {file.status} not recognized") #TODO(sweep): We don't handle renamed files
     return pr_diffs
 
-def review_pr(repo, pr, issue_url, username, repo_description, title, summary, replies_text, installation_id, snippets, tree):
+def review_pr(repo, pr, issue_url, username, repo_description, title, summary, replies_text, tree):
     repo_name = repo.full_name
     logger.info("Getting PR diffs...")
     diffs = get_pr_diffs(repo, pr)
@@ -47,7 +47,7 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
         repo_description=repo_description,
         title=title,
         summary=summary + replies_text,
-        snippets=snippets,
+        snippets=[],
         tree=tree,
         diffs=[diffs[0] if len(diffs) > 0 else ""],
         pr_title=pr.title,
@@ -69,5 +69,6 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
         summarization_replies.append(extracted_summary.content)
     final_review_prompt = HumanMessageFinalPRComment(summarization_replies=summarization_replies).construct_prompt()
     reply = sweep_bot.chat(final_review_prompt, message_key="final_review")
-    review_coment = PullRequestComment.from_string(reply)
-    pr.create_review(body=review_coment.content, event="COMMENT", comments=[])
+    review_comment = PullRequestComment.from_string(reply)
+    pr.create_review(body=review_comment.content, event="COMMENT", comments=[])
+    return review_comment.content
