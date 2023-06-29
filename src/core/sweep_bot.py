@@ -7,8 +7,6 @@ from github.GithubException import GithubException
 import modal
 from pydantic import BaseModel
 from src.core.code_repair import CodeRepairer
-
-
 from src.core.entities import (
     FileChange,
     FileChangeRequest,
@@ -151,10 +149,41 @@ class GithubBot(BaseModel):
         )
         self.populate_snippets(snippets)
         return snippets
+    
+    def cot_retrieval(self, queries):
+        # TODO(sweep): add semantic search using vector db
+        # TODO(sweep): add search using webpilot + github
+        functions = [
+            Function(
+                name="cat",
+                description="Cat files. Max 3 files per request.",
+                parameters={
+                    "properties": {
+                        "filepath": {
+                            "type": "string",
+                            "description": "Paths to files. One per line."
+                        },
+                    }
+                } # manage file too large
+            ),
+            Function(
+                name="finish",
+                description="Indicate you have sufficient data to proceed.",
+                parameters={"properties": {}} 
+            ),
+        ]
+
+        query_results = []
+        for query in queries:
+            snippets = self.search_snippets(query, installation_id, num_snippets)
+            query_results.append([snippet.file_path for snippet in snippets])
+
+        final_results = majority_vote(query_results)
+        return final_results
 
 
 class SweepBot(CodeGenBot, GithubBot):
-    def cot_retrieval(self):
+    def cot_retrieval(self, queries):
         # TODO(sweep): add semantic search using vector db
         # TODO(sweep): add search using webpilot + github
         functions = [
@@ -363,3 +392,4 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
             else:
                 raise Exception("Invalid change type")
+
