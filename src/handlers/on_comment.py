@@ -65,8 +65,7 @@ def on_comment(
         pr = repo.get_pull(pr_number)
         # Check if the PR is closed
         if pr.state == "closed":
-            return
-        pr = repo.get_pull(pr_number)
+            return {"success": True, "message": "PR is closed. No further actions are performed."}
         branch_name = pr.head.ref
         pr_title = pr.title
         pr_body = pr.body
