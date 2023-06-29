@@ -12,6 +12,13 @@ class Message(BaseModel):
     function_call: dict | None = None
     key: str | None = None
 
+    @classmethod
+    def from_tuple(cls, tup: tuple[str | None, str | None]) -> Self:
+        if tup[0] is None:
+            return cls(role="assistant", content=tup[1])
+        else:
+            return cls(role="user", content=tup[0])
+
     def to_openai(self) -> str:
         obj = {
             "role": self.role,
@@ -104,6 +111,7 @@ class Snippet(BaseModel):
     start: int
     end: int
     file_path: str
+
     def get_snippet(self):
         snippet = "\n".join(self.content.splitlines()[self.start:self.end])
         if self.start > 1:

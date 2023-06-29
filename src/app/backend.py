@@ -2,18 +2,22 @@
 Proxy for the UI.
 """
 
+import time
 import modal
 from loguru import logger
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import requests
+import httpx
 
-# from src.core.chat import ChatGPT
+from src.core.chat import ChatGPT
 from src.core.entities import Message, Snippet
 from src.utils.constants import BOT_TOKEN_NAME, DB_NAME, PREFIX
 from src.utils.github_utils import get_github_client
+from src.core.prompts import gradio_system_message_prompt
 
-# get_relevant_snippets = modal.Function.from_name(DB_NAME, "get_relevant_snippets")
+get_relevant_snippets = modal.Function.from_name(DB_NAME, "get_relevant_snippets")
 
 stub = modal.Stub(PREFIX + "-ui")
 image = (
@@ -24,12 +28,16 @@ image = (
         "tqdm",
         "posthog",
         "openai",
+        "anthropic",
         "highlight-io",
         "PyGithub",
         "GitPython",
     )
 )
-secrets = [modal.Secret.from_name(BOT_TOKEN_NAME)]
+secrets = [
+    modal.Secret.from_name(BOT_TOKEN_NAME),
+    modal.Secret.from_name("openai-secret")
+]
 
 FUNCTION_SETTINGS = {
     "image": image,
@@ -42,22 +50,23 @@ FUNCTION_SETTINGS = {
 def _asgi_app():
     app = FastAPI()
 
-    @app.post("/search")
-    def search(
-        repo_name: str,
-        query: str,
-        n_results: int = 5,
+    class SearchRequest(BaseModel):
+        repo_name: str
+        query: str
+        n_results: int = 5
         installation_id: int | None = None
-    ) -> list[Snippet]:
+
+    @app.post("/search")
+    def search(request: SearchRequest) -> list[Snippet]:
         get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
         snippets: list[Snippet] = get_relevant_snippets.call(
-            repo_name,
-            query,
-            n_results=n_results,
-            installation_id=installation_id
+            request.repo_name,
+            request.query,
+            n_results=request.n_results,
+            installation_id=request.installation_id
         )
-        g = get_github_client(installation_id)
-        repo = g.get_repo(repo_name)
+        g = get_github_client(request.installation_id)
+        repo = g.get_repo(request.repo_name)
         for snippet in snippets:
             try:
                 snippet.content = repo.get_contents(snippet.file_path).decoded_content.decode("utf-8")
@@ -65,23 +74,30 @@ def _asgi_app():
                 logger.error(snippet)
         return snippets
     
-    # @app.post("/chat")
-    # def chat(messages: list[tuple[str, str]]) -> str:
-    #     messages_for_openai: list[Message] = []
-    #     for message in messages:
-    #         if message[0] is None:
-    #             messages_for_openai.append(Message(
-    #                 role="assistant",
-    #                 content=message[0],
-    #             ))
-    #         else:
-    #             messages_for_openai.append(Message(
-    #                 role="user",
-    #                 content=message[1],
-    #             ))
-    #     chatgpt = ChatGPT()
-    #     result = chatgpt.chat(messages_for_openai)
-    #     return result
+    class ChatRequest(BaseModel):
+        messages: list[tuple[str | None, str | None]]
+
+    @app.post("/chat")
+    def chat(
+        request: ChatRequest,
+    ) -> str:
+        messages = [Message.from_tuple(message) for message in request.messages]
+        chatgpt = ChatGPT(messages=messages[:-1])
+        result = chatgpt.chat(messages[-1].content, model="gpt-3.5-turbo")
+        return result
+    
+    class StreamChatRequest(BaseModel):
+        messages: list[tuple[str | None, str | None]]
+    
+    @app.post("/chat_stream")
+    def chat_stream(request: StreamChatRequest):
+        messages = [Message.from_tuple(message) for message in request.messages]
+        chatgpt = ChatGPT(messages=[Message(role="system", content=gradio_system_message_prompt)] + messages[:-1])
+        print(messages)
+        return StreamingResponse(
+            chatgpt.chat_stream(messages[-1].content, model="gpt-3.5-turbo"), 
+            media_type="text/event-stream"
+        )
 
     return app
 
@@ -97,7 +113,7 @@ class APIClient(BaseModel):
     ):
         results = requests.post(
             self.api_endpoint + "/search",
-            params={
+            json={
                 "repo_name": repo_name,
                 "query": query,
                 "n_results": n_results,
@@ -107,12 +123,27 @@ class APIClient(BaseModel):
         snippets = [Snippet(**item) for item in results.json()]
         return snippets
     
-    def chat(self, messages: list[tuple[str, str]]) -> str:
+    def chat(
+        self, 
+        messages: list[tuple[str | None, str | None]],
+        model: str = "gpt-4-0613",
+    ) -> str:
         results = requests.post(
             self.api_endpoint + "/chat",
-            params={
+            json={
                 "messages": messages,
             }
         )
-        return results.text
+        return results.json()
     
+    def stream_chat(self, messages: list[tuple[str | None, str | None]], model: str = "gpt-4-0613"):
+        with httpx.Client(timeout=30) as client:
+            with client.stream(
+                'POST', 
+                self.api_endpoint + '/chat_stream',
+                json={
+                    "messages": messages
+                }
+            ) as response:
+                for token in response.iter_text():
+                    yield token
