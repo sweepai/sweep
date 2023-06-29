@@ -1,4 +1,5 @@
 import json
+from fuzzywuzzy import fuzz
 import os
 import re
 import time
@@ -275,6 +276,14 @@ def get_relevant_snippets(
         try:
             query = "Represent this natural language query for code retrieval:\n" + query
             query_embedding = embedding_function([query])[0]
+            # Calculate similarity scores
+            scores = [fuzz.token_sort_ratio(query, result) for result in results["text"]]
+            # Combine results and scores
+            results_with_scores = list(zip(results["text"], results["metadata"], scores))
+            # Sort by scores in descending order
+            results_with_scores.sort(key=lambda x: x[2], reverse=True)
+            # Unzip the sorted results and scores
+            results["text"], results["metadata"], _ = zip(*results_with_scores)
             results = deeplake_vs.search(embedding=query_embedding, k=n_result)
             break
         except Exception:
@@ -304,3 +313,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(metadatas, relevant_paths)
     ]
+
