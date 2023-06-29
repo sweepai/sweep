@@ -12,11 +12,6 @@ from src.utils.github_utils import get_file_contents, search_snippets
 from src.utils.prompt_constructor import HumanMessageFinalPRComment, HumanMessagePromptReview, HumanMessageReviewFollowup
 from src.utils.snippets import format_snippets
 
-# Plan:
-# 1. Get PR
-# 2. Get files changed
-# 3. Come up with some comments for the PR
-# 4. Take comments and add them to the PR
 stub = modal.Stub(API_NAME)
 image = (
     modal.Image.debian_slim()
@@ -72,12 +67,18 @@ if __name__ == "__main__":
 
     repo = g.get_repo(repo_name)
     pr = repo.get_pull(339)
-    # Temp query
-    query = pr.title
+    # Temp queries
+    queries = [pr.title, pr.body]
     logger.info("Getting PR diffs...")
     diffs = get_pr_diffs(repo, pr)
     with stub.run():
         logger.info("Getting snippets...")
+        query_results = []
+        for query in queries:
+            snippets_text, tree = query_to_snippets_fn.call(query, repo)
+            query_results.append([snippet.file_path for snippet in snippets])
+    final_results = majority_vote(query_results)
+    assert set(final_results) == set(most_common(query_results))
         snippets_text, tree = query_to_snippets_fn.call(query, repo)
     human_message = HumanMessagePromptReview(
         repo_name=repo_name,
@@ -114,3 +115,4 @@ if __name__ == "__main__":
     reply = sweep_bot.chat(final_review_prompt, message_key="final_review")
     review_coment = PullRequestComment.from_string(reply)
     pr.create_review(body=review_coment.content, event="COMMENT", comments=[])
+
