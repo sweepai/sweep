@@ -8,6 +8,7 @@ authors = ["Kevin Lu"]
 python = "^3.11"
 openai = "^0.27.2"
 python-dotenv = "^1.0.0"
+fuzzywuzzy = "^0.18.0"
 fastapi = "^0.94.1"
 uvicorn = "^0.21.0"
 PyGithub = "1.58.2"
@@ -48,3 +49,4 @@ build-backend = "poetry.core.masonry.api"
 
 [mypy]
 check_untyped_defs = true
+
