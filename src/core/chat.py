@@ -201,6 +201,8 @@ class ChatGPT(BaseModel):
         if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
             model = "gpt-4-0613"
             max_tokens = model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer # this is for the function tokens
+        if "gpt-4" in model:
+            max_tokens = min(max_tokens, 5000)
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
         global retry_counter
         retry_counter = 0

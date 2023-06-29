@@ -17,6 +17,7 @@ from src.core.prompts import (
 from src.core.sweep_bot import SweepBot
 from src.core.prompts import issue_comment_prompt
 from src.handlers.create_pr import create_pr
+from src.handlers.on_comment import on_comment
 from src.handlers.on_review import review_pr
 from src.utils.event_logger import posthog
 from src.utils.github_utils import get_github_client, search_snippets
@@ -257,9 +258,16 @@ def on_ticket(
             except:
                 pass
             try:
-                review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username, 
+                review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username, 
                         repo_description=repo_description, title=title, 
-                        summary=summary, replies_text=replies_text, installation_id=installation_id, snippets=snippets, tree=tree)
+                        summary=summary, replies_text=replies_text, tree=tree)
+                logger.info(f"Addressing review comment {review_comment}")
+                on_comment(repo_full_name=repo_full_name, 
+                           repo_description=repo_description, 
+                           comment=review_comment,
+                           username=username, 
+                           installation_id=installation_id, 
+                           pr_number=pr.number)
             except Exception as e:
                 logger.error(e)
             break
