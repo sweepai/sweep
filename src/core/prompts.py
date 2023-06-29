@@ -105,6 +105,9 @@ This were the file summaries you provided:
 Given these summaries write a direct and concise GitHub review comment. If there are no changes required, simply say "No changes required."
 In case changes are required, keep in mind the author is an inexperienced programmer and may need a pointer to the files and specific changes.
 Follow this format:
+<changes_required>
+Write Yes if the changes are required or No if they are not required.
+</changes_required>
 <review_comment>
 Mention any changes that need to be made, using GitHub markdown to format the comment.
 - Change required in file on line x1-x2
