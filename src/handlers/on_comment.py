@@ -22,7 +22,6 @@ from src.utils.constants import PREFIX
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
-
 def on_comment(
     repo_full_name: str,
     repo_description: str,
@@ -33,6 +32,10 @@ def on_comment(
     installation_id: int,
     pr_number: int = None,
 ):
+    # Check if the PR is closed
+    if pull_request.state == "closed":
+        return {"success": True, "message": "The PR is closed. No event was fired."}
+
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
@@ -156,3 +159,4 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
             logger.warning(f"File {pr_path} was not found in previous commit {previous_commit.sha}")
         else:
             raise e
+
