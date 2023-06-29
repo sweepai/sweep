@@ -33,6 +33,9 @@ def on_comment(
     installation_id: int,
     pr_number: int = None,
 ):
+    # Check if the PR is closed
+    if pr.state == "closed":
+        return {"success": True, "message": "The PR is closed. No event has been fired."}
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
@@ -43,7 +46,7 @@ def on_comment(
     # 2: Get human message
     # 3. Get files to change
     # 4. Get file changes
-    # 5. Create PR
+    logger.info(f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}, PR state: {pr.state}")
     logger.info(f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
     organization, repo_name = repo_full_name.split("/")
     metadata = {
@@ -156,3 +159,4 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
             logger.warning(f"File {pr_path} was not found in previous commit {previous_commit.sha}")
         else:
             raise e
+
