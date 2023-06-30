@@ -34,4 +34,5 @@ client.chat_update(
                 # additional_snippets = default_snippets
                 additional_snippets_message = f":mag_right: Found {len(additional_snippets)} additional snippets with the query \"{arguments['query']}\":\n\n" +  "\n".join(
                     f"{snippet.get_slack_link(repo_name)}\n```{snippet.get_preview()}"
+                )
 
