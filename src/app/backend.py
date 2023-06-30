@@ -63,7 +63,7 @@ functions = [
                             },
                             "instructions": {
                                 "type": "string",
-                                "description": "Detailed description of what the change as a list."
+                                "description": "Detailed description of what to change in each file."
                             },
                         },
                         "required": ["file_path", "instructions"]
@@ -117,30 +117,39 @@ def _asgi_app():
         return snippets
 
     class CreatePRRequest(BaseModel):
+        # proposed PR information
         file_change_requests: list[tuple[str, str]]
-        pull_request: PullRequest
+        pull_request: PullRequest 
+
+        # state information
         messages: list[tuple[str | None, str | None]]
-        repo: str
+        snippets: list[Snippet] = []
+
+        # Github stuff
+        repo_name: str
         username: str
         installation_id: int | None = None
     
     @app.post("/create_pr")
     def create_pr(request: CreatePRRequest):
+        g = get_github_client(request.installation_id)
+        repo = g.get_repo(request.repo_name)
+
         create_pr_func = modal.Function.lookup(API_NAME, "create_pr")
         system_message = gradio_system_message_prompt.format(
             snippets="\n".join([snippet.denotation + f"\n```{snippet.get_snippet()}```" for snippet in request.snippets]),
-            repo_name="sweepai/sweep",
+            repo_name=request.repo_name,
             repo_description="Sweep is an AI junior developer"
         )
-        create_pr_func.call(
+        generated_pull_request = create_pr_func.call(
             [FileChangeRequest(
                 filename = item[0],
                 instructions = item[1],
                 change_type =  "create", # TODO update this
-            ) for item in request.file_change_request],
+            ) for item in request.file_change_requests],
             request.pull_request,
             SweepBot(
-                repo = request.repo,
+                repo = repo,
                 messages = [Message(role="system", content=system_message, key="system")] +
                     [Message.from_tuple(message) for message in request.messages],
             ),
@@ -148,7 +157,7 @@ def _asgi_app():
             installation_id = request.installation_id,
             issue_number = None,
         )
-        return {"status": "success"}
+        return generated_pull_request
     
     class ChatRequest(BaseModel):
         messages: list[tuple[str | None, str | None]]
@@ -179,6 +188,21 @@ def _asgi_app():
 
     return app
 
+def break_json(raw_json: str):
+    # turns something like {"function_call": {"arguments": " \""}}{"function_call": {"arguments": "summary"}} into two objects
+    try:
+        yield json.loads(raw_json)
+    except json.JSONDecodeError:
+        for i in range(1, len(raw_json)):
+            try:
+                obj = json.loads(raw_json[:i])
+                yield obj
+                for item in break_json(raw_json[i:]):
+                    yield item
+                break
+            except json.JSONDecodeError:
+                pass
+
 class APIClient(BaseModel):
     api_endpoint = f"https://sweepai--{PREFIX}-ui-dev.modal.run"
 
@@ -201,6 +225,29 @@ class APIClient(BaseModel):
         snippets = [Snippet(**item) for item in results.json()]
         return snippets
     
+    def create_pr(
+        self,
+        file_change_requests: list[tuple[str, str]],
+        pull_request: PullRequest,
+        messages: list[tuple[str | None, str | None]],
+        repo_name: str,
+        username: str | None = None,
+        installation_id: int | None = None,
+    ):
+        results = requests.post(
+            self.api_endpoint + "/create_pr",
+            json={
+                "file_change_requests": file_change_requests,
+                "pull_request": pull_request,
+                "messages": messages,
+                "repo_name": repo_name,
+                "username": username,
+                "installation_id": installation_id,
+            },
+            timeout=10 * 60
+        )
+        return results
+    
     def chat(
         self, 
         messages: list[tuple[str | None, str | None]],
@@ -222,7 +269,7 @@ class APIClient(BaseModel):
         snippets: list[Snippet] = [],
         model: str = "gpt-4-0613"
     ):
-        with httpx.Client(timeout=30) as client:
+        with httpx.Client(timeout=30) as client: # sometimes this step is slow
             with client.stream(
                 'POST', 
                 self.api_endpoint + '/chat_stream',
@@ -235,7 +282,8 @@ class APIClient(BaseModel):
                     if not delta_chunk:
                         break
                     try:
-                        yield json.loads(delta_chunk)
+                        for item in break_json(delta_chunk):
+                            yield item
                     except json.decoder.JSONDecodeError as e: 
                         logger.error(delta_chunk)
                         raise e
