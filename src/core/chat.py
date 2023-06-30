@@ -326,9 +326,9 @@ class ChatGPT(BaseModel):
         content: str,
         model: ChatModel | None = None,
         message_key: str | None = None,
-        # functions: list[Function] = [],
-        # function_name: dict | None = None,
-    ) -> Iterator[str]:
+        functions: list[Function] = [],
+        function_call: dict | None = None,
+    ) -> Iterator[dict]:
         if self.messages[-1].function_call is None:
             self.messages.append(Message(role="user", content=content, key=message_key))
         else:
@@ -338,14 +338,14 @@ class ChatGPT(BaseModel):
         is_function_call = False
         # might be a bug here in all of this
         # return self.stream_openai(model=model, functions=functions, function_name=function_name)
-        return self.stream_openai(model=model)
+        return self.stream_openai(model=model, functions=functions, function_call=function_call)
     
     def stream_openai(
         self,
         model: ChatModel | None = None,
-        # functions: list[Function] = [],
-        # function_name: dict | None = None,
-    ) -> Iterator[str]:
+        functions: list[Function] = [],
+        function_call: dict | None = None,
+    ) -> Iterator[dict]:
         model = model or self.model
         count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
         messages_length = sum(
@@ -375,12 +375,13 @@ class ChatGPT(BaseModel):
                 model=model,
                 messages=self.messages_dicts,
                 temperature=temperature,
+                functions=[json.loads(function.json()) for function in functions],
+                function_call=function_call,
                 stream=True
             )
             for data in stream:
                 chunk = data.choices[0].delta
-                if "content" in chunk:
-                    yield chunk["content"]
+                yield chunk
         return generator()
 
     @property
