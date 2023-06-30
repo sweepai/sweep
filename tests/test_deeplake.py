@@ -5,7 +5,24 @@ import modal
 from src.core.entities import Snippet
 from src.utils.config import SweepConfig
 from src.utils.constants import DB_NAME
-
+get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
+# get_relevant_snippets.spawn(
+#     repo_name="sweepai/bot-internal",
+#     installation_id=36855882,
+#     query = "Sweep: Add eyes reaction on comment replies",
+#     n_results = 10,
+#     )
+import time
+s = time.time()
+res = get_relevant_snippets.call(
+    repo_name="sweepai/sweep",
+    installation_id=36855882,
+    query = "Sweep: Add eyes reaction on comment replies",
+    n_results = 30,
+    )
+print(res)
+e = time.time()
+print("Time taken: {}".format(e - s))
 path = "tests/data/test_vectorstore"
 # path = "mem://tests/data/test_vectorstore"
 
@@ -33,6 +50,7 @@ deeplake_vector_store_b = DeepLakeVectorStore(
 data_b = deeplake_vector_store_b.search(
        embedding = [1, 1, 1],
 )
+import pdb; pdb.set_trace()
 assert data == data_b
 
 path_c = "tests/data/test_separate--vectorstore"
@@ -92,20 +110,3 @@ results = deeplake_vector_store_e.search(
 )
 # import pdb; pdb.set_trace()
 # test concurrency
-get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
-# get_relevant_snippets.spawn(
-#     repo_name="sweepai/bot-internal",
-#     installation_id=36855882,
-#     query = "Sweep: Add eyes reaction on comment replies",
-#     n_results = 10,
-#     )
-import time
-s = time.time()
-get_relevant_snippets.call(
-    repo_name="sweepai/bot-internal",
-    installation_id=36855882,
-    query = "Sweep: Add eyes reaction on comment replies",
-    n_results = 10,
-    )
-e = time.time()
-print("Time taken: {}".format(e - s))

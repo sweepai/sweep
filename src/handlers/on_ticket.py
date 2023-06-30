@@ -42,7 +42,7 @@ collapsible_template = """
 
 chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 
-num_of_snippets_to_query = 10
+num_of_snippets_to_query = 30
 max_num_of_snippets = 5
 
 def on_ticket(

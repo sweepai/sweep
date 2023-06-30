@@ -18,6 +18,7 @@ from git import Repo
 from src.core.entities import Snippet
 from src.utils.event_logger import posthog
 from src.utils.hash import hash_sha256
+from src.utils.scorer import compute_score
 
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
@@ -147,6 +148,7 @@ def get_deeplake_vs_from_repo(
 
     file_paths = []
     file_contents = []
+    scores = []
 
     for file in tqdm(file_list):
         with open(file, "rb") as f:
@@ -175,8 +177,15 @@ def get_deeplake_vs_from_repo(
             file_path = file[len("repo/") :]
             file_paths.append(file_path)
             file_contents.append(contents)
+            try:
+                commits = list(repo.get_commits(path=file_path, sha=branch_name))
+                scores.append(compute_score(contents, commits))
+            except Exception as e:
+                logger.warning(f"Received warning {e}, skipping...")
+                scores.append(1)
+                continue
         
-    chunked_results = chunker.map(file_contents, file_paths, kwargs={
+    chunked_results = chunker.map(file_contents, file_paths, scores, kwargs={
         "additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}
     })
 
@@ -294,7 +303,22 @@ def get_relevant_snippets(
             },
         )
     metadatas = results["metadata"]
-    relevant_paths = [metadata["file_path"] for metadata in metadatas]
+    code_scores = [metadata["score"] for metadata in metadatas]
+    print(code_scores)
+    vector_scores = results["score"]
+    print(vector_scores)
+    combined_scores = [code_score * vector_score for code_score, vector_score in zip(code_scores, vector_scores)]
+    print(combined_scores)
+    # Sort by combined scores
+    # Combine the three lists into a single list of tuples
+    combined_list = list(zip(combined_scores, metadatas))
+
+    # Sort the combined list based on the combined scores
+    sorted_list = sorted(combined_list, key=lambda x: x[0], reverse=True)
+
+    # Extract the sorted metadatas and relevant_paths
+    sorted_metadatas = [metadata for _, metadata in sorted_list]
+    relevant_paths = [metadata["file_path"] for metadata in sorted_metadatas]
     logger.info("Relevant paths: {}".format(relevant_paths))
     return [
         Snippet(
@@ -302,5 +326,5 @@ def get_relevant_snippets(
             start=metadata["start"], 
             end=metadata["end"], 
             file_path=file_path
-        ) for metadata, file_path in zip(metadatas, relevant_paths)
+        ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
