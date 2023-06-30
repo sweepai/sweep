@@ -140,7 +140,7 @@ class GithubBot(BaseModel):
         self, 
         query: str, 
         installation_id: str,
-        num_snippets: int = 5,
+        num_snippets: int = 30,
     ) -> list[Snippet]:
         get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
         snippets: list[Snippet] = get_relevant_snippets.call(

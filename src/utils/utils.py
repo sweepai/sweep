@@ -198,7 +198,8 @@ class Chunking:
     def chunk(
         self,
         file_content: str, 
-        file_path: str, 
+        file_path: str,
+        score: float = 1.0, 
         additional_metadata: dict[str, str] = {},
         max_chunk_size: int = 512 * 3,
         chunk_size: int = 30, 
@@ -256,6 +257,7 @@ class Chunking:
                     "file_path": file_path,
                     "start": span.start,
                     "end": span.end,
+                    "score": score,
                     **additional_metadata
                 }
                 metadatas.append(metadata)
@@ -276,6 +278,7 @@ class Chunking:
                     "file_path": file_path,
                     "start": start_line,
                     "end": end_line,
+                    "score": score,
                     **additional_metadata
                 })
                 start_line += chunk_size - overlap
