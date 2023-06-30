@@ -26,7 +26,7 @@ from src.core.prompts import (
     modify_file_plan_prompt,
 )
 from src.utils.constants import DB_NAME
-from src.utils.diff import format_contents, generate_new_file, is_markdown
+from src.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown
 
 
 class CodeGenBot(ChatGPT):
@@ -137,7 +137,7 @@ class GithubBot(BaseModel):
         self, 
         query: str, 
         installation_id: str,
-        num_snippets: int = 5,
+        num_snippets: int = 30,
     ) -> list[Snippet]:
         get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
         snippets: list[Snippet] = get_relevant_snippets.call(
@@ -267,7 +267,8 @@ class SweepBot(CodeGenBot, GithubBot):
                     new_file = generate_new_file(modify_file_response, contents)
                     if not is_markdown(file_change_request.filename):
                         code_repairer = CodeRepairer()
-                        new_file = code_repairer.repair_code(old_code=contents, user_code=new_file)
+                        diff = generate_diff(old_code=contents, new_code=new_file)
+                        new_file = code_repairer.repair_code(diff=diff, user_code=new_file, feature=file_change_request.instructions)
                     return (new_file, file_change_request.filename)
                 except Exception as e:
                     logger.warning(f"Recieved error {e}")

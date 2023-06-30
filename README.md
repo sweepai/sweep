@@ -33,18 +33,6 @@ Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating 
 
 For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
 
-### Slack Add-on
-
-Sweep AI also works on Slack! These instructions will demonstrate how it can be installed. For these instructions, "repo" will refer to the repository's full name, like org_name/repo_name (Example: sweepai/sweep)
-
-1. Ensure the [Sweep GitHub app](https://github.com/apps/sweep-ai) is installed
-2. Install [our Slackbot](https://sweepai--prod-slack-bot.modal.run)
-3. Assign Slackbot to channel
-4. For the designated channel, add this to the description: "Sweep for repo" (Example: "Sweep for sweepai/sweep")
-5. Type a command like “/sweep Write a unit test“
-
----
-
 ## 📚 Story
 
 We were frustrated by small tickets such as simple bug fixes, annoying refactors and small features that could just be fed to ChatGPT. So we fed it to ChatGPT.
@@ -79,3 +67,4 @@ We're currently working on responding to linters and external search. For more, 
       <img src="https://contrib.rocks/image?repo=sweepai/sweep" />
     </a>
 </p>
+and of course, Sweep!

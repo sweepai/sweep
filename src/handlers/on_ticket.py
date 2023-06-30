@@ -17,6 +17,7 @@ from src.core.prompts import (
 from src.core.sweep_bot import SweepBot
 from src.core.prompts import issue_comment_prompt
 from src.handlers.create_pr import create_pr
+from src.handlers.on_comment import on_comment
 from src.handlers.on_review import review_pr
 from src.utils.event_logger import posthog
 from src.utils.github_utils import get_github_client, search_snippets
@@ -41,7 +42,7 @@ collapsible_template = """
 
 chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 
-num_of_snippets_to_query = 10
+num_of_snippets_to_query = 30
 max_num_of_snippets = 5
 
 def on_ticket(
@@ -148,13 +149,10 @@ def on_ticket(
         )
         raise e
 
-    # reversing to put most relevant at the bottom
-    snippets: list[Snippet] = snippets[::-1]
-
     num_full_files = 2
     num_extended_snippets = 2
 
-    most_relevant_snippets = snippets[-num_full_files:]
+    most_relevant_snippets = snippets[:num_full_files]
     snippets = snippets[:-num_full_files]
     logger.info("Expanding snippets...")
     for snippet in most_relevant_snippets:
@@ -238,7 +236,7 @@ def on_ticket(
                     body="\n".join(
                         [
                             f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(new_line))}\n"
-                            for snippet in snippets[::-1]
+                            for snippet in snippets
                         ]
                     ),
                 )
@@ -257,9 +255,19 @@ def on_ticket(
             except:
                 pass
             try:
-                review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username, 
+                changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username, 
                         repo_description=repo_description, title=title, 
-                        summary=summary, replies_text=replies_text, installation_id=installation_id, snippets=snippets, tree=tree)
+                        summary=summary, replies_text=replies_text, tree=tree)
+                logger.info(f"Addressing review comment {review_comment}")
+                if changes_required:
+                    on_comment(repo_full_name=repo_full_name, 
+                            repo_description=repo_description, 
+                            comment=review_comment,
+                            username=username, 
+                            installation_id=installation_id,
+                            pr_path=None,
+                            pr_line_position=None,
+                            pr_number=pr.number)
             except Exception as e:
                 logger.error(e)
             break

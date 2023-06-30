@@ -1,6 +1,7 @@
 import os
 import subprocess
 from dataclasses import dataclass
+import re
 
 import modal
 from modal import method
@@ -105,7 +106,7 @@ def chunker(tree, source_code_bytes, max_chunk_size = 512 * 3, coalesce = 50):
     current_chunk = Span(0, 0)
     while i < len(chunks):
         current_chunk += chunks[i]
-        if len(chunks[i]) > coalesce \
+        if count_length_without_whitespace(source_code_bytes[current_chunk.start:current_chunk.end].decode("utf-8")) > coalesce \
             and "\n" in source_code_bytes[current_chunk.start:current_chunk.end].decode("utf-8"):
             new_chunks.append(current_chunk)
             current_chunk = Span(chunks[i].end, chunks[i].end)
@@ -118,6 +119,10 @@ def chunker(tree, source_code_bytes, max_chunk_size = 512 * 3, coalesce = 50):
     
     return line_chunks
 
+
+def count_length_without_whitespace(s: str):
+    string_without_whitespace = re.sub(r'\s', '', s)
+    return len(string_without_whitespace)
 
 extension_to_language = {
     "js": "tsx",
@@ -193,7 +198,8 @@ class Chunking:
     def chunk(
         self,
         file_content: str, 
-        file_path: str, 
+        file_path: str,
+        score: float = 1.0, 
         additional_metadata: dict[str, str] = {},
         max_chunk_size: int = 512 * 3,
         chunk_size: int = 30, 
@@ -251,6 +257,7 @@ class Chunking:
                     "file_path": file_path,
                     "start": span.start,
                     "end": span.end,
+                    "score": score,
                     **additional_metadata
                 }
                 metadatas.append(metadata)
@@ -271,6 +278,7 @@ class Chunking:
                     "file_path": file_path,
                     "start": start_line,
                     "end": end_line,
+                    "score": score,
                     **additional_metadata
                 })
                 start_line += chunk_size - overlap
