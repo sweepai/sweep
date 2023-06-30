@@ -18,7 +18,7 @@ import chromadb.utils.embedding_functions as ef
 import pandas as pd
 import requests
 import json
-from typing import Sequence
+from typing import Sequence, List
 from chromadb.api.models.Collection import Collection
 import chromadb.errors as errors
 from uuid import UUID
@@ -137,45 +137,48 @@ class FastAPI(API):
 
     def _get(
         self,
-        collection_id: UUID,
-        ids: Optional[IDs] = None,
-        where: Optional[Where] = {},
-        sort: Optional[str] = None,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
-        page: Optional[int] = None,
-        page_size: Optional[int] = None,
-        where_document: Optional[WhereDocument] = {},
-        include: Include = ["metadatas", "documents"],
-    ) -> GetResult:
-        """Gets embeddings from the database"""
-        if page and page_size:
-            offset = (page - 1) * page_size
-            limit = page_size
+        collection_id: List[UUID],
+        ids: Optional[List[IDs]] = None,
+        where: Optional[List[Where]] = None,
+        sort: Optional[List[str]] = None,
+        limit: Optional[List[int]] = None,
+        offset: Optional[List[int]] = None,
+        page: Optional[List[int]] = None,
+        page_size: Optional[List[int]] = None,
+        where_document: Optional[List[WhereDocument]] = None,
+        include: List[Include] = ["metadatas", "documents"],
+    ) -> List[GetResult]:
+        '''Gets embeddings from the database'''
+        results = []
+        for i in range(len(collection_id)):
+            if page and page_size:
+                offset[i] = (page[i] - 1) * page_size[i]
+                limit[i] = page_size[i]
 
-        resp = requests.post(
-            self._api_url + "/collections/" + str(collection_id) + "/get",
-            data=json.dumps(
-                {
-                    "ids": ids,
-                    "where": where,
-                    "sort": sort,
-                    "limit": limit,
-                    "offset": offset,
-                    "where_document": where_document,
-                    "include": include,
-                }
-            ),
-        )
+            resp = requests.post(
+                self._api_url + "/collections/" + str(collection_id[i]) + "/get",
+                data=json.dumps(
+                    {
+                        "ids": ids[i] if ids else None,
+                        "where": where[i] if where else {},
+                        "sort": sort[i] if sort else None,
+                        "limit": limit[i] if limit else None,
+                        "offset": offset[i] if offset else None,
+                        "where_document": where_document[i] if where_document else {},
+                        "include": include[i] if include else ["metadatas", "documents"],
+                    }
+                ),
+            )
 
-        raise_chroma_error(resp)
-        body = resp.json()
-        return GetResult(
-            ids=body["ids"],
-            embeddings=body.get("embeddings", None),
-            metadatas=body.get("metadatas", None),
-            documents=body.get("documents", None),
-        )
+            raise_chroma_error(resp)
+            body = resp.json()
+            results.append(GetResult(
+                ids=body["ids"],
+                embeddings=body.get("embeddings", None),
+                metadatas=body.get("metadatas", None),
+                documents=body.get("documents", None),
+            ))
+        return results
 
     def _delete(
         self,
@@ -330,15 +333,17 @@ class FastAPI(API):
         """Persists the database"""
         resp = requests.post(self._api_url + "/persist")
         raise_chroma_error(resp)
-        return cast(bool, resp.json())
 
-    def raw_sql(self, sql: str) -> pd.DataFrame:
-        """Runs a raw SQL query against the database"""
-        resp = requests.post(
-            self._api_url + "/raw_sql", data=json.dumps({"raw_sql": sql})
-        )
-        raise_chroma_error(resp)
-        return pd.DataFrame.from_dict(resp.json())
+    def raw_sql(self, sql: List[str]) -> List[pd.DataFrame]:
+        '''Runs a raw SQL query against the database'''
+        results = []
+        for query in sql:
+            resp = requests.post(
+                self._api_url + "/raw_sql", data=json.dumps({"raw_sql": query})
+            )
+            raise_chroma_error(resp)
+            results.append(pd.DataFrame.from_dict(resp.json()))
+        return results
 
     def create_index(self, collection_name: str) -> bool:
         """Creates an index for the given space key"""
@@ -377,3 +382,4 @@ def raise_chroma_error(resp: requests.Response) -> None:
         resp.raise_for_status()
     except requests.HTTPError:
         raise (Exception(resp.text))
+
