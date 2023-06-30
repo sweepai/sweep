@@ -17,7 +17,7 @@ s = time.time()
 res = get_relevant_snippets.call(
     repo_name="sweepai/sweep",
     installation_id=36855882,
-    query = "Sweep: Add eyes reaction on comment replies",
+    query = "Sweep: Add eyes reaction on comment replies in on_comment.py",
     n_results = 30,
     )
 print(res)
