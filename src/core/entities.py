@@ -186,5 +186,6 @@ class DiffSummarization(RegexMatchableBaseModel):
     _regex = r"""<file_summarization>(?P<content>.*)<\/file_summarization>"""
 
 class PullRequestComment(RegexMatchableBaseModel):
+    changes_required: str
     content: str
-    _regex = r"""<review_comment>(?P<content>.*)<\/review_comment>"""
+    _regex = r"""<changes_required>(?P<changes_required>.*)<\/changes_required>(\s+)<review_comment>(?P<content>.*)<\/review_comment>"""

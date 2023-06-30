@@ -49,7 +49,7 @@ secrets = [
 FUNCTION_SETTINGS = {
     "image": image,
     "secrets": secrets,
-    "timeout": 15 * 60,
+    "timeout": 30 * 60,
 }
 
 
