@@ -138,20 +138,24 @@ class GithubBot(BaseModel):
     
     def search_snippets(
         self, 
-        query: str, 
+        queries: list[str], 
         installation_id: str,
         num_snippets: int = 5,
     ) -> list[Snippet]:
         get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
-        snippets: list[Snippet] = get_relevant_snippets.call(
-            self.repo.full_name, 
-            query=query,
-            n_results=num_snippets,
-            installation_id=installation_id,
-        )
+        snippets_list: list[list[Snippet]] = []
+        for query in queries:
+            snippets: list[Snippet] = get_relevant_snippets.call(
+                self.repo.full_name, 
+                query=query,
+                n_results=num_snippets,
+                installation_id=installation_id,
+            )
+            snippets_list.append(snippets)
+        # Flatten the list of lists of snippets into a single list of snippets
+        snippets = [snippet for sublist in snippets_list for snippet in sublist]
         self.populate_snippets(snippets)
         return snippets
-
 
 class SweepBot(CodeGenBot, GithubBot):
     def cot_retrieval(self):
@@ -363,3 +367,4 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
             else:
                 raise Exception("Invalid change type")
+
