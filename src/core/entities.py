@@ -175,6 +175,11 @@ class Snippet(BaseModel):
         if self.end < self.content.count('\n') + 1 and self.end > max_lines:
             snippet = snippet + '\n...'
         return snippet
+    
+    @property
+    def denotation(self):
+        return f"{self.file_path}:{self.start}-{self.end}"
+        
 
 class DiffSummarization(RegexMatchableBaseModel):
     content: str
