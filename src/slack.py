@@ -11,7 +11,7 @@ client.chat_update(
             repo_name=repo_name,
             repo_description=repo.description,
             username=request.user_name,
-            query=queries
+            query=[queries]
         )
         response = sweep_bot.chat(prompt, functions=functions, function_name={"name": "create_pr"})
         logger.info(response)
@@ -33,5 +33,5 @@ client.chat_update(
                 )
                 # additional_snippets = default_snippets
                 additional_snippets_message = f":mag_right: Found {len(additional_snippets)} additional snippets with the query \"{arguments['query']}\":\n\n" +  "\n".join(
-                    f"{snippet.get_slack_link(repo_name)}\n```{snippet.get_preview()}
+                    f"{snippet.get_slack_link(repo_name)}\n```{snippet.get_preview()}"
 
