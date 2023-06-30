@@ -149,13 +149,10 @@ def on_ticket(
         )
         raise e
 
-    # reversing to put most relevant at the bottom
-    snippets: list[Snippet] = snippets[::-1]
-
     num_full_files = 2
     num_extended_snippets = 2
 
-    most_relevant_snippets = snippets[-num_full_files:]
+    most_relevant_snippets = snippets[:num_full_files]
     snippets = snippets[:-num_full_files]
     logger.info("Expanding snippets...")
     for snippet in most_relevant_snippets:
@@ -239,7 +236,7 @@ def on_ticket(
                     body="\n".join(
                         [
                             f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(new_line))}\n"
-                            for snippet in snippets[::-1]
+                            for snippet in snippets
                         ]
                     ),
                 )
