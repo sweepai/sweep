@@ -18,7 +18,7 @@ import chromadb.utils.embedding_functions as ef
 import pandas as pd
 import requests
 import json
-from typing import Sequence
+from typing import Sequence, List
 from chromadb.api.models.Collection import Collection
 import chromadb.errors as errors
 from uuid import UUID
@@ -332,13 +332,16 @@ class FastAPI(API):
         raise_chroma_error(resp)
         return cast(bool, resp.json())
 
-    def raw_sql(self, sql: str) -> pd.DataFrame:
-        """Runs a raw SQL query against the database"""
-        resp = requests.post(
-            self._api_url + "/raw_sql", data=json.dumps({"raw_sql": sql})
-        )
-        raise_chroma_error(resp)
-        return pd.DataFrame.from_dict(resp.json())
+    def raw_sql(self, sql: List[str]) -> List[pd.DataFrame]:
+        '''Runs a list of raw SQL queries against the database'''
+        results = []
+        for query in sql:
+            resp = requests.post(
+                self._api_url + "/raw_sql", data=json.dumps({"raw_sql": query})
+            )
+            raise_chroma_error(resp)
+            results.append(pd.DataFrame.from_dict(resp.json()))
+        return results
 
     def create_index(self, collection_name: str) -> bool:
         """Creates an index for the given space key"""
@@ -377,3 +380,4 @@ def raise_chroma_error(resp: requests.Response) -> None:
         resp.raise_for_status()
     except requests.HTTPError:
         raise (Exception(resp.text))
+
