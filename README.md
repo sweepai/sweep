@@ -32,7 +32,6 @@ Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating 
 4. "🚀" means the bot has finished its job and created a PR
 
 For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
----
 
 ## 📚 Story
 
@@ -68,3 +67,4 @@ We're currently working on responding to linters and external search. For more, 
       <img src="https://contrib.rocks/image?repo=sweepai/sweep" />
     </a>
 </p>
+and of course, Sweep!
