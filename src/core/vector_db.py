@@ -4,6 +4,7 @@ import re
 import time
 import shutil
 import glob
+import concurrent.futures
 
 from modal import stub
 from loguru import logger
@@ -23,7 +24,6 @@ from src.utils.scorer import compute_score
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
-import time
 
 # TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_NAME)
@@ -86,10 +86,10 @@ class Embedding:
         self.model = SentenceTransformer(
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
         )
-
     @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            return list(executor.map(self.model.encode, texts, chunksize=BATCH_SIZE))
 
     @method()
     def ping(self):
@@ -332,3 +332,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
+
