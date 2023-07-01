@@ -255,22 +255,17 @@ def compute_deeplake_vs(collection_name,
         logger.error("No documents found in repository")
         return deeplake_vs
 
-@stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
-def init_index(
-    repo_name: str,
-    installation_id: int,
-    sweep_config: SweepConfig = SweepConfig(),
-):
-    pass
-
 
 @stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
 def update_index(
     repo_name,
     installation_id: int,
     sweep_config: SweepConfig = SweepConfig(),
-) -> int:
-    pass
+) -> int:    
+    get_deeplake_vs_from_repo(
+    repo_name,
+    sweep_config,
+    installation_id)
 
 
 @stub.function(image=image, secrets=secrets, shared_volumes={DEEPLAKE_DIR: model_volume}, timeout=timeout, keep_warm=1)

@@ -133,11 +133,6 @@ def on_ticket(
         )
         raise error
 
-    # update_index.call(
-    #     repo_full_name,
-    #     installation_id=installation_id,
-    # )
-
     logger.info("Fetching relevant files...")
     try:
         snippets, tree = fetch_file_contents_with_retry()

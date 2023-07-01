@@ -226,8 +226,8 @@ def index_full_repository(
     installation_id: int = None,
     sweep_config: SweepConfig = SweepConfig(),
 ):
-    init_index = modal.Function.lookup(DB_NAME, "init_index")
-    num_indexed_docs = init_index.spawn(
+    update_index = modal.Function.lookup(DB_NAME, "update_index")
+    num_indexed_docs = update_index.spawn(
         repo_name=repo_name,
         installation_id=installation_id,
         sweep_config=sweep_config,
