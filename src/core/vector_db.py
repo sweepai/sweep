@@ -4,6 +4,7 @@ import re
 import time
 import shutil
 import glob
+from multiprocessing import Pool
 
 from modal import stub
 from loguru import logger
@@ -67,7 +68,7 @@ def parse_collection_name(name: str) -> str:
     return name
 
 def list_collection_names():
-    """Returns a list of all collection names."""
+    '''Returns a list of all collection names.'''
     collections = []
     return collections
 
@@ -89,7 +90,18 @@ class Embedding:
 
     @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
+        # Create a pool of worker processes
+        with Pool(os.cpu_count()) as p:
+            # Define a function that wraps the encode method in a try-except block
+            def encode(text):
+                try:
+                    return self.model.encode([text], batch_size=BATCH_SIZE)[0].tolist()
+                except Exception as e:
+                    logger.error(f"Error while encoding text: {e}")
+                    return None
+
+            # Use the map method to apply the encode function to each text
+            return p.map(encode, texts)
 
     @method()
     def ping(self):
@@ -332,3 +344,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
+
