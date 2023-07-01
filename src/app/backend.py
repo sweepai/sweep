@@ -63,12 +63,16 @@ functions = [
                             },
                             "instructions": {
                                 "type": "string",
-                                "description": "Detailed description of what to change in each file."
+                                "description": "Detailed NATURAL LANGUAGE summary of what to change in each file. There should be absolutely NO code.",
+                                "example":  [
+                                    "Refactor the algorithm by moving the main function to the top of the file.",
+                                    "Change the implementation to recursion"
+                                ]
                             },
                         },
                         "required": ["file_path", "instructions"]
                     },
-                    "description": "A list of files to modify or create and instructions for what to modify or create."
+                    "description": "A list of files to modify or create and corresponding instructions."
                 },
                 "title": {
                     "type": "string",
@@ -82,7 +86,8 @@ functions = [
                     "type": "string",
                     "description": "Name of branch to create PR in.",
                 },
-            }
+            },
+            "required": ["plan", "title", "summary", "branch"]
         }
     ),
 ]
@@ -100,6 +105,7 @@ def _asgi_app():
 
     @app.post("/search")
     def search(request: SearchRequest) -> list[Snippet]:
+        logger.info("Searching for snippets...")
         get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
         snippets: list[Snippet] = get_relevant_snippets.call(
             request.repo_name,
@@ -141,7 +147,7 @@ def _asgi_app():
             repo_name=request.repo_name,
             repo_description="Sweep is an AI junior developer"
         )
-        generated_pull_request = create_pr_func.call(
+        results = create_pr_func.call(
             [FileChangeRequest(
                 filename = item[0],
                 instructions = item[1],
@@ -157,7 +163,11 @@ def _asgi_app():
             installation_id = request.installation_id,
             issue_number = None,
         )
-        return generated_pull_request
+        generated_pull_request = results["pull_request"]
+        print(generated_pull_request)
+        return {
+            "html_url": generated_pull_request.html_url,
+        }
     
     class ChatRequest(BaseModel):
         messages: list[tuple[str | None, str | None]]
@@ -169,7 +179,7 @@ def _asgi_app():
     ) -> str:
         messages = [Message.from_tuple(message) for message in request.messages]
         chatgpt = ChatGPT(messages=messages[:-1])
-        result = chatgpt.chat(messages[-1].content, model="gpt-3.5-turbo")
+        result = chatgpt.chat(messages[-1].content, model="gpt-4-0613")
         return result
     
     @app.post("/chat_stream")
@@ -182,10 +192,9 @@ def _asgi_app():
         )
         chatgpt = ChatGPT(messages=[Message(role="system", content=system_message, key="system")] + messages[:-1])
         return StreamingResponse(
-            (json.dumps(chunk) for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-3.5-turbo", functions=functions, function_call={"name": "create_pr"})),
+            (json.dumps(chunk) for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=functions, function_call={"name": "create_pr"})),
             media_type="text/event-stream"
         )
-
     return app
 
 def break_json(raw_json: str):
@@ -246,7 +255,7 @@ class APIClient(BaseModel):
             },
             timeout=10 * 60
         )
-        return results
+        return results.json()
     
     def chat(
         self, 

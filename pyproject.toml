@@ -36,6 +36,7 @@ redis = "^4.5.5"
 slack-bolt = "^1.18.0"
 pymongo = "^4.4.0"
 gradio = "^3.35.2"
+config-path = "^1.0.3"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"
