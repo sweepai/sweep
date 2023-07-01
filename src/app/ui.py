@@ -1,4 +1,5 @@
 import json
+from github import Github
 import gradio as gr
 from loguru import logger
 import modal
@@ -10,12 +11,8 @@ from src.utils.constants import DB_NAME
 
 get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
 config = Config.load()
-# repo_name = "sweepai/sweep"
-# username = "kevinlu1248"
-username = config.github_username
-installation_id = 35473183
 
-api_client = APIClient()
+api_client = APIClient(config=config)
 
 pr_summary_template = """💡 I'll create the following PR:
 
@@ -27,24 +24,50 @@ Here is my plan:
 
 Reply with "ok" to create the PR or anything else to propose changes."""
 
+github_client = Github(config.github_pat)
+repos = github_client.get_user().get_repos()
+
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {{visibility: hidden;}}") as demo:
-    repo_name = gr.Textbox(label="Repo full name",)
+    # repo_name = gr.Textbox(label="Repo full name",)
+    repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
     with gr.Row():
         with gr.Column(scale=2):
             chatbot = gr.Chatbot(height=650)
         with gr.Column():
-            # table = gr.Dataframe([("", "")], headers=["Snippet", "Preview"], label="Relevant Snippets")
-            snippets_text = gr.Markdown(value="### Relevant snippets", max_height=750)
-    msg = gr.Textbox(label="Message to Sweep",)
+            snippets_text = gr.Markdown(value="### Relevant snippets")
+    msg = gr.Textbox(label="Message to Sweep")
     clear = gr.ClearButton([msg, chatbot, snippets_text])
 
     snippets: list[Snippet] = []
     proposed_pr: str | None = None
 
-    def user(user_message: str, history: list[tuple[str | None, str | None]]):
+    def repo_name_change(repo_full_name):
+        # check if user has access to the repo and if the app is installed on the repo
+        global installation_id
+        try:
+            config.repo_full_name = repo_full_name
+            api_client.config = config
+            installation_id = api_client.get_installation_id()
+            assert installation_id
+            config.installation_id = installation_id
+            api_client.config = config
+            config.save()
+            return ""
+        except Exception as e:
+            config.repo_full_name = None
+            config.installation_id = None
+            config.save()
+            api_client.config = config
+            raise e
+
+    repo_full_name.change(repo_name_change, [repo_full_name], [msg])
+
+    def handle_message_submit(repo_full_name: str, user_message: str, history: list[tuple[str | None, str | None]]):
+        if not repo_full_name:
+            raise Exception("Set the repository name first")
         return gr.update(value="", interactive=False), history + [[user_message, None]]
 
-    def bot(chat_history: list[tuple[str | None, str | None]], snippets_text):
+    def handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, repo_name):
         snippets = []
         yield chat_history, snippets_text
         if snippets_text and snippets_text.strip().count("\n") == 0:
@@ -52,12 +75,12 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {{visibil
             chat_history[-1][1] = "Searching for relevant snippets..."
             yield chat_history, snippets_text
             logger.info("Fetching relevant snippets...")
-            snippets = api_client.search(repo_name, chat_history[-1][0], 5, installation_id)
+            snippets = api_client.search(chat_history[-1][0], 5)
             logger.info("Fetched relevant snippets.")
             chat_history[-1][1] = "Found relevant snippets."
             
             backtick, escaped_backtick = "`", "\\`"
-            snippets_text = "### Relevant snippets:\n" + "\n".join([f"{snippet.denotation}\n```python\n{snippet.get_preview(10).replace(backtick, escaped_backtick)}\n```" for snippet in snippets])
+            snippets_text = "### Relevant snippets:\n" + "\n".join([f"{snippet.denotation}\n```python\n{snippet.get_preview(5).replace(backtick, escaped_backtick)}\n```" for snippet in snippets])
             yield chat_history, snippets_text
         
         global proposed_pr
@@ -72,9 +95,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {{visibil
                     "branch_name": proposed_pr["branch"],
                 },
                 messages=chat_history,
-                repo_name=repo_name,
-                username=username,
-                installation_id=installation_id
             )
             chat_history[-1][1] = f"✅ PR created at {pull_request['html_url']}"
             yield chat_history, snippets_text
@@ -118,7 +138,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {{visibil
             else:
                 raise NotImplementedError
 
-    response = msg.submit(user, [msg, chatbot], [msg, chatbot], queue=False).then(bot, [chatbot, snippets_text], [chatbot, snippets_text])
+    response = msg.submit(handle_message_submit, [repo_full_name, msg, chatbot], [msg, chatbot], queue=False).then(handle_message_stream, [chatbot, snippets_text, repo_full_name], [chatbot, snippets_text])
     response.then(lambda: gr.update(interactive=True), None, [msg], queue=False)
 
 
