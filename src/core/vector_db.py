@@ -14,6 +14,7 @@ from modal import method
 from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from github import Github
 from git import Repo
+from concurrent.futures import ThreadPoolExecutor
 
 from src.core.entities import Snippet
 from src.utils.event_logger import posthog
@@ -23,6 +24,7 @@ from src.utils.scorer import compute_score
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
+
 import time
 
 # TODO: Lots of cleanups can be done here with these constants
@@ -236,7 +238,9 @@ def compute_deeplake_vs(collection_name,
         indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
 
-        computed_embeddings = embedding_function(documents_to_compute)
+        # Use ThreadPoolExecutor to compute embeddings in parallel
+        with ThreadPoolExecutor() as executor:
+            computed_embeddings = list(executor.map(embedding_function, documents_to_compute))
 
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
@@ -332,3 +336,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
+
