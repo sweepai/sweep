@@ -23,7 +23,6 @@ from sweepai.utils.scorer import compute_score
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
-import time
 
 # TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_NAME)
@@ -182,7 +181,6 @@ def get_deeplake_vs_from_repo(
             # Can parallelize this
             try:
                 contents = f.read()
-                contents = f"Represent this code snippet from {file} for retrieval:\n" + contents
             except UnicodeDecodeError as e:
                 logger.warning(f"Received warning {e}, skipping...")
                 continue
@@ -332,3 +330,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
+
