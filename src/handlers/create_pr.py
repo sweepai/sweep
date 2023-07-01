@@ -18,8 +18,6 @@ from src.utils.constants import DB_NAME, PREFIX
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
-update_index = modal.Function.lookup(DB_NAME, "update_index")
-
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
 

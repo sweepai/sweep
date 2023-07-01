@@ -1,0 +1,28 @@
+name: Black
+
+on:
+  push:
+    branches:
+      - main  # Change this to match your branch name, if needed
+  pull_request:
+    branches:
+      - main  # Change this to match your branch name, if needed
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.x  # Replace 'x' with the desired Python version
+
+      - name: Install dependencies
+        run: pip install black
+
+      - name: Run Black
+        run: black . --check  # Modify this command if needed
