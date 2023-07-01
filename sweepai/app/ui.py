@@ -28,7 +28,7 @@ Reply with "ok" to create the PR or anything else to propose changes."""
 github_client = Github(config.github_pat)
 repos = list(github_client.get_user().get_repos())
 
-with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibility: hidden;}") as demo:
+with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibility: hidden} pre {white-space: pre-wrap}") as demo:
     repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
     with gr.Row():
         with gr.Column(scale=2):
@@ -105,7 +105,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
 
         # Generate response
         logger.info("...")
-        chat_history.append([None, "Fetching endpoint..."])
+        chat_history.append([None, "..."])
         yield chat_history, snippets_text
         chat_history[-1][1] = ""
         logger.info("Starting to generate response...")
@@ -132,6 +132,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
                 if "branch" not in arguments:
                     arguments["branch"] = arguments["title"].lower().replace(" ", "_").replace("-", "_")[:50]
                 if len(chat_history) > 1 and "create pr" in message.lower():
+                    print("Here")
                     chat_history[-1][1] = pr_summary_template.format(
                         title=arguments["title"],
                         summary=arguments["summary"],
