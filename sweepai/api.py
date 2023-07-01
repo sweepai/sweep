@@ -6,7 +6,7 @@ from sweepai.handlers.create_pr import create_pr  # type: ignore
 
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.handlers.on_comment import on_comment
-from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME, LABEL_COLOR, LABEL_DESCRIPTION, LABEL_NAME, SWEEP_LOGIN
+from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, LABEL_COLOR, LABEL_DESCRIPTION, LABEL_NAME, SWEEP_LOGIN
 from sweepai.events import (
     CommentCreatedRequest,
     InstallationCreatedRequest,
@@ -56,6 +56,7 @@ FUNCTION_SETTINGS = {
 handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
 handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
+update_index = modal.Function.lookup(DB_NAME, "update_index")
 
 
 @stub.function(**FUNCTION_SETTINGS)
@@ -216,6 +217,16 @@ async def webhook(raw_request: Request):
                             "repo_full_name": pr_request.repository.full_name,
                             "username": merged_by
                     })
+                update_index.spawn(
+                    request_dict["repository"]["full_name"],
+                    installation_id=request_dict["installation"]["id"],
+                )
+            case ("push", None):
+                if event != "pull_request" or request_dict["base"]["merged"] == True:
+                    update_index.spawn(
+                        request_dict["repository"]["full_name"],
+                        installation_id=request_dict["installation"]["id"],
+                    )
             case "ping", None:
                 return {"message": "pong"}
             case _:

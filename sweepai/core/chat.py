@@ -272,7 +272,7 @@ class ChatGPT(BaseModel):
                         .choices[0] \
                         .message["content"]
                 except Exception as e:
-                    logger.warn(e)
+                    logger.warning(e)
                     raise e
             result = fetch()
             logger.info(f"Output to call openai:\n{result}")
