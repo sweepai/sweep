@@ -86,10 +86,19 @@ class Embedding:
         self.model = SentenceTransformer(
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
         )
-
     @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
+        from concurrent.futures import ProcessPoolExecutor
+
+        def compute_embedding(text):
+            try:
+                return self.model.encode([text], batch_size=BATCH_SIZE)[0].tolist()
+            except Exception as e:
+                logger.error(f"Failed to compute embedding for text: {text}. Error: {e}")
+                return None
+
+        with ProcessPoolExecutor() as executor:
+            return list(executor.map(compute_embedding, texts))
 
     @method()
     def ping(self):
@@ -332,3 +341,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
+
