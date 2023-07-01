@@ -6,10 +6,9 @@ from github.ContentFile import ContentFile
 from github.GithubException import GithubException
 import modal
 from pydantic import BaseModel
-from src.core.code_repair import CodeRepairer
+from sweepai.core.code_repair import CodeRepairer
 
-
-from src.core.entities import (
+from sweepai.core.entities import (
     FileChange,
     FileChangeRequest,
     FilesToChange,
@@ -18,18 +17,16 @@ from src.core.entities import (
     Function,
     Snippet
 )
-from src.core.chat import ChatGPT
-from src.core.prompts import (
+from sweepai.core.chat import ChatGPT
+from sweepai.core.prompts import (
     files_to_change_prompt,
     pull_request_prompt,
     create_file_prompt,
     modify_file_prompt,
     modify_file_plan_prompt,
-    cot_retrieval_prompt
 )
-from src.utils.constants import DB_NAME
-from src.utils.file_change_functions import modify_file_function, apply_code_edits
-from src.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown
+from sweepai.utils.constants import DB_NAME
+from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown
 
 
 class CodeGenBot(ChatGPT):
@@ -96,7 +93,6 @@ class GithubBot(BaseModel):
         except Exception as e:
             logger.error(path)
             raise e
-
 
     def get_file(self, file_path: str, branch: str = "") -> ContentFile:
         content = self.get_contents(file_path, branch)

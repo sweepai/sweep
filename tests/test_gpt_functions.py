@@ -3,7 +3,7 @@ import openai
 tests = """
 # tests/test_fibonacci.py
 
-from src.fibonacci import fibonacci
+from sweepai.fibonacci import fibonacci
 
 def test_fibonacci():
     assert fibonacci(0) == 0

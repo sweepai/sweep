@@ -4,7 +4,7 @@ from loguru import logger
 
 import modal
 
-from src.utils.constants import BOT_TOKEN_NAME  # type: ignore
+from sweepai.utils.constants import BOT_TOKEN_NAME  # type: ignore
 
 
 stub = modal.Stub("tests")
