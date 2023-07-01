@@ -1,2 +1,2 @@
 export PYTHONPATH=.
-python ./src/app/sweep.py start
+python sweepai/app/cli.py
