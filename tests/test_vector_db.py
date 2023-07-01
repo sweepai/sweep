@@ -1,10 +1,18 @@
-import modal
+import unittest
+from sweepai import vector_db
 
-if __name__ == "__main__":
-    app = "dev-db"
-    repo = "sweepai/forked_langchain"
-    # init_index = modal.Function.lookup(app, "init_index")
-    # init_index.call(repo, ["src"], [], [".py"], [], 36855882)
+class TestVectorDB(unittest.TestCase):
+    def setUp(self):
+        self.vector_db = vector_db.VectorDB()
+        self.test_data = ['test1', 'test2', 'test3']
+        self.vector_db.add(self.test_data)
 
-    get_relevant_file_paths = modal.Function.lookup(app, "get_relevant_file_paths")
-    print(get_relevant_file_paths.call(repo, "Idea: A memory similar to ConversationBufferWindowMemory but utilizing token length #1598", 5))
+    def test_search(self):
+        result = self.vector_db.search('test1')
+        self.assertEqual(result, ['test1'])
+
+    def test_exception_handling(self):
+        with self.assertRaises(Exception):
+            self.vector_db.search('nonexistent')
+</new_file>
+
