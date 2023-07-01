@@ -4,13 +4,13 @@ import gradio as gr
 from loguru import logger
 import modal
 
-from src.app.backend import APIClient
-from src.app.config import Config
+from src.app.api_client import APIClient
+from src.app.config import SweepChatConfig
 from src.core.entities import Snippet
 from src.utils.constants import DB_NAME
 
 get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
-config = Config.load()
+config = SweepChatConfig.load()
 
 api_client = APIClient(config=config)
 
@@ -28,14 +28,13 @@ github_client = Github(config.github_pat)
 repos = github_client.get_user().get_repos()
 
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {{visibility: hidden;}}") as demo:
-    # repo_name = gr.Textbox(label="Repo full name",)
     repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
     with gr.Row():
         with gr.Column(scale=2):
             chatbot = gr.Chatbot(height=650)
         with gr.Column():
             snippets_text = gr.Markdown(value="### Relevant snippets")
-    msg = gr.Textbox(label="Message to Sweep")
+    msg = gr.Textbox(label="Message to Sweep", placeholder="Write unit tests for OpenAI calls")
     clear = gr.ClearButton([msg, chatbot, snippets_text])
 
     snippets: list[Snippet] = []

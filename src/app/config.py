@@ -18,7 +18,7 @@ OAUTH_ACCESS_TOKEN_ENDPOINT = "https://github.com/login/oauth/access_token"
 config_path = ConfigPath( 'sweep_chat', 'sweep', '.yaml' )
 CONFIG_FILE = config_path.saveFilePath()
 
-class Config(BaseModel):
+class SweepChatConfig(BaseModel):
     github_username: str
     github_pat: str # secret
     repo_full_name: str | None = None
@@ -78,7 +78,7 @@ class Config(BaseModel):
     
     @classmethod
     def load(cls, recreate=False) -> Self:
-        if recreate or not Config.is_initialized():
+        if recreate or not SweepChatConfig.is_initialized():
             config = cls.create()
             config.save()
             return config
