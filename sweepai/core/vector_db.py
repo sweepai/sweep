@@ -181,7 +181,8 @@ def get_deeplake_vs_from_repo(
             # Can parallelize this
             try:
                 contents = f.read()
-            except UnicodeDecodeError:
+            except UnicodeDecodeError as e:
+                logger.warning(f"Received warning {e}, skipping...")
                 continue
             file_path = file[len("repo/") :]
             file_paths.append(file_path)
