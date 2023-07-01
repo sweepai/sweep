@@ -14,6 +14,7 @@ from modal import method
 from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from github import Github
 from git import Repo
+from concurrent.futures import ThreadPoolExecutor
 
 from src.core.entities import Snippet
 from src.utils.event_logger import posthog
@@ -86,11 +87,10 @@ class Embedding:
         self.model = SentenceTransformer(
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
         )
-
     @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
-
+        with ThreadPoolExecutor() as executor:
+            return list(executor.map(self.model.encode, texts, chunksize=BATCH_SIZE))
     @method()
     def ping(self):
         return "pong"
@@ -236,7 +236,11 @@ def compute_deeplake_vs(collection_name,
         indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
 
-        computed_embeddings = embedding_function(documents_to_compute)
+        try:
+            computed_embeddings = embedding_function(documents_to_compute)
+        except Exception as e:
+            logger.error(f"Error occurred while computing embeddings: {e}")
+            computed_embeddings = []
 
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
@@ -332,3 +336,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
+
