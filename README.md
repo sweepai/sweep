@@ -46,9 +46,9 @@ For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
 
 ## 📚 Story
 
-We were frustrated by small tickets such as simple bug fixes, annoying refactors and small features that could just be fed to ChatGPT. So we fed it to ChatGPT.
+We were frustrated by small tickets, like simple bug fixes, annoying refactors, and small features, each task requiring us to open our IDE to fix simple bugs. So, we decided to leverage the capabilities of ChatGPT to address this directly in GitHub.
 
-Unlike copilot, this can solve entire tickets and can be parallelized: someone can spin up 10 tickets and have it solve them all at once.
+Unlike existing AI solutions, this can solve entire tickets and can be parallelized: developers can spin up 10 tickets and Sweep will address them all at once.
 
 ## The Stack
 - GPT-4 32k 0613 (default) / Claude v1.3 100k
@@ -56,10 +56,11 @@ Unlike copilot, this can solve entire tickets and can be parallelized: someone c
 - Modal Labs for infra + deployment
 
 ## 🌠 Features
-* Vector search using DeepLake
-* CoT internal search using GPT Functions
-* Issue comment reply handling
-* PR auto self-review + comment handling (effectively Reflexion https://arxiv.org/abs/2303.11366)
+* Automatic feature development
+* PR auto self-review + comment handling (effectively [Reflexion](https://arxiv.org/abs/2303.11366))
+* Address developer comments after PR is created
+* Code snippets embedding-based search
+* Chain-of-Thought retrieval using GPT Functions
 
 ## 🗺️ Roadmap
 We're currently working on responding to linters and external search. For more, see [🗺️ Roadmap](https://docs.sweep.dev/roadmap).
@@ -78,4 +79,6 @@ We're currently working on responding to linters and external search. For more, 
       <img src="https://contrib.rocks/image?repo=sweepai/sweep" />
     </a>
 </p>
-and of course, Sweep!
+<p align="center">
+    and, of course, Sweep!
+</p>
