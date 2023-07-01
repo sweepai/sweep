@@ -27,7 +27,7 @@ Reply with "ok" to create the PR or anything else to propose changes."""
 github_client = Github(config.github_pat)
 repos = github_client.get_user().get_repos()
 
-with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {{visibility: hidden;}}") as demo:
+with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibility: hidden;}") as demo:
     repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
     with gr.Row():
         with gr.Column(scale=2):
@@ -100,7 +100,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {{visibil
             return
 
         # Generate response
-        logger.info("Fetching endpoint...")
+        logger.info("...")
         chat_history.append([None, "Fetching endpoint..."])
         yield chat_history, snippets_text
         chat_history[-1][1] = ""
