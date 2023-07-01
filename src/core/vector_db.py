@@ -4,6 +4,7 @@ import re
 import time
 import shutil
 import glob
+import concurrent.futures
 
 from modal import stub
 from loguru import logger
@@ -25,7 +26,6 @@ from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
 import time
 
-# TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_NAME)
 chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 model_volume = modal.SharedVolume().persist(f"{ENV}-storage")
@@ -60,14 +60,11 @@ def init_deeplake_vs(repo_name):
     return deeplake_vector_store
 
 def parse_collection_name(name: str) -> str:
-    # Replace any non-alphanumeric characters with hyphens
     name = re.sub(r"[^\w-]", "--", name)
-    # Ensure the name is between 3 and 63 characters and starts/ends with alphanumeric
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
     return name
 
 def list_collection_names():
-    """Returns a list of all collection names."""
     collections = []
     return collections
 
@@ -89,7 +86,9 @@ class Embedding:
 
     @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            embeddings = list(executor.map(self.model.encode, texts))
+        return embeddings
 
     @method()
     def ping(self):
@@ -332,3 +331,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
+
