@@ -29,11 +29,7 @@ Sweep Chat allows you to interact with Sweep locally and will sync with GitHub. 
 
 1. Install [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
 
-2. Run the following script
-```sh
-pip install sweepai
-sweep
-```
+2. Run `pip install sweepai && sweep`
 
 3. This should spin up a GitHub auth flow in your browser. Copy-paste the 🔵 blue 8-digit code from your terminal into the page. Then wait a few seconds and it should spin up Sweep Chat. You should only need to do the auth once.
 
