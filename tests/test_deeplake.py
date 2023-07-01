@@ -5,6 +5,7 @@ import modal
 from src.core.entities import Snippet
 from src.utils.config import SweepConfig
 from src.utils.constants import DB_NAME
+
 get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
 # get_relevant_snippets.spawn(
 #     repo_name="sweepai/bot-internal",
@@ -13,17 +14,20 @@ get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
 #     n_results = 10,
 #     )
 import time
+
 s = time.time()
 res = get_relevant_snippets.call(
     repo_name="sweepai/sweep",
     installation_id=36855882,
-    query = "Sweep: allow vector db to take multiple queries",
-    n_results = 30,
-    )
+    query="Sweep: allow vector db to take multiple queries",
+    n_results=30,
+)
 print(res)
 e = time.time()
 print("Time taken: {}".format(e - s))
-import pdb; pdb.set_trace()
+import pdb
+
+pdb.set_trace()
 # path = "tests/data/test_vectorstore"
 # # path = "mem://tests/data/test_vectorstore"
 
@@ -87,8 +91,8 @@ import pdb; pdb.set_trace()
 # snippets = [
 #     Snippet(
 #         content="",
-#         start=metadata["start"], 
-#         end=metadata["end"], 
+#         start=metadata["start"],
+#         end=metadata["end"],
 #         file_path=file_path
 #     ) for metadata, file_path in zip(metadatas, relevant_paths)
 # ]

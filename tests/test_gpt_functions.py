@@ -45,8 +45,8 @@ functions = [
                 "query": {
                     "type": "string",
                 },
-            }
-        }
+            },
+        },
     }
 ]
 
@@ -55,12 +55,9 @@ response = openai.ChatCompletion.create(
     messages=[
         {
             "role": "system",
-            "content": "You are a brilliant developers. Help the user with their problem."
+            "content": "You are a brilliant developers. Help the user with their problem.",
         },
-        {
-            "role": "user",
-            "content": prompt
-        },
+        {"role": "user", "content": prompt},
         # {
         #     "role": "assistant",
         #     "content": None,
@@ -75,7 +72,7 @@ response = openai.ChatCompletion.create(
         #     "name": "Google",
         # }
     ],
-    functions=functions
+    functions=functions,
 )
 
 print(dict(response.choices[0].message.function_call))
@@ -87,11 +84,8 @@ print(dict(response.choices[0].message.function_call))
 # GoogleSearch.SERP_API_KEY = os.environ.get("SERP_API_KEY")
 
 # search = GoogleSearch({
-#     "q": query, 
+#     "q": query,
 #     "location": "Austin,Texas",
 #   })
 # result = search.get_dict()
 # print(result)
-
-
-

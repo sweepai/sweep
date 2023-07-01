@@ -34,14 +34,17 @@ class TicTacToe:
         return None
 """
 
+
 @ReadFiles.tool()
 def file_search(query: str):
     # return open(query, "r").read()
     return tictactoe_response
 
+
 @Finish.tool()
 def finish(query: str):
     return ""
+
 
 example_google_problem = """
 <snippet file="model.py">
@@ -98,10 +101,7 @@ This is erroring out. Can you fix it?
 """
 
 if __name__ == "__main__":
-    toolbox = Toolbox(tools=[
-        file_search,
-        finish
-    ])
+    toolbox = Toolbox(tools=[file_search, finish])
     prompt = example_file_search_problem + toolbox.prompt
     client = anthropic.Client(os.environ.get("ANTHROPIC_API_KEY"))
 
@@ -118,7 +118,13 @@ if __name__ == "__main__":
         if parsed_results.tool_name == "Finish":
             break
         result = toolbox.process_results(parsed_results)
-        current_prompt = current_prompt + response + anthropic.HUMAN_PROMPT + REACT_RESPONSE_PROMPT.format(output=result) + anthropic.AI_PROMPT
+        current_prompt = (
+            current_prompt
+            + response
+            + anthropic.HUMAN_PROMPT
+            + REACT_RESPONSE_PROMPT.format(output=result)
+            + anthropic.AI_PROMPT
+        )
     else:
         raise Exception("Too many attempts")
     print("Done!")

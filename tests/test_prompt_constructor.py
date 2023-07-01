@@ -62,16 +62,16 @@ if __name__ == "__main__":
     summary = "test_summary"
     file_path_to_contents = {
         "test_file_path_a": "test_file_contents_a",
-        "test_file_path_b": "test_file_contents_b"
+        "test_file_path_b": "test_file_contents_b",
     }
     human_message = HumanMessagePrompt(
-    repo_name=repo_name,
-    issue_url=issue_url,
-    username=username,
-    repo_description=repo_description,
-    title=title,
-    summary=summary,
-    file_path_to_contents=file_path_to_contents,
+        repo_name=repo_name,
+        issue_url=issue_url,
+        username=username,
+        repo_description=repo_description,
+        title=title,
+        summary=summary,
+        file_path_to_contents=file_path_to_contents,
     )
     constructed_prompt = human_message.construct_prompt()
     expected_lines = expected_original_prompt.splitlines()
@@ -82,11 +82,10 @@ if __name__ == "__main__":
         logger.info("Test passed!")
     else:
         diff = difflib.unified_diff(expected_lines, constructed_lines)
-        logger.info('\n'.join(diff))
+        logger.info("\n".join(diff))
         logger.info("Test failed!")
         logger.info(f"Constructed prompt: {constructed_prompt}")
         logger.info(f"Expected prompt: {expected_original_prompt}")
-
 
     # Test delete_file
     human_message.delete_file("test_file_path_a")
@@ -97,7 +96,7 @@ if __name__ == "__main__":
         logger.info("Test passed!")
     else:
         diff = difflib.unified_diff(expected_deletion_lines, constructed_lines)
-        logger.info('\n'.join(diff))
+        logger.info("\n".join(diff))
         logger.info("Test failed!")
         logger.info(f"Constructed prompt: {constructed_prompt}")
         logger.info(f"Expected prompt: {expected_deletion_prompt}")

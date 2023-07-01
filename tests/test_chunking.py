@@ -2,7 +2,8 @@ import modal
 
 from src.utils.constants import UTILS_NAME
 
-code_examples = ["""
+code_examples = [
+    """
 import numpy as np
 
 # this is a file
@@ -14,7 +15,8 @@ def main():
 
 def test():
     print("test")
-""", """
+""",
+    """
 // example java
 
 public class Main {
@@ -22,7 +24,8 @@ public class Main {
         System.out.println("Hello World!");
     }
 }
-""", """
+""",
+    """
 
 // this is javascript
 
@@ -36,7 +39,8 @@ var test = () => {
     console.log("test");
     const b = 2;
 }
-"""]
+""",
+]
 
 test_string = """
 ## Hello world
@@ -47,9 +51,9 @@ Test
 if __name__ == "__main__":
     chunk_string = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
     files = [
-        "tests/example_code/chroma_fastapi.py", 
+        "tests/example_code/chroma_fastapi.py",
         "tests/example_code/query_builder.tsx",
-        "tests/example_code/factorial.rb"
+        "tests/example_code/factorial.rb",
     ]
     for file in files:
         code_example = open(file).read()

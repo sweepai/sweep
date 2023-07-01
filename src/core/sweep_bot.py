@@ -16,7 +16,7 @@ from src.core.entities import (
     PullRequest,
     RegexMatchError,
     Function,
-    Snippet
+    Snippet,
 )
 from src.core.chat import ChatGPT
 from src.core.prompts import (
@@ -25,21 +25,27 @@ from src.core.prompts import (
     create_file_prompt,
     modify_file_prompt,
     modify_file_plan_prompt,
-    cot_retrieval_prompt
+    cot_retrieval_prompt,
 )
 from src.utils.constants import DB_NAME
 from src.utils.file_change_functions import modify_file_function, apply_code_edits
-from src.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown
+from src.utils.diff import (
+    format_contents,
+    generate_diff,
+    generate_new_file,
+    is_markdown,
+)
 
 
 class CodeGenBot(ChatGPT):
-
     def get_files_to_change(self):
         file_change_requests: list[FileChangeRequest] = []
         for count in range(5):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                files_to_change_response = self.chat(files_to_change_prompt, message_key="files_to_change") # Dedup files to change here
+                files_to_change_response = self.chat(
+                    files_to_change_prompt, message_key="files_to_change"
+                )  # Dedup files to change here
                 files_to_change = FilesToChange.from_string(files_to_change_response)
                 files_to_create: list[str] = files_to_change.files_to_create.split("*")
                 files_to_modify: list[str] = files_to_change.files_to_modify.split("*")
@@ -71,7 +77,9 @@ class CodeGenBot(ChatGPT):
         for count in range(5):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
+                pr_text_response = self.chat(
+                    pull_request_prompt, message_key="pull_request"
+                )
             except Exception:
                 logger.warning("Failed to parse! Retrying...")
                 self.undo()
@@ -96,7 +104,6 @@ class GithubBot(BaseModel):
         except Exception as e:
             logger.error(path)
             raise e
-
 
     def get_file(self, file_path: str, branch: str = "") -> ContentFile:
         content = self.get_contents(file_path, branch)
@@ -128,23 +135,25 @@ class GithubBot(BaseModel):
                 except GithubException:
                     pass
             raise e
-    
+
     def populate_snippets(self, snippets: list[Snippet]):
         for snippet in snippets:
             try:
-                snippet.content = self.repo.get_contents(snippet.file_path).decoded_content.decode("utf-8")
+                snippet.content = self.repo.get_contents(
+                    snippet.file_path
+                ).decoded_content.decode("utf-8")
             except Exception as e:
                 logger.error(snippet)
-    
+
     def search_snippets(
-        self, 
-        query: str, 
+        self,
+        query: str,
         installation_id: str,
         num_snippets: int = 30,
     ) -> list[Snippet]:
         get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
         snippets: list[Snippet] = get_relevant_snippets.call(
-            self.repo.full_name, 
+            self.repo.full_name,
             query=query,
             n_results=num_snippets,
             installation_id=installation_id,
@@ -165,18 +174,17 @@ class SweepBot(CodeGenBot, GithubBot):
                     "properties": {
                         "filepath": {
                             "type": "string",
-                            "description": "Paths to files. One per line."
+                            "description": "Paths to files. One per line.",
                         },
                     }
-                } # manage file too large
+                },  # manage file too large
             ),
             Function(
                 name="finish",
                 description="Indicate you have sufficient data to proceed.",
-                parameters={"properties": {}} 
+                parameters={"properties": {}},
             ),
         ]
-
 
         # self.chat(
         #     cot_retrieval_prompt,
@@ -211,7 +219,7 @@ class SweepBot(CodeGenBot, GithubBot):
         #             )
         #         else:
         #             response = self.chat(
-        #                 f"Here is the file: <file path=\"{path}\">\n\n{content[:10000]}</file>. Fetch more content or call finish.", 
+        #                 f"Here is the file: <file path=\"{path}\">\n\n{content[:10000]}</file>. Fetch more content or call finish.",
         #                 message_key=path,
         #                 functions=functions
         #             ) # update this constant
@@ -249,11 +257,13 @@ class SweepBot(CodeGenBot, GithubBot):
                 file_change_request.filename
             ).decoded_content.decode("utf-8")
         # Add line numbers to the contents; goes in prompts but not github
-        contents_line_numbers = "\n".join([f"{i}:{line}" for i, line in enumerate(contents.split("\n"))])
+        contents_line_numbers = "\n".join(
+            [f"{i}:{line}" for i, line in enumerate(contents.split("\n"))]
+        )
         contents_line_numbers = contents_line_numbers.replace('"""', "'''")
         for count in range(5):
             if "0613" in self.model:
-                _ = self.chat( # We don't use the plan in the next call
+                _ = self.chat(  # We don't use the plan in the next call
                     modify_file_plan_prompt.format(
                         filename=file_change_request.filename,
                         instructions=file_change_request.instructions,
@@ -271,7 +281,11 @@ class SweepBot(CodeGenBot, GithubBot):
                     if not is_markdown(file_change_request.filename):
                         code_repairer = CodeRepairer()
                         diff = generate_diff(old_code=contents, new_code=new_file)
-                        new_file = code_repairer.repair_code(diff=diff, user_code=new_file, feature=file_change_request.instructions)
+                        new_file = code_repairer.repair_code(
+                            diff=diff,
+                            user_code=new_file,
+                            feature=file_change_request.instructions,
+                        )
                     return (new_file, file_change_request.filename)
                 except Exception as e:
                     logger.warning(f"Recieved error {e}")
@@ -282,7 +296,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     self.undo()
                     continue
         raise Exception("Failed to parse response after 5 attempts.")
- 
+
     def change_file(self, file_change_request: FileChangeRequest):
         if file_change_request.change_type == "create":
             return self.create_file(file_change_request)
@@ -301,7 +315,7 @@ class SweepBot(CodeGenBot, GithubBot):
         for file_change_request in file_change_requests:
             file_markdown = is_markdown(file_change_request.filename)
             if file_change_request.change_type == "create":
-                try: # Try to create
+                try:  # Try to create
                     file_change = self.create_file(file_change_request)
                     logger.debug(
                         f"{file_change_request.filename}, {file_change.commit_message}, {file_change.code}, {branch}"
@@ -315,9 +329,13 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
                 except github.GithubException as e:
                     logger.info(e)
-                    try: # Try to modify
-                        contents = self.get_file(file_change_request.filename, branch=branch)
-                        file_change.code = format_contents(file_change.code, file_markdown)
+                    try:  # Try to modify
+                        contents = self.get_file(
+                            file_change_request.filename, branch=branch
+                        )
+                        file_change.code = format_contents(
+                            file_change.code, file_markdown
+                        )
                         self.repo.update_file(
                             file_change_request.filename,
                             file_change.commit_message,
@@ -330,7 +348,9 @@ class SweepBot(CodeGenBot, GithubBot):
             elif file_change_request.change_type == "modify":
                 # TODO(sweep): Cleanup this
                 try:
-                    contents = self.get_file(file_change_request.filename, branch=branch)
+                    contents = self.get_file(
+                        file_change_request.filename, branch=branch
+                    )
                 except github.UnknownObjectException as e:
                     logger.warning(f"Received error {e}, trying creating file...")
                     file_change_request.change_type = "create"
@@ -350,13 +370,15 @@ class SweepBot(CodeGenBot, GithubBot):
                     new_file_contents, file_name = self.modify_file(
                         file_change_request, contents.decoded_content.decode("utf-8")
                     )
-                    new_file_contents = format_contents(new_file_contents, file_markdown)
+                    new_file_contents = format_contents(
+                        new_file_contents, file_markdown
+                    )
                     logger.debug(
                         f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
                     )
                     self.repo.update_file(
                         file_name,
-                        f'Update {file_name}',
+                        f"Update {file_name}",
                         new_file_contents,
                         contents.sha,
                         branch=branch,

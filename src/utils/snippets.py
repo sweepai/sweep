@@ -1,4 +1,3 @@
-
 from loguru import logger
 import modal
 
@@ -6,6 +5,7 @@ from src.core.chat import Snippet
 from src.utils.constants import UTILS_NAME
 
 chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
+
 
 def format_snippets(snippets: list[Snippet]):
     snippets: list[Snippet] = snippets[::-1]
@@ -19,8 +19,7 @@ def format_snippets(snippets: list[Snippet]):
     for snippet in most_relevant_snippets:
         current_snippet = snippet
         _chunks, metadatas, _ids = chunker.call(
-            current_snippet.content, 
-            current_snippet.file_path
+            current_snippet.content, current_snippet.file_path
         )
         segmented_snippets = [
             Snippet(
@@ -28,13 +27,19 @@ def format_snippets(snippets: list[Snippet]):
                 start=metadata["start"],
                 end=metadata["end"],
                 file_path=metadata["file_path"],
-            ) for metadata in metadatas
+            )
+            for metadata in metadatas
         ]
         index = 0
-        while index < len(segmented_snippets) and segmented_snippets[index].start <= current_snippet.start:
+        while (
+            index < len(segmented_snippets)
+            and segmented_snippets[index].start <= current_snippet.start
+        ):
             index += 1
         index -= 1
-        for i in range(index + 1, min(index + num_extended_snippets + 1, len(segmented_snippets))):
+        for i in range(
+            index + 1, min(index + num_extended_snippets + 1, len(segmented_snippets))
+        ):
             current_snippet += segmented_snippets[i]
         for i in range(index - 1, max(index - num_extended_snippets - 1, 0), -1):
             current_snippet = segmented_snippets[i] + current_snippet

@@ -21,13 +21,14 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
 
+
 def create_pr(
     file_change_requests: list[FileChangeRequest],
     pull_request: PullRequest,
     sweep_bot: SweepBot,
     username: str,
     installation_id: int,
-    issue_number: int | None = None
+    issue_number: int | None = None,
 ):
     # Flow:
     # 1. Get relevant files

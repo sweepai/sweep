@@ -45,6 +45,7 @@ chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 num_of_snippets_to_query = 30
 max_num_of_snippets = 5
 
+
 def on_ticket(
     title: str,
     summary: str,
@@ -54,7 +55,7 @@ def on_ticket(
     repo_full_name: str,
     repo_description: str,
     installation_id: int,
-    comment_id: int = None
+    comment_id: int = None,
 ):
     # Check if the title starts with "sweep" or "sweep: " and remove it
     if title.lower().startswith("sweep: "):
@@ -91,10 +92,12 @@ def on_ticket(
     logger.info(f"Getting repo {repo_full_name}")
     repo = g.get_repo(repo_full_name)
     current_issue = repo.get_issue(number=issue_number)
-    if current_issue.state == 'closed':
+    if current_issue.state == "closed":
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
-    item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
+    item_to_react_to = (
+        current_issue.get_comment(comment_id) if comment_id else current_issue
+    )
     eyes_reaction = item_to_react_to.create_reaction("eyes")
 
     def comment_reply(message: str):
@@ -108,7 +111,8 @@ def on_ticket(
                 issue_comment_prompt.format(
                     username=comment.user.login,
                     reply=comment.body,
-                ) for comment in comments
+                )
+                for comment in comments
             ]
         )
 
@@ -153,8 +157,7 @@ def on_ticket(
     for snippet in most_relevant_snippets:
         current_snippet = snippet
         _chunks, metadatas, _ids = chunker.call(
-            current_snippet.content, 
-            current_snippet.file_path
+            current_snippet.content, current_snippet.file_path
         )
         segmented_snippets = [
             Snippet(
@@ -162,13 +165,19 @@ def on_ticket(
                 start=metadata["start"],
                 end=metadata["end"],
                 file_path=metadata["file_path"],
-            ) for metadata in metadatas
+            )
+            for metadata in metadatas
         ]
         index = 0
-        while index < len(segmented_snippets) and segmented_snippets[index].start <= current_snippet.start:
+        while (
+            index < len(segmented_snippets)
+            and segmented_snippets[index].start <= current_snippet.start
+        ):
             index += 1
         index -= 1
-        for i in range(index + 1, min(index + num_extended_snippets + 1, len(segmented_snippets))):
+        for i in range(
+            index + 1, min(index + num_extended_snippets + 1, len(segmented_snippets))
+        ):
             current_snippet += segmented_snippets[i]
         for i in range(index - 1, max(index - num_extended_snippets - 1, 0), -1):
             current_snippet = segmented_snippets[i] + current_snippet
@@ -186,7 +195,7 @@ def on_ticket(
                 j += 1
         i += 1
 
-    snippets = snippets[:min(len(snippets), max_num_of_snippets)]
+    snippets = snippets[: min(len(snippets), max_num_of_snippets)]
 
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
@@ -196,7 +205,7 @@ def on_ticket(
         title=title,
         summary=summary + replies_text,
         snippets=snippets,
-        tree=tree, # TODO: Anything in repo tree that has something going through is expanded
+        tree=tree,  # TODO: Anything in repo tree that has something going through is expanded
     )
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message, repo=repo, is_reply=bool(comments)
@@ -222,7 +231,7 @@ def on_ticket(
             reply = sweep_bot.chat(reply_prompt, message_key="reply")
             sweep_bot.delete_messages_from_chat("reply")
             logger.info("Sending response...")
-            new_line = '\n'
+            new_line = "\n"
             comment_reply(
                 reply
                 + "\n\n"
@@ -241,8 +250,16 @@ def on_ticket(
             pull_request = sweep_bot.generate_pull_request()
 
             logger.info("Making PR...")
-            response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
-            if not response or not response["success"]: raise Exception("Failed to create PR")
+            response = create_pr(
+                file_change_requests,
+                pull_request,
+                sweep_bot,
+                username,
+                installation_id,
+                issue_number,
+            )
+            if not response or not response["success"]:
+                raise Exception("Failed to create PR")
             pr = response["pull_request"]
             current_issue.create_reaction("rocket")
             try:
@@ -250,19 +267,29 @@ def on_ticket(
             except:
                 pass
             try:
-                changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username, 
-                        repo_description=repo_description, title=title, 
-                        summary=summary, replies_text=replies_text, tree=tree)
+                changes_required, review_comment = review_pr(
+                    repo=repo,
+                    pr=pr,
+                    issue_url=issue_url,
+                    username=username,
+                    repo_description=repo_description,
+                    title=title,
+                    summary=summary,
+                    replies_text=replies_text,
+                    tree=tree,
+                )
                 logger.info(f"Addressing review comment {review_comment}")
                 if changes_required:
-                    on_comment(repo_full_name=repo_full_name, 
-                            repo_description=repo_description, 
-                            comment=review_comment,
-                            username=username, 
-                            installation_id=installation_id,
-                            pr_path=None,
-                            pr_line_position=None,
-                            pr_number=pr.number)
+                    on_comment(
+                        repo_full_name=repo_full_name,
+                        repo_description=repo_description,
+                        comment=review_comment,
+                        username=username,
+                        installation_id=installation_id,
+                        pr_path=None,
+                        pr_line_position=None,
+                        pr_number=pr.number,
+                    )
             except Exception as e:
                 logger.error(e)
             break

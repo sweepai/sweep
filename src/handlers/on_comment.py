@@ -36,7 +36,10 @@ def on_comment(
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
-        return {"success": True, "message": "File has been reverted to the previous commit."}
+        return {
+            "success": True,
+            "message": "File has been reverted to the previous commit.",
+        }
 
     # Flow:
     # 1. Get relevant files
@@ -44,7 +47,9 @@ def on_comment(
     # 3. Get files to change
     # 4. Get file changes
     # 5. Create PR
-    logger.info(f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
+    logger.info(
+        f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}"
+    )
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "repo_full_name": repo_full_name,
@@ -70,11 +75,19 @@ def on_comment(
         pr_title = pr.title
         pr_body = pr.body
         diffs = get_pr_diffs(repo, pr)
-        snippets, tree = search_snippets(repo, comment, installation_id, branch=branch_name, num_files=1 if pr_path else 3)
+        snippets, tree = search_snippets(
+            repo,
+            comment,
+            installation_id,
+            branch=branch_name,
+            num_files=1 if pr_path else 3,
+        )
         pr_line = None
         pr_file_path = None
         if pr_path and pr_line_position:
-            pr_file = repo.get_contents(pr_path, ref=branch_name).decoded_content.decode("utf-8")
+            pr_file = repo.get_contents(
+                pr_path, ref=branch_name
+            ).decoded_content.decode("utf-8")
             pr_lines = pr_file.splitlines()
             pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
             pr_file_path = pr_path.strip()
@@ -91,20 +104,21 @@ def on_comment(
             tree=tree,
             summary=pr_body,
             snippets=snippets,
-            pr_file_path=pr_file_path, # may be None
-            pr_line=pr_line, # may be None
+            pr_file_path=pr_file_path,  # may be None
+            pr_line=pr_line,  # may be None
         )
         logger.info(f"Human prompt{human_message.construct_prompt()}")
         sweep_bot = SweepBot.from_system_message_content(
             # human_message=human_message, model="claude-v1.3-100k", repo=repo
-            human_message=human_message, repo=repo, 
+            human_message=human_message,
+            repo=repo,
         )
     except Exception as e:
-        posthog.capture(username, "failed", properties={
-            "error": str(e),
-            "reason": "Failed to get files",
-            **metadata
-        })
+        posthog.capture(
+            username,
+            "failed",
+            properties={"error": str(e), "reason": "Failed to get files", **metadata},
+        )
         raise e
 
     try:
@@ -116,16 +130,21 @@ def on_comment(
 
         logger.info("Done!")
     except Exception as e:
-        posthog.capture(username, "failed", properties={
-            "error": str(e),
-            "reason": "Failed to make changes",
-            **metadata
-        })
+        posthog.capture(
+            username,
+            "failed",
+            properties={
+                "error": str(e),
+                "reason": "Failed to make changes",
+                **metadata,
+            },
+        )
         raise e
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_comment success")
     return {"success": True}
+
 
 def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
     g = get_github_client(installation_id)
@@ -140,10 +159,16 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
         current_file_sha = current_file.sha
         previous_content = repo.get_contents(pr_path, ref=repo.default_branch)
         previous_file_content = previous_content.decoded_content.decode("utf-8")
-        repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha, branch=branch_name)
+        repo.update_file(
+            pr_path,
+            "Revert file to previous commit",
+            previous_file_content,
+            current_file_sha,
+            branch=branch_name,
+        )
         return
     previous_commit = commits[1]
-    
+
     # Get current file SHA
     current_file = repo.get_contents(pr_path, ref=commits[0].sha)
     current_file_sha = current_file.sha
@@ -153,10 +178,17 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
         previous_content = repo.get_contents(pr_path, ref=previous_commit.sha)
         previous_file_content = previous_content.decoded_content.decode("utf-8")
         # Create a new commit with the previous file content
-        repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha, branch=branch_name)
+        repo.update_file(
+            pr_path,
+            "Revert file to previous commit",
+            previous_file_content,
+            current_file_sha,
+            branch=branch_name,
+        )
     except Exception as e:
         if e.status == 404:
-            logger.warning(f"File {pr_path} was not found in previous commit {previous_commit.sha}")
+            logger.warning(
+                f"File {pr_path} was not found in previous commit {previous_commit.sha}"
+            )
         else:
             raise e
-

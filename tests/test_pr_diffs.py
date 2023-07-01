@@ -1,4 +1,4 @@
-import os 
+import os
 from github import Github
 from loguru import logger
 import modal
@@ -9,7 +9,11 @@ from src.handlers.on_review import get_pr_diffs
 from src.utils.constants import API_NAME, BOT_TOKEN_NAME
 
 from src.utils.github_utils import get_file_contents, search_snippets
-from src.utils.prompt_constructor import HumanMessageFinalPRComment, HumanMessagePromptReview, HumanMessageReviewFollowup
+from src.utils.prompt_constructor import (
+    HumanMessageFinalPRComment,
+    HumanMessagePromptReview,
+    HumanMessageReviewFollowup,
+)
 from src.utils.snippets import format_snippets
 
 # Plan:
@@ -32,7 +36,7 @@ image = (
         "highlight-io",
         "GitPython",
         "posthog",
-        "tqdm"
+        "tqdm",
     )
 )
 secrets = [
@@ -47,17 +51,22 @@ FUNCTION_SETTINGS = {
     "secrets": secrets,
     "timeout": 15 * 60,
 }
+
+
 def query_to_snippets_text(query, repo):
     snippets, tree = search_snippets(
-                    repo,
-                    f"{query}",
-                    num_files=10,
-                    installation_id=36855882,
-                )
+        repo,
+        f"{query}",
+        num_files=10,
+        installation_id=36855882,
+    )
     snippets_text = format_snippets(snippets)
-    return snippets_text, tree  
+    return snippets_text, tree
 
-query_to_snippets_fn = stub.function(**FUNCTION_SETTINGS, retries=0)(query_to_snippets_text)
+
+query_to_snippets_fn = stub.function(**FUNCTION_SETTINGS, retries=0)(
+    query_to_snippets_text
+)
 
 if __name__ == "__main__":
     access_token = os.environ.get("ACCESS_TOKEN")
@@ -91,10 +100,12 @@ if __name__ == "__main__":
         diffs=[diffs[0]],
         pr_title=pr.title,
         pr_message=pr.body or "",
-    ) # Anything in repo tree that has something going through is expanded
+    )  # Anything in repo tree that has something going through is expanded
     sweep_bot = SweepBot.from_system_message_content(
         # human_message=human_message, model="claude-v1.3-100k", repo=repo, is_reply=False
-        human_message=human_message, repo=repo, is_reply=False
+        human_message=human_message,
+        repo=repo,
+        is_reply=False,
     )
     # write human message to file
     summarization_replies = []
@@ -107,10 +118,14 @@ if __name__ == "__main__":
     for diff in diffs[1:]:
         review_message = HumanMessageReviewFollowup(diff=diff)
         review_prompt_constructed = review_message.construct_prompt()
-        summarization_reply = sweep_bot.chat(review_prompt_constructed, message_key="review")
+        summarization_reply = sweep_bot.chat(
+            review_prompt_constructed, message_key="review"
+        )
         extracted_summary = DiffSummarization.from_string(summarization_reply)
         summarization_replies.append(extracted_summary.content)
-    final_review_prompt = HumanMessageFinalPRComment(summarization_replies=summarization_replies).construct_prompt()
+    final_review_prompt = HumanMessageFinalPRComment(
+        summarization_replies=summarization_replies
+    ).construct_prompt()
     reply = sweep_bot.chat(final_review_prompt, message_key="final_review")
     review_coment = PullRequestComment.from_string(reply)
     pr.create_review(body=review_coment.content, event="COMMENT", comments=[])

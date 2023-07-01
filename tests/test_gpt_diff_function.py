@@ -326,35 +326,35 @@ Pass in start_line and end_line to the `modify` function.
 Make sure `end_line` covers the code you wish to delete and that `new_code` is properly formatted.
 Also make sure start_line is in ascending order and that the code_edits do not overlap.
 '''
+
+
 def test_chat_gpt_call():
     human_message = HumanMessagePrompt(
-        
-        repo_name ='',
-        repo_description='',
-        issue_url='',
-        username='',
-        title='',
-        tree='',
-        summary='',
+        repo_name="",
+        repo_description="",
+        issue_url="",
+        username="",
+        title="",
+        tree="",
+        summary="",
         snippets=[],
     )
-    cgpt = ChatGPT.from_system_message_content(human_message=human_message, model="gpt-4"
-        )
-    response = cgpt.call_openai(model="gpt-4-32k-0613", functions=[modify_file_function], function_name={"name": "modify_file"})
+    cgpt = ChatGPT.from_system_message_content(
+        human_message=human_message, model="gpt-4"
+    )
+    response = cgpt.call_openai(
+        model="gpt-4-32k-0613",
+        functions=[modify_file_function],
+        function_name={"name": "modify_file"},
+    )
     response = openai.ChatCompletion.create(
         model="gpt-4-32k-0613",
         messages=[
-            {
-                "role": "system",
-                "content": system_message_prompt
-            },
-            {
-                "role": "user",
-                "content": first_user_prompt
-            },
+            {"role": "system", "content": system_message_prompt},
+            {"role": "user", "content": first_user_prompt},
         ],
         functions=modify_file_function,
-        function_call={"name": "modify_file"}
+        function_call={"name": "modify_file"},
     )
     assistant_response = response.choices[0]
     arguments = assistant_response["message"]["function_call"]["arguments"]
@@ -482,27 +482,28 @@ def test_chat_gpt_call():
         return {"success": True}
     '''
 
+
 def test_apply_code_edits():
-    code = '''\
+    code = """\
 def parse_diff():
     x = 1
     y = 2
     z = 3
     return x + y + z
-'''
-    expected_code = '''\
+"""
+    expected_code = """\
 def parse_diff():
     x = 1
     y = 3
     z = 4
     return x + y + z
-'''
+"""
     code_edits = [
         {
             "start_line": 2,
             "end_line": 4,
             "inserted_code": "    y = 3\n    z = 4\n    return x + y + z",
-            "num_indents":0
+            "num_indents": 0,
         }
     ]
     print(apply_code_edits(code, code_edits))
@@ -512,7 +513,7 @@ def parse_diff():
             "start_line": 1,
             "end_line": 4,
             "inserted_code": "    x = 1\n    y = 3\n    z = 4\n    return x + y + z",
-            "num_indents":0
+            "num_indents": 0,
         }
     ]
     print(apply_code_edits(code, code_edits))
@@ -522,7 +523,7 @@ def parse_diff():
             "start_line": 2,
             "end_line": 4,
             "inserted_code": "    x = 1\n    y = 3\n    z = 4\n    return x + y + z",
-            "num_indents":0
+            "num_indents": 0,
         }
     ]
     print(apply_code_edits(code, code_edits))
@@ -532,46 +533,42 @@ def parse_diff():
             "start_line": 1,
             "end_line": 4,
             "inserted_code": "def parse_diff():\n    x = 1\n    y = 3\n    z = 4\n    return x + y + z",
-            "num_indents":0
+            "num_indents": 0,
         }
     ]
     print(apply_code_edits(code, code_edits))
     assert apply_code_edits(code, code_edits) == expected_code
     code_edits = [
-        {
-            "start_line": 4,
-            "end_line": 5,
-            "inserted_code": '',
-            "num_indents":0
-        }
+        {"start_line": 4, "end_line": 5, "inserted_code": "", "num_indents": 0}
     ]
-    expected_code = '''\
+    expected_code = """\
 def parse_diff():
     x = 1
     y = 2
     z = 3
-'''
+"""
     new_code = apply_code_edits(code, code_edits)
     assert new_code == expected_code
-    expected_code = '''\
+    expected_code = """\
 def new_fn():
     print("hello")
     x = 1
     y = 2
     z = 3
     return x + y + z
-'''
+"""
     code_edits = [
         {
             "start_line": 0,
             "end_line": 1,
-            "inserted_code": "def new_fn():\n    print(\"hello\")\n    x = 1",
-            "num_indents":0
+            "inserted_code": 'def new_fn():\n    print("hello")\n    x = 1',
+            "num_indents": 0,
         }
     ]
     new_code = apply_code_edits(code, code_edits)
     assert new_code == expected_code
-    
+
+
 test_apply_code_edits()
 
 code_numbered = """\
@@ -687,11 +684,12 @@ code_lines = code.split("\n")
 numbered_lines = code_numbered.split("\n")
 code_edits = [
     {
-      "start_line": 41,
-      "end_line": 51,
-      "inserted_code": "@app.get(\"/logout\")\nasync def logout(token: str = Depends(oauth2_scheme)):\n    try:\n        remove_token(token)\n        return {\"detail\": \"Logged out\"}\n    except Exception:\n        raise HTTPException(\n            status_code=400, \n            detail=\"Invalid token\"\n        )",
-      "num_indents":0
-    }]
+        "start_line": 41,
+        "end_line": 51,
+        "inserted_code": '@app.get("/logout")\nasync def logout(token: str = Depends(oauth2_scheme)):\n    try:\n        remove_token(token)\n        return {"detail": "Logged out"}\n    except Exception:\n        raise HTTPException(\n            status_code=400, \n            detail="Invalid token"\n        )',
+        "num_indents": 0,
+    }
+]
 new_code = apply_code_edits(code, code_edits)
 
 code = '''\
@@ -987,11 +985,14 @@ def on_ticket(
 
 code_edits = [
     {
-      "start_line": 45,
-      "end_line": 45,
-      "inserted_code": "def on_ticket(\\n    title: str,\\n    summary: str,\\n    issue_number: int,\\n    issue_url: str,\\n    username: str,\\n    repo_full_name: str,\\n    repo_description: str,\\n    installation_id: int,\\n    comment_id: int = None\\n):\\n    title = title.replace(\'sweep: \', \'\').replace(\'sweep \', \'\') if title.lower().startswith((\'sweep: \', \'sweep \')) else title",
-      "num_indents": 1
-    }]
+        "start_line": 45,
+        "end_line": 45,
+        "inserted_code": "def on_ticket(\\n    title: str,\\n    summary: str,\\n    issue_number: int,\\n    issue_url: str,\\n    username: str,\\n    repo_full_name: str,\\n    repo_description: str,\\n    installation_id: int,\\n    comment_id: int = None\\n):\\n    title = title.replace('sweep: ', '').replace('sweep ', '') if title.lower().startswith(('sweep: ', 'sweep ')) else title",
+        "num_indents": 1,
+    }
+]
 
 new_code = apply_code_edits(code, code_edits)
-import pdb; pdb.set_trace()
+import pdb
+
+pdb.set_trace()

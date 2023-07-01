@@ -20,9 +20,9 @@ from src.core.prompts import slack_slash_command_prompt
 from src.utils.github_utils import get_installation_id
 import src.utils.event_logger
 
-image = modal.Image \
-    .debian_slim() \
-    .apt_install("git") \
+image = (
+    modal.Image.debian_slim()
+    .apt_install("git")
     .pip_install(
         "slack-sdk",
         "slack-bolt",
@@ -35,8 +35,9 @@ image = modal.Image \
         "tqdm",
         "highlight-io",
         "posthog",
-        "pyyaml"
+        "pyyaml",
     )
+)
 stub = modal.Stub(SLACK_NAME)
 secrets = [
     modal.Secret.from_name("slack"),
@@ -58,16 +59,16 @@ functions = [
                         "properties": {
                             "file_path": {
                                 "type": "string",
-                                "description": "The file path to change."
+                                "description": "The file path to change.",
                             },
                             "instructions": {
                                 "type": "string",
-                                "description": "Detailed description of what the change as a list."
+                                "description": "Detailed description of what the change as a list.",
                             },
                         },
-                        "required": ["file_path", "instructions"]
+                        "required": ["file_path", "instructions"],
                     },
-                    "description": "A list of files to modify or create and instructions for what to modify or create."
+                    "description": "A list of files to modify or create and instructions for what to modify or create.",
                 },
                 "title": {
                     "type": "string",
@@ -82,7 +83,7 @@ functions = [
                     "description": "Name of branch to create PR in.",
                 },
             }
-        }
+        },
     ),
     Function(
         name="get_relevant_snippets",
@@ -91,11 +92,11 @@ functions = [
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "Natural language query to search."
+                    "description": "Natural language query to search.",
                 }
             }
-        }
-    )
+        },
+    ),
 ]
 
 pr_format = """I'm going to create a PR with the following:
@@ -120,43 +121,52 @@ thread_query_format = "Message thread: {messages}"
 slack_app_page = "https://sweepusers.slack.com/apps/A05D69L28HX-sweep"
 slack_install_link = "https://slack.com/oauth/v2/authorize?client_id=5364586338420.5448326076609&scope=channels:read,chat:write,chat:write.public,commands,groups:read,im:read,incoming-webhook,mpim:read&user_scope="
 
+
 class MongoDBInstallationStore(InstallationStore):
     def __init__(self):
-        self.client = MongoClient(os.environ['MONGODB_URI'])
+        self.client = MongoClient(os.environ["MONGODB_URI"])
         self.db = self.client["slack"]
         self.installation_collection = self.db["installation"]
         self.bot_collection = self.db["bot"]
-    
+
     def save(self, installation: Installation):
-        self.installation_collection.replace_one({
-            "user_id": installation.user_id,
-            "team_id": installation.team_id,
-            "enterprise_id": installation.enterprise_id,
-            "is_enterprise_install": installation.is_enterprise_install,
-        }, {
-            "installation": installation.to_dict(),
-            "user_id": installation.user_id,
-            "team_id": installation.team_id,
-            "enterprise_id": installation.enterprise_id,
-            "is_enterprise_install": installation.is_enterprise_install,
-            "prefix": PREFIX,
-            "access_token": installation.bot_token,
-        }, upsert=True)
+        self.installation_collection.replace_one(
+            {
+                "user_id": installation.user_id,
+                "team_id": installation.team_id,
+                "enterprise_id": installation.enterprise_id,
+                "is_enterprise_install": installation.is_enterprise_install,
+            },
+            {
+                "installation": installation.to_dict(),
+                "user_id": installation.user_id,
+                "team_id": installation.team_id,
+                "enterprise_id": installation.enterprise_id,
+                "is_enterprise_install": installation.is_enterprise_install,
+                "prefix": PREFIX,
+                "access_token": installation.bot_token,
+            },
+            upsert=True,
+        )
 
     def save_bot(self, bot: Bot):
-        self.bot_collection.replace_one({
-            "team_id": bot.team_id,
-            "enterprise_id": bot.enterprise_id,
-            "is_enterprise_install": bot.is_enterprise_install,
-        }, {
-            "installation": bot.to_dict(),
-            "team_id": bot.team_id,
-            "enterprise_id": bot.enterprise_id,
-            "is_enterprise_install": bot.is_enterprise_install,
-            "prefix": PREFIX,
-            "access_token": bot.bot_token,
-        }, upsert=True)
-    
+        self.bot_collection.replace_one(
+            {
+                "team_id": bot.team_id,
+                "enterprise_id": bot.enterprise_id,
+                "is_enterprise_install": bot.is_enterprise_install,
+            },
+            {
+                "installation": bot.to_dict(),
+                "team_id": bot.team_id,
+                "enterprise_id": bot.enterprise_id,
+                "is_enterprise_install": bot.is_enterprise_install,
+                "prefix": PREFIX,
+                "access_token": bot.bot_token,
+            },
+            upsert=True,
+        )
+
     def find_installation(
         self,
         *,
@@ -166,45 +176,51 @@ class MongoDBInstallationStore(InstallationStore):
         user_id: str | None = None,
     ):
         if user_id:
-            return Installation(**self.installation_collection.find_one({
-                "user_id": user_id,
-                "team_id": team_id,
-                "enterprise_id": enterprise_id,
-                "is_enterprise_install": is_enterprise_install
-            })["installation"])
+            return Installation(
+                **self.installation_collection.find_one(
+                    {
+                        "user_id": user_id,
+                        "team_id": team_id,
+                        "enterprise_id": enterprise_id,
+                        "is_enterprise_install": is_enterprise_install,
+                    }
+                )["installation"]
+            )
         else:
-            return Installation(**self.installation_collection.find_one({
-                "team_id": team_id,
-                "enterprise_id": enterprise_id,
-                "is_enterprise_install": is_enterprise_install
-            })["installation"])
+            return Installation(
+                **self.installation_collection.find_one(
+                    {
+                        "team_id": team_id,
+                        "enterprise_id": enterprise_id,
+                        "is_enterprise_install": is_enterprise_install,
+                    }
+                )["installation"]
+            )
 
-    def find_bot(
-        self,
-        *
-        enterprise_id: str,
-        team_id: str,
-        is_enterprise_install: bool
-    ):
-        return Installation(**self.bot_collection.find_one({
-            "enterprise_id": enterprise_id,
-            "team_id": team_id,
-            "is_enterprise_install": is_enterprise_install
-        })["installation"])
-        
+    def find_bot(self, *enterprise_id: str, team_id: str, is_enterprise_install: bool):
+        return Installation(
+            **self.bot_collection.find_one(
+                {
+                    "enterprise_id": enterprise_id,
+                    "team_id": team_id,
+                    "is_enterprise_install": is_enterprise_install,
+                }
+            )["installation"]
+        )
+
     def delete_installation(self, *, enterprise_id: str, team_id: str):
-        self.installation_collection.delete_one({
-            "enterprise_id": enterprise_id,
-            "team_id": team_id,
-        })
+        self.installation_collection.delete_one(
+            {
+                "enterprise_id": enterprise_id,
+                "team_id": team_id,
+            }
+        )
 
     def delete_bot(self, *, enterprise_id: str, team_id: str, user_id: str):
-        self.installation_collection.delete_one({
-            "enterprise_id": enterprise_id,
-            "team_id": team_id,
-            "user_id": user_id
-        })
-    
+        self.installation_collection.delete_one(
+            {"enterprise_id": enterprise_id, "team_id": team_id, "user_id": user_id}
+        )
+
 
 class SlackSlashCommandRequest(BaseModel):
     channel_name: str
@@ -215,6 +231,7 @@ class SlackSlashCommandRequest(BaseModel):
     team_id: str
     is_enterprise_install: bool
     enterprise_id: str | None = None
+
 
 @stub.function(
     image=image,
@@ -230,23 +247,23 @@ def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None)
             team_id=request.team_id,
             enterprise_id=request.enterprise_id,
             user_id=request.user_id,
-            is_enterprise_install=request.is_enterprise_install
+            is_enterprise_install=request.is_enterprise_install,
         ).bot_token
         client = slack_sdk.WebClient(token=token)
     except Exception as e:
         logger.error(f"Error initializing Slack client: {e}")
         raise e
-    
+
     try:
         channel_info = client.conversations_info(channel=request.channel_id)
-        channel_description: str = channel_info['channel']['purpose']['value']
+        channel_description: str = channel_info["channel"]["purpose"]["value"]
         logger.info(f"Channel description: {channel_description}")
 
         repo_full_name = channel_description.split()[-1]
         logger.info(f"Repo name: {repo_full_name}")
 
         organization_name, repo_name = repo_full_name.split("/")
-        
+
         try:
             installation_id = get_installation_id(organization_name)
             g = get_github_client(installation_id)
@@ -274,7 +291,14 @@ def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None)
                 channel=request.channel_id,
                 ts=thread_ts,
             )["messages"]
-            query = thread_query_format.format(messages="\n".join([f"<message user={message['user']}>\n{message['text']}\n</message>" for message in messages]))
+            query = thread_query_format.format(
+                messages="\n".join(
+                    [
+                        f"<message user={message['user']}>\n{message['text']}\n</message>"
+                        for message in messages
+                    ]
+                )
+            )
     except Exception as e:
         client.chat_postMessage(
             channel=request.channel_id,
@@ -288,14 +312,16 @@ def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None)
             searching_message = client.chat_postMessage(
                 channel=request.channel_id,
                 text=":mag_right: Searching for relevant snippets...",
-                thread_ts=thread_ts
+                thread_ts=thread_ts,
             )
             snippets = sweep_bot.search_snippets(
-                request.text,
-                installation_id=installation_id
+                request.text, installation_id=installation_id
             )
             message = ":mag_right: Some relevant snippets I found:\n\n"
-            message += "\n".join(f"{snippet.get_slack_link(repo_name)}\n```{snippet.get_preview()}```" for snippet in snippets)
+            message += "\n".join(
+                f"{snippet.get_slack_link(repo_name)}\n```{snippet.get_preview()}```"
+                for snippet in snippets
+            )
             client.chat_update(
                 channel=request.channel_id,
                 ts=searching_message["ts"],
@@ -309,9 +335,11 @@ def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None)
             repo_name=repo_name,
             repo_description=repo.description,
             username=request.user_name,
-            query=query
+            query=query,
         )
-        response = sweep_bot.chat(prompt, functions=functions, function_name={"name": "create_pr"})
+        response = sweep_bot.chat(
+            prompt, functions=functions, function_name={"name": "create_pr"}
+        )
         logger.info(response)
 
         while sweep_bot.messages[-1].function_call is not None:
@@ -323,38 +351,43 @@ def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None)
                 search_message = client.chat_postMessage(
                     channel=request.channel_id,
                     text=f":mag_right: Searching \"{arguments['query']}\" in the codebase...",
-                    thread_ts=thread_ts
+                    thread_ts=thread_ts,
                 )
                 additional_snippets = sweep_bot.search_snippets(
-                    arguments["query"],
-                    installation_id=installation_id
+                    arguments["query"], installation_id=installation_id
                 )
                 # additional_snippets = default_snippets
-                additional_snippets_message = f":mag_right: Found {len(additional_snippets)} additional snippets with the query \"{arguments['query']}\":\n\n" +  "\n".join(
-                    f"{snippet.get_slack_link(repo_name)}\n```{snippet.get_preview()}```" for snippet in additional_snippets
+                additional_snippets_message = (
+                    f":mag_right: Found {len(additional_snippets)} additional snippets with the query \"{arguments['query']}\":\n\n"
+                    + "\n".join(
+                        f"{snippet.get_slack_link(repo_name)}\n```{snippet.get_preview()}```"
+                        for snippet in additional_snippets
+                    )
                 )
                 client.chat_update(
                     channel=request.channel_id,
                     text=additional_snippets_message,
                     ts=search_message["ts"],
                 )
-                response = sweep_bot.chat(additional_snippets_message, functions=functions)
+                response = sweep_bot.chat(
+                    additional_snippets_message, functions=functions
+                )
             elif name == "create_pr":
                 title = arguments["title"]
                 summary = arguments["summary"]
                 branch = arguments["branch"]
                 plan = arguments["plan"]
-                plan_message = "\n".join(f"• `{file['file_path']}`: {file['instructions']}" for file in plan)
+                plan_message = "\n".join(
+                    f"• `{file['file_path']}`: {file['instructions']}" for file in plan
+                )
                 plan_message = ">" + plan_message.replace("\n", "\n> ")
 
                 creating_pr_message = client.chat_postMessage(
                     channel=request.channel_id,
                     text=pr_format.format(
-                        title=title,
-                        summary=summary,
-                        plan=plan_message
+                        title=title, summary=summary, plan=plan_message
                     ),
-                    thread_ts=thread_ts
+                    thread_ts=thread_ts,
                 )
                 file_change_requests = []
                 for file in plan:
@@ -369,7 +402,7 @@ def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None)
                         FileChangeRequest(
                             filename=file["file_path"],
                             instructions=file["instructions"],
-                            change_type=change_type
+                            change_type=change_type,
                         )
                     )
                 pull_request = PullRequest(
@@ -401,24 +434,19 @@ def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None)
         else:
             # no breaks were called
             client.chat_postMessage(
-                channel=request.channel_id,
-                text=response,
-                thread_ts=thread_ts
+                channel=request.channel_id, text=response, thread_ts=thread_ts
             )
     except Exception as e:
         client.chat_postMessage(
             channel=request.channel_id,
             text=":exclamation: Sorry, something went wrong.",
-            thread_ts=thread_ts
+            thread_ts=thread_ts,
         )
         logger.error(f"Error creating PR: {e}")
         raise e
 
 
-@stub.function(
-    image=image,
-    keep_warm=1
-)
+@stub.function(image=image, keep_warm=1)
 @modal.web_endpoint(method="POST")
 async def entrypoint(request: Request):
     body = await request.form()
@@ -431,6 +459,7 @@ async def entrypoint(request: Request):
 @modal.web_endpoint(method="GET")
 def install():
     return RedirectResponse(url=slack_install_link)
+
 
 def get_oauth_settings():
     from slack_bolt.oauth.oauth_settings import OAuthSettings
@@ -457,11 +486,8 @@ def get_oauth_settings():
         installation_store=MongoDBInstallationStore(),
     )
 
-@stub.function(
-    image=image,
-    secrets=secrets,
-    keep_warm=1
-)
+
+@stub.function(image=image, secrets=secrets, keep_warm=1)
 @modal.asgi_app(label=PREFIX + "-slack-bot")
 def _asgi_app():
     from slack_bolt import App
@@ -480,7 +506,7 @@ def _asgi_app():
     @slack_app.event("app_mention")
     def handle_app_mentions(body, say, client):
         print("here!")
-    
+
     @slack_app.event("message")
     def handle_message(body, ack, message, client):
         ack()
@@ -488,8 +514,7 @@ def _asgi_app():
         if "thread_ts" in message:
             # checking if the message is in a thread
             conversation = client.conversations_replies(
-                channel=message["channel"], 
-                ts=message["thread_ts"]
+                channel=message["channel"], ts=message["thread_ts"]
             )
             thread_messages = conversation["messages"]
             if thread_messages:
@@ -500,7 +525,9 @@ def _asgi_app():
                     return
                 if bot_profile and bot_profile.get("name") == "Sweep":
                     # checking that the message is from Sweep
-                    channel_name = client.conversations_info(channel=message["channel"])["channel"]["name"]
+                    channel_name = client.conversations_info(
+                        channel=message["channel"]
+                    )["channel"]["name"]
                     reply_slack.call(
                         SlackSlashCommandRequest(
                             channel_id=message["channel"],
@@ -511,9 +538,9 @@ def _asgi_app():
                             team_id=message["team"],
                             is_enterprise_install=False,
                         ),
-                        thread_ts=message["thread_ts"]
+                        thread_ts=message["thread_ts"],
                     )
-    
+
     @slack_app.command("/sweep")
     def sweep(ack, respond, command, client):
         print(ack, respond, command, client)

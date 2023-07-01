@@ -142,7 +142,7 @@ def match(line):
     is_comment = lowercase.startswith("#") or lowercase.startswith("//")
 # ...
 """
-    
+
 if __name__ == "__main__":
     # replaced_new_file_content = fuse_files(old_file_content, new_file_content)
     # assert replaced_new_file_content == new_file_content + "\n"

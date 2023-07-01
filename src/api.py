@@ -6,7 +6,15 @@ from src.handlers.create_pr import create_pr  # type: ignore
 
 from src.handlers.on_ticket import on_ticket
 from src.handlers.on_comment import on_comment
-from src.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, LABEL_COLOR, LABEL_DESCRIPTION, LABEL_NAME, SWEEP_LOGIN
+from src.utils.constants import (
+    API_NAME,
+    BOT_TOKEN_NAME,
+    DB_NAME,
+    LABEL_COLOR,
+    LABEL_DESCRIPTION,
+    LABEL_NAME,
+    SWEEP_LOGIN,
+)
 from src.events import (
     CommentCreatedRequest,
     InstallationCreatedRequest,
@@ -35,7 +43,7 @@ image = (
         "GitPython",
         "posthog",
         "tqdm",
-        "pyyaml"
+        "pyyaml",
     )
 )
 secrets = [
@@ -72,7 +80,10 @@ async def webhook(raw_request: Request):
             case "issues", "opened":
                 request = IssueRequest(**request_dict)
                 issue_title_lower = request.issue.title.lower()
-                if issue_title_lower.startswith("sweep") or "sweep:" in issue_title_lower:
+                if (
+                    issue_title_lower.startswith("sweep")
+                    or "sweep:" in issue_title_lower
+                ):
                     g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
 
@@ -90,10 +101,10 @@ async def webhook(raw_request: Request):
                     #     label = repo.get_label(LABEL_NAME)
                     #     label.edit(
                     #         name=LABEL_NAME,
-                    #         color=LABEL_COLOR, 
+                    #         color=LABEL_COLOR,
                     #         description=LABEL_DESCRIPTION
                     #     )
-                    
+
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(LABEL_NAME)
             case "issues", "labeled":
@@ -119,9 +130,12 @@ async def webhook(raw_request: Request):
                     )
             case "issue_comment", "created":
                 request = IssueCommentRequest(**request_dict)
-                if request.issue is not None \
-                    and "sweep" in [label.name.lower() for label in request.issue.labels] \
-                    and request.comment.user.type == "User":
+                if (
+                    request.issue is not None
+                    and "sweep"
+                    in [label.name.lower() for label in request.issue.labels]
+                    and request.comment.user.type == "User"
+                ):
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
                         request.repository.description or ""
@@ -137,9 +151,13 @@ async def webhook(raw_request: Request):
                         request.repository.full_name,
                         request.repository.description,
                         request.installation.id,
-                        request.comment.id
+                        request.comment.id,
                     )
-                elif request.issue.pull_request and request.issue.user.login == SWEEP_LOGIN and request.comment.user.type == "User": # TODO(sweep): set a limit                    
+                elif (
+                    request.issue.pull_request
+                    and request.issue.user.login == SWEEP_LOGIN
+                    and request.comment.user.type == "User"
+                ):  # TODO(sweep): set a limit
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     handle_comment.spawn(
                         repo_full_name=request.repository.full_name,
@@ -177,9 +195,9 @@ async def webhook(raw_request: Request):
                         for repo in repos_added_request.repositories_added
                     ],
                 }
-                posthog.capture("installation_repositories", "started", properties={
-                    **metadata
-                })
+                posthog.capture(
+                    "installation_repositories", "started", properties={**metadata}
+                )
                 for repo in repos_added_request.repositories_added:
                     organization, repo_name = repo.full_name.split("/")
                     posthog.capture(
@@ -188,8 +206,8 @@ async def webhook(raw_request: Request):
                         properties={
                             "repo_name": repo_name,
                             "organization": organization,
-                            "repo_full_name": repo.full_name
-                        }
+                            "repo_full_name": repo.full_name,
+                        },
                     )
                     index_full_repository(
                         repo.full_name,
@@ -209,14 +227,15 @@ async def webhook(raw_request: Request):
                 merged_by = pr_request.pull_request.merged_by.login
                 if SWEEP_LOGIN == commit_author:
                     posthog.capture(
-                        merged_by, 
-                        "merged_sweep_pr", 
+                        merged_by,
+                        "merged_sweep_pr",
                         properties={
                             "repo_name": repo_name,
                             "organization": organization,
                             "repo_full_name": pr_request.repository.full_name,
-                            "username": merged_by
-                    })
+                            "username": merged_by,
+                        },
+                    )
                 update_index.spawn(
                     request_dict["repository"]["full_name"],
                     installation_id=request_dict["installation"]["id"],

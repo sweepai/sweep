@@ -468,6 +468,7 @@ modify_file_response = """
 new_file = generate_new_file(modify_file_response, old_file_content)
 # print(new_file)
 
+
 def test_join_contents_k():
     a = """\
 a
@@ -518,6 +519,7 @@ c
 d"""
     assert join_contents_k(a, b, 2) != expected_result
     assert join_contents_k(a, b, 4) == expected_result
+
 
 test_join_contents_k()
 
@@ -643,7 +645,7 @@ def on_comment(
     logger.info("on_comment success")
     return {"success": True}
 '''
-    
+
 modify_file_response = '''<new_file>
 <copied>0-21</copied>
 def add_reaction_to_comment(g, comment_id):
@@ -969,7 +971,7 @@ def get_relevant_snippets(
     ]
 '''
 
-modify_file_response = '''<new_file>
+modify_file_response = """<new_file>
 <copied>0-135</copied>
     # Read the exclude file from the root of the repo and update the sweep_config
     exclude_files = read_exclude_file_from_repo_root(repo_name)
@@ -985,6 +987,6 @@ modify_file_response = '''<new_file>
         and all(not file[len("repo/"):].startswith(exclude_file) for exclude_file in sweep_config.exclude_files)
     ]
 <copied>145-306</copied>
-</new_file>'''
+</new_file>"""
 
 print(generate_new_file(modify_file_response, old_file_content))

@@ -6,10 +6,11 @@ from src.core.prompts import (
     diff_section_prompt,
     review_follow_up_prompt,
     final_review_prompt,
-    comment_line_prompt
+    comment_line_prompt,
 )
 
 from loguru import logger
+
 
 class HumanMessagePrompt(BaseModel):
     repo_name: str
@@ -37,7 +38,7 @@ class HumanMessagePrompt(BaseModel):
 
     def render_snippets(self):
         return "\n".join([snippet.xml for snippet in self.snippets])
-    
+
     def construct_prompt(self):
         human_message = human_message_prompt.format(
             repo_name=self.repo_name,
@@ -51,7 +52,8 @@ class HumanMessagePrompt(BaseModel):
             relevant_directories=self.get_relevant_directories(),
         )
         return human_message
-    
+
+
 class HumanMessagePromptReview(HumanMessagePrompt):
     pr_title: str
     pr_message: str = ""
@@ -64,7 +66,7 @@ class HumanMessagePromptReview(HumanMessagePrompt):
                 diff_file_path=file_name,
                 new_file_content=new_file_contents.rstrip("\n"),
                 previous_file_content=old_file_contents.rstrip("\n"),
-                diffs=file_patch
+                diffs=file_patch,
             )
             formatted_diffs.append(format_diff)
         return "\n".join(formatted_diffs)
@@ -86,17 +88,20 @@ class HumanMessagePromptReview(HumanMessagePrompt):
         )
         return human_message
 
+
 class HumanMessageReviewFollowup(BaseModel):
     diff: tuple
+
     def construct_prompt(self):
         file_name, new_file_contents, old_file_contents, file_patch = self.diff
         format_diff = diff_section_prompt.format(
             diff_file_path=file_name,
             new_file_content=new_file_contents.rstrip("\n"),
             previous_file_content=old_file_contents.rstrip("\n"),
-            diffs=file_patch
+            diffs=file_patch,
         )
         return review_follow_up_prompt + format_diff
+
 
 class HumanMessageCommentPrompt(HumanMessagePrompt):
     comment: str
@@ -111,7 +116,7 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
                 diff_file_path=file_name,
                 new_file_content=new_file_contents.rstrip("\n"),
                 previous_file_content=old_file_contents.rstrip("\n"),
-                diffs=file_patch
+                diffs=file_patch,
             )
             formatted_diffs.append(format_diff)
         return "\n".join(formatted_diffs)
@@ -128,18 +133,18 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
             tree=self.tree,
             description=self.summary if self.summary else "No description provided.",
             relevant_directories=self.get_relevant_directories(),
-            relevant_snippets=self.render_snippets()
+            relevant_snippets=self.render_snippets(),
         )
         if self.pr_file_path and self.pr_line:
             logger.info(f"Review Comment {self.comment}")
-            human_message += comment_line_prompt.format( 
-                pr_file_path=self.pr_file_path,
-                pr_line=self.pr_line
+            human_message += comment_line_prompt.format(
+                pr_file_path=self.pr_file_path, pr_line=self.pr_line
             )
         else:
             logger.info(f"General Comment {self.comment}")
         return human_message
-    
+
+
 class HumanMessageFinalPRComment(BaseModel):
     summarization_replies: list
 

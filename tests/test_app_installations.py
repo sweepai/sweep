@@ -5,7 +5,9 @@ from src.utils.github_utils import get_jwt
 
 
 username = "sweepai"
-os.environ["GITHUB_APP_PEM"] = """
+os.environ[
+    "GITHUB_APP_PEM"
+] = """
 -----BEGIN RSA PRIVATE KEY-----
 xxxxxxxxx
 -----END RSA PRIVATE KEY-----

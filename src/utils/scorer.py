@@ -1,8 +1,8 @@
-
 from datetime import datetime
 
+
 def compute_score(contents, commits):
-    line_count = contents.count("\n") 
+    line_count = contents.count("\n")
     if line_count > 30:
         line_count_score = 2
     else:
@@ -16,4 +16,4 @@ def compute_score(contents, commits):
         days_since_last_modified_score = 2
     else:
         days_since_last_modified_score = 10 / days_since_last_modified
-    return (line_count_score * commit_count * days_since_last_modified_score)
+    return line_count_score * commit_count * days_since_last_modified_score

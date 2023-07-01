@@ -6,7 +6,9 @@ from pydantic import BaseModel
 
 
 class Message(BaseModel):
-    role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal["function"]
+    role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal[
+        "function"
+    ]
     content: str | None = None
     name: str | None = None
     function_call: dict | None = None
@@ -23,13 +25,16 @@ class Message(BaseModel):
             obj["name"] = self.name
         return obj
 
+
 class Function(BaseModel):
     class Parameters(BaseModel):
         type: str = "object"
         properties: dict
+
     name: str
     description: str
     parameters: Parameters
+
 
 class RegexMatchError(ValueError):
     pass
@@ -83,7 +88,7 @@ class FileChange(RegexMatchableBaseModel):
             first_newline = result.code.find("\n")
             last_newline = result.code.rfind("\n")
             result.code = result.code[first_newline + 1 :]
-            result.code = result.code[: last_newline]
+            result.code = result.code[:last_newline]
         result.code += "\n"
         return result
 
@@ -99,17 +104,18 @@ class Snippet(BaseModel):
     """
     Start and end refer to line numbers
     """
-    
+
     content: str
     start: int
     end: int
     file_path: str
+
     def get_snippet(self):
-        snippet = "\n".join(self.content.splitlines()[self.start:self.end])
+        snippet = "\n".join(self.content.splitlines()[self.start : self.end])
         if self.start > 1:
-            snippet = '...\n' + snippet
-        if self.end < self.content.count('\n') + 1:
-            snippet = snippet + '\n...'
+            snippet = "...\n" + snippet
+        if self.end < self.content.count("\n") + 1:
+            snippet = snippet + "\n..."
         return snippet
 
     def __add__(self, other):
@@ -119,9 +125,9 @@ class Snippet(BaseModel):
             content=self.content,
             start=self.start,
             end=other.end,
-            file_path=self.file_path
+            file_path=self.file_path,
         )
-    
+
     def __xor__(self, other: "Snippet") -> bool:
         """
         Returns True if there is an overlap between two snippets.
@@ -129,43 +135,49 @@ class Snippet(BaseModel):
         if self.file_path != other.file_path:
             return False
         return self.file_path == other.file_path and (
-                (self.start <= other.start and self.end >= other.start)
-                or (other.start <= self.start and other.end >= self.start)
-            )
-        
+            (self.start <= other.start and self.end >= other.start)
+            or (other.start <= self.start and other.end >= self.start)
+        )
+
     def __or__(self, other: "Snippet") -> "Snippet":
         assert self.file_path == other.file_path
         return Snippet(
             content=self.content,
             start=min(self.start, other.start),
             end=max(self.end, other.end),
-            file_path=self.file_path
+            file_path=self.file_path,
         )
-    
+
     @property
     def xml(self):
         return f"""<snippet filepath="{self.file_path}" start="{self.start}" end="{self.end}">\n{self.get_snippet()}\n</snippet>"""
-    
+
     def get_url(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
         return f"https://github.com/{repo_name}/blob/{commit_id}/blob/{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}"
-    
+
     def get_markdown_link(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
         base = commit_id + "/" if commit_id != "main" else ""
         return f"[{base}{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}]({self.get_url(repo_name, commit_id)})"
-    
+
     def get_slack_link(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
         base = commit_id + "/" if commit_id != "main" else ""
         return f"<{self.get_url(repo_name, commit_id)}|{base}{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}>"
 
-    def get_preview(self, max_lines: int  = 5):
-        return "\n".join(self.content.splitlines()[self.start:min(self.start + max_lines, self.end)])
+    def get_preview(self, max_lines: int = 5):
+        return "\n".join(
+            self.content.splitlines()[
+                self.start : min(self.start + max_lines, self.end)
+            ]
+        )
+
 
 class DiffSummarization(RegexMatchableBaseModel):
     content: str
     _regex = r"""<file_summarization>(?P<content>.*)<\/file_summarization>"""
+
 
 class PullRequestComment(RegexMatchableBaseModel):
     changes_required: str

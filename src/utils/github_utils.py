@@ -66,6 +66,7 @@ def get_installation_id(username: str):
     except:
         raise Exception("Could not get installation id, probably not installed")
 
+
 def display_directory_tree(
     root_path,
     includes: list[str] = [],
@@ -86,14 +87,13 @@ def display_directory_tree(
             if os.path.isdir(file_path):
                 if full_path in includes:
                     tree += f"{indent}|- {item_name}/\n"
-                    tree += display_directory_tree_helper(
-                        file_path, indent + "|   "
-                    )
+                    tree += display_directory_tree_helper(file_path, indent + "|   ")
                 else:
                     tree += f"{indent}|- {item_name}/...\n"
             else:
                 tree += f"{indent}|- {item_name}\n"
         return tree
+
     tree = display_directory_tree_helper(root_path)
     lines = tree.splitlines()
     return "\n".join([line[3:] for line in lines])
@@ -126,9 +126,7 @@ def get_file_list(root_directory: str) -> str:
 #     shutil.rmtree("repo")
 #     return tree
 def get_tree_and_file_list(
-    repo_name: str, 
-    installation_id: int, 
-    snippet_paths: list[str]
+    repo_name: str, installation_id: int, snippet_paths: list[str]
 ) -> str:
     token = get_token(installation_id)
     shutil.rmtree("repo", ignore_errors=True)
@@ -145,7 +143,7 @@ def get_tree_and_file_list(
         prefixes.append(snippet_path)
 
     tree = display_directory_tree(
-        "repo", 
+        "repo",
         includes=prefixes,
     )
     file_list = get_file_list("repo")
@@ -190,9 +188,9 @@ def search_snippets(
         else:
             snippet.content = file_contents
     tree, file_list = get_tree_and_file_list(
-        repo.full_name, 
-        installation_id, 
-        snippet_paths=[snippet.file_path for snippet in snippets]
+        repo.full_name,
+        installation_id,
+        snippet_paths=[snippet.file_path for snippet in snippets],
     )
     for file_path in tqdm(file_list):
         if file_path in query:

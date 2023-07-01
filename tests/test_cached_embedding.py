@@ -5,7 +5,9 @@ import hashlib
 from src.utils.hash import hash_sha256
 
 cache = Cache("tests/data/test_cache")
-import pdb; pdb.set_trace()
+import pdb
+
+pdb.set_trace()
 
 # letters = ["a", "b", "c", "d", "e", "f", "g", "h", "i"]
 
@@ -14,5 +16,3 @@ import pdb; pdb.set_trace()
 
 # for letter in letters:
 #     assert cache.get(hash(letter)) == letter
-
-
