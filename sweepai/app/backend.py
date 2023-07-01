@@ -10,14 +10,14 @@ from loguru import logger
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from src.app.config import SweepChatConfig
+from sweepai.app.config import SweepChatConfig
 
-from src.core.chat import ChatGPT
-from src.core.entities import FileChangeRequest, Function, Message, PullRequest, Snippet
-from src.core.sweep_bot import SweepBot
-from src.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, PREFIX
-from src.utils.github_utils import get_github_client, get_installation_id
-from src.core.prompts import gradio_system_message_prompt
+from sweepai.core.chat import ChatGPT
+from sweepai.core.entities import FileChangeRequest, Function, Message, PullRequest, Snippet
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, PREFIX
+from sweepai.utils.github_utils import get_github_client, get_installation_id
+from sweepai.core.prompts import gradio_system_message_prompt
 
 get_relevant_snippets = modal.Function.from_name(DB_NAME, "get_relevant_snippets")
 
@@ -235,7 +235,7 @@ def _asgi_app():
         )
         chatgpt = ChatGPT(messages=[Message(role="system", content=system_message, key="system")] + messages[:-1])
         return StreamingResponse(
-            (json.dumps(chunk) for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=functions, function_call={"name": "create_pr"})),
+            (json.dumps(chunk) for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=functions)),
             media_type="text/event-stream"
         )
     return app

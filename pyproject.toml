@@ -1,10 +1,10 @@
 [tool.poetry]
 name = "sweepai"
-version = "0.1.2"
+version = "0.1.5"
 description = "Sweep software chores"
 authors = ["Kevin Lu", "William Zeng", "Luke Jagg"]
 packages = [
-    { include = "src" }
+    { include = "sweepai" }
 ]
 
 [tool.poetry.dependencies]
@@ -52,4 +52,4 @@ ipykernel = "^6.23.1"
 check_untyped_defs = true
 
 [tool.poetry.scripts]
-sweepai = "src.app.sweep:app"
+sweepai = "sweepai.app.sweepai:app"

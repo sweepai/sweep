@@ -10,17 +10,17 @@ from loguru import logger
 from pydantic import BaseModel
 import backoff
 
-from src.core.entities import (
+from sweepai.core.entities import (
     Function,
     Message,
 )
-from src.core.prompts import (
+from sweepai.core.prompts import (
     system_message_prompt,
     system_message_issue_comment_prompt,
 )
-from src.utils.constants import UTILS_NAME
-from src.utils.prompt_constructor import HumanMessagePrompt
-from src.core.entities import Message, Function
+from sweepai.utils.constants import UTILS_NAME
+from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.core.entities import Message, Function
 
 # TODO: combine anthropic and openai
 

@@ -5,9 +5,9 @@ import requests
 import json
 from loguru import logger
 
-from src.app.config import SweepChatConfig
-from src.core.entities import PullRequest, Snippet
-from src.utils.constants import PREFIX
+from sweepai.app.config import SweepChatConfig
+from sweepai.core.entities import PullRequest, Snippet
+from sweepai.utils.constants import PREFIX
 
 def break_json(raw_json: str):
     # turns something like {"function_call": {"arguments": " \""}}{"function_call": {"arguments": "summary"}} into two objects

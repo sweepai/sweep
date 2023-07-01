@@ -1,8 +1,8 @@
 import re
 import subprocess
-from src.core.chat import ChatGPT
-from src.core.entities import Message
-from src.core.prompts import code_repair_system_prompt, code_repair_prompt
+from sweepai.core.chat import ChatGPT
+from sweepai.core.entities import Message
+from sweepai.core.prompts import code_repair_system_prompt, code_repair_prompt
 
 response_regex = r"```[^\n]*(?P<response>.+)```"
 

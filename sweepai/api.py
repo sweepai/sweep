@@ -2,12 +2,12 @@ import time
 from loguru import logger
 import modal
 from pydantic import ValidationError
-from src.handlers.create_pr import create_pr  # type: ignore
+from sweepai.handlers.create_pr import create_pr  # type: ignore
 
-from src.handlers.on_ticket import on_ticket
-from src.handlers.on_comment import on_comment
-from src.utils.constants import API_NAME, BOT_TOKEN_NAME, LABEL_COLOR, LABEL_DESCRIPTION, LABEL_NAME, SWEEP_LOGIN
-from src.events import (
+from sweepai.handlers.on_ticket import on_ticket
+from sweepai.handlers.on_comment import on_comment
+from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME, LABEL_COLOR, LABEL_DESCRIPTION, LABEL_NAME, SWEEP_LOGIN
+from sweepai.events import (
     CommentCreatedRequest,
     InstallationCreatedRequest,
     IssueCommentRequest,
@@ -15,8 +15,8 @@ from src.events import (
     PRRequest,
     ReposAddedRequest,
 )
-from src.utils.event_logger import posthog
-from src.utils.github_utils import get_github_client, index_full_repository
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import get_github_client, index_full_repository
 from fastapi import HTTPException, Request
 
 stub = modal.Stub(API_NAME)

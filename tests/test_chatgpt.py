@@ -1,13 +1,13 @@
 from loguru import logger
 import openai
-from src.core.chat import (
+from sweepai.core.chat import (
     ChatGPT,
     Message
 )
-from src.utils.prompt_constructor import (
+from sweepai.utils.prompt_constructor import (
     HumanMessagePrompt
 )
-from src.core.prompts import (
+from sweepai.core.prompts import (
     system_message_prompt,
     reply_prompt
 )

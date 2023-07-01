@@ -2,8 +2,8 @@
 from loguru import logger
 import modal
 
-from src.core.chat import Snippet
-from src.utils.constants import UTILS_NAME
+from sweepai.core.chat import Snippet
+from sweepai.utils.constants import UTILS_NAME
 
 chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 
