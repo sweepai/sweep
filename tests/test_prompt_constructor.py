@@ -1,6 +1,6 @@
 from loguru import logger
 import difflib
-from src.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 expected_original_prompt = '''
 Repo: sweepai/sweep-test: test_repo_description

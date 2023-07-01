@@ -1,7 +1,7 @@
 import typer
 from rich import print
 
-from src.app.config import SweepChatConfig
+from sweepai.app.config import SweepChatConfig
 
 epilog = "Sweep is a AI junior developer. Docs at https://docs.sweep.dev, install at https://github.com/apps/sweep-ai and support at https://discord.gg/sweep-ai."
 
@@ -13,7 +13,7 @@ def start():
     Launch Sweep Chat in the browser
     """
     SweepChatConfig.load()
-    from src.app.ui import demo
+    from sweepai.app.ui import demo
     demo.queue()
     demo.launch(enable_queue=True, inbrowser=True)
     
