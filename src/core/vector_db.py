@@ -4,6 +4,8 @@ import re
 import time
 import shutil
 import glob
+import multiprocessing
+import numpy as np
 
 from modal import stub
 from loguru import logger
@@ -67,7 +69,7 @@ def parse_collection_name(name: str) -> str:
     return name
 
 def list_collection_names():
-    """Returns a list of all collection names."""
+    '''Returns a list of all collection names.'''
     collections = []
     return collections
 
@@ -236,7 +238,13 @@ def compute_deeplake_vs(collection_name,
         indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
 
-        computed_embeddings = embedding_function(documents_to_compute)
+        # Split the documents into subsets for parallel processing
+        subsets = np.array_split(documents_to_compute, multiprocessing.cpu_count())
+        pool = multiprocessing.Pool()
+        computed_embeddings = pool.map(embedding_function, subsets)
+
+        # Flatten the list of computed embeddings
+        computed_embeddings = [embedding for subset in computed_embeddings for embedding in subset]
 
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
@@ -263,7 +271,6 @@ def init_index(
 ):
     pass
 
-
 @stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
 def update_index(
     repo_name,
@@ -271,7 +278,6 @@ def update_index(
     sweep_config: SweepConfig = SweepConfig(),
 ) -> int:
     pass
-
 
 @stub.function(image=image, secrets=secrets, shared_volumes={DEEPLAKE_DIR: model_volume}, timeout=timeout, keep_warm=1)
 def get_relevant_snippets(
@@ -332,3 +338,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
+
