@@ -2,10 +2,16 @@ from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from loguru import logger
 import modal
 
+<<<<<<< HEAD
 from src.core.entities import Snippet
 from src.utils.config import SweepConfig
 from src.utils.constants import DB_NAME
 
+=======
+from sweepai.core.entities import Snippet
+from sweepai.utils.config import SweepConfig
+from sweepai.utils.constants import DB_NAME
+>>>>>>> main
 get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
 # get_relevant_snippets.spawn(
 #     repo_name="sweepai/bot-internal",

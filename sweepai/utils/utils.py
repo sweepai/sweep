@@ -7,7 +7,7 @@ import modal
 from modal import method
 from loguru import logger
 
-from src.utils.constants import UTILS_NAME
+from sweepai.utils.constants import UTILS_NAME
 
 stub = modal.Stub(UTILS_NAME)
 tiktoken_image = modal.Image.debian_slim().pip_install(

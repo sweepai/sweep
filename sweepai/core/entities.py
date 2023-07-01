@@ -1,4 +1,3 @@
-import json
 import re
 from typing import ClassVar, Literal, Self, Type
 from loguru import logger
@@ -13,6 +12,13 @@ class Message(BaseModel):
     name: str | None = None
     function_call: dict | None = None
     key: str | None = None
+
+    @classmethod
+    def from_tuple(cls, tup: tuple[str | None, str | None]) -> Self:
+        if tup[0] is None:
+            return cls(role="assistant", content=tup[1])
+        else:
+            return cls(role="user", content=tup[0])
 
     def to_openai(self) -> str:
         obj = {
@@ -154,8 +160,13 @@ class Snippet(BaseModel):
 
     def get_url(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
+<<<<<<< HEAD:src/core/entities.py
         return f"https://github.com/{repo_name}/blob/{commit_id}/blob/{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}"
 
+=======
+        return f"https://github.com/{repo_name}/blob/{commit_id}/{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}"
+    
+>>>>>>> main:sweepai/core/entities.py
     def get_markdown_link(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
         base = commit_id + "/" if commit_id != "main" else ""
@@ -167,12 +178,26 @@ class Snippet(BaseModel):
         return f"<{self.get_url(repo_name, commit_id)}|{base}{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}>"
 
     def get_preview(self, max_lines: int = 5):
+<<<<<<< HEAD:src/core/entities.py
         return "\n".join(
             self.content.splitlines()[
                 self.start : min(self.start + max_lines, self.end)
             ]
         )
 
+=======
+        snippet = "\n".join(self.content.splitlines()[self.start:min(self.start + max_lines, self.end)])
+        if self.start > 1:
+            snippet = '...\n' + snippet
+        if self.end < self.content.count('\n') + 1 and self.end > max_lines:
+            snippet = snippet + '\n...'
+        return snippet
+    
+    @property
+    def denotation(self):
+        return f"{self.file_path}:{self.start}-{self.end}"
+        
+>>>>>>> main:sweepai/core/entities.py
 
 class DiffSummarization(RegexMatchableBaseModel):
     content: str

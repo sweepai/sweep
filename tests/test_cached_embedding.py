@@ -1,8 +1,8 @@
 from diskcache import Cache, FanoutCache
-from src.utils.constants import DB_NAME
+from sweepai.utils.constants import DB_NAME
 import hashlib
 
-from src.utils.hash import hash_sha256
+from sweepai.utils.hash import hash_sha256
 
 cache = Cache("tests/data/test_cache")
 import pdb

@@ -8,17 +8,17 @@ import modal
 from pydantic import BaseModel
 from pymongo import MongoClient
 import requests
-from src.core.entities import FileChangeRequest, Function, PullRequest
+from sweepai.core.entities import FileChangeRequest, Function, PullRequest
 import slack_sdk
 from loguru import logger
 from slack_sdk.oauth.installation_store import Installation, InstallationStore, Bot
 
-from src.core.sweep_bot import SweepBot
-from src.utils.github_utils import get_github_client
-from src.utils.constants import API_NAME, BOT_TOKEN_NAME, PREFIX, SLACK_NAME
-from src.core.prompts import slack_slash_command_prompt
-from src.utils.github_utils import get_installation_id
-import src.utils.event_logger
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME, PREFIX, SLACK_NAME
+from sweepai.core.prompts import slack_slash_command_prompt
+from sweepai.utils.github_utils import get_installation_id
+import sweepai.utils.event_logger
 
 image = (
     modal.Image.debian_slim()

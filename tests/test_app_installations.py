@@ -1,7 +1,7 @@
 import os
 import requests
 
-from src.utils.github_utils import get_jwt
+from sweepai.utils.github_utils import get_jwt
 
 
 username = "sweepai"

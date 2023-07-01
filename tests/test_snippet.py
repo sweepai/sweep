@@ -1,5 +1,5 @@
 import unittest
-from src.core.entities import Snippet
+from sweepai.core.entities import Snippet
 
 
 class TestSnippet(unittest.TestCase):

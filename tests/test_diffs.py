@@ -1,4 +1,4 @@
-from src.utils.diff import format_contents, fuse_files
+from sweepai.utils.diff import format_contents, fuse_files
 
 # Test real one line change
 old_file_content = """print("Hello World")"""

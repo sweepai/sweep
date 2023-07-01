@@ -1,5 +1,5 @@
 # Example usage:
-from src.utils.diff import generate_new_file, join_contents_k
+from sweepai.utils.diff import generate_new_file, join_contents_k
 
 
 old_file_content = """<old_file>
@@ -14,15 +14,15 @@ old_file_content = """<old_file>
 8:
 9:from loguru import logger
 10:
-11:from src.core.sweep_bot import SweepBot
-12:from src.handlers.on_review import get_pr_diffs
-13:from src.utils.event_logger import posthog
-14:from src.utils.github_utils import (
+11:from sweepai.core.sweep_bot import SweepBot
+12:from sweepai.handlers.on_review import get_pr_diffs
+13:from sweepai.utils.event_logger import posthog
+14:from sweepai.utils.github_utils import (
 15:    get_github_client,
 16:    search_snippets,
 17:)
-18:from src.utils.prompt_constructor import HumanMessageCommentPrompt
-19:from src.utils.constants import PREFIX
+18:from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
+19:from sweepai.utils.constants import PREFIX
 20:
 21:github_access_token = os.environ.get("GITHUB_TOKEN")
 22:openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -133,7 +133,7 @@ def is_comment_addressed(comment: str) -> bool:
     addressed_keywords = ["addressed", "resolved", "fixed"]
     return any(keyword in comment.lower() for keyword in addressed_keywords)
 
-from src.core.react import react_to_comment
+from sweepai.core.react import react_to_comment
 
 <copied>74-88</copied>
 if is_comment_addressed(comment):
@@ -158,17 +158,17 @@ old_file_content = """0:'''
 9:from loguru import logger
 10:import modal
 11:
-12:from src.core.entities import Snippet
-13:from src.core.prompts import (
+12:from sweepai.core.entities import Snippet
+13:from sweepai.core.prompts import (
 14:    reply_prompt,
 15:)
-16:from src.core.sweep_bot import SweepBot
-17:from src.core.prompts import issue_comment_prompt
-18:from src.handlers.on_review import review_pr
-19:from src.utils.event_logger import posthog
-20:from src.utils.github_utils import get_github_client, search_snippets
-21:from src.utils.prompt_constructor import HumanMessagePrompt
-22:from src.utils.constants import DB_NAME, PREFIX
+16:from sweepai.core.sweep_bot import SweepBot
+17:from sweepai.core.prompts import issue_comment_prompt
+18:from sweepai.handlers.on_review import review_pr
+19:from sweepai.utils.event_logger import posthog
+20:from sweepai.utils.github_utils import get_github_client, search_snippets
+21:from sweepai.utils.prompt_constructor import HumanMessagePrompt
+22:from sweepai.utils.constants import DB_NAME, PREFIX
 23:
 24:github_access_token = os.environ.get("GITHUB_TOKEN")
 25:openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -535,15 +535,15 @@ import openai
 
 from loguru import logger
 
-from src.core.sweep_bot import SweepBot
-from src.handlers.on_review import get_pr_diffs
-from src.utils.event_logger import posthog
-from src.utils.github_utils import (
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.handlers.on_review import get_pr_diffs
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import (
     get_github_client,
     search_snippets,
 )
-from src.utils.prompt_constructor import HumanMessageCommentPrompt
-from src.utils.constants import PREFIX
+from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
+from sweepai.utils.constants import PREFIX
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -680,9 +680,9 @@ from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from github import Github
 from git import Repo
 
-from src.core.entities import Snippet
-from src.utils.event_logger import posthog
-from src.utils.hash import hash_sha256
+from sweepai.core.entities import Snippet
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.hash import hash_sha256
 
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME

@@ -2,12 +2,13 @@ import os
 from github import Github
 from loguru import logger
 import modal
-from src.core.chat import DiffSummarization, PullRequestComment, format_for_anthropic
-from src.core.prompts import review_prompt
-from src.core.sweep_bot import SweepBot
-from src.handlers.on_review import get_pr_diffs
-from src.utils.constants import API_NAME, BOT_TOKEN_NAME
+from sweepai.core.chat import DiffSummarization, PullRequestComment, format_for_anthropic
+from sweepai.core.prompts import review_prompt
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.handlers.on_review import get_pr_diffs
+from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME
 
+<<<<<<< HEAD
 from src.utils.github_utils import get_file_contents, search_snippets
 from src.utils.prompt_constructor import (
     HumanMessageFinalPRComment,
@@ -15,6 +16,11 @@ from src.utils.prompt_constructor import (
     HumanMessageReviewFollowup,
 )
 from src.utils.snippets import format_snippets
+=======
+from sweepai.utils.github_utils import get_file_contents, search_snippets
+from sweepai.utils.prompt_constructor import HumanMessageFinalPRComment, HumanMessagePromptReview, HumanMessageReviewFollowup
+from sweepai.utils.snippets import format_snippets
+>>>>>>> main
 
 # Plan:
 # 1. Get PR

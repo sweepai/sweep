@@ -2,16 +2,21 @@
 Take a PR and provide an AI generated review of the PR.
 """
 from loguru import logger
-from src.core.entities import DiffSummarization, PullRequestComment
-from src.core.prompts import review_prompt
-from src.core.sweep_bot import SweepBot
+from sweepai.core.entities import DiffSummarization, PullRequestComment
+from sweepai.core.prompts import review_prompt
+from sweepai.core.sweep_bot import SweepBot
 
+<<<<<<< HEAD:src/handlers/on_review.py
 from src.utils.github_utils import get_file_contents
 from src.utils.prompt_constructor import (
     HumanMessageFinalPRComment,
     HumanMessagePromptReview,
     HumanMessageReviewFollowup,
 )
+=======
+from sweepai.utils.github_utils import get_file_contents
+from sweepai.utils.prompt_constructor import HumanMessageFinalPRComment, HumanMessagePromptReview, HumanMessageReviewFollowup
+>>>>>>> main:sweepai/handlers/on_review.py
 
 # Plan:
 # 1. Get PR

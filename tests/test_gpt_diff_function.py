@@ -1,9 +1,9 @@
 import json
 import openai
-from src.core.chat import ChatGPT
-from src.core.prompts import system_message_prompt
-from src.utils.file_change_functions import apply_code_edits, modify_file_function
-from src.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.core.chat import ChatGPT
+from sweepai.core.prompts import system_message_prompt
+from sweepai.utils.file_change_functions import apply_code_edits, modify_file_function
+from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 first_user_prompt = '''<relevant_snippets_in_repo>
 <snippet filepath="src/core/vector_db.py" start="42" end="69">
@@ -206,15 +206,15 @@ Issue Description: None
 9: 
 10: from loguru import logger
 11: 
-12: from src.core.sweep_bot import SweepBot
-13: from src.handlers.on_review import get_pr_diffs
-14: from src.utils.event_logger import posthog
-15: from src.utils.github_utils import (
+12: from sweepai.core.sweep_bot import SweepBot
+13: from sweepai.handlers.on_review import get_pr_diffs
+14: from sweepai.utils.event_logger import posthog
+15: from sweepai.utils.github_utils import (
 16:     get_github_client,
 17:     search_snippets,
 18: )
-19: from src.utils.prompt_constructor import HumanMessageCommentPrompt
-20: from src.utils.constants import PREFIX
+19: from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
+20: from sweepai.utils.constants import PREFIX
 21: 
 22: github_access_token = os.environ.get("GITHUB_TOKEN")
 23: openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -371,15 +371,15 @@ def test_chat_gpt_call():
 
     from loguru import logger
 
-    from src.core.sweep_bot import SweepBot
-    from src.handlers.on_review import get_pr_diffs
-    from src.utils.event_logger import posthog
-    from src.utils.github_utils import (
+    from sweepai.core.sweep_bot import SweepBot
+    from sweepai.handlers.on_review import get_pr_diffs
+    from sweepai.utils.event_logger import posthog
+    from sweepai.utils.github_utils import (
         get_github_client,
         search_snippets,
     )
-    from src.utils.prompt_constructor import HumanMessageCommentPrompt
-    from src.utils.constants import PREFIX
+    from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
+    from sweepai.utils.constants import PREFIX
 
     github_access_token = os.environ.get("GITHUB_TOKEN")
     openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -705,17 +705,17 @@ import openai
 from loguru import logger
 import modal
 
-from src.core.entities import Snippet
-from src.core.prompts import (
+from sweepai.core.entities import Snippet
+from sweepai.core.prompts import (
     reply_prompt,
 )
-from src.core.sweep_bot import SweepBot
-from src.core.prompts import issue_comment_prompt
-from src.handlers.on_review import review_pr
-from src.utils.event_logger import posthog
-from src.utils.github_utils import get_github_client, search_snippets
-from src.utils.prompt_constructor import HumanMessagePrompt
-from src.utils.constants import DB_NAME, PREFIX
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.core.prompts import issue_comment_prompt
+from sweepai.handlers.on_review import review_pr
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import get_github_client, search_snippets
+from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.utils.constants import DB_NAME, PREFIX
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")

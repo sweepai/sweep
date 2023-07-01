@@ -10,19 +10,19 @@ import openai
 from loguru import logger
 import modal
 
-from src.core.entities import FileChangeRequest, Snippet
-from src.core.prompts import (
+from sweepai.core.entities import FileChangeRequest, Snippet
+from sweepai.core.prompts import (
     reply_prompt,
 )
-from src.core.sweep_bot import SweepBot
-from src.core.prompts import issue_comment_prompt
-from src.handlers.create_pr import create_pr
-from src.handlers.on_comment import on_comment
-from src.handlers.on_review import review_pr
-from src.utils.event_logger import posthog
-from src.utils.github_utils import get_github_client, search_snippets
-from src.utils.prompt_constructor import HumanMessagePrompt
-from src.utils.constants import DB_NAME, PREFIX, UTILS_NAME
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.core.prompts import issue_comment_prompt
+from sweepai.handlers.create_pr import create_pr
+from sweepai.handlers.on_comment import on_comment
+from sweepai.handlers.on_review import review_pr
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import get_github_client, search_snippets
+from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.utils.constants import DB_NAME, PREFIX, UTILS_NAME
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")

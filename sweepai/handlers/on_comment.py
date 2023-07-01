@@ -9,15 +9,15 @@ import openai
 
 from loguru import logger
 
-from src.core.sweep_bot import SweepBot
-from src.handlers.on_review import get_pr_diffs
-from src.utils.event_logger import posthog
-from src.utils.github_utils import (
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.handlers.on_review import get_pr_diffs
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import (
     get_github_client,
     search_snippets,
 )
-from src.utils.prompt_constructor import HumanMessageCommentPrompt
-from src.utils.constants import PREFIX
+from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
+from sweepai.utils.constants import PREFIX
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")

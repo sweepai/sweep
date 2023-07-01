@@ -1,6 +1,6 @@
 import os
 import anthropic
-from src.core.react import REACT_RESPONSE_PROMPT, ReadFiles, Finish, Toolbox
+from sweepai.core.react import REACT_RESPONSE_PROMPT, ReadFiles, Finish, Toolbox
 
 tictactoe_response = """
 class TicTacToe:
@@ -89,7 +89,7 @@ Can we use tensorflow instead?
 
 example_file_search_problem = """
 <file path="tests/tictactoe.py">
-from src.tictactoe import TicTacToe
+from sweepai.tictactoe import TicTacToe
 
 t = TicTacToe()
 t.play()

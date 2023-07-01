@@ -1,8 +1,22 @@
 from loguru import logger
 import openai
+<<<<<<< HEAD
 from src.core.chat import ChatGPT, Message
 from src.utils.prompt_constructor import HumanMessagePrompt
 from src.core.prompts import system_message_prompt, reply_prompt
+=======
+from sweepai.core.chat import (
+    ChatGPT,
+    Message
+)
+from sweepai.utils.prompt_constructor import (
+    HumanMessagePrompt
+)
+from sweepai.core.prompts import (
+    system_message_prompt,
+    reply_prompt
+)
+>>>>>>> main
 
 expected_original_messages = [
     {

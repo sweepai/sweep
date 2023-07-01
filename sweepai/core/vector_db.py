@@ -15,10 +15,10 @@ from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from github import Github
 from git import Repo
 
-from src.core.entities import Snippet
-from src.utils.event_logger import posthog
-from src.utils.hash import hash_sha256
-from src.utils.scorer import compute_score
+from sweepai.core.entities import Snippet
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.hash import hash_sha256
+from sweepai.utils.scorer import compute_score
 
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
