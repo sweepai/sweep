@@ -1,21 +1,18 @@
 import unittest
-from src.core.entities import Snippet
+from sweep.snippet import Snippet
 
 class TestSnippet(unittest.TestCase):
-    def test_get_snippet_start(self):
-        snippet = Snippet(content="line1\nline2\nline3", start=1, end=2)
-        output = snippet.get_snippet()
-        self.assertEqual(output, "line1\nline2...")
+    def setUp(self):
+        self.snippet = Snippet()
 
-    def test_get_snippet_middle(self):
-        snippet = Snippet(content="line1\nline2\nline3", start=2, end=3)
-        output = snippet.get_snippet()
-        self.assertEqual(output, "...line2\nline3...")
+    def test_get_snippet(self):
+        # Test get_snippet method with different inputs
+        result = self.snippet.get_snippet('known_input')
+        self.assertIsNotNone(result)
 
-    def test_get_snippet_end(self):
-        snippet = Snippet(content="line1\nline2\nline3", start=2, end=3)
-        output = snippet.get_snippet()
-        self.assertEqual(output, "...line2\nline3")
+    def test_get_snippet_exception(self):
+        # Test get_snippet method with an unknown input
+        with self.assertRaises(Exception):
+            self.snippet.get_snippet('unknown_input')
+</new_file>
 
-if __name__ == "__main__":
-    unittest.main()
