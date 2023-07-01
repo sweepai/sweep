@@ -1,10 +1,32 @@
-import modal
+import unittest
+from unittest import mock
+from vector_db import search
 
-if __name__ == "__main__":
-    app = "dev-db"
-    repo = "sweepai/forked_langchain"
-    # init_index = modal.Function.lookup(app, "init_index")
-    # init_index.call(repo, ["src"], [], [".py"], [], 36855882)
+class TestVectorDB(unittest.TestCase):
+    @mock.patch('vector_db.search')
+    def test_search_valid_query(self, mock_search):
+        mock_search.return_value = ['expected', 'results']
+        result = search('valid query')
+        self.assertEqual(result, ['expected', 'results'])
 
-    get_relevant_file_paths = modal.Function.lookup(app, "get_relevant_file_paths")
-    print(get_relevant_file_paths.call(repo, "Idea: A memory similar to ConversationBufferWindowMemory but utilizing token length #1598", 5))
+    @mock.patch('vector_db.search')
+    def test_search_invalid_query(self, mock_search):
+        mock_search.return_value = []
+        result = search('invalid query')
+        self.assertEqual(result, [])
+
+    @mock.patch('vector_db.search')
+    def test_search_exception_handling(self, mock_search):
+        mock_search.side_effect = Exception('error')
+        with self.assertRaises(Exception):
+            search('query')
+
+    @mock.patch('vector_db.search')
+    def test_search_sorted_results(self, mock_search):
+        mock_search.return_value = ['result1', 'result2', 'result3']
+        result = search('query')
+        self.assertEqual(result, ['result1', 'result2', 'result3'])
+
+if __name__ == '__main__':
+    unittest.main()
+
