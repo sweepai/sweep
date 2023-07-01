@@ -79,6 +79,8 @@ def list_collection_names():
     gpu="T4",
     retries=modal.Retries(max_retries=5, backoff_coefficient=2, initial_delay=5),
 )
+import multiprocessing
+
 class Embedding:
     def __enter__(self):
         from sentence_transformers import SentenceTransformer
@@ -89,12 +91,23 @@ class Embedding:
 
     @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
+        # Split the list of texts into smaller chunks
+        num_cores = multiprocessing.cpu_count()
+        chunks = [texts[i::num_cores] for i in range(num_cores)]
+
+        # Create a pool of worker processes
+        with multiprocessing.Pool(num_cores) as pool:
+            # Process each chunk of texts in a separate process
+            results = pool.map(self.model.encode, chunks)
+
+        # Combine the results from each process into a single list of embeddings
+        embeddings = [embedding for result in results for embedding in result]
+
+        return embeddings.tolist()
 
     @method()
     def ping(self):
         return "pong"
-
 class ModalEmbeddingFunction():
     def __init__(self):
         pass
@@ -332,3 +345,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
+
