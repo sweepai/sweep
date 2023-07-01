@@ -99,6 +99,7 @@ class APIClient(BaseModel):
         snippets: list[Snippet] = [],
         model: str = "gpt-4-0613"
     ):
+        print(snippets)
         with httpx.Client(timeout=30) as client: # sometimes this step is slow
             with client.stream(
                 'POST', 

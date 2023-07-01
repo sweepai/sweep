@@ -209,7 +209,7 @@ def _asgi_app():
     
     class ChatRequest(BaseModel):
         messages: list[tuple[str | None, str | None]]
-        snippets: list[Snippet] = []
+        snippets: list[Snippet]
         config: SweepChatConfig
 
     @app.post("/chat")
