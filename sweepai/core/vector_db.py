@@ -179,23 +179,8 @@ def get_deeplake_vs_from_repo(
                 continue
 
         with open(file, "r") as f:
-            # Can parallelize this
             try:
                 contents = f.read()
-            except UnicodeDecodeError as e:
-                logger.warning(f"Received warning {e}, skipping...")
-                continue
-            file_path = file[len("repo/") :]
-            file_paths.append(file_path)
-            file_contents.append(contents)
-            try:
-                commits = list(repo.get_commits(path=file_path, sha=branch_name))
-                scores.append(compute_score(contents, commits))
-            except Exception as e:
-                logger.warning(f"Received warning {e}, skipping...")
-                scores.append(1)
-                continue
-                contents = f"Represent this code snippet from {file} for retrieval:\n" + contents
             except UnicodeDecodeError as e:
                 logger.warning(f"Received warning {e}, skipping...")
                 continue
@@ -284,23 +269,9 @@ def update_index(
     sweep_config: SweepConfig = SweepConfig(),
 ) -> int:
     pass
-
-
-@stub.function(image=image, secrets=secrets, shared_volumes={DEEPLAKE_DIR: model_volume}, timeout=timeout, keep_warm=1)
-def get_relevant_snippets(
-    repo_name: str,
-    query: str,
-    n_results: int,
-    installation_id: int,
-    username: str = None,
-    sweep_config: SweepConfig = SweepConfig(),
-):
-    deeplake_vs = get_deeplake_vs_from_repo(
-        repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
-    )
-    results = {"metadata": [], "text": []}
     for n_result in range(n_results, 0, -1):
         try:
+            query = "Represent this natural language query for code retrieval:\n" + query
             query_embedding = embedding_function([query])[0]
             results = deeplake_vs.search(embedding=query_embedding, k=n_result)
             break
@@ -343,5 +314,4 @@ def get_relevant_snippets(
             end=metadata["end"], 
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
-    ]
 
