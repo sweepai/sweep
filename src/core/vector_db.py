@@ -14,6 +14,7 @@ from modal import method
 from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from github import Github
 from git import Repo
+from concurrent.futures import ThreadPoolExecutor
 
 from src.core.entities import Snippet
 from src.utils.event_logger import posthog
@@ -23,7 +24,6 @@ from src.utils.scorer import compute_score
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
-import time
 
 # TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_NAME)
@@ -89,7 +89,17 @@ class Embedding:
 
     @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
+        def compute_embedding(text):
+            try:
+                return self.model.encode([text], batch_size=BATCH_SIZE)[0].tolist()
+            except Exception as e:
+                logger.error(f"Failed to generate embedding for text: {text}. Error: {e}")
+                return None
+
+        with ThreadPoolExecutor() as executor:
+            embeddings = list(executor.map(compute_embedding, texts))
+
+        return embeddings
 
     @method()
     def ping(self):
@@ -332,3 +342,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
+
