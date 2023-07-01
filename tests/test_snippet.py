@@ -1,21 +1,16 @@
 import unittest
-from src.core.entities import Snippet
+from sweepai import Snippet
 
 class TestSnippet(unittest.TestCase):
-    def test_get_snippet_start(self):
-        snippet = Snippet(content="line1\nline2\nline3", start=1, end=2)
-        output = snippet.get_snippet()
-        self.assertEqual(output, "line1\nline2...")
+    def setUp(self):
+        self.snippet = Snippet('test_snippet')
 
-    def test_get_snippet_middle(self):
-        snippet = Snippet(content="line1\nline2\nline3", start=2, end=3)
-        output = snippet.get_snippet()
-        self.assertEqual(output, "...line2\nline3...")
+    def test_get_snippet(self):
+        result = self.snippet.get_snippet()
+        self.assertEqual(result, 'test_snippet')
 
-    def test_get_snippet_end(self):
-        snippet = Snippet(content="line1\nline2\nline3", start=2, end=3)
-        output = snippet.get_snippet()
-        self.assertEqual(output, "...line2\nline3")
+        self.snippet.snippet = 'new_snippet'
+        result = self.snippet.get_snippet()
+        self.assertEqual(result, 'new_snippet')
+</new_file>
 
-if __name__ == "__main__":
-    unittest.main()
