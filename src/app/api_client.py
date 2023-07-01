@@ -29,14 +29,12 @@ class APIClient(BaseModel):
     config: SweepChatConfig
     api_endpoint = f"https://sweepai--{PREFIX}-ui.modal.run"
 
-    def get_installation_id(
-        self
-    ):
+    def get_installation_id(self):
         results = requests.post(
             self.api_endpoint + "/installation_id",
             json= self.config.dict(),
         )
-        if results.status_code != 401:
+        if results.status_code == 401:
             print("Installation ID not found! Please install sweep first.")
             webbrowser.open_new_tab("https://github.com/apps/sweep-ai")
             raise Exception(results.json()["detail"])
