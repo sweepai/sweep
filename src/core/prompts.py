@@ -267,12 +267,24 @@ Generate a new_file based on the given plan, ensuring that you:
 
 Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copied>0-25</copied>"). Make sure to use this exact format.
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copied>0-50</copied>".
+
+Example: New file:
+print("new file")
+</new_file>
+
+Example: Insert at end:
+<copied>0-100</copied>
+print("inserted at end")
+</new_file>
+
 Example: If you want to insert code after lines 50 and 75:
 <new_file>
 <copied>0-50</copied>
 def main():
      print("hello world")
-<copied>51-100</copied>
+<copied>51-75</copied>
+print("debug statement")
+<copied>76-100</copied>
 </new_file>
 """
 
