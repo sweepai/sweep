@@ -182,6 +182,19 @@ def get_deeplake_vs_from_repo(
             # Can parallelize this
             try:
                 contents = f.read()
+            except UnicodeDecodeError as e:
+                logger.warning(f"Received warning {e}, skipping...")
+                continue
+            file_path = file[len("repo/") :]
+            file_paths.append(file_path)
+            file_contents.append(contents)
+            try:
+                commits = list(repo.get_commits(path=file_path, sha=branch_name))
+                scores.append(compute_score(contents, commits))
+            except Exception as e:
+                logger.warning(f"Received warning {e}, skipping...")
+                scores.append(1)
+                continue
                 contents = f"Represent this code snippet from {file} for retrieval:\n" + contents
             except UnicodeDecodeError as e:
                 logger.warning(f"Received warning {e}, skipping...")
@@ -288,7 +301,6 @@ def get_relevant_snippets(
     results = {"metadata": [], "text": []}
     for n_result in range(n_results, 0, -1):
         try:
-            query = "Represent this natural language query for code retrieval:\n" + query
             query_embedding = embedding_function([query])[0]
             results = deeplake_vs.search(embedding=query_embedding, k=n_result)
             break
@@ -332,3 +344,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
+
