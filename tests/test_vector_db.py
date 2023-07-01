@@ -1,10 +1,20 @@
-import modal
+import unittest
+from unittest.mock import patch
+from sweep.vector_db import VectorDB
 
-if __name__ == "__main__":
-    app = "dev-db"
-    repo = "sweepai/forked_langchain"
-    # init_index = modal.Function.lookup(app, "init_index")
-    # init_index.call(repo, ["src"], [], [".py"], [], 36855882)
+class TestVectorDB(unittest.TestCase):
+    @patch('sweep.vector_db.VectorDB.query')
+    def test_search(self, mock_query):
+        mock_query.return_value = [{'id': 1, 'vector': [1, 2, 3]}]
+        db = VectorDB()
+        result = db.search([1, 2, 3])
+        self.assertEqual(result, [{'id': 1, 'vector': [1, 2, 3]}])
 
-    get_relevant_file_paths = modal.Function.lookup(app, "get_relevant_file_paths")
-    print(get_relevant_file_paths.call(repo, "Idea: A memory similar to ConversationBufferWindowMemory but utilizing token length #1598", 5))
+    @patch('sweep.vector_db.VectorDB.query')
+    def test_empty_query(self, mock_query):
+        mock_query.return_value = []
+        db = VectorDB()
+        with self.assertRaises(Exception):
+            db.search([1, 2, 3])
+</new_file>
+
