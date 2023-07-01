@@ -23,7 +23,6 @@ from src.utils.scorer import compute_score
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
-import time
 
 # TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_NAME)
@@ -86,7 +85,6 @@ class Embedding:
         self.model = SentenceTransformer(
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
         )
-
     @method()
     def compute(self, texts: list[str]):
         from concurrent.futures import ProcessPoolExecutor
@@ -95,7 +93,7 @@ class Embedding:
                 embeddings = list(executor.map(self.model.encode, texts, chunksize=BATCH_SIZE))
             except Exception as e:
                 logger.error(f"Error occurred during parallel processing: {e}")
-                embeddings = []
+                raise Exception(f"Error occurred during parallel processing: {e}")
         return embeddings.tolist()
 
     @method()
