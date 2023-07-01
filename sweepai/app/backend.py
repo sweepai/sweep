@@ -3,6 +3,7 @@ Proxy for the UI.
 """
 
 import json
+from typing import Any
 import fastapi
 from github import Github
 import modal
@@ -49,52 +50,6 @@ FUNCTION_SETTINGS = {
     "timeout": 15 * 60,
     "keep_warm": 1
 }
-
-functions = [
-    Function(
-        name="create_pr",
-        description="Creates a PR.",
-        parameters={
-            "properties": {
-                "plan": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "file_path": {
-                                "type": "string",
-                                "description": "The file path to change."
-                            },
-                            "instructions": {
-                                "type": "string",
-                                "description": "Concise NATURAL LANGUAGE summary of what to change in each file. There should be absolutely NO code.",
-                                "example":  [
-                                    "Refactor the algorithm by moving the main function to the top of the file.",
-                                    "Change the implementation to recursion"
-                                ]
-                            },
-                        },
-                        "required": ["file_path", "instructions"]
-                    },
-                    "description": "A list of files to modify or create and corresponding instructions."
-                },
-                "title": {
-                    "type": "string",
-                    "description": "Title of PR",
-                },
-                "summary": {
-                    "type": "string",
-                    "description": "Detailed summary of PR",
-                },
-                "branch": {
-                    "type": "string",
-                    "description": "Name of branch to create PR in.",
-                },
-            },
-            "required": ["plan", "title", "summary", "branch"]
-        }
-    ),
-]
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.asgi_app(label=PREFIX + "-ui")
@@ -175,7 +130,7 @@ def _asgi_app():
         system_message = gradio_system_message_prompt.format(
             snippets="\n".join([snippet.denotation + f"\n```{snippet.get_snippet()}```" for snippet in request.snippets]),
             repo_name=request.config.repo_full_name,
-            repo_description="Sweep is an AI junior developer"
+            repo_description=repo.description
         )
 
         def file_exists(file_path: str) -> bool:
@@ -211,6 +166,8 @@ def _asgi_app():
         messages: list[tuple[str | None, str | None]]
         snippets: list[Snippet]
         config: SweepChatConfig
+        functions: list[Function] = []
+        function_call: Any = "auto"
 
     @app.post("/chat")
     def chat(
@@ -234,8 +191,9 @@ def _asgi_app():
             repo_description="" # TODO: fill this
         )
         chatgpt = ChatGPT(messages=[Message(role="system", content=system_message, key="system")] + messages[:-1])
+        print(request)
         return StreamingResponse(
-            (json.dumps(chunk) for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=functions)),
+            (json.dumps(chunk) for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=request.functions, function_call=request.function_call)),
             media_type="text/event-stream"
         )
     return app
