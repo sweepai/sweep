@@ -3,6 +3,8 @@ Proxy for the UI.
 """
 
 import json
+import fastapi
+from github import Github
 import modal
 from loguru import logger
 from fastapi import FastAPI
@@ -10,12 +12,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import requests
 import httpx
+from src.app.config import Config
 
 from src.core.chat import ChatGPT
 from src.core.entities import FileChangeRequest, Function, Message, PullRequest, Snippet
 from src.core.sweep_bot import SweepBot
 from src.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, PREFIX
-from src.utils.github_utils import get_github_client
+from src.utils.github_utils import get_github_client, get_installation_id
 from src.core.prompts import gradio_system_message_prompt
 
 get_relevant_snippets = modal.Function.from_name(DB_NAME, "get_relevant_snippets")
@@ -33,6 +36,8 @@ image = (
         "highlight-io",
         "PyGithub",
         "GitPython",
+        "config-path",
+        "pyyaml",
     )
 )
 secrets = [
@@ -44,6 +49,7 @@ FUNCTION_SETTINGS = {
     "image": image,
     "secrets": secrets,
     "timeout": 15 * 60,
+    "keep_warm": 1
 }
 
 functions = [
@@ -63,7 +69,7 @@ functions = [
                             },
                             "instructions": {
                                 "type": "string",
-                                "description": "Detailed NATURAL LANGUAGE summary of what to change in each file. There should be absolutely NO code.",
+                                "description": "Concise NATURAL LANGUAGE summary of what to change in each file. There should be absolutely NO code.",
                                 "example":  [
                                     "Refactor the algorithm by moving the main function to the top of the file.",
                                     "Change the implementation to recursion"
@@ -97,24 +103,51 @@ functions = [
 def _asgi_app():
     app = FastAPI()
 
+    def verify_config(request: Config) -> bool:
+        try:
+            github_user_client = Github(request.github_pat)
+            repo = github_user_client.get_repo(request.repo_full_name)
+            assert repo
+        except Exception as e:
+            logger.warning(e)
+            raise fastapi.HTTPException(status_code=403, detail="You do not have access to this repo")
+        return True
+
+    @app.post("/installation_id")
+    def installation_id(request: Config) -> dict:
+        # first check if user has access to the repo
+        assert verify_config(request)
+
+        try:
+            organization, _repo_name = request.repo_full_name.split("/")
+            installation_id = get_installation_id(organization)
+            assert installation_id
+        except Exception as e:
+            logger.warning(e)
+            raise fastapi.HTTPException(status_code=403, detail="Sweep app is not installed on this repo. To install it, go to https://github.com/apps/sweep-ai")
+
+        return {"installation_id": installation_id}
+
     class SearchRequest(BaseModel):
-        repo_name: str
         query: str
+        config: Config
         n_results: int = 5
-        installation_id: int | None = None
 
     @app.post("/search")
     def search(request: SearchRequest) -> list[Snippet]:
         logger.info("Searching for snippets...")
         get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
+
+        assert verify_config(request.config)
+
         snippets: list[Snippet] = get_relevant_snippets.call(
-            request.repo_name,
+            request.config.repo_full_name,
             request.query,
             n_results=request.n_results,
-            installation_id=request.installation_id
+            installation_id=request.config.installation_id
         )
-        g = get_github_client(request.installation_id)
-        repo = g.get_repo(request.repo_name)
+        g = get_github_client(request.config.installation_id)
+        repo = g.get_repo(request.config.repo_full_name)
         for snippet in snippets:
             try:
                 snippet.content = repo.get_contents(snippet.file_path).decoded_content.decode("utf-8")
@@ -131,27 +164,26 @@ def _asgi_app():
         messages: list[tuple[str | None, str | None]]
         snippets: list[Snippet] = []
 
-        # Github stuff
-        repo_name: str
-        username: str
-        installation_id: int | None = None
+        config: Config
     
     @app.post("/create_pr")
     def create_pr(request: CreatePRRequest):
-        g = get_github_client(request.installation_id)
-        repo = g.get_repo(request.repo_name)
+        assert verify_config(request.config)
+
+        g = get_github_client(request.config.installation_id)
+        repo = g.get_repo(request.config.repo_full_name)
 
         create_pr_func = modal.Function.lookup(API_NAME, "create_pr")
         system_message = gradio_system_message_prompt.format(
             snippets="\n".join([snippet.denotation + f"\n```{snippet.get_snippet()}```" for snippet in request.snippets]),
-            repo_name=request.repo_name,
+            repo_name=request.config.repo_full_name,
             repo_description="Sweep is an AI junior developer"
         )
         results = create_pr_func.call(
             [FileChangeRequest(
                 filename = item[0],
                 instructions = item[1],
-                change_type =  "create", # TODO update this
+                change_type = "create", # TODO update this
             ) for item in request.file_change_requests],
             request.pull_request,
             SweepBot(
@@ -159,8 +191,8 @@ def _asgi_app():
                 messages = [Message(role="system", content=system_message, key="system")] +
                     [Message.from_tuple(message) for message in request.messages],
             ),
-            request.username,
-            installation_id = request.installation_id,
+            request.config.github_username,
+            installation_id = request.config.installation_id,
             issue_number = None,
         )
         generated_pull_request = results["pull_request"]
@@ -172,11 +204,14 @@ def _asgi_app():
     class ChatRequest(BaseModel):
         messages: list[tuple[str | None, str | None]]
         snippets: list[Snippet] = []
+        config: Config
 
     @app.post("/chat")
     def chat(
         request: ChatRequest,
     ) -> str:
+        assert verify_config(request.config)
+
         messages = [Message.from_tuple(message) for message in request.messages]
         chatgpt = ChatGPT(messages=messages[:-1])
         result = chatgpt.chat(messages[-1].content, model="gpt-4-0613")
@@ -184,11 +219,13 @@ def _asgi_app():
     
     @app.post("/chat_stream")
     def chat_stream(request: ChatRequest):
+        assert verify_config(request.config)
+
         messages = [Message.from_tuple(message) for message in request.messages]
         system_message = gradio_system_message_prompt.format(
             snippets="\n".join([snippet.denotation + f"\n```{snippet.get_snippet()}```" for snippet in request.snippets]),
-            repo_name="sweepai/sweep",
-            repo_description="Sweep is an AI junior developer"
+            repo_name=request.config.repo_full_name,
+            repo_description="" # TODO: fill this
         )
         chatgpt = ChatGPT(messages=[Message(role="system", content=system_message, key="system")] + messages[:-1])
         return StreamingResponse(
@@ -213,22 +250,32 @@ def break_json(raw_json: str):
                 pass
 
 class APIClient(BaseModel):
-    api_endpoint = f"https://sweepai--{PREFIX}-ui-dev.modal.run"
+    config: Config
+    api_endpoint = f"https://sweepai--{PREFIX}-ui.modal.run"
+
+    def get_installation_id(
+        self
+    ):
+        results = requests.post(
+            self.api_endpoint + "/installation_id",
+            json= self.config.dict(),
+        )
+        if results.status_code != 200:
+            raise Exception(results.json()["detail"])
+        obj = results.json()
+        return obj["installation_id"]
 
     def search(
         self,
-        repo_name: str,
         query: str,
         n_results: int = 5,
-        installation_id: int | None = None
     ):
         results = requests.post(
             self.api_endpoint + "/search",
             json={
-                "repo_name": repo_name,
                 "query": query,
                 "n_results": n_results,
-                "installation_id": installation_id,
+                "config": self.config.dict(),
             }
         )
         snippets = [Snippet(**item) for item in results.json()]
@@ -239,9 +286,6 @@ class APIClient(BaseModel):
         file_change_requests: list[tuple[str, str]],
         pull_request: PullRequest,
         messages: list[tuple[str | None, str | None]],
-        repo_name: str,
-        username: str | None = None,
-        installation_id: int | None = None,
     ):
         results = requests.post(
             self.api_endpoint + "/create_pr",
@@ -249,9 +293,7 @@ class APIClient(BaseModel):
                 "file_change_requests": file_change_requests,
                 "pull_request": pull_request,
                 "messages": messages,
-                "repo_name": repo_name,
-                "username": username,
-                "installation_id": installation_id,
+                "config": self.config.dict(),
             },
             timeout=10 * 60
         )
@@ -268,6 +310,7 @@ class APIClient(BaseModel):
             json={
                 "messages": messages,
                 "snippets": [snippet.dict() for snippet in snippets],
+                "config": self.config.dict()
             }
         )
         return results.json()
@@ -285,6 +328,7 @@ class APIClient(BaseModel):
                 json={
                     "messages": messages,
                     "snippets": [snippet.dict() for snippet in snippets],
+                    "config": self.config.dict()
                 }
             ) as response:
                 for delta_chunk in response.iter_text():

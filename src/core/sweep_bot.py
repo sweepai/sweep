@@ -94,7 +94,6 @@ class GithubBot(BaseModel):
             logger.error(path)
             raise e
 
-
     def get_file(self, file_path: str, branch: str = "") -> ContentFile:
         content = self.get_contents(file_path, branch)
         assert not isinstance(content, list)

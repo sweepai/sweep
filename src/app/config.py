@@ -9,7 +9,6 @@ from config_path import ConfigPath
 from pydantic import BaseModel
 import yaml
 
-# CONFIG_FILE = "sweep.yaml"
 CLIENT_ID = "Iv1.91fd31586a926a9f"
 
 DEVICE_CODE_ENDPOINT = "https://github.com/login/device/code"
@@ -22,7 +21,8 @@ CONFIG_FILE = config_path.saveFilePath()
 class Config(BaseModel):
     github_username: str
     github_pat: str # secret
-    latest_repo: str | None = None
+    repo_full_name: str | None = None
+    installation_id: int | None = None
     version: str = "0.0.1"
 
     @classmethod
@@ -85,6 +85,3 @@ class Config(BaseModel):
         with open(CONFIG_FILE, "r") as f:
             return cls(**yaml.load(f, Loader=yaml.FullLoader))
 
-if __name__ == "__main__":
-    Config.load(recreate=True)
-    # print(Config.load())
