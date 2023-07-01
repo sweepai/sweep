@@ -1,8 +1,11 @@
 [tool.poetry]
-name = "sweep"
+name = "sweepai"
 version = "0.1.0"
 description = "Sweep software chores"
-authors = ["Kevin Lu"]
+authors = ["Kevin Lu", "William Zeng", "Luke Jagg"]
+packages = [
+    { include = "src" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -37,6 +40,7 @@ slack-bolt = "^1.18.0"
 pymongo = "^4.4.0"
 gradio = "^3.35.2"
 config-path = "^1.0.3"
+build = "^0.10.0"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"
@@ -44,9 +48,8 @@ commit5 = "^0.1.1"
 jupyter = "^1.0.0"
 ipykernel = "^6.23.1"
 
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
-
 [mypy]
 check_untyped_defs = true
+
+[tool.poetry.scripts]
+sweepai = "src/app/sweep.py"

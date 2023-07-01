@@ -177,11 +177,19 @@ def _asgi_app():
             repo_name=request.config.repo_full_name,
             repo_description="Sweep is an AI junior developer"
         )
+
+        def file_exists(file_path: str) -> bool:
+            try:
+                repo.get_contents(file_path)
+                return True
+            except Exception:
+                return False
+
         results = create_pr_func.call(
             [FileChangeRequest(
                 filename = item[0],
                 instructions = item[1],
-                change_type = "create", # TODO update this
+                change_type = "modify" if file_exists(item[0]) else "create", # TODO update this
             ) for item in request.file_change_requests],
             request.pull_request,
             SweepBot(
