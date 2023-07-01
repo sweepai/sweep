@@ -22,18 +22,24 @@ For the best experience, [install Sweep](https://github.com/apps/sweep-ai) to on
 
 [Demo](https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47)
 
-## 🖥️ Installation
-The local server allows you to interact with Sweep locally, and will sync with GitHub. You can plan out your changes with Sweep, and then Sweep can create a pull request for you.
+## 🚀 Getting Started
 
-1. `poetry install`
-2. `pip install gradio config-path`
-3. Launch the app: `bash ./start.sh`
-4. Add [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
+### 🖥️ Sweep Chat
+Sweep Chat allows you to interact with Sweep locally and will sync with GitHub. You can plan out your changes with Sweep, and then Sweep can create a pull request for you. 
 
+1. Install [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
+
+2. Run `pip install sweepai && sweep`
+
+3. This should spin up a GitHub auth flow in your browser. Copy-paste the 🔵 blue 8-digit code from your terminal into the page. Then wait a few seconds and it should spin up Sweep Chat. You should only need to do the auth once.
+
+4. Pick a repo from the dropdown at the top (the Github app must be installed on this repo). Then start chatting with Sweep Chat. Relevant searched files will show up on the right. Sweep Chat can make PRs if you ask it to create a PR. 
 <img src=".assets/gradio-screenshot.png">
 
-## 🚀 Getting Started
-Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
+💡 You can force dark mode by going to http://127.0.0.1:7861/?__theme=dark.
+
+### ✨ Sweep Github App
+Set ting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
 
 1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
 2. Create new issue in repo, like "Sweep: Write tests"
@@ -44,13 +50,13 @@ For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
 
 ---
 
-## 📚 Story
+## 📘 Story
 
 We were frustrated by small tickets, like simple bug fixes, annoying refactors, and small features, each task requiring us to open our IDE to fix simple bugs. So, we decided to leverage the capabilities of ChatGPT to address this directly in GitHub.
 
 Unlike existing AI solutions, this can solve entire tickets and can be parallelized: developers can spin up 10 tickets and Sweep will address them all at once.
 
-## The Stack
+## 📚 The Stack
 - GPT-4 32k 0613 (default) / Claude v1.3 100k
 - ActiveLoop DeepLake for Vector DB with MiniLM L12 as our embeddings model
 - Modal Labs for infra + deployment

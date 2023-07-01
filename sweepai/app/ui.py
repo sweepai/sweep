@@ -3,6 +3,7 @@ from github import Github
 import gradio as gr
 from loguru import logger
 import modal
+import webbrowser
 
 from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import SweepChatConfig
@@ -53,6 +54,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
             config.save()
             return ""
         except Exception as e:
+            webbrowser.open_new_tab("https://github.com/apps/sweep-ai")
             config.repo_full_name = None
             config.installation_id = None
             config.save()
