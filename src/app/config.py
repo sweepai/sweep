@@ -33,6 +33,7 @@ class SweepChatConfig(BaseModel):
         print("\033[93m" + f"Paste the following code (copied to your clipboard) and click authorize:" + "\033[0m")
         print("\033[94m" + parsed_device_code_response["user_code"][0] + "\033[0m") # prints in blue
         print("\033[93m" + "Once you've authorized, ** just wait a few seconds **..." + "\033[0m") # prints in yellow
+        time.sleep(3)
         webbrowser.open_new_tab(USER_LOGIN_ENDPOINT)
         for _ in range(10):
             time.sleep(5.5)

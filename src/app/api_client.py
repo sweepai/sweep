@@ -1,3 +1,4 @@
+import webbrowser
 import httpx
 from pydantic import BaseModel
 import requests
@@ -5,7 +6,7 @@ import json
 from loguru import logger
 
 from src.app.config import SweepChatConfig
-from src.core.entities import Snippet
+from src.core.entities import PullRequest, Snippet
 from src.utils.constants import PREFIX
 
 def break_json(raw_json: str):
@@ -35,6 +36,10 @@ class APIClient(BaseModel):
             self.api_endpoint + "/installation_id",
             json= self.config.dict(),
         )
+        if results.status_code != 401:
+            print("Installation ID not found! Please install sweep first.")
+            webbrowser.open_new_tab("https://github.com/apps/sweep-ai")
+            raise Exception(results.json()["detail"])
         if results.status_code != 200:
             raise Exception(results.json()["detail"])
         obj = results.json()
