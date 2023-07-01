@@ -7,7 +7,7 @@ epilog = "Sweep is a AI junior developer. Docs at https://docs.sweep.dev, instal
 
 app = typer.Typer(epilog=epilog)
 
-@app.command()
+@app.callback(invoke_without_command=True)
 def start():
     """
     Launch Sweep Chat in the browser
