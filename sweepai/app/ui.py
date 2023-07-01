@@ -4,10 +4,10 @@ import gradio as gr
 from loguru import logger
 import modal
 
-from sweepai.app.api_client import APIClient
+from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Snippet
-from sweepai.utils.constants import DB_NAME
+from sweepai.utils.constants import DB_NAME, PREFIX
 
 get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
 config = SweepChatConfig.load()
@@ -25,7 +25,7 @@ Here is my plan:
 Reply with "ok" to create the PR or anything else to propose changes."""
 
 github_client = Github(config.github_pat)
-repos = github_client.get_user().get_repos()
+repos = list(github_client.get_user().get_repos())
 
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibility: hidden;}") as demo:
     repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
@@ -66,7 +66,9 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
             raise Exception("Set the repository name first")
         return gr.update(value="", interactive=False), history + [[user_message, None]]
 
-    def handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, repo_name):
+    def handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text):
+        message = chat_history[-1][0]
+
         snippets = []
         yield chat_history, snippets_text
         if snippets_text and snippets_text.strip().count("\n") == 0:
@@ -127,17 +129,26 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
                 assert "plan" in arguments
                 if "branch" not in arguments:
                     arguments["branch"] = arguments["title"].lower().replace(" ", "_").replace("-", "_")[:50]
-                chat_history[-1][1] = pr_summary_template.format(
-                    title=arguments["title"],
-                    summary=arguments["summary"],
-                    plan="\n".join([f"* `{item['file_path']}`: {item['instructions']}" for item in arguments["plan"]])
-                )
+                if len(chat_history) > 1 and "create pr" in message.lower():
+                    chat_history[-1][1] = pr_summary_template.format(
+                        title=arguments["title"],
+                        summary=arguments["summary"],
+                        plan="\n".join([f"* `{item['file_path']}`: {item['instructions']}" for item in arguments["plan"]]),
+                        functions=create_pr_function,
+                        function_call=create_pr_function_call
+                    )
+                else:
+                    chat_history[-1][1] = pr_summary_template.format(
+                        title=arguments["title"],
+                        summary=arguments["summary"],
+                        plan="\n".join([f"* `{item['file_path']}`: {item['instructions']}" for item in arguments["plan"]])
+                    )
                 yield chat_history, snippets_text
                 proposed_pr = arguments
             else:
                 raise NotImplementedError
 
-    response = msg.submit(handle_message_submit, [repo_full_name, msg, chatbot], [msg, chatbot], queue=False).then(handle_message_stream, [chatbot, snippets_text, repo_full_name], [chatbot, snippets_text])
+    response = msg.submit(handle_message_submit, [repo_full_name, msg, chatbot], [msg, chatbot], queue=False).then(handle_message_stream, [chatbot, snippets_text], [chatbot, snippets_text])
     response.then(lambda: gr.update(interactive=True), None, [msg], queue=False)
 
 
