@@ -378,7 +378,7 @@ class ChatGPT(BaseModel):
                 messages=self.messages_dicts,
                 temperature=temperature,
                 functions=[json.loads(function.json()) for function in functions],
-                function_call=function_call,
+                function_call=function_call or "auto",
                 stream=True
             )
             for data in stream:
