@@ -201,15 +201,30 @@ def on_ticket(
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message, repo=repo, is_reply=bool(comments)
     )
-    sweepbot_retries = 3
     try:
+        sweepbot_retries = 3
         for i in range(sweepbot_retries):
             logger.info("CoT retrieval...")
             if sweep_bot.model == "gpt-4-32k-0613":
                 sweep_bot.cot_retrieval()
             logger.info("Fetching files to modify/create...")
             file_change_requests = sweep_bot.get_files_to_change()
+
+            # Group file_change_requests by filename
+            file_change_requests_grouped = {}
             for file_change_request in file_change_requests:
+                if file_change_request.filename not in file_change_requests_grouped:
+                    file_change_requests_grouped[file_change_request.filename] = []
+                file_change_requests_grouped[file_change_request.filename].append(file_change_request)
+
+            # Process each group of file_change_requests
+            for filename, file_change_requests in file_change_requests_grouped.items():
+                # Fuse instructions of all file_change_requests for this file
+                instructions = "\n".join(file_change_request.instructions for file_change_request in file_change_requests)
+                
+                # Create a new file_change_request with the fused instructions
+                file_change_request = FileChangeRequest(filename=filename, instructions=instructions, change_type=file_change_requests[0].change_type)
+
                 try:
                     contents = repo.get_contents(file_change_request.filename)
                     if contents:
@@ -302,3 +317,4 @@ def on_ticket(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
     return {"success": True}
+
