@@ -170,9 +170,9 @@ class Snippet(BaseModel):
     def get_preview(self, max_lines: int = 5):
         snippet = "\n".join(self.content.splitlines()[self.start:min(self.start + max_lines, self.end)])
         if self.start > 1:
-            snippet = '...\n' + snippet
+            snippet = '\n' + snippet
         if self.end < self.content.count('\n') + 1 and self.end > max_lines:
-            snippet = snippet + '\n...'
+            snippet = snippet + '\n'
         return snippet
     
     @property
