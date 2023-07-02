@@ -7,7 +7,6 @@ import github
 from github import Github
 from github.Repository import Repository
 from loguru import logger
-from git import Repo
 
 from jwt import encode
 import requests
@@ -16,7 +15,6 @@ from sweepai.core.entities import Snippet
 from sweepai.utils.config import SweepConfig
 from sweepai.utils.constants import APP_ID, DB_NAME
 from sweepai.utils.event_logger import posthog
-
 
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"
@@ -130,6 +128,7 @@ def get_tree_and_file_list(
     installation_id: int, 
     snippet_paths: list[str]
 ) -> str:
+    from git import Repo
     token = get_token(installation_id)
     shutil.rmtree("repo", ignore_errors=True)
     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
@@ -250,25 +249,3 @@ def index_full_repository(
             "Adding label failed, probably because label already."
         )  # warn that the repo may already be indexed
     return num_indexed_docs
-
-def get_files_recursively(repo, path=''):
-    path_to_contents = {}
-    try:
-        contents = repo.get_contents(path)
-        files = []
-        while contents:
-            file_content = contents.pop(0)
-            if file_content.type == 'dir':
-                contents.extend(repo.get_contents(file_content.path))
-            else:
-                try:
-                    decoded_contents = file_content.decoded_content.decode("utf-8")
-                except:
-                    continue
-                if decoded_contents:
-                    path_to_contents[file_content.path] = file_content.decoded_content.decode("utf-8")
-                    files.append(file_content.path)
-        return sorted(files), path_to_contents
-    except Exception as e:
-        logger.error(e)
-        return [], path_to_contents
