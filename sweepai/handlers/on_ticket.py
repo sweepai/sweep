@@ -44,7 +44,6 @@ chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 
 num_of_snippets_to_query = 30
 max_num_of_snippets = 5
-
 def on_ticket(
     title: str,
     summary: str,
@@ -301,4 +300,4 @@ def on_ticket(
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
-    return {"success": True}
+
