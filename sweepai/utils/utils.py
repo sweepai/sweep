@@ -27,14 +27,10 @@ class Tiktoken:
 
     def __enter__(self):
         import tiktoken
-        from anthropic import get_tokenizer
         self.openai_models = {model: tiktoken.encoding_for_model(model) for model in Tiktoken.openai_models}
-        self.anthropic_tokenizer = get_tokenizer()
 
     @method()
     def count(self, text: str, model: str = "gpt-4"):
-        if model in Tiktoken.anthropic_models:
-            return len(self.anthropic_tokenizer.encode(text).ids)
         return len(self.openai_models[model].encode(text))
 
 chunking_image = modal.Image.debian_slim() \

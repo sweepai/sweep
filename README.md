@@ -41,7 +41,7 @@ Sweep Chat allows you to interact with Sweep locally and will sync with GitHub. 
 💡 You can force dark mode by going to http://127.0.0.1:7861/?__theme=dark.
 
 ### ✨ Sweep Github App
-Set ting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
+Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
 
 1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
 2. Create new issue in repo, like "Sweep: Write tests"
