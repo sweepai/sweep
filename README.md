@@ -40,6 +40,12 @@ Sweep Chat allows you to interact with Sweep locally and will sync with GitHub. 
 
 💡 You can force dark mode by going to http://127.0.0.1:7861/?__theme=dark.
 
+#### From Source
+If you want the nightly build and or if the latest build has issues.
+
+1. `git clone https://github.com/sweepai/sweep && poetry install`
+2. `python sweepai/app/cli.py`
+
 ### ✨ Sweep Github App
 Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
 
