@@ -175,6 +175,14 @@ class Snippet(BaseModel):
             snippet = snippet + '\n'
         return snippet
     
+    def expand(self, num_lines: int = 50):
+        return Snippet(
+            content=self.content,
+            start=max(self.start - num_lines, 1),
+            end=min(self.end + num_lines, self.content.count("\n") + 1),
+            file_path=self.file_path
+        )
+
     @property
     def denotation(self):
         return f"{self.file_path}:{self.start}-{self.end}"

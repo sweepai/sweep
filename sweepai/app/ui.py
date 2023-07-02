@@ -33,6 +33,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
     repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
     repo = github_client.get_repo(config.repo_full_name)
     file_names = gr.Dropdown(choices=get_files_recursively(repo), label="Files", value="")
+    remove_files = gr.Button(value="remove_files")
     with gr.Row():
         with gr.Column(scale=2):
             chatbot = gr.Chatbot(height=650)
@@ -66,18 +67,32 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
 
     repo_full_name.change(repo_name_change, [repo_full_name], [msg])
 
+    def append_selected_files(file_name):
+        global selected_files
+        file_contents = repo.get_contents(file_name).decoded_content.decode("utf-8")
+        file_contents_split = file_contents.split("\n")
+        length = len(file_contents_split)
+        backtick, escaped_backtick = "`", "\\`"
+        preview = "\n".join(file_contents_split[:3]).replace(backtick, escaped_backtick)
+        selected_files.append(f'{file_name}:0:{length}\n```python\n{preview}\n...\n```')
+        snippets_text = "### Relevant snippets:\n" + "\n\n".join(selected_files)
+        return snippets_text
+
     def file_names_change(file_name, snippets_text):
         global selected_files
         if file_name not in selected_files and file_name:
-            logger.info(f"File name: {file_name}")
-            logger.info(f"Contents: {repo.get_contents(file_name)}")
-            file_contents = repo.get_contents(file_name).decoded_content.decode("utf-8")
-            length = len(file_contents.split("\n"))
-            selected_files.append(f'{file_name}:0:{length}\n```python\n{file_contents}\n```')
-            snippets_text = "### Relevant snippets:\n" + "\n\n".join(selected_files)
+            snippets_text = append_selected_files(file_name)
         return "", snippets_text
     
     file_names.change(file_names_change, [file_names, snippets_text], [file_names, snippets_text])
+
+    def remove_file():
+        global selected_files
+        if len(selected_files) > 0:
+            selected_files.pop()
+        return "### Relevant snippets:\n" + "\n\n".join(selected_files)
+
+    remove_files.click(remove_file, outputs=[snippets_text])
     
     def handle_message_submit(repo_full_name: str, user_message: str, history: list[tuple[str | None, str | None]]):
         if not repo_full_name:
@@ -93,7 +108,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
             chat_history[-1][1] = "Searching for relevant snippets..."
             yield chat_history, snippets_text
             logger.info("Fetching relevant snippets...")
-            snippets = api_client.search(chat_history[-1][0], 5)
+            snippets = api_client.search(chat_history[-1][0], 3)
             logger.info("Fetched relevant snippets.")
             chat_history[-1][1] = "Found relevant snippets."
             

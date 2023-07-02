@@ -18,7 +18,7 @@ from git import Repo
 from sweepai.core.entities import Snippet
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
-from sweepai.utils.scorer import compute_score
+from sweepai.utils.scorer import compute_score, convert_to_percentiles
 
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
@@ -36,6 +36,7 @@ DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 256
 SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-MiniLM-L12-v2"
 timeout = 60 * 30 # 30 minutes
+CACHE_VERSION = "v1.0.0"
 
 image = (
     modal.Image.debian_slim()
@@ -124,7 +125,7 @@ def get_deeplake_vs_from_repo(
         logger.info(f"Failed to get cache for {repo_name}")
     if cache_success:
         try:
-            github_cache_key = f"github-{commit_hash}"
+            github_cache_key = f"github-{commit_hash}{CACHE_VERSION}"
             deeplake_items = json.loads(cache.get(github_cache_key))
             if deeplake_items:
                 deeplake_vs = init_deeplake_vs(repo_name)
@@ -182,7 +183,7 @@ def get_deeplake_vs_from_repo(
             # Can parallelize this
             try:
                 contents = f.read()
-                contents = f"Represent this code snippet from {file} for retrieval:\n" + contents
+                contents = file + contents
             except UnicodeDecodeError as e:
                 logger.warning(f"Received warning {e}, skipping...")
                 continue
@@ -191,11 +192,13 @@ def get_deeplake_vs_from_repo(
             file_contents.append(contents)
             try:
                 commits = list(repo.get_commits(path=file_path, sha=branch_name))
-                scores.append(compute_score(contents, commits))
+                score, logit = compute_score(contents, commits)
+                scores.append(score)
             except Exception as e:
                 logger.warning(f"Received warning {e}, skipping...")
                 scores.append(1)
                 continue
+    scores = convert_to_percentiles(scores)
         
     chunked_results = chunker.map(file_contents, file_paths, scores, kwargs={
         "additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}
@@ -227,7 +230,7 @@ def compute_deeplake_vs(collection_name,
         # Check cache here for all documents
         embeddings = [None] * len(documents)
         if cache_success:
-            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + sha for doc in documents]
+            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + sha + CACHE_VERSION for doc in documents]
             cache_values = cache.mget(cache_keys)
             for idx, value in enumerate(cache_values):
                 if value is not None:
@@ -245,10 +248,10 @@ def compute_deeplake_vs(collection_name,
             embedding = embeddings,
             metadata = metadatas
         )
-        if cache_success: cache.set(f"github-{sha}", json.dumps({"metadatas": metadatas, "ids": ids, "embeddings": embeddings}))
+        if cache_success: cache.set(f"github-{sha}{CACHE_VERSION}", json.dumps({"metadatas": metadatas, "ids": ids, "embeddings": embeddings}))
         if cache_success and len(documents_to_compute) > 0:
             logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
-            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + sha for doc in documents_to_compute]
+            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + sha + CACHE_VERSION for doc in documents_to_compute]
             cache.mset({key: json.dumps(value) for key, value in zip(cache_keys, computed_embeddings)})
         return deeplake_vs
     else:
@@ -283,7 +286,6 @@ def get_relevant_snippets(
     results = {"metadata": [], "text": []}
     for n_result in range(n_results, 0, -1):
         try:
-            query = "Represent this natural language query for code retrieval:\n" + query
             query_embedding = embedding_function([query])[0]
             results = deeplake_vs.search(embedding=query_embedding, k=n_result)
             break
@@ -305,7 +307,6 @@ def get_relevant_snippets(
         )
     metadatas = results["metadata"]
     code_scores = [metadata["score"] for metadata in metadatas]
-    code_scores = [score / (max(code_scores) + 1e-3) for score in code_scores]
     vector_scores = results["score"]
     combined_scores = [code_score + vector_score for code_score, vector_score in zip(code_scores, vector_scores)]
     # Sort by combined scores
