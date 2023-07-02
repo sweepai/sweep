@@ -26,7 +26,7 @@ create_pr_function = Function(
                         },
                         "instructions": {
                             "type": "string",
-                            "description": "Concise NATURAL LANGUAGE summary of what to change in each file. There should be absolutely NO code.",
+                            "description": "Concise NATURAL LANGUAGE summary of what to change in each file. There should be absolutely NO code, only English.",
                             "example":  [
                                 "Refactor the algorithm by moving the main function to the top of the file.",
                                 "Change the implementation to recursion"
