@@ -3,7 +3,6 @@ from github import Github
 import gradio as gr
 from loguru import logger
 import webbrowser
-
 from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Snippet
@@ -12,7 +11,7 @@ config = SweepChatConfig.load()
 
 api_client = APIClient(config=config)
 
-pr_summary_template = """💡 I'll create the following PR:
+pr_summary_template = '''💡 I'll create the following PR:
 
 **{title}**
 {summary}
@@ -20,12 +19,12 @@ pr_summary_template = """💡 I'll create the following PR:
 Here is my plan:
 {plan}
 
-Reply with "ok" to create the PR or anything else to propose changes."""
+Reply with "ok" to create the PR or anything else to propose changes.'''
 
 github_client = Github(config.github_pat)
 repos = list(github_client.get_user().get_repos())
 
-css = """
+css = '''
 footer {
     visibility: hidden;
 }
@@ -37,7 +36,7 @@ pre, code {
     height: 750px;
     overflow-y: scroll;
 }
-"""
+'''
 
 def get_files_recursively(repo, path=''):
     path_to_contents = {}
@@ -64,6 +63,7 @@ def get_files_recursively(repo, path=''):
 path_to_contents = {}
 def get_files(name):
     global path_to_contents
+    global repo
     if name is None:
         all_files = []
     else:
@@ -72,12 +72,13 @@ def get_files(name):
     return all_files
 
 def get_files_update(*args):
-    repo = None
+    global repo
     if len(args) > 0:
         repo = args[0]
     else:
         repo = config.repo_full_name
     return gr.Dropdown.update(choices=get_files(repo))
+
 
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
     with gr.Row():
