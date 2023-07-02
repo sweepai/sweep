@@ -215,6 +215,7 @@ def search_snippets(
                         file_path=file_path,
                     )
                 )
+    snippets = [snippet.expand() for snippet in snippets]
     if include_tree:
         return snippets, tree
     else:
