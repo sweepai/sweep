@@ -1,3 +1,4 @@
+
 <p align="center">
     <img src=".assets/sweep-banner-github.png">
 </p>
@@ -53,7 +54,8 @@ Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating 
 2. Create new issue in repo, like "Sweep: Write tests"
 3. "👀" means it is taking a look, and it will generate the desired code
 4. "🚀" means the bot has finished its job and created a PR
-
+### 🤖 GitHub Actions
+We use GitHub Actions to automate certain tasks such as running tests or deploying the application. This helps us ensure the quality and reliability of our code. You can view our workflow file [here](.github/workflows/main.yml).
 For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
 
 ---
@@ -96,3 +98,4 @@ We're currently working on responding to linters and external search. For more, 
 <p align="center">
     and, of course, Sweep!
 </p>
+
