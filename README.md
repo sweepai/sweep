@@ -1,4 +1,3 @@
-
 <p align="center">
     <img src=".assets/sweep-banner-github.png">
 </p>
@@ -56,11 +55,6 @@ Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating 
 4. "🚀" means the bot has finished its job and created a PR
 
 For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
-## 🚀 Github Actions
-
-Github Actions is a CI/CD system built into Github. In this project, we use Github Actions to automatically run tests whenever code is pushed to the repository.
-
-The workflow for this is defined in `.github/workflows/main.yml`. When code is pushed, the workflow checks out the code, sets up Python, installs the necessary dependencies, and runs the tests.
 
 ---
 
@@ -102,4 +96,3 @@ We're currently working on responding to linters and external search. For more, 
 <p align="center">
     and, of course, Sweep!
 </p>
-
