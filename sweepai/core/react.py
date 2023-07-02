@@ -1,12 +1,12 @@
+import os
+import re
+from typing import Callable
+from pydantic import BaseModel
+from github import Github
+
 """
 Utils for react agent
 """
-
-import re
-from textwrap import dedent
-from typing import Callable, Concatenate
-
-from pydantic import BaseModel
 
 REACT_INITIAL_PROMPT = """
 Gather information to solve the above problem using the tools below. 
@@ -113,4 +113,15 @@ class Toolbox(BaseModel):
         # parsed_results = Toolbox.ParsedResults.parse(raw_output)
         tool = next((tool for tool in self.tools if tool._name == parsed_results.tool_name), None)
         return tool(parsed_results.inputs)
+
+def react_to_comment(comment_id: str):
+    """
+    Add an "eyes" reaction to a comment using the Github API.
+
+    Args:
+        comment_id: The id of the comment to react to.
+    """
+    g = Github(os.getenv("GITHUB_TOKEN"))
+    comment = g.get_repo().get_issue_comment(comment_id)
+    comment.create_reaction('eyes')
 
