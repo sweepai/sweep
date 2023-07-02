@@ -21,7 +21,7 @@ from sweepai.utils.constants import PREFIX
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
-
+from sweepai.core.react import react_to_comment
 
 def on_comment(
     repo_full_name: str,
@@ -32,11 +32,17 @@ def on_comment(
     username: str,
     installation_id: int,
     pr_number: int = None,
+    comment_id: str,
 ):
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
         return {"success": True, "message": "File has been reverted to the previous commit."}
+
+    # Check if the comment has been addressed
+    addressed_keywords = ["addressed", "resolved", "fixed"]
+    if any(keyword in comment.lower() for keyword in addressed_keywords):
+        react_to_comment(comment_id)
 
     # Flow:
     # 1. Get relevant files
