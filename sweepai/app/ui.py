@@ -31,7 +31,8 @@ repos = github_client.get_user().get_repos()
 
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibility: hidden;}") as demo:
     repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
-    file_names = gr.Dropdown(choices=get_files_recursively(github_client.get_repo(config.repo_full_name)), label="Files", value="")
+    repo = github_client.get_repo(config.repo_full_name)
+    file_names = gr.Dropdown(choices=get_files_recursively(repo), label="Files", value="")
     with gr.Row():
         with gr.Column(scale=2):
             chatbot = gr.Chatbot(height=650)
@@ -65,14 +66,18 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
 
     repo_full_name.change(repo_name_change, [repo_full_name], [msg])
 
-    def file_names_change(file_names):
+    def file_names_change(file_name, snippets_text):
         global selected_files
-        if file_names not in selected_files:
-            selected_files.append(file_names)
-            print(selected_files)
-        return ""
+        if file_name not in selected_files and file_name:
+            logger.info(f"File name: {file_name}")
+            logger.info(f"Contents: {repo.get_contents(file_name)}")
+            file_contents = repo.get_contents(file_name).decoded_content.decode("utf-8")
+            length = len(file_contents.split("\n"))
+            selected_files.append(f'{file_name}:0:{length}\n```python\n{file_contents}\n```')
+            snippets_text = "### Relevant snippets:\n" + "\n\n".join(selected_files)
+        return "", snippets_text
     
-    file_names.change(file_names_change, [file_names], [msg])
+    file_names.change(file_names_change, [file_names, snippets_text], [file_names, snippets_text])
     
     def handle_message_submit(repo_full_name: str, user_message: str, history: list[tuple[str | None, str | None]]):
         if not repo_full_name:
@@ -80,6 +85,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
         return gr.update(value="", interactive=False), history + [[user_message, None]]
 
     def handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, repo_name):
+        global selected_files
         snippets = []
         yield chat_history, snippets_text
         if snippets_text and snippets_text.strip().count("\n") == 0:
@@ -93,7 +99,9 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
             
             backtick, escaped_backtick = "`", "\\`"
             # Update using chat_history
-            snippets_text = "### Relevant snippets:\n" + "\n".join([f"{snippet.denotation}\n```python\n{snippet.get_preview(5).replace(backtick, escaped_backtick)}\n```" for snippet in snippets])
+            files_snippets_text = []
+            snippets_text = "### Relevant snippets:\n" + "\n".join([f"{snippet.denotation}\n```python\n{snippet.get_preview(5).replace(backtick, escaped_backtick)}\n```" for snippet in snippets]
+                                                                   + files_snippets_text)
             yield chat_history, snippets_text
         
         global proposed_pr
