@@ -380,6 +380,11 @@ class ChatGPT(BaseModel):
                 functions=[json.loads(function.json()) for function in functions],
                 function_call=function_call or "auto",
                 stream=True
+            ) if functions else openai.ChatCompletion.create(
+                model=model,
+                messages=self.messages_dicts,
+                temperature=temperature,
+                stream=True
             )
             for data in stream:
                 chunk = data.choices[0].delta

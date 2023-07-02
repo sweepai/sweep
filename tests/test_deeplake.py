@@ -17,7 +17,7 @@ s = time.time()
 res = get_relevant_snippets.call(
     repo_name="sweepai/sweep",
     installation_id=36855882,
-    query = "Sweep: allow vector db to take multiple queries",
+    query = "Sweep: Add a new ui block to gradio",
     n_results = 30,
     )
 print(res)
