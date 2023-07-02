@@ -1,5 +1,4 @@
 import typer
-from rich import print
 
 from sweepai.app.config import SweepChatConfig
 
@@ -23,7 +22,7 @@ def auth():
     Reauthenticate with Github API for Sweep to work (for token expiry)
     """
     SweepChatConfig.load(recreate=True)
-    print("[green]Setup completed successfully![/green]")
+    print("Setup completed successfully!")
 
 if __name__ == "__main__":
     app()
