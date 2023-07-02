@@ -176,11 +176,19 @@ class Snippet(BaseModel):
     def get_preview(self, max_lines: int = 5):
         snippet = "\n".join(self.content.splitlines()[self.start:min(self.start + max_lines, self.end)])
         if self.start > 1:
-            snippet = '...\n' + snippet
+            snippet = '\n' + snippet
         if self.end < self.content.count('\n') + 1 and self.end > max_lines:
-            snippet = snippet + '\n...'
+            snippet = snippet + '\n'
         return snippet
     
+    def expand(self, num_lines: int = 50):
+        return Snippet(
+            content=self.content,
+            start=max(self.start - num_lines, 1),
+            end=min(self.end + num_lines, self.content.count("\n") + 1),
+            file_path=self.file_path
+        )
+
     @property
     def denotation(self):
         return f"{self.file_path}:{self.start}-{self.end}"
