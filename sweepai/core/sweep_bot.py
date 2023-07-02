@@ -30,9 +30,8 @@ from sweepai.utils.diff import format_contents, generate_diff, generate_new_file
 
 
 class CodeGenBot(ChatGPT):
-
     def get_files_to_change(self):
-        file_change_requests: list[FileChangeRequest] = []
+        file_change_requests_dict = {}
         for count in range(5):
             try:
                 logger.info(f"Generating for the {count}th time...")
@@ -50,17 +49,21 @@ class CodeGenBot(ChatGPT):
                         continue
                     logger.debug(file_change_request)
                     logger.debug(change_type)
-                    file_change_requests.append(
-                        FileChangeRequest.from_string(
-                            file_change_request, change_type=change_type
-                        )
-                    )
-                if file_change_requests:
-                    return file_change_requests
+                    filename, instructions = file_change_request.split(":")
+                    if filename in file_change_requests_dict:
+                        file_change_requests_dict[filename] += " " + instructions
+                    else:
+                        file_change_requests_dict[filename] = instructions
             except RegexMatchError:
                 logger.warning("Failed to parse! Retrying...")
                 self.delete_messages_from_chat("files_to_change")
                 continue
+        file_change_requests = [
+            FileChangeRequest(filename=filename, instructions=instructions)
+            for filename, instructions in file_change_requests_dict.items()
+        ]
+        if file_change_requests:
+            return file_change_requests
         raise Exception("Could not generate files to change")
 
     def generate_pull_request(self):
@@ -359,3 +362,4 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
             else:
                 raise Exception("Invalid change type")
+
