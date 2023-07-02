@@ -286,7 +286,6 @@ class SweepBot(CodeGenBot, GithubBot):
             return self.create_file(file_change_request)
         else:
             raise Exception("Not a valid file type")
-
     def change_files_in_github(
         self,
         file_change_requests: list[FileChangeRequest],
@@ -294,7 +293,22 @@ class SweepBot(CodeGenBot, GithubBot):
     ):
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
+        
+        # Group file_change_requests by filename
+        file_change_requests_grouped = {}
         for file_change_request in file_change_requests:
+            if file_change_request.filename not in file_change_requests_grouped:
+                file_change_requests_grouped[file_change_request.filename] = []
+            file_change_requests_grouped[file_change_request.filename].append(file_change_request)
+
+        # Process each group of file_change_requests
+        for filename, file_change_requests in file_change_requests_grouped.items():
+            # Fuse instructions of all file_change_requests for this file
+            instructions = "\n".join(file_change_request.instructions for file_change_request in file_change_requests)
+            
+            # Create a new file_change_request with the fused instructions
+            file_change_request = FileChangeRequest(filename=filename, instructions=instructions, change_type=file_change_requests[0].change_type)
+            
             file_markdown = is_markdown(file_change_request.filename)
             if file_change_request.change_type == "create":
                 try: # Try to create
@@ -359,3 +373,4 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
             else:
                 raise Exception("Invalid change type")
+
