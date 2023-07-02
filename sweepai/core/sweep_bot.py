@@ -300,8 +300,9 @@ class SweepBot(CodeGenBot, GithubBot):
             if file_change_request.filename not in file_change_requests_grouped:
                 file_change_requests_grouped[file_change_request.filename] = []
             file_change_requests_grouped[file_change_request.filename].append(file_change_request)
-
+        
         # Process each group of file_change_requests
+        consolidated_file_change_requests = []
         for filename, file_change_requests in file_change_requests_grouped.items():
             # Fuse instructions of all file_change_requests for this file
             instructions = "\n".join(file_change_request.instructions for file_change_request in file_change_requests)
@@ -309,6 +310,13 @@ class SweepBot(CodeGenBot, GithubBot):
             # Create a new file_change_request with the fused instructions
             file_change_request = FileChangeRequest(filename=filename, instructions=instructions, change_type=file_change_requests[0].change_type)
             
+            # Add the consolidated file change request to the new list
+            consolidated_file_change_requests.append(file_change_request)
+        
+        # Override the original file_change_requests with the consolidated requests
+        file_change_requests = consolidated_file_change_requests
+
+        for file_change_request in file_change_requests:
             file_markdown = is_markdown(file_change_request.filename)
             if file_change_request.change_type == "create":
                 try: # Try to create
