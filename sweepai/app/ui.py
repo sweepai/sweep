@@ -32,6 +32,10 @@ footer {
 pre, code {
     white-space: pre-wrap !important;
 }
+#snippets {
+    max-height: 750px;
+    overflow-y: scroll;
+}
 """
 
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
@@ -40,7 +44,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         with gr.Column(scale=2):
             chatbot = gr.Chatbot(height=650)
         with gr.Column():
-            snippets_text = gr.Markdown(value="### Relevant snippets")
+            snippets_text = gr.Markdown(value="### Relevant snippets", elem_id="snippets")
     msg = gr.Textbox(label="Message to Sweep", placeholder="Write unit tests for OpenAI calls")
     clear = gr.ClearButton([msg, chatbot, snippets_text])
 
