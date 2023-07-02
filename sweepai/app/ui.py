@@ -7,8 +7,6 @@ import webbrowser
 from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Snippet
-from sweepai.utils.constants import DB_NAME
-from sweepai.utils.github_utils import get_files_recursively
 
 config = SweepChatConfig.load()
 
@@ -40,6 +38,28 @@ pre, code {
     overflow-y: scroll;
 }
 """
+
+def get_files_recursively(repo, path=''):
+    path_to_contents = {}
+    try:
+        contents = repo.get_contents(path)
+        files = []
+        while contents:
+            file_content = contents.pop(0)
+            if file_content.type == 'dir':
+                contents.extend(repo.get_contents(file_content.path))
+            else:
+                try:
+                    decoded_contents = file_content.decoded_content.decode("utf-8")
+                except:
+                    continue
+                if decoded_contents:
+                    path_to_contents[file_content.path] = file_content.decoded_content.decode("utf-8")
+                    files.append(file_content.path)
+        return sorted(files), path_to_contents
+    except Exception as e:
+        logger.error(e)
+        return [], path_to_contents
 
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
     with gr.Row():
