@@ -154,7 +154,7 @@ class APIClient(BaseModel):
                 json={
                     "messages": messages,
                     "snippets": [snippet.dict() for snippet in snippets],
-                    "functions": functions,
+                    "functions": [func.dict() for func in functions],
                     "function_call": function_call,
                     "config": self.config.dict()
                 }
