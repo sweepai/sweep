@@ -251,6 +251,7 @@ def index_full_repository(
     return num_indexed_docs
 
 def get_files_recursively(repo, path=''):
+    path_to_contents = {}
     try:
         contents = repo.get_contents(path)
         files = []
@@ -259,8 +260,14 @@ def get_files_recursively(repo, path=''):
             if file_content.type == 'dir':
                 contents.extend(repo.get_contents(file_content.path))
             else:
-                files.append(file_content.path)
-        return files
+                try:
+                    decoded_contents = file_content.decoded_content.decode("utf-8")
+                except:
+                    continue
+                if decoded_contents:
+                    path_to_contents[file_content.path] = file_content.decoded_content.decode("utf-8")
+                    files.append(file_content.path)
+        return sorted(files), path_to_contents
     except Exception as e:
         logger.error(e)
-        return []
+        return [], path_to_contents
