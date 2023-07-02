@@ -116,7 +116,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
             logger.info("Fetching relevant snippets...")
             selected_snippets += api_client.search(chat_history[-1][0], 3)
             snippets_text = build_string()
-            yield chat_history, snippets_text, file_names
+            yield chat_history, snippets_text, [snippet.file_path for snippet in selected_snippets]
             logger.info("Fetched relevant snippets.")
             chat_history[-1][1] = "Found relevant snippets."
             # Update using chat_history
