@@ -69,6 +69,12 @@ class FileChangeRequest(RegexMatchableBaseModel):
     change_type: Literal["modify"] | Literal["create"]
     _regex = r"""^ *`?(?P<filename>\S*)`?:(?P<instructions>.*)"""
 
+    @classmethod
+    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
+        result = super().from_string(string, **kwargs)
+        result.filename = result.filename.strip('`')
+        return result
+
 
 class FileChange(RegexMatchableBaseModel):
     commit_message: str
