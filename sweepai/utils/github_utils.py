@@ -7,7 +7,6 @@ import github
 from github import Github
 from github.Repository import Repository
 from loguru import logger
-from git import Repo
 
 from jwt import encode
 import requests
@@ -15,7 +14,6 @@ from tqdm import tqdm
 from sweepai.core.entities import Snippet
 from sweepai.utils.config import SweepConfig
 from sweepai.utils.constants import APP_ID, DB_NAME
-from sweepai.utils.event_logger import posthog
 
 
 def make_valid_string(string: str):
@@ -130,6 +128,7 @@ def get_tree_and_file_list(
     installation_id: int, 
     snippet_paths: list[str]
 ) -> str:
+    from git import Repo
     token = get_token(installation_id)
     shutil.rmtree("repo", ignore_errors=True)
     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
@@ -245,6 +244,7 @@ def index_full_repository(
                 description="Assigns Sweep to an issue or pull request.",
             )
     except Exception as e:
+        from sweepai.utils.event_logger import posthog
         posthog("index_full_repository", "failed", {"error": str(e)})
         logger.warning(
             "Adding label failed, probably because label already."
