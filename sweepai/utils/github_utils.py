@@ -14,7 +14,7 @@ from tqdm import tqdm
 from sweepai.core.entities import Snippet
 from sweepai.utils.config import SweepConfig
 from sweepai.utils.constants import APP_ID, DB_NAME
-
+from sweepai.utils.event_logger import posthog
 
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"
@@ -244,31 +244,8 @@ def index_full_repository(
                 description="Assigns Sweep to an issue or pull request.",
             )
     except Exception as e:
-        from sweepai.utils.event_logger import posthog
         posthog("index_full_repository", "failed", {"error": str(e)})
         logger.warning(
             "Adding label failed, probably because label already."
         )  # warn that the repo may already be indexed
     return num_indexed_docs
-
-def get_files_recursively(repo, path=''):
-    path_to_contents = {}
-    try:
-        contents = repo.get_contents(path)
-        files = []
-        while contents:
-            file_content = contents.pop(0)
-            if file_content.type == 'dir':
-                contents.extend(repo.get_contents(file_content.path))
-            else:
-                try:
-                    decoded_contents = file_content.decoded_content.decode("utf-8")
-                except:
-                    continue
-                if decoded_contents:
-                    path_to_contents[file_content.path] = file_content.decoded_content.decode("utf-8")
-                    files.append(file_content.path)
-        return sorted(files), path_to_contents
-    except Exception as e:
-        logger.error(e)
-        return [], path_to_contents
