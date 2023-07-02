@@ -22,6 +22,12 @@ from sweepai.utils.constants import PREFIX
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
+def is_comment_addressed(comment: str) -> bool:
+    addressed_keywords = ["addressed", "resolved", "fixed"]
+    return any(keyword in comment.lower() for keyword in addressed_keywords)
+
+def react_to_comment(g, comment_id):
+    g.get_repo().get_issue_comment(comment_id).create_reaction('eyes')
 
 def on_comment(
     repo_full_name: str,
@@ -37,6 +43,9 @@ def on_comment(
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
         return {"success": True, "message": "File has been reverted to the previous commit."}
+    
+    if is_comment_addressed(comment):
+        react_to_comment(g, comment.id)
 
     # Flow:
     # 1. Get relevant files
