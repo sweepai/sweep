@@ -208,28 +208,31 @@ def on_ticket(
             if sweep_bot.model == "gpt-4-32k-0613":
                 sweep_bot.cot_retrieval()
             logger.info("Fetching files to modify/create...")
-            file_change_requests = sweep_bot.get_files_to_change()
             # Group file_change_requests by filename
-            file_change_requests_grouped = {}
-            for file_change_request in file_change_requests:
-                if file_change_request.filename not in file_change_requests_grouped:
-                    file_change_requests_grouped[file_change_request.filename] = []
-                file_change_requests_grouped[file_change_request.filename].append(file_change_request)
+            file_change_requests = {
+                filename: [
+                    FileChangeRequest(
+                        filename=filename,
+                        instructions="\n".join(request.instructions for request in requests),
+                        change_type=requests[0].change_type
+                    )
+                ]
+                for filename, requests in itertools.groupby(
+                    sorted(file_change_requests, key=lambda request: request.filename),
+                    key=lambda request: request.filename
+                )
+            }
 
-            # Process each group of file_change_requests
-            consolidated_file_change_requests = []
-            for filename, file_change_requests in file_change_requests_grouped.items():
-                # Fuse instructions of all file_change_requests for this file
-                instructions = "\n".join(file_change_request.instructions for file_change_request in file_change_requests)
-                
-                # Create a new file_change_request with the fused instructions
-                file_change_request = FileChangeRequest(filename=filename, instructions=instructions, change_type=file_change_requests[0].change_type)
-                
-                # Add the consolidated file change request to the new list
-                consolidated_file_change_requests.append(file_change_request)
-            
-            # Override the original file_change_requests with the consolidated requests
-            file_change_requests = consolidated_file_change_requests
+            for file_change_request in file_change_requests.values():
+                try:
+                    contents = repo.get_contents(file_change_request.filename)
+                    if contents:
+                        file_change_request.change_type = "modify"
+                    else:
+                        file_change_request.change_type = "create"
+                except:
+                    file_change_request.change_type = "create"
+            file_change_requests = file_change_requests.values()
 
             for file_change_request in file_change_requests:
                 file_change_request = FileChangeRequest(filename=filename, instructions=instructions, change_type=file_change_requests[0].change_type)
