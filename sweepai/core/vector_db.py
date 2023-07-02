@@ -67,11 +67,6 @@ def parse_collection_name(name: str) -> str:
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
     return name
 
-def list_collection_names():
-    """Returns a list of all collection names."""
-    collections = []
-    return collections
-
 @stub.cls(
     image=image,
     secrets=secrets,
@@ -328,3 +323,4 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
+
