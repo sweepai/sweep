@@ -43,14 +43,8 @@ def on_comment(
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
         return {"success": True, "message": "File has been reverted to the previous commit."}
-    
     if is_comment_addressed(comment):
         react_to_comment(g, comment.id)
-        if is_comment_addressed(comment):
-            react_to_comment(g, comment.id)
-            if is_comment_addressed(comment):
-                react_to_comment(g, comment.id)
-
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
