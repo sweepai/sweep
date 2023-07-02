@@ -33,25 +33,29 @@ footer {
 }
 pre, code {
     white-space: pre-wrap !important;
+    word-break: break-all !important;
 }
 #snippets {
-    max-height: 750px;
+    height: 750px;
     overflow-y: scroll;
 }
 """
 
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
-    repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
-    repo = github_client.get_repo(config.repo_full_name)
-    all_files, path_to_contents = get_files_recursively(repo)
-    file_names = gr.Dropdown(choices=all_files, multiselect=True, label="Files")
+    with gr.Row():
+        with gr.Column():
+            repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
+        with gr.Column(scale=2):
+            repo = github_client.get_repo(config.repo_full_name)
+            all_files, path_to_contents = get_files_recursively(repo)
+            file_names = gr.Dropdown(choices=all_files, multiselect=True, label="Files")
     with gr.Row():
         with gr.Column(scale=2):
-            chatbot = gr.Chatbot(height=650)
+            chatbot = gr.Chatbot(height=750)
         with gr.Column():
             snippets_text = gr.Markdown(value="### Relevant snippets", elem_id="snippets")
     msg = gr.Textbox(label="Message to Sweep", placeholder="Write unit tests for OpenAI calls")
-    clear = gr.ClearButton([msg, chatbot, snippets_text])
+    # clear = gr.ClearButton([msg, chatbot, snippets_text])
 
     proposed_pr: str | None = None
     searched = False
@@ -121,7 +125,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         global searched
         message = chat_history[-1][0]
         yield chat_history, snippets_text, file_names
-        if snippets_text and not searched:
+        if not selected_snippets:
             searched = True
             # Searching for relevant snippets
             chat_history[-1][1] = "Searching for relevant snippets..."
@@ -130,7 +134,8 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             logger.info("Fetching relevant snippets...")
             selected_snippets += api_client.search(chat_history[-1][0], 3)
             snippets_text = build_string()
-            yield chat_history, snippets_text, [snippet.file_path for snippet in selected_snippets]
+            file_names = [snippet.file_path for snippet in selected_snippets]
+            yield chat_history, snippets_text, file_names
             logger.info("Fetched relevant snippets.")
             chat_history[-1][1] = "Found relevant snippets."
             # Update using chat_history
