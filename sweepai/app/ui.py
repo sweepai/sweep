@@ -2,15 +2,12 @@ import json
 from github import Github
 import gradio as gr
 from loguru import logger
-import modal
 import webbrowser
 
 from sweepai.app.api_client import APIClient
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Snippet
-from sweepai.utils.constants import DB_NAME
 
-get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
 config = SweepChatConfig.load()
 
 api_client = APIClient(config=config)
