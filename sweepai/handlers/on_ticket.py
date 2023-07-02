@@ -96,8 +96,9 @@ def on_ticket(
         return {"success": False, "reason": "Issue is closed"}
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
     eyes_reaction = item_to_react_to.create_reaction("eyes")
-
     def comment_reply(message: str):
+        comment = current_issue.create_comment(message + "\n\n---\n" + bot_suffix)
+        comment.create_reaction("eyes")
         current_issue.create_comment(message + "\n\n---\n" + bot_suffix)
 
     comments = current_issue.get_comments()
@@ -302,3 +303,4 @@ def on_ticket(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
     return {"success": True}
+
