@@ -46,6 +46,8 @@ def on_comment(
     
     if is_comment_addressed(comment):
         react_to_comment(g, comment.id)
+        if is_comment_addressed(comment):
+            react_to_comment(g, comment.id)
 
     # Flow:
     # 1. Get relevant files
@@ -168,4 +170,5 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
             logger.warning(f"File {pr_path} was not found in previous commit {previous_commit.sha}")
         else:
             raise e
+"""
 
