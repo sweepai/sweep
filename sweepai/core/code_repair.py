@@ -49,12 +49,5 @@ class CodeRepairer(ChatGPT):
         self.model = "gpt-3.5-turbo-16k-0613" # can be optimized
         response = self.chat(code_repair_prompt.format(diff=diff, user_code=user_code))
         self.undo()
-        try:
-            match = re.search(response_regex, response, flags=re.DOTALL)
-        except:
-            return response.strip() + "\n"
-        if match is None:
-            return response.strip() + "\n"
-        else:
-            return match.group("response").strip() + "\n"
+        return response.strip() + "\n"
 
