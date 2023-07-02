@@ -4,7 +4,7 @@ import gradio as gr
 from loguru import logger
 import webbrowser
 
-from sweepai.app.api_client import APIClient
+from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Snippet
 from sweepai.utils.constants import DB_NAME
@@ -25,20 +25,37 @@ Here is my plan:
 Reply with "ok" to create the PR or anything else to propose changes."""
 
 github_client = Github(config.github_pat)
-repos = github_client.get_user().get_repos()
+repos = list(github_client.get_user().get_repos())
 
-with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibility: hidden;}") as demo:
-    repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
-    repo = github_client.get_repo(config.repo_full_name)
-    all_files, path_to_contents = get_files_recursively(repo)
-    file_names = gr.Dropdown(choices=all_files, multiselect=True, label="Files")
+css = """
+footer {
+    visibility: hidden;
+}
+pre, code {
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+}
+#snippets {
+    height: 750px;
+    overflow-y: scroll;
+}
+"""
+
+with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
+    with gr.Row():
+        with gr.Column():
+            repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
+        with gr.Column(scale=2):
+            repo = github_client.get_repo(config.repo_full_name)
+            all_files, path_to_contents = get_files_recursively(repo)
+            file_names = gr.Dropdown(choices=all_files, multiselect=True, label="Files")
     with gr.Row():
         with gr.Column(scale=2):
-            chatbot = gr.Chatbot(height=650)
+            chatbot = gr.Chatbot(height=750)
         with gr.Column():
-            snippets_text = gr.Markdown(value="### Relevant snippets")
+            snippets_text = gr.Markdown(value="### Relevant snippets", elem_id="snippets")
     msg = gr.Textbox(label="Message to Sweep", placeholder="Write unit tests for OpenAI calls")
-    clear = gr.ClearButton([msg, chatbot, snippets_text])
+    # clear = gr.ClearButton([msg, chatbot, snippets_text])
 
     proposed_pr: str | None = None
     searched = False
@@ -106,8 +123,9 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
     def handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, file_names):
         global selected_snippets
         global searched
+        message = chat_history[-1][0]
         yield chat_history, snippets_text, file_names
-        if snippets_text and not searched:
+        if not selected_snippets:
             searched = True
             # Searching for relevant snippets
             chat_history[-1][1] = "Searching for relevant snippets..."
@@ -116,7 +134,8 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
             logger.info("Fetching relevant snippets...")
             selected_snippets += api_client.search(chat_history[-1][0], 3)
             snippets_text = build_string()
-            yield chat_history, snippets_text, [snippet.file_path for snippet in selected_snippets]
+            file_names = [snippet.file_path for snippet in selected_snippets]
+            yield chat_history, snippets_text, file_names
             logger.info("Fetched relevant snippets.")
             chat_history[-1][1] = "Found relevant snippets."
             # Update using chat_history
@@ -142,11 +161,19 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
 
         # Generate response
         logger.info("...")
-        chat_history.append([None, "Fetching endpoint..."])
+        chat_history.append([None, "..."])
         yield chat_history, snippets_text, file_names
         chat_history[-1][1] = ""
         logger.info("Starting to generate response...")
-        stream = api_client.stream_chat(chat_history, selected_snippets)
+        if len(chat_history) > 1 and "create pr" in message.lower():
+            stream = api_client.stream_chat(
+                chat_history, 
+                selected_snippets,
+                functions=[create_pr_function],
+                function_call=create_pr_function_call,
+            )
+        else:
+            stream = api_client.stream_chat(chat_history, selected_snippets)
         function_name = ""
         raw_arguments = ""
         for chunk in stream:
