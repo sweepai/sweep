@@ -7,7 +7,6 @@ import webbrowser
 from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Snippet
-from sweepai.utils.constants import DB_NAME
 from sweepai.utils.github_utils import get_files_recursively
 
 config = SweepChatConfig.load()
