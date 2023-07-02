@@ -61,17 +61,32 @@ def get_files_recursively(repo, path=''):
         logger.error(e)
         return [], path_to_contents
 
+path_to_contents = {}
+def get_files(name):
+    global path_to_contents
+    if name is None:
+        all_files = []
+    else:
+        repo = github_client.get_repo(name)
+        all_files, path_to_contents = get_files_recursively(repo)
+    return all_files
+
+def get_files_update(*args):
+    repo = None
+    if len(args) > 0:
+        repo = args[0]
+    else:
+        repo = config.repo_full_name
+    return gr.Dropdown.update(choices=get_files(repo))
+
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
     with gr.Row():
         with gr.Column():
             repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
         with gr.Column(scale=2):
-            if config.repo_full_name is None:
-                all_files = []
-            else:
-                repo = github_client.get_repo(config.repo_full_name)
-                all_files, path_to_contents = get_files_recursively(repo)
-            file_names = gr.Dropdown(choices=all_files, multiselect=True, label="Files")
+            file_names = gr.Dropdown(choices=get_files(config.repo_full_name), multiselect=True, label="Files")
+        repo_full_name.change(get_files_update, repo_full_name, file_names)
+
     with gr.Row():
         with gr.Column(scale=2):
             chatbot = gr.Chatbot(height=750)
