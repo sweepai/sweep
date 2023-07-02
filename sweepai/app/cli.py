@@ -24,6 +24,5 @@ def auth():
     SweepChatConfig.load(recreate=True)
     print("Setup completed successfully!")
 
-
 if __name__ == "__main__":
     app()

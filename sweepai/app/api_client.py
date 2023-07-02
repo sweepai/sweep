@@ -1,3 +1,4 @@
+from typing import Any
 import webbrowser
 import httpx
 from pydantic import BaseModel
@@ -6,8 +7,54 @@ import json
 from loguru import logger
 
 from sweepai.app.config import SweepChatConfig
-from sweepai.core.entities import PullRequest, Snippet
+from sweepai.core.entities import Function, PullRequest, Snippet
 from sweepai.utils.constants import PREFIX
+
+create_pr_function = Function(
+    name="create_pr",
+    description="Creates a PR.",
+    parameters={
+        "properties": {
+            "plan": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "The file path to change."
+                        },
+                        "instructions": {
+                            "type": "string",
+                            "description": "Concise NATURAL LANGUAGE summary of what to change in each file. There should be absolutely NO code, only English.",
+                            "example":  [
+                                "Refactor the algorithm by moving the main function to the top of the file.",
+                                "Change the implementation to recursion"
+                            ]
+                        },
+                    },
+                    "required": ["file_path", "instructions"]
+                },
+                "description": "A list of files to modify or create and corresponding instructions."
+            },
+            "title": {
+                "type": "string",
+                "description": "Title of PR",
+            },
+            "summary": {
+                "type": "string",
+                "description": "Detailed summary of PR",
+            },
+            "branch": {
+                "type": "string",
+                "description": "Name of branch to create PR in.",
+            },
+        },
+        "required": ["plan", "title", "summary", "branch"]
+    }
+)
+
+create_pr_function_call = {"name": "create_pr"}
 
 def break_json(raw_json: str):
     # turns something like {"function_call": {"arguments": " \""}}{"function_call": {"arguments": "summary"}} into two objects
@@ -23,7 +70,6 @@ def break_json(raw_json: str):
                 break
             except json.JSONDecodeError:
                 pass
-
 
 class APIClient(BaseModel):
     config: SweepChatConfig
@@ -97,9 +143,10 @@ class APIClient(BaseModel):
         self, 
         messages: list[tuple[str | None, str | None]], 
         snippets: list[Snippet] = [],
+        functions: list[Function] = [],
+        function_call: Any = "auto",
         model: str = "gpt-4-0613"
     ):
-        print(snippets)
         with httpx.Client(timeout=30) as client: # sometimes this step is slow
             with client.stream(
                 'POST', 
@@ -107,6 +154,8 @@ class APIClient(BaseModel):
                 json={
                     "messages": messages,
                     "snippets": [snippet.dict() for snippet in snippets],
+                    "functions": [func.dict() for func in functions],
+                    "function_call": function_call,
                     "config": self.config.dict()
                 }
             ) as response:
