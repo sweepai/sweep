@@ -12,13 +12,10 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.11
-    - name: Set up poetry and install dependencies
-      run: |
-        chmod +x install.sh
-        ./install.sh
-    - name: Install project with poetry
+    - name: Install dependencies with poetry
       run: |
         poetry install
+        sweep
         pip install -r requirements.txt
     - name: Run tests
       run: |
