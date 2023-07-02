@@ -9,6 +9,7 @@ from sweepai.app.api_client import APIClient
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Snippet
 from sweepai.utils.constants import DB_NAME
+from sweepai.utils.github_utils import get_files_recursively
 
 get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
 config = SweepChatConfig.load()
@@ -30,6 +31,7 @@ repos = github_client.get_user().get_repos()
 
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibility: hidden;}") as demo:
     repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
+    file_names = gr.Dropdown(choices=get_files_recursively(github_client.get_repo(config.repo_full_name)), label="Files", value="")
     with gr.Row():
         with gr.Column(scale=2):
             chatbot = gr.Chatbot(height=650)
@@ -40,9 +42,9 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
 
     snippets: list[Snippet] = []
     proposed_pr: str | None = None
+    selected_files = []
 
     def repo_name_change(repo_full_name):
-        # check if user has access to the repo and if the app is installed on the repo
         global installation_id
         try:
             config.repo_full_name = repo_full_name
@@ -63,6 +65,15 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
 
     repo_full_name.change(repo_name_change, [repo_full_name], [msg])
 
+    def file_names_change(file_names):
+        global selected_files
+        if file_names not in selected_files:
+            selected_files.append(file_names)
+            print(selected_files)
+        return ""
+    
+    file_names.change(file_names_change, [file_names], [msg])
+    
     def handle_message_submit(repo_full_name: str, user_message: str, history: list[tuple[str | None, str | None]]):
         if not repo_full_name:
             raise Exception("Set the repository name first")
@@ -81,6 +92,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css="footer {visibili
             chat_history[-1][1] = "Found relevant snippets."
             
             backtick, escaped_backtick = "`", "\\`"
+            # Update using chat_history
             snippets_text = "### Relevant snippets:\n" + "\n".join([f"{snippet.denotation}\n```python\n{snippet.get_preview(5).replace(backtick, escaped_backtick)}\n```" for snippet in snippets])
             yield chat_history, snippets_text
         

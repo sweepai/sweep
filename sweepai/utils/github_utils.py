@@ -249,3 +249,18 @@ def index_full_repository(
             "Adding label failed, probably because label already."
         )  # warn that the repo may already be indexed
     return num_indexed_docs
+
+def get_files_recursively(repo, path=''):
+    try:
+        contents = repo.get_contents(path)
+        files = []
+        while contents:
+            file_content = contents.pop(0)
+            if file_content.type == 'dir':
+                contents.extend(repo.get_contents(file_content.path))
+            else:
+                files.append(file_content.path)
+        return files
+    except Exception as e:
+        logger.error(e)
+        return []
