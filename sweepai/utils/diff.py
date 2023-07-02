@@ -13,30 +13,40 @@ def format_contents(file_contents, is_markdown=False):
     Add arbitrary postprocessing here, this affects files and diffs
     """
     lines = file_contents.split('\n')
-    code_lines = []
-    in_code_block = True
 
     if is_markdown:
         return '\n'.join(lines) + '\n'
-    for line in lines:
-        stripped_line = line.strip()
+    
+    # Handle small files
+    if len(lines) <= 5:
+        final_lines = []
+        start_idx = 0
+        end_idx = len(lines)
+        for idx, line in enumerate(lines):
+            if start_idx == 0 and line.strip().startswith('```'):
+                start_idx = idx
+            if start_idx != 0 and line.strip().endswith('```'):
+                end_idx = idx
+        lines = lines[start_idx + 1:end_idx]
+        return '\n'.join(lines) + '\n'
 
-        # Check if line starts a code block
-        if stripped_line.startswith('```') and not in_code_block:
-            in_code_block = True
-            continue
+    first_three_lines = lines[:3]
+    last_three_lines = lines[-3:]
+    first_line_idx = 0
+    last_line_idx = 3
+    for idx, line in enumerate(first_three_lines):
+        line = line.strip()
+        if line.startswith('```'):
+            first_line_idx = idx + 1
+    for idx, line in enumerate(last_three_lines):
+        line = line.strip()
+        if line.endswith('```'):
+            last_line_idx = idx
+    first_three_lines = first_three_lines[first_line_idx:]
+    last_three_lines = last_three_lines[:last_line_idx]
 
-        # Check if line ends a code block
-        if stripped_line.endswith('```') and in_code_block:
-            in_code_block = False
-            continue
-
-        # Append line if it's inside a code block or if it's not an empty line
-        if not in_code_block:
-            continue
-        code_lines.append(line)
-
-    return '\n'.join(code_lines) + '\n'
+    lines = first_three_lines + lines[3:-3] + last_three_lines
+    return '\n'.join(lines) + '\n'
 
 
 def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
