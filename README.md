@@ -6,6 +6,8 @@
 </p>
 
 <p align="center">
+<a href="https://sweep.dev/">🌐 Website</a>
+<span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
 <a href="https://docs.sweep.dev/">📚 Docs</a>
 <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
 <a href="https://discord.gg/sweep-ai">📢 Discord</a>
