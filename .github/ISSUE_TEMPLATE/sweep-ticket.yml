@@ -1,0 +1,27 @@
+name: Sweep ticket
+about: Offloading a bug or small feature to Sweep
+title: 'Sweep: [FEATURE]'
+labels: sweep
+assignees: ''
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for using Sweep!
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What bug or feature would you like Sweep to address
+      placeholder: E.g. The Stripe link on our landing page is broken.
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Relevant files
+      description: Relevant files Sweep should definitely look at. Full file paths.
+      placeholder: One file path per line
+      render: shell
+    validations:
+      required: true
