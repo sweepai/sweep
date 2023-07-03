@@ -1,6 +1,6 @@
-"""
+'''
 On Github ticket, get ChatGPT to deal with it
-"""
+'''
 
 # TODO: Add file validation
 
@@ -32,13 +32,13 @@ update_index = modal.Function.lookup(DB_NAME, "update_index")
 bot_suffix = "I'm a bot that handles simple bugs and feature requests \
 but I might make mistakes. Please be kind!"
 
-collapsible_template = """
+collapsible_template = '''
 <details>
   <summary>{summary}</summary>
 
   {body}
 </details>
-"""
+'''
 
 chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 
@@ -209,6 +209,16 @@ def on_ticket(
                 sweep_bot.cot_retrieval()
             logger.info("Fetching files to modify/create...")
             file_change_requests = sweep_bot.get_files_to_change()
+            # Create a dictionary to hold file names and their corresponding instructions
+            file_instructions_dict = {}
+            for file_change_request in file_change_requests:
+                # If the file name is already in the dictionary, append the new instructions
+                if file_change_request.filename in file_instructions_dict:
+                    instructions, change_type = file_instructions_dict[file_change_request.filename]
+                    file_instructions_dict[file_change_request.filename] = (instructions + " " + file_change_request.instructions, change_type)
+                else:
+                    file_instructions_dict[file_change_request.filename] = (file_change_request.instructions, file_change_request.change_type)
+            file_change_requests = [FileChangeRequest(filename=file_name, instructions=instructions) for file_name, instructions in file_instructions_dict.items()]
             for file_change_request in file_change_requests:
                 try:
                     contents = repo.get_contents(file_change_request.filename)
@@ -302,3 +312,4 @@ def on_ticket(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
     return {"success": True}
+
