@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Install Poetry
+      run: curl -sSL https://install.python-poetry.org | python3 -
     - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:
@@ -24,5 +26,4 @@ jobs:
     - name: Run tests
       run: |
         python -m unittest discover tests
-
 
