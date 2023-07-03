@@ -17,6 +17,8 @@
 Simply describe any issue and Sweep will do the rest.
 It will plan out what needs to be done, what changes to make, and write the changes to a PR. 
 
+Supported languages: Python, Javascript/Typescript, Rust, Go, Java/C#, C++ and anything else GPT-4 supports
+
 ---
 
 ## ✨ Demo
