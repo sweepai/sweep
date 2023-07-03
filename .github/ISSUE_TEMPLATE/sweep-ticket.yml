@@ -1,17 +1,13 @@
 name: Sweep ticket
 description: Offloading a bug or small feature to Sweep
-title: 'Sweep: [FEATURE]'
+title: 'Sweep: '
 labels: sweep
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Thanks for using Sweep!
   - type: textarea
     id: description
     attributes:
       label: Description
-      description: What bug or feature would you like Sweep to address
+      description: What bug or feature would you like Sweep to address?
       placeholder: E.g. The Stripe link on our landing page is broken.
     validations:
       required: true
@@ -19,8 +15,8 @@ body:
     id: files
     attributes:
       label: Relevant files
-      description: Relevant files Sweep should definitely look at. Full file paths.
-      placeholder: One file path per line
+      description: Relevant files Sweep should definitely look at. Please provide full file paths.
+      placeholder: One file per line
       render: shell
     validations:
       required: false
