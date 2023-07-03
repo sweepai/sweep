@@ -4,9 +4,10 @@ from sweepai.app.config import SweepChatConfig
 
 epilog = "Sweep is a AI junior developer. Docs at https://docs.sweep.dev, install at https://github.com/apps/sweep-ai and support at https://discord.gg/sweep-ai."
 
-app = typer.Typer(epilog=epilog)
+typer_app = typer.Typer(epilog=epilog)
 
-@app.callback(invoke_without_command=True)
+# @app.callback()
+@typer_app.command()
 def start():
     """
     Launch Sweep Chat in the browser
@@ -16,13 +17,20 @@ def start():
     demo.queue()
     demo.launch(enable_queue=True, inbrowser=True)
     
-@app.command()
+@typer_app.command()
 def auth():
     """
     Reauthenticate with Github API for Sweep to work (for token expiry)
     """
     SweepChatConfig.load(recreate=True)
     print("Setup completed successfully!")
+
+def app():
+    # hacky solution based on https://github.com/tiangolo/typer/issues/18#issuecomment-1577788949
+    import sys
+    commands = {'start', 'auth'}
+    sys.argv.append('start') if sys.argv[-1] not in commands else None
+    typer_app()
 
 if __name__ == "__main__":
     app()
