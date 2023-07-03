@@ -105,7 +105,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             chatbot = gr.Chatbot(height=750)
         with gr.Column():
             snippets_text = gr.Markdown(value="### Relevant snippets", elem_id="snippets")
-    msg = gr.Textbox(label="Message to Sweep", placeholder="Write unit tests for OpenAI calls")
+    msg = gr.Textbox(label="Message to Sweep", placeholder="Send a message to Sweep")
     # clear = gr.ClearButton([msg, chatbot, snippets_text])
 
     proposed_pr: str | None = None
