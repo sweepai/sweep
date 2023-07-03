@@ -1,5 +1,5 @@
 name: Sweep ticket
-about: Offloading a bug or small feature to Sweep
+description: Offloading a bug or small feature to Sweep
 title: 'Sweep: [FEATURE]'
 labels: sweep
 body:
