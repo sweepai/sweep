@@ -234,8 +234,11 @@ def compute_deeplake_vs(collection_name,
         indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
 
-        computed_embeddings = embedding_function(documents_to_compute)
+        # Compute embeddings in parallel
+        with ProcessPoolExecutor() as executor:
+            computed_embeddings = list(executor.map(embedding_function, documents_to_compute))
 
+        # Insert computed embeddings back into the embeddings list
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
         deeplake_vs.add(
