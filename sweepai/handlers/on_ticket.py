@@ -220,7 +220,7 @@ def on_ticket(
                     file_instructions_dict[file_change_request.filename] = file_change_request.instructions
             # Create a new list of FileChangeRequests using the dictionary
             file_change_requests = [FileChangeRequest(filename=file_name, instructions=instructions) for file_name, instructions in file_instructions_dict.items()]
-            # End of modification
+            # Iterate over the FileChangeRequests to set the change_type
             for file_change_request in file_change_requests:
                 try:
                     contents = repo.get_contents(file_change_request.filename)
@@ -314,3 +314,4 @@ def on_ticket(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
     return {"success": True}
+
