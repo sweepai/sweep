@@ -1,6 +1,6 @@
-"""
+'''
 On Github ticket, get ChatGPT to deal with it
-"""
+'''
 
 # TODO: Add file validation
 
@@ -32,13 +32,13 @@ update_index = modal.Function.lookup(DB_NAME, "update_index")
 bot_suffix = "I'm a bot that handles simple bugs and feature requests \
 but I might make mistakes. Please be kind!"
 
-collapsible_template = """
+collapsible_template = '''
 <details>
   <summary>{summary}</summary>
 
   {body}
 </details>
-"""
+'''
 
 chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 
@@ -209,6 +209,20 @@ def on_ticket(
                 sweep_bot.cot_retrieval()
             logger.info("Fetching files to modify/create...")
             file_change_requests = sweep_bot.get_files_to_change()
+            # Start of new code
+            # Create a dictionary to store file names and their corresponding instructions
+            file_instructions_dict = {}
+            # Iterate over the file_change_requests
+            for file_change_request in file_change_requests:
+                # If the file name is already in the dictionary, concatenate the instructions
+                if file_change_request.filename in file_instructions_dict:
+                    file_instructions_dict[file_change_request.filename] += " " + file_change_request.instructions
+                # If the file name is not in the dictionary, add it
+                else:
+                    file_instructions_dict[file_change_request.filename] = file_change_request.instructions
+            # Create a new list of FileChangeRequest objects with unique file names
+            file_change_requests = [FileChangeRequest(filename=file_name, instructions=instructions) for file_name, instructions in file_instructions_dict.items()]
+            # End of new code
             for file_change_request in file_change_requests:
                 try:
                     contents = repo.get_contents(file_change_request.filename)
@@ -302,3 +316,5 @@ def on_ticket(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
     return {"success": True}
+'''
+
