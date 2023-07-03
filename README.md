@@ -1,4 +1,5 @@
 
+
 <p align="center">
     <img src="https://github.com/sweepai/sweep/blob/856ff66c2dbeaf39afbf6d8c49a620dfa70271fb/.assets/sweep-banner-github.png">
 </p>
@@ -11,7 +12,7 @@
 <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
 <a href="https://docs.sweep.dev/">📚 Docs</a>
 <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-<a href="https://discord.gg/sweep-ai">📢 Discord</a>
+<b>Sweep</b> allows you to create and review GitHub issues with ease.
 </p>
 <b>Sweep</b> allows you to create and review GitHub issues with ease.
 <b>Sweep</b> allows you to create and review GitHub issues with easy.
