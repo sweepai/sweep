@@ -55,6 +55,16 @@ class CodeGenBot(ChatGPT):
                             file_change_request, change_type=change_type
                         )
                     )
+                # Create a dictionary to hold file names and their corresponding instructions
+                file_instructions_dict = {}
+                for file_change_request in file_change_requests:
+                # If the file name is already in the dictionary, append the new instructions
+                    if file_change_request.filename in file_instructions_dict:
+                        instructions, change_type = file_instructions_dict[file_change_request.filename]
+                        file_instructions_dict[file_change_request.filename] = (instructions + " " + file_change_request.instructions, change_type)
+                    else:
+                        file_instructions_dict[file_change_request.filename] = (file_change_request.instructions, file_change_request.change_type)
+                file_change_requests = [FileChangeRequest(filename=file_name, instructions=instructions, change_type=change_type) for file_name, (instructions, change_type) in file_instructions_dict.items()]
                 if file_change_requests:
                     return file_change_requests
             except RegexMatchError:
