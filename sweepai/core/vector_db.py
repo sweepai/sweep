@@ -234,10 +234,22 @@ def compute_deeplake_vs(collection_name,
         indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
 
-        computed_embeddings = embedding_function(documents_to_compute)
+        # Split documents into chunks
+        num_processors = os.cpu_count()
+        chunk_size = len(documents_to_compute) // num_processors
+        document_chunks = [documents_to_compute[i:i + chunk_size] for i in range(0, len(documents_to_compute), chunk_size)]
 
+        # Create a pool of worker processes
+        with Pool(num_processors) as p:
+            computed_embeddings_chunks = p.map(Embedding.compute.call, document_chunks)
+
+        # Flatten the list of lists of embeddings into a single list
+        computed_embeddings = [embedding for chunk in computed_embeddings_chunks for embedding in chunk]
+
+        # Insert the computed embeddings into the embeddings list
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
+
         deeplake_vs.add(
             text = ids,
             embedding = embeddings,
