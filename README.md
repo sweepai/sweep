@@ -13,7 +13,7 @@
 <a href="https://discord.gg/sweep-ai">📢 Discord</a>
 </p>
 
-<b>Sweep</b> allows you to create and review GitHub issues with easy.
+<b>Sweep</b> allows you to create and review GitHub issues with ease.
 Simply describe any issue and Sweep will do the rest.
 It will plan out what needs to be done, what changes to make, and write the changes to a PR. 
 
@@ -82,7 +82,6 @@ Unlike existing AI solutions, this can solve entire tickets and can be paralleli
 We're currently working on responding to linters and external search. For more, see [🗺️ Roadmap](https://docs.sweep.dev/roadmap).
 
 ---
-
 
 <h2 align="center">
     Contributors
