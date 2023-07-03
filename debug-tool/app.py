@@ -25,16 +25,36 @@ class Application(tk.Frame):
         self.frame_right = tk.Frame(self)
         self.frame_right.pack(side="right", fill="both", expand=True)
 
-        # Text widget for console
-        self.console = tk.Text(self.frame_right)
-        self.console.pack(side="top", fill="both", expand=True)
+        # Create Label for the chat person's name at the top
+        self.label_chat_name = tk.Label(self.frame_right, text="System", font=("Arial", 16))
+        self.label_chat_name.pack(side="top", fill="x")
+
+        # Create a Canvas for messages
+        self.canvas = tk.Canvas(self.frame_right)
+        self.canvas.pack(side="top", fill="both", expand=True)
+
+        # Add a Scrollbar to the Canvas
+        self.scrollbar_chat = tk.Scrollbar(self.frame_right, command=self.canvas.yview)
+        self.scrollbar_chat.pack(side='right', fill='y')
+
+        # Configure the Canvas
+        self.canvas.configure(yscrollcommand=self.scrollbar_chat.set)
+        self.canvas.bind('<Configure>', lambda e: self.canvas.configure(scrollregion = self.canvas.bbox("all")))
+
+        # Create an interior Frame for messages
+        self.frame_messages = tk.Frame(self.canvas)
+        self.canvas.create_window((0, 0), window=self.frame_messages, anchor='nw')
+
+        # Frame for user input
+        self.frame_input = tk.Frame(self.frame_right)
+        self.frame_input.pack(side="bottom", fill="x")
 
         # Entry widget for user input
-        self.entry = tk.Entry(self.frame_right)
+        self.entry = tk.Entry(self.frame_input)
         self.entry.pack(side="left", fill="x", expand=True)
 
         # Button for submitting user input
-        self.button = tk.Button(self.frame_right, text="Submit", command=self.submit_input)
+        self.button = tk.Button(self.frame_input, text="Submit", command=self.submit_input)
         self.button.pack(side="right")
 
         # Bind event for when a tab is selected
@@ -42,15 +62,40 @@ class Application(tk.Frame):
 
         self.pack(fill="both", expand=True)
 
+        self.message_count = 0
+
     def tab_selected(self, event):
         # Clear console
-        self.console.delete('1.0', tk.END)
+        self.clear_messages()
 
         # Write some example data into console when a tab is selected
         selected_tab = self.listbox.get(self.listbox.curselection())
-        self.console.insert(tk.END, f"You have selected {selected_tab}.\nHere is some data...\n")
+        self.label_chat_name.config(text=f"Chatting with {selected_tab}")
         for i in range(10):
-            self.console.insert(tk.END, f"System: Tab {selected_tab} Data {i}\n")
+            self.add_message(f"Tab {selected_tab} Data {i}", "right")
+
+    def clear_messages(self):
+        for message in self.frame_messages.winfo_children():
+            message.destroy()
+        self.message_count = 0
+
+    def add_message(self, message, side):
+        text = tk.Text(self.frame_messages, height=3, wrap="word", bd=2, relief="solid", padx=2, pady=2)
+        text.insert(1.0, message)
+        text.tag_configure("right", justify="right")
+        text.tag_add("right", 1.0, "end")
+        text.configure(state="disabled")
+
+        if side == "right":
+            self.frame_messages.grid_columnconfigure(0, weight=1)
+            self.frame_messages.grid_columnconfigure(1, weight=1000)
+            text.grid(row=self.message_count, column=1, sticky='ne')
+        else:
+            self.frame_messages.grid_columnconfigure(0, weight=1000)
+            self.frame_messages.grid_columnconfigure(1, weight=1)
+            text.grid(row=self.message_count, column=0, sticky='nw')
+
+        self.message_count += 1
 
     def submit_input(self):
         # Get user input and clear the entry box
@@ -58,7 +103,7 @@ class Application(tk.Frame):
         self.entry.delete(0, tk.END)
 
         # Insert user input into console
-        self.console.insert(tk.END, f"You: {user_input}\n")
+        self.add_message(user_input, "left")
 
 main_window = tk.Tk()
 app = Application(main_window)
