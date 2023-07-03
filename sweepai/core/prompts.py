@@ -262,8 +262,9 @@ Generate a new_file based on the given plan, ensuring that you:
 1. Do not write "pass" statements.
 2. Provide complete functions with actual business logic. It is imperative that we do not leave any work to the user/future readers of this code.
 3. Do not write new "todo" comments.
-4. Do not write incomplete functions or line numbers.
-5. Make sure code follows programming language conventions in repo
+4. Do not write incomplete functions.
+5. Do not write the original line numbers with the new code.
+6. Make sure the new code follows the same programming language conventions as the old code.
 
 Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copied>0-25</copied>"). Make sure to use this exact format.
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copied>0-50</copied>".
