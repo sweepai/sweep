@@ -60,6 +60,12 @@ def get_files_recursively(repo, path=''):
         logger.error(e)
         return [], path_to_contents
 
+def get_installation_id(repo_full_name):
+    config.repo_full_name = repo_full_name
+    api_client.config = config
+    installation_id = api_client.get_installation_id()
+    return installation_id
+
 path_to_contents = {}
 def get_files(name):
     global path_to_contents
@@ -67,6 +73,12 @@ def get_files(name):
     if name is None:
         all_files = []
     else:
+        # Make sure repo is added to Sweep before checking all recursive files
+        try:
+            installation_id = get_installation_id(name)
+            assert installation_id
+        except:
+            return []
         repo = github_client.get_repo(name)
         all_files, path_to_contents = get_files_recursively(repo)
     return all_files
@@ -104,9 +116,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
     def repo_name_change(repo_full_name):
         global installation_id
         try:
-            config.repo_full_name = repo_full_name
-            api_client.config = config
-            installation_id = api_client.get_installation_id()
+            installation_id = get_installation_id(repo_full_name)
             assert installation_id
             config.installation_id = installation_id
             api_client.config = config
@@ -135,6 +145,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
     def add_file_to_dict(file_name):
         global file_to_str
         global path_to_contents
+        global repo
         if file_name in path_to_contents:
             file_contents = path_to_contents[file_name]
         else:
