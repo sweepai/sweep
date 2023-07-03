@@ -23,4 +23,4 @@ body:
       placeholder: One file path per line
       render: shell
     validations:
-      required: true
+      required: false
