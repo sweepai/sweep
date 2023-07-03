@@ -5,7 +5,7 @@ __pycache__/
 *.pyc
 
 # Secrets
-debug-tool/test_secrets.py
+*/*/test_secrets.py
 
 # C extensions
 *.so
