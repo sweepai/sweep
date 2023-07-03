@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sweepai"
-version = "0.2.3"
+version = "0.2.4"
 description = "Sweep software chores"
 authors = ["Kevin Lu", "William Zeng", "Luke Jagg"]
 packages = [{ include = "sweepai" }]
@@ -8,7 +8,7 @@ classifiers = ["Programming Language :: Python :: 3.11"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 PyGithub = "1.58.2"
 loguru = "^0.6.0"
 requests = "^2.28.2"
