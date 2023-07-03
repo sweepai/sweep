@@ -1,10 +1,19 @@
-import modal
+import unittest
+from sweepai.core import vector_db
+
+class TestVectorDB(unittest.TestCase):
+    def test_function1(self):
+        # Replace 'function1' with the actual function name and add test logic
+        result = vector_db.function1(input)
+        self.assertEqual(result, expected_output)
+
+    def test_function2(self):
+        # Replace 'function2' with the actual function name and add test logic
+        result = vector_db.function2(input)
+        self.assertEqual(result, expected_output)
+
+    # Add more test functions as needed
 
 if __name__ == "__main__":
-    app = "dev-db"
-    repo = "sweepai/forked_langchain"
-    # init_index = modal.Function.lookup(app, "init_index")
-    # init_index.call(repo, ["src"], [], [".py"], [], 36855882)
+    unittest.main()
 
-    get_relevant_file_paths = modal.Function.lookup(app, "get_relevant_file_paths")
-    print(get_relevant_file_paths.call(repo, "Idea: A memory similar to ConversationBufferWindowMemory but utilizing token length #1598", 5))
