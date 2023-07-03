@@ -33,7 +33,7 @@ Sweep Chat allows you to interact with Sweep locally and will sync with GitHub. 
 
 1. Install [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
 
-2. Run `pip install sweepai && sweep`
+2. Run `pip install sweepai && sweep`. Note that you need python 3.11 or greater.
 
 3. This should spin up a GitHub auth flow in your browser. Copy-paste the 🔵 blue 8-digit code from your terminal into the page. Then wait a few seconds and it should spin up Sweep Chat. You should only need to do the auth once.
 
@@ -46,7 +46,7 @@ Sweep Chat allows you to interact with Sweep locally and will sync with GitHub. 
 If you want the nightly build and or if the latest build has issues.
 
 1. `git clone https://github.com/sweepai/sweep && poetry install`
-2. `python sweepai/app/cli.py`
+2. `python sweepai/app/cli.py`. Note that you need python 3.11 or greater.
 
 ### ✨ Sweep Github App
 Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
