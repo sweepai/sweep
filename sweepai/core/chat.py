@@ -146,8 +146,8 @@ class ChatGPT(BaseModel):
         is_function_call = False
         if model in [args.__args__[0] for args in OpenAIModel.__args__]:
             # might be a bug here in all of this
-            response = self.call_openai(model=model, functions=functions, function_name=function_name)
             if functions:
+                response = self.call_openai(model=model, functions=functions, function_name=function_name)
                 response, is_function_call = response
                 if is_function_call:
                     self.messages.append(
