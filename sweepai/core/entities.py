@@ -1,7 +1,12 @@
 import re
-from typing import ClassVar, Literal, Self, Type
+from typing import ClassVar, Literal, Type, TypeVar
 from loguru import logger
 from pydantic import BaseModel
+
+try:   # Python 3.11+
+    from typing import Self
+except ImportError:  # Python 3.10
+    Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
 class Message(BaseModel):

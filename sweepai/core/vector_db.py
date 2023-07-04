@@ -71,7 +71,7 @@ def parse_collection_name(name: str) -> str:
     image=image,
     secrets=secrets,
     shared_volumes={MODEL_DIR: model_volume},
-    keep_warm=2,
+    keep_warm=1 if ENV == "prod" else 0,
     gpu="T4",
     retries=modal.Retries(max_retries=5, backoff_coefficient=2, initial_delay=5),
 )
