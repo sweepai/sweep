@@ -14,6 +14,7 @@ from modal import method
 from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from github import Github
 from git import Repo
+from multiprocessing import Pool
 
 from sweepai.core.entities import Snippet
 from sweepai.utils.event_logger import posthog
@@ -23,7 +24,6 @@ from sweepai.utils.scorer import compute_score, convert_to_percentiles
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
-import time
 
 # TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_NAME)
@@ -210,7 +210,19 @@ def get_deeplake_vs_from_repo(
     logger.info(f"Getting list of all files took {time.time() -start}")
     logger.info(f"Received {len(documents)} documents from repository {repo_name}")
     collection_name = parse_collection_name(repo_name)
-    return compute_deeplake_vs(collection_name, documents, cache_success, cache, ids, metadatas, commit_hash)
+
+    # Divide documents into batches
+    batch_size = 100  # Adjust this value based on your system's capabilities
+    document_batches = [documents[i:i + batch_size] for i in range(0, len(documents), batch_size)]
+
+    # Compute embeddings in parallel
+    with Pool() as pool:
+        embeddings = pool.map(compute_embeddings_batch, document_batches)
+
+    # Flatten the list of results
+    embeddings = [embedding for batch in embeddings for embedding in batch]
+
+    return compute_deeplake_vs(collection_name, documents, cache_success, cache, ids, metadatas, commit_hash, embeddings)
     
 def compute_deeplake_vs(collection_name, 
                         documents, 
