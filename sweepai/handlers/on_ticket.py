@@ -23,6 +23,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.constants import DB_NAME, PREFIX, UTILS_NAME
+from sweepai.utils.chat_logger import ChatLogger
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -198,8 +199,16 @@ def on_ticket(
         snippets=snippets,
         tree=tree, # TODO: Anything in repo tree that has something going through is expanded
     )
+
+    chat_logger = ChatLogger({
+        'repo_name': repo_name,
+        'issue_url': issue_url,
+        'username': username,
+        'title': title,
+        'summary': summary + replies_text,
+    })
     sweep_bot = SweepBot.from_system_message_content(
-        human_message=human_message, repo=repo, is_reply=bool(comments)
+        human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger
     )
     sweepbot_retries = 3
     try:
