@@ -46,7 +46,7 @@ Sweep Chat allows you to interact with Sweep locally and will sync with GitHub. 
 If you want the nightly build and or if the latest build has issues.
 
 1. `git clone https://github.com/sweepai/sweep && poetry install`
-2. `python sweepai/app/cli.py`. Note that you need python 3.11 or greater.
+2. `python sweepai/app/cli.py`. Note that you need python 3.10 or greater.
 
 ### ✨ Sweep Github App
 Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
