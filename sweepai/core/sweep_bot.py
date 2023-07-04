@@ -7,6 +7,7 @@ from github.GithubException import GithubException
 import modal
 from pydantic import BaseModel
 from sweepai.core.code_repair import CodeRepairer
+from sweepai.utils.chat_logger import ChatLogger
 
 from sweepai.core.entities import (
     FileChange,
@@ -275,7 +276,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     logger.info(f"modify_file_response: {modify_file_response}")
                     new_file = generate_new_file(modify_file_response, contents)
                     if not is_markdown(file_change_request.filename):
-                        code_repairer = CodeRepairer()
+                        code_repairer = CodeRepairer(chat_logger=self.chat_logger)
                         diff = generate_diff(old_code=contents, new_code=new_file)
                         new_file = code_repairer.repair_code(diff=diff, user_code=new_file, feature=file_change_request.instructions)
                     return (new_file, file_change_request.filename)

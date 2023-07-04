@@ -21,6 +21,7 @@ from sweepai.core.prompts import (
 from sweepai.utils.constants import UTILS_NAME
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.core.entities import Message, Function
+from sweepai.utils.chat_logger import ChatLogger
 
 # TODO: combine anthropic and openai
 
@@ -69,6 +70,7 @@ class ChatGPT(BaseModel):
     model: ChatModel = "gpt-4-32k-0613"
     human_message: HumanMessagePrompt | None = None
     file_change_paths = []
+    chat_logger: ChatLogger | None = None
 
     @classmethod
     def from_system_message_content(
@@ -217,8 +219,9 @@ class ChatGPT(BaseModel):
                 retry_counter += 1
                 token_sub = retry_counter * 200
                 try:
+                    output = None
                     if function_name:
-                        return (
+                        output = (
                             openai.ChatCompletion.create(
                                 model=model,
                                 messages=self.messages_dicts,
@@ -230,16 +233,26 @@ class ChatGPT(BaseModel):
                             .choices[0].message
                         )
                     else:
-                        return (
-                        openai.ChatCompletion.create(
-                            model=model,
-                            messages=self.messages_dicts,
-                            max_tokens=max_tokens - token_sub,
-                            temperature=temperature,
-                            functions=[json.loads(function.json()) for function in functions],
+                        output = (
+                            openai.ChatCompletion.create(
+                                model=model,
+                                messages=self.messages_dicts,
+                                max_tokens=max_tokens - token_sub,
+                                temperature=temperature,
+                                functions=[json.loads(function.json()) for function in functions],
+                            )
+                            .choices[0].message
                         )
-                        .choices[0].message
-                    )
+                    if self.chat_logger is not None: self.chat_logger.add_chat({
+                        'model': model,
+                        'messages': self.messages_dicts,
+                        'max_tokens': max_tokens - token_sub,
+                        'temperature': temperature,
+                        'functions': [json.loads(function.json()) for function in functions],
+                        'function_call': function_name,
+                        'output': output,
+                    })
+                    return output
                 except Exception as e:
                     logger.warning(e)
                     raise e
@@ -263,7 +276,7 @@ class ChatGPT(BaseModel):
                 retry_counter += 1
                 token_sub = retry_counter * 200
                 try:
-                    return openai.ChatCompletion.create(
+                    output = openai.ChatCompletion.create(
                             model=model,
                             messages=self.messages_dicts,
                             max_tokens=max_tokens - token_sub,
@@ -271,6 +284,14 @@ class ChatGPT(BaseModel):
                         ) \
                         .choices[0] \
                         .message["content"]
+                    if self.chat_logger is not None: self.chat_logger.add_chat({
+                        'model': model,
+                        'messages': self.messages_dicts,
+                        'max_tokens': max_tokens - token_sub,
+                        'temperature': temperature,
+                        'output': output
+                    })
+                    return output
                 except Exception as e:
                     logger.warning(e)
                     raise e
