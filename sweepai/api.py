@@ -19,6 +19,8 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
 from fastapi import HTTPException, Request
 
+from pymongo import MongoClient
+
 stub = modal.Stub(API_NAME)
 image = (
     modal.Image.debian_slim()
@@ -35,7 +37,8 @@ image = (
         "GitPython",
         "posthog",
         "tqdm",
-        "pyyaml"
+        "pyyaml",
+        "pymongo"
     )
 )
 secrets = [
@@ -44,6 +47,7 @@ secrets = [
     modal.Secret.from_name("anthropic"),
     modal.Secret.from_name("posthog"),
     modal.Secret.from_name("highlight"),
+    modal.Secret.from_name("mongodb"),
 ]
 
 FUNCTION_SETTINGS = {
@@ -57,7 +61,6 @@ handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
 handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
 update_index = modal.Function.lookup(DB_NAME, "update_index")
-
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
