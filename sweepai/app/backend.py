@@ -37,6 +37,7 @@ image = (
         "GitPython",
         "config-path",
         "pyyaml",
+        "pymongo",
     )
 )
 secrets = [
