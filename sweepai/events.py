@@ -108,3 +108,20 @@ class PRRequest(BaseModel):
         full_name: str
     pull_request: PullRequest
     repository: Repository
+
+class CheckSuiteCompletedRequest(BaseModel):
+    class CheckSuite(BaseModel):
+        conclusion: str
+        html_url: str
+
+        @property
+        def run_id(self):
+            # format is like https://github.com/ORG/REPO_NAME/actions/runs/RUN_ID/jobs/JOB_ID
+            return self.html_url.split("/")[-3]
+    
+    class Repository(BaseModel):
+        full_name: str
+
+    check_suite: CheckSuite
+    installation: Installation
+    reponsitory: Repository

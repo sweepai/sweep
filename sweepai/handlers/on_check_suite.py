@@ -1,24 +1,21 @@
 import io
 import os
 import zipfile
+import openai
 import requests
+
+from sweepai.events import CheckSuiteCompletedRequest
+
+github_access_token = os.environ.get("GITHUB_TOKEN")
+openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 headers={
     "Accept": "application/vnd.github+json",
-    "Authorization": f"Bearer {os.environ.get('GITHUB_PAT')}",
+    "Authorization": f"Bearer {github_access_token}",
     "X-GitHub-Api-Version": "2022-11-28"
 }
 
-def get_run_id(repo_full_name: str, check_run_id: int):
-    response = requests.get(f"https://api.github.com/repos/{repo_full_name}/check-runs/{check_run_id}", headers=headers)
-    obj = response.json()
-    succeeded = obj["conclusion"] == "success"
-    check_run_html_url = obj["html_url"]
-    # format is like https://github.com/ORG/REPO_NAME/actions/runs/RUN_ID/jobs/JOB_ID
-    run_id = check_run_html_url.split("/")[-3]
-    return run_id
-
-def download_logs(repo_full_name: str, run_id: int):
+def retrieve_logs(repo_full_name: str, run_id: int) -> str:
     response = requests.get(f"https://api.github.com/repos/{repo_full_name}/actions/runs/{run_id}/logs", headers=headers)
 
     logs_str = ""
@@ -49,9 +46,10 @@ def clean_logs(logs_str: str):
     ]
     return "\n".join([log.strip() for log in truncated_logs if not any(pattern in log for pattern in patterns)])
 
-
-if __name__ == "__main__":
-    repo_full_name = "sagewhocodes/ivy"
-    run_id = 14727682439
-    raw_logs = download_logs(repo_full_name, get_run_id(repo_full_name, run_id))
-    print(clean_logs(raw_logs))
+def on_check_suite(request: CheckSuiteCompletedRequest):
+    logs = retrieve_logs(
+        request.repository.full_name, 
+        request.check_suite.run_id
+    )
+    logs = clean_logs(logs)
+    print(logs)
