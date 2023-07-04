@@ -102,7 +102,7 @@ class GithubBot(BaseModel):
         try:
             return self.repo.get_contents(path, ref=branch)
         except Exception as e:
-            logger.error(path)
+            logger.warning(path)
             raise e
 
     def get_file(self, file_path: str, branch: str = "") -> ContentFile:
