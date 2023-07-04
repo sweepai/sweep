@@ -1,3 +1,4 @@
+
 <p align="center">
     <img src="https://github.com/sweepai/sweep/blob/856ff66c2dbeaf39afbf6d8c49a620dfa70271fb/.assets/sweep-banner-github.png">
 </p>
@@ -56,6 +57,9 @@ Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating 
 3. "👀" means it is taking a look, and it will generate the desired code
 4. "🚀" means the bot has finished its job and created a PR
 
+## 🤝 Contributing
+
+Contributions are welcome and greatly appreciated! For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file. In essence, you'll need to fork the repository, create a new branch for your feature or bug fix, commit your changes, and open a pull request.
 For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
 
 ---
@@ -97,3 +101,4 @@ We're currently working on responding to linters and external search. For more, 
 <p align="center">
     and, of course, Sweep!
 </p>
+
