@@ -28,8 +28,10 @@ class ChatLogger(BaseModel):
             logger.warning('Chat history could not connect to MongoDB')
             logger.warning(e)
 
-    def get_chat_history(self):
-        return self.chat_collection.find()
+    def get_chat_history(self, filters):
+        return self.chat_collection.find(filters) \
+            .sort([('expiration', 1), ('index', 1)]) \
+            .limit(40)
 
     def add_chat(self, additional_data):
         document = {**self.data, **additional_data, 'expiration': self.expiration, 'index': self.index}
