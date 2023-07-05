@@ -11,5 +11,4 @@ class SweepConfig(BaseModel):
     exclude_exts: list[str] = ['.min.js', '.min.js.map', '.min.css', '.min.css.map']
     # Maximum file size limit for the files to be included in the sweep
     max_file_limit: int = 60_000
-    max_file_limit: int = 60_000
 
