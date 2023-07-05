@@ -146,7 +146,7 @@ def on_ticket(
                 if agg_message is None:
                     agg_message = msg
                 else:
-                    app_message = app_message + f"\n{sep}" + msg
+                    agg_message = agg_message + f"\n{sep}" + msg
 
         # Update the issue comment
         issue_comment.edit(f"{get_progress_bar(current_index, errored)}\n{sep}{agg_message}{bot_suffix}")
@@ -240,6 +240,22 @@ def on_ticket(
 
     snippets = snippets[:min(len(snippets), max_num_of_snippets)]
 
+    newline = '\n'
+    comment_reply(
+        "I found the following snippets in your repository. I will now analyze this snippets."
+        + "\n\n"
+        + collapsible_template.format(
+            summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
+            body="\n".join(
+                [
+                    f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline))}\n"
+                    for snippet in snippets
+                ]
+            ),
+        ),
+        1
+    )
+
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
@@ -264,6 +280,7 @@ def on_ticket(
     sweepbot_retries = 3
     try:
         for i in range(sweepbot_retries):
+            # ANALYZE SNIPPETS
             logger.info("CoT retrieval...")
             if sweep_bot.model == "gpt-4-32k-0613":
                 sweep_bot.cot_retrieval()
@@ -278,39 +295,44 @@ def on_ticket(
                         file_change_request.change_type = "create"
                 except:
                     file_change_request.change_type = "create"
+
+            comment_reply()
+
+            # COMMENT ON ISSUE
             logger.info("Getting response from ChatGPT...")
             reply = sweep_bot.chat(reply_prompt, message_key="reply")
             sweep_bot.delete_messages_from_chat("reply")
             logger.info("Sending response...")
-            new_line = '\n'
             comment_reply(
-                reply
-                + "\n\n"
-                + collapsible_template.format(
-                    summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
-                    body="\n".join(
-                        [
-                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(new_line))}\n"
-                            for snippet in snippets
-                        ]
-                    ),
-                ),
-                1
+                reply,
+                2
             )
 
+            # CREATE PR METADATA
             logger.info("Generating PR...")
             pull_request = sweep_bot.generate_pull_request()
+            comment_reply(
+                reply,
+                3
+            )
 
+            # WRITE PULL REQUEST
             logger.info("Making PR...")
             response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
             if not response or not response["success"]: raise Exception("Failed to create PR")
             pr = response["pull_request"]
             current_issue.create_reaction("rocket")
+            comment_reply(
+                reply,
+                4
+            )
+
             try:
                 current_issue.delete_reaction(eyes_reaction.id)
             except:
                 pass
             try:
+                # CODE REVIEW
                 changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username, 
                         repo_description=repo_description, title=title, 
                         summary=summary, replies_text=replies_text, tree=tree)
@@ -326,6 +348,12 @@ def on_ticket(
                             pr_number=pr.number)
             except Exception as e:
                 logger.error(e)
+
+            # Completed code review
+            comment_reply(
+                reply,
+                5
+            )
             break
     except openai.error.InvalidRequestError as e:
         logger.error(e)
