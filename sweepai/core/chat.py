@@ -1,27 +1,22 @@
-from copy import deepcopy
 import json
-import os
-from typing import Generator, Iterator, Literal, Self
+from copy import deepcopy
+from typing import Iterator, Literal, Self
 
+import anthropic
+import backoff
 import modal
 import openai
-import anthropic
 from loguru import logger
 from pydantic import BaseModel
-import backoff
 
-from sweepai.core.entities import (
-    Function,
-    Message,
-)
+from sweepai.core.entities import Message, Function
 from sweepai.core.prompts import (
     system_message_prompt,
     system_message_issue_comment_prompt,
 )
-from sweepai.utils.constants import UTILS_NAME
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.core.entities import Message, Function
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.config import UTILS_MODAL_INST_NAME, ANTHROPIC_API_KEY
+from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 # TODO: combine anthropic and openai
 
@@ -180,7 +175,7 @@ class ChatGPT(BaseModel):
     ):
         if model is None:
             model = self.model
-        count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
+        count_tokens = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Tiktoken.count")
         messages_length = sum(
             [count_tokens.call(message.content or "") for message in self.messages]
         )
@@ -302,7 +297,7 @@ class ChatGPT(BaseModel):
     def call_anthropic(self, model: ChatModel | None = None) -> str:
         if model is None:
             model = self.model
-        count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
+        count_tokens = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Tiktoken.count")
         messages_length = sum(
             [int(count_tokens.call(message.content) * 1.1) for message in self.messages]
         )
@@ -311,8 +306,8 @@ class ChatGPT(BaseModel):
         messages_raw = format_for_anthropic(self.messages)
         logger.info(f"Input to call anthropic:\n{messages_raw}")
 
-        assert os.environ.get("ANTHROPIC_API_KEY"), "Please set ANTHROPIC_API_KEY"
-        client = anthropic.Client(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        assert ANTHROPIC_API_KEY is not None
+        client = anthropic.Client(api_key=ANTHROPIC_API_KEY)
 
         @backoff.on_exception(
             backoff.expo,
@@ -370,7 +365,7 @@ class ChatGPT(BaseModel):
         function_call: dict | None = None,
     ) -> Iterator[dict]:
         model = model or self.model
-        count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
+        count_tokens = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Tiktoken.count")
         messages_length = sum(
             [count_tokens.call(message.content or "") for message in self.messages]
         )

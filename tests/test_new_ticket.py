@@ -4,8 +4,7 @@ from loguru import logger
 
 import modal
 
-from sweepai.utils.constants import BOT_TOKEN_NAME  # type: ignore
-
+from sweepai.utils.config import GITHUB_BOT_TOKEN
 
 stub = modal.Stub("tests")
 image = (
@@ -14,7 +13,7 @@ image = (
     .pip_install("openai", "PyGithub", "loguru")
 )
 secrets = [
-    modal.Secret.from_name(BOT_TOKEN_NAME),
+    modal.Secret.from_name("github"),
     modal.Secret.from_name("openai-secret"),
 ]
 

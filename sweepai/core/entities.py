@@ -1,5 +1,6 @@
 import re
 from typing import ClassVar, Literal, Type, TypeVar
+
 from loguru import logger
 from pydantic import BaseModel
 

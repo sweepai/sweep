@@ -4,23 +4,21 @@ On Github ticket, get ChatGPT to deal with it
 
 # TODO: Add file validation
 
-import os
 import openai
-
 from loguru import logger
 
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
+from sweepai.utils.config import PREFIX, OPENAI_API_KEY
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     get_github_client,
     search_snippets,
 )
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
-from sweepai.utils.constants import PREFIX
 
-github_access_token = os.environ.get("GITHUB_TOKEN")
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+github_access_token = OPENAI_API_KEY
+openai.api_key = OPENAI_API_KEY
 
 
 def on_comment(

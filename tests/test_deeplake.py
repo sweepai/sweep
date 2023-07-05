@@ -3,9 +3,9 @@ from loguru import logger
 import modal
 
 from sweepai.core.entities import Snippet
-from sweepai.utils.config import SweepConfig
-from sweepai.utils.constants import DB_NAME
-get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
+from sweepai.utils.config import SweepConfig, DB_MODAL_INST_NAME
+
+get_relevant_snippets = modal.Function.lookup(DB_MODAL_INST_NAME, "get_relevant_snippets")
 # get_relevant_snippets.spawn(
 #     repo_name="sweepai/bot-internal",
 #     installation_id=36855882,

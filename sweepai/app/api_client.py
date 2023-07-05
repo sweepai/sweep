@@ -1,14 +1,15 @@
-from typing import Any
-import webbrowser
-import httpx
-from pydantic import BaseModel
-import requests
 import json
+import webbrowser
+from typing import Any
+
+import httpx
+import requests
 from loguru import logger
+from pydantic import BaseModel
 
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Function, PullRequest, Snippet
-from sweepai.utils.constants import PREFIX
+from sweepai.utils.config import PREFIX, SWEEP_API_ENDPOINT
 
 create_pr_function = Function(
     name="create_pr",
@@ -73,7 +74,7 @@ def break_json(raw_json: str):
 
 class APIClient(BaseModel):
     config: SweepChatConfig
-    api_endpoint = f"https://sweepai--{PREFIX}-ui.modal.run"
+    api_endpoint = SWEEP_API_ENDPOINT if SWEEP_API_ENDPOINT is not None else f"https://sweepai--{PREFIX}-ui.modal.run"
 
     def get_installation_id(self):
         results = requests.post(

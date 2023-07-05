@@ -2,23 +2,19 @@
 Creates PR given description.
 """
 
-import os
-import openai
-
-from loguru import logger
 import modal
+import openai
+from loguru import logger
 
 from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.handlers.on_review import review_pr
+from sweepai.utils.config import PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import get_github_client
-from sweepai.utils.constants import DB_NAME, PREFIX
 
-github_access_token = os.environ.get("GITHUB_TOKEN")
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+github_access_token = GITHUB_BOT_TOKEN
+openai.api_key = GITHUB_BOT_TOKEN
 
-update_index = modal.Function.lookup(DB_NAME, "update_index")
+update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5

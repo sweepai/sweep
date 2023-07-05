@@ -1,4 +1,6 @@
+from loguru import logger
 from pydantic import BaseModel
+
 from sweepai.core.prompts import (
     human_message_prompt,
     human_message_prompt_comment,
@@ -9,7 +11,6 @@ from sweepai.core.prompts import (
     comment_line_prompt
 )
 
-from loguru import logger
 
 class HumanMessagePrompt(BaseModel):
     repo_name: str

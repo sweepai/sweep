@@ -1,14 +1,13 @@
-import json
-from loguru import logger
 import github
-from github.Repository import Repository
+import modal
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException
-import modal
+from github.Repository import Repository
+from loguru import logger
 from pydantic import BaseModel
-from sweepai.core.code_repair import CodeRepairer
-from sweepai.utils.chat_logger import ChatLogger
 
+from sweepai.core.chat import ChatGPT
+from sweepai.core.code_repair import CodeRepairer
 from sweepai.core.entities import (
     FileChange,
     FileChangeRequest,
@@ -18,7 +17,6 @@ from sweepai.core.entities import (
     Function,
     Snippet
 )
-from sweepai.core.chat import ChatGPT
 from sweepai.core.prompts import (
     files_to_change_prompt,
     pull_request_prompt,
@@ -26,7 +24,7 @@ from sweepai.core.prompts import (
     modify_file_prompt,
     modify_file_plan_prompt,
 )
-from sweepai.utils.constants import DB_NAME
+from sweepai.utils.config import DB_MODAL_INST_NAME
 from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown
 
 
@@ -149,7 +147,7 @@ class GithubBot(BaseModel):
         installation_id: str,
         num_snippets: int = 30,
     ) -> list[Snippet]:
-        get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
+        get_relevant_snippets = modal.Function.lookup(DB_MODAL_INST_NAME, "get_relevant_snippets")
         snippets: list[Snippet] = get_relevant_snippets.call(
             self.repo.full_name, 
             query=query,
