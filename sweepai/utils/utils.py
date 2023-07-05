@@ -242,42 +242,45 @@ class Chunking:
         metadatas = []
 
         if file_language:
-            logger.info(file_language.name)
-            source_code_bytes = bytes(file_content, "utf-8")
-            spans = chunker(tree, source_code_bytes, max_chunk_size)
-            ids = [f"{file_path}:{span.start}:{span.end}" for span in spans]
-            chunks = [span.extract(file_content) for span in spans]
-            for chunk in chunks:
-                print(chunk + "\n\n\n")
-            for span in spans:
-                metadata = {
-                    "file_path": file_path,
-                    "start": span.start,
-                    "end": span.end,
-                    "score": score,
-                    **additional_metadata
-                }
-                metadatas.append(metadata)
-        else:
-            # start and end refers to line here, will fix later
-            logger.info("Unknown language")
-            source_lines = file_content.split('\n')
-            num_lines = len(source_lines)
-            logger.info(f"Number of lines: {num_lines}")
-            chunks = []
-            start_line = 0
-            while start_line < num_lines and num_lines > overlap:
-                end_line = min(start_line + chunk_size, num_lines)
-                chunk = '\n'.join(source_lines[start_line:end_line])
-                chunks.append(chunk)
-                ids.append(f"{file_path}:{start_line}:{end_line}")
-                metadatas.append({
-                    "file_path": file_path,
-                    "start": start_line,
-                    "end": end_line,
-                    "score": score,
-                    **additional_metadata
-                })
-                start_line += chunk_size - overlap
+            try:
+                logger.info(file_language.name)
+                source_code_bytes = bytes(file_content, "utf-8")
+                spans = chunker(tree, source_code_bytes, max_chunk_size)
+                ids = [f"{file_path}:{span.start}:{span.end}" for span in spans]
+                chunks = [span.extract(file_content) for span in spans]
+                for chunk in chunks:
+                    print(chunk + "\n\n\n")
+                for span in spans:
+                    metadata = {
+                        "file_path": file_path,
+                        "start": span.start,
+                        "end": span.end,
+                        "score": score,
+                        **additional_metadata
+                    }
+                    metadatas.append(metadata)
+                return chunks, metadatas, ids
+            except RecursionError:
+                logger.warning("Infinite recursion, will use naive approach...")
+        # start and end refers to line here, will fix later
+        logger.info("Unknown language")
+        source_lines = file_content.split('\n')
+        num_lines = len(source_lines)
+        logger.info(f"Number of lines: {num_lines}")
+        chunks = []
+        start_line = 0
+        while start_line < num_lines and num_lines > overlap:
+            end_line = min(start_line + chunk_size, num_lines)
+            chunk = '\n'.join(source_lines[start_line:end_line])
+            chunks.append(chunk)
+            ids.append(f"{file_path}:{start_line}:{end_line}")
+            metadatas.append({
+                "file_path": file_path,
+                "start": start_line,
+                "end": end_line,
+                "score": score,
+                **additional_metadata
+            })
+            start_line += chunk_size - overlap
 
         return chunks, metadatas, ids
