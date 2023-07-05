@@ -234,7 +234,7 @@ def compute_deeplake_vs(collection_name,
         # Check cache here for all documents
         embeddings = [None] * len(documents)
         if cache_success:
-            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + sha + CACHE_VERSION for doc in documents]
+            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in documents]
             cache_values = cache.mget(cache_keys)
             for idx, value in enumerate(cache_values):
                 if value is not None:
@@ -255,7 +255,7 @@ def compute_deeplake_vs(collection_name,
         if cache_success: cache.set(f"github-{sha}{CACHE_VERSION}", json.dumps({"metadatas": metadatas, "ids": ids, "embeddings": embeddings}))
         if cache_success and len(documents_to_compute) > 0:
             logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
-            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + sha + CACHE_VERSION for doc in documents_to_compute]
+            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in documents_to_compute]
             cache.mset({key: json.dumps(value) for key, value in zip(cache_keys, computed_embeddings)})
         return deeplake_vs
     else:
