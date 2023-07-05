@@ -108,14 +108,21 @@ def on_ticket(
         "[############################-------] 80% Complete",
         "[###################################] 100% Complete",
     ]
-    def get_progress_bar(index):
+    def get_progress_bar(index, errored=False):
         if index < 0: index = 0
         if index >= len(progress_bars): index = -1
-        return progress_bars[index]
+        return f"**Progress**\n{progress_bars[index]}"
 
-    issue_comment = current_issue.create_comment(f"I am currently looking into this ticket! I will update the progress of the ticket in this comment.\n{sep}**Progress**\n[#######---------------------------] 20% Complete" + bot_suffix)
-    def comment_reply(message: str):
-        current_issue.create_comment(message + bot_suffix)
+    issue_comment = current_issue.create_comment(f"I am currently looking into this ticket! I will update the progress of the ticket in this comment.\n{sep}{get_progress_bar(0)}{bot_suffix}")
+    current_index = 0
+    def comment_reply(message: str, index: int):
+        # Only update the progress bar if the issue generation errors.
+        errored = (index == -1)
+        if index > 0:
+            current_index = index
+
+        # Update the issue comment
+        issue_comment.edit(f"{message}\n{sep}{get_progress_bar(current_index, errored)}{bot_suffix}")
 
     comments = current_issue.get_comments()
     replies_text = ""
@@ -157,7 +164,8 @@ def on_ticket(
     except Exception as e:
         logger.error(e)
         comment_reply(
-            "It looks like an issue has occured around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev."
+            "It looks like an issue has occured around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev.",
+            -1
         )
         raise e
 
@@ -259,7 +267,8 @@ def on_ticket(
                             for snippet in snippets
                         ]
                     ),
-                )
+                ),
+                1
             )
 
             logger.info("Generating PR...")
@@ -294,7 +303,8 @@ def on_ticket(
     except openai.error.InvalidRequestError as e:
         logger.error(e)
         comment_reply(
-            "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev."
+            "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev.",
+            -1
         )
         posthog.capture(
             username,
@@ -309,7 +319,8 @@ def on_ticket(
     except Exception as e:
         logger.error(e)
         comment_reply(
-            "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev."
+            "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
+            -1
         )
         posthog.capture(
             username,
