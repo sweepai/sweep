@@ -37,6 +37,7 @@ BATCH_SIZE = 256
 SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-MiniLM-L12-v2"
 timeout = 60 * 30 # 30 minutes
 CACHE_VERSION = "v1.0.0"
+MAX_FILES = 3000
 
 image = (
     modal.Image.debian_slim()
@@ -185,6 +186,9 @@ def get_deeplake_vs_from_repo(
             file_path = file[len("repo/") :]
             file_paths.append(file_path)
             file_contents.append(contents)
+            if len(file_list) > MAX_FILES:
+                scores.append(1)
+                continue
             try:
                 cache_key = f"{repo_name}-{file_path}-{CACHE_VERSION}"
                 if cache_success:
@@ -199,7 +203,7 @@ def get_deeplake_vs_from_repo(
                     cache.set(cache_key, json.dumps(score), ex=60 * 60 * 2)
                 scores.append(score)
             except Exception as e:
-                logger.warning(f"Received warning {e}, skipping...")
+                logger.warning(f"Received warning during scoring {e}, skipping...")
                 scores.append(1)
                 continue
     scores = convert_to_percentiles(scores)
