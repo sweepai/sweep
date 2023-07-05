@@ -1,3 +1,4 @@
+
 <p align="center">
     <img src="https://github.com/sweepai/sweep/blob/856ff66c2dbeaf39afbf6d8c49a620dfa70271fb/.assets/sweep-banner-github.png">
 </p>
@@ -80,6 +81,9 @@ Unlike existing AI solutions, this can solve entire tickets and can be paralleli
 
 ## 🗺️ Roadmap
 We're currently working on responding to linters and external search. For more, see [🗺️ Roadmap](https://docs.sweep.dev/roadmap).
+## Contributing
+
+We welcome contributions from everyone. If you're interested in contributing, please take a look at our [CONTRIBUTING.md](CONTRIBUTING.md) guide. We have also provided templates for [issues](.github/ISSUE_TEMPLATE.md) and [pull requests](.github/PULL_REQUEST_TEMPLATE.md) to help you get started.
 
 ---
 
@@ -97,3 +101,4 @@ We're currently working on responding to linters and external search. For more, 
 <p align="center">
     and, of course, Sweep!
 </p>
+
