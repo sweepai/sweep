@@ -100,12 +100,16 @@ def on_ticket(
 
     # Add emojis
     eyes_reaction = item_to_react_to.create_reaction("eyes")
-    try:
-        item_to_react_to.delete_reaction("rocket")
-    except:
-        pass
 
     # Creates progress bar ASCII for 0-5 states
+    progress_headers = [
+        None,
+        "Step 1: Code Search",
+        "Step 2: Snippet Analysis",
+        "Step 3: Planning",
+        "Step 4: Coding",
+        "Step 5: Code Review"
+    ]
     progress_bars = [
         "[#----------------------------------] 0% Complete",
         "[#######----------------------------] 20% Complete",
@@ -117,18 +121,33 @@ def on_ticket(
     def get_progress_bar(index, errored=False):
         if index < 0: index = 0
         if index >= len(progress_bars): index = -1
-        return f"**Progress**\n{progress_bars[index]}"
+        return f"## Progress\n{progress_bars[index]}"
 
-    issue_comment = current_issue.create_comment(f"I am currently looking into this ticket! I will update the progress of the ticket in this comment.\n{sep}{get_progress_bar(0)}{bot_suffix}")
+    issue_comment = current_issue.create_comment(f"{get_progress_bar(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}")
     current_index = 0
+    past_messages = {}
     def comment_reply(message: str, index: int):
         # Only update the progress bar if the issue generation errors.
         errored = (index == -1)
-        if index > 0:
+        if index >= 0:
             current_index = index
+            past_messages[index] = message
+
+        # Include progress history
+        agg_message = None
+        for i in range(index+1):
+            if i in past_messages:
+                header = progress_headers[i]
+                if header is not None: header = "## " + header + "\n"
+                else: header = "No header\n"
+                msg = header + past_messages[i]
+                if agg_message is None:
+                    agg_message = msg
+                else:
+                    app_message = app_message + f"\n{sep}" + msg
 
         # Update the issue comment
-        issue_comment.edit(f"{message}\n{sep}{get_progress_bar(current_index, errored)}{bot_suffix}")
+        issue_comment.edit(f"{get_progress_bar(current_index, errored)}\n{sep}{message}{bot_suffix}")
 
     comments = current_issue.get_comments()
     replies_text = ""
@@ -286,7 +305,7 @@ def on_ticket(
             pr = response["pull_request"]
             current_issue.create_reaction("rocket")
             try:
-                eyes_reaction.delete()
+                current_issue.delete_reaction(eyes_reaction.id)
             except:
                 pass
             try:
@@ -336,7 +355,7 @@ def on_ticket(
         raise e
     else:
         try:
-            item_to_react_to.delete_reaction("eyes")
+            item_to_react_to.delete_reaction(eyes_reaction.id)
         except:
             pass
         item_to_react_to.create_reaction("rocket")
