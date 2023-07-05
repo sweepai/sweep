@@ -97,7 +97,13 @@ def on_ticket(
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
+
+    # Add emojis
     eyes_reaction = item_to_react_to.create_reaction("eyes")
+    try:
+        item_to_react_to.delete_reaction("rocket")
+    except:
+        pass
 
     # Creates progress bar ASCII for 0-5 states
     progress_bars = [
@@ -330,7 +336,7 @@ def on_ticket(
         raise e
     else:
         try:
-            eyes_reaction.delete()
+            item_to_react_to.delete_reaction("eyes")
         except:
             pass
         item_to_react_to.create_reaction("rocket")
