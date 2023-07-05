@@ -250,4 +250,3 @@ def on_comment(
     logger.info("on_comment success")
     return {"success": True}
 
-
