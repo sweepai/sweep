@@ -56,7 +56,6 @@ FUNCTION_SETTINGS = {
     "timeout": 30 * 60,
 }
 
-
 handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
 handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
@@ -65,7 +64,7 @@ update_index = modal.Function.lookup(DB_NAME, "update_index")
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
 async def webhook(raw_request: Request):
-    """Handle a webhook request from GitHub."""
+    '''Handle a webhook request from GitHub.'''
     try:
         request_dict = await raw_request.json()
         logger.info(f"Received request: {request_dict.keys()}")
@@ -88,14 +87,6 @@ async def webhook(raw_request: Request):
                             color=LABEL_COLOR,
                             description=LABEL_DESCRIPTION,
                         )
-                    # TODO(sweep): figure out why this is breaking
-                    # else:
-                    #     label = repo.get_label(LABEL_NAME)
-                    #     label.edit(
-                    #         name=LABEL_NAME,
-                    #         color=LABEL_COLOR, 
-                    #         description=LABEL_DESCRIPTION
-                    #     )
                     
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(LABEL_NAME)
@@ -131,19 +122,6 @@ async def webhook(raw_request: Request):
                     )
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
-                    handle_ticket.spawn(
-                        request.issue.title,
-                        request.issue.body,
-                        request.issue.number,
-                        request.issue.html_url,
-                        request.issue.user.login,
-                        request.repository.full_name,
-                        request.repository.description,
-                        request.installation.id,
-                        request.comment.id
-                    )
-                elif request.issue.pull_request and request.issue.user.login == SWEEP_LOGIN and request.comment.user.type == "User": # TODO(sweep): set a limit                    
-                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     handle_comment.spawn(
                         repo_full_name=request.repository.full_name,
                         repo_description=request.repository.description,
@@ -167,9 +145,7 @@ async def webhook(raw_request: Request):
                         installation_id=request.installation.id,
                         pr_number=request.pull_request.number,
                     )
-                # Todo: update index on comments
             case "pull_request_review", "submitted":
-                # request = ReviewSubmittedRequest(**request_dict)
                 pass
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
@@ -240,3 +216,4 @@ async def webhook(raw_request: Request):
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
+
