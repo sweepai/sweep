@@ -186,8 +186,17 @@ def get_deeplake_vs_from_repo(
             file_paths.append(file_path)
             file_contents.append(contents)
             try:
+                cache_key = f"{repo_name}-{file_path}-{CACHE_VERSION}"
+                if cache_success:
+                    cached_value = cache.get(cache_key)
+                    if cached_value:
+                        score = json.loads(cached_value)
+                        scores.append(score)
+                        continue
                 commits = list(repo.get_commits(path=file_path, sha=branch_name))
-                score, logit = compute_score(contents, commits)
+                score = compute_score(contents, commits)
+                if cache_success:
+                    cache.set(cache_key, json.dumps(score), ex=60 * 60 * 2)
                 scores.append(score)
             except Exception as e:
                 logger.warning(f"Received warning {e}, skipping...")
