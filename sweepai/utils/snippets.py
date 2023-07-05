@@ -1,11 +1,11 @@
 
-from loguru import logger
 import modal
+from loguru import logger
 
 from sweepai.core.chat import Snippet
-from sweepai.utils.constants import UTILS_NAME
+from sweepai.utils.config import UTILS_MODAL_INST_NAME
 
-chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
+chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
 
 def format_snippets(snippets: list[Snippet]):
     snippets: list[Snippet] = snippets[::-1]

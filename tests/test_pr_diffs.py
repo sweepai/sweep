@@ -6,7 +6,7 @@ from sweepai.core.chat import DiffSummarization, PullRequestComment, format_for_
 from sweepai.core.prompts import review_prompt
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
-from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME
+from sweepai.utils.config import API_MODAL_INST_NAME, GITHUB_BOT_TOKEN
 
 from sweepai.utils.github_utils import get_file_contents, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessageFinalPRComment, HumanMessagePromptReview, HumanMessageReviewFollowup
@@ -17,7 +17,7 @@ from sweepai.utils.snippets import format_snippets
 # 2. Get files changed
 # 3. Come up with some comments for the PR
 # 4. Take comments and add them to the PR
-stub = modal.Stub(API_NAME)
+stub = modal.Stub(API_MODAL_INST_NAME)
 image = (
     modal.Image.debian_slim()
     .apt_install("git")
@@ -36,7 +36,7 @@ image = (
     )
 )
 secrets = [
-    modal.Secret.from_name(BOT_TOKEN_NAME),
+    modal.Secret.from_name("github"),
     modal.Secret.from_name("openai-secret"),
     modal.Secret.from_name("anthropic"),
     modal.Secret.from_name("posthog"),

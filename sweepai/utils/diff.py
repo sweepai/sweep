@@ -1,5 +1,5 @@
 import difflib
-import re
+
 
 def generate_diff(old_code, new_code):
     diff = difflib.unified_diff(

@@ -1,24 +1,21 @@
 import json
-import os
-
-from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import RedirectResponse
 
 import modal
+import slack_sdk
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import RedirectResponse
+from loguru import logger
 from pydantic import BaseModel
 from pymongo import MongoClient
-import requests
-from sweepai.core.entities import FileChangeRequest, Function, PullRequest
-import slack_sdk
-from loguru import logger
 from slack_sdk.oauth.installation_store import Installation, InstallationStore, Bot
 
-from sweepai.core.sweep_bot import SweepBot
-from sweepai.utils.github_utils import get_github_client
-from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME, PREFIX, SLACK_NAME
+from sweepai.core.entities import FileChangeRequest, Function, PullRequest
 from sweepai.core.prompts import slack_slash_command_prompt
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.utils.config import PREFIX, API_MODAL_INST_NAME, SLACK_MODAL_INST_NAME, MONGODB_URI, \
+    SLACK_APP_PAGE_URL, SLACK_APP_INSTALL_URL, SLACK_CLIENT_SECRET, SLACK_CLIENT_ID
+from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.github_utils import get_installation_id
-import sweepai.utils.event_logger
 
 image = modal.Image \
     .debian_slim() \
@@ -37,11 +34,11 @@ image = modal.Image \
         "posthog",
         "pyyaml"
     )
-stub = modal.Stub(SLACK_NAME)
+stub = modal.Stub(SLACK_MODAL_INST_NAME)
 secrets = [
     modal.Secret.from_name("slack"),
     modal.Secret.from_name("openai-secret"),
-    modal.Secret.from_name(BOT_TOKEN_NAME),
+    modal.Secret.from_name("github"),
     modal.Secret.from_name("mongodb"),
 ]
 
@@ -117,12 +114,12 @@ pr_done_format = """:white_check_mark: Done creating PR at {url} with the follow
 thread_query_format = "Message thread: {messages}"
 
 # TODO(sweep): move to constants
-slack_app_page = "https://sweepusers.slack.com/apps/A05D69L28HX-sweep"
-slack_install_link = "https://slack.com/oauth/v2/authorize?client_id=5364586338420.5448326076609&scope=channels:read,chat:write,chat:write.public,commands,groups:read,im:read,incoming-webhook,mpim:read&user_scope="
+slack_app_page = SLACK_APP_PAGE_URL
+slack_install_link = SLACK_APP_INSTALL_URL
 
 class MongoDBInstallationStore(InstallationStore):
     def __init__(self):
-        self.client = MongoClient(os.environ['MONGODB_URI'])
+        self.client = MongoClient(MONGODB_URI)
         self.db = self.client["slack"]
         self.installation_collection = self.db["installation"]
         self.bot_collection = self.db["bot"]
@@ -223,7 +220,7 @@ class SlackSlashCommandRequest(BaseModel):
 )
 def reply_slack(request: SlackSlashCommandRequest, thread_ts: str | None = None):
     try:
-        create_pr = modal.Function.lookup(API_NAME, "create_pr")
+        create_pr = modal.Function.lookup(API_MODAL_INST_NAME, "create_pr")
         client = None
         installation_store = MongoDBInstallationStore()
         token = installation_store.find_installation(
@@ -436,8 +433,8 @@ def get_oauth_settings():
     from slack_bolt.oauth.oauth_settings import OAuthSettings
 
     return OAuthSettings(
-        client_id=os.environ["SLACK_CLIENT_ID"],
-        client_secret=os.environ["SLACK_CLIENT_SECRET"],
+        client_id=SLACK_CLIENT_ID,
+        client_secret=SLACK_CLIENT_SECRET,
         scopes=[
             "app_mentions:read",
             "channels:history",

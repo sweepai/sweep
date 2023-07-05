@@ -1,5 +1,5 @@
 from diskcache import Cache, FanoutCache
-from sweepai.utils.constants import DB_NAME
+from sweepai.utils.config import DB_MODAL_INST_NAME
 import hashlib
 
 from sweepai.utils.hash import hash_sha256

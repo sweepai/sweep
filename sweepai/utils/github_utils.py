@@ -1,20 +1,21 @@
-import shutil
-import modal
 import os
-import time
 import re
+import shutil
+import time
+
 import github
+import modal
+import requests
 from github import Github
 from github.Repository import Repository
-from loguru import logger
-
 from jwt import encode
-import requests
+from loguru import logger
 from tqdm import tqdm
+
 from sweepai.core.entities import Snippet
-from sweepai.utils.config import SweepConfig
-from sweepai.utils.constants import APP_ID, DB_NAME
+from sweepai.utils.config import SweepConfig, DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHUB_APP_PEM
 from sweepai.utils.event_logger import posthog
+
 
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"
@@ -22,8 +23,8 @@ def make_valid_string(string: str):
 
 
 def get_jwt():
-    signing_key = os.environ["GITHUB_APP_PEM"]
-    app_id = APP_ID
+    signing_key = GITHUB_APP_PEM
+    app_id = GITHUB_APP_ID
     payload = {"iat": int(time.time()), "exp": int(time.time()) + 600, "iss": app_id}
 
     return encode(payload, signing_key, algorithm="RS256")
@@ -170,7 +171,7 @@ def search_snippets(
     sweep_config: SweepConfig = SweepConfig(),
 ) -> tuple[Snippet, str]:
     # Initialize the relevant directories string
-    get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
+    get_relevant_snippets = modal.Function.lookup(DB_MODAL_INST_NAME, "get_relevant_snippets")
     snippets: list[Snippet] = get_relevant_snippets.call(
         repo.full_name, query, num_files, installation_id=installation_id
     )
@@ -226,7 +227,7 @@ def index_full_repository(
     installation_id: int = None,
     sweep_config: SweepConfig = SweepConfig(),
 ):
-    update_index = modal.Function.lookup(DB_NAME, "update_index")
+    update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
     num_indexed_docs = update_index.spawn(
         repo_name=repo_name,
         installation_id=installation_id,

@@ -1,33 +1,29 @@
+import glob
 import json
 import os
 import re
-import time
 import shutil
-import glob
+import time
 
-from modal import stub
+import modal
+from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
+from git import Repo
+from github import Github
 from loguru import logger
+from modal import method
 from redis import Redis
 from tqdm import tqdm
-import modal
-from modal import method
-from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
-from github import Github
-from git import Repo
 
 from sweepai.core.entities import Snippet
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.scorer import compute_score, convert_to_percentiles
-
+from ..utils.config import SweepConfig, ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, REDIS_URL
 from ..utils.github_utils import get_token
-from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
-from ..utils.config import SweepConfig
-import time
 
 # TODO: Lots of cleanups can be done here with these constants
-stub = modal.Stub(DB_NAME)
-chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
+stub = modal.Stub(DB_MODAL_INST_NAME)
+chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
 model_volume = modal.SharedVolume().persist(f"{ENV}-storage")
 MODEL_DIR = "/root/cache/model"
 DEEPLAKE_DIR = "/root/cache/"
@@ -45,7 +41,7 @@ image = (
     .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "highlight-io", "anthropic", "posthog", "redis", "pyyaml")
 )
 secrets = [
-    modal.Secret.from_name(BOT_TOKEN_NAME),
+    modal.Secret.from_name("github"),
     modal.Secret.from_name("openai-secret"),
     modal.Secret.from_name("huggingface"),
     modal.Secret.from_name("chroma-endpoint"),
@@ -113,7 +109,7 @@ def get_deeplake_vs_from_repo(
     commit_hash = commits[0].sha
     cache_success = True
     try:
-        cache = Redis.from_url(os.environ.get("redis_url"))
+        cache = Redis.from_url(REDIS_URL)
         logger.info(f"Succesfully got cache for {repo_name}")
     except:
         cache_success = False

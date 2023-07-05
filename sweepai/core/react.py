@@ -4,7 +4,7 @@ Utils for react agent
 
 import re
 from textwrap import dedent
-from typing import Callable, Concatenate
+from typing import Callable
 
 from pydantic import BaseModel
 

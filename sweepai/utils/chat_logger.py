@@ -1,10 +1,12 @@
-import os
 from datetime import datetime, timedelta
 from typing import Any
 
-from pymongo import MongoClient
-from pydantic import BaseModel, Field
 from loguru import logger
+from pydantic import BaseModel, Field
+from pymongo import MongoClient
+
+from sweepai.utils.config import MONGODB_URI
+
 
 class ChatLogger(BaseModel):
     data: dict = Field(default_factory=dict)
@@ -14,7 +16,7 @@ class ChatLogger(BaseModel):
 
     def __init__(self, data: dict = Field(default_factory=dict)):
         super().__init__(data=data)  # Call the BaseModel's __init__ method
-        key = os.environ.get('MONGODB_URI')
+        key = MONGODB_URI
         if key is None:
             logger.warning('Chat history logger has no key')
             return

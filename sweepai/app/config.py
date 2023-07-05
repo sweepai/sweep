@@ -1,13 +1,13 @@
 import os
 import time
-from typing import Self
-import requests
-from urllib.parse import parse_qs, unquote
 import webbrowser
+from typing import Self
+from urllib.parse import parse_qs, unquote
 
+import requests
+import yaml
 from config_path import ConfigPath
 from pydantic import BaseModel
-import yaml
 
 CLIENT_ID = "Iv1.91fd31586a926a9f"
 

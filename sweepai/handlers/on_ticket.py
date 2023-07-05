@@ -4,31 +4,29 @@ On Github ticket, get ChatGPT to deal with it
 
 # TODO: Add file validation
 
-import os
-import openai
-
-from loguru import logger
 import modal
+import openai
+from loguru import logger
 
-from sweepai.core.entities import FileChangeRequest, Snippet
+from sweepai.core.entities import Snippet
+from sweepai.core.prompts import issue_comment_prompt
 from sweepai.core.prompts import (
     reply_prompt,
 )
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.core.prompts import issue_comment_prompt
 from sweepai.handlers.create_pr import create_pr
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
+from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.config import PREFIX, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, OPENAI_API_KEY, GITHUB_BOT_TOKEN
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.constants import DB_NAME, PREFIX, UTILS_NAME
-from sweepai.utils.chat_logger import ChatLogger
 
-github_access_token = os.environ.get("GITHUB_TOKEN")
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+github_access_token = GITHUB_BOT_TOKEN
+openai.api_key = OPENAI_API_KEY
 
-update_index = modal.Function.lookup(DB_NAME, "update_index")
+update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 bot_suffix = "I'm a bot that handles simple bugs and feature requests \
 but I might make mistakes. Please be kind!"
@@ -41,7 +39,7 @@ collapsible_template = '''
 </details>
 '''
 
-chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
+chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
 
 num_of_snippets_to_query = 30
 max_num_of_snippets = 5

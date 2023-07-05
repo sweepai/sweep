@@ -1,12 +1,8 @@
-import time
 from loguru import logger
 import modal
+from loguru import logger
 from pydantic import ValidationError
-from sweepai.handlers.create_pr import create_pr  # type: ignore
 
-from sweepai.handlers.on_ticket import on_ticket
-from sweepai.handlers.on_comment import on_comment
-from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, LABEL_COLOR, LABEL_DESCRIPTION, LABEL_NAME, SWEEP_LOGIN
 from sweepai.events import (
     CommentCreatedRequest,
     InstallationCreatedRequest,
@@ -15,13 +11,16 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
 )
+from sweepai.handlers.create_pr import create_pr  # type: ignore
+from sweepai.handlers.on_comment import on_comment
+from sweepai.handlers.on_ticket import on_ticket
+from sweepai.utils.config import DB_MODAL_INST_NAME, API_MODAL_INST_NAME, GITHUB_BOT_USERNAME, \
+    GITHUB_LABEL_NAME, GITHUB_LABEL_COLOR, GITHUB_LABEL_DESCRIPTION
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
 from fastapi import HTTPException, Request
 
-from pymongo import MongoClient
-
-stub = modal.Stub(API_NAME)
+stub = modal.Stub(API_MODAL_INST_NAME)
 image = (
     modal.Image.debian_slim()
     .apt_install("git")
@@ -42,7 +41,7 @@ image = (
     )
 )
 secrets = [
-    modal.Secret.from_name(BOT_TOKEN_NAME),
+    modal.Secret.from_name("github"),
     modal.Secret.from_name("openai-secret"),
     modal.Secret.from_name("anthropic"),
     modal.Secret.from_name("posthog"),
@@ -60,7 +59,7 @@ FUNCTION_SETTINGS = {
 handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
 handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
-update_index = modal.Function.lookup(DB_NAME, "update_index")
+update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
@@ -82,11 +81,11 @@ async def webhook(raw_request: Request):
                     labels = repo.get_labels()
                     label_names = [label.name for label in labels]
 
-                    if LABEL_NAME not in label_names:
+                    if GITHUB_LABEL_NAME not in label_names:
                         repo.create_label(
-                            name=LABEL_NAME,
-                            color=LABEL_COLOR,
-                            description=LABEL_DESCRIPTION,
+                            name=GITHUB_LABEL_NAME,
+                            color=GITHUB_LABEL_COLOR,
+                            description=GITHUB_LABEL_DESCRIPTION,
                         )
                     # TODO(sweep): figure out why this is breaking
                     # else:
@@ -98,7 +97,7 @@ async def webhook(raw_request: Request):
                     #     )
                     
                     current_issue = repo.get_issue(number=request.issue.number)
-                    current_issue.add_to_labels(LABEL_NAME)
+                    current_issue.add_to_labels(GITHUB_LABEL_NAME)
             case "issues", "labeled":
                 request = IssueRequest(**request_dict)
                 if request.issue is not None and (
@@ -142,7 +141,7 @@ async def webhook(raw_request: Request):
                         request.installation.id,
                         request.comment.id
                     )
-                elif request.issue.pull_request and request.issue.user.login == SWEEP_LOGIN and request.comment.user.type == "User": # TODO(sweep): set a limit                    
+                elif request.issue.pull_request and request.issue.user.login == GITHUB_BOT_USERNAME and request.comment.user.type == "User": # TODO(sweep): set a limit
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     handle_comment.spawn(
                         repo_full_name=request.repository.full_name,
@@ -210,7 +209,7 @@ async def webhook(raw_request: Request):
                 organization, repo_name = pr_request.repository.full_name.split("/")
                 commit_author = pr_request.pull_request.user.login
                 merged_by = pr_request.pull_request.merged_by.login
-                if SWEEP_LOGIN == commit_author:
+                if GITHUB_BOT_USERNAME == commit_author:
                     posthog.capture(
                         merged_by, 
                         "merged_sweep_pr", 

@@ -4,23 +4,24 @@ Proxy for the UI.
 
 import json
 from typing import Any
+
 import fastapi
-from github import Github
 import modal
-from loguru import logger
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
+from github import Github
+from loguru import logger
 from pydantic import BaseModel
-from sweepai.app.config import SweepChatConfig
 
+from sweepai.app.config import SweepChatConfig
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Function, Message, PullRequest, Snippet
-from sweepai.core.sweep_bot import SweepBot
-from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, PREFIX
-from sweepai.utils.github_utils import get_github_client, get_installation_id
 from sweepai.core.prompts import gradio_system_message_prompt
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.utils.config import PREFIX, DB_MODAL_INST_NAME, API_MODAL_INST_NAME
+from sweepai.utils.github_utils import get_github_client, get_installation_id
 
-get_relevant_snippets = modal.Function.from_name(DB_NAME, "get_relevant_snippets")
+get_relevant_snippets = modal.Function.from_name(DB_MODAL_INST_NAME, "get_relevant_snippets")
 
 stub = modal.Stub(PREFIX + "-ui")
 image = (
@@ -41,7 +42,7 @@ image = (
     )
 )
 secrets = [
-    modal.Secret.from_name(BOT_TOKEN_NAME),
+    modal.Secret.from_name("github"),
     modal.Secret.from_name("openai-secret")
 ]
 
@@ -90,7 +91,7 @@ def _asgi_app():
     @app.post("/search")
     def search(request: SearchRequest) -> list[Snippet]:
         logger.info("Searching for snippets...")
-        get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
+        get_relevant_snippets = modal.Function.lookup(DB_MODAL_INST_NAME, "get_relevant_snippets")
 
         assert verify_config(request.config)
 
@@ -127,7 +128,7 @@ def _asgi_app():
         g = get_github_client(request.config.installation_id)
         repo = g.get_repo(request.config.repo_full_name)
 
-        create_pr_func = modal.Function.lookup(API_NAME, "create_pr")
+        create_pr_func = modal.Function.lookup(API_MODAL_INST_NAME, "create_pr")
         system_message = gradio_system_message_prompt.format(
             snippets="\n".join([snippet.denotation + f"\n```{snippet.get_snippet()}```" for snippet in request.snippets]),
             repo_name=request.config.repo_full_name,

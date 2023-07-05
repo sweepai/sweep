@@ -1,8 +1,10 @@
 import json
-from github import Github
-import gradio as gr
-from loguru import logger
 import webbrowser
+
+import gradio as gr
+from github import Github
+from loguru import logger
+
 from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Snippet

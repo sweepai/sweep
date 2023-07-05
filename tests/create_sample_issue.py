@@ -3,9 +3,11 @@ import os
 from github import Github
 from loguru import logger
 
+from sweepai.utils.config import GITHUB_BOT_TOKEN
+
+
 def create_issue(repo_name, title, body):
-    access_token = os.environ.get("ACCESS_TOKEN")
-    g = Github(access_token)
+    g = Github(GITHUB_BOT_TOKEN)
     repo = g.get_repo(repo_name)
     issue = repo.create_issue(title=title, body=body)
     logger.info(f"Issue URL: {issue.html_url}")
