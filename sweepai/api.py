@@ -143,6 +143,21 @@ async def webhook(raw_request: Request):
                         request.comment.id
                     )
                 elif request.issue.pull_request and request.issue.user.login == SWEEP_LOGIN and request.comment.user.type == "User": # TODO(sweep): set a limit                    
+                    handle_comment.spawn(
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        comment=request.comment.body,
+                        pr_path=None,
+                        pr_line_position=None,
+                        username=request.comment.user.login,
+                        installation_id=request.installation.id,
+                        pr_number=request.issue.number,
+                    )
+                    # Check the length of the AI model's response
+                    response = handle_comment.get()
+                    if len(response) < 15:
+                        # If the response is less than 15 characters, generate a new response
+                        response = handle_comment.get()
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     handle_comment.spawn(
                         repo_full_name=request.repository.full_name,
@@ -156,6 +171,21 @@ async def webhook(raw_request: Request):
                     )
             case "pull_request_review_comment", "created":
                 request = CommentCreatedRequest(**request_dict)
+                handle_comment.spawn(
+                    repo_full_name=request.repository.full_name,
+                    repo_description=request.repository.description,
+                    comment=request.comment.body,
+                    pr_path=request.comment.path,
+                    pr_line_position=request.comment.original_line,
+                    username=request.comment.user.login,
+                    installation_id=request.installation.id,
+                    pr_number=request.pull_request.number,
+                )
+                # Check the length of the AI model's response
+                response = handle_comment.get()
+                if len(response) < 15:
+                    # If the response is less than 15 characters, generate a new response
+                    response = handle_comment.get()
                 if "sweep/" in request.pull_request.head.ref.lower():
                     handle_comment.spawn(
                         repo_full_name=request.repository.full_name,
@@ -240,3 +270,4 @@ async def webhook(raw_request: Request):
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
+
