@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 import os
-from typing import Generator, Iterator, Literal, Self
+from typing import Iterator, Literal, Self
 
 import modal
 import openai
