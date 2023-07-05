@@ -30,7 +30,8 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 update_index = modal.Function.lookup(DB_NAME, "update_index")
 
-bot_suffix = "\n\n---\nI'm a bot that handles simple bugs and feature requests \
+sep = "\n---\n"
+bot_suffix = f"\n{sep}I'm a bot that handles simple bugs and feature requests \
 but I might make mistakes. Please be kind!"
 
 collapsible_template = '''
@@ -112,7 +113,7 @@ def on_ticket(
         if index >= len(progress_bars): index = -1
         return progress_bars[index]
 
-    issue_comment = current_issue.create_comment("I am currently looking into this ticket! I will update the progress of the ticket in this comment.\n---\n**Progress**\n[#######---------------------------] 20% Complete" + bot_suffix)
+    issue_comment = current_issue.create_comment(f"I am currently looking into this ticket! I will update the progress of the ticket in this comment.\n{sep}**Progress**\n[#######---------------------------] 20% Complete" + bot_suffix)
     def comment_reply(message: str):
         current_issue.create_comment(message + bot_suffix)
 
