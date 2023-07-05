@@ -7,5 +7,11 @@ class RepoConfig:
         self.load_config()
 
     def load_config(self):
-        with open(self.config_path, 'r') as config_file:
-            self.settings = yaml.safe_load(config_file)
+        try:
+            with open(self.config_path, 'r') as config_file:
+                self.settings = yaml.safe_load(config_file)
+        except FileNotFoundError:
+            print(f"Configuration file {self.config_path} not found.")
+        except yaml.YAMLError:
+            print(f"Error parsing YAML file {self.config_path}.")
+
