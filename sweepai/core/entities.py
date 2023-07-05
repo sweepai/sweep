@@ -5,7 +5,8 @@ from pydantic import BaseModel
 
 try:   # Python 3.11+
     from typing import Self
-except ImportError:  # Python 3.10
+except ImportError:  # Python 3.10 and below
+    Self = TypeVar("Self")
     Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
@@ -34,6 +35,7 @@ class Message(BaseModel):
             obj["name"] = self.name
         return obj
 
+
 class Function(BaseModel):
     class Parameters(BaseModel):
         type: str = "object"
@@ -41,6 +43,7 @@ class Function(BaseModel):
     name: str
     description: str
     parameters: Parameters
+
 
 class RegexMatchError(ValueError):
     pass
@@ -203,7 +206,3 @@ class DiffSummarization(RegexMatchableBaseModel):
     content: str
     _regex = r"""<file_summarization>(?P<content>.*)<\/file_summarization>"""
 
-class PullRequestComment(RegexMatchableBaseModel):
-    changes_required: str
-    content: str
-    _regex = r"""<changes_required>(?P<changes_required>.*)<\/changes_required>(\s+)<review_comment>(?P<content>.*)<\/review_comment>"""
