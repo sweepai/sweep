@@ -10,6 +10,4 @@ class SweepConfig(BaseModel):
     # List of file extensions to exclude when the program is running. Default includes '.min.js', '.min.js.map', '.min.css', '.min.css.map'.
     exclude_exts: list[str] = ['.min.js', '.min.js.map', '.min.css', '.min.css.map']
     # Maximum number of files that can be processed. Default is 60,000.
-    max_file_limit: int = 60_000
-    max_file_limit: int = 60_000
 
