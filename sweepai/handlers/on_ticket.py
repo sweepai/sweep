@@ -121,6 +121,8 @@ def on_ticket(
     def get_progress_bar(index, errored=False):
         if index < 0: index = 0
         if index >= len(progress_bars): index = -1
+        if errored:
+            return f"## Progress\n{progress_bars[index]} 🚫"
         return f"## Progress\n{progress_bars[index]}"
 
     issue_comment = current_issue.create_comment(f"{get_progress_bar(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}")
@@ -135,7 +137,7 @@ def on_ticket(
 
         # Include progress history
         agg_message = None
-        for i in range(index+1):
+        for i in range(current_index+1):
             if i in past_messages:
                 header = progress_headers[i]
                 if header is not None: header = "## " + header + "\n"
@@ -147,7 +149,7 @@ def on_ticket(
                     app_message = app_message + f"\n{sep}" + msg
 
         # Update the issue comment
-        issue_comment.edit(f"{get_progress_bar(current_index, errored)}\n{sep}{message}{bot_suffix}")
+        issue_comment.edit(f"{get_progress_bar(current_index, errored)}\n{sep}{agg_message}{bot_suffix}")
 
     comments = current_issue.get_comments()
     replies_text = ""
