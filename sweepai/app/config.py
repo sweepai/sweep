@@ -19,70 +19,195 @@ config_path = ConfigPath( 'sweep_chat', 'sweep', '.yaml' )
 CONFIG_FILE = config_path.saveFilePath()
 
 class SweepChatConfig(BaseModel):
-    github_username: str
-    github_pat: str # secret
-    repo_full_name: str | None = None
-    installation_id: int | None = None
-    version: str = "0.0.1"
+    """
+    On Github ticket, get ChatGPT to deal with it
+    """
 
-    @classmethod
-    def create(cls):
-        device_code_response = requests.post(DEVICE_CODE_ENDPOINT, json={"client_id": CLIENT_ID})
-        parsed_device_code_response = parse_qs(unquote(device_code_response.text))
-        print("\033[93m" + f"Open {USER_LOGIN_ENDPOINT} if it doesn't open automatically." + "\033[0m")
-        print("\033[93m" + f"Paste the following code (copied to your clipboard) and click authorize:" + "\033[0m")
-        print("\033[94m" + parsed_device_code_response["user_code"][0] + "\033[0m") # prints in blue
-        print("\033[93m" + "Once you've authorized, ** just wait a few seconds **..." + "\033[0m") # prints in yellow
-        time.sleep(3)
-        webbrowser.open_new_tab(USER_LOGIN_ENDPOINT)
-        for _ in range(10):
-            time.sleep(5.5)
-            try:
-                oauth_access_token_response = requests.post(
-                    OAUTH_ACCESS_TOKEN_ENDPOINT,
-                    json={
-                        "client_id": CLIENT_ID,
-                        "device_code": parsed_device_code_response["device_code"][0],
-                        "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-                    }
-                )
-                oauth_access_token_response = parse_qs(unquote(oauth_access_token_response.text))
-                access_token = oauth_access_token_response["access_token"][0]
-                assert access_token
-                break
-            except KeyError:
-                pass
-        else:
-            raise Exception("Could not get access token")
-        username_response = requests.get(
-            "https://api.github.com/user",
-            headers={
-                "Accept": "application/vnd.github+json",
-                "Authorization": f"Bearer {access_token}",
-            }
+    # TODO: Add file validation
+
+    import os
+    import openai
+
+    from loguru import logger
+
+    from sweepai.core.sweep_bot import SweepBot
+    from sweepai.handlers.on_review import get_pr_diffs
+    from sweepai.utils.event_logger import posthog
+    from sweepai.utils.github_utils import (
+        get_github_client,
+        search_snippets,
+    )
+    from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
+    from sweepai.utils.constants import PREFIX
+
+    github_access_token = os.environ.get("GITHUB_TOKEN")
+    openai.api_key = os.environ.get("OPENAI_API_KEY")
+
+
+    def on_comment(
+        repo_full_name: str,
+        repo_description: str,
+        comment: str,
+        pr_path: str | None,
+        pr_line_position: int | None,
+        username: str,
+        installation_id: int,
+        pr_number: int = None,
+    ):
+        # Flow:
+        # 1. Get relevant files
+        # 2: Get human message
+        # 3. Get files to change
+        # 4. Get file changes
+        # 5. Create PR
+        logger.info(f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
+        organization, repo_name = repo_full_name.split("/")
+        metadata = {
+            "repo_full_name": repo_full_name,
+            "repo_name": repo_name,
+            "organization": organization,
+            "repo_description": repo_description,
+            "installation_id": installation_id,
+            "function": "on_comment",
+            "mode": PREFIX,
+        }
+        posthog.capture(username, "started", properties=metadata)
+
+        g = get_github_client(installation_id)
+
+        if comment_id:
+            logger.info(f"Replying to comment {comment_id}...")
+        logger.info(f"Getting repo {repo_full_name}")
+        repo = g.get_repo(repo_full_name)
+        current_issue = repo.get_issue(number=issue_number)
+        if current_issue.state == 'closed':
+            posthog.capture(username, "issue_closed", properties=metadata)
+            return {"success": False, "reason": "Issue is closed"}
+        item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
+        eyes_reaction = item_to_react_to.create_reaction("eyes")
+
+        def comment_reply(message: str):
+            current_issue.create_comment(message + "\n\n---\n" + bot_suffix)
+
+        comments = current_issue.get_comments()
+        replies_text = ""
+        if comment_id:
+            replies_text = "\nComments:\n" + "\n".join(
+                [
+                    issue_comment_prompt.format(
+                        username=comment.user.login,
+                        reply=comment.body,
+                    ) for comment in comments
+                ]
+            )
+
+        def fetch_file_contents_with_retry():
+            retries = 3
+            error = None
+            for i in range(retries):
+                try:
+                    logger.info(f"Fetching relevant files for the {i}th time...")
+                    return search_snippets(
+                        repo,
+                        f"{title}\n{summary}\n{replies_text}",
+                        num_files=num_of_snippets_to_query,
+                        branch=None,
+                        installation_id=installation_id,
+                    )
+                except Exception as e:
+                    error = e
+                    continue
+            posthog.capture(
+                username, "fetching_failed", properties={"error": error, **metadata}
+            )
+            raise error
+
+        logger.info("Fetching relevant files...")
+        try:
+            snippets, tree = fetch_file_contents_with_retry()
+            assert len(snippets) > 0
+        except Exception as e:
+            logger.error(e)
+            comment_reply(
+                "It looks like an issue has occured around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev."
+            )
+            raise e
+
+        num_full_files = 2
+        num_extended_snippets = 2
+
+        most_relevant_snippets = snippets[-num_full_files:]
+        snippets = snippets[:-num_full_files]
+        logger.info("Expanding snippets...")
+        for snippet in most_relevant_snippets:
+            current_snippet = snippet
+            _chunks, metadatas, _ids = chunker.call(
+                current_snippet.content, 
+                current_snippet.file_path
+            )
+            segmented_snippets = [
+                Snippet(
+                    content=current_snippet.content,
+                    start=metadata["start"],
+                    end=metadata["end"],
+                    file_path=metadata["file_path"],
+                ) for metadata in metadatas
+            ]
+            index = 0
+            while index < len(segmented_snippets) and segmented_snippets[index].start <= current_snippet.start:
+                index += 1
+            index -= 1
+            for i in range(index + 1, min(index + num_extended_snippets + 1, len(segmented_snippets))):
+                current_snippet += segmented_snippets[i]
+            for i in range(index - 1, max(index - num_extended_snippets - 1, 0), -1):
+                current_snippet = segmented_snippets[i] + current_snippet
+            snippets.append(current_snippet)
+
+        # snippet fusing
+        i = 0
+        while i < len(snippets):
+            j = i + 1
+            while j < len(snippets):
+                if snippets[i] ^ snippets[j]:  # this checks for overlap
+                    snippets[i] = snippets[i] | snippets[j]  # merging
+                    snippets.pop(j)
+                else:
+                    j += 1
+            i += 1
+
+        snippets = snippets[:min(len(snippets), max_num_of_snippets)]
+
+        human_message = HumanMessageCommentPrompt(
+            repo_name=repo_name,
+            issue_url=issue_url,
+            username=username,
+            repo_description=repo_description,
+            title=title,
+            summary=summary + replies_text,
+            snippets=snippets,
+            tree=tree, # TODO: Anything in repo tree that has something going through is expanded
+        )
+        sweep_bot = SweepBot.from_system_message_content(
+            human_message=human_message, repo=repo, is_reply=bool(comments)
         )
 
-        print("\033[92m" + f"Logged in successfully as {username_response.json()['login']}" + "\033[0m") # prints in green
+        try:
+            logger.info("Fetching files to modify/create...")
+            file_change_requests = sweep_bot.get_files_to_change()
 
-        return cls(
-            github_username=username_response.json()["login"],
-            github_pat=access_token
-        )
-    
-    def save(self):
-        with open(CONFIG_FILE, "w") as f:
-            yaml.dump(self.dict(), f)
-    
-    @staticmethod
-    def is_initialized() -> bool:
-        return os.path.exists(CONFIG_FILE)
-    
-    @classmethod
-    def load(cls, recreate=False) -> Self:
-        if recreate or not SweepChatConfig.is_initialized():
-            config = cls.create()
-            config.save()
-            return config
-        with open(CONFIG_FILE, "r") as f:
-            return cls(**yaml.load(f, Loader=yaml.FullLoader))
+            logger.info("Making Code Changes...")
+            sweep_bot.change_files_in_github(file_change_requests, branch_name)
+
+            logger.info("Done!")
+        except Exception as e:
+            posthog.capture(username, "failed", properties={
+                "error": str(e),
+                "reason": "Failed to make changes",
+                **metadata
+            })
+            raise e
+
+        posthog.capture(username, "success", properties={**metadata})
+        logger.info("on_comment success")
+        return {"success": True}
 
