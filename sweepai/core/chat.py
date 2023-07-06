@@ -128,7 +128,6 @@ class ChatGPT(BaseModel):
         self.select_message_from_message_key(
             message_key, message_role=message_role
         ).content = new_content
-
     def chat(
         self,
         content: str,
@@ -145,6 +144,11 @@ class ChatGPT(BaseModel):
         model = model or self.model
         is_function_call = False
         if model in [args.__args__[0] for args in OpenAIModel.__args__]:
+            # Check if the message length exceeds the token limit
+            if len(content) > model_to_max_tokens[model]:
+                # If it does, truncate the message at the last space character before the limit
+                last_space_index = content.rfind(' ', 0, model_to_max_tokens[model])
+                content = content[:last_space_index] + '...'
             # might be a bug here in all of this
             if functions:
                 response = self.call_openai(model=model, functions=functions, function_name=function_name)
@@ -425,3 +429,4 @@ class ChatGPT(BaseModel):
         if len(self.prev_message_states) > 0:
             self.messages = self.prev_message_states.pop()
         return self.messages
+
