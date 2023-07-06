@@ -185,7 +185,13 @@ class ChatGPT(BaseModel):
             [count_tokens.call(message.content or "") for message in self.messages]
         )
         max_tokens = model_to_max_tokens[model] - int(messages_length) - 400 # this is for the function tokens
-        # TODO: Add a check to see if the message is too long
+        # Truncate the oldest messages until the token count is within the limit
+        while max_tokens < 0:
+            self.messages.pop(0)
+            messages_length = sum(
+                [count_tokens.call(message.content or "") for message in self.messages]
+            )
+            max_tokens = model_to_max_tokens[model] - int(messages_length) - 400
         logger.info("file_change_paths" + str(self.file_change_paths))
         if len(self.file_change_paths) > 0:
             self.file_change_paths.remove(self.file_change_paths[0])
@@ -298,7 +304,6 @@ class ChatGPT(BaseModel):
             result = fetch()
             logger.info(f"Output to call openai:\n{result}")
             return result
-    
     def call_anthropic(self, model: ChatModel | None = None) -> str:
         if model is None:
             model = self.model
@@ -307,6 +312,13 @@ class ChatGPT(BaseModel):
             [int(count_tokens.call(message.content) * 1.1) for message in self.messages]
         )
         max_tokens = model_to_max_tokens[model] - int(messages_length) - 1000
+        # Truncate the oldest messages until the token count is within the limit
+        while max_tokens < 0:
+            self.messages.pop(0)
+            messages_length = sum(
+                [int(count_tokens.call(message.content) * 1.1) for message in self.messages]
+            )
+            max_tokens = model_to_max_tokens[model] - int(messages_length) - 1000
         logger.info(f"Number of tokens: {max_tokens}")
         messages_raw = format_for_anthropic(self.messages)
         logger.info(f"Input to call anthropic:\n{messages_raw}")
@@ -425,3 +437,4 @@ class ChatGPT(BaseModel):
         if len(self.prev_message_states) > 0:
             self.messages = self.prev_message_states.pop()
         return self.messages
+
