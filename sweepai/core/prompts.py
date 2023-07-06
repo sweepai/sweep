@@ -194,10 +194,9 @@ Step-by-step thoughts with explanations:
 """
 
 reply_prompt = """
-Write a response to this user:
+Write a 1-paragraph response to this user:
 * Tell them you have started working on this PR and a rough summary of your plan. 
 * Do not start with "Here is a draft", just write the response.
-* End with "Give me a minute!".
 * Use github markdown to format the response.
 """
 
