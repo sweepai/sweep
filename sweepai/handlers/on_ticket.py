@@ -240,22 +240,6 @@ def on_ticket(
 
     snippets = snippets[:min(len(snippets), max_num_of_snippets)]
 
-    newline = '\n'
-    comment_reply(
-        "I found the following snippets in your repository. I will now analyze this snippets."
-        + "\n\n"
-        + collapsible_template.format(
-            summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
-            body="\n".join(
-                [
-                    f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline))}\n"
-                    for snippet in snippets
-                ]
-            ),
-        ),
-        1
-    )
-
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
@@ -296,7 +280,21 @@ def on_ticket(
                 except:
                     file_change_request.change_type = "create"
 
-            comment_reply()
+            newline = '\n'
+            comment_reply(
+                "I found the following snippets in your repository. I will now analyze this snippets."
+                + "\n\n"
+                + collapsible_template.format(
+                    summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
+                    body="\n".join(
+                        [
+                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline))}\n"
+                            for snippet in snippets
+                        ]
+                    ),
+                ),
+                1
+            )
 
             # COMMENT ON ISSUE
             logger.info("Getting response from ChatGPT...")
@@ -312,7 +310,7 @@ def on_ticket(
             logger.info("Generating PR...")
             pull_request = sweep_bot.generate_pull_request()
             comment_reply(
-                reply,
+                "I have created a plan for writing the pull request. I am now working on executing my plan and coding the required changes to address this issue.",
                 3
             )
 
@@ -323,7 +321,7 @@ def on_ticket(
             pr = response["pull_request"]
             current_issue.create_reaction("rocket")
             comment_reply(
-                reply,
+                "I have finished coding the issue. I am now reviewing it for completeness.",
                 4
             )
 
@@ -351,7 +349,7 @@ def on_ticket(
 
             # Completed code review
             comment_reply(
-                reply,
+                "Success! 🚀",
                 5
             )
             break
