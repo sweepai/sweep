@@ -24,7 +24,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.constants import DB_NAME, PREFIX, UTILS_NAME
-from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -158,6 +158,10 @@ def on_ticket(
             ]
         )
 
+    def log_error(error_type, message):
+        content = f"**{error_type} Error**\n{issue_url} from {username}\n{message}"
+        discord_log_error(content)
+
     def fetch_file_contents_with_retry():
         retries = 3
         error = None
@@ -189,6 +193,7 @@ def on_ticket(
             "It looks like an issue has occured around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev.",
             -1
         )
+        log_error("File Fetch", str(e))
         raise e
 
     num_full_files = 2
@@ -352,6 +357,7 @@ def on_ticket(
             "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev.",
             -1
         )
+        log_error("Context Length", str(e))
         posthog.capture(
             username,
             "failed",
@@ -368,6 +374,7 @@ def on_ticket(
             "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
             -1
         )
+        log_error("Workflow", str(e))
         posthog.capture(
             username,
             "failed",

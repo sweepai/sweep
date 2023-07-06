@@ -1,4 +1,6 @@
 import os
+import requests
+import json
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -37,3 +39,13 @@ class ChatLogger(BaseModel):
         document = {**self.data, **additional_data, 'expiration': self.expiration, 'index': self.index}
         self.index += 1
         self.chat_collection.insert_one(document)
+
+def discord_log_error(content):
+    try:
+        url = os.environ.get('DISCORD_WEBHOOK_URL')
+        data = { 'content': content }
+        headers = { 'Content-Type': 'application/json' }
+        response = requests.post(url, data=json.dumps(data), headers=headers)
+        # Success: response.status_code == 204:
+    except Exception:
+        pass

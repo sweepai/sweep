@@ -49,6 +49,7 @@ secrets = [
     modal.Secret.from_name("posthog"),
     modal.Secret.from_name("highlight"),
     modal.Secret.from_name("mongodb"),
+    modal.Secret.from_name("discord")
 ]
 
 FUNCTION_SETTINGS = {
