@@ -109,19 +109,23 @@ class PRRequest(BaseModel):
     pull_request: PullRequest
     repository: Repository
 
-class CheckSuiteCompletedRequest(BaseModel):
-    class CheckSuite(BaseModel):
+class CheckRunCompleted(BaseModel):
+    class CheckRun(BaseModel):
+        class PullRequest(BaseModel):
+            number: int
         conclusion: str
         html_url: str
-
+        pull_requests: list[PullRequest]
         @property
         def run_id(self):
             # format is like https://github.com/ORG/REPO_NAME/actions/runs/RUN_ID/jobs/JOB_ID
             return self.html_url.split("/")[-3]
-    
     class Repository(BaseModel):
         full_name: str
-
-    check_suite: CheckSuite
+        description: str | None
+    class Sender(BaseModel):
+        login: str
+    check_run: CheckRun
     installation: Installation
-    reponsitory: Repository
+    repository: Repository
+    sender: Sender

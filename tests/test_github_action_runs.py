@@ -3,6 +3,8 @@ import os
 import zipfile
 import requests
 
+from sweepai.core.gha_extraction import GHAExtractor
+
 headers={
     "Accept": "application/vnd.github+json",
     "Authorization": f"Bearer {os.environ.get('GITHUB_PAT')}",
@@ -54,4 +56,6 @@ if __name__ == "__main__":
     repo_full_name = "sagewhocodes/ivy"
     run_id = 14727682439
     raw_logs = download_logs(repo_full_name, get_run_id(repo_full_name, run_id))
-    print(clean_logs(raw_logs))
+    extractor = GHAExtractor()
+    logs = extractor.gha_extract(clean_logs(raw_logs))
+    print(logs)

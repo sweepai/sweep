@@ -3,8 +3,9 @@ import os
 import zipfile
 import openai
 import requests
+from sweepai.core.gha_extraction import GHAExtractor
 
-from sweepai.events import CheckSuiteCompletedRequest
+from sweepai.events import CheckRunCompleted
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -46,10 +47,12 @@ def clean_logs(logs_str: str):
     ]
     return "\n".join([log.strip() for log in truncated_logs if not any(pattern in log for pattern in patterns)])
 
-def on_check_suite(request: CheckSuiteCompletedRequest):
+def on_check_suite(request: CheckRunCompleted):
     logs = retrieve_logs(
         request.repository.full_name, 
         request.check_suite.run_id
     )
     logs = clean_logs(logs)
-    print(logs)
+    extractor = GHAExtractor()
+    logs = extractor.gha_extract(logs)
+    return logs
