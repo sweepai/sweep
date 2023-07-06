@@ -10,4 +10,4 @@ example = """*` `test.py`: Add a check to ensure that the 'Url *' index exists #
 
 fcr = FileChangeRequest.from_string(example)
 assert fcr.filename == "test.py"
-assert fcr.instructions == fcr.instructions.strip()∂
+assert fcr.instructions == fcr.instructions.strip()
