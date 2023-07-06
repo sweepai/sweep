@@ -9,6 +9,7 @@ import openai
 
 from loguru import logger
 import modal
+from tabulate import tabulate
 
 from sweepai.core.entities import FileChangeRequest, Snippet
 from sweepai.core.prompts import (
@@ -31,10 +32,10 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 update_index = modal.Function.lookup(DB_NAME, "update_index")
 
 sep = "\n---\n"
-bot_suffix = f"""\n{sep}I'm a bot that handles simple bugs and feature requests but I might make mistakes. Please be kind!
-⭐ If you are enjoying Sweep, please star our repo at https://github.com/sweepai/sweep so more people can hear about us!"""
+bot_suffix_starring = "⭐ If you are enjoying Sweep, please star our repo at https://github.com/sweepai/sweep so more people can hear about us!"
+bot_suffix = f"\n{sep}I'm a bot that handles simple bugs and feature requests but I might make mistakes. Please be kind!"
 
-stars_suffix = "⭐ In the meantime, consider starring our repo at https://github.com/sweepai/sweep if you are enjoying Sweep so more people can hear about us!"
+stars_suffix = "⭐ In the meantime, consider starring our repo at https://github.com/sweepai/sweep so more people can hear about us!"
 
 collapsible_template = '''
 <details>
@@ -117,21 +118,21 @@ def on_ticket(
         index *= 20
         index = min(100, index)
         if errored:
-            return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=300&color=cd5551) 🚫"
-        return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=300&color=babaca)" + ("\n" + stars_suffix if index != -1 else "")
+            return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600) 🚫"
+        return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + ("\n" + stars_suffix if index != -1 else "")
 
     issue_comment = current_issue.create_comment(f"{get_progress_bar(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}")
     past_messages = {}
     def comment_reply(message: str, index: int):
         # Only update the progress bar if the issue generation errors.
         errored = (index == -1)
+        current_index = index
         if index >= 0:
-            current_index = index
             past_messages[index] = message
 
         # Include progress history
         agg_message = None
-        for i in range(current_index+1):
+        for i in range(current_index + 1):
             if i in past_messages:
                 header = progress_headers[i]
                 if header is not None: header = "## " + header + "\n"
@@ -262,21 +263,10 @@ def on_ticket(
             logger.info("CoT retrieval...")
             if sweep_bot.model == "gpt-4-32k-0613":
                 sweep_bot.cot_retrieval()
-            logger.info("Fetching files to modify/create...")
-            file_change_requests = sweep_bot.get_files_to_change()
-            for file_change_request in file_change_requests:
-                try:
-                    contents = repo.get_contents(file_change_request.filename)
-                    if contents:
-                        file_change_request.change_type = "modify"
-                    else:
-                        file_change_request.change_type = "create"
-                except:
-                    file_change_request.change_type = "create"
 
             newline = '\n'
             comment_reply(
-                "I found the following snippets in your repository. I will now analyze this snippets."
+                "I found the following snippets in your repository. I will now analyze this snippets and come up with a plan."
                 + "\n\n"
                 + collapsible_template.format(
                     summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
@@ -291,20 +281,29 @@ def on_ticket(
             )
 
             # COMMENT ON ISSUE
-            logger.info("Getting response from ChatGPT...")
-            reply = sweep_bot.chat(reply_prompt, message_key="reply")
-            sweep_bot.delete_messages_from_chat("reply")
-            logger.info("Sending response...")
+            # TODO: removed issue commenting here
+            logger.info("Fetching files to modify/create...")
+            file_change_requests = sweep_bot.get_files_to_change()
+            file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
+            table = tabulate(
+                [[f"`{file_change_request.filename}`", file_change_request.instructions] for file_change_request in file_change_requests],
+                headers=["File Path", "Proposed Changes"],
+                tablefmt="pipe"
+            )
+            print(table)
             comment_reply(
-                reply,
+                "From looking through the relevant snippets, I decided to make the following modifications:\n\n" + table + "\n\n",
                 2
             )
 
             # CREATE PR METADATA
             logger.info("Generating PR...")
             pull_request = sweep_bot.generate_pull_request()
+            pull_request_content = pull_request.content.strip().replace("\n", "\n>")
+            pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
+
             comment_reply(
-                "I have created a plan for writing the pull request. I am now working on executing my plan and coding the required changes to address this issue.",
+                f"I have created a plan for writing the pull request. I am now working on executing my plan and coding the required changes to address this issue. Here is the planned pull request:\n\n{pull_request_summary}",
                 3
             )
 
