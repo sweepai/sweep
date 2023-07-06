@@ -18,6 +18,7 @@ OAUTH_ACCESS_TOKEN_ENDPOINT = "https://github.com/login/oauth/access_token"
 config_path = ConfigPath( 'sweep_chat', 'sweep', '.yaml' )
 CONFIG_FILE = config_path.saveFilePath()
 
+# The SweepChatConfig class handles the creation, saving, and loading of the configuration for the Sweep Chat application.
 class SweepChatConfig(BaseModel):
     github_username: str
     github_pat: str # secret
@@ -25,6 +26,7 @@ class SweepChatConfig(BaseModel):
     installation_id: int | None = None
     version: str = "0.0.1"
 
+    # The create method involves several steps to create a new configuration, including making requests to GitHub's API and handling the responses.
     @classmethod
     def create(cls):
         device_code_response = requests.post(DEVICE_CODE_ENDPOINT, json={"client_id": CLIENT_ID})
@@ -69,14 +71,17 @@ class SweepChatConfig(BaseModel):
             github_pat=access_token
         )
     
+    # The save method saves the current configuration to a file.
     def save(self):
         with open(CONFIG_FILE, "w") as f:
             yaml.dump(self.dict(), f)
     
+    # The is_initialized method checks if a configuration file already exists.
     @staticmethod
     def is_initialized() -> bool:
         return os.path.exists(CONFIG_FILE)
     
+    # The load method loads the configuration from a file, or creates a new configuration if one does not exist.
     @classmethod
     def load(cls, recreate=False) -> Self:
         if recreate or not SweepChatConfig.is_initialized():
