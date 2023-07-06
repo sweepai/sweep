@@ -118,7 +118,7 @@ def on_ticket(
         index *= 20
         index = min(100, index)
         if errored:
-            return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)\n🚫 Errored\n\nIf you would like to report this bug, please join our [Discord](https://discord.com/invite/sweep-ai)."
+            return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)\nErrored"
         return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + ("\n" + stars_suffix if index != -1 else "")
 
     issue_comment = current_issue.create_comment(f"{get_progress_bar(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}")
@@ -142,6 +142,8 @@ def on_ticket(
                     agg_message = msg
                 else:
                     agg_message = agg_message + f"\n{sep}" + msg
+        if errored:
+            agg_message = "## Error: 🚫 Unable to Complete PR\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
 
         # Update the issue comment
         issue_comment.edit(f"{get_progress_bar(current_index, errored)}\n{sep}{agg_message}{bot_suffix}")
