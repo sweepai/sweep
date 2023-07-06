@@ -44,7 +44,8 @@ image = (
 secrets = [
     modal.Secret.from_name(BOT_TOKEN_NAME),
     modal.Secret.from_name("openai-secret"),
-    modal.Secret.from_name("posthog")
+    modal.Secret.from_name("posthog"),
+    modal.Secret.from_name("highlight")
 ]
 
 FUNCTION_SETTINGS = {
