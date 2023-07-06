@@ -50,7 +50,7 @@ def clean_logs(logs_str: str):
 def on_check_suite(request: CheckRunCompleted):
     logs = retrieve_logs(
         request.repository.full_name, 
-        request.check_suite.run_id
+        request.check_run.run_id
     )
     logs = clean_logs(logs)
     extractor = GHAExtractor()
