@@ -23,8 +23,6 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.core.entities import Message, Function
 from sweepai.utils.chat_logger import ChatLogger
 
-# TODO: combine anthropic and openai
-
 AnthropicModel = (
     Literal["claude-v1"]
     | Literal["claude-v1.3-100k"]
@@ -57,7 +55,6 @@ def format_for_anthropic(messages: list[Message]) -> str:
         f"{anthropic.HUMAN_PROMPT if message.role != 'assistant' else anthropic.AI_PROMPT} {message.content}"
         for message in new_messages
     ) + (anthropic.AI_PROMPT if new_messages[-1].role != "assistant" else "")
-
 
 class ChatGPT(BaseModel):
     messages: list[Message] = [
@@ -129,6 +126,18 @@ class ChatGPT(BaseModel):
             message_key, message_role=message_role
         ).content = new_content
 
+    def calculate_total_tokens(self):
+        count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
+        return sum([count_tokens.call(message.content or "") for message in self.messages])
+
+    def truncate_messages(self, total_tokens, max_tokens):
+        while total_tokens > max_tokens:
+            removed_message = self.messages.pop(0)
+            total_tokens -= modal.Function.lookup(UTILS_NAME, "Tiktoken.count").call(removed_message.content or "")
+        if total_tokens > max_tokens:
+            self.messages[0].content = self.messages[0].content[:-(total_tokens - max_tokens)]
+        return total_tokens
+
     def chat(
         self,
         content: str,
@@ -143,9 +152,11 @@ class ChatGPT(BaseModel):
             name = self.messages[-1].function_call["name"]
             self.messages.append(Message(role="function", content=content, key=message_key, name=name))
         model = model or self.model
+        total_tokens = self.calculate_total_tokens()
+        max_tokens = model_to_max_tokens[model]
+        total_tokens = self.truncate_messages(total_tokens, max_tokens)
         is_function_call = False
         if model in [args.__args__[0] for args in OpenAIModel.__args__]:
-            # might be a bug here in all of this
             if functions:
                 response = self.call_openai(model=model, functions=functions, function_name=function_name)
                 response, is_function_call = response
@@ -171,6 +182,7 @@ class ChatGPT(BaseModel):
             )
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
+
     
     def call_openai(
         self, 
@@ -425,3 +437,4 @@ class ChatGPT(BaseModel):
         if len(self.prev_message_states) > 0:
             self.messages = self.prev_message_states.pop()
         return self.messages
+
