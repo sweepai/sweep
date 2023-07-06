@@ -2,7 +2,7 @@
 This file should be split into environment and config files
 """
 
-PREFIX = "dev2"
+PREFIX = "prod"
 DB_NAME = PREFIX + "-db"
 API_NAME = PREFIX + "-api"
 UTILS_NAME = PREFIX + "-utils"
