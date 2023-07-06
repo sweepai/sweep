@@ -27,7 +27,7 @@ from sweepai.core.prompts import (
     modify_file_plan_prompt,
 )
 from sweepai.utils.constants import DB_NAME
-from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown
+from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown, revert_whitespace_changes
 
 
 class CodeGenBot(ChatGPT):
@@ -47,7 +47,7 @@ class CodeGenBot(ChatGPT):
                     + ["modify"] * len(files_to_modify),
                 ):
                     file_change_request = file_change_request.strip()
-                    if not file_change_request or file_change_request == "None":
+                    if not file_change_request or file_change_request == "* None":
                         continue
                     logger.debug(file_change_request)
                     logger.debug(change_type)
@@ -79,9 +79,9 @@ class CodeGenBot(ChatGPT):
         for count in range(5):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model="gpt-3.5-turbo-16k-0613")
-            except Exception:
-                logger.warning("Failed to parse! Retrying...")
+                pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
+            except Exception as e:
+                logger.warning(f"Exception {e}. Failed to parse! Retrying...")
                 self.undo()
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
@@ -290,6 +290,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         code_repairer = CodeRepairer(chat_logger=self.chat_logger)
                         diff = generate_diff(old_code=contents, new_code=new_file)
                         new_file = code_repairer.repair_code(diff=diff, user_code=new_file, feature=file_change_request.instructions)
+                        # new_file = revert_whitespace_changes(original_file_str=contents, modified_file_str=new_file)
                     return (new_file, file_change_request.filename)
                 except Exception as e:
                     logger.warning(f"Recieved error {e}")
