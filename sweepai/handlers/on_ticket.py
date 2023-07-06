@@ -31,8 +31,10 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 update_index = modal.Function.lookup(DB_NAME, "update_index")
 
 sep = "\n---\n"
-bot_suffix = f"\n{sep}I'm a bot that handles simple bugs and feature requests \
-but I might make mistakes. Please be kind!"
+bot_suffix = f"""\n{sep}I'm a bot that handles simple bugs and feature requests but I might make mistakes. Please be kind!
+⭐ If you are enjoying Sweep, please star our repo at https://github.com/sweepai/sweep so more people can hear about us!"""
+
+stars_suffix = "⭐ In the meantime, consider starring our repo at https://github.com/sweepai/sweep if you are enjoying Sweep so more people can hear about us!"
 
 collapsible_template = '''
 <details>
@@ -104,29 +106,21 @@ def on_ticket(
     # Creates progress bar ASCII for 0-5 states
     progress_headers = [
         None,
-        "Step 1: Code Search",
-        "Step 2: Snippet Analysis",
-        "Step 3: Planning",
-        "Step 4: Coding",
-        "Step 5: Code Review"
-    ]
-    progress_bars = [
-        "[#----------------------------------] 0% Complete",
-        "[#######----------------------------] 20% Complete",
-        "[##############---------------------] 40% Complete",
-        "[#####################--------------] 60% Complete",
-        "[############################-------] 80% Complete",
-        "[###################################] 100% Complete",
+        "Step 1: 🔍 Code Search",
+        "Step 2: 🧐 Snippet Analysis",
+        "Step 3: 📝 Planning",
+        "Step 4: ⌨️ Coding",
+        "Step 5: 🔁 Code Review"
     ]
     def get_progress_bar(index, errored=False):
         if index < 0: index = 0
-        if index >= len(progress_bars): index = -1
+        index *= 20
+        index = min(100, index)
         if errored:
-            return f"## Progress\n{progress_bars[index]} 🚫"
-        return f"## Progress\n{progress_bars[index]}"
+            return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=300&color=cd5551) 🚫"
+        return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=300&color=babaca)" + ("\n" + stars_suffix if index != -1 else "")
 
     issue_comment = current_issue.create_comment(f"{get_progress_bar(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}")
-    current_index = 0
     past_messages = {}
     def comment_reply(message: str, index: int):
         # Only update the progress bar if the issue generation errors.
