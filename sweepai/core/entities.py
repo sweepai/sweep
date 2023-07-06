@@ -1,4 +1,6 @@
+import os
 import re
+import string
 from typing import ClassVar, Literal, Type, TypeVar
 from loguru import logger
 from pydantic import BaseModel
@@ -68,17 +70,31 @@ class FilesToChange(RegexMatchableBaseModel):
     _regex = r"""<create>(?P<files_to_create>.*)</create>\s*<modify>(?P<files_to_modify>.*)</modify>"""
 
 
+def clean_filename(file_name: str):
+    valid_chars = "-_./%s%s" % (string.ascii_letters, string.digits)
+    file_name = ''.join(c for c in file_name if c in valid_chars)
+    file_name = file_name.replace(' ', '')
+    return os.path.normpath(file_name)
+
+def clean_instructions(instructions: str):
+    return instructions.strip()
+
 class FileChangeRequest(RegexMatchableBaseModel):
     filename: str
     instructions: str
     change_type: Literal["modify"] | Literal["create"]
-    _regex = r"""^ *`?(?P<filename>\S*)`?:(?P<instructions>.*)"""
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        result = super().from_string(string, **kwargs)
-        result.filename = result.filename.strip('`')
-        return result
+        colon_idx = string.find(':')
+        file_name = string[:colon_idx]
+        instructions = string[colon_idx + 1:]
+        file_name = clean_filename(file_name)
+        instructions = clean_instructions(instructions)
+        res = FileChangeRequest(filename=file_name, 
+                                instructions=instructions,
+                                change_type="modify")
+        return res
 
 
 class FileChange(RegexMatchableBaseModel):
