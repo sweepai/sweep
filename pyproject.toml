@@ -6,6 +6,11 @@ authors = ["Kevin Lu", "William Zeng", "Luke Jagg"]
 packages = [{ include = "sweepai" }]
 classifiers = ["Programming Language :: Python :: 3.11"]
 readme = "README.md"
+urls = [
+    "https://github.com/sweepai/sweep",
+    "https://discord.gg/sweep-ai",
+    "https://sweep.dev",
+]
 
 [tool.poetry.dependencies]
 python = "^3.10"
