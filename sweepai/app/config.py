@@ -15,15 +15,15 @@ DEVICE_CODE_ENDPOINT = "https://github.com/login/device/code"
 USER_LOGIN_ENDPOINT = "https://github.com/login/device"
 OAUTH_ACCESS_TOKEN_ENDPOINT = "https://github.com/login/oauth/access_token"
 
-config_path = ConfigPath( 'sweep_chat', 'sweep', '.yaml' )
+config_path = ConfigPath('sweep_chat', 'sweep', '.yaml')
 CONFIG_FILE = config_path.saveFilePath()
 
 class SweepChatConfig(BaseModel):
-    github_username: str
-    github_pat: str # secret
-    repo_full_name: str | None = None
-    installation_id: int | None = None
-    version: str = "0.0.1"
+    github_username: str  # GitHub username
+    github_pat: str  # GitHub personal access token (secret)
+    repo_full_name: str | None = None  # Full name of the repository (optional)
+    installation_id: int | None = None  # Installation ID (optional)
+    version: str = "0.0.1"  # Version of the config
 
     @classmethod
     def create(cls):
@@ -31,8 +31,8 @@ class SweepChatConfig(BaseModel):
         parsed_device_code_response = parse_qs(unquote(device_code_response.text))
         print("\033[93m" + f"Open {USER_LOGIN_ENDPOINT} if it doesn't open automatically." + "\033[0m")
         print("\033[93m" + f"Paste the following code (copied to your clipboard) and click authorize:" + "\033[0m")
-        print("\033[94m" + parsed_device_code_response["user_code"][0] + "\033[0m") # prints in blue
-        print("\033[93m" + "Once you've authorized, ** just wait a few seconds **..." + "\033[0m") # prints in yellow
+        print("\033[94m" + parsed_device_code_response["user_code"][0] + "\033[0m")  # prints in blue
+        print("\033[93m" + "Once you've authorized, ** just wait a few seconds **..." + "\033[0m")  # prints in yellow
         time.sleep(3)
         webbrowser.open_new_tab(USER_LOGIN_ENDPOINT)
         for _ in range(10):
@@ -62,21 +62,21 @@ class SweepChatConfig(BaseModel):
             }
         )
 
-        print("\033[92m" + f"Logged in successfully as {username_response.json()['login']}" + "\033[0m") # prints in green
+        print("\033[92m" + f"Logged in successfully as {username_response.json()['login']}" + "\033[0m")  # prints in green
 
         return cls(
             github_username=username_response.json()["login"],
             github_pat=access_token
         )
-    
+
     def save(self):
         with open(CONFIG_FILE, "w") as f:
             yaml.dump(self.dict(), f)
-    
+
     @staticmethod
     def is_initialized() -> bool:
         return os.path.exists(CONFIG_FILE)
-    
+
     @classmethod
     def load(cls, recreate=False) -> Self:
         if recreate or not SweepChatConfig.is_initialized():
