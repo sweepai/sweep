@@ -4,9 +4,10 @@ import re
 def generate_diff(old_code, new_code):
     diff = difflib.unified_diff(
         old_code.splitlines(keepends=True),
-        new_code.splitlines(keepends=True)
+        new_code.splitlines(keepends=True),
+        lineterm=''
     )
-    return ''.join(diff)
+    return '\n'.join(line for line in diff if not line.startswith(' ') and not line.startswith('- ') and not line.startswith('+ '))
 
 def format_contents(file_contents, is_markdown=False):
     """
@@ -107,5 +108,3 @@ def join_contents_k(first, second, k):
             return "\n".join(first_lines) + "\n" + "\n".join(second_lines[i:])
     return "\n".join(first_lines) + "\n" + "\n".join(second_lines)
 
-def is_markdown(filename):
-    return filename.endswith(".md") or filename.endswith(".rst") or filename.endswith(".txt")
