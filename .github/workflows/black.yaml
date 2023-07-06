@@ -1,0 +1,31 @@
+name: Black Code Formatter
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  black:
+    name: Black Formatting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x' # Replace with your desired Python version
+
+      - name: Install dependencies
+        run: pip install black
+
+      - name: Run Black formatter
+        run: black --check . # Modify the command as per your requirements
