@@ -258,7 +258,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 self.undo()
                 continue
         raise Exception("Failed to parse response after 5 attempts.")
-
     def modify_file(
         self, file_change_request: FileChangeRequest, contents: str = ""
     ) -> tuple[str, str]:
