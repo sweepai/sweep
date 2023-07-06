@@ -128,7 +128,6 @@ class ChatGPT(BaseModel):
         self.select_message_from_message_key(
             message_key, message_role=message_role
         ).content = new_content
-
     def chat(
         self,
         content: str,
@@ -144,6 +143,20 @@ class ChatGPT(BaseModel):
             self.messages.append(Message(role="function", content=content, key=message_key, name=name))
         model = model or self.model
         is_function_call = False
+
+        # Calculate the total tokens in the messages
+        count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
+        total_tokens = sum([count_tokens.call(message.content or "") for message in self.messages])
+
+        # If the total tokens exceed the model's limit, remove messages from the beginning of the list
+        while total_tokens > model_to_max_tokens[model]:
+            total_tokens -= count_tokens.call(self.messages[0].content or "")
+            self.messages.pop(0)
+
+        # If a single message exceeds the model's limit, truncate the message content
+        if total_tokens > model_to_max_tokens[model]:
+            self.messages[-1].content = self.messages[-1].content[:model_to_max_tokens[model]]
+
         if model in [args.__args__[0] for args in OpenAIModel.__args__]:
             # might be a bug here in all of this
             if functions:
@@ -425,3 +438,4 @@ class ChatGPT(BaseModel):
         if len(self.prev_message_states) > 0:
             self.messages = self.prev_message_states.pop()
         return self.messages
+
