@@ -145,33 +145,47 @@ class ChatGPT(BaseModel):
         model = model or self.model
         is_function_call = False
         if model in [args.__args__[0] for args in OpenAIModel.__args__]:
-            # might be a bug here in all of this
-            if functions:
-                response = self.call_openai(model=model, functions=functions, function_name=function_name)
-                response, is_function_call = response
-                if is_function_call:
-                    self.messages.append(
-                        Message(role="assistant", content=None, function_call=response, key=message_key)
-                    )
-                    self.prev_message_states.append(self.messages)
-                    return self.messages[-1].function_call
+            # Calculate total tokens in the messages
+            count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
+            total_tokens = sum([count_tokens.call(message.content or "") for message in self.messages])
+
+            # If total tokens exceed the model's limit, remove messages from the beginning
+            while total_tokens > model_to_max_tokens[model]:
+                total_tokens -= count_tokens.call(self.messages.pop(0).content or "")
+
+            # If a single message exceeds the model's limit, truncate the message content
+            if total_tokens > model_to_max_tokens[model]:
+                self.messages[-1].content = self.messages[-1].content[:model_to_max_tokens[model]]
+
+            # Rest of the code
+            if model in [args.__args__[0] for args in OpenAIModel.__args__]:
+                # might be a bug here in all of this
+                if functions:
+                    response = self.call_openai(model=model, functions=functions, function_name=function_name)
+                    response, is_function_call = response
+                    if is_function_call:
+                        self.messages.append(
+                            Message(role="assistant", content=None, function_call=response, key=message_key)
+                        )
+                        self.prev_message_states.append(self.messages)
+                        return self.messages[-1].function_call
+                    else:
+                        self.messages.append(
+                            Message(role="assistant", content=response, key=message_key)
+                        )
                 else:
+                    response = self.call_openai(model=model, functions=functions)
                     self.messages.append(
                         Message(role="assistant", content=response, key=message_key)
                     )
             else:
-                response = self.call_openai(model=model, functions=functions)
+                response = self.call_anthropic(model=model)
                 self.messages.append(
                     Message(role="assistant", content=response, key=message_key)
                 )
-        else:
-            response = self.call_anthropic(model=model)
-            self.messages.append(
-                Message(role="assistant", content=response, key=message_key)
-            )
-        self.prev_message_states.append(self.messages)
-        return self.messages[-1].content
-    
+            self.prev_message_states.append(self.messages)
+            return self.messages[-1].content
+
     def call_openai(
         self, 
         model: ChatModel | None = None,
@@ -298,7 +312,7 @@ class ChatGPT(BaseModel):
             result = fetch()
             logger.info(f"Output to call openai:\n{result}")
             return result
-    
+
     def call_anthropic(self, model: ChatModel | None = None) -> str:
         if model is None:
             model = self.model
@@ -343,7 +357,7 @@ class ChatGPT(BaseModel):
             return result + extension
         logger.info(f"Output to call anthropic:\n{result}")
         return result
-    
+
     def chat_stream(
         self,
         content: str,
@@ -362,7 +376,7 @@ class ChatGPT(BaseModel):
         # might be a bug here in all of this
         # return self.stream_openai(model=model, functions=functions, function_name=function_name)
         return self.stream_openai(model=model, functions=functions, function_call=function_call)
-    
+
     def stream_openai(
         self,
         model: ChatModel | None = None,
@@ -425,3 +439,4 @@ class ChatGPT(BaseModel):
         if len(self.prev_message_states) > 0:
             self.messages = self.prev_message_states.pop()
         return self.messages
+
