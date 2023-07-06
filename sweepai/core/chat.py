@@ -136,6 +136,14 @@ class ChatGPT(BaseModel):
         functions: list[Function] = [],
         function_name: dict | None = None,
     ):
+        # Calculate the total tokens of all messages
+        total_tokens = sum([len(message.content) for message in self.messages])
+        
+        # Check if the total tokens exceed the model's limit
+        while total_tokens + len(content) > model_to_max_tokens[model]:
+            # If it does, truncate the earliest messages until the total tokens are within the limit
+            total_tokens -= len(self.messages.pop(0).content)
+        
         if self.messages[-1].function_call is None:
             self.messages.append(Message(role="user", content=content, key=message_key))
         else:
@@ -144,11 +152,6 @@ class ChatGPT(BaseModel):
         model = model or self.model
         is_function_call = False
         if model in [args.__args__[0] for args in OpenAIModel.__args__]:
-            # Check if the message length exceeds the token limit
-            if len(content) > model_to_max_tokens[model]:
-                # If it does, truncate the message at the last space character before the limit
-                last_space_index = content.rfind(' ', 0, model_to_max_tokens[model])
-                content = content[:last_space_index] + '...'
             # might be a bug here in all of this
             if functions:
                 response = self.call_openai(model=model, functions=functions, function_name=function_name)
