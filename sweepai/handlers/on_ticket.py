@@ -32,7 +32,7 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 update_index = modal.Function.lookup(DB_NAME, "update_index")
 
 sep = "\n---\n"
-bot_suffix_starring = "⭐ If you are enjoying Sweep, please star our repo at https://github.com/sweepai/sweep so more people can hear about us!"
+bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
 bot_suffix = f"\n{sep}I'm a bot that handles simple bugs and feature requests but I might make mistakes. Please be kind!"
 
 stars_suffix = "⭐ In the meantime, consider starring our repo at https://github.com/sweepai/sweep so more people can hear about us!"
