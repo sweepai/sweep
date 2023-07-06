@@ -370,3 +370,12 @@ Relevant snippets provided by search engine (decreasing relevance):
 {snippets}
 Repo: {repo_name}
 Description: {repo_description}"""
+
+gha_extraction_system_prompt = """\
+Your job is to extract the information needed to debug the log from the Github Actions workflow file.
+"""
+
+gha_extraction_prompt = """\
+{gha_logs}
+Return the lines verbatim from the github actions logs.
+"""

@@ -9,7 +9,7 @@ from sweepai.handlers.on_ticket import on_ticket
 from sweepai.handlers.on_comment import on_comment
 from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, LABEL_COLOR, LABEL_DESCRIPTION, LABEL_NAME, SWEEP_LOGIN
 from sweepai.events import (
-    CheckSuiteCompletedRequest,
+    CheckRunCompleted,
     CommentCreatedRequest,
     InstallationCreatedRequest,
     IssueCommentRequest,
@@ -172,10 +172,20 @@ async def webhook(raw_request: Request):
                 # request = ReviewSubmittedRequest(**request_dict)
                 pass
             case "check_suite", "completed":
-                request = CheckSuiteCompletedRequest(**request_dict)
+                request = CheckRunCompleted(**request_dict)
                 if request.check_suite.conclusion == "success":
                     # handle_check_suite
-                    handle_check_suite.spawn(request)
+                    logs = handle_check_suite.call(request)
+                    handle_comment.spawn(
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        comment=logs,
+                        pr_path=None,
+                        pr_line_position=None,
+                        username=request.sender.login,
+                        installation_id=request.installation.id,
+                        pr_number=request.check_suite.pull_requests[0].number,
+                    )
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
