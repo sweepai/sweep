@@ -258,7 +258,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 self.undo()
                 continue
         raise Exception("Failed to parse response after 5 attempts.")
-
     def modify_file(
         self, file_change_request: FileChangeRequest, contents: str = ""
     ) -> tuple[str, str]:
@@ -268,7 +267,7 @@ class SweepBot(CodeGenBot, GithubBot):
             ).decoded_content.decode("utf-8")
         # Add line numbers to the contents; goes in prompts but not github
         contents_line_numbers = "\n".join([f"{i}:{line}" for i, line in enumerate(contents.split("\n"))])
-        contents_line_numbers = contents_line_numbers.replace('"""', "'''")
+        contents_line_numbers = contents_line_numbers.replace("'''", "'''")
         for count in range(5):
             if "0613" in self.model:
                 _ = self.chat( # We don't use the plan in the next call
@@ -381,3 +380,4 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
             else:
                 raise Exception("Invalid change type")
+
