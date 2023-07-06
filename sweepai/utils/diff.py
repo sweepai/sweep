@@ -75,12 +75,18 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
     
     # Parse copied sections, first copying the content and then adding whatever is after the copied section
     for copied_section in copied_sections:
-        start_line, end_line = copied_section.split("-")
+        if "-" in copied_section:
+            start_line, end_line = copied_section.split("-")
+        else: # <copied>num</copied>
+            start_line = copied_sections
+            end_line = start_line
+
         start_line = int(start_line) - 1 if int(start_line) - 1 > 0 else 0
         end_line = int(end_line)
         # Check for duplicate lines
         k = 30
         result_file = join_contents_k(result_file, "\n".join(old_file_lines[start_line:end_line]), k)
+        # TODO: Use replace first instead of .replace, since duplicated <copied> sections might cause faulty copy
         new_file = new_file.replace(f"<copied>{copied_section}</copied>\n", "")
         next_section_idx = new_file.index("<copied>") if "<copied>" in new_file else len(new_file)
         # Check for duplicate lines

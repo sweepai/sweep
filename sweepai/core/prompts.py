@@ -194,11 +194,9 @@ Step-by-step thoughts with explanations:
 """
 
 reply_prompt = """
-Write a response to this user:
-* Ping the user.
+Write a 1-paragraph response to this user:
 * Tell them you have started working on this PR and a rough summary of your plan. 
 * Do not start with "Here is a draft", just write the response.
-* End with "Give me a minute!".
 * Use github markdown to format the response.
 """
 
@@ -343,14 +341,6 @@ code_repair_system_prompt = """\
 You are a genius trained for code repair. 
 You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the difference betwen the user_code and the original code, and the code inside <user_code></user_code> is a user's attempt at adding a change described as {feature}. 
 Our goal is to return a working version of user_code that follows {feature}.
-
-Instructions:
-* Keep the logic changes from user_code.
-* Fix any issues using our knowledge of both the diff and user_code files. 
-* Fix syntax errors and accidentally deleted lines.
-* Do not perform code style cleanup.
-* Do not add or remove any whitespace besides what is necessary to fix syntax errors.
-* Do not add or remove any comments.
 """
 
 code_repair_prompt = """\
@@ -360,7 +350,14 @@ code_repair_prompt = """\
 <user_code>
 {user_code}
 </user_code>
-This is the user_code. 
+This is the user_code.
+Instructions:
+* Keep the logic changes from user_code.
+* Fix any issues using our knowledge of both the diff and user_code files. 
+* Fix syntax errors and accidentally deleted lines.
+* Do not perform code style cleanup.
+* Do not add or remove any whitespace besides what is necessary to fix syntax errors.
+* Do not add or remove any comments.
 Return the repaired user_code without xml tags. All of the text you return will be placed in the file. Revert any unrelated deletions to user_code, using the diff and described change.
 """
 
