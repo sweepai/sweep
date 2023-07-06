@@ -28,7 +28,7 @@ from sweepai.core.prompts import (
 )
 from sweepai.utils.constants import DB_NAME
 from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown
-
+import difflib
 
 class CodeGenBot(ChatGPT):
 
@@ -268,7 +268,7 @@ class SweepBot(CodeGenBot, GithubBot):
             ).decoded_content.decode("utf-8")
         # Add line numbers to the contents; goes in prompts but not github
         contents_line_numbers = "\n".join([f"{i}:{line}" for i, line in enumerate(contents.split("\n"))])
-        contents_line_numbers = contents_line_numbers.replace('"""', "'''")
+        contents_line_numbers = contents_line_numbers.replace(''''', "'''")
         for count in range(5):
             if "0613" in self.model:
                 _ = self.chat( # We don't use the plan in the next call
@@ -286,6 +286,10 @@ class SweepBot(CodeGenBot, GithubBot):
                 try:
                     logger.info(f"modify_file_response: {modify_file_response}")
                     new_file = generate_new_file(modify_file_response, contents)
+                    # Generate diffs and filter out whitespace changes
+                    diffs = difflib.unified_diff(contents.splitlines(), new_file.splitlines())
+                    diffs = [diff for diff in diffs if diff.strip() != '']
+                    new_file = '\n'.join(diffs)
                     if not is_markdown(file_change_request.filename):
                         code_repairer = CodeRepairer(chat_logger=self.chat_logger)
                         diff = generate_diff(old_code=contents, new_code=new_file)
@@ -383,3 +387,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
             else:
                 raise Exception("Invalid change type")
+
+sweep_bot = SweepBot()
+sweep_bot.modify_file(FileChangeRequest(filename="test.py", instructions="Update the modify_file function"))
+
