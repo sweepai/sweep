@@ -185,13 +185,13 @@ class ChatGPT(BaseModel):
             [count_tokens.call(message.content or "") for message in self.messages]
         )
         max_tokens = model_to_max_tokens[model] - int(messages_length) - 400 # this is for the function tokens
-        # TODO: Add a check to see if the message is too long
-        logger.info("file_change_paths" + str(self.file_change_paths))
-        if len(self.file_change_paths) > 0:
-            self.file_change_paths.remove(self.file_change_paths[0])
         if max_tokens < 0:
-            if len(self.file_change_paths) > 0:
-                pass
+            while max_tokens < 0 and len(self.messages) > 0:
+                removed_message = self.messages.pop(0)
+                removed_tokens = count_tokens.call(removed_message.content or "")
+                max_tokens += removed_tokens
+            if max_tokens < 0:
+                raise ValueError(f"Message is too long, max tokens is {max_tokens}")
             else:
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
@@ -307,13 +307,13 @@ class ChatGPT(BaseModel):
             [int(count_tokens.call(message.content) * 1.1) for message in self.messages]
         )
         max_tokens = model_to_max_tokens[model] - int(messages_length) - 1000
-        logger.info(f"Number of tokens: {max_tokens}")
-        messages_raw = format_for_anthropic(self.messages)
-        logger.info(f"Input to call anthropic:\n{messages_raw}")
-
-        assert os.environ.get("ANTHROPIC_API_KEY"), "Please set ANTHROPIC_API_KEY"
-        client = anthropic.Client(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-
+        if max_tokens < 0:
+            while max_tokens < 0 and len(self.messages) > 0:
+                removed_message = self.messages.pop(0)
+                removed_tokens = int(count_tokens.call(removed_message.content) * 1.1)
+                max_tokens += removed_tokens
+            if max_tokens < 0:
+                raise ValueError(f"Message is too long, max tokens is {max_tokens}")
         @backoff.on_exception(
             backoff.expo,
             Exception,
@@ -375,13 +375,13 @@ class ChatGPT(BaseModel):
             [count_tokens.call(message.content or "") for message in self.messages]
         )
         max_tokens = model_to_max_tokens[model] - int(messages_length) - 400 # this is for the function tokens
-        # TODO: Add a check to see if the message is too long
-        logger.info("file_change_paths" + str(self.file_change_paths))
-        if len(self.file_change_paths) > 0:
-            self.file_change_paths.remove(self.file_change_paths[0])
         if max_tokens < 0:
-            if len(self.file_change_paths) > 0:
-                pass
+            while max_tokens < 0 and len(self.messages) > 0:
+                removed_message = self.messages.pop(0)
+                removed_tokens = count_tokens.call(removed_message.content or "")
+                max_tokens += removed_tokens
+            if max_tokens < 0:
+                raise ValueError(f"Message is too long, max tokens is {max_tokens}")
             else:
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
@@ -425,3 +425,4 @@ class ChatGPT(BaseModel):
         if len(self.prev_message_states) > 0:
             self.messages = self.prev_message_states.pop()
         return self.messages
+
