@@ -13,9 +13,11 @@ def format_contents(file_contents, is_markdown=False):
     Add arbitrary postprocessing here, this affects files and diffs
     '''
     lines = file_contents.split('\n')
-
-    # Remove lines that are just whitespace
-    lines = [line for line in lines if line.strip() != '']
+    # Check if the file is a Python file before removing whitespace lines
+    if file_contents.endswith('.py'):
+        lines = [line for line in lines if line.strip() != '']
+    else:
+        lines = file_contents.split('\n')
 
     if is_markdown:
         return '\n'.join(lines) + '\n'
@@ -46,7 +48,6 @@ def format_contents(file_contents, is_markdown=False):
         if line.endswith('```'):
             last_line_idx = idx
     first_three_lines = first_three_lines[first_line_idx:]
-    last_three_lines = last_three_lines[:last_line_idx]
 
     lines = first_three_lines + lines[3:-3] + last_three_lines
     return '\n'.join(lines) + '\n'
