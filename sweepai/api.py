@@ -38,7 +38,8 @@ image = (
         "posthog",
         "tqdm",
         "pyyaml",
-        "pymongo"
+        "pymongo",
+        "tabulate"
     )
 )
 secrets = [

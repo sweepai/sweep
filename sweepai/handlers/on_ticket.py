@@ -9,6 +9,7 @@ import openai
 
 from loguru import logger
 import modal
+from tabulate import tabulate
 
 from sweepai.core.entities import FileChangeRequest, Snippet
 from sweepai.core.prompts import (
@@ -31,8 +32,8 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 update_index = modal.Function.lookup(DB_NAME, "update_index")
 
 sep = "\n---\n"
-bot_suffix = f"""\n{sep}I'm a bot that handles simple bugs and feature requests but I might make mistakes. Please be kind!
-⭐ If you are enjoying Sweep, please star our repo at https://github.com/sweepai/sweep so more people can hear about us!"""
+bot_suffix_starring = "⭐ If you are enjoying Sweep, please star our repo at https://github.com/sweepai/sweep so more people can hear about us!"
+bot_suffix = f"\n{sep}I'm a bot that handles simple bugs and feature requests but I might make mistakes. Please be kind!"
 
 stars_suffix = "⭐ In the meantime, consider starring our repo at https://github.com/sweepai/sweep if you are enjoying Sweep so more people can hear about us!"
 
@@ -117,21 +118,21 @@ def on_ticket(
         index *= 20
         index = min(100, index)
         if errored:
-            return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=300&color=cd5551) 🚫"
-        return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=300&color=babaca)" + ("\n" + stars_suffix if index != -1 else "")
+            return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=500&color=cd5551) 🚫"
+        return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=500&color=babaca)" + ("\n" + stars_suffix if index != -1 else "")
 
     issue_comment = current_issue.create_comment(f"{get_progress_bar(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}")
     past_messages = {}
     def comment_reply(message: str, index: int):
         # Only update the progress bar if the issue generation errors.
         errored = (index == -1)
+        current_index = index
         if index >= 0:
-            current_index = index
             past_messages[index] = message
 
         # Include progress history
         agg_message = None
-        for i in range(current_index+1):
+        for i in range(current_index + 1):
             if i in past_messages:
                 header = progress_headers[i]
                 if header is not None: header = "## " + header + "\n"
@@ -295,8 +296,14 @@ def on_ticket(
             reply = sweep_bot.chat(reply_prompt, message_key="reply")
             sweep_bot.delete_messages_from_chat("reply")
             logger.info("Sending response...")
+            table = tabulate(
+                [[file_change_request.filename, file_change_request.instructions] for file_change_request in file_change_requests],
+                headers=["File Path", "Proposed Changes"],
+                tablefmt="pipe"
+            )
+            print(table)
             comment_reply(
-                reply,
+                reply + "\n\n" + table + "\n\n",
                 2
             )
 

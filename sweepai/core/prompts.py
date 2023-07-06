@@ -195,7 +195,6 @@ Step-by-step thoughts with explanations:
 
 reply_prompt = """
 Write a response to this user:
-* Ping the user.
 * Tell them you have started working on this PR and a rough summary of your plan. 
 * Do not start with "Here is a draft", just write the response.
 * End with "Give me a minute!".
