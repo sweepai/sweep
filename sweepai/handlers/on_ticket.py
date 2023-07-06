@@ -118,7 +118,7 @@ def on_ticket(
         index *= 20
         index = min(100, index)
         if errored:
-            return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600) 🚫"
+            return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)\n🚫 Errored\n\nIf you would like to report this bug, please join our [Discord](https://discord.com/invite/sweep-ai)."
         return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + ("\n" + stars_suffix if index != -1 else "")
 
     issue_comment = current_issue.create_comment(f"{get_progress_bar(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}")
@@ -205,7 +205,7 @@ def on_ticket(
     for snippet in most_relevant_snippets:
         current_snippet = snippet
         _chunks, metadatas, _ids = chunker.call(
-            current_snippet.content, 
+            current_snippet.content,
             current_snippet.file_path
         )
         segmented_snippets = [
@@ -334,15 +334,15 @@ def on_ticket(
                 pass
             try:
                 # CODE REVIEW
-                changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username, 
-                        repo_description=repo_description, title=title, 
+                changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
+                        repo_description=repo_description, title=title,
                         summary=summary, replies_text=replies_text, tree=tree)
                 logger.info(f"Addressing review comment {review_comment}")
                 if changes_required:
-                    on_comment(repo_full_name=repo_full_name, 
-                            repo_description=repo_description, 
+                    on_comment(repo_full_name=repo_full_name,
+                            repo_description=repo_description,
                             comment=review_comment,
-                            username=username, 
+                            username=username,
                             installation_id=installation_id,
                             pr_path=None,
                             pr_line_position=None,
