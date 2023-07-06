@@ -61,17 +61,6 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None
 ):
-    ChatLogger(data = {
-        "title": title,
-        "summary": summary,
-        "issue_number": issue_number,
-        "issue_url": issue_url,
-        "username": username,
-        "repo_full_name": repo_full_name,
-        "repo_description": repo_description,
-        "installation_id": installation_id,
-        "comment_id": comment_id,
-    })
     # Check if the title starts with "sweep" or "sweep: " and remove it
     if title.lower().startswith("sweep: "):
         title = title[7:]
@@ -264,10 +253,15 @@ def on_ticket(
 
     chat_logger = ChatLogger({
         'repo_name': repo_name,
-        'issue_url': issue_url,
-        'username': username,
         'title': title,
         'summary': summary + replies_text,
+        "issue_number": issue_number,
+        "issue_url": issue_url,
+        "username": username,
+        "repo_full_name": repo_full_name,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "comment_id": comment_id,
     })
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger
