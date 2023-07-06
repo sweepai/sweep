@@ -113,8 +113,10 @@ def on_ticket(
         "Step 4: ⌨️ Coding",
         "Step 5: 🔁 Code Review"
     ]
-    def get_progress_bar(index, errored=False):
+    def get_progress_bar(index, errored=False, pr_message=""):
         if index < 0: index = 0
+        if index == 5:
+            return pr_message
         index *= 20
         index = min(100, index)
         if errored:
@@ -123,7 +125,7 @@ def on_ticket(
 
     issue_comment = current_issue.create_comment(f"{get_progress_bar(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}")
     past_messages = {}
-    def comment_reply(message: str, index: int):
+    def comment_reply(message: str, index: int, pr_message = ""):
         # Only update the progress bar if the issue generation errors.
         errored = (index == -1)
         current_index = index
@@ -146,7 +148,7 @@ def on_ticket(
             agg_message = "## Error: 🚫 Unable to Complete PR\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
 
         # Update the issue comment
-        issue_comment.edit(f"{get_progress_bar(current_index, errored)}\n{sep}{agg_message}{bot_suffix}")
+        issue_comment.edit(f"{get_progress_bar(current_index, errored, pr_message)}\n{sep}{agg_message}{bot_suffix}")
 
     comments = current_issue.get_comments()
     replies_text = ""
@@ -302,7 +304,6 @@ def on_ticket(
                 headers=["File Path", "Proposed Changes"],
                 tablefmt="pipe"
             )
-            print(table)
             comment_reply(
                 "From looking through the relevant snippets, I decided to make the following modifications:\n\n" + table + "\n\n",
                 2
@@ -355,8 +356,10 @@ def on_ticket(
             # Completed code review
             comment_reply(
                 "Success! 🚀",
-                5
+                5,
+                pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number})",
             )
+
             break
     except openai.error.InvalidRequestError as e:
         logger.error(e)

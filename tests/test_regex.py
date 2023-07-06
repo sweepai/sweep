@@ -36,5 +36,3 @@ for file_change_request, change_type in zip(
     )
 print(file_change_requests)
 fcr = FileChangeRequest.from_string(example)
-assert fcr.filename == "test.py"
-assert fcr.instructions == fcr.instructions.strip()

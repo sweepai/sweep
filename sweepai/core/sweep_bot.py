@@ -79,9 +79,9 @@ class CodeGenBot(ChatGPT):
         for count in range(5):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model="gpt-3.5-turbo-16k-0613")
-            except Exception:
-                logger.warning("Failed to parse! Retrying...")
+                pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
+            except Exception as e:
+                logger.warning(f"Exception {e}. Failed to parse! Retrying...")
                 self.undo()
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
