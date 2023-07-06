@@ -258,47 +258,49 @@ class SweepBot(CodeGenBot, GithubBot):
                 self.undo()
                 continue
         raise Exception("Failed to parse response after 5 attempts.")
-
-    def modify_file(
-        self, file_change_request: FileChangeRequest, contents: str = ""
-    ) -> tuple[str, str]:
-        if not contents:
-            contents = self.get_file(
-                file_change_request.filename
-            ).decoded_content.decode("utf-8")
-        # Add line numbers to the contents; goes in prompts but not github
-        contents_line_numbers = "\n".join([f"{i}:{line}" for i, line in enumerate(contents.split("\n"))])
-        contents_line_numbers = contents_line_numbers.replace('"""', "'''")
-        for count in range(5):
-            if "0613" in self.model:
-                _ = self.chat( # We don't use the plan in the next call
-                    modify_file_plan_prompt.format(
-                        filename=file_change_request.filename,
-                        instructions=file_change_request.instructions,
-                        code=contents_line_numbers,
-                    ),
-                    message_key=f"file_change_{file_change_request.filename}",
+def modify_file(
+    self, file_change_request: FileChangeRequest, contents: str = ""
+) -> tuple[str, str]:
+    if not contents:
+        contents = self.get_file(
+            file_change_request.filename
+        ).decoded_content.decode("utf-8")
+    # Add line numbers to the contents; goes in prompts but not github
+    contents_line_numbers = "\n".join([f"{i}:{line}" for i, line in enumerate(contents.split("\n"))])
+    contents_line_numbers = contents_line_numbers.replace(''''', "'''")
+    for count in range(5):
+        if "0613" in self.model:
+            _ = self.chat( # We don't use the plan in the next call
+                modify_file_plan_prompt.format(
+                    filename=file_change_request.filename,
+                    instructions=file_change_request.instructions,
+                    code=contents_line_numbers,
+                ),
+                message_key=f"file_change_{file_change_request.filename}",
+            )
+            modify_file_response = self.chat(
+                modify_file_prompt,
+                message_key=f"file_change_{file_change_request.filename}",
+            )
+            try:
+                logger.info(f"modify_file_response: {modify_file_response}")
+                new_file = generate_new_file(modify_file_response, contents)
+                # Ignore whitespace changes
+                new_file = '\n'.join(line for line in new_file.split('\n') if line.strip())
+                if not is_markdown(file_change_request.filename):
+                    code_repairer = CodeRepairer(chat_logger=self.chat_logger)
+                    diff = generate_diff(old_code=contents, new_code=new_file)
+                    new_file = code_repairer.repair_code(diff=diff, user_code=new_file, feature=file_change_request.instructions)
+                return (new_file, file_change_request.filename)
+            except Exception as e:
+                logger.warning(f"Recieved error {e}")
+                logger.warning(
+                    f"Failed to parse. Retrying for the {count}th time..."
                 )
-                modify_file_response = self.chat(
-                    modify_file_prompt,
-                    message_key=f"file_change_{file_change_request.filename}",
-                )
-                try:
-                    logger.info(f"modify_file_response: {modify_file_response}")
-                    new_file = generate_new_file(modify_file_response, contents)
-                    if not is_markdown(file_change_request.filename):
-                        code_repairer = CodeRepairer(chat_logger=self.chat_logger)
-                        diff = generate_diff(old_code=contents, new_code=new_file)
-                        new_file = code_repairer.repair_code(diff=diff, user_code=new_file, feature=file_change_request.instructions)
-                    return (new_file, file_change_request.filename)
-                except Exception as e:
-                    logger.warning(f"Recieved error {e}")
-                    logger.warning(
-                        f"Failed to parse. Retrying for the {count}th time..."
-                    )
-                    self.undo()
-                    self.undo()
-                    continue
+                self.undo()
+                self.undo()
+                continue
+    raise Exception("Failed to parse response after 5 attempts.")
         raise Exception("Failed to parse response after 5 attempts.")
  
     def change_file(self, file_change_request: FileChangeRequest):
@@ -383,3 +385,4 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
             else:
                 raise Exception("Invalid change type")
+
