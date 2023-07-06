@@ -128,7 +128,6 @@ class ChatGPT(BaseModel):
         self.select_message_from_message_key(
             message_key, message_role=message_role
         ).content = new_content
-
     def chat(
         self,
         content: str,
@@ -137,6 +136,18 @@ class ChatGPT(BaseModel):
         functions: list[Function] = [],
         function_name: dict | None = None,
     ):
+        # Calculate total tokens in the messages
+        total_tokens = sum([len(message.content.split()) for message in self.messages])
+        
+        # If total tokens exceed the model's limit, remove messages from the beginning
+        while total_tokens > model_to_max_tokens[self.model]:
+            total_tokens -= len(self.messages[0].content.split())
+            self.messages.pop(0)
+        
+        # Check if a single message exceeds the model's limit and truncate if necessary
+        if len(content.split()) > model_to_max_tokens[self.model]:
+            content = ' '.join(content.split()[:model_to_max_tokens[self.model]])
+        
         if self.messages[-1].function_call is None:
             self.messages.append(Message(role="user", content=content, key=message_key))
         else:
@@ -425,3 +436,4 @@ class ChatGPT(BaseModel):
         if len(self.prev_message_states) > 0:
             self.messages = self.prev_message_states.pop()
         return self.messages
+
