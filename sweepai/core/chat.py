@@ -145,6 +145,24 @@ class ChatGPT(BaseModel):
         model = model or self.model
         is_function_call = False
         if model in [args.__args__[0] for args in OpenAIModel.__args__]:
+            # Calculate total tokens in the messages
+            count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
+            total_tokens = sum([count_tokens.call(message.content or "") for message in self.messages])
+
+            # Check if total tokens exceed the model's limit
+            while total_tokens > model_to_max_tokens[model]:
+                # Remove the first message
+                self.messages.pop(0)
+                # Recalculate total tokens
+                total_tokens = sum([count_tokens.call(message.content or "") for message in self.messages])
+
+            # Check if a single message exceeds the model's limit
+            for message in self.messages:
+                message_tokens = count_tokens.call(message.content or "")
+                if message_tokens > model_to_max_tokens[model]:
+                    # Truncate the message content
+                    message.content = message.content[:model_to_max_tokens[model]]
+        if model in [args.__args__[0] for args in OpenAIModel.__args__]:
             # might be a bug here in all of this
             if functions:
                 response = self.call_openai(model=model, functions=functions, function_name=function_name)
@@ -425,3 +443,4 @@ class ChatGPT(BaseModel):
         if len(self.prev_message_states) > 0:
             self.messages = self.prev_message_states.pop()
         return self.messages
+
