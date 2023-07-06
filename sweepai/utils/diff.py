@@ -110,3 +110,6 @@ def join_contents_k(first, second, k):
             return "\n".join(first_lines) + "\n" + "\n".join(second_lines[i:])
     return "\n".join(first_lines) + "\n" + "\n".join(second_lines)
 
+def is_markdown(filename):
+    return filename.endswith(".md") or filename.endswith(".rst") or filename.endswith(".txt")
+
