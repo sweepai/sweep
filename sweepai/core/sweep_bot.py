@@ -290,8 +290,6 @@ class SweepBot(CodeGenBot, GithubBot):
                         code_repairer = CodeRepairer(chat_logger=self.chat_logger)
                         diff = generate_diff(old_code=contents, new_code=new_file)
                         new_file = code_repairer.repair_code(diff=diff, user_code=new_file, feature=file_change_request.instructions)
-                    if contents.endswith("\n"):
-                        new_file += "\n"
                     return (new_file, file_change_request.filename)
                 except Exception as e:
                     logger.warning(f"Recieved error {e}")
@@ -371,6 +369,8 @@ class SweepBot(CodeGenBot, GithubBot):
                         file_change_request, contents.decoded_content.decode("utf-8")
                     )
                     new_file_contents = format_contents(new_file_contents, file_markdown)
+                    if contents.decoded_content.decode("utf-8").endswith("\n"):
+                        new_file_contents += "\n"
                     logger.debug(
                         f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
                     )
