@@ -1,16 +1,18 @@
 [tool.poetry]
 name = "sweepai"
-version = "0.2.5"
+version = "0.2.6"
 description = "Sweep software chores"
 authors = ["Kevin Lu", "William Zeng", "Luke Jagg"]
 packages = [{ include = "sweepai" }]
 classifiers = ["Programming Language :: Python :: 3.11"]
 readme = "README.md"
-urls = [
-    "https://github.com/sweepai/sweep",
-    "https://discord.gg/sweep-ai",
-    "https://sweep.dev",
-]
+
+[tool.poetry.urls]
+repository = "https://github.com/sweepai/sweep"
+"Community" = "https://discord.gg/sweep-ai"
+documentation = "https://docs.sweep.dev"
+homepage = "https://sweep.dev"
+"Bug Tracker" = "https://github.com/sweepai/sweep/issues"
 
 [tool.poetry.dependencies]
 python = "^3.10"
