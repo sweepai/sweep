@@ -9,6 +9,7 @@ import openai
 
 from loguru import logger
 import modal
+from tabulate import tabulate
 
 from sweepai.core.entities import FileChangeRequest, Snippet
 from sweepai.core.prompts import (
@@ -23,15 +24,18 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.constants import DB_NAME, PREFIX, UTILS_NAME
-from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 update_index = modal.Function.lookup(DB_NAME, "update_index")
 
-bot_suffix = "I'm a bot that handles simple bugs and feature requests \
-but I might make mistakes. Please be kind!"
+sep = "\n---\n"
+bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
+bot_suffix = f"\n{sep}I'm a bot that handles simple bugs and feature requests but I might make mistakes. Please be kind!\n<sup>[Join Our Discord](https://discord.com/invite/sweep-ai)"
+
+stars_suffix = "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
 
 collapsible_template = '''
 <details>
@@ -96,10 +100,53 @@ def on_ticket(
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
+
+    # Add emojis
     eyes_reaction = item_to_react_to.create_reaction("eyes")
 
-    def comment_reply(message: str):
-        current_issue.create_comment(message + "\n\n---\n" + bot_suffix)
+    # Creates progress bar ASCII for 0-5 states
+    progress_headers = [
+        None,
+        "Step 1: 🔍 Code Search",
+        "Step 2: 🧐 Snippet Analysis",
+        "Step 3: 📝 Planning",
+        "Step 4: ⌨️ Coding",
+        "Step 5: 🔁 Code Review"
+    ]
+    def get_progress_bar(index, errored=False):
+        if index < 0: index = 0
+        index *= 20
+        index = min(100, index)
+        if errored:
+            return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
+        return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + ("\n" + stars_suffix if index != -1 else "")
+
+    issue_comment = current_issue.create_comment(f"{get_progress_bar(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}")
+    past_messages = {}
+    def comment_reply(message: str, index: int):
+        # Only update the progress bar if the issue generation errors.
+        errored = (index == -1)
+        current_index = index
+        if index >= 0:
+            past_messages[index] = message
+
+        # Include progress history
+        agg_message = None
+        for i in range(current_index + 1):
+            if i in past_messages:
+                header = progress_headers[i]
+                if header is not None: header = "## " + header + "\n"
+                else: header = "No header\n"
+                msg = header + past_messages[i]
+                if agg_message is None:
+                    agg_message = msg
+                else:
+                    agg_message = agg_message + f"\n{sep}" + msg
+        if errored:
+            agg_message = "## Error: 🚫 Unable to Complete PR\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
+
+        # Update the issue comment
+        issue_comment.edit(f"{get_progress_bar(current_index, errored)}\n{sep}{agg_message}{bot_suffix}")
 
     comments = current_issue.get_comments()
     replies_text = ""
@@ -112,6 +159,10 @@ def on_ticket(
                 ) for comment in comments
             ]
         )
+
+    def log_error(error_type, exception):
+        content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
+        discord_log_error(content)
 
     def fetch_file_contents_with_retry():
         retries = 3
@@ -141,8 +192,10 @@ def on_ticket(
     except Exception as e:
         logger.error(e)
         comment_reply(
-            "It looks like an issue has occured around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev."
+            "It looks like an issue has occured around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev.",
+            -1
         )
+        log_error("File Fetch", str(e))
         raise e
 
     num_full_files = 2
@@ -154,7 +207,7 @@ def on_ticket(
     for snippet in most_relevant_snippets:
         current_snippet = snippet
         _chunks, metadatas, _ids = chunker.call(
-            current_snippet.content, 
+            current_snippet.content,
             current_snippet.file_path
         )
         segmented_snippets = [
@@ -202,10 +255,15 @@ def on_ticket(
 
     chat_logger = ChatLogger({
         'repo_name': repo_name,
-        'issue_url': issue_url,
-        'username': username,
         'title': title,
         'summary': summary + replies_text,
+        "issue_number": issue_number,
+        "issue_url": issue_url,
+        "username": username,
+        "repo_full_name": repo_full_name,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "comment_id": comment_id,
     })
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger
@@ -213,73 +271,100 @@ def on_ticket(
     sweepbot_retries = 3
     try:
         for i in range(sweepbot_retries):
+            # ANALYZE SNIPPETS
             logger.info("CoT retrieval...")
             if sweep_bot.model == "gpt-4-32k-0613":
                 sweep_bot.cot_retrieval()
-            logger.info("Fetching files to modify/create...")
-            file_change_requests = sweep_bot.get_files_to_change()
-            for file_change_request in file_change_requests:
-                try:
-                    contents = repo.get_contents(file_change_request.filename)
-                    if contents:
-                        file_change_request.change_type = "modify"
-                    else:
-                        file_change_request.change_type = "create"
-                except:
-                    file_change_request.change_type = "create"
-            logger.info("Getting response from ChatGPT...")
-            reply = sweep_bot.chat(reply_prompt, message_key="reply")
-            sweep_bot.delete_messages_from_chat("reply")
-            logger.info("Sending response...")
-            new_line = '\n'
+
+            newline = '\n'
             comment_reply(
-                reply
+                "I found the following snippets in your repository. I will now analyze this snippets and come up with a plan."
                 + "\n\n"
                 + collapsible_template.format(
                     summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
                     body="\n".join(
                         [
-                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(new_line))}\n"
+                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline))}\n"
                             for snippet in snippets
                         ]
                     ),
-                )
+                ),
+                1
             )
 
+            # COMMENT ON ISSUE
+            # TODO: removed issue commenting here
+            logger.info("Fetching files to modify/create...")
+            file_change_requests = sweep_bot.get_files_to_change()
+            file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
+            table = tabulate(
+                [[f"`{file_change_request.filename}`", file_change_request.instructions] for file_change_request in file_change_requests],
+                headers=["File Path", "Proposed Changes"],
+                tablefmt="pipe"
+            )
+            print(table)
+            comment_reply(
+                "From looking through the relevant snippets, I decided to make the following modifications:\n\n" + table + "\n\n",
+                2
+            )
+
+            # CREATE PR METADATA
             logger.info("Generating PR...")
             pull_request = sweep_bot.generate_pull_request()
+            pull_request_content = pull_request.content.strip().replace("\n", "\n>")
+            pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
 
+            comment_reply(
+                f"I have created a plan for writing the pull request. I am now working on executing my plan and coding the required changes to address this issue. Here is the planned pull request:\n\n{pull_request_summary}",
+                3
+            )
+
+            # WRITE PULL REQUEST
             logger.info("Making PR...")
             response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
             if not response or not response["success"]: raise Exception("Failed to create PR")
             pr = response["pull_request"]
             current_issue.create_reaction("rocket")
+            comment_reply(
+                "I have finished coding the issue. I am now reviewing it for completeness.",
+                4
+            )
+
             try:
-                eyes_reaction.delete()
+                current_issue.delete_reaction(eyes_reaction.id)
             except:
                 pass
             try:
-                changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username, 
-                        repo_description=repo_description, title=title, 
+                # CODE REVIEW
+                changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
+                        repo_description=repo_description, title=title,
                         summary=summary, replies_text=replies_text, tree=tree)
                 logger.info(f"Addressing review comment {review_comment}")
                 if changes_required:
-                    on_comment(repo_full_name=repo_full_name, 
-                            repo_description=repo_description, 
+                    on_comment(repo_full_name=repo_full_name,
+                            repo_description=repo_description,
                             comment=review_comment,
-                            username=username, 
+                            username=username,
                             installation_id=installation_id,
                             pr_path=None,
                             pr_line_position=None,
                             pr_number=pr.number)
             except Exception as e:
                 logger.error(e)
+
+            # Completed code review
+            comment_reply(
+                "Success! 🚀",
+                5
+            )
             break
     except openai.error.InvalidRequestError as e:
         logger.error(e)
         comment_reply(
-            "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev."
+            "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev.",
+            -1
         )
+        log_error("Context Length", str(e))
         posthog.capture(
             username,
             "failed",
@@ -293,8 +378,10 @@ def on_ticket(
     except Exception as e:
         logger.error(e)
         comment_reply(
-            "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev."
+            "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
+            -1
         )
+        log_error("Workflow", str(e))
         posthog.capture(
             username,
             "failed",
@@ -303,7 +390,7 @@ def on_ticket(
         raise e
     else:
         try:
-            eyes_reaction.delete()
+            item_to_react_to.delete_reaction(eyes_reaction.id)
         except:
             pass
         item_to_react_to.create_reaction("rocket")
