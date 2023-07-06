@@ -70,6 +70,8 @@ class FilesToChange(RegexMatchableBaseModel):
     _regex = r"""<create>(?P<files_to_create>.*)</create>\s*<modify>(?P<files_to_modify>.*)</modify>"""
 
 
+# todo (fix double colon regex): Update the split from "file_tree.py : desc" to "file_tree.py\tdesc"
+# tab supremacy 
 def clean_filename(file_name: str):
     valid_chars = "-_./%s%s" % (string.ascii_letters, string.digits)
     file_name = ''.join(c for c in file_name if c in valid_chars)
