@@ -2,10 +2,12 @@ import difflib
 import re
 
 def generate_diff(old_code, new_code):
-    diff = difflib.unified_diff(
-        old_code.splitlines(keepends=True),
-        new_code.splitlines(keepends=True)
-    )
+    old_lines = old_code.splitlines(keepends=True)
+    new_lines = new_code.splitlines(keepends=True)
+    diff = []
+    for old_line, new_line in zip(old_lines, new_lines):
+        if old_line.strip() != new_line.strip():  # Ignore whitespace changes
+            diff.append(difflib.unified_diff([old_line], [new_line]))  # Fix: Pass lists to unified_diff
     return ''.join(diff)
 
 def format_contents(file_contents, is_markdown=False):
@@ -16,7 +18,7 @@ def format_contents(file_contents, is_markdown=False):
 
     if is_markdown:
         return '\n'.join(lines) + '\n'
-    
+
     # Handle small files
     if len(lines) <= 5:
         final_lines = []
@@ -62,23 +64,23 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
 
     # Find all <copied> tags and their content
     copied_sections = re.findall(r"<copied>(.*?)<\/copied>", new_file, re.DOTALL)
-    
+
     first_section_idx = new_file.index("<copied>")
     if first_section_idx > 0:
         result_file += new_file[:first_section_idx]
-        new_file = new_file[first_section_idx:] # remove the first section from new_file
+        new_file = new_file[first_section_idx:]  # remove the first section from new_file
     last_section_idx = new_file.rindex("</copied>")
     last_section = ""
     if last_section_idx < len(new_file) - 1:
         last_section = new_file[last_section_idx + len("</copied>"):]
-        new_file = new_file[:last_section_idx + len("</copied>")] # remove the last section from new_file
-    
+        new_file = new_file[:last_section_idx + len("</copied>")]  # remove the last section from new_file
+
     # Parse copied sections, first copying the content and then adding whatever is after the copied section
     for copied_section in copied_sections:
         if "-" in copied_section:
             start_line, end_line = copied_section.split("-")
-        else: # <copied>num</copied>
-            start_line = copied_sections
+        else:  # <copied>num</copied>
+            start_line = copied_section
             end_line = start_line
 
         start_line = int(start_line) - 1 if int(start_line) - 1 > 0 else 0
@@ -91,9 +93,10 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
         next_section_idx = new_file.index("<copied>") if "<copied>" in new_file else len(new_file)
         # Check for duplicate lines
         result_file = join_contents_k(result_file, new_file[:next_section_idx], k)
-        new_file = new_file[next_section_idx:] # remove the first section from new_file
+        new_file = new_file[next_section_idx:]  # remove the first section from new_file
     return result_file + last_section
-    
+
+
 def join_contents_k(first, second, k):
     """
     Join contents together removing k duplicate lines
@@ -107,5 +110,3 @@ def join_contents_k(first, second, k):
             return "\n".join(first_lines) + "\n" + "\n".join(second_lines[i:])
     return "\n".join(first_lines) + "\n" + "\n".join(second_lines)
 
-def is_markdown(filename):
-    return filename.endswith(".md") or filename.endswith(".rst") or filename.endswith(".txt")
