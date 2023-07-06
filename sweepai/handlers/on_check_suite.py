@@ -1,22 +1,24 @@
 import io
 import os
 import zipfile
+from loguru import logger
 import openai
 import requests
 from sweepai.core.gha_extraction import GHAExtractor
 
 from sweepai.events import CheckRunCompleted
+from sweepai.utils.github_utils import get_token
 
-github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
-headers={
-    "Accept": "application/vnd.github+json",
-    "Authorization": f"Bearer {github_access_token}",
-    "X-GitHub-Api-Version": "2022-11-28"
-}
 
-def retrieve_logs(repo_full_name: str, run_id: int) -> str:
+
+def download_logs(repo_full_name: str, run_id: int, installation_id: int):
+    headers={
+        "Accept": "application/vnd.github+json",
+        "Authorization": f"Bearer {get_token(installation_id)}",
+        "X-GitHub-Api-Version": "2022-11-28"
+    }
     response = requests.get(f"https://api.github.com/repos/{repo_full_name}/actions/runs/{run_id}/logs", headers=headers)
 
     logs_str = ""
@@ -26,6 +28,8 @@ def retrieve_logs(repo_full_name: str, run_id: int) -> str:
             if "/" not in file:
                 with zip_file.open(file) as f:
                     logs_str += f.read().decode("utf-8")
+    else:
+        logger.warning(f"Failed to download logs for run id: {run_id}")
     return logs_str
 
 def clean_logs(logs_str: str):
@@ -48,11 +52,15 @@ def clean_logs(logs_str: str):
     return "\n".join([log.strip() for log in truncated_logs if not any(pattern in log for pattern in patterns)])
 
 def on_check_suite(request: CheckRunCompleted):
-    logs = retrieve_logs(
+    logs = download_logs(
         request.repository.full_name, 
-        request.check_run.run_id
+        request.check_run.run_id,
+        request.installation.id
     )
+    if not logs:
+        return None
     logs = clean_logs(logs)
     extractor = GHAExtractor()
+    logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
     logs = extractor.gha_extract(logs)
     return logs

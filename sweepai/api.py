@@ -174,19 +174,22 @@ async def webhook(raw_request: Request):
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
                     # handle_check_suite
-                
-                logs = handle_check_suite.call(request)
-                logger.info(f"Logs: {logs}")
-                handle_comment.spawn(
-                    repo_full_name=request.repository.full_name,
-                    repo_description=request.repository.description,
-                    comment=logs,
-                    pr_path=None,
-                    pr_line_position=None,
-                    username=request.sender.login,
-                    installation_id=request.installation.id,
-                    pr_number=request.check_run.pull_requests[0].number,
-                )
+                logs = None
+                if request.sender.login == SWEEP_LOGIN:
+                    logs = handle_check_suite.call(request)
+                    logger.info(f"Logs: {logs}")
+                if len(request.check_run.pull_requests) > 0 and logs:
+                    # handle_comment.spawn(
+                    #     repo_full_name=request.repository.full_name,
+                    #     repo_description=request.repository.description,
+                    #     comment=logs,
+                    #     pr_path=None,
+                    #     pr_line_position=None,
+                    #     username=request.sender.login,
+                    #     installation_id=request.installation.id,
+                    #     pr_number=request.check_run.pull_requests[0].number,
+                    # )
+                    pass
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
