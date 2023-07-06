@@ -9,10 +9,13 @@ def generate_diff(old_code, new_code):
     return ''.join(diff)
 
 def format_contents(file_contents, is_markdown=False):
-    """
+    '''
     Add arbitrary postprocessing here, this affects files and diffs
-    """
+    '''
     lines = file_contents.split('\n')
+
+    # Remove lines that are just whitespace
+    lines = [line for line in lines if line.strip() != '']
 
     if is_markdown:
         return '\n'.join(lines) + '\n'
@@ -47,7 +50,6 @@ def format_contents(file_contents, is_markdown=False):
 
     lines = first_three_lines + lines[3:-3] + last_three_lines
     return '\n'.join(lines) + '\n'
-
 
 def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
     import re
@@ -109,3 +111,4 @@ def join_contents_k(first, second, k):
 
 def is_markdown(filename):
     return filename.endswith(".md") or filename.endswith(".rst") or filename.endswith(".txt")
+
