@@ -158,8 +158,8 @@ def on_ticket(
             ]
         )
 
-    def log_error(error_type, message):
-        content = f"**{error_type} Error**\n{issue_url} from {username}\n{message}"
+    def log_error(error_type, exception):
+        content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
         discord_log_error(content)
 
     def fetch_file_contents_with_retry():
