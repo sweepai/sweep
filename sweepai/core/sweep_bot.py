@@ -74,12 +74,12 @@ class CodeGenBot(ChatGPT):
                 continue
         raise Exception("Could not generate files to change")
 
-    def generate_pull_request(self):
+    def generate_pull_request(self) -> PullRequest:
         pull_request = None
         for count in range(5):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
+                pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model="gpt-3.5-turbo-16k-0613")
             except Exception:
                 logger.warning("Failed to parse! Retrying...")
                 self.undo()
@@ -158,7 +158,18 @@ class GithubBot(BaseModel):
         )
         self.populate_snippets(snippets)
         return snippets
-
+    
+    def validate_file_change_requests(self, file_change_requests: list[FileChangeRequest]):
+        for file_change_request in file_change_requests:
+            try:
+                contents = self.repo.get_contents(file_change_request.filename)
+                if contents:
+                    file_change_request.change_type = "modify"
+                else:
+                    file_change_request.change_type = "create"
+            except:
+                file_change_request.change_type = "create"
+        return file_change_requests
 
 class SweepBot(CodeGenBot, GithubBot):
     def cot_retrieval(self):
