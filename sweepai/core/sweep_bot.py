@@ -370,6 +370,8 @@ class SweepBot(CodeGenBot, GithubBot):
                         file_change_request, contents.decoded_content.decode("utf-8")
                     )
                     new_file_contents = format_contents(new_file_contents, file_markdown)
+                    if contents.decoded_content.decode("utf-8").endswith("\n"):
+                        new_file_contents += "\n"
                     logger.debug(
                         f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
                     )
