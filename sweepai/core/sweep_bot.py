@@ -39,8 +39,8 @@ class CodeGenBot(ChatGPT):
                 logger.info(f"Generating for the {count}th time...")
                 files_to_change_response = self.chat(files_to_change_prompt, message_key="files_to_change") # Dedup files to change here
                 files_to_change = FilesToChange.from_string(files_to_change_response)
-                files_to_create: list[str] = files_to_change.files_to_create.split("*")
-                files_to_modify: list[str] = files_to_change.files_to_modify.split("*")
+                files_to_create: list[str] = files_to_change.files_to_create.split("\n*")
+                files_to_modify: list[str] = files_to_change.files_to_modify.split("\n*")
                 for file_change_request, change_type in zip(
                     files_to_create + files_to_modify,
                     ["create"] * len(files_to_create)
