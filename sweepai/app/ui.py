@@ -1,8 +1,10 @@
 import json
+import os
+from git import Repo
 from github import Github
 import gradio as gr
 from loguru import logger
-import webbrowser
+
 from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Snippet
@@ -38,27 +40,34 @@ pre, code {
 }
 '''
 
-def get_files_recursively(repo, path=''):
+def get_files_recursively(root_path, path=''):
+    files = []
     path_to_contents = {}
-    try:
-        contents = repo.get_contents(path)
-        files = []
-        while contents:
-            file_content = contents.pop(0)
-            if file_content.type == 'dir':
-                contents.extend(repo.get_contents(file_content.path))
-            else:
-                try:
-                    decoded_contents = file_content.decoded_content.decode("utf-8")
-                except:
-                    continue
-                if decoded_contents:
-                    path_to_contents[file_content.path] = file_content.decoded_content.decode("utf-8")
-                    files.append(file_content.path)
-        return sorted(files), path_to_contents
-    except Exception as e:
-        logger.error(e)
-        return [], path_to_contents
+
+    if path == '.git':
+        return files, path_to_contents
+
+    current_dir = os.path.join(root_path, path)
+    entries = os.listdir(current_dir)
+
+    for entry in entries:
+        entry_path = os.path.join(current_dir, entry)
+
+        if os.path.isfile(entry_path):
+            try:
+                with open(entry_path, 'r') as file:
+                    contents = file.read()
+                path_to_contents[entry_path[len(root_path) + 1:]] = contents
+                files.append(entry_path[len(root_path) + 1:])
+            except UnicodeDecodeError as e:
+                logger.warning(f"Received warning {e}, skipping...")
+                continue
+        elif os.path.isdir(entry_path):
+            subfiles, subpath_to_contents = get_files_recursively(root_path, os.path.join(path, entry))
+            files.extend(subfiles)
+            path_to_contents.update(subpath_to_contents)
+
+    return files, path_to_contents
 
 def get_installation_id(repo_full_name):
     config.repo_full_name = repo_full_name
@@ -67,20 +76,26 @@ def get_installation_id(repo_full_name):
     return installation_id
 
 path_to_contents = {}
-def get_files(name):
+def get_files(repo_full_name):
     global path_to_contents
     global repo
-    if name is None:
+    if repo_full_name is None:
         all_files = []
     else:
         # Make sure repo is added to Sweep before checking all recursive files
         try:
-            installation_id = get_installation_id(name)
+            installation_id = get_installation_id(repo_full_name)
             assert installation_id
         except:
             return []
-        repo = github_client.get_repo(name)
-        all_files, path_to_contents = get_files_recursively(repo)
+        repo = github_client.get_repo(repo_full_name)
+        repo_url = f"https://x-access-token:{config.github_pat}@github.com/{repo_full_name}.git"
+        if os.path.exists("/tmp/" + repo_full_name):
+            git_repo = Repo("/tmp/" + repo_full_name)
+            git_repo.remotes.origin.pull()
+        else:
+            Repo.clone_from(repo_url, "/tmp/" + repo_full_name)
+        all_files, path_to_contents = get_files_recursively("/tmp/" + repo_full_name)
     return all_files
 
 def get_files_update(*args):
@@ -106,7 +121,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         with gr.Column():
             snippets_text = gr.Markdown(value="### Relevant snippets", elem_id="snippets")
     msg = gr.Textbox(label="Message to Sweep", placeholder="Send a message to Sweep")
-    # clear = gr.ClearButton([msg, chatbot, snippets_text])
 
     proposed_pr: str | None = None
     searched = False
@@ -123,7 +137,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             config.save()
             return ""
         except Exception as e:
-            webbrowser.open_new_tab("https://github.com/apps/sweep-ai")
             config.repo_full_name = None
             config.installation_id = None
             config.save()
