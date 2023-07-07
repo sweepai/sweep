@@ -1,6 +1,6 @@
 
 <p align="center">
-    <img src="https://github.com/sweepai/sweep/blob/856ff66c2dbeaf39afbf6d8c49a620dfa70271fb/.assets/sweep-banner-github.png">
+    <img src="https://github.com/sweepai/sweep/assets/26889185/39d500fc-9276-402c-9ec7-3e61f57ad233">
 </p>
 <p align="center">
     <i>Bug Reports & Feature Requests ⟶&nbsp; Code Changes</i>
