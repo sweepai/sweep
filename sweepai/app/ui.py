@@ -131,7 +131,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
     
     with gr.Row():
         with gr.Column(scale=0.5):
-            create_pr_button = gr.Button(value="Create PR", color="blue", interactive=False)
+            create_pr_button = gr.Button(value="Create PR", interactive=False)
         with gr.Column(scale=8):
             msg = gr.Textbox(placeholder="Send a message to Sweep", label=None, elem_id="message_box")
 
