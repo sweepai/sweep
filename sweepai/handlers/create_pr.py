@@ -54,7 +54,19 @@ def create_pr(
     try:
         logger.info("Making PR...")
         pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
-        sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
+        completed_count, fcr_count = sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
+        if completed_count == 0 and fcr_count != 0:
+            logger.info("No changes made")
+            posthog.capture(
+                username,
+                "failed",
+                properties={
+                    "error": "No changes made",
+                    "reason": "No changes made",
+                    **metadata,
+                },
+            )
+            return {"success": False, "error": "No changes made"}
 
         # Include issue number in PR description
         if issue_number:
