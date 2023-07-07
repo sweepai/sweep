@@ -106,13 +106,13 @@ class APIClient(BaseModel):
             raise Exception(results.text)
         snippets = [Snippet(**item) for item in results.json()]
         return snippets
-    
+
     def create_pr(
         self,
         file_change_requests: list[tuple[str, str]],
         pull_request: PullRequest,
         messages: list[tuple[str | None, str | None]],
-        branch: str,  # Added branch parameter
+        branch: str,
     ):
         results = requests.post(
             self.api_endpoint + "/create_pr",
@@ -121,28 +121,12 @@ class APIClient(BaseModel):
                 "pull_request": pull_request,
                 "messages": messages,
                 "config": self.config.dict(),
-                "branch": branch,  # Pass branch parameter to the API
+                "branch": branch,
             },
             timeout=10 * 60
         )
         return results.json()
-    
-    def chat(
-        self, 
-        messages: list[tuple[str | None, str | None]],
-        snippets: list[Snippet] = [],
-        model: str = "gpt-4-0613",
-    ) -> str:
-        results = requests.post(
-            self.api_endpoint + "/chat",
-            json={
-                "messages": messages,
-                "snippets": [snippet.dict() for snippet in snippets],
-                "config": self.config.dict()
-            }
-        )
-        return results.json()
-    
+
     def stream_chat(
         self, 
         messages: list[tuple[str | None, str | None]], 
