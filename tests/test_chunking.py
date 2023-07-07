@@ -1,6 +1,6 @@
 import modal
 
-from src.utils.constants import UTILS_NAME
+from sweepai.utils.constants import UTILS_NAME
 
 code_examples = ["""
 import numpy as np
