@@ -181,10 +181,14 @@ class SweepBot(CodeGenBot, GithubBot):
         return self.sweep_branch or self.repo.default_branch
 
     @classmethod
-    def from_repo(cls, repo, **kwargs) -> SweepBot:
+    def from_system_message_content(
+        cls, 
+        repo: Repository,
+        **kwargs
+    ) -> SweepBot:
         return cls(
-            repo=repo, 
-            config=SweepConfig.from_repo(repo), 
+            config=SweepConfig.from_repo(repo),
+            repo=repo,
             **kwargs
         )
 
