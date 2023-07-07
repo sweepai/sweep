@@ -25,6 +25,7 @@ from sweepai.utils.github_utils import get_github_client, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.constants import DB_NAME, PREFIX, UTILS_NAME
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+import traceback
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -274,9 +275,11 @@ def on_ticket(
     try:
         for i in range(sweepbot_retries):
             # ANALYZE SNIPPETS
-            logger.info("CoT retrieval...")
             if sweep_bot.model == "gpt-4-32k-0613":
+                logger.info("CoT retrieval...")
                 sweep_bot.cot_retrieval()
+            else:
+                logger.info("Did not execute CoT retrieval...")
 
             newline = '\n'
             comment_reply(
@@ -351,6 +354,7 @@ def on_ticket(
                             pr_line_position=None,
                             pr_number=pr.number)
             except Exception as e:
+                logger.error(traceback.format_exc())
                 logger.error(e)
 
             # Completed code review

@@ -78,13 +78,19 @@ class ChatGPT(BaseModel):
     ) -> Self:
         if is_reply:
             system_message_content = system_message_issue_comment_prompt
-        system_message_content = (
-            system_message_prompt + "\n\n" + human_message.construct_prompt()
-        )
+
+        # Todo: This moves prompts away from unified system message prompt
+        # system_message_prompt + "\n\n" + human_message.construct_prompt()
+        messages = [
+           Message(role="system", content=system_message_prompt, key="system")
+       ]
+
+        added_messages = human_message.construct_prompt() # [ { role, content }, ... ]
+        for msg in added_messages:
+            messages.append(Message(**msg))
+
         return cls(
-            messages=[
-                Message(role="system", content=system_message_content, key="system")
-            ],
+            messages = messages,
             human_message=human_message,
             **kwargs,
         )
