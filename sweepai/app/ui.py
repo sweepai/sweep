@@ -23,8 +23,10 @@ Here is my plan:
 
 Reply with "ok" to create the PR or anything else to propose changes.'''
 
+print("Getting list of repos...")
 github_client = Github(config.github_pat)
 repos = list(github_client.get_user().get_repos())
+print("Done.")
 
 css = '''
 footer {
@@ -37,6 +39,9 @@ pre, code {
 #snippets {
     height: 750px;
     overflow-y: scroll;
+}
+#message_box > label > span {
+    display: none;
 }
 '''
 
@@ -108,11 +113,14 @@ def get_files_update(*args):
 
 
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
+    print("Launching gradio!")
     with gr.Row():
         with gr.Column():
             repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
+        print("Indexing files...")
         with gr.Column(scale=2):
             file_names = gr.Dropdown(choices=get_files(config.repo_full_name), multiselect=True, label="Files")
+        print("Indexed files!")
         repo_full_name.change(get_files_update, repo_full_name, file_names)
 
     with gr.Row():
@@ -120,7 +128,12 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             chatbot = gr.Chatbot(height=750)
         with gr.Column():
             snippets_text = gr.Markdown(value="### Relevant snippets", elem_id="snippets")
-    msg = gr.Textbox(label="Message to Sweep", placeholder="Send a message to Sweep")
+    
+    with gr.Row():
+        with gr.Column(scale=0.5):
+            create_pr_button = gr.Button(value="Create PR", interactive=False)
+        with gr.Column(scale=8):
+            msg = gr.Textbox(placeholder="Send a message to Sweep", label=None, elem_id="message_box")
 
     proposed_pr: str | None = None
     searched = False
@@ -181,7 +194,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
     def handle_message_submit(repo_full_name: str, user_message: str, history: list[tuple[str | None, str | None]]):
         if not repo_full_name:
             raise Exception("Set the repository name first")
-        return gr.update(value="", interactive=False), history + [[user_message, None]]
+        return gr.update(value="", interactive=False), history + [[user_message, None]], gr.Button.update(interactive=True)
 
     def handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, file_names):
         global selected_snippets
@@ -219,7 +232,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
                 messages=chat_history,
             )
             chat_history[-1][1] = f"✅ PR created at {pull_request['html_url']}"
-            yield chat_history, snippets_text, file_names
+            yield chat_history, snippets_text, file_names, "Create PR"
             return
 
         # Generate response
@@ -243,7 +256,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             if chunk.get("content"):
                 token = chunk["content"]
                 chat_history[-1][1] += token
-                yield chat_history, snippets_text, file_names
+                yield chat_history, snippets_text, file_names, "Create PR"
             if chunk.get("function_call"):
                 function_call = chunk["function_call"]
                 function_name = function_name or function_call.get("name")
@@ -268,8 +281,15 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             else:
                 raise NotImplementedError
 
-    response = msg.submit(handle_message_submit, [repo_full_name, msg, chatbot], [msg, chatbot], queue=False).then(handle_message_stream, [chatbot, snippets_text, file_names], [chatbot, snippets_text, file_names])
+    response = msg \
+        .submit(handle_message_submit, [repo_full_name, msg, chatbot], [msg, chatbot, create_pr_button], queue=False)\
+        .then(handle_message_stream, [chatbot, snippets_text, file_names], [chatbot, snippets_text, file_names])
     response.then(lambda: gr.update(interactive=True), None, [msg], queue=False)
+
+    def on_create_pr_button_click(chat_history: list[tuple[str | None, str | None]], create_pr_button: str):
+        return chat_history + [(create_pr_button, None)]
+
+    create_pr_button.click(on_create_pr_button_click, [chatbot, create_pr_button], chatbot).then(handle_message_stream, [chatbot, snippets_text, file_names], [chatbot, snippets_text, file_names])
 
 
 if __name__ == "__main__":
