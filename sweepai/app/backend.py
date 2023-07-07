@@ -232,7 +232,7 @@ def _asgi_app():
 
         messages = [Message.from_tuple(message) for message in request.messages]
         chatgpt = ChatGPT(messages=messages[:-1])
-        result = chatgpt.chat(messages[-1].content, model="gpt-4-0613")
+        result = chatgpt.chat(messages[-1].content, model="gpt-3.5-turbo-16k-0613")
         return result
     
     @app.post("/chat_stream")
@@ -260,7 +260,7 @@ def _asgi_app():
             posthog.capture(request.config.github_username, "failed", properties={"error": str(e), **metadata})
             raise e
         def stream_chat():
-            for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=request.functions, function_call=request.function_call):
+            for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-3.5-turbo-16k-0613", functions=request.functions, function_call=request.function_call):
                 yield json.dumps(chunk)
             posthog.capture(request.config.github_username, "succeeded", properties=metadata)
         return StreamingResponse(
