@@ -40,7 +40,6 @@ def format_contents(file_contents, is_markdown=False):
     
     # Handle small files
     if len(lines) <= 5:
-        final_lines = []
         start_idx = 0
         end_idx = len(lines)
         for idx, line in enumerate(lines):
