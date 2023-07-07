@@ -224,13 +224,6 @@ def get_deeplake_vs_from_repo(
     logger.info(f"Received {len(documents)} documents from repository {repo_name}")
     collection_name = parse_collection_name(repo_name)
     return compute_deeplake_vs(collection_name, documents, cache_success, cache, ids, metadatas, commit_hash)
-    
-def score_filename(filename: str) -> float:
-    """
-    This function takes a filename as input and returns a score based on relevant criteria.
-    For simplicity, we'll just use the length of the filename as the score.
-    """
-    return len(filename)
 
 def compute_deeplake_vs(collection_name, 
                         documents, 
@@ -342,4 +335,6 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
+
+from .filename_scorer import score_filename
 
