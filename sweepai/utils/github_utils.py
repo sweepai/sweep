@@ -172,7 +172,7 @@ def search_snippets(
     # Initialize the relevant directories string
     get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
     if sweep_config is None:
-        sweep_config = SweepConfig.from_repo()
+        sweep_config = SweepConfig.from_repo(repo)
     snippets: list[Snippet] = get_relevant_snippets.call(
         repo.full_name, query, num_files, installation_id=installation_id
     )

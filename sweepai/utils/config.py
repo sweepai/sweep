@@ -19,7 +19,7 @@ class SweepConfig(BaseModel):
     @classmethod
     def from_repo(cls, repo: Repository) -> "SweepConfig":
         try:
-            contents = repo.get_contents("sweep.yaml")
+            contents = repo.get_contents(".github/sweep.yaml")
         except:
             return cls()
         return SweepConfig.from_yaml(contents.decoded_content.decode("utf-8"))
