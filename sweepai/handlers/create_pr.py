@@ -18,7 +18,6 @@ update_index = modal.Function.lookup(DB_NAME, "update_index")
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
-
 def create_pr(
     file_change_requests: list[FileChangeRequest],
     pull_request: PullRequest,
@@ -49,8 +48,7 @@ def create_pr(
     posthog.capture(username, "started", properties=metadata)
 
     try:
-        logger.info("Making PR...")
-        sweep_bot.create_branch(branch)
+        branch = sweep_bot.create_branch(branch)
         completed_count, fcr_count = sweep_bot.change_files_in_github(file_change_requests, branch)
         if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")
