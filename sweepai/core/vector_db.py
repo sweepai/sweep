@@ -225,6 +225,13 @@ def get_deeplake_vs_from_repo(
     collection_name = parse_collection_name(repo_name)
     return compute_deeplake_vs(collection_name, documents, cache_success, cache, ids, metadatas, commit_hash)
     
+def score_filename(filename: str) -> float:
+    """
+    This function takes a filename as input and returns a score based on relevant criteria.
+    For simplicity, we'll just use the length of the filename as the score.
+    """
+    return len(filename)
+
 def compute_deeplake_vs(collection_name, 
                         documents, 
                         cache_success, 
@@ -265,7 +272,6 @@ def compute_deeplake_vs(collection_name,
     else:
         logger.error("No documents found in repository")
         return deeplake_vs
-
 
 @stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
 def update_index(
