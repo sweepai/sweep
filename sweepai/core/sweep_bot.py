@@ -8,6 +8,7 @@ import modal
 from pydantic import BaseModel
 from sweepai.core.code_repair import CodeRepairer
 from sweepai.utils.chat_logger import ChatLogger
+import re
 
 from sweepai.core.entities import (
     FileChange,
@@ -271,7 +272,7 @@ class SweepBot(CodeGenBot, GithubBot):
         contents_line_numbers = contents_line_numbers.replace('"""', "'''")
         for count in range(5):
             if "0613" in self.model:
-                _ = self.chat( # We don't use the plan in the next call
+                planning_response = self.chat( # We don't use the plan in the next call
                     modify_file_plan_prompt.format(
                         filename=file_change_request.filename,
                         instructions=file_change_request.instructions,
@@ -279,8 +280,24 @@ class SweepBot(CodeGenBot, GithubBot):
                     ),
                     message_key=f"file_change_{file_change_request.filename}",
                 )
+
+                snippet_string = ""
+                lines = []
+                for match in re.findall(r"(?:lines (\d+)-(\d+)|line (\d+))", planning_response):
+                    if len(match[2]) > 0:
+                        start_line = int(match[2])
+                        end_line = start_line
+                    else:
+                        start_line = int(match[0])
+                        end_line = int(match[1])
+                    lines.append('\n'.join(contents_line_numbers.splitlines()[start_line - 1:end_line]))
+
+                code_snippets = '\n...\n'.join(lines)
+
                 modify_file_response = self.chat(
-                    modify_file_prompt,
+                    modify_file_prompt.format(
+                        snippets=code_snippets
+                    ),
                     message_key=f"file_change_{file_change_request.filename}",
                 )
                 try:

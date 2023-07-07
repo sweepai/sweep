@@ -215,6 +215,7 @@ Step-by-step thoughts with explanations:
 * Thought 1 - Explanation 1
 * Thought 2 - Explanation 2
 ...
+
 Detailed plan of additions:
 * Addition 1
 * Addition 2
@@ -245,17 +246,29 @@ File Name: {filename}
 
 Your instructions to modify the file are: "{instructions}".
 
+Now, generate an exhaustive plan of every change in this file.
+
 Step-by-step thoughts with explanations: 
 * Thought 1 - Explanation 1
 * Thought 2 - Explanation 2
 ...
+
 Detailed plan of modifications:
 * Modification 1
 * Modification 2
 ...
+
+Code snippets:
+* lines a-b
+* line c
+...
 """
 
 modify_file_prompt = """
+<snippets>
+{snippets}
+</snippets>
+
 Generate a new_file based on the given plan, ensuring that you:
 1. Do not write "pass" statements.
 2. Provide complete functions with actual business logic. It is imperative that we do not leave any work to the user/future readers of this code.
@@ -268,20 +281,22 @@ Instead of writing "# Rest of Code", specify the lines to copy from the old file
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copied>0-50</copied>".
 
 Example: New file:
+<new_file>
 print("new file")
 </new_file>
 
 Example: Insert at end:
-<copied>0-100</copied>
+<new_file>
+<copied>1-100</copied>
 print("inserted at end")
 </new_file>
 
-Example: If you want to insert code after lines 50 and 75:
+Example: If you want to modify lines 51-52 and add line after line 75:
 <new_file>
-<copied>0-50</copied>
+<copied>1-50</copied>
 def main():
      print("hello world")
-<copied>51-75</copied>
+<copied>53-75</copied>
 print("debug statement")
 <copied>76-100</copied>
 </new_file>
