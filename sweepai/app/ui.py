@@ -130,10 +130,10 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             snippets_text = gr.Markdown(value="### Relevant snippets", elem_id="snippets")
     
     with gr.Row():
-        with gr.Column(scale=0.5):
-            create_pr_button = gr.Button(value="Create PR", interactive=False)
         with gr.Column(scale=8):
             msg = gr.Textbox(placeholder="Send a message to Sweep", label=None, elem_id="message_box")
+        with gr.Column(scale=0.5):
+            create_pr_button = gr.Button(value="Create PR", interactive=False)
 
     proposed_pr: str | None = None
     searched = False
