@@ -36,7 +36,7 @@ def format_contents(file_contents, is_markdown=False):
     lines = file_contents.split('\n')
 
     if is_markdown:
-        return '\n'.join(lines) + '\n'
+        return '\n'.join(lines)
     
     # Handle small files
     if len(lines) <= 5:
@@ -49,7 +49,7 @@ def format_contents(file_contents, is_markdown=False):
             if start_idx != 0 and line.strip().endswith('```'):
                 end_idx = idx
         lines = lines[start_idx + 1:end_idx]
-        return '\n'.join(lines) + '\n'
+        return '\n'.join(lines)
 
     first_three_lines = lines[:3]
     last_three_lines = lines[-3:]
@@ -67,7 +67,7 @@ def format_contents(file_contents, is_markdown=False):
     last_three_lines = last_three_lines[:last_line_idx]
 
     lines = first_three_lines + lines[3:-3] + last_three_lines
-    return '\n'.join(lines) + '\n'
+    return '\n'.join(lines)
 
 
 def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
@@ -102,7 +102,7 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
             start_line = copied_sections
             end_line = start_line
 
-        start_line = int(start_line) - 1 if int(start_line) - 1 > 0 else 0
+        start_line = max(int(start_line), 0)
         end_line = int(end_line)
         # Check for duplicate lines
         k = 30

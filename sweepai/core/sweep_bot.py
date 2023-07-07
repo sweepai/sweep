@@ -337,6 +337,11 @@ class SweepBot(CodeGenBot, GithubBot):
                     try: # Try to modify
                         contents = self.get_file(file_change_request.filename, branch=branch)
                         file_change.code = format_contents(file_change.code, file_markdown)
+                        if contents.decoded_content.decode("utf-8").endswith("\n"):
+                            new_file_contents += "\n"
+                        logger.debug(
+                            f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
+                        )
                         self.repo.update_file(
                             file_change_request.filename,
                             file_change.commit_message,
