@@ -5,7 +5,6 @@ import time
 import shutil
 import glob
 
-from modal import stub
 from loguru import logger
 from redis import Redis
 from tqdm import tqdm
@@ -25,7 +24,6 @@ from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
 import time
 
-# TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_NAME)
 chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 model_volume = modal.SharedVolume().persist(f"{ENV}-storage")
@@ -62,9 +60,7 @@ def init_deeplake_vs(repo_name):
     return deeplake_vector_store
 
 def parse_collection_name(name: str) -> str:
-    # Replace any non-alphanumeric characters with hyphens
     name = re.sub(r"[^\w-]", "--", name)
-    # Ensure the name is between 3 and 63 characters and starts/ends with alphanumeric
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
     return name
 
@@ -103,14 +99,8 @@ def get_deeplake_vs_from_repo(
     code_scores = [metadata["score"] for metadata in metadatas]
     vector_scores = results["score"]
     combined_scores = [code_score + vector_score for code_score, vector_score in zip(code_scores, vector_scores)]
-    # Sort by combined scores
-    # Combine the three lists into a single list of tuples
     combined_list = list(zip(combined_scores, metadatas))
-
-    # Sort the combined list based on the combined scores
     sorted_list = sorted(combined_list, key=lambda x: x[0], reverse=True)
-
-    # Extract the sorted metadatas and relevant_paths
     sorted_metadatas = [metadata for _, metadata in sorted_list]
     relevant_paths = [metadata["file_path"] for metadata in sorted_metadatas]
     logger.info("Relevant paths: {}".format(relevant_paths))
