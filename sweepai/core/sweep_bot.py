@@ -1,6 +1,4 @@
-import json
 from loguru import logger
-import github
 from github.Repository import Repository
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException
