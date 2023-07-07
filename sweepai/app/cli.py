@@ -1,3 +1,9 @@
+try:   # Python 3.11+
+    from typing import Self
+except ImportError:  # Python 3.10 or lower
+    from typing import TypeVar
+    Self = TypeVar("Self", bound="object")
+
 import typer
 
 from sweepai.app.config import SweepChatConfig
@@ -36,3 +42,4 @@ def app():
 
 if __name__ == "__main__":
     app()
+
