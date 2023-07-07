@@ -10,8 +10,26 @@
 <a href="https://sweep.dev/">🌐 Website</a>
 <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
 <a href="https://docs.sweep.dev/">📚 Docs</a>
+<!-- <a href="https://sweep.dev">
+    <img alt="Website" src="https://img.shields.io/website?url=https%3A%2F%2Fsweep.dev">
+</a>
+<a href="https://docs.sweep.dev/">
+    <img alt="Website" src="https://img.shields.io/website?up_color=Docs&url=https%3A%2F%2Fdocs.sweep.dev%2F&logo=readthedocs&link=https%3A%2F%2Fdocs.sweep.dev%2F">
+</a> -->
 <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-<a href="https://discord.gg/sweep-ai">📢 Discord</a>
+<a href="https://discord.gg/sweep-ai">
+    <img src="https://dcbadge.vercel.app/api/server/sweep-ai?style=flat" />
+</a>
+<img alt="PyPI" src="https://img.shields.io/pypi/v/sweepai">
+<a href="https://pepy.tech/project/sweepai">
+    <img src="https://static.pepy.tech/badge/sweepai/week" />
+</a>
+<a href="https://github.com/sweepai/sweep">
+    <img src="https://img.shields.io/github/stars/sweepai/sweep" />
+</a>
+<a href="https://twitter.com/sweep__ai">
+    <img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Ftwitter.com%2Fsweep__ai" />
+</a>
 </p>
 
 <b>Sweep</b> allows you to create and review GitHub issues with ease.
