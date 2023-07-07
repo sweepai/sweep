@@ -11,6 +11,9 @@ class SweepConfig(BaseModel):
     sweep_branch: str | None = None # defaults to the default github branch
     slack_workspace: str | None = None # slack workspace, only for slack bot
     
+    def to_yaml(self) -> str:
+        return yaml.safe_dump(self.dict())
+    
     @classmethod
     def from_yaml(cls, yaml_str: str) -> "SweepConfig":
         data = yaml.safe_load(yaml_str)

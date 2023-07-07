@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from functools import cached_property
 from loguru import logger
 from github.Repository import Repository
 from github.ContentFile import ContentFile
@@ -24,6 +27,7 @@ from sweepai.core.prompts import (
     modify_file_prompt,
     modify_file_plan_prompt,
 )
+from sweepai.utils.config import SweepConfig
 from sweepai.utils.constants import DB_NAME
 from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown, revert_whitespace_changes
 
@@ -96,7 +100,7 @@ class GithubBot(BaseModel):
 
     def get_contents(self, path: str, branch: str = ""):
         if not branch:
-            branch = self.repo.default_branch
+            branch = self.base_branch
         try:
             return self.repo.get_contents(path, ref=branch)
         except Exception as e:
@@ -117,7 +121,7 @@ class GithubBot(BaseModel):
 
     def create_branch(self, branch: str) -> str:
         # Generate PR if nothing is supplied maybe
-        base_branch = self.repo.get_branch(self.repo.default_branch)
+        base_branch = self.repo.get_branch(self.base_branch)
         try:
             self.repo.create_git_ref(f"refs/heads/{branch}", base_branch.commit.sha)
             return branch
@@ -170,6 +174,20 @@ class GithubBot(BaseModel):
         return file_change_requests
 
 class SweepBot(CodeGenBot, GithubBot):
+    config: SweepConfig
+
+    @property
+    def base_branch(self) -> str:
+        return self.sweep_branch or self.repo.default_branch
+
+    @classmethod
+    def from_repo(cls, repo, **kwargs) -> SweepBot:
+        return cls(
+            repo=repo, 
+            config=SweepConfig.from_repo(repo), 
+            **kwargs
+        )
+
     def cot_retrieval(self):
         # TODO(sweep): add semantic search using vector db
         # TODO(sweep): add search using webpilot + github
