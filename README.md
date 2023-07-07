@@ -41,6 +41,14 @@ For the best experience, [install Sweep](https://github.com/apps/sweep-ai) to on
 
 [Demo](https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47)
 
+## 🌠 Features
+* Automatic interactive bug fixes & feature development
+* PR auto self-review + comment handling (effectively [Reflexion](https://arxiv.org/abs/2303.11366))
+* Address developer comments after PR is created using PR replies & code comments
+* Code snippets embedding-based semantic & popularity search ([🔍 Rebuilding our Search Engine in a Day](https://docs.sweep.dev/how-we-rebuilt-our-code-search-engine-in-a-day))
+* Chain-of-Thought retrieval using GPT Functions
+* 🎊 New: Sweep Chat, a local interface for Sweep (see below)
+
 ## 🚀 Getting Started
 
 ### 🖥️ Sweep Chat
@@ -88,13 +96,6 @@ Unlike existing AI solutions, this can solve entire tickets and can be paralleli
 - GPT-4 32k 0613 (default) / Claude v1.3 100k
 - ActiveLoop DeepLake for Vector DB with MiniLM L12 as our embeddings model
 - Modal Labs for infra + deployment
-
-## 🌠 Features
-* Automatic feature development
-* PR auto self-review + comment handling (effectively [Reflexion](https://arxiv.org/abs/2303.11366))
-* Address developer comments after PR is created
-* Code snippets embedding-based search
-* Chain-of-Thought retrieval using GPT Functions
 
 ## 🗺️ Roadmap
 We're currently working on responding to linters and external search. For more, see [🗺️ Roadmap](https://docs.sweep.dev/roadmap).
