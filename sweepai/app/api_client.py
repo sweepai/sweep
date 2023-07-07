@@ -112,6 +112,7 @@ class APIClient(BaseModel):
         file_change_requests: list[tuple[str, str]],
         pull_request: PullRequest,
         messages: list[tuple[str | None, str | None]],
+        branch: str,  # Added branch parameter
     ):
         results = requests.post(
             self.api_endpoint + "/create_pr",
@@ -120,6 +121,7 @@ class APIClient(BaseModel):
                 "pull_request": pull_request,
                 "messages": messages,
                 "config": self.config.dict(),
+                "branch": branch,  # Pass branch parameter to the API
             },
             timeout=10 * 60
         )
@@ -170,3 +172,4 @@ class APIClient(BaseModel):
                     except json.decoder.JSONDecodeError as e: 
                         logger.error(delta_chunk)
                         raise e
+
