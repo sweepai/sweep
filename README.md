@@ -100,6 +100,12 @@ Unlike existing AI solutions, this can solve entire tickets and can be paralleli
 ## 🗺️ Roadmap
 We're currently working on responding to linters and external search. For more, see [🗺️ Roadmap](https://docs.sweep.dev/roadmap).
 
+## ⭐ Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=sweepai/sweep&type=Date)](https://star-history.com/#sweepai/sweep&Date)
+
+Consider starring us if your using Sweep so more people hear about us!
+
 ---
 
 <h2 align="center">
