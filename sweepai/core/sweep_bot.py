@@ -309,7 +309,6 @@ class SweepBot(CodeGenBot, GithubBot):
             return self.create_file(file_change_request)
         else:
             raise Exception("Not a valid file type")
-
     def change_files_in_github(
         self,
         file_change_requests: list[FileChangeRequest],
@@ -320,72 +319,78 @@ class SweepBot(CodeGenBot, GithubBot):
         for file_change_request in file_change_requests:
             file_markdown = is_markdown(file_change_request.filename)
             if file_change_request.change_type == "create":
-                try: # Try to create
-                    file_change = self.create_file(file_change_request)
-                    logger.debug(
-                        f"{file_change_request.filename}, {file_change.commit_message}, {file_change.code}, {branch}"
-                    )
-                    file_change.code = format_contents(file_change.code, file_markdown)
-                    self.repo.create_file(
-                        file_change_request.filename,
-                        file_change.commit_message,
-                        file_change.code,
-                        branch=branch,
-                    )
-                except github.GithubException as e:
-                    logger.info(e)
-                    try: # Try to modify
-                        contents = self.get_file(file_change_request.filename, branch=branch)
-                        file_change.code = format_contents(file_change.code, file_markdown)
-                        if contents.decoded_content.decode("utf-8").endswith("\n"):
-                            new_file_contents += "\n"
-                        logger.debug(
-                            f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
-                        )
-                        self.repo.update_file(
-                            file_change_request.filename,
-                            file_change.commit_message,
-                            file_change.code,
-                            contents.sha,
-                            branch=branch,
-                        )
-                    except:
-                        pass
+                self.handle_create_file(file_change_request, branch, file_markdown)
             elif file_change_request.change_type == "modify":
-                # TODO(sweep): Cleanup this
-                try:
-                    contents = self.get_file(file_change_request.filename, branch=branch)
-                except github.UnknownObjectException as e:
-                    logger.warning(f"Received error {e}, trying creating file...")
-                    file_change_request.change_type = "create"
-                    self.create_file(file_change_request)
-                    file_change = self.create_file(file_change_request)
-                    logger.debug(
-                        f"{file_change_request.filename}, {file_change.commit_message}, {file_change.code}, {branch}"
-                    )
-                    file_change.code = format_contents(file_change.code, file_markdown)
-                    self.repo.create_file(
-                        file_change_request.filename,
-                        file_change.commit_message,
-                        file_change.code,
-                        branch=branch,
-                    )
-                else:
-                    new_file_contents, file_name = self.modify_file(
-                        file_change_request, contents.decoded_content.decode("utf-8")
-                    )
-                    new_file_contents = format_contents(new_file_contents, file_markdown)
-                    if contents.decoded_content.decode("utf-8").endswith("\n"):
-                        new_file_contents += "\n"
-                    logger.debug(
-                        f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
-                    )
-                    self.repo.update_file(
-                        file_name,
-                        f'Update {file_name}',
-                        new_file_contents,
-                        contents.sha,
-                        branch=branch,
-                    )
+                self.handle_modify_file(file_change_request, branch, file_markdown)
             else:
                 raise Exception("Invalid change type")
+
+    def handle_create_file(self, file_change_request: FileChangeRequest, branch: str, file_markdown: bool):
+        try: # Try to create
+            file_change = self.create_file(file_change_request)
+            logger.debug(
+                f"{file_change_request.filename}, {file_change.commit_message}, {file_change.code}, {branch}"
+            )
+            file_change.code = format_contents(file_change.code, file_markdown)
+            self.repo.create_file(
+                file_change_request.filename,
+                file_change.commit_message,
+                file_change.code,
+                branch=branch,
+            )
+        except github.GithubException as e:
+            logger.info(e)
+            try: # Try to modify
+                contents = self.get_file(file_change_request.filename, branch=branch)
+                file_change.code = format_contents(file_change.code, file_markdown)
+                if contents.decoded_content.decode("utf-8").endswith("\n"):
+                    new_file_contents += "\n"
+                logger.debug(
+                    f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
+                )
+                self.repo.update_file(
+                    file_change_request.filename,
+                    file_change.commit_message,
+                    file_change.code,
+                    contents.sha,
+                    branch=branch,
+                )
+            except:
+                pass
+
+    def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str, file_markdown: bool):
+        try:
+            contents = self.get_file(file_change_request.filename, branch=branch)
+        except github.UnknownObjectException as e:
+            logger.warning(f"Received error {e}, trying creating file...")
+            file_change_request.change_type = "create"
+            self.create_file(file_change_request)
+            file_change = self.create_file(file_change_request)
+            logger.debug(
+                f"{file_change_request.filename}, {file_change.commit_message}, {file_change.code}, {branch}"
+            )
+            file_change.code = format_contents(file_change.code, file_markdown)
+            self.repo.create_file(
+                file_change_request.filename,
+                file_change.commit_message,
+                file_change.code,
+                branch=branch,
+            )
+        else:
+            new_file_contents, file_name = self.modify_file(
+                file_change_request, contents.decoded_content.decode("utf-8")
+            )
+            new_file_contents = format_contents(new_file_contents, file_markdown)
+            if contents.decoded_content.decode("utf-8").endswith("\n"):
+                new_file_contents += "\n"
+            logger.debug(
+                f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
+            )
+            self.repo.update_file(
+                file_name,
+                f'Update {file_name}',
+                new_file_contents,
+                contents.sha,
+                branch=branch,
+            )
+
