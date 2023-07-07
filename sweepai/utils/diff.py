@@ -102,8 +102,8 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
             start_line = copied_sections
             end_line = start_line
 
-        start_line = max(int(start_line), 0)
-        end_line = int(end_line)
+        start_line = int(start_line) - 1 if int(start_line) - 1 > 0 else 0
+        end_line = int(end_line) - 1
         # Check for duplicate lines
         k = 30
         result_file = join_contents_k(result_file, "\n".join(old_file_lines[start_line:end_line]), k)
