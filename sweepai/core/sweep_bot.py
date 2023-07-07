@@ -267,7 +267,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 file_change_request.filename
             ).decoded_content.decode("utf-8")
         # Add line numbers to the contents; goes in prompts but not github
-        contents_line_numbers = "\n".join([f"{i}:{line}" for i, line in enumerate(contents.split("\n"))])
+        contents_line_numbers = "\n".join([f"{i + 1}:{line}" for i, line in enumerate(contents.split("\n"))])
         contents_line_numbers = contents_line_numbers.replace('"""', "'''")
         for count in range(5):
             if "0613" in self.model:
