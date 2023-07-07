@@ -147,13 +147,14 @@ def _asgi_app():
         # proposed PR information
         file_change_requests: list[tuple[str, str]]
         pull_request: PullRequest 
+        branch: str
 
         # state information
         messages: list[tuple[str | None, str | None]]
         snippets: list[Snippet] = []
 
         config: SweepChatConfig
-    
+
     @app.post("/create_pr")
     def create_pr(request: CreatePRRequest):
         assert verify_config(request.config)
@@ -194,6 +195,7 @@ def _asgi_app():
                     change_type = "modify" if file_exists(item[0]) else "create", # TODO update this
                 ) for item in request.file_change_requests],
                 request.pull_request,
+                request.branch,
                 SweepBot(
                     repo = repo,
                     messages = [Message(role="system", content=system_message, key="system")] +
@@ -216,7 +218,7 @@ def _asgi_app():
         return {
             "html_url": generated_pull_request.html_url,
         }
-    
+
     class ChatRequest(BaseModel):
         messages: list[tuple[str | None, str | None]]
         snippets: list[Snippet]
@@ -268,3 +270,4 @@ def _asgi_app():
             media_type="text/event-stream"
         )
     return app
+
