@@ -24,5 +24,5 @@ elif PREFIX == "dev":
     ENV = PREFIX
     SWEEP_LOGIN = "sweep-nightly[bot]"
 LABEL_NAME = "sweep"
-LABEL_COLOR = "#9400D3"
+LABEL_COLOR = "9400D3"
 LABEL_DESCRIPTION = "Sweep your software chores"
