@@ -13,7 +13,7 @@ config = SweepChatConfig.load()
 
 api_client = APIClient(config=config)
 
-pr_summary_template = '''💡 I'll create the following PR:
+pr_summary_template = '''⏳ I'm creating the following PR...
 
 **{title}**
 {summary}
@@ -21,7 +21,7 @@ pr_summary_template = '''💡 I'll create the following PR:
 Here is my plan:
 {plan}
 
-Reply with "ok" to create the PR or anything else to propose changes.'''
+Reply to propose changes to the plan.'''
 
 print("Getting list of repos...")
 github_client = Github(config.github_pat)
@@ -135,7 +135,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         with gr.Column(scale=0.5):
             create_pr_button = gr.Button(value="Create PR", interactive=False)
 
-    proposed_pr: str | None = None
+    # proposed_pr: str | None = None
     searched = False
     selected_snippets = []
     file_to_str = {}
@@ -218,23 +218,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             snippets_text = build_string()
             yield chat_history, snippets_text, file_names
         
-        global proposed_pr
-        if proposed_pr and chat_history[-1][0].strip().lower() in ("okay", "ok"):
-            chat_history[-1][1] = f"⏳ Creating PR..."
-            yield chat_history, snippets_text, file_names
-            pull_request = api_client.create_pr(
-                file_change_requests=[(item["file_path"], item["instructions"]) for item in proposed_pr["plan"]],
-                pull_request={
-                    "title": proposed_pr["title"],
-                    "content": proposed_pr["summary"],
-                    "branch_name": proposed_pr["branch"],
-                },
-                messages=chat_history,
-            )
-            chat_history[-1][1] = f"✅ PR created at {pull_request['html_url']}"
-            yield chat_history, snippets_text, file_names, "Create PR"
-            return
-
         # Generate response
         logger.info("...")
         chat_history.append([None, "..."])
@@ -276,8 +259,18 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
                     summary=arguments["summary"],
                     plan="\n".join([f"* `{item['file_path']}`: {item['instructions']}" for item in arguments["plan"]])
                 )
-                yield chat_history, snippets_text, file_names
-                proposed_pr = arguments
+                yield chat_history, snippets_text, file_names, "Create PR"
+                pull_request = api_client.create_pr(
+                    file_change_requests=[(item["file_path"], item["instructions"]) for item in arguments["plan"]],
+                    pull_request={
+                        "title": arguments["title"],
+                        "content": arguments["summary"],
+                        "branch_name": arguments["branch"],
+                    },
+                    messages=chat_history,
+                )
+                chat_history.append((None, f"✅ PR created at {pull_request['html_url']}"))
+                yield chat_history, snippets_text, file_names, "Create PR"
             else:
                 raise NotImplementedError
 
