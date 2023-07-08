@@ -93,9 +93,8 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
             start, end = match.group(1).split('-')
             start, end = int(start)-1, int(end)-1
 
-            if start < 0 or end >= len(lines):
-                start = max(0, start)
-                end = min(len(lines) - 1, end)
+            start = max(0, start)
+            end = min(len(old_file_lines) - 1, end)
 
             replacements = old_file_lines[start:end + 1]
             replacements_str = '\n'.join(replacements)
