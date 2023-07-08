@@ -80,11 +80,11 @@ class APIClient(BaseModel):
             self.api_endpoint + "/installation_id",
             json= self.config.dict(),
         )
+        if results.status_code != 200:
+            raise Exception(f"Error: Received status code {results.status_code}. Response: {results.text}")
         if results.status_code == 401:
             print("Installation ID not found! Please install sweep first.")
             webbrowser.open_new_tab("https://github.com/apps/sweep-ai")
-            raise Exception(results.json()["detail"])
-        if results.status_code != 200:
             raise Exception(results.json()["detail"])
         obj = results.json()
         return obj["installation_id"]
@@ -103,10 +103,10 @@ class APIClient(BaseModel):
             }
         )
         if results.status_code != 200:
-            raise Exception(results.text)
+            raise Exception(f"Error: Received status code {results.status_code}. Response: {results.text}")
         snippets = [Snippet(**item) for item in results.json()]
         return snippets
-    
+
     def create_pr(
         self,
         file_change_requests: list[tuple[str, str]],
@@ -123,8 +123,10 @@ class APIClient(BaseModel):
             },
             timeout=10 * 60
         )
+        if results.status_code != 200:
+            raise Exception(f"Error: Received status code {results.status_code}. Response: {results.text}")
         return results.json()
-    
+
     def chat(
         self, 
         messages: list[tuple[str | None, str | None]],
@@ -139,8 +141,10 @@ class APIClient(BaseModel):
                 "config": self.config.dict()
             }
         )
+        if results.status_code != 200:
+            raise Exception(f"Error: Received status code {results.status_code}. Response: {results.text}")
         return results.json()
-    
+
     def stream_chat(
         self, 
         messages: list[tuple[str | None, str | None]], 
@@ -170,3 +174,6 @@ class APIClient(BaseModel):
                     except json.decoder.JSONDecodeError as e: 
                         logger.error(delta_chunk)
                         raise e
+
+# Remove the duplicated return statements in the get_installation_id, search, create_pr, and chat methods
+# Fix the missing parameter in the chat method
