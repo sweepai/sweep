@@ -24,7 +24,7 @@ from sweepai.core.prompts import (
     files_to_change_prompt,
     pull_request_prompt,
     create_file_prompt,
-    modify_file_prompt,
+    modify_file_prompt_2,
     modify_file_plan_prompt,
 )
 from sweepai.utils.constants import DB_NAME
@@ -81,9 +81,10 @@ class CodeGenBot(ChatGPT):
             try:
                 logger.info(f"Generating for the {count}th time...")
                 pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
+                self.delete_messages_from_chat("pull_request")
             except Exception as e:
                 logger.warning(f"Exception {e}. Failed to parse! Retrying...")
-                self.undo()
+                self.delete_messages_from_chat("pull_request")
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
             pull_request.branch_name = "sweep/" + pull_request.branch_name[:250]
@@ -239,12 +240,13 @@ class SweepBot(CodeGenBot, GithubBot):
     def create_file(self, file_change_request: FileChangeRequest) -> FileChange:
         file_change: FileChange | None = None
         for count in range(5):
+            key = f"file_change_created_{file_change_request.filename}"
             create_file_response = self.chat(
                 create_file_prompt.format(
                     filename=file_change_request.filename,
                     instructions=file_change_request.instructions,
                 ),
-                message_key=f"file_change_{file_change_request.filename}",
+                message_key=key,
             )
             # Add file to list of changed_files
             self.file_change_paths.append(file_change_request.filename)
@@ -255,8 +257,9 @@ class SweepBot(CodeGenBot, GithubBot):
                 file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
                 return file_change
             except Exception:
+                # Todo: should we undo appending to file_change_paths?
                 logger.warning(f"Failed to parse. Retrying for the {count}th time...")
-                self.undo()
+                self.delete_messages_from_chat(key)
                 continue
         raise Exception("Failed to parse response after 5 attempts.")
 
@@ -272,6 +275,7 @@ class SweepBot(CodeGenBot, GithubBot):
         contents_line_numbers = contents_line_numbers.replace('"""', "'''")
         for count in range(5):
             if "0613" in self.model:
+                """
                 planning_response = self.chat( # We don't use the plan in the next call
                     modify_file_plan_prompt.format(
                         filename=file_change_request.filename,
@@ -302,6 +306,19 @@ class SweepBot(CodeGenBot, GithubBot):
                     ),
                     message_key=f"file_change_{file_change_request.filename}",
                 )
+                """
+
+                # Todo: updated code is outdated by unified v2 prompt! remove?
+                key = f"file_change_modified_{file_change_request.filename}"
+                modify_file_response = self.chat(
+                    modify_file_prompt_2.format(
+                        filename=file_change_request.filename,
+                        instructions=file_change_request.instructions,
+                        code=contents_line_numbers,
+                        line_count=contents.count('\n') + 1
+                    ),
+                    message_key=key,
+                )
                 try:
                     logger.info(f"modify_file_response: {modify_file_response}")
                     new_file = generate_new_file(modify_file_response, contents)
@@ -316,8 +333,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     logger.warning(
                         f"Failed to parse. Retrying for the {count}th time..."
                     )
-                    self.undo()
-                    self.undo()
+                    self.delete_messages_from_chat(key)
                     continue
         raise Exception("Failed to parse response after 5 attempts.")
  
