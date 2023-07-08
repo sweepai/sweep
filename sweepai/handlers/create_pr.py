@@ -1,3 +1,7 @@
+"""
+Creates PR given description.
+"""
+
 import os
 import openai
 
