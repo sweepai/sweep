@@ -173,6 +173,7 @@ def search_snippets(
     get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
     if sweep_config is None:
         sweep_config = SweepConfig.from_repo(repo)
+    print(sweep_config)
     snippets: list[Snippet] = get_relevant_snippets.call(
         repo.full_name, query, num_files, installation_id=installation_id
     )
@@ -182,13 +183,15 @@ def search_snippets(
     for snippet in snippets:
         try:
             file_contents = get_file_contents(repo, snippet.file_path, ref=branch)
+            snippet.content = file_contents
+            print(total_file_contents)
             if (
                 total_file_contents > sweep_config.max_file_limit
             ):  # more than 10000 tokens
                 logger.warning(f"Skipping {snippet.file_path}, too many tokens")
                 continue
             else:
-                total_file_contents += len(file_contents)
+                total_file_contents += len(snippet.get_snippet())
         except github.UnknownObjectException as e:
             logger.warning(f"Error: {e}")
             logger.warning(f"Skipping {snippet.file_path}")

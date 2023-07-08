@@ -178,7 +178,6 @@ class SweepBot(CodeGenBot, GithubBot):
 
     @property
     def base_branch(self) -> str:
-        print(self.config.sweep_branch)
         return self.config.sweep_branch or self.repo.default_branch
 
     @classmethod

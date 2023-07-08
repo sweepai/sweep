@@ -174,7 +174,6 @@ def on_ticket(
                     repo,
                     f"{title}\n{summary}\n{replies_text}",
                     num_files=num_of_snippets_to_query,
-                    branch=None,
                     installation_id=installation_id,
                 )
             except Exception as e:

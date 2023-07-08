@@ -155,7 +155,8 @@ def get_deeplake_vs_from_repo(
         and all(not file[len("repo/"):].startswith(dir_name) for dir_name in sweep_config.exclude_dirs)
     ]
 
-    branch_name = repo.default_branch
+    print(sweep_config)
+    branch_name = sweep_config.sweep_branch or repo.default_branch
 
     file_paths = []
     file_contents = []
@@ -276,9 +277,10 @@ def update_index(
     sweep_config: SweepConfig = SweepConfig(),
 ) -> int:    
     get_deeplake_vs_from_repo(
-    repo_name,
-    sweep_config,
-    installation_id)
+        repo_name,
+        sweep_config,
+        installation_id
+    )
 
 
 @stub.function(image=image, secrets=secrets, shared_volumes={DEEPLAKE_DIR: model_volume}, timeout=timeout, keep_warm=1)
