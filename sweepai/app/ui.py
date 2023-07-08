@@ -95,15 +95,16 @@ def get_files(repo_full_name):
         except:
             return []
         repo = github_client.get_repo(repo_full_name)
-        repo_url = f"https://x-access-token:{config.github_pat}@github.com/{repo_full_name}.git"
         try:
-            git_repo = Repo("/tmp/" + repo_full_name)
-            git_repo.remotes.origin.pull()
+            if os.path.exists("/tmp/" + repo_full_name):
+                git_repo = Repo("/tmp/" + repo_full_name)
+                git_repo.remotes.origin.pull()
+            else:
+                repo_url = f"https://x-access-token:{config.github_pat}@github.com/{repo_full_name}.git"
+                Repo.clone_from(repo_url, "/tmp/" + repo_full_name)
         except Exception as e:
             logger.warning(f"Git pull failed with error {e}, deleting cache and recloning...")
             shutil.rmtree("/tmp/" + repo_full_name)
-            Repo.clone_from(repo_url, "/tmp/" + repo_full_name)
-        else:
             Repo.clone_from(repo_url, "/tmp/" + repo_full_name)
         all_files, path_to_contents = get_files_recursively("/tmp/" + repo_full_name)
     return all_files
