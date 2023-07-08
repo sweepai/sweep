@@ -113,9 +113,9 @@ class ChatGPT(BaseModel):
             ][0]
         return [message for message in self.messages if message.key == message_key][0]
 
-    def delete_messages_from_chat(self, message_key: str):
+    def delete_messages_from_chat(self, key_to_delete: str):
         self.messages = [
-            message for message in self.messages if (message.key is not None and message_key in message.key) or message.key is None
+            message for message in self.messages if key_to_delete not in (message.key or '')
         ]
 
     def delete_file_from_system_message(self, file_path: str):
