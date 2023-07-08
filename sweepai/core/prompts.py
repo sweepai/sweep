@@ -279,18 +279,6 @@ Generate a new_file based on the given plan, ensuring that you:
 Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copied>0-25</copied>"). Make sure to use this exact format.
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copied>0-50</copied>".
 
-Example: Insert at beginning
-<new_file>
-print("new file")
-<copied>1-100</copied>
-</new_file>
-
-Example: Insert at end:
-<new_file>
-<copied>1-100</copied>
-print("inserted at end")
-</new_file>
-
 Example: If you want to modify lines 51-52 and add line after line 75:
 <new_file>
 <copied>1-50</copied>
@@ -327,7 +315,6 @@ Detailed plan of modifications:
 
 Lines to change in the file:
 * lines a-b
-* line c
 ...
 ```
 
@@ -344,18 +331,6 @@ Generate a new_file based on the given plan, ensuring that you:
 Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copy_lines A-B>"). Make sure to use this exact format.
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copy_lines 1-50>".
 
-Example: Insert at beginning
-<new_file>
-print("new file")
-<copy_lines 1-100>
-</new_file>
-
-Example: Insert at end:
-<new_file>
-<copy_lines 1-100>
-print("inserted at end")
-</new_file>
-
 Example: If you want to modify lines 51-52 and add line after line 75:
 <new_file>
 <copy_lines 1-50>
@@ -367,8 +342,6 @@ print("debug statement")
 </new_file>
 
 Do not rewrite entire file. Use <copy_lines A-B> XML tag when possible. Do not include the line numbers in the new file.
-
-This file contains lines 1 to {line_count}
 ```
 
 Context: "{instructions}". Limit your changes to the context.
