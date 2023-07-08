@@ -171,7 +171,6 @@ def _asgi_app():
         }
 
         posthog.capture(request.config.github_username, "started", properties=metadata)
-
         try:
             create_pr_func = modal.Function.lookup(API_NAME, "create_pr")
             system_message = gradio_system_message_prompt.format(
@@ -203,6 +202,8 @@ def _asgi_app():
                 installation_id = request.config.installation_id,
                 issue_number = None,
             )
+            if not results["success"]:
+                return {"success": False, "error": results["error"]}
             generated_pull_request = results["pull_request"]
             print(generated_pull_request)
         except Exception as e:
@@ -210,7 +211,7 @@ def _asgi_app():
                 "error": str(e),
                 **metadata
             })
-            raise e
+            return {"success": False, "error": str(e)}
 
         posthog.capture(request.config.github_username, "success", properties=metadata)
         return {
