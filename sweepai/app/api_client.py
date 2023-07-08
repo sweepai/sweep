@@ -15,44 +15,23 @@ create_pr_function = Function(
     description="Creates a PR.",
     parameters={
         "properties": {
-            "plan": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "file_path": {
-                            "type": "string",
-                            "description": "The file path to change."
-                        },
-                        "instructions": {
-                            "type": "string",
-                            "description": "Concise NATURAL LANGUAGE summary of what to change in each file. There should be absolutely NO code, only English.",
-                            "example":  [
-                                "Refactor the algorithm by moving the main function to the top of the file.",
-                                "Change the implementation to recursion"
-                            ]
-                        },
-                    },
-                    "required": ["file_path", "instructions"]
-                },
-                "description": "A list of files to modify or create and corresponding instructions."
-            },
-            "title": {
+            "file_path": {
                 "type": "string",
-                "description": "Title of PR",
+                "description": "The file path to change."
             },
-            "summary": {
+            "instructions": {
                 "type": "string",
-                "description": "Detailed summary of PR",
-            },
-            "branch": {
-                "type": "string",
-                "description": "Name of branch to create PR in.",
+                "description": "Concise NATURAL LANGUAGE summary of what to change in each file. There should be absolutely NO code, only English.",
+                "example":  [
+                    "Refactor the algorithm by moving the main function to the top of the file.",
+                    "Change the implementation to recursion"
+                ]
             },
         },
-        "required": ["plan", "title", "summary", "branch"]
-    }
-)
+        "required": ["file_path", "instructions"]
+    },
+    "description": "A list of files to modify or create and corresponding instructions."
+}
 
 create_pr_function_call = {"name": "create_pr"}
 
@@ -80,11 +59,11 @@ class APIClient(BaseModel):
             self.api_endpoint + "/installation_id",
             json= self.config.dict(),
         )
+        if results.status_code != 200:
+            raise Exception(f"Request failed with status code {results.status_code}")
         if results.status_code == 401:
             print("Installation ID not found! Please install sweep first.")
             webbrowser.open_new_tab("https://github.com/apps/sweep-ai")
-            raise Exception(results.json()["detail"])
-        if results.status_code != 200:
             raise Exception(results.json()["detail"])
         obj = results.json()
         return obj["installation_id"]
@@ -103,7 +82,7 @@ class APIClient(BaseModel):
             }
         )
         if results.status_code != 200:
-            raise Exception(results.text)
+            raise Exception(f"Request failed with status code {results.status_code}")
         snippets = [Snippet(**item) for item in results.json()]
         return snippets
     
@@ -123,7 +102,8 @@ class APIClient(BaseModel):
             },
             timeout=10 * 60
         )
-        return results.json()
+        if results.status_code != 200:
+            raise Exception(f"Request failed with status code {results.status_code}")
     
     def chat(
         self, 
@@ -139,7 +119,8 @@ class APIClient(BaseModel):
                 "config": self.config.dict()
             }
         )
-        return results.json()
+        if results.status_code != 200:
+            raise Exception(f"Request failed with status code {results.status_code}")
     
     def stream_chat(
         self, 
@@ -161,6 +142,8 @@ class APIClient(BaseModel):
                     "config": self.config.dict()
                 }
             ) as response:
+                if response.status_code != 200:
+                    raise Exception(f"Request failed with status code {response.status_code}")
                 for delta_chunk in response.iter_text():
                     if not delta_chunk:
                         break
