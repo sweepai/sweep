@@ -1,7 +1,3 @@
-"""
-Proxy for the UI.
-"""
-
 import json
 from typing import Any
 import fastapi
@@ -203,6 +199,8 @@ def _asgi_app():
                 installation_id = request.config.installation_id,
                 issue_number = None,
             )
+            if 'error' in results:
+                raise fastapi.HTTPException(status_code=500, detail=results['error'])
             generated_pull_request = results["pull_request"]
             print(generated_pull_request)
         except Exception as e:
@@ -211,7 +209,6 @@ def _asgi_app():
                 **metadata
             })
             raise e
-
         posthog.capture(request.config.github_username, "success", properties=metadata)
         return {
             "html_url": generated_pull_request.html_url,
