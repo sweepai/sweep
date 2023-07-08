@@ -11,6 +11,7 @@ import modal
 from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import review_pr
+from sweepai.utils.config import SweepConfig
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.constants import DB_NAME, PREFIX
@@ -78,7 +79,7 @@ def create_pr(
             title=pull_request.title,
             body=pr_description,
             head=pull_request.branch_name,
-            base=sweep_bot.repo.default_branch,
+            base=SweepConfig.get_branch(sweep_bot.repo),
         )
     except openai.error.InvalidRequestError as e:
         logger.error(e)

@@ -1,9 +1,11 @@
 import json
 import os
+import tempfile
 from git import Repo
 from github import Github
 import gradio as gr
 from loguru import logger
+import shutil
 
 from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import SweepChatConfig
@@ -95,12 +97,18 @@ def get_files(repo_full_name):
             return []
         repo = github_client.get_repo(repo_full_name)
         repo_url = f"https://x-access-token:{config.github_pat}@github.com/{repo_full_name}.git"
-        if os.path.exists("/tmp/" + repo_full_name):
-            git_repo = Repo("/tmp/" + repo_full_name)
-            git_repo.remotes.origin.pull()
-        else:
-            Repo.clone_from(repo_url, "/tmp/" + repo_full_name)
-        all_files, path_to_contents = get_files_recursively("/tmp/" + repo_full_name)
+        try:
+            repo_dir = os.path.join(tempfile.gettempdir(), repo_full_name)
+            if os.path.exists(repo_dir):
+                git_repo = Repo(repo_dir)
+                git_repo.remotes.origin.pull()
+            else:
+                Repo.clone_from(repo_url, repo_dir)
+        except Exception as e:
+            logger.warning(f"Git pull failed with error {e}, deleting cache and recloning...")
+            shutil.rmtree(repo_dir)
+            Repo.clone_from(repo_url, repo_dir)
+        all_files, path_to_contents = get_files_recursively(repo_dir)
     return all_files
 
 def get_files_update(*args):
@@ -110,7 +118,6 @@ def get_files_update(*args):
     else:
         repo = config.repo_full_name
     return gr.Dropdown.update(choices=get_files(repo))
-
 
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
     print("Launching gradio!")
