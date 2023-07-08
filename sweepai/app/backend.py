@@ -204,13 +204,12 @@ def _asgi_app():
                 issue_number = None,
             )
             generated_pull_request = results["pull_request"]
-            print(generated_pull_request)
         except Exception as e:
             posthog.capture(request.config.github_username, "failed", properties={
                 "error": str(e),
                 **metadata
             })
-            raise e
+            return {"success": False, "error": str(e)}
 
         posthog.capture(request.config.github_username, "success", properties=metadata)
         return {
