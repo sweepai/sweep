@@ -91,7 +91,7 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
         matches = re.finditer(r"<copy_lines\s(\d+-\d+)>", line)
         for match in matches:
             start, end = match.group(1).split('-')
-            start, end = int(start), int(end)
+            start, end = int(start)-1, int(end)-1
 
             if start < 0 or end >= len(lines):
                 start = max(0, start)
