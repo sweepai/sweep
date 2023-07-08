@@ -1,7 +1,3 @@
-"""
-Creates PR given description.
-"""
-
 import os
 import openai
 
@@ -22,13 +18,13 @@ update_index = modal.Function.lookup(DB_NAME, "update_index")
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
-
 def create_pr(
     file_change_requests: list[FileChangeRequest],
     pull_request: PullRequest,
     sweep_bot: SweepBot,
     username: str,
     installation_id: int,
+    branch: str,
     issue_number: int | None = None
 ):
     # Flow:
@@ -52,9 +48,8 @@ def create_pr(
     posthog.capture(username, "started", properties=metadata)
 
     try:
-        logger.info("Making PR...")
-        pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
-        completed_count, fcr_count = sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
+        branch = sweep_bot.create_branch(branch)
+        completed_count, fcr_count = sweep_bot.change_files_in_github(file_change_requests, branch)
         if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")
             posthog.capture(
@@ -70,14 +65,14 @@ def create_pr(
 
         # Include issue number in PR description
         if issue_number:
-            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
+            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {branch}\n```"
         else:
-            pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
+            pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {branch}\n```"
 
         pr = sweep_bot.repo.create_pull(
             title=pull_request.title,
             body=pr_description,
-            head=pull_request.branch_name,
+            head=branch,
             base=sweep_bot.repo.default_branch,
         )
     except openai.error.InvalidRequestError as e:
@@ -108,3 +103,4 @@ def create_pr(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("create_pr success")
     return {"success": True, "pull_request": pr}
+
