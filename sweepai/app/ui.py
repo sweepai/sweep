@@ -95,6 +95,7 @@ def get_files(repo_full_name):
         except:
             return []
         repo = github_client.get_repo(repo_full_name)
+        repo_url = f"https://x-access-token:{config.github_pat}@github.com/{repo_full_name}.git"
         try:
             if os.path.exists("/tmp/" + repo_full_name):
                 git_repo = Repo("/tmp/" + repo_full_name)
