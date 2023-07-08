@@ -26,5 +26,5 @@ class SweepConfig(BaseModel):
             repo.create_branch(branch)
             return branch
         except Exception as e:
-            logger.error(f"Error when getting branch: {e}")
+            logger.warning(f"Error when getting branch: {e}, falling back to default branch")
             return repo.default_branch
