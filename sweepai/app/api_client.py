@@ -80,11 +80,11 @@ class APIClient(BaseModel):
             self.api_endpoint + "/installation_id",
             json= self.config.dict(),
         )
+        if results.status_code != 200:
+            raise Exception(f"Request failed with status code {results.status_code}: {results.text}")
         if results.status_code == 401:
             print("Installation ID not found! Please install sweep first.")
             webbrowser.open_new_tab("https://github.com/apps/sweep-ai")
-            raise Exception(results.json()["detail"])
-        if results.status_code != 200:
             raise Exception(results.json()["detail"])
         obj = results.json()
         return obj["installation_id"]
@@ -103,7 +103,7 @@ class APIClient(BaseModel):
             }
         )
         if results.status_code != 200:
-            raise Exception(results.text)
+            raise Exception(f"Request failed with status code {results.status_code}: {results.text}")
         snippets = [Snippet(**item) for item in results.json()]
         return snippets
     
@@ -123,7 +123,8 @@ class APIClient(BaseModel):
             },
             timeout=10 * 60
         )
-        return results.json()
+        if results.status_code != 200:
+            raise Exception(f"Request failed with status code {results.status_code}: {results.text}")
     
     def chat(
         self, 
@@ -139,7 +140,8 @@ class APIClient(BaseModel):
                 "config": self.config.dict()
             }
         )
-        return results.json()
+        if results.status_code != 200:
+            raise Exception(f"Request failed with status code {results.status_code}: {results.text}")
     
     def stream_chat(
         self, 
