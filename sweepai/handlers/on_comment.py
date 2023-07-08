@@ -18,6 +18,7 @@ from sweepai.utils.github_utils import (
 )
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
 from sweepai.utils.constants import PREFIX
+from sweepai.utils.chat_logger import ChatLogger
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -99,7 +100,6 @@ def on_comment(
         chat_logger = ChatLogger({
             'repo_name': repo_name,
             'title': '(Comment) ' + pr_title,
-            'summary': summary + replies_text,
             "issue_url": pr.html_url,
             "pr_file_path": pr_file_path,  # may be None
             "pr_line": pr_line,  # may be None
