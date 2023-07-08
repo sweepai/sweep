@@ -1,3 +1,4 @@
+# Welcome to Sweep!
 
 <p align="center">
     <img src="https://github.com/sweepai/sweep/assets/26889185/39d500fc-9276-402c-9ec7-3e61f57ad233">
@@ -123,4 +124,5 @@ Consider starring us if you're using Sweep so more people hear about us!
 <p align="center">
     and, of course, Sweep!
 </p>
+
 
