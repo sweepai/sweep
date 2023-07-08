@@ -153,7 +153,7 @@ def get_deeplake_vs_from_repo(
         and all(not file[len("repo/"):].startswith(dir_name) for dir_name in sweep_config.exclude_dirs)
     ]
 
-    branch_name = repo.default_branch
+    branch_name = SweepConfig.get_branch(repo)
 
     file_paths = []
     file_contents = []
