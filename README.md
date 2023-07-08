@@ -1,38 +1,16 @@
+<h1 align="center">Sweep: AI Junior Developer</h1>
 
 <p align="center">
-    <img src="https://github.com/sweepai/sweep/assets/26889185/39d500fc-9276-402c-9ec7-3e61f57ad233">
+    Add header image here
 </p>
+
 <p align="center">
     <i>Bug Reports & Feature Requests ⟶&nbsp; Code Changes</i>
 </p>
 
-<p align="center">
-<a href="https://sweep.dev">
-    <img alt="Landing Page" src="https://img.shields.io/badge/Site-sweep.dev-blue?link=https%3A%2F%2Fsweep.dev">
-</a>
-<a href="https://docs.sweep.dev/">
-    <img alt="Docs" src="https://img.shields.io/badge/Docs-docs.sweep.dev-blue?link=https%3A%2F%2Fdocs.sweep.dev">
-</a> 
-<a href="https://discord.gg/sweep-ai">
-    <img src="https://dcbadge.vercel.app/api/server/sweep-ai?style=flat" />
-</a>
-<img alt="PyPI" src="https://img.shields.io/pypi/v/sweepai">
-<a href="https://pepy.tech/project/sweepai">
-    <img src="https://static.pepy.tech/badge/sweepai/week" />
-</a>
-<a href="https://github.com/sweepai/sweep">
-    <img src="https://img.shields.io/github/stars/sweepai/sweep" />
-</a>
-<a href="https://twitter.com/sweep__ai">
-    <img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Ftwitter.com%2Fsweep__ai" />
-</a>
-</p>
-
 <b>Sweep</b> allows you to create and review GitHub issues with ease.
 Simply describe any issue and Sweep will do the rest.
-It will plan out what needs to be done, what changes to make, and write the changes to a PR. 
-
-Supported languages: Python, Javascript/Typescript, Rust, Go, Java/C#, C++ and anything else GPT-4 supports
+It will plan out what needs to be done, what changes to make, and write the changes to a PR.
 
 ---
 
@@ -50,18 +28,13 @@ For the best experience, [install Sweep](https://github.com/apps/sweep-ai) to on
 * 🎊 New: Sweep Chat, a local interface for Sweep (see below)
 
 ## 🚀 Getting Started
-
 ### 🖥️ Sweep Chat
-Sweep Chat allows you to interact with Sweep locally and will sync with GitHub. You can plan out your changes with Sweep, and then Sweep can create a pull request for you. 
+Sweep Chat allows you to interact with Sweep locally and will sync with GitHub. You can plan out your changes with Sweep, and then Sweep can create a pull request for you.
 
 1. Install [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
-
 2. Run `pip install sweepai && sweep`. Note that you need python 3.10 or greater.
-
 3. This should spin up a GitHub auth flow in your browser. Copy-paste the 🔵 blue 8-digit code from your terminal into the page. Then wait a few seconds and it should spin up Sweep Chat. You should only need to do the auth once.
-
-4. Pick a repo from the dropdown at the top (the Github app must be installed on this repo). Then start chatting with Sweep Chat. Relevant searched files will show up on the right. Sweep Chat can make PRs if you ask it to create a PR. 
-<img src="https://github.com/sweepai/sweep/blob/856ff66c2dbeaf39afbf6d8c49a620dfa70271fb/.assets/gradio-screenshot.png">
+4. Pick a repo from the dropdown at the top (the Github app must be installed on this repo). Then start chatting with Sweep Chat. Relevant searched files will show up on the right. Sweep Chat can make PRs if you ask it to create a PR.
 
 💡 You can force dark mode by going to http://127.0.0.1:7861/?__theme=dark.
 
@@ -80,14 +53,12 @@ Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating 
 4. "🚀" means the bot has finished its job and created a PR
 
 ## 🤝 Contributing
-
 Contributions are welcome and greatly appreciated! For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file. In essence, you'll need to fork the repository, create a new branch for your feature or bug fix, commit your changes, and open a pull request.
 For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
 
 ---
 
 ## 📘 Story
-
 We were frustrated by small tickets, like simple bug fixes, annoying refactors, and small features, each task requiring us to open our IDE to fix simple bugs. So, we decided to leverage the capabilities of ChatGPT to address this directly in GitHub.
 
 Unlike existing AI solutions, this can solve entire tickets and can be parallelized: developers can spin up 10 tickets and Sweep will address them all at once.
@@ -102,7 +73,6 @@ Unlike existing AI solutions, this can solve entire tickets and can be paralleli
 We're currently working on responding to linters and external search. For more, see [🗺️ Roadmap](https://docs.sweep.dev/roadmap).
 
 ## ⭐ Star History
-
 [![Star History Chart](https://api.star-history.com/svg?repos=sweepai/sweep&type=Date)](https://star-history.com/#sweepai/sweep&Date)
 
 Consider starring us if you're using Sweep so more people hear about us!
@@ -123,4 +93,3 @@ Consider starring us if you're using Sweep so more people hear about us!
 <p align="center">
     and, of course, Sweep!
 </p>
-
