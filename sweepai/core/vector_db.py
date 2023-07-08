@@ -103,13 +103,15 @@ embedding_function = ModalEmbeddingFunction()
 
 def get_deeplake_vs_from_repo(
     repo_name: str,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: SweepConfig | None = None,
     installation_id: int = None,
     branch_name: str = None,
 ):
     token = get_token(installation_id)
     g = Github(token)
     repo = g.get_repo(repo_name)
+    if sweep_config is None:
+        sweep_config = SweepConfig.from_repo(repo)
     commits = repo.get_commits()
     commit_hash = commits[0].sha
     cache_success = True
@@ -153,7 +155,8 @@ def get_deeplake_vs_from_repo(
         and all(not file[len("repo/"):].startswith(dir_name) for dir_name in sweep_config.exclude_dirs)
     ]
 
-    branch_name = repo.default_branch
+    print(sweep_config)
+    branch_name = sweep_config.sweep_branch or repo.default_branch
 
     file_paths = []
     file_contents = []
@@ -274,9 +277,10 @@ def update_index(
     sweep_config: SweepConfig = SweepConfig(),
 ) -> int:    
     get_deeplake_vs_from_repo(
-    repo_name,
-    sweep_config,
-    installation_id)
+        repo_name,
+        sweep_config,
+        installation_id
+    )
 
 
 @stub.function(image=image, secrets=secrets, shared_volumes={DEEPLAKE_DIR: model_volume}, timeout=timeout, keep_warm=1)
@@ -286,7 +290,7 @@ def get_relevant_snippets(
     n_results: int,
     installation_id: int,
     username: str = None,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: SweepConfig | None = None,
 ):
     deeplake_vs = get_deeplake_vs_from_repo(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config

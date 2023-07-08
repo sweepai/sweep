@@ -167,10 +167,13 @@ def search_snippets(
     num_files: int = 5,
     include_tree: bool = True,
     branch: str = None,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: SweepConfig | None = None,
 ) -> tuple[Snippet, str]:
     # Initialize the relevant directories string
     get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
+    if sweep_config is None:
+        sweep_config = SweepConfig.from_repo(repo)
+    print(sweep_config)
     snippets: list[Snippet] = get_relevant_snippets.call(
         repo.full_name, query, num_files, installation_id=installation_id
     )
@@ -180,13 +183,15 @@ def search_snippets(
     for snippet in snippets:
         try:
             file_contents = get_file_contents(repo, snippet.file_path, ref=branch)
+            snippet.content = file_contents
+            print(total_file_contents)
             if (
                 total_file_contents > sweep_config.max_file_limit
             ):  # more than 10000 tokens
                 logger.warning(f"Skipping {snippet.file_path}, too many tokens")
                 continue
             else:
-                total_file_contents += len(file_contents)
+                total_file_contents += len(snippet.get_snippet())
         except github.UnknownObjectException as e:
             logger.warning(f"Error: {e}")
             logger.warning(f"Skipping {snippet.file_path}")
@@ -230,7 +235,7 @@ def search_snippets(
 def index_full_repository(
     repo_name: str,
     installation_id: int = None,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: SweepConfig | None = None,
 ):
     update_index = modal.Function.lookup(DB_NAME, "update_index")
     num_indexed_docs = update_index.spawn(
@@ -240,6 +245,8 @@ def index_full_repository(
     )
     try:
         repo = get_github_client(installation_id).get_repo(repo_name)
+        if sweep_config is None:
+            sweep_config = SweepConfig.from_repo(repo)
         labels = repo.get_labels()
         label_names = [label.name for label in labels]
 

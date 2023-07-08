@@ -11,10 +11,7 @@ from loguru import logger
 import modal
 from tabulate import tabulate
 
-from sweepai.core.entities import FileChangeRequest, Snippet
-from sweepai.core.prompts import (
-    reply_prompt,
-)
+from sweepai.core.entities import Snippet
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.core.prompts import issue_comment_prompt
 from sweepai.handlers.create_pr import create_pr
@@ -177,7 +174,6 @@ def on_ticket(
                     repo,
                     f"{title}\n{summary}\n{replies_text}",
                     num_files=num_of_snippets_to_query,
-                    branch=None,
                     installation_id=installation_id,
                 )
             except Exception as e:
@@ -269,7 +265,10 @@ def on_ticket(
         "comment_id": comment_id,
     })
     sweep_bot = SweepBot.from_system_message_content(
-        human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger
+        human_message=human_message,
+        repo=repo,
+        is_reply=bool(comments),
+        chat_logger=chat_logger
     )
     sweepbot_retries = 3
     try:
