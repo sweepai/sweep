@@ -210,8 +210,7 @@ def _asgi_app():
                 "error": str(e),
                 **metadata
             })
-            raise e
-
+            return fastapi.HTTPException(status_code=500, detail=str(e))
         posthog.capture(request.config.github_username, "success", properties=metadata)
         return {
             "html_url": generated_pull_request.html_url,
