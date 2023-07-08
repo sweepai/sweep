@@ -304,6 +304,82 @@ print("debug statement")
 Do not rewrite entire file. Use <copied> XML tag when possible.
 """
 
+
+modify_file_prompt_2 = """
+File Name: {filename}
+<old_file>
+{code}
+</old_file>
+
+---
+
+Code Planning:
+```
+Step-by-step thoughts with explanations: 
+* Thought 1 - Explanation 1
+* Thought 2 - Explanation 2
+...
+
+Detailed plan of modifications:
+* Modification 1
+* Modification 2
+...
+
+Lines to change in the file:
+* lines a-b
+* line c
+...
+```
+
+Code Generation:
+```
+Generate a new_file based on the given plan, ensuring that you:
+1. Do not write "pass" statements.
+2. Provide complete functions with actual business logic. It is imperative that we do not leave any work to the user/future readers of this code.
+3. Do not write new "todo" comments.
+4. Do not write incomplete functions.
+5. Do not write the original line numbers with the new code.
+6. Make sure the new code follows the same programming language conventions as the old code.
+
+Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copy_lines A-B>"). Make sure to use this exact format.
+Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copy_lines 1-50>".
+
+Example: Insert at beginning
+<new_file>
+print("new file")
+<copy_lines 1-100>
+</new_file>
+
+Example: Insert at end:
+<new_file>
+<copy_lines 1-100>
+print("inserted at end")
+</new_file>
+
+Example: If you want to modify lines 51-52 and add line after line 75:
+<new_file>
+<copy_lines 1-50>
+def main():
+     print("hello world")
+<copy_lines 53-75>
+print("debug statement")
+<copy_lines 76-100>
+</new_file>
+
+Do not rewrite entire file. Use <copy_lines A-B> XML tag when possible. Do not include the line numbers in the new file.
+
+This file contains lines 1 to {line_count}
+```
+
+Context: "{instructions}". Limit your changes to the context.
+Instructions:
+- Complete Code Planning step
+- Complete Code Generation step"""
+
+
+
+
+
 pr_code_prompt = ""  # TODO: deprecate this
 
 
