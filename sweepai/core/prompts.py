@@ -244,9 +244,7 @@ File Name: {filename}
 {code}
 </old_file>
 
-Your instructions to modify the file are: "{instructions}".
-
-Now, generate an exhaustive plan of every change in this file.
+Your instructions to modify the file are: "{instructions}". Limit your changes to the instructions.
 
 Step-by-step thoughts with explanations: 
 * Thought 1 - Explanation 1
@@ -263,13 +261,13 @@ Lines to change in the file:
 * line c
 ...
 
-Do not write the code changes. Instead, write the line numbers to change, and the new code to replace it with.
-"""
+Only include the line numbers."""
 
+#<snippets>
+#{snippets}
+#</snippets>
 modify_file_prompt = """
-<snippets>
-{snippets}
-</snippets>
+File contains lines {line_numbers}
 
 Generate a new_file based on the given plan, ensuring that you:
 1. Do not write "pass" statements.
@@ -282,9 +280,10 @@ Generate a new_file based on the given plan, ensuring that you:
 Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copied>0-25</copied>"). Make sure to use this exact format.
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copied>0-50</copied>".
 
-Example: New file:
+Example: Insert at beginning
 <new_file>
 print("new file")
+<copied>1-100</copied>
 </new_file>
 
 Example: Insert at end:
@@ -302,6 +301,8 @@ def main():
 print("debug statement")
 <copied>76-100</copied>
 </new_file>
+
+Do not rewrite entire file. Use <copied> XML tag when possible.
 """
 
 pr_code_prompt = ""  # TODO: deprecate this

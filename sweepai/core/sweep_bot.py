@@ -294,9 +294,11 @@ class SweepBot(CodeGenBot, GithubBot):
 
                 code_snippets = '\n...\n'.join(lines)
 
+                newline = '\n'
                 modify_file_response = self.chat(
                     modify_file_prompt.format(
-                        snippets=code_snippets
+                        snippets=code_snippets,
+                        line_numbers=f'{1} to {1 + contents.count(newline)}'
                     ),
                     message_key=f"file_change_{file_change_request.filename}",
                 )
