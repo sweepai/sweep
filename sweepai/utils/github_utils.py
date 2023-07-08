@@ -181,12 +181,10 @@ def search_snippets(
         try:
             file_contents = get_file_contents(repo, snippet.file_path, ref=branch)
             if (
-                total_file_contents > sweep_config.max_file_limit
+                len(file_contents) > sweep_config.max_file_limit
             ):  # more than 10000 tokens
                 logger.warning(f"Skipping {snippet.file_path}, too many tokens")
                 continue
-            else:
-                total_file_contents += len(file_contents)
         except github.UnknownObjectException as e:
             logger.warning(f"Error: {e}")
             logger.warning(f"Skipping {snippet.file_path}")
@@ -202,12 +200,10 @@ def search_snippets(
             try:
                 file_contents = get_file_contents(repo, file_path, ref=branch)
                 if (
-                    total_file_contents > sweep_config.max_file_limit
+                    len(file_contents) > sweep_config.max_file_limit
                 ):  # more than 10000 tokens
                     logger.warning(f"Skipping {file_path}, too many tokens")
                     continue
-                else:
-                    total_file_contents += len(file_contents)
             except github.UnknownObjectException as e:
                 logger.warning(f"Error: {e}")
                 logger.warning(f"Skipping {file_path}")
