@@ -258,7 +258,6 @@ Detailed plan of modifications:
 
 Lines to change in the file:
 * lines a-b
-* line c
 ...
 
 Only include the line numbers."""

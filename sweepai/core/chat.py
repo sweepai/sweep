@@ -115,7 +115,7 @@ class ChatGPT(BaseModel):
 
     def delete_messages_from_chat(self, message_key: str):
         self.messages = [
-            message for message in self.messages if message.key != message_key
+            message for message in self.messages if message.key is not None and message_key in message.key
         ]
 
     def delete_file_from_system_message(self, file_path: str):
