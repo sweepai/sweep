@@ -63,7 +63,6 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
         "issue_url": issue_url,
         "username": username,
         "repo_description": repo_description,
-        "pr": pr,
         "issue_url": issue_url,
         "username": username,
         "repo_description": repo_description,
