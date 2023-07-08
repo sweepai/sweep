@@ -258,10 +258,12 @@ Detailed plan of modifications:
 * Modification 2
 ...
 
-Code snippets:
+Lines to change in the file:
 * lines a-b
 * line c
 ...
+
+Do not write the code changes. Instead, write the line numbers to change, and the new code to replace it with.
 """
 
 modify_file_prompt = """
