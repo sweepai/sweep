@@ -77,12 +77,34 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
 
     # Extract content between <new_file> tags
     new_file = re.search(r"<new_file>(.*?)<\/new_file>", modify_file_response, re.DOTALL).group(1).strip()
-    if "<copied>" not in new_file:
+    if "<copy_lines" not in new_file:
         return new_file
 
     # Find all <copied> tags and their content
-    copied_sections = re.findall(r"<copied>(.*?)<\/copied>", new_file, re.DOTALL)
-    
+    copied_sections = re.findall(r"<copy_lines (.*?)>", new_file, re.DOTALL)
+
+    # v5
+    result = []
+    lines = new_file.split('\n')
+    for line in lines:
+        # Todo: make it support 1 number only
+        matches = re.finditer(r"<copy_lines\s(\d+-\d+)>", line)
+        for match in matches:
+            start, end = match.group(1).split('-')
+            start, end = int(start), int(end)
+
+            if start < 0 or end >= len(lines):
+                start = max(0, start)
+                end = min(len(lines) - 1, end)
+
+            replacements = old_file_lines[start:end + 1]
+            replacements_str = '\n'.join(replacements)
+            line = line.replace(match.group(0), replacements_str)
+        result.append(line)
+    result = '\n'.join(result)
+
+    # Todo: v4 is inefficient; deprecated
+    """
     first_section_idx = new_file.index("<copied>")
     if first_section_idx > 0:
         result_file += new_file[:first_section_idx]
@@ -112,7 +134,11 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
         # Check for duplicate lines
         result_file = join_contents_k(result_file, new_file[:next_section_idx], k)
         new_file = new_file[next_section_idx:] # remove the first section from new_file
+    
     return result_file + last_section
+    """
+
+    return result
     
 def join_contents_k(first, second, k):
     """
