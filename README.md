@@ -1,3 +1,15 @@
+# Repo & Issue Metadata
+Repo: sweep: Sweep is an AI junior developer
+Issue Url: https://github.com/sweepai/sweep/issues/342
+Username: lukejagg
+Issue Title: Update readme
+Issue Description: ### Description
+
+Add header to readme
+
+### Relevant files
+
+_No response_
 
 <p align="center">
     <img src="https://github.com/sweepai/sweep/assets/26889185/39d500fc-9276-402c-9ec7-3e61f57ad233">
@@ -39,7 +51,7 @@ Supported languages: Python, Javascript/Typescript, Rust, Go, Java/C#, C++ and a
 ## ✨ Demo
 For the best experience, [install Sweep](https://github.com/apps/sweep-ai) to one of your repos and see the magic happen.
 
-[Demo](https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47)
+Demo: [Demo](https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47)
 
 ## 🌠 Features
 * Automatic interactive bug fixes & feature development
@@ -61,7 +73,6 @@ Sweep Chat allows you to interact with Sweep locally and will sync with GitHub. 
 3. This should spin up a GitHub auth flow in your browser. Copy-paste the 🔵 blue 8-digit code from your terminal into the page. Then wait a few seconds and it should spin up Sweep Chat. You should only need to do the auth once.
 
 4. Pick a repo from the dropdown at the top (the Github app must be installed on this repo). Then start chatting with Sweep Chat. Relevant searched files will show up on the right. Sweep Chat can make PRs if you ask it to create a PR. 
-<img src="https://github.com/sweepai/sweep/blob/856ff66c2dbeaf39afbf6d8c49a620dfa70271fb/.assets/gradio-screenshot.png">
 
 💡 You can force dark mode by going to http://127.0.0.1:7861/?__theme=dark.
 
@@ -123,4 +134,3 @@ Consider starring us if you're using Sweep so more people hear about us!
 <p align="center">
     and, of course, Sweep!
 </p>
-
