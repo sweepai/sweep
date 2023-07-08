@@ -24,7 +24,7 @@ class SweepConfig(BaseModel):
             contents = repo.get_contents(".github/sweep.yaml")
             branch = yaml.safe_load(contents.decoded_content.decode("utf-8"))["branch"]
             repo.create_branch(branch)
-            return 
+            return branch
         except Exception as e:
             logger.error(f"Error when getting branch: {e}")
             return repo.default_branch
