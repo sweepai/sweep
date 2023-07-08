@@ -219,7 +219,7 @@ def get_deeplake_vs_from_repo(
     
     logger.info(f"Used {len(file_paths)} files...")
 
-    shutil.rmtree("repo")
+    shutil.rmtree("repo", ignore_errors=True)
     logger.info(f"Getting list of all files took {time.time() -start}")
     logger.info(f"Received {len(documents)} documents from repository {repo_name}")
     collection_name = parse_collection_name(repo_name)
