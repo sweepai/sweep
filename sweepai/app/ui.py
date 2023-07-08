@@ -100,7 +100,6 @@ def get_files(repo_full_name):
                 git_repo = Repo("/tmp/" + repo_full_name)
                 git_repo.remotes.origin.pull()
             else:
-                repo_url = f"https://x-access-token:{config.github_pat}@github.com/{repo_full_name}.git"
                 Repo.clone_from(repo_url, "/tmp/" + repo_full_name)
         except Exception as e:
             logger.warning(f"Git pull failed with error {e}, deleting cache and recloning...")
