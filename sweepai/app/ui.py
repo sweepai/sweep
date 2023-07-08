@@ -4,6 +4,7 @@ from git import Repo
 from github import Github
 import gradio as gr
 from loguru import logger
+import shutil
 
 from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import SweepChatConfig
@@ -95,9 +96,13 @@ def get_files(repo_full_name):
             return []
         repo = github_client.get_repo(repo_full_name)
         repo_url = f"https://x-access-token:{config.github_pat}@github.com/{repo_full_name}.git"
-        if os.path.exists("/tmp/" + repo_full_name):
+        try:
             git_repo = Repo("/tmp/" + repo_full_name)
             git_repo.remotes.origin.pull()
+        except Exception as e:
+            logger.warning(f"Git pull failed with error {e}, deleting cache and recloning...")
+            shutil.rmtree("/tmp/" + repo_full_name)
+            Repo.clone_from(repo_url, "/tmp/" + repo_full_name)
         else:
             Repo.clone_from(repo_url, "/tmp/" + repo_full_name)
         all_files, path_to_contents = get_files_recursively("/tmp/" + repo_full_name)
