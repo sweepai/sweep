@@ -142,24 +142,26 @@ def get_deeplake_vs_from_repo(
 
     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
     shutil.rmtree("repo", ignore_errors=True)
-    Repo.clone_from(repo_url, "repo")
+    
+    branch_name = SweepConfig.get_branch(repo)
+
+    git_repo = Repo.clone_from(repo_url, "repo")
+    git_repo.git.checkout(branch_name)
 
     file_list = glob.iglob("repo/**", recursive=True)
-    file_list = [
+    file_list = (
         file
-        for file in tqdm(file_list)
+        for file in file_list
         if os.path.isfile(file)
         and all(not file.endswith(ext) for ext in sweep_config.exclude_exts)
         and all(not file[len("repo/"):].startswith(dir_name) for dir_name in sweep_config.exclude_dirs)
-    ]
-
-    branch_name = SweepConfig.get_branch(repo)
+    )
 
     file_paths = []
     file_contents = []
     scores = []
 
-    for file in tqdm(file_list):
+    for file in file_list:
         with open(file, "rb") as f:
             is_binary = False
             for block in iter(lambda: f.read(1024), b''):
@@ -224,7 +226,7 @@ def get_deeplake_vs_from_repo(
     logger.info(f"Received {len(documents)} documents from repository {repo_name}")
     collection_name = parse_collection_name(repo_name)
     return compute_deeplake_vs(collection_name, documents, cache_success, cache, ids, metadatas, commit_hash)
-    
+
 def compute_deeplake_vs(collection_name, 
                         documents, 
                         cache_success, 
@@ -336,4 +338,3 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
-
