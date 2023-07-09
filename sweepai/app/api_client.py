@@ -5,11 +5,11 @@ from typing import Any
 import httpx
 import requests
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Function, PullRequest, Snippet
-from sweepai.utils.config import SWEEP_API_ENDPOINT
+from sweepai.utils.config import GITHUB_APP_CLIENT_ID, SWEEP_API_ENDPOINT
 
 create_pr_function = Function(
     name="create_pr",
@@ -57,6 +57,7 @@ create_pr_function = Function(
 
 create_pr_function_call = {"name": "create_pr"}
 
+
 def break_json(raw_json: str):
     # turns something like {"function_call": {"arguments": " \""}}{"function_call": {"arguments": "summary"}} into two objects
     try:
@@ -72,9 +73,18 @@ def break_json(raw_json: str):
             except json.JSONDecodeError:
                 pass
 
+
 class APIClient(BaseModel):
     config: SweepChatConfig
     api_endpoint = SWEEP_API_ENDPOINT
+
+
+    def __init__(self, config: SweepChatConfig):
+        super().__init__(config=config)
+        self.config = config
+        logger.info(f"Initializing API client")
+        logger.info(f"API endpoint: {self.api_endpoint}")
+        logger.info(f"Github APP Client ID: {GITHUB_APP_CLIENT_ID}")
 
     def get_installation_id(self):
         results = requests.post(
