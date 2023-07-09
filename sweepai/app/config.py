@@ -10,7 +10,6 @@ from config_path import ConfigPath
 from pydantic import BaseModel
 
 from sweepai.utils.config import GITHUB_APP_CLIENT_ID
-from sweepai.core.entities import Snippet
 
 DEVICE_CODE_ENDPOINT = "https://github.com/login/device/code"
 USER_LOGIN_ENDPOINT = "https://github.com/login/device"

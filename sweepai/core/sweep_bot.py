@@ -1,4 +1,3 @@
-import github
 import modal
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException
@@ -8,9 +7,6 @@ from pydantic import BaseModel
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.code_repair import CodeRepairer
-from sweepai.utils.chat_logger import ChatLogger
-import re
-
 from sweepai.core.entities import (
     FileChange,
     FileChangeRequest,
@@ -25,10 +21,9 @@ from sweepai.core.prompts import (
     pull_request_prompt,
     create_file_prompt,
     modify_file_prompt_2,
-    modify_file_plan_prompt,
 )
-from sweepai.utils.config import SweepConfig
 from sweepai.utils.config import DB_MODAL_INST_NAME
+from sweepai.utils.config import SweepConfig
 from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown
 
 

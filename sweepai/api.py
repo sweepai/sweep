@@ -1,5 +1,5 @@
-from loguru import logger
 import modal
+from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
 
@@ -18,7 +18,6 @@ from sweepai.utils.config import DB_MODAL_INST_NAME, API_MODAL_INST_NAME, GITHUB
     GITHUB_LABEL_NAME, GITHUB_LABEL_COLOR, GITHUB_LABEL_DESCRIPTION
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
-from fastapi import HTTPException, Request
 
 stub = modal.Stub(API_MODAL_INST_NAME)
 image = (
@@ -102,7 +101,7 @@ async def webhook(raw_request: Request):
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
             case "issues", "labeled":
                 request = IssueRequest(**request_dict)
-                if 'label' in request_dict and str.lower(request_dict['label']['name']) == LABEL_NAME:
+                if 'label' in request_dict and str.lower(request_dict['label']['name']) == GITHUB_LABEL_NAME:
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
                         request.repository.description or ""

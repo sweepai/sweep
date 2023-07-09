@@ -2,18 +2,17 @@
 Creates PR given description.
 """
 
+import modal
 import openai
+from github.Repository import Repository
 from loguru import logger
 
-import modal
-from github.Repository import Repository
 from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.utils.config import PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN
-from sweepai.handlers.on_review import review_pr
+from sweepai.utils.config import PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, GITHUB_BOT_USERNAME, \
+    GITHUB_CONFIG_BRANCH, GITHUB_DEFAULT_CONFIG
 from sweepai.utils.config import SweepConfig
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import get_github_client
 
 github_access_token = GITHUB_BOT_TOKEN
 openai.api_key = GITHUB_BOT_TOKEN
@@ -124,7 +123,7 @@ def safe_delete_sweep_branch(
 
     # Check if only Sweep has edited the PR, and sweep/ prefix
     if len(pr_commit_authors) == 1 \
-            and SWEEP_LOGIN in pr_commit_authors \
+            and GITHUB_BOT_USERNAME in pr_commit_authors \
             and pr.head.ref.startswith("sweep/"):
         branch = repo.get_git_ref(f"heads/{pr.head.ref}")
         # pr.edit(state='closed')
@@ -139,13 +138,13 @@ def create_config_pr(
         sweep_bot: SweepBot,
 ):
     title = "Create `sweep.yaml` Config File"
-    branch_name = SWEEP_CONFIG_BRANCH
+    branch_name = GITHUB_CONFIG_BRANCH
     branch_name = sweep_bot.create_branch(branch_name, retry=False)
     try:
         sweep_bot.repo.create_file(
             'sweep.yaml',
             'Create sweep.yaml config file',
-            DEFAULT_CONFIG,
+            GITHUB_DEFAULT_CONFIG,
             branch=branch_name
         )
     except Exception as e:

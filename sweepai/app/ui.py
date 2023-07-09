@@ -1,15 +1,12 @@
 import json
-import webbrowser
-
 import os
+import shutil
 import tempfile
+
+import gradio as gr
 from git import Repo
 from github import Github
-import gradio as gr
-from github import Github
 from loguru import logger
-
-import shutil
 
 from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import State, SweepChatConfig

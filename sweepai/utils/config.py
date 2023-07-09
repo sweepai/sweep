@@ -1,9 +1,10 @@
+import os
 from functools import lru_cache
-from loguru import logger
+
 import yaml
 from github.Repository import Repository
+from loguru import logger
 from pydantic import BaseModel
-import os
 
 
 class SweepConfig(BaseModel):
@@ -56,6 +57,9 @@ GITHUB_LABEL_NAME = os.environ.get('GITHUB_LABEL_NAME', 'sweep')
 GITHUB_LABEL_COLOR = os.environ.get('GITHUB_LABEL_COLOR')
 GITHUB_LABEL_DESCRIPTION = os.environ.get('GITHUB_LABEL_DESCRIPTION')
 GITHUB_APP_PEM = os.environ.get('GITHUB_APP_PEM')
+GITHUB_CONFIG_BRANCH = os.environ.get('GITHUB_CONFIG_BRANCH', 'sweep-config')
+GITHUB_DEFAULT_CONFIG = os.environ.get('GITHUB_DEFAULT_CONFIG', """# Reference: https://github.com/sweepai/sweep/blob/main/sweep.yaml
+branch: "dev""")
 
 # is set on clientside (optional)
 GITHUB_APP_CLIENT_ID = os.environ.get('GITHUB_APP_CLIENT_ID', 'Iv1.91fd31586a926a9f')

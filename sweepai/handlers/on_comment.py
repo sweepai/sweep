@@ -9,6 +9,7 @@ from loguru import logger
 
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.config import PREFIX, OPENAI_API_KEY
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
@@ -16,7 +17,6 @@ from sweepai.utils.github_utils import (
     search_snippets,
 )
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
-from sweepai.utils.chat_logger import ChatLogger
 
 github_access_token = OPENAI_API_KEY
 openai.api_key = OPENAI_API_KEY
