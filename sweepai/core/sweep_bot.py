@@ -120,7 +120,7 @@ class GithubBot(BaseModel):
         except Exception:
             return False
 
-    def create_branch(self, branch: str) -> str:
+    def create_branch(self, branch: str, retry=True) -> str:
         # Generate PR if nothing is supplied maybe
         base_branch = self.repo.get_branch(SweepConfig.get_branch(self.repo))
         try:
@@ -128,15 +128,20 @@ class GithubBot(BaseModel):
             return branch
         except GithubException as e:
             logger.error(f"Error: {e}, trying with other branch names...")
-            for i in range(1, 100):
-                try:
-                    logger.warning(f"Retrying {branch}_{i}...")
-                    self.repo.create_git_ref(
-                        f"refs/heads/{branch}_{i}", base_branch.commit.sha
-                    )
-                    return f"{branch}_{i}"
-                except GithubException:
-                    pass
+            if retry:
+                for i in range(1, 100):
+                    try:
+                        logger.warning(f"Retrying {branch}_{i}...")
+                        self.repo.create_git_ref(
+                            f"refs/heads/{branch}_{i}", base_branch.commit.sha
+                        )
+                        return f"{branch}_{i}"
+                    except GithubException:
+                        pass
+            else:
+                new_branch = self.repo.get_branch(branch)
+                if new_branch:
+                    return new_branch.name
             raise e
     
     def populate_snippets(self, snippets: list[Snippet]):

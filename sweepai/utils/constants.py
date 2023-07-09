@@ -2,7 +2,7 @@
 This file should be split into environment and config files
 """
 
-PREFIX = "prod"
+PREFIX = "dev2"
 DB_NAME = PREFIX + "-db"
 API_NAME = PREFIX + "-api"
 UTILS_NAME = PREFIX + "-utils"
@@ -26,3 +26,7 @@ elif PREFIX == "dev":
 LABEL_NAME = "sweep"
 LABEL_COLOR = "9400D3"
 LABEL_DESCRIPTION = "Sweep your software chores"
+
+SWEEP_CONFIG_BRANCH = "sweep/add-sweep-config"
+DEFAULT_CONFIG = """# Reference: https://github.com/sweepai/sweep/blob/main/sweep.yaml
+branch: "dev"""

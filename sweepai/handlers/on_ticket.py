@@ -17,14 +17,15 @@ from sweepai.core.prompts import (
 )
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.core.prompts import issue_comment_prompt
-from sweepai.handlers.create_pr import create_pr
+from sweepai.handlers.create_pr import create_pr, create_config_pr, safe_delete_sweep_branch
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.constants import DB_NAME, PREFIX, UTILS_NAME
+from sweepai.utils.constants import DB_NAME, PREFIX, UTILS_NAME, SWEEP_LOGIN
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.config import SweepConfig
 import traceback
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
@@ -128,8 +129,22 @@ def on_ticket(
         return {"success": False, "reason": "Issue is closed"}
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
 
+    # Check if branch was already created for this issue
+    preexisting_branch = None
+    prs = repo.get_pulls(state='open', sort='created', base=SweepConfig.get_branch(repo))
+    for pr in prs:
+        # Check if this issue is mentioned in the PR, and pr is owned by bot
+        # This is done in create_pr, (pr_description = ...)
+        if pr.user.login == SWEEP_LOGIN and f'Fixes #{issue_number}.\n' in pr.body:
+            success = safe_delete_sweep_branch(pr, repo)
+
     # Add emojis
     eyes_reaction = item_to_react_to.create_reaction("eyes")
+    # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
+    reactions = item_to_react_to.get_reactions()
+    for reaction in reactions:
+        if reaction.content == "rocket" and reaction.user.login == SWEEP_LOGIN:
+            item_to_react_to.delete_reaction(reaction.id)
 
     # Creates progress bar ASCII for 0-5 states
     progress_headers = [
@@ -140,19 +155,36 @@ def on_ticket(
         "Step 4: ⌨️ Coding",
         "Step 5: 🔁 Code Review"
     ]
-    def get_progress_bar(index, errored=False, pr_message=""):
+
+    config_pr_url = None
+    def get_comment_header(index, errored=False, pr_message=""):
+        config_pr_message = ("\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})" if config_pr_url is not None else "")
         if index < 0: index = 0
         if index == 5:
-            return pr_message
+            return pr_message + config_pr_message
         index *= 20
         index = min(100, index)
         if errored:
             return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
-        return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + ("\n" + stars_suffix if index != -1 else "")
+        return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + ("\n" + stars_suffix + config_pr_message if index != -1 else "")
 
-    issue_comment = current_issue.create_comment(f"{get_progress_bar(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}")
+    comments = current_issue.get_comments()
+
+    # Find the first comment made by the bot
+    issue_comment = None
+    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}"
+    for comment in comments:
+        if comment.user.login == SWEEP_LOGIN:
+            issue_comment = comment
+            issue_comment.edit(first_comment)
+            break
+    if issue_comment is None:
+        issue_comment = current_issue.create_comment(first_comment)
+
+    # Comment edit function
     past_messages = {}
-    def comment_reply(message: str, index: int, pr_message = ""):
+    def edit_sweep_comment(message: str, index: int, pr_message = ""):
+        # -1 = error, -2 = retry
         # Only update the progress bar if the issue generation errors.
         errored = (index == -1)
         current_index = index
@@ -175,9 +207,8 @@ def on_ticket(
             agg_message = "## Error: 🚫 Unable to Complete PR\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
 
         # Update the issue comment
-        issue_comment.edit(f"{get_progress_bar(current_index, errored, pr_message)}\n{sep}{agg_message}{bot_suffix}")
+        issue_comment.edit(f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{bot_suffix}")
 
-    comments = current_issue.get_comments()
     replies_text = ""
     if comment_id:
         replies_text = "\nComments:\n" + "\n".join(
@@ -220,7 +251,7 @@ def on_ticket(
         assert len(snippets) > 0
     except Exception as e:
         logger.error(e)
-        comment_reply(
+        edit_sweep_comment(
             "It looks like an issue has occured around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev.",
             -1
         )
@@ -255,6 +286,28 @@ def on_ticket(
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger
     )
+
+
+    # Check repository for sweep.yml file.
+    sweep_yml_exists = False
+    for content_file in repo.get_contents(""):
+        if content_file.name == "sweep.yaml":
+            sweep_yml_exists = True
+            break
+
+    # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
+    if not sweep_yml_exists:
+        try:
+            logger.info("Creating sweep.yaml file...")
+            config_pr = create_config_pr(sweep_bot)
+            config_pr_url = config_pr.html_url
+            edit_sweep_comment(message="", index=-2)
+        except Exception as e:
+            logger.error("Failed to create new branch for sweep.yaml file.\n", e)
+    else:
+        logger.info("sweep.yaml file already exists.")
+
+
     sweepbot_retries = 3
     try:
         for i in range(sweepbot_retries):
@@ -266,7 +319,7 @@ def on_ticket(
                 logger.info("Did not execute CoT retrieval...")
 
             newline = '\n'
-            comment_reply(
+            edit_sweep_comment(
                 "I found the following snippets in your repository. I will now analyze this snippets and come up with a plan."
                 + "\n\n"
                 + collapsible_template.format(
@@ -291,7 +344,7 @@ def on_ticket(
                 headers=["File Path", "Proposed Changes"],
                 tablefmt="pipe"
             )
-            comment_reply(
+            edit_sweep_comment(
                 "From looking through the relevant snippets, I decided to make the following modifications:\n\n" + table + "\n\n",
                 2
             )
@@ -302,7 +355,7 @@ def on_ticket(
             pull_request_content = pull_request.content.strip().replace("\n", "\n>")
             pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
 
-            comment_reply(
+            edit_sweep_comment(
                 f"I have created a plan for writing the pull request. I am now working on executing my plan and coding the required changes to address this issue. Here is the planned pull request:\n\n{pull_request_summary}",
                 3
             )
@@ -313,7 +366,7 @@ def on_ticket(
             if not response or not response["success"]: raise Exception("Failed to create PR")
             pr = response["pull_request"]
             current_issue.create_reaction("rocket")
-            comment_reply(
+            edit_sweep_comment(
                 "I have finished coding the issue. I am now reviewing it for completeness.",
                 4
             )
@@ -342,7 +395,7 @@ def on_ticket(
                 logger.error(e)
 
             # Completed code review
-            comment_reply(
+            edit_sweep_comment(
                 "Success! 🚀",
                 5,
                 pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number})",
@@ -351,7 +404,7 @@ def on_ticket(
             break
     except openai.error.InvalidRequestError as e:
         logger.error(e)
-        comment_reply(
+        edit_sweep_comment(
             "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev.",
             -1
         )
@@ -368,7 +421,7 @@ def on_ticket(
         raise e
     except Exception as e:
         logger.error(e)
-        comment_reply(
+        edit_sweep_comment(
             "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
             -1
         )
