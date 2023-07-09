@@ -119,12 +119,27 @@ def create_config_pr(
         branch_name=SWEEP_CONFIG_BRANCH,
     )
     pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name, retry=False)
-    sweep_bot.repo.create_file(
-        'sweep.yaml',
-        'Create sweep.yaml config file',
-        DEFAULT_CONFIG,
-        branch=pull_request.branch_name
+    try:
+        sweep_bot.repo.create_file(
+            'sweep.yaml',
+            'Create sweep.yaml config file',
+            DEFAULT_CONFIG,
+            branch=pull_request.branch_name
+        )
+    except Exception as e:
+        logger.error(e)
+
+    # Check if the pull request from this branch to main already exists.
+    # If it does, then we don't need to create a new one.
+    pull_requests = sweep_bot.repo.get_pulls(
+        state="open",
+        sort="created",
+        base=SweepConfig.get_branch(sweep_bot.repo),
+        head=pull_request.branch_name,
     )
+    for pr in pull_requests:
+        if pr.title == pull_request.title:
+            return pr.html_url
 
     pr_description = "Config file allows for customization of Sweep."
     pr = sweep_bot.repo.create_pull(
@@ -134,4 +149,4 @@ def create_config_pr(
         base=SweepConfig.get_branch(sweep_bot.repo),
     )
 
-    return pr
+    return pr.html_url
