@@ -9,7 +9,7 @@ import yaml
 from config_path import ConfigPath
 from pydantic import BaseModel
 
-CLIENT_ID = "Iv1.91fd31586a926a9f"
+from sweepai.utils.config import GITHUB_APP_CLIENT_ID
 
 DEVICE_CODE_ENDPOINT = "https://github.com/login/device/code"
 USER_LOGIN_ENDPOINT = "https://github.com/login/device"
@@ -27,7 +27,7 @@ class SweepChatConfig(BaseModel):
 
     @classmethod
     def create(cls):
-        device_code_response = requests.post(DEVICE_CODE_ENDPOINT, json={"client_id": CLIENT_ID})
+        device_code_response = requests.post(DEVICE_CODE_ENDPOINT, json={"client_id": GITHUB_APP_CLIENT_ID})
         parsed_device_code_response = parse_qs(unquote(device_code_response.text))
         print("\033[93m" + f"Open {USER_LOGIN_ENDPOINT} if it doesn't open automatically." + "\033[0m")
         print("\033[93m" + f"Paste the following code (copied to your clipboard) and click authorize:" + "\033[0m")
@@ -41,7 +41,7 @@ class SweepChatConfig(BaseModel):
                 oauth_access_token_response = requests.post(
                     OAUTH_ACCESS_TOKEN_ENDPOINT,
                     json={
-                        "client_id": CLIENT_ID,
+                        "client_id": GITHUB_APP_CLIENT_ID,
                         "device_code": parsed_device_code_response["device_code"][0],
                         "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
                     }

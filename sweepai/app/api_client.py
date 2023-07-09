@@ -74,7 +74,7 @@ def break_json(raw_json: str):
 
 class APIClient(BaseModel):
     config: SweepChatConfig
-    api_endpoint = SWEEP_API_ENDPOINT if SWEEP_API_ENDPOINT is not None else f"https://sweepai--{PREFIX}-ui.modal.run"
+    api_endpoint = SWEEP_API_ENDPOINT 
 
     def get_installation_id(self):
         results = requests.post(
