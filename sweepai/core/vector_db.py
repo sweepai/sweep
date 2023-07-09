@@ -5,27 +5,22 @@ import time
 import shutil
 import glob
 
-from modal import stub
 from loguru import logger
 from redis import Redis
 from tqdm import tqdm
-import modal
-from modal import method
-from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from github import Github
 from git import Repo
 
 from sweepai.core.entities import Snippet
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
-from sweepai.utils.scorer import compute_score, convert_to_percentiles
+from sweepai.utils.scorer import convert_to_percentiles
 
 from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
 import time
 
-# TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_NAME)
 chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 model_volume = modal.SharedVolume().persist(f"{ENV}-storage")
@@ -68,9 +63,7 @@ def parse_collection_name(name: str) -> str:
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
     return name
 
-# Here, we modify the scoring function to meet the new requirements.
 def new_scoring_function(filename):
-    # New scoring logic goes here.
     return len(filename)
 
 def get_deeplake_vs_from_repo(
@@ -148,7 +141,6 @@ def get_deeplake_vs_from_repo(
                 continue
 
         with open(file, "r") as f:
-            # Can parallelize this
             try:
                 contents = f.read()
                 contents = file + contents
@@ -168,7 +160,6 @@ def get_deeplake_vs_from_repo(
                     if cached_value:
                         score = json.loads(cached_value)
                         scores.append(score)
-                        continue
                 commits = list(repo.get_commits(path=file_path, sha=branch_name))
                 score = new_scoring_function(file_path)
                 if cache_success:
@@ -207,7 +198,6 @@ def compute_deeplake_vs(collection_name,
     deeplake_vs = init_deeplake_vs(collection_name)
     if len(documents) > 0:
         logger.info("Computing embeddings...")
-        # Check cache here for all documents
         embeddings = [None] * len(documents)
         if cache_success:
             cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in documents]
@@ -289,14 +279,8 @@ def get_relevant_snippets(
     code_scores = [metadata["score"] for metadata in metadatas]
     vector_scores = results["score"]
     combined_scores = [code_score + vector_score for code_score, vector_score in zip(code_scores, vector_scores)]
-    # Sort by combined scores
-    # Combine the three lists into a single list of tuples
     combined_list = list(zip(combined_scores, metadatas))
-
-    # Sort the combined list based on the combined scores
     sorted_list = sorted(combined_list, key=lambda x: x[0], reverse=True)
-
-    # Extract the sorted metadatas and relevant_paths
     sorted_metadatas = [metadata for _, metadata in sorted_list]
     relevant_paths = [metadata["file_path"] for metadata in sorted_metadatas]
     logger.info("Relevant paths: {}".format(relevant_paths))
