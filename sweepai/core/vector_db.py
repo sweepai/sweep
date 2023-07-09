@@ -142,7 +142,11 @@ def get_deeplake_vs_from_repo(
 
     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
     shutil.rmtree("repo", ignore_errors=True)
-    Repo.clone_from(repo_url, "repo")
+    
+    branch_name = SweepConfig.get_branch(repo)
+
+    git_repo = Repo.clone_from(repo_url, "repo")
+    git_repo.git.checkout(branch_name)
 
     file_list = glob.iglob("repo/**", recursive=True)
     file_list = [
@@ -152,8 +156,6 @@ def get_deeplake_vs_from_repo(
         and all(not file.endswith(ext) for ext in sweep_config.exclude_exts)
         and all(not file[len("repo/"):].startswith(dir_name) for dir_name in sweep_config.exclude_dirs)
     ]
-
-    branch_name = SweepConfig.get_branch(repo)
 
     file_paths = []
     file_contents = []

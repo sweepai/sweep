@@ -27,6 +27,7 @@ from sweepai.core.prompts import (
     modify_file_prompt_2,
     modify_file_plan_prompt,
 )
+from sweepai.utils.config import SweepConfig
 from sweepai.utils.constants import DB_NAME
 from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown, revert_whitespace_changes
 
@@ -100,7 +101,7 @@ class GithubBot(BaseModel):
 
     def get_contents(self, path: str, branch: str = ""):
         if not branch:
-            branch = self.repo.default_branch
+            branch = SweepConfig.get_branch(self.repo)
         try:
             return self.repo.get_contents(path, ref=branch)
         except Exception as e:
@@ -121,7 +122,7 @@ class GithubBot(BaseModel):
 
     def create_branch(self, branch: str, retry=True) -> str:
         # Generate PR if nothing is supplied maybe
-        base_branch = self.repo.get_branch(self.repo.default_branch)
+        base_branch = self.repo.get_branch(SweepConfig.get_branch(self.repo))
         try:
             self.repo.create_git_ref(f"refs/heads/{branch}", base_branch.commit.sha)
             return branch
@@ -146,7 +147,7 @@ class GithubBot(BaseModel):
     def populate_snippets(self, snippets: list[Snippet]):
         for snippet in snippets:
             try:
-                snippet.content = self.repo.get_contents(snippet.file_path).decoded_content.decode("utf-8")
+                snippet.content = self.repo.get_contents(snippet.file_path, SweepConfig.get_branch(self.repo)).decoded_content.decode("utf-8")
             except Exception as e:
                 logger.error(snippet)
     
@@ -166,10 +167,10 @@ class GithubBot(BaseModel):
         self.populate_snippets(snippets)
         return snippets
     
-    def validate_file_change_requests(self, file_change_requests: list[FileChangeRequest]):
+    def validate_file_change_requests(self, file_change_requests: list[FileChangeRequest], branch: str = ""):
         for file_change_request in file_change_requests:
             try:
-                contents = self.repo.get_contents(file_change_request.filename)
+                contents = self.repo.get_contents(file_change_request.filename, branch or SweepConfig.get_branch(self.repo))
                 if contents:
                     file_change_request.change_type = "modify"
                 else:
@@ -269,11 +270,12 @@ class SweepBot(CodeGenBot, GithubBot):
         raise Exception("Failed to parse response after 5 attempts.")
 
     def modify_file(
-        self, file_change_request: FileChangeRequest, contents: str = ""
+        self, file_change_request: FileChangeRequest, contents: str = "", branch = None
     ) -> tuple[str, str]:
         if not contents:
             contents = self.get_file(
-                file_change_request.filename
+                file_change_request.filename,
+                branch=branch
             ).decoded_content.decode("utf-8")
         # Add line numbers to the contents; goes in prompts but not github
         contents_line_numbers = "\n".join([f"{i + 1}:{line}" for i, line in enumerate(contents.split("\n"))])
@@ -391,7 +393,7 @@ class SweepBot(CodeGenBot, GithubBot):
         try:
             contents = self.get_file(file_change_request.filename, branch=branch)
             new_file_contents, file_name = self.modify_file(
-                file_change_request, contents.decoded_content.decode("utf-8")
+                file_change_request, contents.decoded_content.decode("utf-8"), branch
             )
             new_file_contents = format_contents(new_file_contents, file_markdown)
             new_file_contents = new_file_contents.rstrip()
