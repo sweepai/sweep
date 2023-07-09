@@ -80,6 +80,14 @@ Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating 
 4. "🚀" means the bot has finished its job and created a PR
 
 ## 🤝 Contributing
+## GitHub Actions Setup
+
+In this project, we use GitHub Actions for automated testing and continuous integration. GitHub Actions is a CI/CD platform that allows you to automate workflows directly from your GitHub repository. 
+
+We have set up a workflow in the `.github/workflows/main.yml` file. This workflow is triggered on every push and pull request to the main branch. It sets up a Python environment, installs the necessary dependencies, and runs the tests.
+
+By using GitHub Actions, we ensure that the tests are run in a consistent environment every time. It also allows us to catch any potential issues early before they are merged into the main branch.
+
 
 Contributions are welcome and greatly appreciated! For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file. In essence, you'll need to fork the repository, create a new branch for your feature or bug fix, commit your changes, and open a pull request.
 For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
@@ -123,4 +131,3 @@ Consider starring us if you're using Sweep so more people hear about us!
 <p align="center">
     and, of course, Sweep!
 </p>
-
