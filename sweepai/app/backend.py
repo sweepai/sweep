@@ -1,7 +1,3 @@
-"""
-Proxy for the UI.
-"""
-
 import json
 from typing import Any
 import fastapi
@@ -95,7 +91,7 @@ def _asgi_app():
             posthog.capture(request.github_username, "failed", properties={"error": str(e), **metadata})
             raise fastapi.HTTPException(status_code=403, detail="Sweep app is not installed on this repo. To install it, go to https://github.com/apps/sweep-ai")
 
-        posthog.capture(request.github_username, "succeeded", properties=metadata)
+        posthog.capture(request.github_username, "success", properties=metadata)
 
         return {"installation_id": installation_id}
 
@@ -140,7 +136,7 @@ def _asgi_app():
             posthog.capture(request.config.github_username, "failed", properties={"error": str(e), **metadata})
             raise e
 
-        posthog.capture(request.config.github_username, "succeeded", properties=metadata)
+        posthog.capture(request.config.github_username, "success", properties=metadata)
         return snippets
 
     class CreatePRRequest(BaseModel):
@@ -234,7 +230,6 @@ def _asgi_app():
         chatgpt = ChatGPT(messages=messages[:-1])
         result = chatgpt.chat(messages[-1].content, model="gpt-4-0613")
         return result
-    
     @app.post("/chat_stream")
     def chat_stream(request: ChatRequest):
         assert verify_config(request.config)
@@ -262,7 +257,9 @@ def _asgi_app():
         def stream_chat():
             for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=request.functions, function_call=request.function_call):
                 yield json.dumps(chunk)
-            posthog.capture(request.config.github_username, "succeeded", properties=metadata)
+            for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=request.functions, function_call=request.function_call):
+                yield json.dumps(chunk)
+            posthog.capture(request.config.github_username, "success", properties=metadata)
         return StreamingResponse(
             stream_chat(),
             media_type="text/event-stream"
