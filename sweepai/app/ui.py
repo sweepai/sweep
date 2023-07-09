@@ -62,7 +62,7 @@ def get_files_recursively(root_path, path=''):
 
         if os.path.isfile(entry_path):
             try:
-                with open(entry_path, 'r') as file:
+                with open(entry_path, 'r', errors='ignore') as file:
                     contents = file.read()
                 path_to_contents[entry_path[len(root_path) + 1:]] = contents
                 files.append(entry_path[len(root_path) + 1:])
