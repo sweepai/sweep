@@ -14,7 +14,7 @@ from sweepai.handlers.on_review import review_pr
 from sweepai.utils.config import SweepConfig
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
-from sweepai.utils.constants import DB_NAME, PREFIX
+from sweepai.utils.constants import DB_NAME, PREFIX, DEFAULT_CONFIG, SWEEP_CONFIG_BRANCH
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -109,3 +109,29 @@ def create_pr(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("create_pr success")
     return {"success": True, "pull_request": pr}
+
+def create_config_pr(
+        sweep_bot: SweepBot,
+):
+    pull_request = PullRequest(
+        title="Create `sweep.yaml` Config File",
+        content="I've created a `sweep.yaml` config file for you. Please review and merge it.",
+        branch_name=SWEEP_CONFIG_BRANCH,
+    )
+    pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name, retry=False)
+    sweep_bot.repo.create_file(
+        'sweep.yaml',
+        'Create sweep.yaml config file',
+        DEFAULT_CONFIG,
+        branch=pull_request.branch_name
+    )
+
+    pr_description = "Config file allows for customization of Sweep."
+    pr = sweep_bot.repo.create_pull(
+        title=pull_request.title,
+        body=pr_description,
+        head=pull_request.branch_name,
+        base=SweepConfig.get_branch(sweep_bot.repo),
+    )
+
+    return pr
