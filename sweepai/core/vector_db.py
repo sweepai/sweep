@@ -54,7 +54,7 @@ secrets = [
     modal.Secret.from_name("highlight"),
     modal.Secret.from_name("redis_url"),
     modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
-]
+]]
 
 def init_deeplake_vs(repo_name):
     deeplake_repo_path = f"mem://{DEEPLAKE_FOLDER}{repo_name}"
@@ -308,4 +308,3 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
-awoidj
