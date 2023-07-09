@@ -1,5 +1,3 @@
-print())name: Black Formatter
-
 on: [push, pull_request]
 
 jobs:
@@ -13,3 +11,5 @@ jobs:
         pip install --upgrade pip
         pip install black
         black .
+    - name: Black Formatter
+      run: name: Black Formatter
