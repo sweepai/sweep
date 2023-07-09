@@ -19,16 +19,19 @@ API_MODAL_INST_NAME = PREFIX + "-api"
 UTILS_MODAL_INST_NAME = PREFIX + "-utils"
 SLACK_MODAL_INST_NAME = PREFIX + "-slack"
 
-SWEEP_API_ENDPOINT = os.environ.get('SWEEP_API_ENDPOINT')
 
 # goes under Modal 'github' secret name
 GITHUB_BOT_TOKEN = os.environ.get('GITHUB_BOT_TOKEN')
 GITHUB_APP_ID = os.environ.get('GITHUB_APP_ID')
 GITHUB_BOT_USERNAME = os.environ.get('GITHUB_BOT_USERNAME')
-GITHUB_LABEL_NAME = os.environ.get('GITHUB_LABEL_NAME')
+GITHUB_LABEL_NAME = os.environ.get('GITHUB_LABEL_NAME', 'sweep')
 GITHUB_LABEL_COLOR = os.environ.get('GITHUB_LABEL_COLOR')
 GITHUB_LABEL_DESCRIPTION = os.environ.get('GITHUB_LABEL_DESCRIPTION')
 GITHUB_APP_PEM = os.environ.get('GITHUB_APP_PEM')
+
+# is set on clientside (optional)
+GITHUB_APP_CLIENT_ID = os.environ.get('GITHUB_APP_CLIENT_ID', 'Iv1.91fd31586a926a9f')
+SWEEP_API_ENDPOINT = os.environ.get('SWEEP_API_ENDPOINT', f"https://sweepai--{PREFIX}-ui.modal.run")
 
 # goes under Modal 'openai-secret' secret name
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')

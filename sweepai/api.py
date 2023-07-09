@@ -101,7 +101,7 @@ async def webhook(raw_request: Request):
             case "issues", "labeled":
                 request = IssueRequest(**request_dict)
                 if request.issue is not None and (
-                    "sweep" in [label.name.lower() for label in request.issue.labels]
+                    GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels]
                 ):
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
@@ -122,7 +122,7 @@ async def webhook(raw_request: Request):
             case "issue_comment", "created":
                 request = IssueCommentRequest(**request_dict)
                 if request.issue is not None \
-                    and "sweep" in [label.name.lower() for label in request.issue.labels] \
+                    and GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels] \
                     and request.comment.user.type == "User":
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
