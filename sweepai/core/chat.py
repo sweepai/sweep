@@ -73,13 +73,19 @@ class ChatGPT(BaseModel):
     ) -> Self:
         if is_reply:
             system_message_content = system_message_issue_comment_prompt
-        system_message_content = (
-            system_message_prompt + "\n\n" + human_message.construct_prompt()
-        )
+
+        # Todo: This moves prompts away from unified system message prompt
+        # system_message_prompt + "\n\n" + human_message.construct_prompt()
+        messages = [
+           Message(role="system", content=system_message_prompt, key="system")
+       ]
+
+        added_messages = human_message.construct_prompt() # [ { role, content }, ... ]
+        for msg in added_messages:
+            messages.append(Message(**msg))
+
         return cls(
-            messages=[
-                Message(role="system", content=system_message_content, key="system")
-            ],
+            messages = messages,
             human_message=human_message,
             **kwargs,
         )
@@ -102,9 +108,9 @@ class ChatGPT(BaseModel):
             ][0]
         return [message for message in self.messages if message.key == message_key][0]
 
-    def delete_messages_from_chat(self, message_key: str):
+    def delete_messages_from_chat(self, key_to_delete: str):
         self.messages = [
-            message for message in self.messages if message.key != message_key
+            message for message in self.messages if key_to_delete not in (message.key or '')
         ]
 
     def delete_file_from_system_message(self, file_path: str):

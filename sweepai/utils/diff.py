@@ -8,6 +8,27 @@ def generate_diff(old_code, new_code):
     )
     return ''.join(diff)
 
+def revert_whitespace_changes(original_file_str, modified_file_str):
+    original_lines = original_file_str.splitlines()
+    modified_lines = modified_file_str.splitlines()
+
+    diff = difflib.SequenceMatcher(None, original_lines, modified_lines)
+
+    final_lines = []
+    for opcode in diff.get_opcodes():
+        if opcode[0] == "equal" or opcode[0] == "replace":
+            # If the lines are equal or replace (means the change is not whitespace only)
+            # use original lines.
+            final_lines.extend(original_lines[opcode[1]:opcode[2]])
+        elif opcode[0] == "insert":
+            # If the lines are inserted in the modified file, check if it's just whitespace changes
+            # If it's just whitespace changes, ignore them.
+            for line in modified_lines[opcode[3]:opcode[4]]:
+                if line.strip() != "":
+                    final_lines.append(line)
+
+    return '\n'.join(final_lines)
+
 def format_contents(file_contents, is_markdown=False):
     """
     Add arbitrary postprocessing here, this affects files and diffs
@@ -15,11 +36,10 @@ def format_contents(file_contents, is_markdown=False):
     lines = file_contents.split('\n')
 
     if is_markdown:
-        return '\n'.join(lines) + '\n'
+        return '\n'.join(lines)
     
     # Handle small files
     if len(lines) <= 5:
-        final_lines = []
         start_idx = 0
         end_idx = len(lines)
         for idx, line in enumerate(lines):
@@ -28,7 +48,7 @@ def format_contents(file_contents, is_markdown=False):
             if start_idx != 0 and line.strip().endswith('```'):
                 end_idx = idx
         lines = lines[start_idx + 1:end_idx]
-        return '\n'.join(lines) + '\n'
+        return '\n'.join(lines)
 
     first_three_lines = lines[:3]
     last_three_lines = lines[-3:]
@@ -46,7 +66,7 @@ def format_contents(file_contents, is_markdown=False):
     last_three_lines = last_three_lines[:last_line_idx]
 
     lines = first_three_lines + lines[3:-3] + last_three_lines
-    return '\n'.join(lines) + '\n'
+    return '\n'.join(lines)
 
 
 def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
@@ -56,13 +76,31 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
     old_file_lines = old_file_content.splitlines()
 
     # Extract content between <new_file> tags
-    new_file = re.search(r"<new_file>(.*?)<\/new_file>", modify_file_response, re.DOTALL).group(1).strip()
-    if "<copied>" not in new_file:
+    new_file = re.search(r".*?<new_file>(.*)<\/new_file>", modify_file_response, re.DOTALL).group(1).strip()
+    if "<copy_lines" not in new_file:
         return new_file
 
-    # Find all <copied> tags and their content
-    copied_sections = re.findall(r"<copied>(.*?)<\/copied>", new_file, re.DOTALL)
-    
+    # v5
+    result = []
+    lines = new_file.split('\n')
+    for line in lines:
+        # Todo: make it support 1 number only
+        matches = re.finditer(r"<copy_lines\s(\d+-\d+)>", line)
+        for match in matches:
+            start, end = match.group(1).split('-')
+            start, end = int(start)-1, int(end)-1
+
+            start = max(0, start)
+            end = min(len(old_file_lines) - 1, end)
+
+            replacements = old_file_lines[start:end + 1]
+            replacements_str = '\n'.join(replacements)
+            line = line.replace(match.group(0), replacements_str)
+        result.append(line)
+    result = '\n'.join(result)
+
+    # Todo: v4 is inefficient; deprecated
+    """
     first_section_idx = new_file.index("<copied>")
     if first_section_idx > 0:
         result_file += new_file[:first_section_idx]
@@ -75,18 +113,28 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
     
     # Parse copied sections, first copying the content and then adding whatever is after the copied section
     for copied_section in copied_sections:
-        start_line, end_line = copied_section.split("-")
+        if "-" in copied_section:
+            start_line, end_line = copied_section.split("-")
+        else: # <copied>num</copied>
+            start_line = copied_sections
+            end_line = start_line
+
         start_line = int(start_line) - 1 if int(start_line) - 1 > 0 else 0
-        end_line = int(end_line)
+        end_line = int(end_line) - 1
         # Check for duplicate lines
         k = 30
         result_file = join_contents_k(result_file, "\n".join(old_file_lines[start_line:end_line]), k)
+        # TODO: Use replace first instead of .replace, since duplicated <copied> sections might cause faulty copy
         new_file = new_file.replace(f"<copied>{copied_section}</copied>\n", "")
         next_section_idx = new_file.index("<copied>") if "<copied>" in new_file else len(new_file)
         # Check for duplicate lines
         result_file = join_contents_k(result_file, new_file[:next_section_idx], k)
         new_file = new_file[next_section_idx:] # remove the first section from new_file
+    
     return result_file + last_section
+    """
+
+    return result
     
 def join_contents_k(first, second, k):
     """

@@ -1,6 +1,9 @@
+import json
+import os
 from datetime import datetime, timedelta
 from typing import Any
 
+from fastapi import requests
 from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
@@ -33,9 +36,19 @@ class ChatLogger(BaseModel):
     def get_chat_history(self, filters):
         return self.chat_collection.find(filters) \
             .sort([('expiration', 1), ('index', 1)]) \
-            .limit(200)
+            .limit(2000)
 
     def add_chat(self, additional_data):
         document = {**self.data, **additional_data, 'expiration': self.expiration, 'index': self.index}
         self.index += 1
         self.chat_collection.insert_one(document)
+
+def discord_log_error(content):
+    try:
+        url = os.environ.get('DISCORD_WEBHOOK_URL')
+        data = { 'content': content }
+        headers = { 'Content-Type': 'application/json' }
+        response = requests.post(url, data=json.dumps(data), headers=headers)
+        # Success: response.status_code == 204:
+    except Exception:
+        pass

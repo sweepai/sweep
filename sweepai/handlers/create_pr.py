@@ -2,14 +2,18 @@
 Creates PR given description.
 """
 
-import modal
 import openai
 from loguru import logger
 
+import modal
+from github.Repository import Repository
 from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.config import PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN
+from sweepai.handlers.on_review import review_pr
+from sweepai.utils.config import SweepConfig
 from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import get_github_client
 
 github_access_token = GITHUB_BOT_TOKEN
 openai.api_key = GITHUB_BOT_TOKEN
@@ -50,10 +54,23 @@ def create_pr(
     try:
         logger.info("Making PR...")
         pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
-        sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
+        completed_count, fcr_count = sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
+        if completed_count == 0 and fcr_count != 0:
+            logger.info("No changes made")
+            posthog.capture(
+                username,
+                "failed",
+                properties={
+                    "error": "No changes made",
+                    "reason": "No changes made",
+                    **metadata,
+                },
+            )
+            return {"success": False, "error": "No changes made"}
 
         # Include issue number in PR description
         if issue_number:
+            # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)
             pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
         else:
             pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
@@ -62,7 +79,7 @@ def create_pr(
             title=pull_request.title,
             body=pr_description,
             head=pull_request.branch_name,
-            base=sweep_bot.repo.default_branch,
+            base=SweepConfig.get_branch(sweep_bot.repo),
         )
     except openai.error.InvalidRequestError as e:
         logger.error(e)
@@ -92,3 +109,75 @@ def create_pr(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("create_pr success")
     return {"success": True, "pull_request": pr}
+
+def safe_delete_sweep_branch(
+    pr, # Github PullRequest
+    repo: Repository,
+) -> bool:
+    """
+    Safely delete Sweep branch
+    1. Only edited by Sweep
+    2. Prefixed by sweep/
+    """
+    pr_commits = pr.get_commits()
+    pr_commit_authors = set([commit.author.login for commit in pr_commits])
+
+    # Check if only Sweep has edited the PR, and sweep/ prefix
+    if len(pr_commit_authors) == 1 \
+            and SWEEP_LOGIN in pr_commit_authors \
+            and pr.head.ref.startswith("sweep/"):
+        branch = repo.get_git_ref(f"heads/{pr.head.ref}")
+        # pr.edit(state='closed')
+        branch.delete()
+        return True
+    else:
+        # Failed to delete branch as it was edited by someone else
+        return False
+
+
+def create_config_pr(
+        sweep_bot: SweepBot,
+):
+    title = "Create `sweep.yaml` Config File"
+    branch_name = SWEEP_CONFIG_BRANCH
+    branch_name = sweep_bot.create_branch(branch_name, retry=False)
+    try:
+        sweep_bot.repo.create_file(
+            'sweep.yaml',
+            'Create sweep.yaml config file',
+            DEFAULT_CONFIG,
+            branch=branch_name
+        )
+    except Exception as e:
+        logger.error(e)
+
+    # Check if the pull request from this branch to main already exists.
+    # If it does, then we don't need to create a new one.
+    pull_requests = sweep_bot.repo.get_pulls(
+        state="open",
+        sort="created",
+        base=SweepConfig.get_branch(sweep_bot.repo),
+        head=branch_name,
+    )
+    for pr in pull_requests:
+        if pr.title == title:
+            return pr
+
+    pr_description = "Config file allows for customization of Sweep."
+    pr = sweep_bot.repo.create_pull(
+        title=title,
+        body=
+"""🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
+
+## What's new?
+- **Sweep is now configurable**. 
+- To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
+- If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.com/invite/sweep-ai) for help.
+
+Thank you for using Sweep! 🧹
+""",
+        head=branch_name,
+        base=SweepConfig.get_branch(sweep_bot.repo),
+    )
+
+    return pr

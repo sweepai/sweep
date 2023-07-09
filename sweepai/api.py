@@ -37,7 +37,8 @@ image = (
         "posthog",
         "tqdm",
         "pyyaml",
-        "pymongo"
+        "pymongo",
+        "tabulate"
     )
 )
 secrets = [
@@ -47,6 +48,7 @@ secrets = [
     modal.Secret.from_name("posthog"),
     modal.Secret.from_name("highlight"),
     modal.Secret.from_name("mongodb"),
+    modal.Secret.from_name("discord")
 ]
 
 FUNCTION_SETTINGS = {
@@ -100,9 +102,7 @@ async def webhook(raw_request: Request):
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
             case "issues", "labeled":
                 request = IssueRequest(**request_dict)
-                if request.issue is not None and (
-                    GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels]
-                ):
+                if 'label' in request_dict and str.lower(request_dict['label']['name']) == LABEL_NAME:
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
                         request.repository.description or ""
