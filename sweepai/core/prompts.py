@@ -441,5 +441,5 @@ Your job is to extract the information needed to debug the log from the Github A
 gha_extraction_prompt = """\
 Here are the logs:
 {gha_logs}
-Return the lines verbatim from the github actions logs.
+Copy the important lines from the github action logs. Describe the issue as you would report a bug to a developer.
 """
