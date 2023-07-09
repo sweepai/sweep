@@ -17,7 +17,7 @@ from sweepai.core.prompts import (
 )
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.core.prompts import issue_comment_prompt
-from sweepai.handlers.create_pr import create_pr, create_config_pr
+from sweepai.handlers.create_pr import create_pr, create_config_pr, safe_delete_sweep_branch
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.event_logger import posthog
@@ -293,8 +293,6 @@ def on_ticket(
 
     # Delete past sweep-bot comments
     for comment in comments:
-        print('GITHUB COMMENT: ', comment.user.login)
-        print('GITHUB BODY: ', comment.body)
         if comment.user.login == SWEEP_LOGIN and comment.id != issue_comment.id:
             comment.delete()
 
@@ -304,17 +302,18 @@ def on_ticket(
         if content_file.name == "sweep.yaml":
             sweep_yml_exists = True
             break
-    print('SWEEP YAML: ', sweep_yml_exists)
 
     # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
     if not sweep_yml_exists:
         try:
             logger.info("Creating sweep.yaml file...")
-            config_pr_url = create_config_pr(sweep_bot)
+            config_pr = create_config_pr(sweep_bot)
+            config_pr_url = config_pr.html_url
             comment_reply(message="", index=-2)
         except Exception as e:
             logger.error("Failed to create new branch for sweep.yaml file.\n", e)
-    # Todo: create pull-request but do not attach it to the issue.
+    else:
+        logger.info("sweep.yaml file already exists.")
 
 
     sweepbot_retries = 3
