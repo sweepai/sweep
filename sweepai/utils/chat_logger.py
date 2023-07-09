@@ -8,7 +8,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
-from sweepai.utils.config import MONGODB_URI
+from sweepai.utils.config import MONGODB_URI, DISCORD_WEBHOOK_URL
 
 
 class ChatLogger(BaseModel):
@@ -45,7 +45,7 @@ class ChatLogger(BaseModel):
 
 def discord_log_error(content):
     try:
-        url = os.environ.get('DISCORD_WEBHOOK_URL')
+        url = DISCORD_WEBHOOK_URL
         data = { 'content': content }
         headers = { 'Content-Type': 'application/json' }
         response = requests.post(url, data=json.dumps(data), headers=headers)

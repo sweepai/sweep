@@ -48,6 +48,8 @@ API_MODAL_INST_NAME = PREFIX + "-api"
 UTILS_MODAL_INST_NAME = PREFIX + "-utils"
 SLACK_MODAL_INST_NAME = PREFIX + "-slack"
 
+# goes under Modal 'discord' secret name (optional)
+DISCORD_WEBHOOK_URL = os.environ.get('DISCORD_WEBHOOK_URL')
 
 # goes under Modal 'github' secret name
 GITHUB_BOT_TOKEN = os.environ.get('GITHUB_BOT_TOKEN')
