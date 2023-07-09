@@ -9,13 +9,13 @@ from loguru import logger
 
 from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.utils.config import PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, GITHUB_BOT_USERNAME, \
+from sweepai.utils.config import OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, GITHUB_BOT_USERNAME, \
     GITHUB_CONFIG_BRANCH, GITHUB_DEFAULT_CONFIG
 from sweepai.utils.config import SweepConfig
 from sweepai.utils.event_logger import posthog
 
 github_access_token = GITHUB_BOT_TOKEN
-openai.api_key = GITHUB_BOT_TOKEN
+openai.api_key = OPENAI_API_KEY
 
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
