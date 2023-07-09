@@ -72,25 +72,21 @@ def get_line_number(index: int, source_code: str) -> int:
     return line_number - 1
 
 def chunker(tree, source_code_bytes, max_chunk_size = 512 * 3, coalesce = 50):
-    # Recursively form chunks with a maximum chunk size of max_chunk_size
-    def chunker_helper(node, source_code_bytes, start_position=0):
-        chunks = []
-        current_chunk = Span(start_position, start_position)
-        for child in node.children:
-            child_span = Span(child.start_byte, child.end_byte)
-            if len(child_span) > max_chunk_size:
-                chunks.append(current_chunk)
-                chunks.extend(chunker_helper(child, source_code_bytes, child.start_byte))
-                current_chunk = Span(child.end_byte, child.end_byte)
-            elif len(current_chunk) + len(child_span) > max_chunk_size:
-                chunks.append(current_chunk)
-                current_chunk = child_span
-            else:
-                current_chunk += child_span
-        if len(current_chunk) > 0:
-            chunks.append(current_chunk)
-        return chunks
-    chunks = chunker_helper(tree.root_node, source_code_bytes)
+    # Form chunks with a maximum chunk size of max_chunk_size
+    chunks = []
+    current_chunk = Span(0, 0)
+    for node in tree.root_node.children:
+        child_span = Span(node.start_byte, node.end_byte)
+        if len(child_span) > max_chunk_size:
+            yield current_chunk
+            current_chunk = Span(node.end_byte, node.end_byte)
+        elif len(current_chunk) + len(child_span) > max_chunk_size:
+            yield current_chunk
+            current_chunk = child_span
+        else:
+            current_chunk += child_span
+    if len(current_chunk) > 0:
+        yield current_chunk
 
     # removing gaps
     for prev, curr in zip(chunks[:-1], chunks[1:]):
@@ -114,7 +110,6 @@ def chunker(tree, source_code_bytes, max_chunk_size = 512 * 3, coalesce = 50):
     line_chunks = [chunk for chunk in line_chunks if len(chunk) > 0]
     
     return line_chunks
-
 
 def count_length_without_whitespace(s: str):
     string_without_whitespace = re.sub(r'\s', '', s)
