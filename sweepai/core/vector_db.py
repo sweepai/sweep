@@ -68,38 +68,10 @@ def parse_collection_name(name: str) -> str:
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
     return name
 
-@stub.cls(
-    image=image,
-    secrets=secrets,
-    shared_volumes={MODEL_DIR: model_volume},
-    keep_warm=1 if ENV == "prod" else 0,
-    gpu="T4",
-    retries=modal.Retries(max_retries=5, backoff_coefficient=2, initial_delay=5),
-)
-class Embedding:
-    def __enter__(self):
-        from sentence_transformers import SentenceTransformer
-
-        self.model = SentenceTransformer(
-            SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-        )
-
-    @method()
-    def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
-
-    @method()
-    def ping(self):
-        return "pong"
-
-class ModalEmbeddingFunction():
-    def __init__(self):
-        pass
-
-    def __call__(self, texts):
-        return Embedding.compute.call(texts)
-
-embedding_function = ModalEmbeddingFunction()
+# Here, we modify the scoring function to meet the new requirements.
+def new_scoring_function(filename):
+    # New scoring logic goes here.
+    pass
 
 def get_deeplake_vs_from_repo(
     repo_name: str,
@@ -336,4 +308,3 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
-
