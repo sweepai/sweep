@@ -10,7 +10,7 @@ from modal import method
 from sweepai.utils.config import UTILS_MODAL_INST_NAME
 
 stub = modal.Stub(UTILS_MODAL_INST_NAME)
-tiktoken_image = modal.Image.debian_slim().pip_install("tiktoken", "loguru", "anthropic", "pyyaml")
+tiktoken_image = modal.Image.debian_slim().pip_install("tiktoken", "loguru", "anthropic", "pyyaml", "PyGithub")
 
 TIKTOKEN_CACHE_DIR = "/root/cache/tiktoken"
 tiktoken_volume = modal.SharedVolume().persist("tiktoken-models")
@@ -35,7 +35,7 @@ class Tiktoken:
 
 chunking_image = modal.Image.debian_slim() \
     .apt_install("git") \
-    .pip_install("tree-sitter", "loguru", "pyyaml")
+    .pip_install("tree-sitter", "loguru", "pyyaml", "PyGithub")
 
 CHUNKING_CACHE_DIR = "/root/cache/"
 chunking_volume = modal.SharedVolume().persist("chunking-parsers")
@@ -156,6 +156,9 @@ class Chunking:
 
     def __enter__(self):
         from tree_sitter import Language
+        
+
+        logger.debug("Downloading tree-sitter parsers")
 
         LANGUAGE_NAMES = ["python", "java", "cpp", "go", "rust", "ruby", "php"]
         for language in LANGUAGE_NAMES:
@@ -190,7 +193,7 @@ class Chunking:
         subprocess.run(f"cp cache/build/vue.so /tmp/vue.so", shell=True)
         self.languages["vue"] = Language("/tmp/vue.so", "vue")
         
-
+        logger.debug("Finished downloading tree-sitter parsers")
     @method()
     def chunk(
         self,
