@@ -100,6 +100,7 @@ class GithubBot(BaseModel):
     repo: Repository
 
     def get_contents(self, path: str, branch: str = ""):
+        logger.info(f"Using {branch}")
         if not branch:
             branch = SweepConfig.get_branch(self.repo)
         try:
@@ -122,7 +123,7 @@ class GithubBot(BaseModel):
 
     def create_branch(self, branch: str) -> str:
         # Generate PR if nothing is supplied maybe
-        base_branch = self.repo.get_branch(self.repo.default_branch)
+        base_branch = self.repo.get_branch(SweepConfig.get_branch(self.repo))
         try:
             self.repo.create_git_ref(f"refs/heads/{branch}", base_branch.commit.sha)
             return branch
@@ -162,10 +163,10 @@ class GithubBot(BaseModel):
         self.populate_snippets(snippets)
         return snippets
     
-    def validate_file_change_requests(self, file_change_requests: list[FileChangeRequest]):
+    def validate_file_change_requests(self, file_change_requests: list[FileChangeRequest], branch: str = ""):
         for file_change_request in file_change_requests:
             try:
-                contents = self.repo.get_contents(file_change_request.filename, SweepConfig.get_branch(self.repo))
+                contents = self.repo.get_contents(file_change_request.filename, branch or SweepConfig.get_branch(self.repo))
                 if contents:
                     file_change_request.change_type = "modify"
                 else:
@@ -265,11 +266,12 @@ class SweepBot(CodeGenBot, GithubBot):
         raise Exception("Failed to parse response after 5 attempts.")
 
     def modify_file(
-        self, file_change_request: FileChangeRequest, contents: str = ""
+        self, file_change_request: FileChangeRequest, contents: str = "", branch = None
     ) -> tuple[str, str]:
         if not contents:
             contents = self.get_file(
-                file_change_request.filename
+                file_change_request.filename,
+                branch=branch
             ).decoded_content.decode("utf-8")
         # Add line numbers to the contents; goes in prompts but not github
         contents_line_numbers = "\n".join([f"{i + 1}:{line}" for i, line in enumerate(contents.split("\n"))])
@@ -387,7 +389,7 @@ class SweepBot(CodeGenBot, GithubBot):
         try:
             contents = self.get_file(file_change_request.filename, branch=branch)
             new_file_contents, file_name = self.modify_file(
-                file_change_request, contents.decoded_content.decode("utf-8")
+                file_change_request, contents.decoded_content.decode("utf-8"), branch
             )
             new_file_contents = format_contents(new_file_contents, file_markdown)
             new_file_contents = new_file_contents.rstrip()

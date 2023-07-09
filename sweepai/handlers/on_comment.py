@@ -128,7 +128,7 @@ def on_comment(
     try:
         logger.info("Fetching files to modify/create...")
         file_change_requests = sweep_bot.get_files_to_change()
-
+        file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
 
