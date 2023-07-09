@@ -1,9 +1,9 @@
-print())import re
-import time
+print())import time
 import shutil
 import glob
 import os
 import json
+import re
 from modal import stub
 from loguru import logger
 from redis import Redis
