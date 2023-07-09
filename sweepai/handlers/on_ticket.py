@@ -4,31 +4,26 @@ On Github ticket, get ChatGPT to deal with it
 
 # TODO: Add file validation
 
+import traceback
+
 import modal
 import openai
 from loguru import logger
-import modal
 from tabulate import tabulate
 
 from sweepai.core.entities import Snippet
 from sweepai.core.prompts import issue_comment_prompt
-from sweepai.core.prompts import (
-    reply_prompt,
-)
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.handlers.create_pr import create_pr
-from sweepai.core.prompts import issue_comment_prompt
 from sweepai.handlers.create_pr import create_pr, create_config_pr, safe_delete_sweep_branch
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
-from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.config import PREFIX, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, OPENAI_API_KEY, GITHUB_BOT_TOKEN
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.config import PREFIX, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, OPENAI_API_KEY, GITHUB_BOT_TOKEN, \
+    GITHUB_BOT_USERNAME
+from sweepai.utils.config import SweepConfig
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.chat_logger import ChatLogger, discord_log_error
-from sweepai.utils.config import SweepConfig
-import traceback
 
 github_access_token = GITHUB_BOT_TOKEN
 openai.api_key = OPENAI_API_KEY
@@ -137,7 +132,7 @@ def on_ticket(
     for pr in prs:
         # Check if this issue is mentioned in the PR, and pr is owned by bot
         # This is done in create_pr, (pr_description = ...)
-        if pr.user.login == SWEEP_LOGIN and f'Fixes #{issue_number}.\n' in pr.body:
+        if pr.user.login == GITHUB_BOT_USERNAME and f'Fixes #{issue_number}.\n' in pr.body:
             success = safe_delete_sweep_branch(pr, repo)
 
     # Add emojis
@@ -145,7 +140,7 @@ def on_ticket(
     # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
     reactions = item_to_react_to.get_reactions()
     for reaction in reactions:
-        if reaction.content == "rocket" and reaction.user.login == SWEEP_LOGIN:
+        if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
             item_to_react_to.delete_reaction(reaction.id)
 
     # Creates progress bar ASCII for 0-5 states
@@ -176,7 +171,7 @@ def on_ticket(
     issue_comment = None
     first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}"
     for comment in comments:
-        if comment.user.login == SWEEP_LOGIN:
+        if comment.user.login == GITHUB_BOT_USERNAME:
             issue_comment = comment
             issue_comment.edit(first_comment)
             break

@@ -19,10 +19,9 @@ from sweepai.core.entities import FileChangeRequest, Function, Message, PullRequ
 from sweepai.core.prompts import gradio_system_message_prompt
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.config import PREFIX, DB_MODAL_INST_NAME, API_MODAL_INST_NAME
-from sweepai.utils.github_utils import get_github_client, get_installation_id
-from sweepai.core.prompts import gradio_system_message_prompt
-from sweepai.utils.event_logger import posthog
 from sweepai.utils.config import SweepConfig
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import get_github_client, get_installation_id
 
 get_relevant_snippets = modal.Function.from_name(DB_MODAL_INST_NAME, "get_relevant_snippets")
 

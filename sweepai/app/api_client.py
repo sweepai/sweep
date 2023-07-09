@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Function, PullRequest, Snippet
-from sweepai.utils.config import PREFIX, SWEEP_API_ENDPOINT
+from sweepai.utils.config import SWEEP_API_ENDPOINT
 
 create_pr_function = Function(
     name="create_pr",

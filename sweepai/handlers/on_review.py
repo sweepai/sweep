@@ -6,9 +6,11 @@ from loguru import logger
 from sweepai.core.entities import DiffSummarization, PullRequestComment
 from sweepai.core.prompts import review_prompt
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.utils.github_utils import get_file_contents
-from sweepai.utils.prompt_constructor import HumanMessageFinalPRComment, HumanMessagePromptReview, HumanMessageReviewFollowup
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.github_utils import get_file_contents
+from sweepai.utils.prompt_constructor import HumanMessageFinalPRComment, HumanMessagePromptReview, \
+    HumanMessageReviewFollowup
+
 
 # Plan:
 # 1. Get PR
