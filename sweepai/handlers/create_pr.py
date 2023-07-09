@@ -15,7 +15,7 @@ from sweepai.handlers.on_review import review_pr
 from sweepai.utils.config import SweepConfig
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
-from sweepai.utils.constants import DB_NAME, PREFIX, DEFAULT_CONFIG, SWEEP_CONFIG_BRANCH
+from sweepai.utils.constants import DB_NAME, PREFIX, DEFAULT_CONFIG, SWEEP_CONFIG_BRANCH, SWEEP_LOGIN
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -140,18 +140,15 @@ def safe_delete_sweep_branch(
 def create_config_pr(
         sweep_bot: SweepBot,
 ):
-    pull_request = PullRequest(
-        title="Create `sweep.yaml` Config File",
-        content="I've created a `sweep.yaml` config file for you. Please review and merge it.",
-        branch_name=SWEEP_CONFIG_BRANCH,
-    )
-    pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name, retry=False)
+    title = "Create `sweep.yaml` Config File"
+    branch_name = SWEEP_CONFIG_BRANCH
+    branch_name = sweep_bot.create_branch(branch_name, retry=False)
     try:
         sweep_bot.repo.create_file(
             'sweep.yaml',
             'Create sweep.yaml config file',
             DEFAULT_CONFIG,
-            branch=pull_request.branch_name
+            branch=branch_name
         )
     except Exception as e:
         logger.error(e)
@@ -162,18 +159,27 @@ def create_config_pr(
         state="open",
         sort="created",
         base=SweepConfig.get_branch(sweep_bot.repo),
-        head=pull_request.branch_name,
+        head=branch_name,
     )
     for pr in pull_requests:
-        if pr.title == pull_request.title:
-            return pr.html_url
+        if pr.title == title:
+            return pr
 
     pr_description = "Config file allows for customization of Sweep."
     pr = sweep_bot.repo.create_pull(
-        title=pull_request.title,
-        body=pr_description,
-        head=pull_request.branch_name,
+        title=title,
+        body=
+"""🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
+
+## What's new?
+- **Sweep is now configurable**. 
+- To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
+- If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.com/invite/sweep-ai) for help.
+
+Thank you for using Sweep! 🧹
+""",
+        head=branch_name,
         base=SweepConfig.get_branch(sweep_bot.repo),
     )
 
-    return pr.html_url
+    return pr
