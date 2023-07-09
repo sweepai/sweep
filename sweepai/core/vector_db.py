@@ -170,7 +170,7 @@ def get_deeplake_vs_from_repo(
                         scores.append(score)
                         continue
                 commits = list(repo.get_commits(path=file_path, sha=branch_name))
-                score = compute_score(contents, commits)
+                score = new_scoring_function(file_path)
                 if cache_success:
                     cache.set(cache_key, json.dumps(score), ex=60 * 60 * 2)
                 scores.append(score)
