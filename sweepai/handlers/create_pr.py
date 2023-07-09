@@ -72,6 +72,7 @@ def create_pr(
 
         # Include issue number in PR description
         if issue_number:
+            # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)
             pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
         else:
             pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
@@ -130,7 +131,6 @@ def safe_delete_sweep_branch(
         branch = repo.get_git_ref(f"heads/{pr.head.ref}")
         # pr.edit(state='closed')
         branch.delete()
-        preexisting_branch = pr.head.ref
         return True
     else:
         # Failed to delete branch as it was edited by someone else

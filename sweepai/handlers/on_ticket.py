@@ -108,7 +108,8 @@ def on_ticket(
     prs = repo.get_pulls(state='open', sort='created', base=SweepConfig.get_branch(repo))
     for pr in prs:
         # Check if this issue is mentioned in the PR, and pr is owned by bot
-        if pr.user.login == SWEEP_LOGIN and f'({issue_url})' in pr.body:
+        # This is done in create_pr, (pr_description = ...)
+        if pr.user.login == SWEEP_LOGIN and f'Fixes #{issue_number}.\n' in pr.body:
             success = safe_delete_sweep_branch(pr, repo)
 
     # Add emojis
