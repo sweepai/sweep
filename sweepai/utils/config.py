@@ -1,3 +1,4 @@
+from functools import lru_cache
 from loguru import logger
 import yaml
 from github.Repository import Repository
@@ -17,14 +18,21 @@ class SweepConfig(BaseModel):
     def from_yaml(cls, yaml_str: str) -> "SweepConfig":
         data = yaml.safe_load(yaml_str)
         return cls.parse_obj(data)
-    
+
     @staticmethod
-    def get_branch(repo: Repository) -> "SweepConfig":
+    @lru_cache(maxsize=None)
+    def get_branch(repo: Repository) -> str:
+        default_branch = repo.default_branch
         try:
             contents = repo.get_contents(".github/sweep.yaml")
-            branch = yaml.safe_load(contents.decoded_content.decode("utf-8"))["branch"]
-            repo.create_branch(branch)
-            return branch
+            branch_name = yaml.safe_load(contents.decoded_content.decode("utf-8"))["branch"]
+            try:
+                repo.get_branch(branch_name)
+                return branch_name
+            except Exception as e:
+                logger.warning(f"Error when getting branch: {e}, creating branch")
+                repo.create_git_ref(f"refs/heads/{branch_name}", repo.get_branch(default_branch).commit.sha)
+                return branch_name
         except Exception as e:
             logger.warning(f"Error when getting branch: {e}, falling back to default branch")
-            return repo.default_branch
+            return default_branch

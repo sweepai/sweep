@@ -8,8 +8,9 @@ from loguru import logger
 import shutil
 
 from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
-from sweepai.app.config import SweepChatConfig
+from sweepai.app.config import State, SweepChatConfig
 from sweepai.core.entities import Snippet
+from sweepai.utils.config import SweepConfig
 
 config = SweepChatConfig.load()
 
@@ -62,7 +63,7 @@ def get_files_recursively(root_path, path=''):
 
         if os.path.isfile(entry_path):
             try:
-                with open(entry_path, 'r') as file:
+                with open(entry_path, 'r', encoding="utf-8", errors="ignore") as file:
                     contents = file.read()
                 path_to_contents[entry_path[len(root_path) + 1:]] = contents
                 files.append(entry_path[len(root_path) + 1:])
@@ -96,18 +97,22 @@ def get_files(repo_full_name):
         except:
             return []
         repo = github_client.get_repo(repo_full_name)
+        branch_name = SweepConfig.get_branch(repo)
         repo_url = f"https://x-access-token:{config.github_pat}@github.com/{repo_full_name}.git"
         try:
             repo_dir = os.path.join(tempfile.gettempdir(), repo_full_name)
             if os.path.exists(repo_dir):
                 git_repo = Repo(repo_dir)
-                git_repo.remotes.origin.pull()
             else:
-                Repo.clone_from(repo_url, repo_dir)
+                git_repo = Repo.clone_from(repo_url, repo_dir)
+            git_repo.git.checkout(branch_name)
+            git_repo.remotes.origin.pull()
         except Exception as e:
             logger.warning(f"Git pull failed with error {e}, deleting cache and recloning...")
             shutil.rmtree(repo_dir)
-            Repo.clone_from(repo_url, repo_dir)
+            git_repo = Repo.clone_from(repo_url, repo_dir)
+            git_repo.git.checkout(branch_name)
+            git_repo.remotes.origin.pull()
         all_files, path_to_contents = get_files_recursively(repo_dir)
     return all_files
 
@@ -119,22 +124,26 @@ def get_files_update(*args):
         repo = config.repo_full_name
     return gr.Dropdown.update(choices=get_files(repo))
 
+global_state = config.state
+
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
     print("Launching gradio!")
     with gr.Row():
-        with gr.Column():
-            repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
-        print("Indexing files...")
         with gr.Column(scale=2):
-            file_names = gr.Dropdown(choices=get_files(config.repo_full_name), multiselect=True, label="Files")
+            repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=lambda: config.repo_full_name or "")
+        print("Indexing files...")
+        with gr.Column(scale=4):
+            file_names = gr.Dropdown(choices=get_files(config.repo_full_name), multiselect=True, label="Files", value=lambda: global_state.file_paths)
         print("Indexed files!")
         repo_full_name.change(get_files_update, repo_full_name, file_names)
+        with gr.Column(scale=1):
+            restart_button = gr.Button("Restart")
 
     with gr.Row():
         with gr.Column(scale=2):
-            chatbot = gr.Chatbot(height=750)
+            chatbot = gr.Chatbot(height=750, value=lambda: global_state.chat_history)
         with gr.Column():
-            snippets_text = gr.Markdown(value="### Relevant snippets", elem_id="snippets")
+            snippets_text = gr.Markdown(value=lambda: global_state.snippets_text, elem_id="snippets")
     
     with gr.Row():
         with gr.Column(scale=8):
@@ -142,7 +151,10 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         with gr.Column(scale=0.5):
             create_pr_button = gr.Button(value="Create PR", interactive=False)
 
-    # proposed_pr: str | None = None
+    restart_button.click(lambda: ([], []), [], [file_names, chatbot])
+
+    file_names.change(get_files_update, repo_full_name, chatbot)
+
     searched = False
     selected_snippets = []
     file_to_str = {}
@@ -163,8 +175,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             api_client.config = config
             raise e
 
-    repo_full_name.change(repo_name_change, [repo_full_name], [msg])
-
     def build_string():
         global selected_snippets
         global file_to_str
@@ -175,6 +185,8 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         snippets_text = "### Relevant snippets:\n" + "\n\n".join([file_to_str[snippet.file_path] for snippet in selected_snippets])
         return snippets_text
 
+    repo_full_name.change(repo_name_change, [repo_full_name], [msg])
+
     def add_file_to_dict(file_name):
         global file_to_str
         global path_to_contents
@@ -182,12 +194,12 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         if file_name in path_to_contents:
             file_contents = path_to_contents[file_name]
         else:
-            file_contents = repo.get_contents(file_name).decoded_content.decode('utf-8')
+            file_contents = repo.get_contents(file_name, ref=SweepConfig.get_branch(repo)).decoded_content.decode('utf-8')
         file_contents_split = file_contents.split("\n")
         length = len(file_contents_split)
         backtick, escaped_backtick = "`", "\\`"
         preview = "\n".join(file_contents_split[:3]).replace(backtick, escaped_backtick)
-        file_to_str[file_name] = f'{file_name}:0:{length}\n```python\n{preview}\n...\n```'
+        file_to_str[file_name] = f'{file_name}:0:{length}\n```\n{preview}\n...\n```'
     
     def file_names_change(file_names):
         global selected_snippets
@@ -203,7 +215,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             raise Exception("Set the repository name first")
         return gr.update(value="", interactive=False), history + [[user_message, None]], gr.Button.update(interactive=True)
 
-    def handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, file_names):
+    def _handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, file_names):
         global selected_snippets
         global searched
         message = chat_history[-1][0]
@@ -246,7 +258,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             if chunk.get("content"):
                 token = chunk["content"]
                 chat_history[-1][1] += token
-                yield chat_history, snippets_text, file_names, "Create PR"
+                yield chat_history, snippets_text, file_names
             if chunk.get("function_call"):
                 function_call = chunk["function_call"]
                 function_name = function_name or function_call.get("name")
@@ -266,7 +278,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
                     summary=arguments["summary"],
                     plan="\n".join([f"* `{item['file_path']}`: {item['instructions']}" for item in arguments["plan"]])
                 )
-                yield chat_history, snippets_text, file_names, "Create PR"
+                yield chat_history, snippets_text, file_names
                 pull_request = api_client.create_pr(
                     file_change_requests=[(item["file_path"], item["instructions"]) for item in arguments["plan"]],
                     pull_request={
@@ -277,9 +289,21 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
                     messages=chat_history,
                 )
                 chat_history.append((None, f"✅ PR created at {pull_request['html_url']}"))
-                yield chat_history, snippets_text, file_names, "Create PR"
+                yield chat_history, snippets_text, file_names
             else:
                 raise NotImplementedError
+    
+    def handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, file_paths):
+        global global_state
+        for chat_history, snippets_text, file_paths in _handle_message_stream(chat_history, snippets_text, file_paths):
+            global_state = State(
+                chat_history=chat_history,
+                snippets_text=snippets_text,
+                file_paths=file_paths,
+            )
+            config.state = global_state
+            config.save()
+            yield chat_history, snippets_text, file_paths
 
     response = msg \
         .submit(handle_message_submit, [repo_full_name, msg, chatbot], [msg, chatbot, create_pr_button], queue=False)\
