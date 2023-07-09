@@ -74,7 +74,6 @@ async def webhook(raw_request: Request):
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
         if event == "issues" and request_dict.get("action", None) == "opened":
-            # Copy the code inside the corresponding case block
             request = IssueRequest(**request_dict)
             issue_title_lower = request.issue.title.lower()
             if issue_title_lower.startswith("sweep") or "sweep:" in issue_title_lower:
@@ -102,7 +101,6 @@ async def webhook(raw_request: Request):
                 current_issue = repo.get_issue(number=request.issue.number)
                 current_issue.add_to_labels(LABEL_NAME)
         elif event == "issues" and request_dict.get("action", None) == "labeled":
-            # Copy the code inside the corresponding case block
             if 'label' in request_dict and str.lower(request_dict['label']['name']) == LABEL_NAME:
                 request = IssueRequest(**request_dict)
                 request.issue.body = request.issue.body or ""
@@ -122,7 +120,6 @@ async def webhook(raw_request: Request):
                     request.installation.id,
                 )
         elif event == "issue_comment" and request_dict.get("action", None) == "created":
-            # Copy the code inside the corresponding case block
             request = IssueCommentRequest(**request_dict)
             if request.issue is not None \
                 and "sweep" in [label.name.lower() for label in request.issue.labels] \
@@ -157,7 +154,6 @@ async def webhook(raw_request: Request):
                     pr_number=request.issue.number,
                 )
         elif event == "pull_request_review_comment" and request_dict.get("action", None) == "created":
-            # Copy the code inside the corresponding case block
             request = CommentCreatedRequest(**request_dict)
             if "sweep/" in request.pull_request.head.ref.lower():
                 handle_comment.spawn(
@@ -171,11 +167,9 @@ async def webhook(raw_request: Request):
                     pr_number=request.pull_request.number,
                 )
         elif event == "pull_request_review" and request_dict.get("action", None) == "submitted":
-            # Copy the code inside the corresponding case block
             # Todo: update index on comments
             pass
         elif event == "installation_repositories" and request_dict.get("action", None) == "added":
-            # Copy the code inside the corresponding case block
             repos_added_request = ReposAddedRequest(**request_dict)
             metadata = {
                 "installation_id": repos_added_request.installation.id,
@@ -203,7 +197,6 @@ async def webhook(raw_request: Request):
                     installation_id=repos_added_request.installation.id,
                 )
         elif event == "installation" and request_dict.get("action", None) == "created":
-            # Copy the code inside the corresponding case block
             repos_added_request = InstallationCreatedRequest(**request_dict)
             for repo in repos_added_request.repositories:
                 index_full_repository(
@@ -211,7 +204,6 @@ async def webhook(raw_request: Request):
                     installation_id=repos_added_request.installation.id,
                 )
         elif event == "pull_request" and request_dict.get("action", None) == "closed":
-            # Copy the code inside the corresponding case block
             pr_request = PRRequest(**request_dict)
             organization, repo_name = pr_request.repository.full_name.split("/")
             commit_author = pr_request.pull_request.user.login
@@ -231,16 +223,13 @@ async def webhook(raw_request: Request):
                 installation_id=request_dict["installation"]["id"],
             )
         elif event == "push" and request_dict.get("action", None) == None:
-            # Copy the code inside the corresponding case block
             update_index.spawn(
                 request_dict["repository"]["full_name"],
                 installation_id=request_dict["installation"]["id"],
             )
         elif event == "ping" and request_dict.get("action", None) == None:
-            # Copy the code inside the corresponding case block
             return {"message": "pong"}
         else:
-            # Copy the code inside the default case block
             logger.info(
                 f"Unhandled event: {event} {request_dict.get('action', None)}"
             )
