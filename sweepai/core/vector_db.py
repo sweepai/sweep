@@ -1,4 +1,4 @@
-print())import glob
+print())print()import glob
 import os
 import json
 import re
@@ -19,7 +19,7 @@ from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
 
-print()
+print(
 import time
 import shutil
 
