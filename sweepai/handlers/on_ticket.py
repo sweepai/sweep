@@ -17,14 +17,15 @@ from sweepai.core.prompts import (
 )
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.core.prompts import issue_comment_prompt
-from sweepai.handlers.create_pr import create_pr
+from sweepai.handlers.create_pr import create_pr, create_config_pr
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.constants import DB_NAME, PREFIX, UTILS_NAME
+from sweepai.utils.constants import DB_NAME, PREFIX, UTILS_NAME, SWEEP_LOGIN
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.config import SweepConfig
 import traceback
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
@@ -102,8 +103,21 @@ def on_ticket(
         return {"success": False, "reason": "Issue is closed"}
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
 
+    # Check if branch was already created for this issue
+    preexisting_branch = None
+    prs = repo.get_pulls(state='open', sort='created', base=SweepConfig.get_branch(repo))
+    for pr in prs:
+        # Check if this issue is mentioned in the PR, and pr is owned by bot
+        if pr.user.login == SWEEP_LOGIN and f'({issue_url})' in pr.body:
+            success = safe_delete_sweep_branch(pr, repo)
+
     # Add emojis
     eyes_reaction = item_to_react_to.create_reaction("eyes")
+    # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
+    reactions = item_to_react_to.get_reactions()
+    for reaction in reactions:
+        if reaction.content == "rocket" and reaction.user.login == SWEEP_LOGIN:
+            item_to_react_to.delete_reaction(reaction.id)
 
     # Creates progress bar ASCII for 0-5 states
     progress_headers = [
@@ -114,19 +128,24 @@ def on_ticket(
         "Step 4: ⌨️ Coding",
         "Step 5: 🔁 Code Review"
     ]
-    def get_progress_bar(index, errored=False, pr_message=""):
+
+    config_pr_url = None
+    def get_comment_header(index, errored=False, pr_message=""):
+        config_pr_message = ("\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})" if config_pr_url is not None else "")
         if index < 0: index = 0
         if index == 5:
-            return pr_message
+            return pr_message + config_pr_message
         index *= 20
         index = min(100, index)
         if errored:
             return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
-        return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + ("\n" + stars_suffix if index != -1 else "")
+        return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + ("\n" + stars_suffix + config_pr_message if index != -1 else "")
 
-    issue_comment = current_issue.create_comment(f"{get_progress_bar(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}")
+    comments = current_issue.get_comments()
+    issue_comment = current_issue.create_comment(f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}")
     past_messages = {}
     def comment_reply(message: str, index: int, pr_message = ""):
+        # -1 = error, -2 = retry
         # Only update the progress bar if the issue generation errors.
         errored = (index == -1)
         current_index = index
@@ -149,9 +168,8 @@ def on_ticket(
             agg_message = "## Error: 🚫 Unable to Complete PR\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
 
         # Update the issue comment
-        issue_comment.edit(f"{get_progress_bar(current_index, errored, pr_message)}\n{sep}{agg_message}{bot_suffix}")
+        issue_comment.edit(f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{bot_suffix}")
 
-    comments = current_issue.get_comments()
     replies_text = ""
     if comment_id:
         replies_text = "\nComments:\n" + "\n".join(
@@ -271,6 +289,34 @@ def on_ticket(
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger
     )
+
+
+    # Delete past sweep-bot comments
+    for comment in comments:
+        print('GITHUB COMMENT: ', comment.user.login)
+        print('GITHUB BODY: ', comment.body)
+        if comment.user.login == SWEEP_LOGIN and comment.id != issue_comment.id:
+            comment.delete()
+
+    # Check repository for sweep.yml file.
+    sweep_yml_exists = False
+    for content_file in repo.get_contents(""):
+        if content_file.name == "sweep.yaml":
+            sweep_yml_exists = True
+            break
+    print('SWEEP YAML: ', sweep_yml_exists)
+
+    # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
+    if not sweep_yml_exists:
+        try:
+            logger.info("Creating sweep.yaml file...")
+            config_pr_url = create_config_pr(sweep_bot)
+            comment_reply(message="", index=-2)
+        except Exception as e:
+            logger.error("Failed to create new branch for sweep.yaml file.\n", e)
+    # Todo: create pull-request but do not attach it to the issue.
+
+
     sweepbot_retries = 3
     try:
         for i in range(sweepbot_retries):
