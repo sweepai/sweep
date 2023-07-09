@@ -33,7 +33,7 @@ class ChatLogger(BaseModel):
     def get_chat_history(self, filters):
         return self.chat_collection.find(filters) \
             .sort([('expiration', 1), ('index', 1)]) \
-            .limit(40)
+            .limit(200)
 
     def add_chat(self, additional_data):
         document = {**self.data, **additional_data, 'expiration': self.expiration, 'index': self.index}

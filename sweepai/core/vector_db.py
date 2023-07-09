@@ -182,8 +182,17 @@ def get_deeplake_vs_from_repo(
             file_paths.append(file_path)
             file_contents.append(contents)
             try:
+                cache_key = f"{repo_name}-{file_path}-{CACHE_VERSION}"
+                if cache_success:
+                    cached_value = cache.get(cache_key)
+                    if cached_value:
+                        score = json.loads(cached_value)
+                        scores.append(score)
+                        continue
                 commits = list(repo.get_commits(path=file_path, sha=branch_name))
-                score, logit = compute_score(contents, commits)
+                score = compute_score(contents, commits)
+                if cache_success:
+                    cache.set(cache_key, json.dumps(score), ex=60 * 60 * 2)
                 scores.append(score)
             except Exception as e:
                 logger.warning(f"Received warning {e}, skipping...")
@@ -221,7 +230,7 @@ def compute_deeplake_vs(collection_name,
         # Check cache here for all documents
         embeddings = [None] * len(documents)
         if cache_success:
-            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + sha + CACHE_VERSION for doc in documents]
+            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in documents]
             cache_values = cache.mget(cache_keys)
             for idx, value in enumerate(cache_values):
                 if value is not None:
@@ -242,7 +251,7 @@ def compute_deeplake_vs(collection_name,
         if cache_success: cache.set(f"github-{sha}{CACHE_VERSION}", json.dumps({"metadatas": metadatas, "ids": ids, "embeddings": embeddings}))
         if cache_success and len(documents_to_compute) > 0:
             logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
-            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + sha + CACHE_VERSION for doc in documents_to_compute]
+            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in documents_to_compute]
             cache.mset({key: json.dumps(value) for key, value in zip(cache_keys, computed_embeddings)})
         return deeplake_vs
     else:
