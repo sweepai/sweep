@@ -15,7 +15,7 @@ from sweepai.core.prompts import (
     system_message_issue_comment_prompt,
 )
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.config import UTILS_MODAL_INST_NAME, ANTHROPIC_API_KEY
+from sweepai.utils.config import UTILS_MODAL_INST_NAME, ANTHROPIC_API_KEY, OPENAI_DO_HAVE_32K_MODEL_ACCESS
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 # TODO: combine anthropic and openai
@@ -25,20 +25,26 @@ AnthropicModel = (
     | Literal["claude-v1.3-100k"]
     | Literal["claude-instant-v1.1-100k"]
 )
-OpenAIModel = Literal["gpt-3.5-turbo"] | Literal["gpt-4"] | Literal["gpt-4-32k"] | Literal["gpt-4-0613"] | Literal["gpt-4-32k-0613"] | Literal["gpt-3.5-turbo-16k-0613"]
+OpenAIModel = Literal["gpt-3.5-turbo"] | Literal["gpt-4"] | Literal["gpt-4-0613"] | Literal["gpt-3.5-turbo-16k-0613"]
+
 ChatModel = OpenAIModel | AnthropicModel
 model_to_max_tokens = {
     "gpt-3.5-turbo": 4096,
     "gpt-4": 8192,
     "gpt-4-0613": 8192,
-    "gpt-4-32k": 32000,
-    "gpt-4-32k-0613": 32000,
     "claude-v1": 9000,
     "claude-v1.3-100k": 100000,
     "claude-instant-v1.3-100k": 100000,
     "gpt-3.5-turbo-16k-0613": 16000,
 }
 temperature = 0.1
+
+if OPENAI_DO_HAVE_32K_MODEL_ACCESS:
+    OpenAIModel = OpenAIModel | Literal["gpt-4-32k"] | Literal["gpt-4-32k-0613"]
+    model_to_max_tokens["gpt-4-32k"] = 32000
+    model_to_max_tokens["gpt-4-32k-0613"] = 32000
+
+
 
 def format_for_anthropic(messages: list[Message]) -> str:
     if len(messages) > 1:
@@ -62,7 +68,7 @@ class ChatGPT(BaseModel):
         )
     ]
     prev_message_states: list[list[Message]] = []
-    model: ChatModel = "gpt-4-32k-0613"
+    model: ChatModel = "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
     human_message: HumanMessagePrompt | None = None
     file_change_paths = []
     chat_logger: ChatLogger | None = None

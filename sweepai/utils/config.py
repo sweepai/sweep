@@ -69,6 +69,7 @@ SWEEP_API_ENDPOINT = os.environ.get('SWEEP_API_ENDPOINT', f"https://sweepai--{PR
 
 # goes under Modal 'openai-secret' secret name
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
+OPENAI_DO_HAVE_32K_MODEL_ACCESS = os.environ.get('OPENAI_DO_HAVE_32K_MODEL_ACCESS', 'true').lower() == 'true'
 
 # goes under Modal 'huggingface' secret name
 HUGGINGFACE_API_KEY = os.environ.get('HUGGINGFACE_API_KEY')
