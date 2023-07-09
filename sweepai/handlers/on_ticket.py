@@ -5,6 +5,7 @@ On Github ticket, get ChatGPT to deal with it
 # TODO: Add file validation
 
 import os
+from sweepai.utils.config import SweepConfig
 import openai
 
 from loguru import logger
@@ -125,6 +126,9 @@ def on_ticket(
     repo = g.get_repo(repo_full_name)
     current_issue = repo.get_issue(number=issue_number)
     if current_issue.state == 'closed':
+        # Check if label_only is True and if the issue doesn't have the required label
+        if SweepConfig.label_only and not any(label.name == 'required_label' for label in current_issue.labels):
+            return
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
@@ -442,4 +446,3 @@ def on_ticket(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
     return {"success": True}
-
