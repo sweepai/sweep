@@ -145,6 +145,7 @@ extension_to_language = {
     "ejs": "embedded-template",
     "html": "embedded-template",
     "vue": "vue",
+    "php": "php",
 }
 
 @stub.cls(
@@ -156,7 +157,7 @@ class Chunking:
     def __enter__(self):
         from tree_sitter import Language
 
-        LANGUAGE_NAMES = ["python", "java", "cpp", "go", "rust", "ruby"]
+        LANGUAGE_NAMES = ["python", "java", "cpp", "go", "rust", "ruby", "php"]
         for language in LANGUAGE_NAMES:
             subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-{language} cache/tree-sitter-{language}", shell=True)
         for language in LANGUAGE_NAMES:

@@ -11,6 +11,7 @@ import modal
 from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import review_pr
+from sweepai.utils.config import SweepConfig
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.constants import DB_NAME, PREFIX
@@ -54,7 +55,19 @@ def create_pr(
     try:
         logger.info("Making PR...")
         pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
-        sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
+        completed_count, fcr_count = sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
+        if completed_count == 0 and fcr_count != 0:
+            logger.info("No changes made")
+            posthog.capture(
+                username,
+                "failed",
+                properties={
+                    "error": "No changes made",
+                    "reason": "No changes made",
+                    **metadata,
+                },
+            )
+            return {"success": False, "error": "No changes made"}
 
         # Include issue number in PR description
         if issue_number:
@@ -66,7 +79,7 @@ def create_pr(
             title=pull_request.title,
             body=pr_description,
             head=pull_request.branch_name,
-            base=sweep_bot.repo.default_branch,
+            base=SweepConfig.get_branch(sweep_bot.repo),
         )
     except openai.error.InvalidRequestError as e:
         logger.error(e)

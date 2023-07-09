@@ -21,6 +21,8 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
 from fastapi import HTTPException, Request
 
+from pymongo import MongoClient
+
 stub = modal.Stub(API_NAME)
 image = (
     modal.Image.debian_slim()
@@ -37,7 +39,9 @@ image = (
         "GitPython",
         "posthog",
         "tqdm",
-        "pyyaml"
+        "pyyaml",
+        "pymongo",
+        "tabulate"
     )
 )
 secrets = [
@@ -46,6 +50,8 @@ secrets = [
     modal.Secret.from_name("anthropic"),
     modal.Secret.from_name("posthog"),
     modal.Secret.from_name("highlight"),
+    modal.Secret.from_name("mongodb"),
+    modal.Secret.from_name("discord")
 ]
 
 FUNCTION_SETTINGS = {
@@ -60,7 +66,6 @@ handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
 handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
 update_index = modal.Function.lookup(DB_NAME, "update_index")
-
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
@@ -101,9 +106,7 @@ async def webhook(raw_request: Request):
                     current_issue.add_to_labels(LABEL_NAME)
             case "issues", "labeled":
                 request = IssueRequest(**request_dict)
-                if request.issue is not None and (
-                    "sweep" in [label.name.lower() for label in request.issue.labels]
-                ):
+                if 'label' in request_dict and str.lower(request_dict['label']['name']) == LABEL_NAME:
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
                         request.repository.description or ""

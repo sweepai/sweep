@@ -8,6 +8,7 @@ from sweepai.core.sweep_bot import SweepBot
 
 from sweepai.utils.github_utils import get_file_contents
 from sweepai.utils.prompt_constructor import HumanMessageFinalPRComment, HumanMessagePromptReview, HumanMessageReviewFollowup
+from sweepai.utils.chat_logger import ChatLogger
 
 # Plan:
 # 1. Get PR
@@ -54,9 +55,26 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
         pr_message=pr.body or "",
     )
     summarization_replies = []
+
+    chat_logger = ChatLogger({
+        'repo_name': repo_name,
+        'title': '(Review) ' + title,
+        'summary': summary + replies_text,
+        "issue_url": issue_url,
+        "username": username,
+        "repo_description": repo_description,
+        "issue_url": issue_url,
+        "username": username,
+        "repo_description": repo_description,
+        "title": title,
+        "summary": summary,
+        "replies_text": replies_text,
+        "tree": tree,
+        "type": "review",
+    })
     sweep_bot = SweepBot.from_system_message_content(
         # human_message=human_message, model="claude-v1.3-100k", repo=repo, is_reply=False
-        human_message=human_message, repo=repo, is_reply=False
+        human_message=human_message, repo=repo, is_reply=False, chat_logger=chat_logger
     )
     summarization_reply = sweep_bot.chat(review_prompt, message_key="review")
     extracted_summary = DiffSummarization.from_string(summarization_reply)

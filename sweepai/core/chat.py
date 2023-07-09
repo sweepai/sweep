@@ -1,7 +1,7 @@
 from copy import deepcopy
 import json
 import os
-from typing import Generator, Iterator, Literal, Self
+from typing import Iterator, Literal, Self
 
 import modal
 import openai
@@ -21,6 +21,7 @@ from sweepai.core.prompts import (
 from sweepai.utils.constants import UTILS_NAME
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.core.entities import Message, Function
+from sweepai.utils.chat_logger import ChatLogger
 
 # TODO: combine anthropic and openai
 
@@ -69,6 +70,7 @@ class ChatGPT(BaseModel):
     model: ChatModel = "gpt-4-32k-0613"
     human_message: HumanMessagePrompt | None = None
     file_change_paths = []
+    chat_logger: ChatLogger | None = None
 
     @classmethod
     def from_system_message_content(
@@ -76,13 +78,19 @@ class ChatGPT(BaseModel):
     ) -> Self:
         if is_reply:
             system_message_content = system_message_issue_comment_prompt
-        system_message_content = (
-            system_message_prompt + "\n\n" + human_message.construct_prompt()
-        )
+
+        # Todo: This moves prompts away from unified system message prompt
+        # system_message_prompt + "\n\n" + human_message.construct_prompt()
+        messages = [
+           Message(role="system", content=system_message_prompt, key="system")
+       ]
+
+        added_messages = human_message.construct_prompt() # [ { role, content }, ... ]
+        for msg in added_messages:
+            messages.append(Message(**msg))
+
         return cls(
-            messages=[
-                Message(role="system", content=system_message_content, key="system")
-            ],
+            messages = messages,
             human_message=human_message,
             **kwargs,
         )
@@ -105,9 +113,9 @@ class ChatGPT(BaseModel):
             ][0]
         return [message for message in self.messages if message.key == message_key][0]
 
-    def delete_messages_from_chat(self, message_key: str):
+    def delete_messages_from_chat(self, key_to_delete: str):
         self.messages = [
-            message for message in self.messages if message.key != message_key
+            message for message in self.messages if key_to_delete not in (message.key or '')
         ]
 
     def delete_file_from_system_message(self, file_path: str):
@@ -144,8 +152,8 @@ class ChatGPT(BaseModel):
         is_function_call = False
         if model in [args.__args__[0] for args in OpenAIModel.__args__]:
             # might be a bug here in all of this
-            response = self.call_openai(model=model, functions=functions, function_name=function_name)
             if functions:
+                response = self.call_openai(model=model, functions=functions, function_name=function_name)
                 response, is_function_call = response
                 if is_function_call:
                     self.messages.append(
@@ -217,8 +225,9 @@ class ChatGPT(BaseModel):
                 retry_counter += 1
                 token_sub = retry_counter * 200
                 try:
+                    output = None
                     if function_name:
-                        return (
+                        output = (
                             openai.ChatCompletion.create(
                                 model=model,
                                 messages=self.messages_dicts,
@@ -230,16 +239,26 @@ class ChatGPT(BaseModel):
                             .choices[0].message
                         )
                     else:
-                        return (
-                        openai.ChatCompletion.create(
-                            model=model,
-                            messages=self.messages_dicts,
-                            max_tokens=max_tokens - token_sub,
-                            temperature=temperature,
-                            functions=[json.loads(function.json()) for function in functions],
+                        output = (
+                            openai.ChatCompletion.create(
+                                model=model,
+                                messages=self.messages_dicts,
+                                max_tokens=max_tokens - token_sub,
+                                temperature=temperature,
+                                functions=[json.loads(function.json()) for function in functions],
+                            )
+                            .choices[0].message
                         )
-                        .choices[0].message
-                    )
+                    if self.chat_logger is not None: self.chat_logger.add_chat({
+                        'model': model,
+                        'messages': self.messages_dicts,
+                        'max_tokens': max_tokens - token_sub,
+                        'temperature': temperature,
+                        'functions': [json.loads(function.json()) for function in functions],
+                        'function_call': function_name,
+                        'output': output,
+                    })
+                    return output
                 except Exception as e:
                     logger.warning(e)
                     raise e
@@ -263,7 +282,7 @@ class ChatGPT(BaseModel):
                 retry_counter += 1
                 token_sub = retry_counter * 200
                 try:
-                    return openai.ChatCompletion.create(
+                    output = openai.ChatCompletion.create(
                             model=model,
                             messages=self.messages_dicts,
                             max_tokens=max_tokens - token_sub,
@@ -271,6 +290,14 @@ class ChatGPT(BaseModel):
                         ) \
                         .choices[0] \
                         .message["content"]
+                    if self.chat_logger is not None: self.chat_logger.add_chat({
+                        'model': model,
+                        'messages': self.messages_dicts,
+                        'max_tokens': max_tokens - token_sub,
+                        'temperature': temperature,
+                        'output': output
+                    })
+                    return output
                 except Exception as e:
                     logger.warning(e)
                     raise e
