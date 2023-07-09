@@ -10,6 +10,7 @@ import shutil
 from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Snippet
+from sweepai.utils.config import SweepConfig
 
 config = SweepChatConfig.load()
 
@@ -96,18 +97,22 @@ def get_files(repo_full_name):
         except:
             return []
         repo = github_client.get_repo(repo_full_name)
+        branch_name = SweepConfig.get_branch(repo)
         repo_url = f"https://x-access-token:{config.github_pat}@github.com/{repo_full_name}.git"
         try:
             repo_dir = os.path.join(tempfile.gettempdir(), repo_full_name)
             if os.path.exists(repo_dir):
                 git_repo = Repo(repo_dir)
-                git_repo.remotes.origin.pull()
             else:
-                Repo.clone_from(repo_url, repo_dir)
+                git_repo = Repo.clone_from(repo_url, repo_dir)
+            git_repo.git.checkout(branch_name)
+            git_repo.remotes.origin.pull()
         except Exception as e:
             logger.warning(f"Git pull failed with error {e}, deleting cache and recloning...")
             shutil.rmtree(repo_dir)
-            Repo.clone_from(repo_url, repo_dir)
+            git_repo = Repo.clone_from(repo_url, repo_dir)
+            git_repo.git.checkout(branch_name)
+            git_repo.remotes.origin.pull()
         all_files, path_to_contents = get_files_recursively(repo_dir)
     return all_files
 
@@ -182,7 +187,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         if file_name in path_to_contents:
             file_contents = path_to_contents[file_name]
         else:
-            file_contents = repo.get_contents(file_name).decoded_content.decode('utf-8')
+            file_contents = repo.get_contents(file_name, ref=SweepConfig.get_branch(repo)).decoded_content.decode('utf-8')
         file_contents_split = file_contents.split("\n")
         length = len(file_contents_split)
         backtick, escaped_backtick = "`", "\\`"

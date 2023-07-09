@@ -124,15 +124,16 @@ def get_file_list(root_directory: str) -> str:
 #     shutil.rmtree("repo")
 #     return tree
 def get_tree_and_file_list(
-    repo_name: str, 
+    repo: Repository, 
     installation_id: int, 
     snippet_paths: list[str]
 ) -> str:
     from git import Repo
     token = get_token(installation_id)
     shutil.rmtree("repo", ignore_errors=True)
-    repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
-    Repo.clone_from(repo_url, "repo")
+    repo_url = f"https://x-access-token:{token}@github.com/{repo.full_name}.git"
+    git_repo = Repo.clone_from(repo_url, "repo")
+    git_repo.git.checkout(SweepConfig.get_branch(repo))
 
     prefixes = []
     for snippet_path in snippet_paths:
@@ -191,7 +192,7 @@ def search_snippets(
         else:
             snippet.content = file_contents
     tree, file_list = get_tree_and_file_list(
-        repo.full_name, 
+        repo, 
         installation_id, 
         snippet_paths=[snippet.file_path for snippet in snippets]
     )
