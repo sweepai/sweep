@@ -1,38 +1,6 @@
-
-<p align="center">
-    <img src="https://github.com/sweepai/sweep/assets/26889185/39d500fc-9276-402c-9ec7-3e61f57ad233">
-</p>
-<p align="center">
-    <i>Bug Reports & Feature Requests ⟶&nbsp; Code Changes</i>
-</p>
-
-<p align="center">
-<a href="https://sweep.dev">
-    <img alt="Landing Page" src="https://img.shields.io/badge/Site-sweep.dev-blue?link=https%3A%2F%2Fsweep.dev">
-</a>
-<a href="https://docs.sweep.dev/">
-    <img alt="Docs" src="https://img.shields.io/badge/Docs-docs.sweep.dev-blue?link=https%3A%2F%2Fdocs.sweep.dev">
-</a> 
-<a href="https://discord.gg/sweep-ai">
-    <img src="https://dcbadge.vercel.app/api/server/sweep-ai?style=flat" />
-</a>
-<img alt="PyPI" src="https://img.shields.io/pypi/v/sweepai">
-<a href="https://pepy.tech/project/sweepai">
-    <img src="https://static.pepy.tech/badge/sweepai/week" />
-</a>
-<a href="https://github.com/sweepai/sweep">
-    <img src="https://img.shields.io/github/stars/sweepai/sweep" />
-</a>
-<a href="https://twitter.com/sweep__ai">
-    <img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Ftwitter.com%2Fsweep__ai" />
-</a>
-</p>
-
 <b>Sweep</b> allows you to create and review GitHub issues with ease.
 Simply describe any issue and Sweep will do the rest.
-It will plan out what needs to be done, what changes to make, and write the changes to a PR. 
-
-Supported languages: Python, Javascript/Typescript, Rust, Go, Java/C#, C++ and anything else GPT-4 supports
+It will plan out what needs to be done, what changes to make, and write the changes to a PR.
 
 ---
 
@@ -123,4 +91,3 @@ Consider starring us if you're using Sweep so more people hear about us!
 <p align="center">
     and, of course, Sweep!
 </p>
-
