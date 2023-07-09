@@ -100,7 +100,6 @@ class GithubBot(BaseModel):
     repo: Repository
 
     def get_contents(self, path: str, branch: str = ""):
-        logger.info(f"Using {branch}")
         if not branch:
             branch = SweepConfig.get_branch(self.repo)
         try:
