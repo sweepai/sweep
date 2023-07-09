@@ -1,4 +1,4 @@
-import json
+print())import json
 import os
 import re
 import time
@@ -81,7 +81,7 @@ class Embedding:
         from sentence_transformers import SentenceTransformer
 
         self.model = SentenceTransformer(
-            SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
+            SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR, device='cpu'
         )
 
     @method()
@@ -336,4 +336,3 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
-
