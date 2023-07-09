@@ -1,5 +1,4 @@
-print())import shutil
-import glob
+print())import glob
 import os
 import json
 import re
@@ -22,6 +21,7 @@ from ..utils.config import SweepConfig
 
 print()
 import time
+import shutil
 
 # TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_NAME)
