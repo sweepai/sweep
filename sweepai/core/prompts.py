@@ -6,48 +6,47 @@ List of common prompts used across the codebase.
 system_message_prompt = "Your name is Sweep bot. You are a brilliant and thorough engineer assigned to the following Github ticket. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes."
 system_message_issue_comment_prompt = "Your name is Sweep bot. You are a brilliant and thorough engineer assigned to the following Github ticket, and a user has just responded with feedback. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes."
 
-human_message_prompt = """
-<relevant_snippets_in_repo>
+
+human_message_prompt = [
+{'role': 'assistant', 'content': 'Examining repo...'},
+{'role': 'user', 'content': """<relevant_snippets_in_repo>
 {relevant_snippets}
-</relevant_snippets_in_repo>
-
-<relevant_paths_in_repo>
+</relevant_snippets_in_repo>"""},
+{'role': 'user', 'content': """<relevant_paths_in_repo>
 {relevant_directories}
-</relevant_paths_in_repo>
-
-<repo_tree>
+</relevant_paths_in_repo>"""},
+{'role': 'user', 'content': """<repo_tree>
 {tree}
-</repo_tree>
-
+</repo_tree>"""},
+{'role': 'user', 'content':
+"""# Repo & Issue Metadata
 Repo: {repo_name}: {repo_description}
 Issue Url: {issue_url}
 Username: {username}
 Issue Title: {title}
-Issue Description: {description}
-"""
+Issue Description: {description}"""}]
 
-human_message_review_prompt = """
-<relevant_snippets_in_repo>
+
+human_message_review_prompt = [
+{'role': 'assistant', 'content': 'Reviewing my pull request...'},
+{'role': 'user', 'content': """<relevant_snippets_in_repo>
 {relevant_snippets}
-</relevant_snippets_in_repo>
-
-<relevant_paths_in_repo>
+</relevant_snippets_in_repo>"""},
+{'role': 'user', 'content': """<relevant_paths_in_repo>
 {relevant_directories}
-</relevant_paths_in_repo>
-
-<repo_tree>
+</relevant_paths_in_repo>"""},
+{'role': 'user', 'content': """"<repo_tree>
 {tree}
-</repo_tree>
-
-These are the file changes.
+</repo_tree>"""},
+{'role': 'user', 'content':
+"""These are the file changes.
 We have the file_path, the previous_file_content, the new_file_content, and the diffs.
 The file_path is the name of the file.
 The previous_file_content is the content of the file before the changes.
 The new_file_content is the content of the file after the changes.
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
-{diffs}
-"""
+{diffs}"""}]
 
 diff_section_prompt = """
 <file_path>
@@ -123,37 +122,38 @@ issue_comment_prompt = """
 """
 
 # Prompt for comments
-human_message_prompt_comment = """
-<relevant_snippets_in_repo>
+human_message_prompt_comment = [
+{'role': 'assistant', 'content': 'Reviewing my pull request...'},
+{'role': 'user', 'content':
+"""<relevant_snippets_in_repo>
 {relevant_snippets}
-</relevant_snippets_in_repo>
-
-<relevant_paths_in_repo>
+</relevant_snippets_in_repo>"""},
+{'role': 'user', 'content': """<relevant_paths_in_repo>
 {relevant_directories}
-</relevant_paths_in_repo>
-
-<repo_tree>
+</relevant_paths_in_repo>"""},
+    {'role': 'user', 'content': """<repo_tree>
 {tree}
-</repo_tree>
-
+</repo_tree>"""},
+{'role': 'user', 'content':
+"""# Repo, Issue, & PR Metadata
 Repo: {repo_name}: {repo_description}
 Issue Url: {issue_url}
 Username: {username}
 Pull Request Title: {title}
-Pull Request Description: {description}
-
-These are the file changes.
+Pull Request Description: {description}"""},
+{'role': 'user', 'content':
+"""These are the file changes.
 We have the file_path, the previous_file_content, the new_file_content, and the diffs.
 The file_path is the name of the file.
 The previous_file_content is the content of the file before the changes.
 The new_file_content is the content of the file after the changes.
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
-{diff}
-Please handle the user review comment, taking into account the snippets, paths, tree, pull request title, pull request description, and the file changes.
+{diff}"""},
+{'role': 'user', 'content':
+"""Please handle the user review comment, taking into account the snippets, paths, tree, pull request title, pull request description, and the file changes.
 Sometimes the user may not request changes, don't change anything in that case.
-User pull request review: {comment}
-"""
+User pull request review: {comment}"""}]
 
 comment_line_prompt = """\
 The user made the review in this file: {pr_file_path}
@@ -194,11 +194,9 @@ Step-by-step thoughts with explanations:
 """
 
 reply_prompt = """
-Write a response to this user:
-* Ping the user.
+Write a 1-paragraph response to this user:
 * Tell them you have started working on this PR and a rough summary of your plan. 
 * Do not start with "Here is a draft", just write the response.
-* End with "Give me a minute!".
 * Use github markdown to format the response.
 """
 
@@ -217,6 +215,7 @@ Step-by-step thoughts with explanations:
 * Thought 1 - Explanation 1
 * Thought 2 - Explanation 2
 ...
+
 Detailed plan of additions:
 * Addition 1
 * Addition 2
@@ -245,19 +244,30 @@ File Name: {filename}
 {code}
 </old_file>
 
-Your instructions to modify the file are: "{instructions}".
+Your instructions to modify the file are: "{instructions}". Limit your changes to the instructions.
 
 Step-by-step thoughts with explanations: 
 * Thought 1 - Explanation 1
 * Thought 2 - Explanation 2
 ...
+
 Detailed plan of modifications:
 * Modification 1
 * Modification 2
 ...
-"""
 
+Lines to change in the file:
+* lines a-b
+...
+
+Only include the line numbers."""
+
+#<snippets>
+#{snippets}
+#</snippets>
 modify_file_prompt = """
+File contains lines {line_numbers}
+
 Generate a new_file based on the given plan, ensuring that you:
 1. Do not write "pass" statements.
 2. Provide complete functions with actual business logic. It is imperative that we do not leave any work to the user/future readers of this code.
@@ -269,25 +279,79 @@ Generate a new_file based on the given plan, ensuring that you:
 Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copied>0-25</copied>"). Make sure to use this exact format.
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copied>0-50</copied>".
 
-Example: New file:
-print("new file")
-</new_file>
-
-Example: Insert at end:
-<copied>0-100</copied>
-print("inserted at end")
-</new_file>
-
-Example: If you want to insert code after lines 50 and 75:
+Example: If you want to modify lines 51-52 and add line after line 75:
 <new_file>
-<copied>0-50</copied>
+<copied>1-50</copied>
 def main():
      print("hello world")
-<copied>51-75</copied>
+<copied>53-75</copied>
 print("debug statement")
 <copied>76-100</copied>
 </new_file>
+
+Do not rewrite entire file. Use <copied> XML tag when possible.
 """
+
+
+modify_file_prompt_2 = """
+File Name: {filename}
+<old_file>
+{code}
+</old_file>
+
+---
+
+Code Planning:
+```
+Step-by-step thoughts with explanations: 
+* Thought 1 - Explanation 1
+* Thought 2 - Explanation 2
+...
+
+Detailed plan of modifications:
+* Modification 1
+* Modification 2
+...
+
+Lines to change in the file:
+* lines a-b
+...
+```
+
+Code Generation:
+```
+Generate a new_file based on the given plan, ensuring that you:
+1. Do not write "pass" statements.
+2. Provide complete functions with actual business logic. It is imperative that we do not leave any work to the user/future readers of this code.
+3. Do not write new "todo" comments.
+4. Do not write incomplete functions.
+5. Do not write the original line numbers with the new code.
+6. Make sure the new code follows the same programming language conventions as the old code.
+
+Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copy_lines A-B>"). Make sure to use this exact format.
+Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copy_lines 1-50>".
+
+Example: If you want to modify lines 51-52 and add line after line 75:
+<new_file>
+<copy_lines 1-50>
+def main():
+     print("hello world")
+<copy_lines 53-75>
+print("debug statement")
+<copy_lines 76-100>
+</new_file>
+
+Do not rewrite entire file. Use <copy_lines A-B> XML tag when possible. Do not include the line numbers in the new file.
+```
+
+Context: "{instructions}". Limit your changes to the context.
+Instructions:
+- Complete Code Planning step
+- Complete Code Generation step"""
+
+
+
+
 
 pr_code_prompt = ""  # TODO: deprecate this
 
@@ -343,14 +407,6 @@ code_repair_system_prompt = """\
 You are a genius trained for code repair. 
 You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the difference betwen the user_code and the original code, and the code inside <user_code></user_code> is a user's attempt at adding a change described as {feature}. 
 Our goal is to return a working version of user_code that follows {feature}.
-
-Instructions:
-* Keep the logic changes from user_code.
-* Fix any issues using our knowledge of both the diff and user_code files. 
-* Fix syntax errors and accidentally deleted lines.
-* Do not perform code style cleanup.
-* Do not add or remove any whitespace besides what is necessary to fix syntax errors.
-* Do not add or remove any comments.
 """
 
 code_repair_prompt = """\
@@ -360,7 +416,14 @@ code_repair_prompt = """\
 <user_code>
 {user_code}
 </user_code>
-This is the user_code. 
+This is the user_code.
+Instructions:
+* Keep the logic changes from user_code.
+* Fix any issues using our knowledge of both the diff and user_code files. 
+* Fix syntax errors and accidentally deleted lines.
+* Do not perform code style cleanup.
+* Do not add or remove any whitespace besides what is necessary to fix syntax errors.
+* Do not add or remove any comments.
 Return the repaired user_code without xml tags. All of the text you return will be placed in the file. Revert any unrelated deletions to user_code, using the diff and described change.
 """
 

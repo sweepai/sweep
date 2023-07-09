@@ -40,7 +40,7 @@ class HumanMessagePrompt(BaseModel):
         return "\n".join([snippet.xml for snippet in self.snippets])
     
     def construct_prompt(self):
-        human_message = human_message_prompt.format(
+        human_messages = [{'role': msg['role'], 'content': msg['content'].format(
             repo_name=self.repo_name,
             issue_url=self.issue_url,
             username=self.username,
@@ -50,8 +50,8 @@ class HumanMessagePrompt(BaseModel):
             description=self.summary if self.summary else "No description provided.",
             relevant_snippets=self.render_snippets(),
             relevant_directories=self.get_relevant_directories(),
-        )
-        return human_message
+        )} for msg in human_message_prompt]
+        return human_messages
     
 class HumanMessagePromptReview(HumanMessagePrompt):
     pr_title: str
@@ -71,7 +71,7 @@ class HumanMessagePromptReview(HumanMessagePrompt):
         return "\n".join(formatted_diffs)
 
     def construct_prompt(self):
-        human_message = human_message_review_prompt.format(
+        human_messages = [{'role': msg['role'], 'content': msg['content'].format(
             repo_name=self.repo_name,
             issue_url=self.issue_url,
             username=self.username,
@@ -84,8 +84,9 @@ class HumanMessagePromptReview(HumanMessagePrompt):
             diffs=self.format_diffs(),
             pr_title=self.pr_title,
             pr_message=self.pr_message,
-        )
-        return human_message
+        )} for msg in human_message_review_prompt]
+
+        return human_messages
 
 class HumanMessageReviewFollowup(BaseModel):
     diff: tuple
@@ -118,7 +119,7 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
         return "\n".join(formatted_diffs)
 
     def construct_prompt(self):
-        human_message = human_message_prompt_comment.format(
+        human_messages = [{'role': msg['role'], 'content': msg['content'].format(
             comment=self.comment,
             repo_name=self.repo_name,
             repo_description=self.repo_description if self.repo_description else "",
@@ -130,17 +131,19 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
             description=self.summary if self.summary else "No description provided.",
             relevant_directories=self.get_relevant_directories(),
             relevant_snippets=self.render_snippets()
-        )
+        )} for msg in human_message_prompt_comment]
+
         if self.pr_file_path and self.pr_line:
             logger.info(f"Review Comment {self.comment}")
-            human_message += comment_line_prompt.format( 
+            human_messages.append({'role': 'user', 'content': comment_line_prompt.format(
                 pr_file_path=self.pr_file_path,
                 pr_line=self.pr_line
-            )
+            )})
         else:
             logger.info(f"General Comment {self.comment}")
-        return human_message
-    
+
+        return human_messages
+
 class HumanMessageFinalPRComment(BaseModel):
     summarization_replies: list
 

@@ -14,8 +14,9 @@ def start():
     """
     SweepChatConfig.load()
     from sweepai.app.ui import demo
+    print("\033[93m⭐ Remember to star our repo at https://github.com/sweepai/sweep! \033[0m")
     demo.queue()
-    demo.launch(enable_queue=True, inbrowser=True)
+    demo.launch(inbrowser=True)
     
 @typer_app.command()
 def auth():
@@ -24,6 +25,7 @@ def auth():
     """
     SweepChatConfig.load(recreate=True)
     print("Setup completed successfully!")
+    print("\033[93m⭐ Remember to star our repo at https://github.com/sweepai/sweep! \033[0m")
 
 def app():
     # hacky solution based on https://github.com/tiangolo/typer/issues/18#issuecomment-1577788949

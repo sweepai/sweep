@@ -10,6 +10,7 @@ from config_path import ConfigPath
 from pydantic import BaseModel
 
 from sweepai.utils.config import GITHUB_APP_CLIENT_ID
+from sweepai.core.entities import Snippet
 
 DEVICE_CODE_ENDPOINT = "https://github.com/login/device/code"
 USER_LOGIN_ENDPOINT = "https://github.com/login/device"
@@ -18,12 +19,18 @@ OAUTH_ACCESS_TOKEN_ENDPOINT = "https://github.com/login/oauth/access_token"
 config_path = ConfigPath( 'sweep_chat', 'sweep', '.yaml' )
 CONFIG_FILE = config_path.saveFilePath()
 
+class State(BaseModel):
+    file_paths: list[str] = []
+    chat_history: list[tuple[str | None, str | None]] = []
+    snippets_text: str = "### Relevant Snippets:"
+
 class SweepChatConfig(BaseModel):
     github_username: str
     github_pat: str # secret
     repo_full_name: str | None = None
     installation_id: int | None = None
-    version: str = "0.0.1"
+    state: State = State()
+    version: str = "0.0.2"
 
     @classmethod
     def create(cls):
