@@ -54,7 +54,7 @@ secrets = [
     modal.Secret.from_name("highlight"),
     modal.Secret.from_name("redis_url"),
     modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
-]]]
+]
 
 def init_deeplake_vs(repo_name):
     deeplake_repo_path = f"mem://{DEEPLAKE_FOLDER}{repo_name}"
@@ -71,7 +71,7 @@ def parse_collection_name(name: str) -> str:
 # Here, we modify the scoring function to meet the new requirements.
 def new_scoring_function(filename):
     # New scoring logic goes here.
-    pass
+    return len(filename)
 
 def get_deeplake_vs_from_repo(
     repo_name: str,
