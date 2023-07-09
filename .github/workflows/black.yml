@@ -10,5 +10,5 @@ jobs:
       uses: actions/checkout@v2
     - name: Run Black
       run: |
-        pip install black
+        pip install black==21.9b0
         black .
