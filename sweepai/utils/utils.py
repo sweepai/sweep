@@ -10,7 +10,7 @@ from modal import method
 from sweepai.utils.config import UTILS_MODAL_INST_NAME
 
 stub = modal.Stub(UTILS_MODAL_INST_NAME)
-tiktoken_image = modal.Image.debian_slim().pip_install("tiktoken", "loguru", "anthropic")
+tiktoken_image = modal.Image.debian_slim().pip_install("tiktoken", "loguru", "anthropic", "pyyaml")
 
 TIKTOKEN_CACHE_DIR = "/root/cache/tiktoken"
 tiktoken_volume = modal.SharedVolume().persist("tiktoken-models")
@@ -35,7 +35,7 @@ class Tiktoken:
 
 chunking_image = modal.Image.debian_slim() \
     .apt_install("git") \
-    .pip_install("tree-sitter", "loguru")
+    .pip_install("tree-sitter", "loguru", "pyyaml")
 
 CHUNKING_CACHE_DIR = "/root/cache/"
 chunking_volume = modal.SharedVolume().persist("chunking-parsers")
