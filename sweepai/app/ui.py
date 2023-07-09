@@ -1,17 +1,22 @@
 import json
+import os
+import tempfile
+from git import Repo
 from github import Github
 import gradio as gr
 from loguru import logger
-import webbrowser
+import shutil
+
 from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Snippet
+from sweepai.utils.config import SweepConfig
 
 config = SweepChatConfig.load()
 
 api_client = APIClient(config=config)
 
-pr_summary_template = '''💡 I'll create the following PR:
+pr_summary_template = '''⏳ I'm creating the following PR...
 
 **{title}**
 {summary}
@@ -19,10 +24,12 @@ pr_summary_template = '''💡 I'll create the following PR:
 Here is my plan:
 {plan}
 
-Reply with "ok" to create the PR or anything else to propose changes.'''
+Reply to propose changes to the plan.'''
 
+print("Getting list of repos...")
 github_client = Github(config.github_pat)
 repos = list(github_client.get_user().get_repos())
+print("Done.")
 
 css = '''
 footer {
@@ -36,29 +43,39 @@ pre, code {
     height: 750px;
     overflow-y: scroll;
 }
+#message_box > label > span {
+    display: none;
+}
 '''
 
-def get_files_recursively(repo, path=''):
+def get_files_recursively(root_path, path=''):
+    files = []
     path_to_contents = {}
-    try:
-        contents = repo.get_contents(path)
-        files = []
-        while contents:
-            file_content = contents.pop(0)
-            if file_content.type == 'dir':
-                contents.extend(repo.get_contents(file_content.path))
-            else:
-                try:
-                    decoded_contents = file_content.decoded_content.decode("utf-8")
-                except:
-                    continue
-                if decoded_contents:
-                    path_to_contents[file_content.path] = file_content.decoded_content.decode("utf-8")
-                    files.append(file_content.path)
-        return sorted(files), path_to_contents
-    except Exception as e:
-        logger.error(e)
-        return [], path_to_contents
+
+    if path == '.git':
+        return files, path_to_contents
+
+    current_dir = os.path.join(root_path, path)
+    entries = os.listdir(current_dir)
+
+    for entry in entries:
+        entry_path = os.path.join(current_dir, entry)
+
+        if os.path.isfile(entry_path):
+            try:
+                with open(entry_path, 'r') as file:
+                    contents = file.read()
+                path_to_contents[entry_path[len(root_path) + 1:]] = contents
+                files.append(entry_path[len(root_path) + 1:])
+            except UnicodeDecodeError as e:
+                logger.warning(f"Received warning {e}, skipping...")
+                continue
+        elif os.path.isdir(entry_path):
+            subfiles, subpath_to_contents = get_files_recursively(root_path, os.path.join(path, entry))
+            files.extend(subfiles)
+            path_to_contents.update(subpath_to_contents)
+
+    return files, path_to_contents
 
 def get_installation_id(repo_full_name):
     config.repo_full_name = repo_full_name
@@ -67,20 +84,36 @@ def get_installation_id(repo_full_name):
     return installation_id
 
 path_to_contents = {}
-def get_files(name):
+def get_files(repo_full_name):
     global path_to_contents
     global repo
-    if name is None:
+    if repo_full_name is None:
         all_files = []
     else:
         # Make sure repo is added to Sweep before checking all recursive files
         try:
-            installation_id = get_installation_id(name)
+            installation_id = get_installation_id(repo_full_name)
             assert installation_id
         except:
             return []
-        repo = github_client.get_repo(name)
-        all_files, path_to_contents = get_files_recursively(repo)
+        repo = github_client.get_repo(repo_full_name)
+        branch_name = SweepConfig.get_branch(repo)
+        repo_url = f"https://x-access-token:{config.github_pat}@github.com/{repo_full_name}.git"
+        try:
+            repo_dir = os.path.join(tempfile.gettempdir(), repo_full_name)
+            if os.path.exists(repo_dir):
+                git_repo = Repo(repo_dir)
+            else:
+                git_repo = Repo.clone_from(repo_url, repo_dir)
+            git_repo.git.checkout(branch_name)
+            git_repo.remotes.origin.pull()
+        except Exception as e:
+            logger.warning(f"Git pull failed with error {e}, deleting cache and recloning...")
+            shutil.rmtree(repo_dir)
+            git_repo = Repo.clone_from(repo_url, repo_dir)
+            git_repo.git.checkout(branch_name)
+            git_repo.remotes.origin.pull()
+        all_files, path_to_contents = get_files_recursively(repo_dir)
     return all_files
 
 def get_files_update(*args):
@@ -91,13 +124,15 @@ def get_files_update(*args):
         repo = config.repo_full_name
     return gr.Dropdown.update(choices=get_files(repo))
 
-
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
+    print("Launching gradio!")
     with gr.Row():
         with gr.Column():
             repo_full_name = gr.Dropdown(choices=[repo.full_name for repo in repos], label="Repo full name", value=config.repo_full_name or "")
+        print("Indexing files...")
         with gr.Column(scale=2):
             file_names = gr.Dropdown(choices=get_files(config.repo_full_name), multiselect=True, label="Files")
+        print("Indexed files!")
         repo_full_name.change(get_files_update, repo_full_name, file_names)
 
     with gr.Row():
@@ -105,10 +140,14 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             chatbot = gr.Chatbot(height=750)
         with gr.Column():
             snippets_text = gr.Markdown(value="### Relevant snippets", elem_id="snippets")
-    msg = gr.Textbox(label="Message to Sweep", placeholder="Write unit tests for OpenAI calls")
-    # clear = gr.ClearButton([msg, chatbot, snippets_text])
+    
+    with gr.Row():
+        with gr.Column(scale=8):
+            msg = gr.Textbox(placeholder="Send a message to Sweep", label=None, elem_id="message_box")
+        with gr.Column(scale=0.5):
+            create_pr_button = gr.Button(value="Create PR", interactive=False)
 
-    proposed_pr: str | None = None
+    # proposed_pr: str | None = None
     searched = False
     selected_snippets = []
     file_to_str = {}
@@ -123,7 +162,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             config.save()
             return ""
         except Exception as e:
-            webbrowser.open_new_tab("https://github.com/apps/sweep-ai")
             config.repo_full_name = None
             config.installation_id = None
             config.save()
@@ -149,7 +187,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         if file_name in path_to_contents:
             file_contents = path_to_contents[file_name]
         else:
-            file_contents = repo.get_contents(file_name).decoded_content.decode('utf-8')
+            file_contents = repo.get_contents(file_name, ref=SweepConfig.get_branch(repo)).decoded_content.decode('utf-8')
         file_contents_split = file_contents.split("\n")
         length = len(file_contents_split)
         backtick, escaped_backtick = "`", "\\`"
@@ -168,7 +206,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
     def handle_message_submit(repo_full_name: str, user_message: str, history: list[tuple[str | None, str | None]]):
         if not repo_full_name:
             raise Exception("Set the repository name first")
-        return gr.update(value="", interactive=False), history + [[user_message, None]]
+        return gr.update(value="", interactive=False), history + [[user_message, None]], gr.Button.update(interactive=True)
 
     def handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, file_names):
         global selected_snippets
@@ -192,23 +230,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             snippets_text = build_string()
             yield chat_history, snippets_text, file_names
         
-        global proposed_pr
-        if proposed_pr and chat_history[-1][0].strip().lower() in ("okay", "ok"):
-            chat_history[-1][1] = f"⏳ Creating PR..."
-            yield chat_history, snippets_text, file_names
-            pull_request = api_client.create_pr(
-                file_change_requests=[(item["file_path"], item["instructions"]) for item in proposed_pr["plan"]],
-                pull_request={
-                    "title": proposed_pr["title"],
-                    "content": proposed_pr["summary"],
-                    "branch_name": proposed_pr["branch"],
-                },
-                messages=chat_history,
-            )
-            chat_history[-1][1] = f"✅ PR created at {pull_request['html_url']}"
-            yield chat_history, snippets_text, file_names
-            return
-
         # Generate response
         logger.info("...")
         chat_history.append([None, "..."])
@@ -230,7 +251,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             if chunk.get("content"):
                 token = chunk["content"]
                 chat_history[-1][1] += token
-                yield chat_history, snippets_text, file_names
+                yield chat_history, snippets_text, file_names, "Create PR"
             if chunk.get("function_call"):
                 function_call = chunk["function_call"]
                 function_name = function_name or function_call.get("name")
@@ -250,13 +271,30 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
                     summary=arguments["summary"],
                     plan="\n".join([f"* `{item['file_path']}`: {item['instructions']}" for item in arguments["plan"]])
                 )
-                yield chat_history, snippets_text, file_names
-                proposed_pr = arguments
+                yield chat_history, snippets_text, file_names, "Create PR"
+                pull_request = api_client.create_pr(
+                    file_change_requests=[(item["file_path"], item["instructions"]) for item in arguments["plan"]],
+                    pull_request={
+                        "title": arguments["title"],
+                        "content": arguments["summary"],
+                        "branch_name": arguments["branch"],
+                    },
+                    messages=chat_history,
+                )
+                chat_history.append((None, f"✅ PR created at {pull_request['html_url']}"))
+                yield chat_history, snippets_text, file_names, "Create PR"
             else:
                 raise NotImplementedError
 
-    response = msg.submit(handle_message_submit, [repo_full_name, msg, chatbot], [msg, chatbot], queue=False).then(handle_message_stream, [chatbot, snippets_text, file_names], [chatbot, snippets_text, file_names])
+    response = msg \
+        .submit(handle_message_submit, [repo_full_name, msg, chatbot], [msg, chatbot, create_pr_button], queue=False)\
+        .then(handle_message_stream, [chatbot, snippets_text, file_names], [chatbot, snippets_text, file_names])
     response.then(lambda: gr.update(interactive=True), None, [msg], queue=False)
+
+    def on_create_pr_button_click(chat_history: list[tuple[str | None, str | None]], create_pr_button: str):
+        return chat_history + [(create_pr_button, None)]
+
+    create_pr_button.click(on_create_pr_button_click, [chatbot, create_pr_button], chatbot).then(handle_message_stream, [chatbot, snippets_text, file_names], [chatbot, snippets_text, file_names])
 
 
 if __name__ == "__main__":

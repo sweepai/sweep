@@ -18,6 +18,7 @@ from sweepai.utils.github_utils import (
 )
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
 from sweepai.utils.constants import PREFIX
+from sweepai.utils.chat_logger import ChatLogger
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -95,9 +96,26 @@ def on_comment(
             pr_line=pr_line, # may be None
         )
         logger.info(f"Human prompt{human_message.construct_prompt()}")
+
+        chat_logger = ChatLogger({
+            'repo_name': repo_name,
+            'title': '(Comment) ' + pr_title,
+            "issue_url": pr.html_url,
+            "pr_file_path": pr_file_path,  # may be None
+            "pr_line": pr_line,  # may be None
+            "repo_full_name": repo_full_name,
+            "repo_description": repo_description,
+            "comment": comment,
+            "pr_path": pr_path,
+            "pr_line_position": pr_line_position,
+            "username": username,
+            "installation_id": installation_id,
+            "pr_number": pr_number,
+            "type": "comment",
+        })
         sweep_bot = SweepBot.from_system_message_content(
             # human_message=human_message, model="claude-v1.3-100k", repo=repo
-            human_message=human_message, repo=repo, 
+            human_message=human_message, repo=repo, chat_logger=chat_logger
         )
     except Exception as e:
         posthog.capture(username, "failed", properties={
@@ -110,7 +128,7 @@ def on_comment(
     try:
         logger.info("Fetching files to modify/create...")
         file_change_requests = sweep_bot.get_files_to_change()
-
+        file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
 
