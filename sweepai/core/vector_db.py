@@ -1,5 +1,4 @@
-print())import os
-import re
+print())import re
 import time
 import shutil
 import glob
