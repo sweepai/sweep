@@ -7,6 +7,7 @@ import openai
 
 from loguru import logger
 import modal
+from github.Repository import Repository
 
 from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.core.sweep_bot import SweepBot
@@ -109,6 +110,32 @@ def create_pr(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("create_pr success")
     return {"success": True, "pull_request": pr}
+
+def safe_delete_sweep_branch(
+    pr, # Github PullRequest
+    repo: Repository,
+) -> bool:
+    """
+    Safely delete Sweep branch
+    1. Only edited by Sweep
+    2. Prefixed by sweep/
+    """
+    pr_commits = pr.get_commits()
+    pr_commit_authors = set([commit.author.login for commit in pr_commits])
+
+    # Check if only Sweep has edited the PR, and sweep/ prefix
+    if len(pr_commit_authors) == 1 \
+            and SWEEP_LOGIN in pr_commit_authors \
+            and pr.head.ref.startswith("sweep/"):
+        branch = repo.get_git_ref(f"heads/{pr.head.ref}")
+        # pr.edit(state='closed')
+        branch.delete()
+        preexisting_branch = pr.head.ref
+        return True
+    else:
+        # Failed to delete branch as it was edited by someone else
+        return False
+
 
 def create_config_pr(
         sweep_bot: SweepBot,
