@@ -11,5 +11,6 @@ poetry install
 # Install deeplake with pip
 echo "Installing deeplake with pip..."
 pip install deeplake
+echo "Installing black with Jupyter dependencies..."
+pip install black[jupyter]
 echo "Installation complete!"
-
