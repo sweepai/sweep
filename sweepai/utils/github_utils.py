@@ -168,21 +168,18 @@ def search_snippets(
     include_tree: bool = True,
     branch: str = None,
     sweep_config: SweepConfig = SweepConfig(),
-) -> tuple[Snippet, str]:
+) -> tuple[list[Snippet], str]:
     # Initialize the relevant directories string
     get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
     snippets: list[Snippet] = get_relevant_snippets.call(
         repo.full_name, query, num_files, installation_id=installation_id
     )
     logger.info(f"Snippets: {snippets}")
-    total_file_contents = 0
     # TODO: We should prioritize the mentioned files
     for snippet in snippets:
         try:
             file_contents = get_file_contents(repo, snippet.file_path, ref=branch)
-            if (
-                len(file_contents) > sweep_config.max_file_limit
-            ):  # more than 10000 tokens
+            if len(file_contents) > sweep_config.max_file_limit:  # more than ~10000 tokens
                 logger.warning(f"Skipping {snippet.file_path}, too many tokens")
                 continue
         except github.UnknownObjectException as e:
@@ -199,23 +196,21 @@ def search_snippets(
         if file_path in query:
             try:
                 file_contents = get_file_contents(repo, file_path, ref=branch)
-                if (
-                    len(file_contents) > sweep_config.max_file_limit
-                ):  # more than 10000 tokens
+                if len(file_contents) > sweep_config.max_file_limit:  # more than 10000 tokens
                     logger.warning(f"Skipping {file_path}, too many tokens")
                     continue
             except github.UnknownObjectException as e:
                 logger.warning(f"Error: {e}")
                 logger.warning(f"Skipping {file_path}")
             else:
-                snippets.append(
+                snippets = [
                     Snippet(
                         content=file_contents,
                         start=0,
                         end=file_contents.count("\n") + 1,
                         file_path=file_path,
                     )
-                )
+                ] + snippets
     snippets = [snippet.expand() for snippet in snippets]
     if include_tree:
         return snippets, tree
