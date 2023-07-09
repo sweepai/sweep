@@ -49,7 +49,36 @@ collapsible_template = '''
 chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 
 num_of_snippets_to_query = 30
-max_num_of_snippets = 5
+# max_num_of_snippets = 5
+total_number_of_snippet_tokens = 15_000
+num_full_files = 2
+num_extended_snippets = 2
+
+def post_process_snippets(snippets: list[Snippet]):
+    for snippet in snippets[:num_full_files]:
+        snippet = snippet.expand()
+
+    # snippet fusing
+    i = 0
+    while i < len(snippets):
+        j = i + 1
+        while j < len(snippets):
+            if snippets[i] ^ snippets[j]:  # this checks for overlap
+                snippets[i] = snippets[i] | snippets[j]  # merging
+                snippets.pop(j)
+            else:
+                j += 1
+        i += 1
+
+    # truncating snippets based on character length
+    result_snippets = []
+    total_length = 0
+    for snippet in snippets:
+        total_length += len(snippet.get_snippet())
+        if total_length > total_number_of_snippet_tokens * 5:
+            break
+        result_snippets.append(snippet)
+    return result_snippets
 
 def on_ticket(
     title: str,
@@ -78,9 +107,6 @@ def on_ticket(
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
-        "issue_number": issue_number,
-        "repo_full_name": repo_full_name,
-        "organization": organization,
         "repo_name": repo_name,
         "repo_description": repo_description,
         "username": username,
@@ -200,50 +226,8 @@ def on_ticket(
         )
         log_error("File Fetch", str(e))
         raise e
-
-    num_full_files = 2
-    num_extended_snippets = 2
-
-    most_relevant_snippets = snippets[:num_full_files]
-    snippets = snippets[:-num_full_files]
-    logger.info("Expanding snippets...")
-    for snippet in most_relevant_snippets:
-        current_snippet = snippet
-        _chunks, metadatas, _ids = chunker.call(
-            current_snippet.content,
-            current_snippet.file_path
-        )
-        segmented_snippets = [
-            Snippet(
-                content=current_snippet.content,
-                start=metadata["start"],
-                end=metadata["end"],
-                file_path=metadata["file_path"],
-            ) for metadata in metadatas
-        ]
-        index = 0
-        while index < len(segmented_snippets) and segmented_snippets[index].start <= current_snippet.start:
-            index += 1
-        index -= 1
-        for i in range(index + 1, min(index + num_extended_snippets + 1, len(segmented_snippets))):
-            current_snippet += segmented_snippets[i]
-        for i in range(index - 1, max(index - num_extended_snippets - 1, 0), -1):
-            current_snippet = segmented_snippets[i] + current_snippet
-        snippets.append(current_snippet)
-
-    # snippet fusing
-    i = 0
-    while i < len(snippets):
-        j = i + 1
-        while j < len(snippets):
-            if snippets[i] ^ snippets[j]:  # this checks for overlap
-                snippets[i] = snippets[i] | snippets[j]  # merging
-                snippets.pop(j)
-            else:
-                j += 1
-        i += 1
-
-    snippets = snippets[:min(len(snippets), max_num_of_snippets)]
+    
+    snippets = post_process_snippets(snippets)
 
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
