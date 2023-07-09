@@ -1,5 +1,4 @@
-print())import time
-import shutil
+print())import shutil
 import glob
 import os
 import json
@@ -21,8 +20,6 @@ from ..utils.github_utils import get_token
 from ..utils.constants import DB_NAME, BOT_TOKEN_NAME, ENV, UTILS_NAME
 from ..utils.config import SweepConfig
 
-print()
-print()
 print()
 import time
 
