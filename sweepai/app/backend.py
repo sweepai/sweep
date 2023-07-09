@@ -1,12 +1,13 @@
-import json
-from typing import Any
-import fastapi
+"""
+Proxy for the UI.
+"""
 from github import Github
 import modal
 from loguru import logger
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+import json
 
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.chat import ChatGPT
@@ -255,8 +256,6 @@ def _asgi_app():
             posthog.capture(request.config.github_username, "failed", properties={"error": str(e), **metadata})
             raise e
         def stream_chat():
-            for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=request.functions, function_call=request.function_call):
-                yield json.dumps(chunk)
             for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=request.functions, function_call=request.function_call):
                 yield json.dumps(chunk)
             posthog.capture(request.config.github_username, "success", properties=metadata)
