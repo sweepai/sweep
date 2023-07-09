@@ -9,7 +9,7 @@ def compute_score(contents, commits):
         line_count_score = line_count / 20
     commit_count = len(commits) + 1
     days_since_last_modified = max(((datetime.now() - commits[0].commit.author.date).total_seconds() // 3600), 0) + 1
-    return (line_count_score * commit_count / days_since_last_modified), (line_count_score, commit_count, days_since_last_modified)
+    return (line_count_score * commit_count / days_since_last_modified)
 
 def convert_to_percentiles(values):
     sorted_values = sorted(values)  # Sort the values in ascending order
