@@ -27,6 +27,7 @@ from sweepai.core.prompts import (
     modify_file_prompt_2,
     modify_file_plan_prompt,
 )
+from sweepai.utils.config import SweepConfig
 from sweepai.utils.constants import DB_NAME
 from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown, revert_whitespace_changes
 
@@ -100,7 +101,7 @@ class GithubBot(BaseModel):
 
     def get_contents(self, path: str, branch: str = ""):
         if not branch:
-            branch = self.repo.default_branch
+            branch = SweepConfig.get_branch(self.repo)
         try:
             return self.repo.get_contents(path, ref=branch)
         except Exception as e:
@@ -141,7 +142,7 @@ class GithubBot(BaseModel):
     def populate_snippets(self, snippets: list[Snippet]):
         for snippet in snippets:
             try:
-                snippet.content = self.repo.get_contents(snippet.file_path).decoded_content.decode("utf-8")
+                snippet.content = self.repo.get_contents(snippet.file_path, SweepConfig.get_branch(self.repo)).decoded_content.decode("utf-8")
             except Exception as e:
                 logger.error(snippet)
     
@@ -164,7 +165,7 @@ class GithubBot(BaseModel):
     def validate_file_change_requests(self, file_change_requests: list[FileChangeRequest]):
         for file_change_request in file_change_requests:
             try:
-                contents = self.repo.get_contents(file_change_request.filename)
+                contents = self.repo.get_contents(file_change_request.filename, SweepConfig.get_branch(self.repo))
                 if contents:
                     file_change_request.change_type = "modify"
                 else:
