@@ -16,6 +16,7 @@ from sweepai.app.config import SweepChatConfig
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Function, Message, PullRequest, Snippet
 from sweepai.core.sweep_bot import SweepBot
+from sweepai.utils.config import SweepConfig
 from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, PREFIX
 from sweepai.utils.github_utils import get_github_client, get_installation_id
 from sweepai.core.prompts import gradio_system_message_prompt
@@ -133,7 +134,7 @@ def _asgi_app():
             repo = g.get_repo(request.config.repo_full_name)
             for snippet in snippets:
                 try:
-                    snippet.content = repo.get_contents(snippet.file_path).decoded_content.decode("utf-8")
+                    snippet.content = repo.get_contents(snippet.file_path, SweepConfig.get_branch(repo)).decoded_content.decode("utf-8")
                 except Exception:
                     logger.error(snippet)
         except Exception as e:
@@ -182,7 +183,7 @@ def _asgi_app():
 
             def file_exists(file_path: str) -> bool:
                 try:
-                    repo.get_contents(file_path)
+                    repo.get_contents(file_path, SweepConfig.get_branch(repo))
                     return True
                 except Exception:
                     return False
