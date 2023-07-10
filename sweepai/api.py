@@ -182,13 +182,13 @@ async def webhook(raw_request: Request):
                     # handle_check_suite
                 logs = None
                 # Must be Sweep firing the PR and it must fail
-                if request.sender.login == SWEEP_LOGIN and request.check_run.conclusion == "failure":
+                if request.sender.login == SWEEP_LOGIN and request.check_run.conclusion == "failure": 
                     logs = handle_check_suite.call(request)
                 if len(request.check_run.pull_requests) > 0 and logs:
                     handle_comment.spawn(
                         repo_full_name=request.repository.full_name,
                         repo_description=request.repository.description,
-                        comment=logs,
+                        comment="Sweep: " + logs,
                         pr_path=None,
                         pr_line_position=None,
                         username=request.sender.login,
