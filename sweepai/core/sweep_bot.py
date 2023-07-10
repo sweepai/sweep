@@ -17,7 +17,7 @@ from sweepai.core.entities import (
     PullRequest,
     RegexMatchError,
     Function,
-    Snippet
+    Snippet, NoFilesException
 )
 from sweepai.core.chat import ChatGPT
 from sweepai.core.prompts import (
@@ -28,15 +28,17 @@ from sweepai.core.prompts import (
     modify_file_plan_prompt,
 )
 from sweepai.utils.config import SweepConfig
-from sweepai.utils.constants import DB_NAME
+from sweepai.utils.constants import DB_NAME, SECONDARY_MODEL
 from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown, revert_whitespace_changes
 
 
 class CodeGenBot(ChatGPT):
 
-    def get_files_to_change(self):
+    def get_files_to_change(self, retries=2):
         file_change_requests: list[FileChangeRequest] = []
-        for count in range(5):
+        # Todo: put retries into a constants file
+        # also, this retries multiple times as the calls for this function are in a for loop
+        for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
                 files_to_change_response = self.chat(files_to_change_prompt, message_key="files_to_change") # Dedup files to change here
@@ -74,17 +76,23 @@ class CodeGenBot(ChatGPT):
                 logger.warning("Failed to parse! Retrying...")
                 self.delete_messages_from_chat("files_to_change")
                 continue
-        raise Exception("Could not generate files to change")
+        raise NoFilesException()
 
-    def generate_pull_request(self) -> PullRequest:
-        pull_request = None
-        for count in range(5):
+    def generate_pull_request(self, retries=5) -> PullRequest:
+        for count in range(retries):
+            too_long = False
             try:
                 logger.info(f"Generating for the {count}th time...")
-                pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
+                if too_long or count == retries - 2: # if on last try, use gpt4-32k (improved context window)
+                    pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
+                else:
+                    pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)
                 self.delete_messages_from_chat("pull_request")
             except Exception as e:
-                logger.warning(f"Exception {e}. Failed to parse! Retrying...")
+                e_str = str(e)
+                if "too long" in e_str:
+                    too_long = True
+                logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
                 self.delete_messages_from_chat("pull_request")
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
@@ -120,7 +128,7 @@ class GithubBot(BaseModel):
         except Exception:
             return False
 
-    def create_branch(self, branch: str) -> str:
+    def create_branch(self, branch: str, retry=True) -> str:
         # Generate PR if nothing is supplied maybe
         base_branch = self.repo.get_branch(SweepConfig.get_branch(self.repo))
         try:
@@ -128,15 +136,20 @@ class GithubBot(BaseModel):
             return branch
         except GithubException as e:
             logger.error(f"Error: {e}, trying with other branch names...")
-            for i in range(1, 100):
-                try:
-                    logger.warning(f"Retrying {branch}_{i}...")
-                    self.repo.create_git_ref(
-                        f"refs/heads/{branch}_{i}", base_branch.commit.sha
-                    )
-                    return f"{branch}_{i}"
-                except GithubException:
-                    pass
+            if retry:
+                for i in range(1, 100):
+                    try:
+                        logger.warning(f"Retrying {branch}_{i}...")
+                        self.repo.create_git_ref(
+                            f"refs/heads/{branch}_{i}", base_branch.commit.sha
+                        )
+                        return f"{branch}_{i}"
+                    except GithubException:
+                        pass
+            else:
+                new_branch = self.repo.get_branch(branch)
+                if new_branch:
+                    return new_branch.name
             raise e
     
     def populate_snippets(self, snippets: list[Snippet]):
@@ -328,7 +341,6 @@ class SweepBot(CodeGenBot, GithubBot):
                         code_repairer = CodeRepairer(chat_logger=self.chat_logger)
                         diff = generate_diff(old_code=contents, new_code=new_file)
                         new_file = code_repairer.repair_code(diff=diff, user_code=new_file, feature=file_change_request.instructions)
-                        # new_file = revert_whitespace_changes(original_file_str=contents, modified_file_str=new_file)
                     return (new_file, file_change_request.filename)
                 except Exception as e:
                     logger.warning(f"Recieved error {e}")

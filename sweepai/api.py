@@ -125,6 +125,7 @@ async def webhook(raw_request: Request):
                     )
             case "issue_comment", "created":
                 request = IssueCommentRequest(**request_dict)
+                # if replying to an issue with sweep label
                 if request.issue is not None \
                     and "sweep" in [label.name.lower() for label in request.issue.labels] \
                     and request.comment.user.type == "User":
@@ -145,6 +146,7 @@ async def webhook(raw_request: Request):
                         request.installation.id,
                         request.comment.id
                     )
+                # if replying to a pr created by Sweep
                 elif request.issue.pull_request and request.issue.user.login == SWEEP_LOGIN and request.comment.user.type == "User": # TODO(sweep): set a limit                    
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     handle_comment.spawn(
