@@ -11,6 +11,8 @@ poetry install
 # Install deeplake with pip
 echo "Installing deeplake with pip..."
 pip install deeplake
+# Add a new line after the "pip install deeplake" command to install the "black[jupyter]" package
+pip install 'black[jupyter]'
 echo "Installing black with Jupyter dependencies..."
 pip install black[jupyter]
 echo "Installation complete!"
