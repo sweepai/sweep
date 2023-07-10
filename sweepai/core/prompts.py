@@ -398,9 +398,9 @@ Gather information (i.e. fetch more snippets) to solve the problem. Use "create_
 """
 
 code_repair_system_prompt = """\
-Your job is to take a diff and a user's attempt at adding a change and return a working version of the user's code.
+You are a genius trained for code stitching.
 You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the difference betwen the user_code and the original code, and the code inside <user_code></user_code> is a user's attempt at adding a change described as {feature}. 
-Our goal is to return a working version of user_code that follows {feature}.
+Our goal is to return a working version of user_code that follows {feature} while making as few edits as possible.
 """
 
 code_repair_prompt = """\
@@ -412,12 +412,15 @@ code_repair_prompt = """\
 </user_code>
 This is the user_code.
 Instructions:
-* Keep the logic changes from user_code.
-* Fix syntax errors and accidentally deleted lines, only focusing on the code around the diff.
-* Do not perform code style cleanup.
-* Do not add or remove whitespace outside of the diff.
-* Do not add or remove any comments outside of the doff.
-Return the repaired user_code without xml tags. All of the text you return will be placed in the file. Revert any unrelated deletions to user_code, using the diff and described change.
+* The user_code may have accidental additions and deletions before and after the code that needs to be added. You can revert these changes.
+* Fix syntax errors and formatting, but only around lines mentioned in the diff.
+* Be as minimal as possible with the changes you make to user_code.
+* Add or remove whitespaces, but only around lines mentioned in the diff.
+* Add or remove comments, but only around lines mentioned in the diff.
+* Clean up the code, but only around lines mentioned in the diff.
+* Do not change the logic in user_code.
+
+Return the repaired user_code without xml tags. All of the text you return will be placed in the file.
 """
 
 gradio_system_message_prompt = """Your name is Sweep bot. You are a brilliant and thorough engineer assigned to assist the following user with their problems in the Github repo. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes. If the user asks you to create a PR, you will use the create_pr function.
