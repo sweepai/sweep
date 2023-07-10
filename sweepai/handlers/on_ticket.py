@@ -137,7 +137,9 @@ def on_ticket(
         # This is done in create_pr, (pr_description = ...)
         if pr.user.login == SWEEP_LOGIN and f'Fixes #{issue_number}.\n' in pr.body:
             success = safe_delete_sweep_branch(pr, repo)
-
+    comments = current_issue.get_comments()
+    if comment_id and not comments[-1].body.lower().startswith("sweep"):
+        return {"success": True, "reason": "Comment does not start with 'Sweep', passing"}
     # Add emojis
     eyes_reaction = item_to_react_to.create_reaction("eyes")
     # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
@@ -167,8 +169,6 @@ def on_ticket(
         if errored:
             return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
         return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + ("\n" + stars_suffix + config_pr_message if index != -1 else "")
-
-    comments = current_issue.get_comments()
 
     # Find the first comment made by the bot
     issue_comment = None
