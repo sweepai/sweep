@@ -28,7 +28,7 @@ from sweepai.core.prompts import (
     modify_file_plan_prompt,
 )
 from sweepai.utils.config import SweepConfig
-from sweepai.utils.constants import DB_NAME
+from sweepai.utils.constants import DB_NAME, SECONDARY_MODEL
 from sweepai.utils.diff import format_contents, generate_new_file, is_markdown
 
 
@@ -77,11 +77,10 @@ class CodeGenBot(ChatGPT):
         raise Exception("Could not generate files to change")
 
     def generate_pull_request(self) -> PullRequest:
-        pull_request = None
         for count in range(5):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
+                pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)
                 self.delete_messages_from_chat("pull_request")
             except Exception as e:
                 logger.warning(f"Exception {e}. Failed to parse! Retrying...")

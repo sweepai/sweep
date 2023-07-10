@@ -2,7 +2,7 @@
 This file should be split into environment and config files
 """
 
-PREFIX = "dev"
+PREFIX = "prod"
 DB_NAME = PREFIX + "-db"
 API_NAME = PREFIX + "-api"
 UTILS_NAME = PREFIX + "-utils"
@@ -29,4 +29,6 @@ LABEL_DESCRIPTION = "Sweep your software chores"
 
 SWEEP_CONFIG_BRANCH = "sweep/add-sweep-config"
 DEFAULT_CONFIG = """# Reference: https://github.com/sweepai/sweep/blob/main/sweep.yaml
-branch: "dev"""
+branch: dev"""
+
+SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
