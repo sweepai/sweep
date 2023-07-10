@@ -225,3 +225,7 @@ class PullRequestComment(RegexMatchableBaseModel):
     changes_required: str
     content: str
     _regex = r"""<changes_required>(?P<changes_required>.*)<\/changes_required>(\s+)<review_comment>(?P<content>.*)<\/review_comment>"""
+
+class NoFilesException(Exception):
+    def __init__(self, message="Sweep could not find any files to modify"):
+        super().__init__(message)
