@@ -78,11 +78,14 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    def generate_pull_request(self) -> PullRequest:
-        for count in range(5):
+    def generate_pull_request(self, retries=5) -> PullRequest:
+        for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)
+                if count == retries - 1: # if on last try, use gpt4-32k (improved context window)
+                    pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
+                else:
+                    pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)
                 self.delete_messages_from_chat("pull_request")
             except Exception as e:
                 logger.warning(f"Exception {e}. Failed to parse! Retrying...")
