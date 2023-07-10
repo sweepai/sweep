@@ -75,11 +75,16 @@ def on_comment(
         snippets, tree = search_snippets(repo, comment, installation_id, branch=branch_name, num_files=1 if pr_path else 3)
         pr_line = None
         pr_file_path = None
+        # This means it's a comment on a file
         if pr_path and pr_line_position:
             pr_file = repo.get_contents(pr_path, ref=branch_name).decoded_content.decode("utf-8")
             pr_lines = pr_file.splitlines()
             pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
             pr_file_path = pr_path.strip()
+        # This means it's a comment on the PR
+        else:
+            if not comment.strip().lower().startswith("sweep"):
+                return {"success": True, "message": "No event fired."}
 
         logger.info("Getting response from ChatGPT...")
         human_message = HumanMessageCommentPrompt(
