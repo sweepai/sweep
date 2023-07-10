@@ -404,7 +404,7 @@ Gather information (i.e. fetch more snippets) to solve the problem. Use "create_
 """
 
 code_repair_system_prompt = """\
-You are a genius trained for code repair. 
+Your job is to take a diff and a user's attempt at adding a change and return a working version of the user's code.
 You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the difference betwen the user_code and the original code, and the code inside <user_code></user_code> is a user's attempt at adding a change described as {feature}. 
 Our goal is to return a working version of user_code that follows {feature}.
 """
@@ -419,11 +419,10 @@ code_repair_prompt = """\
 This is the user_code.
 Instructions:
 * Keep the logic changes from user_code.
-* Fix any issues using our knowledge of both the diff and user_code files. 
-* Fix syntax errors and accidentally deleted lines.
+* Fix syntax errors and accidentally deleted lines, only focusing on the code around the diff.
 * Do not perform code style cleanup.
-* Do not add or remove any whitespace besides what is necessary to fix syntax errors.
-* Do not add or remove any comments.
+* Do not add or remove whitespace outside of the diff.
+* Do not add or remove any comments outside of the doff.
 Return the repaired user_code without xml tags. All of the text you return will be placed in the file. Revert any unrelated deletions to user_code, using the diff and described change.
 """
 
