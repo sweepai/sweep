@@ -172,7 +172,7 @@ def on_ticket(
 
     # Find the first comment made by the bot
     issue_comment = None
-    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}"
+    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\nWorking on it...{bot_suffix}"
     for comment in comments:
         if comment.user.login == SWEEP_LOGIN:
             issue_comment = comment
@@ -183,21 +183,25 @@ def on_ticket(
 
     # Comment edit function
     past_messages = {}
+    current_index = {}
     def edit_sweep_comment(message: str, index: int, pr_message = ""):
+        nonlocal current_index
         # -1 = error, -2 = retry
         # Only update the progress bar if the issue generation errors.
         errored = (index == -1)
-        current_index = index
         if index >= 0:
             past_messages[index] = message
+            current_index = index
 
-        # Include progress history
         agg_message = None
-        for i in range(current_index + 2):
+        # Include progress history
+        # index = -2 is reserved for
+        for i in range(current_index + 2): # go to next header (for Working on it... text)
+            if i == 0 or i >= len(progress_headers): continue # skip None header
             header = progress_headers[i]
             if header is not None: header = "## " + header + "\n"
             else: header = "No header\n"
-            msg = header + (past_messages[i] or "Working on it...")
+            msg = header + (past_messages.get(i) or "Working on it...")
             if agg_message is None:
                 agg_message = msg
             else:
