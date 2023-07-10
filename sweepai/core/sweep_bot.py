@@ -83,16 +83,14 @@ class CodeGenBot(ChatGPT):
             too_long = False
             try:
                 logger.info(f"Generating for the {count}th time...")
-                if too_long or count == retries - 1: # if on last try, use gpt4-32k (improved context window)
+                if too_long or count == retries - 2: # if on last try, use gpt4-32k (improved context window)
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
                 else:
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)
                 self.delete_messages_from_chat("pull_request")
             except Exception as e:
                 e_str = str(e)
-                if too_long:
-                    raise Exception("Too long even for GPT4")
-                elif "too long" in e_str:
+                if "too long" in e_str:
                     too_long = True
                 logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
                 self.delete_messages_from_chat("pull_request")
