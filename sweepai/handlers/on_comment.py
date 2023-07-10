@@ -9,7 +9,7 @@ import openai
 
 from loguru import logger
 
-from sweepai.core.entities import NoFilesException
+from sweepai.core.entities import NoFilesException, Snippet
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.event_logger import posthog
@@ -24,6 +24,37 @@ from sweepai.utils.chat_logger import ChatLogger
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
+num_of_snippets_to_query = 30
+max_num_of_snippets = 3
+total_number_of_snippet_tokens = 15_000
+num_full_files = 2
+num_extended_snippets = 2
+
+def post_process_snippets(snippets: list[Snippet]):
+    for snippet in snippets[:num_full_files]:
+        snippet = snippet.expand()
+
+    # snippet fusing
+    i = 0
+    while i < len(snippets):
+        j = i + 1
+        while j < len(snippets):
+            if snippets[i] ^ snippets[j]:  # this checks for overlap
+                snippets[i] = snippets[i] | snippets[j]  # merging
+                snippets.pop(j)
+            else:
+                j += 1
+        i += 1
+
+    # truncating snippets based on character length
+    result_snippets = []
+    total_length = 0
+    for snippet in snippets:
+        total_length += len(snippet.get_snippet())
+        if total_length > total_number_of_snippet_tokens * 5:
+            break
+        result_snippets.append(snippet)
+    return result_snippets[:max_num_of_snippets]
 
 def on_comment(
     repo_full_name: str,
@@ -72,7 +103,6 @@ def on_comment(
         pr_title = pr.title
         pr_body = pr.body
         diffs = get_pr_diffs(repo, pr)
-        snippets, tree = search_snippets(repo, comment, installation_id, branch=branch_name, num_files=1 if pr_path else 3)
         pr_line = None
         pr_file_path = None
         # This means it's a comment on a file
@@ -84,7 +114,38 @@ def on_comment(
         # This means it's a comment on the PR
         else:
             if not comment.strip().lower().startswith("sweep"):
+                logger.info("No event fired because it doesn't start with Sweep.")
                 return {"success": True, "message": "No event fired."}
+            
+        def fetch_file_contents_with_retry():
+            retries = 3
+            error = None
+            for i in range(retries):
+                try:
+                    logger.info(f"Fetching relevant files for the {i}th time...")
+                    return search_snippets(
+                        repo,
+                        f"{comment}\n{pr_title}" + (f"\n{pr_line}" if pr_line else ""),
+                        num_files=30,
+                        branch=branch_name,
+                        installation_id=installation_id,
+                    )
+                except Exception as e:
+                    error = e
+                    continue
+            posthog.capture(
+                username, "fetching_failed", properties={"error": error, **metadata}
+            )
+            raise error
+        snippets, tree = fetch_file_contents_with_retry()
+        logger.info("Fetching relevant files...")
+        try:
+            snippets, tree = fetch_file_contents_with_retry()
+            assert len(snippets) > 0
+        except Exception as e:
+            logger.error(e)
+            raise e
+        snippets = post_process_snippets(snippets)
 
         logger.info("Getting response from ChatGPT...")
         human_message = HumanMessageCommentPrompt(
