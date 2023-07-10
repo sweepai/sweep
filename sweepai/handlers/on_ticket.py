@@ -50,7 +50,7 @@ collapsible_template = '''
 chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 
 num_of_snippets_to_query = 30
-# max_num_of_snippets = 5
+max_num_of_snippets = 5
 total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 num_extended_snippets = 2
@@ -79,7 +79,7 @@ def post_process_snippets(snippets: list[Snippet]):
         if total_length > total_number_of_snippet_tokens * 5:
             break
         result_snippets.append(snippet)
-    return result_snippets
+    return result_snippets[:max_num_of_snippets]
 
 def on_ticket(
     title: str,
