@@ -81,7 +81,7 @@ Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating 
 3. Watch the magic happen 🪄
 
 For tips & tricks and limitations of Sweep, see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/tricks).
-## 🚀 Quickstart Recipe
+For tips & tricks and limitations of Sweep, see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/tricks).
 
 In this section, we will walk through a common use case for Sweep. Let's consider the following example: "The payment link in my website does not work. Fix the payment link in payments.ts". Here's how you can use Sweep to solve this problem:
 
@@ -91,7 +91,6 @@ In this section, we will walk through a common use case for Sweep. Let's conside
 4. Once the plan is approved, Sweep will implement the changes and create a pull request.
 
 That's it! With just a few steps, you've used Sweep to solve a problem in your codebase.
-## 🤝 Contributing
 
 Contributions are welcome and greatly appreciated! For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file. In essence, you'll need to fork the repository, create a new branch for your feature or bug fix, commit your changes, and open a pull request.
 For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
