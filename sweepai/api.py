@@ -119,6 +119,7 @@ async def webhook(raw_request: Request):
                         request.repository.full_name,
                         request.repository.description,
                         request.installation.id,
+                        None
                     )
             case "issue_comment", "created":
                 request = IssueCommentRequest(**request_dict)
