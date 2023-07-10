@@ -51,6 +51,10 @@ For the best experience, [install Sweep](https://github.com/apps/sweep-ai) to on
 * Chain-of-Thought retrieval using GPT Functions
 * 🎊 New: Sweep Chat, a local interface for Sweep (see below)
 
+## 🤝 Contributing
+
+Contributions are welcome and greatly appreciated! For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file. In essence, you'll need to fork the repository, create a new branch for your feature or bug fix, commit your changes, and open a pull request.
+For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/start).
 ## 🚀 Getting Started
 
 ### 🖥️ Sweep Chat
