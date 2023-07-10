@@ -216,7 +216,7 @@ def on_ticket(
                 issue_comment_prompt.format(
                     username=comment.user.login,
                     reply=comment.body,
-                ) for comment in comments if not comment.user.login.endswith('[bot]')
+                ) for comment in comments if comment.user.type == "User"
             ]
         )
 
