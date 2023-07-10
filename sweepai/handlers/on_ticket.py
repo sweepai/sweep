@@ -11,7 +11,7 @@ from loguru import logger
 import modal
 from tabulate import tabulate
 
-from sweepai.core.entities import FileChangeRequest, Snippet
+from sweepai.core.entities import FileChangeRequest, Snippet, NoFilesException
 from sweepai.core.prompts import (
     reply_prompt,
 )
@@ -204,7 +204,8 @@ def on_ticket(
                 else:
                     agg_message = agg_message + f"\n{sep}" + msg
         if errored:
-            agg_message = "## Error: 🚫 Unable to Complete PR\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
+            agg_message = "## ❌ Unable to Complete PR" + '\n' + message + "\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
+
 
         # Update the issue comment
         issue_comment.edit(f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{bot_suffix}")
@@ -402,6 +403,9 @@ def on_ticket(
             )
 
             break
+    except NoFilesException:
+        logger.info("No files to change.")
+        edit_sweep_comment("Sorry, I could find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!", -1)
     except openai.error.InvalidRequestError as e:
         logger.error(e)
         edit_sweep_comment(

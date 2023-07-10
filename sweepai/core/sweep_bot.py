@@ -17,7 +17,7 @@ from sweepai.core.entities import (
     PullRequest,
     RegexMatchError,
     Function,
-    Snippet
+    Snippet, NoFilesException
 )
 from sweepai.core.chat import ChatGPT
 from sweepai.core.prompts import (
@@ -34,9 +34,11 @@ from sweepai.utils.diff import format_contents, generate_new_file, is_markdown
 
 class CodeGenBot(ChatGPT):
 
-    def get_files_to_change(self):
+    def get_files_to_change(self, retries=2):
         file_change_requests: list[FileChangeRequest] = []
-        for count in range(5):
+        # Todo: put retries into a constants file
+        # also, this retries multiple times as the calls for this function are in a for loop
+        for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
                 files_to_change_response = self.chat(files_to_change_prompt, message_key="files_to_change") # Dedup files to change here
@@ -74,7 +76,7 @@ class CodeGenBot(ChatGPT):
                 logger.warning("Failed to parse! Retrying...")
                 self.delete_messages_from_chat("files_to_change")
                 continue
-        raise Exception("Could not generate files to change")
+        raise NoFilesException()
 
     def generate_pull_request(self) -> PullRequest:
         for count in range(5):
