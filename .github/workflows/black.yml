@@ -10,7 +10,6 @@ jobs:
       uses: actions/checkout@v2
     - name: Run Black
       run: |
+        pip install black[jupyter]
         pip install black
         black .
-
-
