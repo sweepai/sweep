@@ -1,9 +1,3 @@
-'''
-On Github ticket, get ChatGPT to deal with it
-'''
-
-# TODO: Add file validation
-
 import os
 import openai
 
@@ -211,7 +205,6 @@ def on_ticket(
 
         # Update the issue comment
         issue_comment.edit(f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{bot_suffix}")
-
         # Update the issue comment
         issue_comment.edit(f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{bot_suffix}")
 
