@@ -28,9 +28,11 @@
 </a>
 </p>
 
-<b>Sweep</b> allows you to create and review GitHub issues with ease.
+<b>Sweep</b> is an AI junior dev that transforms bug reports & feature requests into code changes.
 Simply describe any issue and Sweep will do the rest.
 It will plan out what needs to be done, what changes to make, and write the changes to a PR. 
+
+Don't believe us? See example Sweep tickets at https://docs.sweep.dev/examples.
 
 Supported languages: Python, Javascript/Typescript, Rust, Go, Java/C#, C++ and anything else GPT-4 supports
 
@@ -76,8 +78,9 @@ Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating 
 
 1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
 2. Create new issue in repo, like "Sweep: Write tests"
-3. "👀" means it is taking a look, and it will generate the desired code
-4. "🚀" means the bot has finished its job and created a PR
+3. Watch the magic happen 🪄
+
+For tips & tricks and limitations of Sweep, see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/tricks).
 
 ## 🤝 Contributing
 
