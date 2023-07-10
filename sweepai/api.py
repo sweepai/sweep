@@ -178,7 +178,8 @@ async def webhook(raw_request: Request):
                 request = CheckRunCompleted(**request_dict)
                     # handle_check_suite
                 logs = None
-                if request.sender.login == SWEEP_LOGIN:
+                # Must be Sweep firing the PR and it must fail
+                if request.sender.login == SWEEP_LOGIN and request.check_run.conclusion != "success":
                     logs = handle_check_suite.call(request)
                 if len(request.check_run.pull_requests) > 0 and logs:
                     handle_comment.spawn(
