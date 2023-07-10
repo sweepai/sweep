@@ -214,6 +214,8 @@ def on_ticket(
 
     replies_text = ""
     if comment_id:
+        if not comments[-1].body.lower().startswith("sweep"):
+            return {"success": True, "reason": "Comment does not start with 'Sweep', passing"}
         replies_text = "\nComments:\n" + "\n".join(
             [
                 issue_comment_prompt.format(
