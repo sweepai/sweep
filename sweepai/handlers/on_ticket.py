@@ -23,7 +23,7 @@ from sweepai.handlers.on_review import review_pr
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.constants import DB_NAME, PREFIX, UTILS_NAME, SWEEP_LOGIN
+from sweepai.utils.constants import DB_NAME, LABEL_NAME, PREFIX, UTILS_NAME, SWEEP_LOGIN
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.config import SweepConfig
 import traceback
@@ -243,6 +243,7 @@ def on_ticket(
         posthog.capture(
             username, "fetching_failed", properties={"error": error, **metadata}
         )
+        current_issue.delete_labels(LABEL_NAME)
         raise error
 
     logger.info("Fetching relevant files...")
@@ -255,6 +256,7 @@ def on_ticket(
             "It looks like an issue has occured around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev.",
             -1
         )
+        current_issue.delete_labels(LABEL_NAME)
         log_error("File Fetch", str(e))
         raise e
     
@@ -363,7 +365,9 @@ def on_ticket(
             # WRITE PULL REQUEST
             logger.info("Making PR...")
             response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
-            if not response or not response["success"]: raise Exception("Failed to create PR")
+            if not response or not response["success"]: 
+                current_issue.delete_labels(LABEL_NAME)
+                raise Exception("Failed to create PR")
             pr = response["pull_request"]
             current_issue.create_reaction("rocket")
             edit_sweep_comment(
@@ -408,6 +412,7 @@ def on_ticket(
             "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev.",
             -1
         )
+        current_issue.delete_labels(LABEL_NAME)
         log_error("Context Length", str(e))
         posthog.capture(
             username,
@@ -425,6 +430,7 @@ def on_ticket(
             "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
             -1
         )
+        current_issue.delete_labels(LABEL_NAME)
         log_error("Workflow", str(e))
         posthog.capture(
             username,
