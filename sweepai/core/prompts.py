@@ -269,12 +269,9 @@ modify_file_prompt = """
 File contains lines {line_numbers}
 
 Generate a new_file based on the given plan, ensuring that you:
-1. Do not write "pass" statements.
-2. Provide complete functions with actual business logic. It is imperative that we do not leave any work to the user/future readers of this code.
-3. Do not write new "todo" comments.
-4. Do not write incomplete functions.
-5. Do not write the original line numbers with the new code.
-6. Make sure the new code follows the same programming language conventions as the old code.
+1. It is imperative that we do not leave any work to the user/future readers of this code. So, WRITE FUNCTIONS COMPLETELY THAT WILL WORK.
+2. Do not write the original line numbers with the new code.
+3. Make sure the new code follows the same programming language conventions as the old code.
 
 Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copied>0-25</copied>"). Make sure to use this exact format.
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copied>0-50</copied>".
@@ -289,7 +286,7 @@ print("debug statement")
 <copied>76-100</copied>
 </new_file>
 
-Do not rewrite entire file. Use <copied> XML tag when possible.
+Do not rewrite entire file. Use <copied> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
 """
 
 
@@ -321,12 +318,9 @@ Lines to change in the file:
 Code Generation:
 ```
 Generate a new_file based on the given plan, ensuring that you:
-1. Do not write "pass" statements.
-2. Provide complete functions with actual business logic. It is imperative that we do not leave any work to the user/future readers of this code.
-3. Do not write new "todo" comments.
-4. Do not write incomplete functions.
-5. Do not write the original line numbers with the new code.
-6. Make sure the new code follows the same programming language conventions as the old code.
+1. It is imperative that we do not leave any work to the user/future readers of this code. So, WRITE FUNCTIONS COMPLETELY THAT WILL WORK.
+2. Do not write the original line numbers with the new code.
+3. Make sure the new code follows the same programming language conventions as the old code.
 
 Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copy_lines A-B>"). Make sure to use this exact format.
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copy_lines 1-50>".
@@ -341,7 +335,7 @@ print("debug statement")
 <copy_lines 76-100>
 </new_file>
 
-Do not rewrite entire file. Use <copy_lines A-B> XML tag when possible. Do not include the line numbers in the new file.
+Do not rewrite entire file. Use <copy_lines A-B> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
 ```
 
 Context: "{instructions}". Limit your changes to the context.
