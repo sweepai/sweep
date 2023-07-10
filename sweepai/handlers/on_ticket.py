@@ -193,19 +193,17 @@ def on_ticket(
 
         # Include progress history
         agg_message = None
-        for i in range(current_index + 1):
-            if i in past_messages:
-                header = progress_headers[i]
-                if header is not None: header = "## " + header + "\n"
-                else: header = "No header\n"
-                msg = header + past_messages[i]
-                if agg_message is None:
-                    agg_message = msg
-                else:
-                    agg_message = agg_message + f"\n{sep}" + msg
+        for i in range(current_index + 2):
+            header = progress_headers[i]
+            if header is not None: header = "## " + header + "\n"
+            else: header = "No header\n"
+            msg = header + (past_messages[i] or "Working on it...")
+            if agg_message is None:
+                agg_message = msg
+            else:
+                agg_message = agg_message + f"\n{sep}" + msg
         if errored:
             agg_message = "## ❌ Unable to Complete PR" + '\n' + message + "\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
-
 
         # Update the issue comment
         issue_comment.edit(f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{bot_suffix}")
