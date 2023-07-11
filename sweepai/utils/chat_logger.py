@@ -39,6 +39,10 @@ class ChatLogger(BaseModel):
         document = {**self.data, **additional_data, 'expiration': self.expiration, 'index': self.index}
         self.index += 1
         self.chat_collection.insert_one(document)
+    
+    def check_value(self, value):
+        """Check if a specific value exists in the MongoDB."""
+        return value in self.data.values()
 
 def discord_log_error(content):
     try:
