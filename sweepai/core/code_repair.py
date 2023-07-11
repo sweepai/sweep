@@ -47,7 +47,15 @@ class CodeRepairer(ChatGPT):
     def repair_code(self, diff: str, user_code: str, feature:str) -> str:
         self.messages = [Message(role="system", content=code_repair_system_prompt.format(feature=feature))]
         self.model = "gpt-3.5-turbo-16k-0613" # can be optimized
-        response = self.chat(code_repair_prompt.format(diff=diff, user_code=user_code))
-        self.undo()
+        retry_count = 0
+        while retry_count < 5:
+            response = self.chat(code_repair_prompt.format(diff=diff, user_code=user_code))
+            # Check if the length of the response does not differ by more than 15% from the input
+            if len(user_code.splitlines()) > 50 and abs(len(response.splitlines()) - len(user_code.splitlines())) / len(user_code.splitlines()) > 0.15:
+                self.undo()
+                retry_count += 1
+                if retry_count == 5:
+                    return user_code
+            else:
+                break
         return response.strip() + "\n"
-
