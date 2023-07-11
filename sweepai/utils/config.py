@@ -36,3 +36,14 @@ class SweepConfig(BaseModel):
         except Exception as e:
             logger.warning(f"Error when getting branch: {e}, falling back to default branch")
             return default_branch
+
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def get_gha_enabled(repo: Repository) -> bool:
+        try:
+            contents = repo.get_contents(".github/sweep.yaml")
+            gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8"))["gha_enabled"]
+            return gha_enabled
+        except Exception as e:
+            logger.warning(f"Error when getting gha enabled: {e}, falling back to False")
+            return False

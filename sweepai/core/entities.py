@@ -99,10 +99,11 @@ class FileChangeRequest(RegexMatchableBaseModel):
         return res
 
 
-class FileChange(RegexMatchableBaseModel):
+class FileCreation(RegexMatchableBaseModel):
     commit_message: str
     code: str
-    _regex = r"""Commit Message:(?P<commit_message>.*)<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)$"""
+    _regex = r'''commit_message\s+=\s+"(?P<commit_message>.*?)".*?<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)<\/new_file>'''
+    #_regex = r"""Commit Message:(?P<commit_message>.*)<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)$"""
     # _regex = r"""Commit Message:(?P<commit_message>.*)(<new_file>|```)(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)($|```)"""
 
     @classmethod
@@ -127,8 +128,7 @@ class PullRequest(RegexMatchableBaseModel):
     title: str
     branch_name: str
     content: str
-    _regex = r"""Title:(?P<title>.*)Branch Name:(?P<branch_name>.*)<content>(python|javascript|typescript|csharp|tsx|jsx)?(?P<content>.*)</content>"""
-
+    _regex = r'''title\s+=\s+"(?P<title>.*?)"\n+branch\s+=\s+"(?P<branch_name>.*?)"\n+content\s+=\s+"""(?P<content>.*?)"""'''
 
 class Snippet(BaseModel):
     """
@@ -225,3 +225,7 @@ class PullRequestComment(RegexMatchableBaseModel):
     changes_required: str
     content: str
     _regex = r"""<changes_required>(?P<changes_required>.*)<\/changes_required>(\s+)<review_comment>(?P<content>.*)<\/review_comment>"""
+
+class NoFilesException(Exception):
+    def __init__(self, message="Sweep could not find any files to modify"):
+        super().__init__(message)
