@@ -36,8 +36,6 @@ Describe bugs, small features, and refactors like you would to a junior develope
 
 See highlights at https://docs.sweep.dev/examples.
 
-We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
-
 ## ✨ Demo
 For the best experience, [install Sweep](https://github.com/apps/sweep-ai) to one of your repos and see the magic happen.
 
@@ -64,7 +62,7 @@ A good issue might include:
 |In `on_comment.py`|we should not fire an event|because it's possible that the comment is on a closed PR|
 |In the file `packages/server/src/config.ts`|add a third option called "env" to load the config settings from environment variables| At present, there are two options:  1. ... and 2. ...|
 
-If you want Sweep to use a file, try to mention the full path. Similarly, to have Sweep use a function, try to mention the class method or what it does.
+If you want Sweep to use a file, try to mention the full path. Similarly, to have Sweep use a function, try to mention the class method or what it does. Also see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/tricks).
 
 ### 🖥️ Sweep Chat
 Sweep Chat allows you to interact with Sweep and GitHub locally. Collaborate on the plan with Sweep, then have it create the pull request for you. 
@@ -95,12 +93,11 @@ If you want the nightly build and or if the latest build has issues.
 
 ### ✨ Sweep Github App
 Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
+We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
 
 1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
 2. Create new issue in repo, like "Sweep: Write tests"
 3. Watch the magic happen 🪄
-
-For tips & tricks and limitations of Sweep, see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/tricks).
 
 ## 🤝 Contributing
 
