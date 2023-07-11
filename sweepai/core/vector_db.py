@@ -85,8 +85,11 @@ class Embedding:
         )
 
     @method()
+    @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor() as executor:
+            return list(executor.map(self.model.encode, texts, chunksize=BATCH_SIZE))
 
     @method()
     def ping(self):
@@ -338,4 +341,3 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
-
