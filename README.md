@@ -17,7 +17,7 @@
 </a>
 <img alt="PyPI" src="https://img.shields.io/pypi/v/sweepai">
 <a href="https://pepy.tech/project/sweepai">
-    <img src="https://static.pepy.tech/badge/sweepai/week" />
+    <img src="https://static.pepy.tech/badge/sweepai/month" />
 </a>
 <a href="https://github.com/sweepai/sweep">
     <img src="https://img.shields.io/github/stars/sweepai/sweep" />
@@ -50,7 +50,7 @@ For the best experience, [install Sweep](https://github.com/apps/sweep-ai) to on
 
 ## 🚀 Getting Started
 
-### ✨ Recipes
+### 🍲 Recipes
 #### To get the best performance from Sweep, we recommend the following approach to writing github issues/chats. 
 For harder problems, try to provide the same information a human would need. For simpler problems, providing a single line and a file name should suffice.
 
@@ -60,7 +60,7 @@ A good issue might include:
 |--------|------------|----------------------|
 |In `sweepai/app/ui.py`|use an os-agnostic temp directory|N/A|
 |In `on_comment.py`|we should not fire an event|because it's possible that the comment is on a closed PR|
-|In the file `packages/server/src/config.ts`|add a third option called "env" to load the config settings from environment variables| At present, there are two options:  1. ... and 2. ...|
+|In `packages/server/src/config.ts`|add a third option called "env" to load the config settings from environment variables| At present, there are two options:  1. ... and 2. ...|
 
 If you want Sweep to use a file, try to mention the full path. Similarly, to have Sweep use a function, try to mention the class method or what it does. Also see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/tricks).
 
