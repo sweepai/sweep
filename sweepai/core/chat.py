@@ -1,4 +1,5 @@
 from copy import deepcopy
+import random
 import json
 import os
 from typing import Iterator, Literal, Self
@@ -204,8 +205,9 @@ class ChatGPT(BaseModel):
         logger.info(f"Input to call openai:\n{messages_raw}")
 
         gpt_4_buffer = 800
-        if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
-            model = "gpt-4-0613"
+        if int(messages_length) + gpt_4_buffer < 6000:
+            model = random.choice(["gpt-4-0613", "gpt-4-32k-0613"])
+            max_tokens = model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer # this is for the function tokens
             max_tokens = model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer # this is for the function tokens
         if "gpt-4" in model:
             max_tokens = min(max_tokens, 5000)
