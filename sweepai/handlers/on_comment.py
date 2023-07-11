@@ -6,6 +6,7 @@ On Github ticket, get ChatGPT to deal with it
 
 import os
 import openai
+import traceback
 
 from loguru import logger
 
@@ -143,6 +144,7 @@ def on_comment(
             snippets, tree = fetch_file_contents_with_retry()
             assert len(snippets) > 0
         except Exception as e:
+            logger.error(traceback.format_exc())
             logger.error(e)
             raise e
         snippets = post_process_snippets(snippets)
@@ -185,6 +187,7 @@ def on_comment(
             human_message=human_message, repo=repo, chat_logger=chat_logger
         )
     except Exception as e:
+        logger.error(traceback.format_exc())
         posthog.capture(username, "failed", properties={
             "error": str(e),
             "reason": "Failed to get files",
@@ -208,6 +211,7 @@ def on_comment(
         })
         return {"success": True, "message": "No files to change."}
     except Exception as e:
+        logger.error(traceback.format_exc())
         posthog.capture(username, "failed", properties={
             "error": str(e),
             "reason": "Failed to make changes",
@@ -247,6 +251,7 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
         # Create a new commit with the previous file content
         repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha, branch=branch_name)
     except Exception as e:
+        logger.error(traceback.format_exc())
         if e.status == 404:
             logger.warning(f"File {pr_path} was not found in previous commit {previous_commit.sha}")
         else:
