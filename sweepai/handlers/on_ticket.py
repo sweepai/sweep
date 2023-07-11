@@ -50,12 +50,11 @@ collapsible_template = '''
 chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 
 num_of_snippets_to_query = 30
-max_num_of_snippets = 5
 total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 num_extended_snippets = 2
 
-def post_process_snippets(snippets: list[Snippet]):
+def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5):
     for snippet in snippets[:num_full_files]:
         snippet = snippet.expand()
 
@@ -222,6 +221,18 @@ def on_ticket(
                 ) for comment in comments if comment.user.type == "User"
             ]
         )
+    chat_logger = ChatLogger({
+        'repo_name': repo_name,
+        'title': title,
+        'summary': summary + replies_text,
+        "issue_number": issue_number,
+        "issue_url": issue_url,
+        "username": username,
+        "repo_full_name": repo_full_name,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "comment_id": comment_id,
+    })
 
     def log_error(error_type, exception):
         content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
@@ -261,7 +272,8 @@ def on_ticket(
         log_error("File Fetch", str(e))
         raise e
     
-    snippets = post_process_snippets(snippets)
+    snippets = post_process_snippets(snippets, 
+                                     max_num_of_snippets=2 if chat_logger.use_faster_model() else 5)
 
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
@@ -274,18 +286,6 @@ def on_ticket(
         tree=tree, # TODO: Anything in repo tree that has something going through is expanded
     )
 
-    chat_logger = ChatLogger({
-        'repo_name': repo_name,
-        'title': title,
-        'summary': summary + replies_text,
-        "issue_number": issue_number,
-        "issue_url": issue_url,
-        "username": username,
-        "repo_full_name": repo_full_name,
-        "repo_description": repo_description,
-        "installation_id": installation_id,
-        "comment_id": comment_id,
-    })
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger
     )
