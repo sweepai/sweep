@@ -184,8 +184,12 @@ class ChatGPT(BaseModel):
         functions: list[Function] = [],
         function_name: dict | None = None,
     ):
-        if model is None:
-            model = self.model
+        # Check MongoDB for the integer '1234'
+        if self.chat_logger and '1234' in self.chat_logger.data:
+            model = model or self.model
+        else:
+            logger.warning("Integer '1234' not found in MongoDB, using 'gpt-3.5-turbo' model instead.")
+            model = "gpt-3.5-turbo"
         count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
         messages_length = sum(
             [count_tokens.call(message.content or "") for message in self.messages]
