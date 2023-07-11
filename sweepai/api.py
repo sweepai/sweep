@@ -2,12 +2,14 @@ import time
 from loguru import logger
 import modal
 from pydantic import ValidationError
-from sweepai.handlers.create_pr import create_pr  # type: ignore
+from sweepai.handlers.create_pr import create_pr
+from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.handlers.on_comment import on_comment
 from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, LABEL_COLOR, LABEL_DESCRIPTION, LABEL_NAME, SWEEP_LOGIN
 from sweepai.events import (
+    CheckRunCompleted,
     CommentCreatedRequest,
     InstallationCreatedRequest,
     IssueCommentRequest,
@@ -62,6 +64,7 @@ FUNCTION_SETTINGS = {
 handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
 handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
+handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
 update_index = modal.Function.lookup(DB_NAME, "update_index")
 
 @stub.function(**FUNCTION_SETTINGS)
@@ -119,6 +122,7 @@ async def webhook(raw_request: Request):
                         request.repository.full_name,
                         request.repository.description,
                         request.installation.id,
+                        None
                     )
             case "issue_comment", "created":
                 request = IssueCommentRequest(**request_dict)
@@ -173,6 +177,24 @@ async def webhook(raw_request: Request):
             case "pull_request_review", "submitted":
                 # request = ReviewSubmittedRequest(**request_dict)
                 pass
+            case "check_run", "completed":
+                request = CheckRunCompleted(**request_dict)
+                    # handle_check_suite
+                logs = None
+                # Must be Sweep firing the PR and it must fail
+                if request.sender.login == SWEEP_LOGIN and request.check_run.conclusion == "failure": 
+                    logs = handle_check_suite.call(request)
+                if len(request.check_run.pull_requests) > 0 and logs:
+                    handle_comment.spawn(
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        comment="Sweep: " + logs,
+                        pr_path=None,
+                        pr_line_position=None,
+                        username=request.sender.login,
+                        installation_id=request.installation.id,
+                        pr_number=request.check_run.pull_requests[0].number,
+                    )
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {

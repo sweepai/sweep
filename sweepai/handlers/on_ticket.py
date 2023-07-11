@@ -50,7 +50,7 @@ collapsible_template = '''
 chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 
 num_of_snippets_to_query = 30
-# max_num_of_snippets = 5
+max_num_of_snippets = 5
 total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 num_extended_snippets = 2
@@ -79,7 +79,7 @@ def post_process_snippets(snippets: list[Snippet]):
         if total_length > total_number_of_snippet_tokens * 5:
             break
         result_snippets.append(snippet)
-    return result_snippets
+    return result_snippets[:max_num_of_snippets]
 
 def on_ticket(
     title: str,
@@ -137,7 +137,9 @@ def on_ticket(
         # This is done in create_pr, (pr_description = ...)
         if pr.user.login == SWEEP_LOGIN and f'Fixes #{issue_number}.\n' in pr.body:
             success = safe_delete_sweep_branch(pr, repo)
-
+    comments = current_issue.get_comments()
+    if comment_id and not comments[-1].body.lower().startswith("sweep"):
+        return {"success": True, "reason": "Comment does not start with 'Sweep', passing"}
     # Add emojis
     eyes_reaction = item_to_react_to.create_reaction("eyes")
     # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
@@ -167,8 +169,6 @@ def on_ticket(
         if errored:
             return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
         return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + ("\n" + stars_suffix + config_pr_message if index != -1 else "")
-
-    comments = current_issue.get_comments()
 
     # Find the first comment made by the bot
     issue_comment = None

@@ -28,7 +28,7 @@ LABEL_COLOR = "9400D3"
 LABEL_DESCRIPTION = "Sweep your software chores"
 
 SWEEP_CONFIG_BRANCH = "sweep/add-sweep-config"
-DEFAULT_CONFIG = """# Reference: https://github.com/sweepai/sweep/blob/main/sweep.yaml
-branch: dev"""
+DEFAULT_CONFIG = """# Reference: https://github.com/sweepai/sweep/blob/main/.github/sweep.yaml. If you use this be sure to frequently sync your default branch(main, master) to dev.
+branch: '{branch}'"""
 
 SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
