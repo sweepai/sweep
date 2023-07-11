@@ -147,7 +147,7 @@ def create_config_pr(
         sweep_bot.repo.create_file(
             'sweep.yaml',
             'Create sweep.yaml config file',
-            DEFAULT_CONFIG,
+            DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
             branch=branch_name
         )
     except Exception as e:
@@ -174,8 +174,9 @@ def create_config_pr(
 ## What's new?
 - **Sweep is now configurable**. 
 - To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
-- If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.com/invite/sweep-ai) for help.
+- If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/.github/sweep.yaml) or [Join Our Discord](https://discord.com/invite/sweep-ai) for help.
 
+If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `.github/sweep.yaml` file".
 Thank you for using Sweep! 🧹
 """,
         head=branch_name,

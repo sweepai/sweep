@@ -44,10 +44,10 @@ def format_contents(file_contents, is_markdown=False):
         end_idx = len(lines)
         for idx, line in enumerate(lines):
             if start_idx == 0 and line.strip().startswith('```'):
-                start_idx = idx
+                start_idx = idx + 1
             if start_idx != 0 and line.strip().endswith('```'):
                 end_idx = idx
-        lines = lines[start_idx + 1:end_idx]
+        lines = lines[start_idx:end_idx]
         return '\n'.join(lines)
 
     first_three_lines = lines[:3]

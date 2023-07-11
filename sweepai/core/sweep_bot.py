@@ -341,7 +341,6 @@ class SweepBot(CodeGenBot, GithubBot):
                         code_repairer = CodeRepairer(chat_logger=self.chat_logger)
                         diff = generate_diff(old_code=contents, new_code=new_file)
                         new_file = code_repairer.repair_code(diff=diff, user_code=new_file, feature=file_change_request.instructions)
-                        new_file = revert_whitespace_changes(original_file_str=contents, modified_file_str=new_file)
                     return (new_file, file_change_request.filename)
                 except Exception as e:
                     logger.warning(f"Recieved error {e}")
@@ -401,7 +400,7 @@ class SweepBot(CodeGenBot, GithubBot):
         try:
             contents = self.get_file(file_change_request.filename, branch=branch)
             new_file_contents, file_name = self.modify_file(
-                file_change_request, contents.decoded_content.decode("utf-8"), branch
+                file_change_request, contents.decoded_content.decode("utf-8"), branch=branch
             )
             new_file_contents = format_contents(new_file_contents, file_markdown)
             new_file_contents = new_file_contents.rstrip()
@@ -410,12 +409,23 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.debug(
                 f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
             )
-            self.repo.update_file(
-                file_name,
-                f'Update {file_name}',
-                new_file_contents,
-                contents.sha,
-                branch=branch,
-            )
+            try:
+                self.repo.update_file(
+                    file_name,
+                    f'Update {file_name}',
+                    new_file_contents,
+                    contents.sha,
+                    branch=branch,
+                )
+            except Exception as e:
+                logger.info(f"Error in updating file, repulling and trying again {e}")
+                contents = self.get_file(file_change_request.filename, branch=branch)
+                self.repo.update_file(
+                    file_name,
+                    f'Update {file_name}',
+                    new_file_contents,
+                    contents.sha,
+                    branch=branch,
+                )
         except Exception as e:
             logger.info(f"Error in handle_modify_file: {e}")
