@@ -50,8 +50,8 @@ class CodeRepairer(ChatGPT):
         retry_count = 0
         while retry_count < 5:
             response = self.chat(code_repair_prompt.format(diff=diff, user_code=user_code))
-            # Check if the length of the response does not differ by more than 10% from the input
-            if len(user_code.splitlines()) > 50 and abs(len(response.splitlines()) - len(user_code.splitlines())) / len(user_code.splitlines()) > 0.1:
+            # Check if the length of the response does not differ by more than 15% from the input
+            if len(user_code.splitlines()) > 50 and abs(len(response.splitlines()) - len(user_code.splitlines())) / len(user_code.splitlines()) > 0.15:
                 self.undo()
                 retry_count += 1
                 if retry_count == 5:
