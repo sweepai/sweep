@@ -1,3 +1,5 @@
+import concurrent.futures
+
 import json
 import os
 import re
@@ -86,7 +88,8 @@ class Embedding:
 
     @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            return list(executor.map(lambda text: self.model.encode([text], batch_size=BATCH_SIZE), texts))
 
     @method()
     def ping(self):
@@ -338,4 +341,3 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
-
