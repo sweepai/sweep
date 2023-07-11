@@ -9,6 +9,7 @@ import anthropic
 from loguru import logger
 from pydantic import BaseModel
 import backoff
+import random
 
 from sweepai.core.entities import (
     Function,
@@ -22,8 +23,6 @@ from sweepai.utils.constants import UTILS_NAME
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.core.entities import Message, Function
 from sweepai.utils.chat_logger import ChatLogger
-
-# TODO: combine anthropic and openai
 
 AnthropicModel = (
     Literal["claude-v1"]
@@ -204,14 +203,11 @@ class ChatGPT(BaseModel):
         logger.info(f"Input to call openai:\n{messages_raw}")
 
         gpt_4_buffer = 800
-        if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
-            model = "gpt-4-0613"
+        if int(messages_length) + gpt_4_buffer < 6000:
+            model = random.choice(["gpt-4-0613", "gpt-4-32k-0613"])
             max_tokens = model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer # this is for the function tokens
-        if "gpt-4" in model:
-            max_tokens = min(max_tokens, 5000)
+
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
-        global retry_counter
-        retry_counter = 0
         if functions:
             @backoff.on_exception(
                 backoff.expo,
