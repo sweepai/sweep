@@ -1,9 +1,3 @@
-'''
-On Github ticket, get ChatGPT to deal with it
-'''
-
-# TODO: Add file validation
-
 import os
 import openai
 
@@ -207,10 +201,12 @@ def on_ticket(
                 agg_message = msg
             else:
                 agg_message = agg_message + f"\n{sep}" + msg
+        agg_message = agg_message + f"\n{sep}" + get_comment_header(current_index, errored, pr_message)
         if errored:
             agg_message = "## ❌ Unable to Complete PR" + '\n' + message + "\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
 
         # Update the issue comment
+        issue_comment.edit(f"{agg_message}{bot_suffix}")
         issue_comment.edit(f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{bot_suffix}")
 
     replies_text = ""
@@ -449,4 +445,3 @@ def on_ticket(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
     return {"success": True}
-
