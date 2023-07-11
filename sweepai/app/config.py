@@ -24,6 +24,7 @@ class State(BaseModel):
     file_paths: list[str] = []
     chat_history: list[tuple[str | None, str | None]] = []
     snippets_text: str = "### Relevant Snippets:"
+    plan: list[tuple[str, str]] = []
 
 class SweepChatConfig(BaseModel):
     github_username: str
