@@ -432,7 +432,20 @@ gradio_system_message_prompt = """Your name is Sweep bot. You are a brilliant an
 Relevant snippets provided by search engine (decreasing relevance):
 {snippets}
 Repo: {repo_name}
-Description: {repo_description}"""
+Description: {repo_description}
+"""
+
+gradio_user_prompt = """
+Respond in the following format (one line per file change, no prefixes, each file should be unique, only files that should be created or changed should go into the plan). There must be a blank line between the summary and the plan:
+
+Response:
+Provide a summary of the proposed changes or inquiries for the user. This section will be displayed directly to the user.
+
+Plan:
+* filename_1: instructions_1
+* filename_2: instructions_2
+...
+"""
 
 gha_extraction_system_prompt = """\
 Your job is to extract the information needed to debug the log from the Github Actions workflow file.
