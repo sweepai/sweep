@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sweepai.core.code_repair import CodeRepairer
 from sweepai.utils.chat_logger import ChatLogger
 import re
+import traceback
 
 from sweepai.core.entities import (
     FileCreation,
@@ -87,6 +88,11 @@ class CodeGenBot(ChatGPT):
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
                 else:
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)
+
+                # Add triple quotes if not present
+                if not pr_text_response.strip().endswith('"""'):
+                    pr_text_response += '"""'
+
                 self.delete_messages_from_chat("pull_request")
             except Exception as e:
                 e_str = str(e)
@@ -343,7 +349,8 @@ class SweepBot(CodeGenBot, GithubBot):
                         new_file = code_repairer.repair_code(diff=diff, user_code=new_file, feature=file_change_request.instructions)
                     return (new_file, file_change_request.filename)
                 except Exception as e:
-                    logger.warning(f"Recieved error {e}")
+                    tb = traceback.format_exc()
+                    logger.warning(f"Recieved error {e}\n{tb}")
                     logger.warning(
                         f"Failed to parse. Retrying for the {count}th time..."
                     )
