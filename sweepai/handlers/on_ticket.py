@@ -137,8 +137,9 @@ def on_ticket(
         # This is done in create_pr, (pr_description = ...)
         if pr.user.login == SWEEP_LOGIN and f'Fixes #{issue_number}.\n' in pr.body:
             success = safe_delete_sweep_branch(pr, repo)
-    comments = current_issue.get_comments()
+    comments = list(current_issue.get_comments())
     if comment_id and not comments[-1].body.lower().startswith("sweep"):
+        print(comments[-1].body)
         return {"success": True, "reason": "Comment does not start with 'Sweep', passing"}
     # Add emojis
     eyes_reaction = item_to_react_to.create_reaction("eyes")
