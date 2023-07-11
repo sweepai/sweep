@@ -3,6 +3,7 @@ from sweepai.app.backend import function1, function2, function3
 
 class TestBackend(unittest.TestCase):
     def test_function1(self):
+        print("Hello World")
         # TODO: Replace with actual test
         result = function1(input)
         self.assertEqual(result, expected_output)
