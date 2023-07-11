@@ -10,6 +10,7 @@ import openai
 from loguru import logger
 import modal
 from tabulate import tabulate
+import traceback
 
 from sweepai.core.entities import FileChangeRequest, Snippet, NoFilesException
 from sweepai.core.prompts import (
@@ -26,7 +27,6 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.constants import DB_NAME, PREFIX, UTILS_NAME, SWEEP_LOGIN
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.config import SweepConfig
-import traceback
 
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -224,7 +224,7 @@ def on_ticket(
         )
 
     def log_error(error_type, exception):
-        content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
+        content = f"**{error_type} Error**\n{username}: {issue_url}\n```{traceback.format_exc()}```\n> {exception}"
         discord_log_error(content)
 
     def fetch_file_contents_with_retry():
@@ -253,7 +253,9 @@ def on_ticket(
         snippets, tree = fetch_file_contents_with_retry()
         assert len(snippets) > 0
     except Exception as e:
+        trace = traceback.format_exc()
         logger.error(e)
+        logger.error(trace)
         edit_sweep_comment(
             "It looks like an issue has occured around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev.",
             -1
@@ -306,7 +308,7 @@ def on_ticket(
             config_pr_url = config_pr.html_url
             edit_sweep_comment(message="", index=-2)
         except Exception as e:
-            logger.error("Failed to create new branch for sweep.yaml file.\n", e)
+            logger.error("Failed to create new branch for sweep.yaml file.\n", e, traceback.format_exc())
     else:
         logger.info("sweep.yaml file already exists.")
 
@@ -409,6 +411,7 @@ def on_ticket(
         logger.info("No files to change.")
         edit_sweep_comment("Sorry, I could find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!", -1)
     except openai.error.InvalidRequestError as e:
+        logger.error(traceback.format_exc())
         logger.error(e)
         edit_sweep_comment(
             "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev.",
@@ -426,6 +429,7 @@ def on_ticket(
         )
         raise e
     except Exception as e:
+        logger.error(traceback.format_exc())
         logger.error(e)
         edit_sweep_comment(
             "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
