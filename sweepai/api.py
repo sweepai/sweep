@@ -134,6 +134,10 @@ async def webhook(raw_request: Request):
                     request.repository.description = (
                         request.repository.description or ""
                     )
+
+                    if not request.comment.body.lower().startswith("sweep"):
+                        return {"success": True, "reason": "Comment does not start with 'Sweep', passing"}
+
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
                     handle_ticket.spawn(
