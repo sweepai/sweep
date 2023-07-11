@@ -11,7 +11,7 @@ from sweepai.utils.chat_logger import ChatLogger
 import re
 
 from sweepai.core.entities import (
-    FileChange,
+    FileCreation,
     FileChangeRequest,
     FilesToChange,
     PullRequest,
@@ -251,8 +251,8 @@ class SweepBot(CodeGenBot, GithubBot):
         #             ) # update this constant
         return
 
-    def create_file(self, file_change_request: FileChangeRequest) -> FileChange:
-        file_change: FileChange | None = None
+    def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
+        file_change: FileCreation | None = None
         for count in range(5):
             key = f"file_change_created_{file_change_request.filename}"
             create_file_response = self.chat(
@@ -266,7 +266,7 @@ class SweepBot(CodeGenBot, GithubBot):
             self.file_change_paths.append(file_change_request.filename)
             # self.delete_file_from_system_message(file_path=file_change_request.filename)
             try:
-                file_change = FileChange.from_string(create_file_response)
+                file_change = FileCreation.from_string(create_file_response)
                 assert file_change is not None
                 file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
                 return file_change

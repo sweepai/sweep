@@ -99,10 +99,11 @@ class FileChangeRequest(RegexMatchableBaseModel):
         return res
 
 
-class FileChange(RegexMatchableBaseModel):
+class FileCreation(RegexMatchableBaseModel):
     commit_message: str
     code: str
-    _regex = r"""Commit Message:(?P<commit_message>.*)<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)$"""
+    _regex = r'''commit_message\s+=\s+"(?P<commit_message>.*?)".*?<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)<\/new_file>'''
+    #_regex = r"""Commit Message:(?P<commit_message>.*)<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)$"""
     # _regex = r"""Commit Message:(?P<commit_message>.*)(<new_file>|```)(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)($|```)"""
 
     @classmethod
