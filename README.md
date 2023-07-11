@@ -69,8 +69,9 @@ Sweep Chat allows you to interact with Sweep and GitHub locally. Collaborate on 
 
 **Prerequisites:** Install [Sweep GitHub app](https://github.com/apps/sweep-ai) to your repository
 
-1. Run `pip install sweepai && sweep`. Note that you need **python 3.10+.**
-    - This runs GitHub authentication in your browser. 
+1. Run `pip3 install sweepai && sweep`. Note that you need **python 3.10+.**
+    - Alternatively run `pip3 install --force-reinstall sweepai && sweep` if the previous command fails.
+    - This runs GitHub authentication in your browser.
 
 2. Copy the 🔵 blue 8-digit code from your terminal into the page. You should only need to do the authentication once.  
     - Wait a few seconds and Sweep Chat will start. 
