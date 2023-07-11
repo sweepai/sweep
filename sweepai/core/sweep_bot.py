@@ -9,9 +9,10 @@ from pydantic import BaseModel
 from sweepai.core.code_repair import CodeRepairer
 from sweepai.utils.chat_logger import ChatLogger
 import re
+import traceback
 
 from sweepai.core.entities import (
-    FileChange,
+    FileCreation,
     FileChangeRequest,
     FilesToChange,
     PullRequest,
@@ -87,6 +88,11 @@ class CodeGenBot(ChatGPT):
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
                 else:
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)
+
+                # Add triple quotes if not present
+                if not pr_text_response.strip().endswith('"""'):
+                    pr_text_response += '"""'
+
                 self.delete_messages_from_chat("pull_request")
             except Exception as e:
                 e_str = str(e)
@@ -251,8 +257,8 @@ class SweepBot(CodeGenBot, GithubBot):
         #             ) # update this constant
         return
 
-    def create_file(self, file_change_request: FileChangeRequest) -> FileChange:
-        file_change: FileChange | None = None
+    def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
+        file_change: FileCreation | None = None
         for count in range(5):
             key = f"file_change_created_{file_change_request.filename}"
             create_file_response = self.chat(
@@ -266,7 +272,7 @@ class SweepBot(CodeGenBot, GithubBot):
             self.file_change_paths.append(file_change_request.filename)
             # self.delete_file_from_system_message(file_path=file_change_request.filename)
             try:
-                file_change = FileChange.from_string(create_file_response)
+                file_change = FileCreation.from_string(create_file_response)
                 assert file_change is not None
                 file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
                 return file_change
@@ -343,7 +349,8 @@ class SweepBot(CodeGenBot, GithubBot):
                         new_file = code_repairer.repair_code(diff=diff, user_code=new_file, feature=file_change_request.instructions)
                     return (new_file, file_change_request.filename)
                 except Exception as e:
-                    logger.warning(f"Recieved error {e}")
+                    tb = traceback.format_exc()
+                    logger.warning(f"Recieved error {e}\n{tb}")
                     logger.warning(
                         f"Failed to parse. Retrying for the {count}th time..."
                     )

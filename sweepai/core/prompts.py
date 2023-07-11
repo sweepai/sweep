@@ -201,15 +201,20 @@ Write a 1-paragraph response to this user:
 """
 
 create_file_prompt = """
+You are creating a PR for creating the single new file.
+
 Think step-by-step regarding the instructions and what should be added to the new file.
-Then create a plan of parts of the code to create, with low-level, detailed references to functions and variable to create, and what each function does.
-Then create the following file using the following instructions:
+Next, create a plan of parts of the code to create, with low-level, detailed references to functions and variable to create, and what each function does.
+Last, create the following file using the following instructions:
 
-File Name: {filename}
+DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags, and all text inside these tags will be placed in the newly created file.
 
-Instructions: {instructions}
+Reply in the following format:
+Commit planning:
+file_name = "..."
+instructions = "..."
+commit_message = "..."
 
-Reply in the following format. DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags, and all text inside these tags will be placed in the newly created file.
 
 Step-by-step thoughts with explanations: 
 * Thought 1 - Explanation 1
@@ -220,7 +225,7 @@ Detailed plan of additions:
 * Addition 1
 * Addition 2
 ...
-Commit Message: {{commit_message}}
+
 <new_file>
 {{new_file}}
 </new_file>
@@ -350,15 +355,14 @@ Instructions:
 pr_code_prompt = ""  # TODO: deprecate this
 
 
-pull_request_prompt = """
-Awesome! Could you also provide a PR message in the following format? Content should be in Github style markdown. Thanks!
+pull_request_prompt = """With your plan in mind, generate one PR for your planned changes using GitHub markdown.
 
-Title: {title}
-Branch Name: {branch_name}
-<content>
-{content}
-</content>
-"""
+title = "..."
+branch = "..."
+content = \"\"\"
+...
+...
+\"\"\""""
 
 summarize_system_prompt = """
 Your name is Sweep bot. You are an engineer assigned to helping summarize code instructions and code changes.
