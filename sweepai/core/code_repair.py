@@ -54,8 +54,8 @@ class CodeRepairer(ChatGPT):
             if len(user_code.splitlines()) > 50 and abs(len(response.splitlines()) - len(user_code.splitlines())) / len(user_code.splitlines()) > 0.1:
                 self.undo()
                 retry_count += 1
+                if retry_count == 5:
+                    return user_code
             else:
                 break
-        if retry_count == 5:
-            return user_code
         return response.strip() + "\n"
