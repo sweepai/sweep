@@ -76,10 +76,27 @@ If you want the nightly build and or if the latest build has issues.
 ### ✨ Sweep Github App
 Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
 
-1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
-2. Create new issue in repo, like "Sweep: Write tests"
-3. Watch the magic happen 🪄
+### ✨ Sweep Github App
 
+Using Sweep is as simple as describing your issue or feature request. Here's a step-by-step guide using the example "The payment link in my website does not work. Fix the payment link in payments.ts":
+
+1. Install the [Sweep GitHub app](https://github.com/apps/sweep-ai) to your desired repos.
+2. Create a new issue in your repo. The issue title should be descriptive of the problem or feature request. For example, "Sweep: Fix the payment link".
+3. In the issue description, provide more details about the problem or feature request. For example, "The payment link in my website does not work. Fix the payment link in payments.ts".
+4. Once the issue is created, Sweep will start working on it. You can track the progress of the issue in the comments section of the issue.
+5. When Sweep is done, it will create a pull request with the necessary code changes. You can review and merge the pull request.
+
+Remember, the more descriptive the issue, the better Sweep can help!
+
+Using Sweep is as simple as describing your issue or feature request. Here's a step-by-step guide using the example "The payment link in my website does not work. Fix the payment link in payments.ts":
+
+1. Install the [Sweep GitHub app](https://github.com/apps/sweep-ai) to your desired repos.
+2. Create a new issue in your repo. The issue title should be descriptive of the problem or feature request. For example, "Sweep: Fix the payment link".
+3. In the issue description, provide more details about the problem or feature request. For example, "The payment link in my website does not work. Fix the payment link in payments.ts".
+4. Once the issue is created, Sweep will start working on it. You can track the progress of the issue in the comments section of the issue.
+5. When Sweep is done, it will create a pull request with the necessary code changes. You can review and merge the pull request.
+
+Remember, the more descriptive the issue, the better Sweep can help!
 For tips & tricks and limitations of Sweep, see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/tricks).
 
 ## 🤝 Contributing
@@ -126,4 +143,3 @@ Consider starring us if you're using Sweep so more people hear about us!
 <p align="center">
     and, of course, Sweep!
 </p>
-
