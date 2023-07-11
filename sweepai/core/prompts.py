@@ -350,15 +350,14 @@ Instructions:
 pr_code_prompt = ""  # TODO: deprecate this
 
 
-pull_request_prompt = """
-Awesome! Could you also provide a PR message in the following format? Content should be in Github style markdown. Thanks!
+pull_request_prompt = """With your plan in mind, generate one PR for your planned changes using GitHub markdown.
 
-Title: {title}
-Branch Name: {branch_name}
-<content>
-{content}
-</content>
-"""
+title = "..."
+branch = "..."
+content = \"\"\"
+...
+...
+\"\"\""""
 
 summarize_system_prompt = """
 Your name is Sweep bot. You are an engineer assigned to helping summarize code instructions and code changes.
