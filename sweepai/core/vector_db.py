@@ -86,7 +86,9 @@ class Embedding:
 
     @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
+        with ThreadPoolExecutor() as executor:
+            embeddings = list(executor.map(self.model.encode, texts))
+        return embeddings.tolist()
 
     @method()
     def ping(self):
@@ -338,4 +340,3 @@ def get_relevant_snippets(
             file_path=file_path
         ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ]
-
