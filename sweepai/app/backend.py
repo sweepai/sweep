@@ -13,14 +13,14 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from sweepai.app.config import SweepChatConfig
-from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import FileChangeRequest, Function, Message, PullRequest, Snippet
-from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.config import SweepConfig
 from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, PREFIX
 from sweepai.utils.github_utils import get_github_client, get_installation_id
-from sweepai.core.prompts import gradio_system_message_prompt
 from sweepai.utils.event_logger import posthog
+from sweepai.core.chat import ChatGPT
+from sweepai.core.entities import FileChangeRequest, Function, Message, PullRequest, Snippet
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.core.prompts import gradio_system_message_prompt, gradio_user_prompt
 
 get_relevant_snippets = modal.Function.from_name(DB_NAME, "get_relevant_snippets")
 
@@ -222,6 +222,7 @@ def _asgi_app():
         messages: list[tuple[str | None, str | None]]
         snippets: list[Snippet]
         config: SweepChatConfig
+        do_add_plan: bool = False
         functions: list[Function] = []
         function_call: Any = "auto"
 
@@ -257,6 +258,8 @@ def _asgi_app():
                 repo_description="" # TODO: fill this
             )
             chatgpt = ChatGPT(messages=[Message(role="system", content=system_message, key="system")] + messages[:-1])
+            if request.do_add_plan:
+                chatgpt.messages[-1].content += gradio_user_prompt
         except Exception as e:
             posthog.capture(request.config.github_username, "failed", properties={"error": str(e), **metadata})
             raise e

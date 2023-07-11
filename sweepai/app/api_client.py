@@ -73,7 +73,7 @@ def break_json(raw_json: str):
 
 class APIClient(BaseModel):
     config: SweepChatConfig
-    api_endpoint: str = f"https://sweepai--{PREFIX}-ui.modal.run"
+    api_endpoint: str = f"https://sweepai--{PREFIX}-ui-dev.modal.run"
 
     def get_installation_id(self):
         results = requests.post(
@@ -156,6 +156,7 @@ class APIClient(BaseModel):
                 json={
                     "messages": messages,
                     "snippets": [snippet.dict() for snippet in snippets],
+                    "do_add_plan": True,
                     "functions": [func.dict() for func in functions],
                     "function_call": function_call,
                     "config": self.config.dict()
