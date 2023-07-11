@@ -11,7 +11,7 @@ from loguru import logger
 import modal
 from tabulate import tabulate
 
-from sweepai.core.entities import FileChangeRequest, Snippet
+from sweepai.core.entities import FileChangeRequest, Snippet, NoFilesException
 from sweepai.core.prompts import (
     reply_prompt,
 )
@@ -50,7 +50,7 @@ collapsible_template = '''
 chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
 
 num_of_snippets_to_query = 30
-# max_num_of_snippets = 5
+max_num_of_snippets = 5
 total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 num_extended_snippets = 2
@@ -79,7 +79,7 @@ def post_process_snippets(snippets: list[Snippet]):
         if total_length > total_number_of_snippet_tokens * 5:
             break
         result_snippets.append(snippet)
-    return result_snippets
+    return result_snippets[:max_num_of_snippets]
 
 def on_ticket(
     title: str,
@@ -137,7 +137,9 @@ def on_ticket(
         # This is done in create_pr, (pr_description = ...)
         if pr.user.login == SWEEP_LOGIN and f'Fixes #{issue_number}.\n' in pr.body:
             success = safe_delete_sweep_branch(pr, repo)
-
+    comments = current_issue.get_comments()
+    if comment_id and not comments[-1].body.lower().startswith("sweep"):
+        return {"success": True, "reason": "Comment does not start with 'Sweep', passing"}
     # Add emojis
     eyes_reaction = item_to_react_to.create_reaction("eyes")
     # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
@@ -168,11 +170,9 @@ def on_ticket(
             return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
         return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + ("\n" + stars_suffix + config_pr_message if index != -1 else "")
 
-    comments = current_issue.get_comments()
-
     # Find the first comment made by the bot
     issue_comment = None
-    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}"
+    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\nWorking on it...{bot_suffix}"
     for comment in comments:
         if comment.user.login == SWEEP_LOGIN:
             issue_comment = comment
@@ -183,28 +183,31 @@ def on_ticket(
 
     # Comment edit function
     past_messages = {}
+    current_index = {}
     def edit_sweep_comment(message: str, index: int, pr_message = ""):
+        nonlocal current_index
         # -1 = error, -2 = retry
         # Only update the progress bar if the issue generation errors.
         errored = (index == -1)
-        current_index = index
         if index >= 0:
             past_messages[index] = message
+            current_index = index
 
-        # Include progress history
         agg_message = None
-        for i in range(current_index + 1):
-            if i in past_messages:
-                header = progress_headers[i]
-                if header is not None: header = "## " + header + "\n"
-                else: header = "No header\n"
-                msg = header + past_messages[i]
-                if agg_message is None:
-                    agg_message = msg
-                else:
-                    agg_message = agg_message + f"\n{sep}" + msg
+        # Include progress history
+        # index = -2 is reserved for
+        for i in range(current_index + 2): # go to next header (for Working on it... text)
+            if i == 0 or i >= len(progress_headers): continue # skip None header
+            header = progress_headers[i]
+            if header is not None: header = "## " + header + "\n"
+            else: header = "No header\n"
+            msg = header + (past_messages.get(i) or "Working on it...")
+            if agg_message is None:
+                agg_message = msg
+            else:
+                agg_message = agg_message + f"\n{sep}" + msg
         if errored:
-            agg_message = "## Error: 🚫 Unable to Complete PR\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
+            agg_message = "## ❌ Unable to Complete PR" + '\n' + message + "\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
 
         # Update the issue comment
         issue_comment.edit(f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{bot_suffix}")
@@ -216,7 +219,7 @@ def on_ticket(
                 issue_comment_prompt.format(
                     username=comment.user.login,
                     reply=comment.body,
-                ) for comment in comments
+                ) for comment in comments if comment.user.type == "User"
             ]
         )
 
@@ -402,6 +405,9 @@ def on_ticket(
             )
 
             break
+    except NoFilesException:
+        logger.info("No files to change.")
+        edit_sweep_comment("Sorry, I could find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!", -1)
     except openai.error.InvalidRequestError as e:
         logger.error(e)
         edit_sweep_comment(

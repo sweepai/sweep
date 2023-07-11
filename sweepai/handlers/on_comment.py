@@ -9,6 +9,7 @@ import openai
 
 from loguru import logger
 
+from sweepai.core.entities import NoFilesException, Snippet
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.event_logger import posthog
@@ -23,6 +24,37 @@ from sweepai.utils.chat_logger import ChatLogger
 github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
+num_of_snippets_to_query = 30
+max_num_of_snippets = 3
+total_number_of_snippet_tokens = 15_000
+num_full_files = 2
+num_extended_snippets = 2
+
+def post_process_snippets(snippets: list[Snippet]):
+    for snippet in snippets[:num_full_files]:
+        snippet = snippet.expand()
+
+    # snippet fusing
+    i = 0
+    while i < len(snippets):
+        j = i + 1
+        while j < len(snippets):
+            if snippets[i] ^ snippets[j]:  # this checks for overlap
+                snippets[i] = snippets[i] | snippets[j]  # merging
+                snippets.pop(j)
+            else:
+                j += 1
+        i += 1
+
+    # truncating snippets based on character length
+    result_snippets = []
+    total_length = 0
+    for snippet in snippets:
+        total_length += len(snippet.get_snippet())
+        if total_length > total_number_of_snippet_tokens * 5:
+            break
+        result_snippets.append(snippet)
+    return result_snippets[:max_num_of_snippets]
 
 def on_comment(
     repo_full_name: str,
@@ -71,14 +103,49 @@ def on_comment(
         pr_title = pr.title
         pr_body = pr.body
         diffs = get_pr_diffs(repo, pr)
-        snippets, tree = search_snippets(repo, comment, installation_id, branch=branch_name, num_files=1 if pr_path else 3)
         pr_line = None
         pr_file_path = None
+        # This means it's a comment on a file
         if pr_path and pr_line_position:
             pr_file = repo.get_contents(pr_path, ref=branch_name).decoded_content.decode("utf-8")
             pr_lines = pr_file.splitlines()
             pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
             pr_file_path = pr_path.strip()
+        # This means it's a comment on the PR
+        else:
+            if not comment.strip().lower().startswith("sweep"):
+                logger.info("No event fired because it doesn't start with Sweep.")
+                return {"success": True, "message": "No event fired."}
+            
+        def fetch_file_contents_with_retry():
+            retries = 3
+            error = None
+            for i in range(retries):
+                try:
+                    logger.info(f"Fetching relevant files for the {i}th time...")
+                    return search_snippets(
+                        repo,
+                        f"{comment}\n{pr_title}" + (f"\n{pr_line}" if pr_line else ""),
+                        num_files=30,
+                        branch=branch_name,
+                        installation_id=installation_id,
+                    )
+                except Exception as e:
+                    error = e
+                    continue
+            posthog.capture(
+                username, "fetching_failed", properties={"error": error, **metadata}
+            )
+            raise error
+        snippets, tree = fetch_file_contents_with_retry()
+        logger.info("Fetching relevant files...")
+        try:
+            snippets, tree = fetch_file_contents_with_retry()
+            assert len(snippets) > 0
+        except Exception as e:
+            logger.error(e)
+            raise e
+        snippets = post_process_snippets(snippets)
 
         logger.info("Getting response from ChatGPT...")
         human_message = HumanMessageCommentPrompt(
@@ -127,12 +194,19 @@ def on_comment(
 
     try:
         logger.info("Fetching files to modify/create...")
-        file_change_requests = sweep_bot.get_files_to_change()
+        file_change_requests = sweep_bot.get_files_to_change(retries=3)
         file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
 
         logger.info("Done!")
+    except NoFilesException:
+        posthog.capture(username, "failed", properties={
+            "error": "No files to change",
+            "reason": "No files to change",
+            **metadata
+        })
+        return {"success": True, "message": "No files to change."}
     except Exception as e:
         posthog.capture(username, "failed", properties={
             "error": str(e),
