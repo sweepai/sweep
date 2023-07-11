@@ -1,4 +1,4 @@
-from copy import deepcopy
+import random
 import json
 import os
 from typing import Iterator, Literal, Self
@@ -185,8 +185,7 @@ class ChatGPT(BaseModel):
         function_name: dict | None = None,
     ):
         if model is None:
-            model = self.model
-        count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
+            model = random.choice(["gpt-4", "gpt-4-0613"])
         messages_length = sum(
             [count_tokens.call(message.content or "") for message in self.messages]
         )
@@ -375,8 +374,7 @@ class ChatGPT(BaseModel):
         functions: list[Function] = [],
         function_call: dict | None = None,
     ) -> Iterator[dict]:
-        model = model or self.model
-        count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
+        model = model or random.choice(["gpt-4", "gpt-4-0613"])
         messages_length = sum(
             [count_tokens.call(message.content or "") for message in self.messages]
         )
