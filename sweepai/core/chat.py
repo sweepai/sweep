@@ -1,4 +1,4 @@
-from copy import deepcopy
+import random
 import json
 import os
 from typing import Iterator, Literal, Self
@@ -143,6 +143,7 @@ class ChatGPT(BaseModel):
         functions: list[Function] = [],
         function_name: dict | None = None,
     ):
+        model = random.choice(["gpt-4-32k-0613", "gpt-4-0613"]) if model is None else model
         if self.messages[-1].function_call is None:
             self.messages.append(Message(role="user", content=content, key=message_key))
         else:
@@ -358,6 +359,7 @@ class ChatGPT(BaseModel):
         functions: list[Function] = [],
         function_call: dict | None = None,
     ) -> Iterator[dict]:
+        model = random.choice(["gpt-4-32k-0613", "gpt-4-0613"]) if model is None else model
         if self.messages[-1].function_call is None:
             self.messages.append(Message(role="user", content=content, key=message_key))
         else:
