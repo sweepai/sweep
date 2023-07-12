@@ -106,6 +106,7 @@ def create_pr(
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("create_pr success")
+    sweep_bot.chat_logger.add_successful_ticket()
     return {"success": True, "pull_request": pr}
 
 def safe_delete_sweep_branch(
