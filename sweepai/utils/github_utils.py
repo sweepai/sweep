@@ -13,7 +13,8 @@ from loguru import logger
 from tqdm import tqdm
 
 from sweepai.core.entities import Snippet
-from sweepai.utils.config import SweepConfig, DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHUB_APP_PEM
+from sweepai.utils.config.client import SweepConfig
+from sweepai.utils.config.server import DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHUB_APP_PEM
 from sweepai.utils.event_logger import posthog
 
 
@@ -65,20 +66,21 @@ def get_installation_id(username: str):
     except:
         raise Exception("Could not get installation id, probably not installed")
 
+
 def display_directory_tree(
-    root_path,
-    includes: list[str] = [],
-    excludes: list[str] = [".git"],
+        root_path,
+        includes: list[str] = [],
+        excludes: list[str] = [".git"],
 ):
     def display_directory_tree_helper(
-        current_dir,
-        indent="",
+            current_dir,
+            indent="",
     ) -> str:
         files = os.listdir(current_dir)
         files.sort()
         tree = ""
         for item_name in files:
-            full_path = os.path.join(current_dir, item_name)[len(root_path) + 1 :]
+            full_path = os.path.join(current_dir, item_name)[len(root_path) + 1:]
             if item_name in excludes:
                 continue
             file_path = os.path.join(current_dir, item_name)
@@ -93,6 +95,7 @@ def display_directory_tree(
             else:
                 tree += f"{indent}|- {item_name}\n"
         return tree
+
     tree = display_directory_tree_helper(root_path)
     lines = tree.splitlines()
     return "\n".join([line[3:] for line in lines])
@@ -113,7 +116,7 @@ def get_file_list(root_directory: str) -> str:
                 dfs_helper(item_path)  # Recursive call to explore subdirectory
 
     dfs_helper(root_directory)
-    files = [file[len(root_directory) + 1 :] for file in files]
+    files = [file[len(root_directory) + 1:] for file in files]
     return files
 
 
@@ -125,9 +128,9 @@ def get_file_list(root_directory: str) -> str:
 #     shutil.rmtree("repo")
 #     return tree
 def get_tree_and_file_list(
-    repo: Repository, 
-    installation_id: int, 
-    snippet_paths: list[str]
+        repo: Repository,
+        installation_id: int,
+        snippet_paths: list[str]
 ) -> str:
     from git import Repo
     token = get_token(installation_id)
@@ -146,7 +149,7 @@ def get_tree_and_file_list(
         prefixes.append(snippet_path)
 
     tree = display_directory_tree(
-        "repo", 
+        "repo",
         includes=prefixes,
     )
     file_list = get_file_list("repo")
@@ -163,13 +166,13 @@ def get_file_contents(repo: Repository, file_path, ref=None):
 
 
 def search_snippets(
-    repo: Repository,
-    query: str,
-    installation_id: int,
-    num_files: int = 5,
-    include_tree: bool = True,
-    branch: str = None,
-    sweep_config: SweepConfig = SweepConfig(),
+        repo: Repository,
+        query: str,
+        installation_id: int,
+        num_files: int = 5,
+        include_tree: bool = True,
+        branch: str = None,
+        sweep_config: SweepConfig = SweepConfig(),
 ) -> tuple[list[Snippet], str]:
     # Initialize the relevant directories string
     get_relevant_snippets = modal.Function.lookup(DB_MODAL_INST_NAME, "get_relevant_snippets")
@@ -190,8 +193,8 @@ def search_snippets(
         else:
             snippet.content = file_contents
     tree, file_list = get_tree_and_file_list(
-        repo, 
-        installation_id, 
+        repo,
+        installation_id,
         snippet_paths=[snippet.file_path for snippet in snippets]
     )
     for file_path in tqdm(file_list):
@@ -206,13 +209,13 @@ def search_snippets(
                 logger.warning(f"Skipping {file_path}")
             else:
                 snippets = [
-                    Snippet(
-                        content=file_contents,
-                        start=0,
-                        end=file_contents.count("\n") + 1,
-                        file_path=file_path,
-                    )
-                ] + snippets
+                               Snippet(
+                                   content=file_contents,
+                                   start=0,
+                                   end=file_contents.count("\n") + 1,
+                                   file_path=file_path,
+                               )
+                           ] + snippets
     snippets = [snippet.expand() for snippet in snippets]
     if include_tree:
         return snippets, tree
@@ -221,9 +224,9 @@ def search_snippets(
 
 
 def index_full_repository(
-    repo_name: str,
-    installation_id: int = None,
-    sweep_config: SweepConfig = SweepConfig(),
+        repo_name: str,
+        installation_id: int = None,
+        sweep_config: SweepConfig = SweepConfig(),
 ):
     update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
     num_indexed_docs = update_index.spawn(

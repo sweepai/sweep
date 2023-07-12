@@ -1,11 +1,11 @@
-
 import modal
 from loguru import logger
 
 from sweepai.core.entities import Snippet
-from sweepai.utils.config import UTILS_MODAL_INST_NAME
+from sweepai.utils.config.server import UTILS_MODAL_INST_NAME
 
 chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
+
 
 def format_snippets(snippets: list[Snippet]):
     snippets: list[Snippet] = snippets[::-1]
@@ -19,7 +19,7 @@ def format_snippets(snippets: list[Snippet]):
     for snippet in most_relevant_snippets:
         current_snippet = snippet
         _chunks, metadatas, _ids = chunker.call(
-            current_snippet.content, 
+            current_snippet.content,
             current_snippet.file_path
         )
         segmented_snippets = [

@@ -18,7 +18,8 @@ from sweepai.core.entities import Snippet
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.scorer import compute_score, convert_to_percentiles
-from ..utils.config import SweepConfig, ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, REDIS_URL
+from ..utils.config.client import SweepConfig
+from ..utils.config.server import ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, REDIS_URL, BOT_TOKEN_NAME
 from ..utils.github_utils import get_token
 
 # TODO: Lots of cleanups can be done here with these constants
@@ -39,9 +40,11 @@ image = (
     modal.Image.debian_slim()
     .apt_install("git")
     .pip_install("deeplake==3.6.3", "sentence-transformers")
-    .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "highlight-io", "anthropic", "posthog", "redis", "pyyaml")
+    .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "highlight-io", "anthropic",
+                 "posthog", "redis", "pyyaml")
 )
 secrets = [
+    modal.Secret.from_name(BOT_TOKEN_NAME),
     modal.Secret.from_name("github"),
     modal.Secret.from_name("openai-secret"),
     modal.Secret.from_name("huggingface"),
@@ -105,18 +108,18 @@ embedding_function = ModalEmbeddingFunction()
 
 
 def get_deeplake_vs_from_repo(
-    repo_name: str,
-    installation_id: int,
-    branch_name: str | None = None,
-    sweep_config: SweepConfig = SweepConfig(),
+        repo_name: str,
+        installation_id: int,
+        branch_name: str | None = None,
+        sweep_config: SweepConfig = SweepConfig(),
 ):
     token = get_token(installation_id)
     g = Github(token)
     repo = g.get_repo(repo_name)
     commits = repo.get_commits()
     commit_hash = commits[0].sha
-    
-    cache_success = False 
+
+    cache_success = False
     cache_inst = None
 
     if REDIS_URL is not None:
@@ -130,7 +133,7 @@ def get_deeplake_vs_from_repo(
             logger.error(f"Failed to connect to redis cache")
     else:
         logger.warning(f"REDIS_URL is None, skipping cache")
-    
+
     if cache_inst and cache_success:
 
         try:
@@ -162,7 +165,7 @@ def get_deeplake_vs_from_repo(
 
     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
     shutil.rmtree("repo", ignore_errors=True)
-    
+
     branch_name = SweepConfig.get_branch(repo)
 
     git_repo = Repo.clone_from(repo_url, "repo")
@@ -173,8 +176,8 @@ def get_deeplake_vs_from_repo(
         file
         for file in tqdm(file_list)
         if os.path.isfile(file)
-        and all(not file.endswith(ext) for ext in sweep_config.exclude_exts)
-        and all(not file[len("repo/"):].startswith(dir_name) for dir_name in sweep_config.exclude_dirs)
+           and all(not file.endswith(ext) for ext in sweep_config.exclude_exts)
+           and all(not file[len("repo/"):].startswith(dir_name) for dir_name in sweep_config.exclude_dirs)
     ]
 
     file_paths = []
@@ -243,7 +246,7 @@ def get_deeplake_vs_from_repo(
     logger.info(f"Used {len(file_paths)} files...")
 
     shutil.rmtree("repo", ignore_errors=True)
-    logger.info(f"Getting list of all files took {time.time() -start}")
+    logger.info(f"Getting list of all files took {time.time() - start}")
     logger.info(
         f"Received {len(documents)} documents from repository {repo_name}")
     collection_name = parse_collection_name(repo_name)
@@ -272,7 +275,7 @@ def compute_deeplake_vs(collection_name,
         logger.info(
             f"Found {len([x for x in embeddings if x is not None])} embeddings in cache")
         indices_to_compute = [idx for idx,
-                              x in enumerate(embeddings) if x is None]
+        x in enumerate(embeddings) if x is None]
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
 
         computed_embeddings = embedding_function(documents_to_compute)
@@ -293,7 +296,7 @@ def compute_deeplake_vs(collection_name,
             cache_keys = [hash_sha256(
                 doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in documents_to_compute]
             cache_inst.mset({key: json.dumps(value)
-                       for key, value in zip(cache_keys, computed_embeddings)})
+                             for key, value in zip(cache_keys, computed_embeddings)})
         return deeplake_vs
     else:
         logger.error("No documents found in repository")
@@ -302,23 +305,23 @@ def compute_deeplake_vs(collection_name,
 
 @stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
 def update_index(
-    repo_name,
-    installation_id: int,
-    sweep_config: SweepConfig = SweepConfig(),
+        repo_name,
+        installation_id: int,
+        sweep_config: SweepConfig = SweepConfig(),
 ) -> int:
     get_deeplake_vs_from_repo(repo_name, installation_id, branch_name=None, sweep_config=sweep_config)
     # todo: ?
-    return 0 
+    return 0
 
 
 @stub.function(image=image, secrets=secrets, shared_volumes={DEEPLAKE_DIR: model_volume}, timeout=timeout, keep_warm=1)
 def get_relevant_snippets(
-    repo_name: str,
-    query: str,
-    n_results: int,
-    installation_id: int,
-    username: str | None = None,
-    sweep_config: SweepConfig = SweepConfig(),
+        repo_name: str,
+        query: str,
+        n_results: int,
+        installation_id: int,
+        username: str | None = None,
+        sweep_config: SweepConfig = SweepConfig(),
 ):
     deeplake_vs = get_deeplake_vs_from_repo(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
@@ -349,7 +352,7 @@ def get_relevant_snippets(
     code_scores = [metadata["score"] for metadata in metadatas]
     vector_scores = results["score"]
     combined_scores = [code_score + vector_score for code_score,
-                       vector_score in zip(code_scores, vector_scores)]
+    vector_score in zip(code_scores, vector_scores)]
     # Sort by combined scores
     # Combine the three lists into a single list of tuples
     combined_list = list(zip(combined_scores, metadatas))

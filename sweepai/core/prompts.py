@@ -6,47 +6,45 @@ List of common prompts used across the codebase.
 system_message_prompt = "Your name is Sweep bot. You are a brilliant and thorough engineer assigned to the following Github ticket. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes."
 system_message_issue_comment_prompt = "Your name is Sweep bot. You are a brilliant and thorough engineer assigned to the following Github ticket, and a user has just responded with feedback. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes."
 
-
 human_message_prompt = [
-{'role': 'assistant', 'content': 'Examining repo...'},
-{'role': 'user', 'content': """<relevant_snippets_in_repo>
+    {'role': 'assistant', 'content': 'Examining repo...'},
+    {'role': 'user', 'content': """<relevant_snippets_in_repo>
 {relevant_snippets}
 </relevant_snippets_in_repo>"""},
-{'role': 'user', 'content': """<relevant_paths_in_repo>
+    {'role': 'user', 'content': """<relevant_paths_in_repo>
 {relevant_directories}
 </relevant_paths_in_repo>"""},
-{'role': 'user', 'content': """<repo_tree>
+    {'role': 'user', 'content': """<repo_tree>
 {tree}
 </repo_tree>"""},
-{'role': 'user', 'content':
-"""# Repo & Issue Metadata
-Repo: {repo_name}: {repo_description}
-Issue Url: {issue_url}
-Username: {username}
-Issue Title: {title}
-Issue Description: {description}"""}]
-
+    {'role': 'user', 'content':
+        """# Repo & Issue Metadata
+        Repo: {repo_name}: {repo_description}
+        Issue Url: {issue_url}
+        Username: {username}
+        Issue Title: {title}
+        Issue Description: {description}"""}]
 
 human_message_review_prompt = [
-{'role': 'assistant', 'content': 'Reviewing my pull request...'},
-{'role': 'user', 'content': """<relevant_snippets_in_repo>
+    {'role': 'assistant', 'content': 'Reviewing my pull request...'},
+    {'role': 'user', 'content': """<relevant_snippets_in_repo>
 {relevant_snippets}
 </relevant_snippets_in_repo>"""},
-{'role': 'user', 'content': """<relevant_paths_in_repo>
+    {'role': 'user', 'content': """<relevant_paths_in_repo>
 {relevant_directories}
 </relevant_paths_in_repo>"""},
-{'role': 'user', 'content': """"<repo_tree>
+    {'role': 'user', 'content': """"<repo_tree>
 {tree}
 </repo_tree>"""},
-{'role': 'user', 'content':
-"""These are the file changes.
-We have the file_path, the previous_file_content, the new_file_content, and the diffs.
-The file_path is the name of the file.
-The previous_file_content is the content of the file before the changes.
-The new_file_content is the content of the file after the changes.
-The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
-Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
-{diffs}"""}]
+    {'role': 'user', 'content':
+        """These are the file changes.
+        We have the file_path, the previous_file_content, the new_file_content, and the diffs.
+        The file_path is the name of the file.
+        The previous_file_content is the content of the file before the changes.
+        The new_file_content is the content of the file after the changes.
+        The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
+        Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
+        {diffs}"""}]
 
 diff_section_prompt = """
 <file_path>
@@ -123,37 +121,37 @@ issue_comment_prompt = """
 
 # Prompt for comments
 human_message_prompt_comment = [
-{'role': 'assistant', 'content': 'Reviewing my pull request...'},
-{'role': 'user', 'content':
-"""<relevant_snippets_in_repo>
-{relevant_snippets}
-</relevant_snippets_in_repo>"""},
-{'role': 'user', 'content': """<relevant_paths_in_repo>
+    {'role': 'assistant', 'content': 'Reviewing my pull request...'},
+    {'role': 'user', 'content':
+        """<relevant_snippets_in_repo>
+        {relevant_snippets}
+        </relevant_snippets_in_repo>"""},
+    {'role': 'user', 'content': """<relevant_paths_in_repo>
 {relevant_directories}
 </relevant_paths_in_repo>"""},
     {'role': 'user', 'content': """<repo_tree>
 {tree}
 </repo_tree>"""},
-{'role': 'user', 'content':
-"""# Repo, Issue, & PR Metadata
-Repo: {repo_name}: {repo_description}
-Issue Url: {issue_url}
-Username: {username}
-Pull Request Title: {title}
-Pull Request Description: {description}"""},
-{'role': 'user', 'content':
-"""These are the file changes.
-We have the file_path, the previous_file_content, the new_file_content, and the diffs.
-The file_path is the name of the file.
-The previous_file_content is the content of the file before the changes.
-The new_file_content is the content of the file after the changes.
-The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
-Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
-{diff}"""},
-{'role': 'user', 'content':
-"""Please handle the user review comment, taking into account the snippets, paths, tree, pull request title, pull request description, and the file changes.
-Sometimes the user may not request changes, don't change anything in that case.
-User pull request review: {comment}"""}]
+    {'role': 'user', 'content':
+        """# Repo, Issue, & PR Metadata
+        Repo: {repo_name}: {repo_description}
+        Issue Url: {issue_url}
+        Username: {username}
+        Pull Request Title: {title}
+        Pull Request Description: {description}"""},
+    {'role': 'user', 'content':
+        """These are the file changes.
+        We have the file_path, the previous_file_content, the new_file_content, and the diffs.
+        The file_path is the name of the file.
+        The previous_file_content is the content of the file before the changes.
+        The new_file_content is the content of the file after the changes.
+        The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
+        Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
+        {diff}"""},
+    {'role': 'user', 'content':
+        """Please handle the user review comment, taking into account the snippets, paths, tree, pull request title, pull request description, and the file changes.
+        Sometimes the user may not request changes, don't change anything in that case.
+        User pull request review: {comment}"""}]
 
 comment_line_prompt = """\
 The user made the review in this file: {pr_file_path}
@@ -162,7 +160,7 @@ and on this line: {pr_line}
 
 cot_retrieval_prompt = """
 Gather information to solve the problem. Use "finish" when you feel like you have sufficient information.
-""" 
+"""
 
 files_to_change_prompt = """
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
@@ -267,9 +265,9 @@ Lines to change in the file:
 
 Only include the line numbers."""
 
-#<snippets>
-#{snippets}
-#</snippets>
+# <snippets>
+# {snippets}
+# </snippets>
 modify_file_prompt = """
 File contains lines {line_numbers}
 
@@ -293,7 +291,6 @@ print("debug statement")
 
 Do not rewrite entire file. Use <copied> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
 """
-
 
 modify_file_prompt_2 = """
 File Name: {filename}
@@ -348,12 +345,7 @@ Instructions:
 - Complete Code Planning step
 - Complete Code Generation step"""
 
-
-
-
-
 pr_code_prompt = ""  # TODO: deprecate this
-
 
 pull_request_prompt = """With your plan in mind, generate one PR for your planned changes using GitHub markdown.
 

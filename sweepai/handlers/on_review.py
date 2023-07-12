@@ -32,12 +32,14 @@ def get_pr_diffs(repo, pr):
         if file.status == "added":
             pr_diffs.append((file.filename, get_file_contents(repo, file_path=file.filename, ref=head_sha), "", diff))
         elif file.status == "modified":
-            pr_diffs.append((file.filename, get_file_contents(repo, file_path=file.filename, ref=head_sha), get_file_contents(repo, file_path=file.filename, ref=base_sha), diff))
+            pr_diffs.append((file.filename, get_file_contents(repo, file_path=file.filename, ref=head_sha),
+                             get_file_contents(repo, file_path=file.filename, ref=base_sha), diff))
         elif file.status == "removed":
             pr_diffs.append((file.filename, "", get_file_contents(repo, file_path=file.filename, ref=base_sha), diff))
         else:
-            logger.info(f"File status {file.status} not recognized") #TODO(sweep): We don't handle renamed files
+            logger.info(f"File status {file.status} not recognized")  # TODO(sweep): We don't handle renamed files
     return pr_diffs
+
 
 def review_pr(repo, pr, issue_url, username, repo_description, title, summary, replies_text, tree):
     repo_name = repo.full_name

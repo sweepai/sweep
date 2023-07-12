@@ -2,7 +2,7 @@ import highlight_io
 from loguru import logger
 from posthog import Posthog
 
-from sweepai.utils.config import POSTHOG_API_KEY, HIGHLIGHT_API_KEY
+from sweepai.utils.config.server import POSTHOG_API_KEY, HIGHLIGHT_API_KEY
 
 if POSTHOG_API_KEY is None:
     posthog = Posthog(project_api_key="none", disabled=True, host='https://app.posthog.com')
@@ -20,4 +20,3 @@ else:
         level="INFO",
         backtrace=True,
     )
-

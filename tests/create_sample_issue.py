@@ -3,7 +3,7 @@ import os
 from github import Github
 from loguru import logger
 
-from sweepai.utils.config import GITHUB_BOT_TOKEN
+from sweepai.utils.config.server import GITHUB_BOT_TOKEN
 
 
 def create_issue(repo_name, title, body):

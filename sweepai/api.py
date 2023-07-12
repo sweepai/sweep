@@ -2,8 +2,6 @@ import modal
 from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
-from sweepai.handlers.create_pr import create_pr
-from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 
 from sweepai.events import (
     CheckRunCompleted,
@@ -15,10 +13,11 @@ from sweepai.events import (
     ReposAddedRequest,
 )
 from sweepai.handlers.create_pr import create_pr  # type: ignore
+from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
-from sweepai.utils.config import DB_MODAL_INST_NAME, API_MODAL_INST_NAME, GITHUB_BOT_USERNAME, \
-    GITHUB_LABEL_NAME, GITHUB_LABEL_COLOR, GITHUB_LABEL_DESCRIPTION
+from sweepai.utils.config.server import DB_MODAL_INST_NAME, API_MODAL_INST_NAME, GITHUB_BOT_USERNAME, \
+    GITHUB_LABEL_NAME, GITHUB_LABEL_COLOR, GITHUB_LABEL_DESCRIPTION, BOT_TOKEN_NAME
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
 
@@ -44,6 +43,7 @@ image = (
     )
 )
 secrets = [
+    modal.Secret.from_name(BOT_TOKEN_NAME),
     modal.Secret.from_name("github"),
     modal.Secret.from_name("openai-secret"),
     modal.Secret.from_name("anthropic"),
@@ -59,12 +59,12 @@ FUNCTION_SETTINGS = {
     "timeout": 30 * 60,
 }
 
-
 handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
 handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
+
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
@@ -100,7 +100,7 @@ async def webhook(raw_request: Request):
                     #         color=LABEL_COLOR, 
                     #         description=LABEL_DESCRIPTION
                     #     )
-                    
+
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
             case "issues", "labeled":
@@ -108,7 +108,7 @@ async def webhook(raw_request: Request):
                 if 'label' in request_dict and str.lower(request_dict['label']['name']) == GITHUB_LABEL_NAME:
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
-                        request.repository.description or ""
+                            request.repository.description or ""
                     )
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
@@ -127,11 +127,11 @@ async def webhook(raw_request: Request):
                 request = IssueCommentRequest(**request_dict)
                 # if replying to an issue with sweep label
                 if request.issue is not None \
-                    and GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels] \
-                    and request.comment.user.type == "User":
+                        and GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels] \
+                        and request.comment.user.type == "User":
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
-                        request.repository.description or ""
+                            request.repository.description or ""
                     )
 
                     if not request.comment.body.lower().startswith(GITHUB_LABEL_NAME):
@@ -150,7 +150,7 @@ async def webhook(raw_request: Request):
                         request.installation.id,
                         request.comment.id
                     )
-                elif request.issue.pull_request and request.issue.user.login == GITHUB_BOT_USERNAME and request.comment.user.type == "User": # TODO(sweep): set a limit
+                elif request.issue.pull_request and request.issue.user.login == GITHUB_BOT_USERNAME and request.comment.user.type == "User":  # TODO(sweep): set a limit
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     handle_comment.spawn(
                         repo_full_name=request.repository.full_name,
@@ -181,7 +181,7 @@ async def webhook(raw_request: Request):
                 pass
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
-                    # handle_check_suite
+                # handle_check_suite
                 logs = None
                 # Must be Sweep firing the PR and it must fail
                 if request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
@@ -238,14 +238,14 @@ async def webhook(raw_request: Request):
                 merged_by = pr_request.pull_request.merged_by.login
                 if GITHUB_BOT_USERNAME == commit_author:
                     posthog.capture(
-                        merged_by, 
-                        "merged_sweep_pr", 
+                        merged_by,
+                        "merged_sweep_pr",
                         properties={
                             "repo_name": repo_name,
                             "organization": organization,
                             "repo_full_name": pr_request.repository.full_name,
                             "username": merged_by
-                    })
+                        })
                 update_index.spawn(
                     request_dict["repository"]["full_name"],
                     installation_id=request_dict["installation"]["id"],

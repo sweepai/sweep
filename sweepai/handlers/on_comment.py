@@ -4,16 +4,16 @@ On Github ticket, get ChatGPT to deal with it
 
 # TODO: Add file validation
 
-import openai
 import traceback
 
+import openai
 from loguru import logger
 
 from sweepai.core.entities import NoFilesException, Snippet
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.config import PREFIX, OPENAI_API_KEY, GITHUB_BOT_TOKEN
+from sweepai.utils.config.server import PREFIX, OPENAI_API_KEY, GITHUB_BOT_TOKEN
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     get_github_client,
@@ -28,6 +28,7 @@ num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 num_extended_snippets = 2
+
 
 def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3):
     for snippet in snippets[:num_full_files]:
@@ -55,15 +56,16 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
         result_snippets.append(snippet)
     return result_snippets[:max_num_of_snippets]
 
+
 def on_comment(
-    repo_full_name: str,
-    repo_description: str,
-    comment: str,
-    pr_path: str | None,
-    pr_line_position: int | None,
-    username: str,
-    installation_id: int,
-    pr_number: int = None,
+        repo_full_name: str,
+        repo_description: str,
+        comment: str,
+        pr_path: str | None,
+        pr_line_position: int | None,
+        username: str,
+        installation_id: int,
+        pr_number: int = None,
 ):
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
@@ -76,7 +78,8 @@ def on_comment(
     # 3. Get files to change
     # 4. Get file changes
     # 5. Create PR
-    logger.info(f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
+    logger.info(
+        f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "repo_full_name": repo_full_name,
@@ -136,6 +139,7 @@ def on_comment(
                 username, "fetching_failed", properties={"error": error, **metadata}
             )
             raise error
+
         snippets, tree = fetch_file_contents_with_retry()
         logger.info("Fetching relevant files...")
         try:
@@ -175,8 +179,8 @@ def on_comment(
             tree=tree,
             summary=pr_body,
             snippets=snippets,
-            pr_file_path=pr_file_path, # may be None
-            pr_line=pr_line, # may be None
+            pr_file_path=pr_file_path,  # may be None
+            pr_line=pr_line,  # may be None
         )
         logger.info(f"Human prompt{human_message.construct_prompt()}")
 
@@ -221,6 +225,7 @@ def on_comment(
     logger.info("on_comment success")
     return {"success": True}
 
+
 def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
     g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
@@ -234,10 +239,11 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
         current_file_sha = current_file.sha
         previous_content = repo.get_contents(pr_path, ref=repo.default_branch)
         previous_file_content = previous_content.decoded_content.decode("utf-8")
-        repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha, branch=branch_name)
+        repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha,
+                         branch=branch_name)
         return
     previous_commit = commits[1]
-    
+
     # Get current file SHA
     current_file = repo.get_contents(pr_path, ref=commits[0].sha)
     current_file_sha = current_file.sha
@@ -247,11 +253,11 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
         previous_content = repo.get_contents(pr_path, ref=previous_commit.sha)
         previous_file_content = previous_content.decoded_content.decode("utf-8")
         # Create a new commit with the previous file content
-        repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha, branch=branch_name)
+        repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha,
+                         branch=branch_name)
     except Exception as e:
         logger.error(traceback.format_exc())
         if e.status == 404:
             logger.warning(f"File {pr_path} was not found in previous commit {previous_commit.sha}")
         else:
             raise e
-
