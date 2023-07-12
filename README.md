@@ -67,6 +67,13 @@ Sweep is unlikely to complete complex issues on the first try, similar to the av
 - Try to modify less than 3 files
 - Do not include files with more than 1500 lines of code
 
+### ✨ Sweep Github App
+Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
+We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
+
+1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
+2. Create new issue in repo, like "Sweep: In sweepai/app/ui.py use an os-agnostic temp directory"
+
 ### 🖥️ Sweep Chat
 Sweep Chat allows you to interact with Sweep and GitHub locally. Collaborate on the plan with Sweep, then have it create the pull request for you. 
 
@@ -95,13 +102,6 @@ If you want the nightly build and or if the latest build has issues.
 
 1. `git clone https://github.com/sweepai/sweep && poetry install`
 2. `python sweepai/app/cli.py`. Note that you need **python 3.10+**.
-
-### ✨ Sweep Github App
-Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
-We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
-
-1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
-2. Create new issue in repo, like "Sweep: In sweepai/app/ui.py use an os-agnostic temp directory"
 
 ## 🤝 Contributing
 
