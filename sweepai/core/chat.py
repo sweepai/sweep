@@ -184,7 +184,7 @@ class ChatGPT(BaseModel):
         functions: list[Function] = [],
         function_name: dict | None = None,
     ):
-        if self.chat_logger and self.chat_logger.get_ticket_count() > 0:
+        if self.chat_logger and self.chat_logger.is_paying_user():
             model = model or self.model
             logger.warning(f"{self.chat_logger.get_ticket_count()} tickets found in MongoDB, using default {self.model} model.")
         else:
