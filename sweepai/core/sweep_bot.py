@@ -134,8 +134,21 @@ class GithubBot(BaseModel):
         except Exception:
             return False
 
+    def clean_branch_name(self, branch: str) -> str:
+        # Replace invalid characters with underscores
+        branch = re.sub(r"[^a-zA-Z0-9_\-/]", "_", branch)
+
+        # Remove consecutive underscores
+        branch = re.sub(r"_+", "_", branch)
+
+        # Remove leading or trailing underscores
+        branch = branch.strip("_")
+
+        return branch
+
     def create_branch(self, branch: str, retry=True) -> str:
         # Generate PR if nothing is supplied maybe
+        branch = self.clean_branch_name(branch)
         base_branch = self.repo.get_branch(SweepConfig.get_branch(self.repo))
         try:
             self.repo.create_git_ref(f"refs/heads/{branch}", base_branch.commit.sha)
