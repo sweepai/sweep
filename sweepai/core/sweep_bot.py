@@ -32,6 +32,9 @@ from sweepai.utils.config import SweepConfig
 from sweepai.utils.constants import DB_NAME, SECONDARY_MODEL
 from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown, revert_whitespace_changes
 
+class MaxTokensExceeded(Exception):
+    def __init__(self, filename):
+        self.filename = filename
 
 class CodeGenBot(ChatGPT):
 
@@ -344,15 +347,20 @@ class SweepBot(CodeGenBot, GithubBot):
 
                 # Todo: updated code is outdated by unified v2 prompt! remove?
                 key = f"file_change_modified_{file_change_request.filename}"
-                modify_file_response = self.chat(
-                    modify_file_prompt_2.format(
-                        filename=file_change_request.filename,
-                        instructions=file_change_request.instructions,
-                        code=contents_line_numbers,
-                        line_count=contents.count('\n') + 1
-                    ),
-                    message_key=key,
-                )
+                try:
+                    modify_file_response = self.chat(
+                        modify_file_prompt_2.format(
+                            filename=file_change_request.filename,
+                            instructions=file_change_request.instructions,
+                            code=contents_line_numbers,
+                            line_count=contents.count('\n') + 1
+                        ),
+                        message_key=key,
+                    )
+                except Exception as e: # Check for max tokens error
+                    if "max tokens" in str(e).lower():
+                        raise MaxTokensExceeded(file_change_request.filename)
+
                 try:
                     logger.info(f"modify_file_response: {modify_file_response}")
                     new_file = generate_new_file(modify_file_response, contents)
@@ -395,6 +403,8 @@ class SweepBot(CodeGenBot, GithubBot):
                     self.handle_create_file(file_change_request, branch, file_markdown)
                 elif file_change_request.change_type == "modify":
                     self.handle_modify_file(file_change_request, branch, file_markdown)
+            except MaxTokensExceeded as e:
+                raise e
             except Exception as e:
                 logger.error(f"Error in change_files_in_github {e}")
             completed += 1
@@ -447,5 +457,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     contents.sha,
                     branch=branch,
                 )
+        except MaxTokensExceeded as e:
+            raise e
         except Exception as e:
             logger.info(f"Error in handle_modify_file: {e}")

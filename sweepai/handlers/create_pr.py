@@ -6,7 +6,7 @@ import modal
 from github.Repository import Repository
 
 from sweepai.core.entities import FileChangeRequest, PullRequest
-from sweepai.core.sweep_bot import SweepBot
+from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.config import SweepConfig
 from sweepai.utils.event_logger import posthog
@@ -79,6 +79,18 @@ def create_pr(
             head=pull_request.branch_name,
             base=SweepConfig.get_branch(sweep_bot.repo),
         )
+    except MaxTokensExceeded as e:
+        logger.error(e)
+        posthog.capture(
+            username,
+            "failed",
+            properties={
+                "error": str(e),
+                "reason": "Max tokens exceeded",
+                **metadata,
+            },
+        )
+        raise e
     except openai.error.InvalidRequestError as e:
         logger.error(e)
         posthog.capture(

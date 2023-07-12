@@ -16,7 +16,7 @@ from sweepai.core.entities import FileChangeRequest, Snippet, NoFilesException
 from sweepai.core.prompts import (
     reply_prompt,
 )
-from sweepai.core.sweep_bot import SweepBot
+from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
 from sweepai.handlers.create_pr import create_pr, create_config_pr, safe_delete_sweep_branch
 from sweepai.handlers.on_comment import on_comment
@@ -35,7 +35,8 @@ update_index = modal.Function.lookup(DB_NAME, "update_index")
 
 sep = "\n---\n"
 bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
-bot_suffix = f"\n{sep}I'm a bot that handles simple bugs and feature requests but I might make mistakes. Please be kind!\n<sup>[Join Our Discord](https://discord.com/invite/sweep-ai)"
+bot_suffix = f"\n{sep}I'm a bot that handles simple bugs and feature requests but I might make mistakes. Please be kind!"
+discord_suffix = f'\n<sup>[Join Our Discord](https://discord.com/invite/sweep-ai)'
 
 stars_suffix = "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
 
@@ -197,8 +198,8 @@ def on_ticket(
     tickets_allocated = 60 if is_paying_user else 3
     ticket_count = max(tickets_allocated - chat_logger.get_ticket_count(), 0)
     use_faster_model = chat_logger.use_faster_model()
-    payment_message = f"To create this ticket, I used {'gpt 3.5. ' if use_faster_model else 'gpt 4. '}You have {ticket_count} gpt 4 tickets left." + (" For more gpt 4 tickets, visit [our payment portal.](https://buy.stripe.com/fZe03512h99u0AE6os)" if not is_paying_user else "")
-    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\nWorking on it...{bot_suffix}"
+    payment_message = f"To create this ticket, I used {'gpt-3.5. ' if use_faster_model else 'gpt-4. '}You have {ticket_count} gpt-4 tickets left." + (" For more gpt-4 tickets, visit [our payment portal.](https://buy.stripe.com/fZe03512h99u0AE6os)" if not is_paying_user else "")
+    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\nWorking on it...{bot_suffix}{discord_suffix}"
     for comment in comments:
         if comment.user.login == SWEEP_LOGIN:
             issue_comment = comment
@@ -232,14 +233,17 @@ def on_ticket(
                 agg_message = msg
             else:
                 agg_message = agg_message + f"\n{sep}" + msg
+
+        suffix = bot_suffix + discord_suffix
         if errored:
             agg_message = "## ❌ Unable to Complete PR" + '\n' + message + "\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
+            suffix = bot_suffix # don't include discord suffix for error messages
 
         # Update the issue comment
-        issue_comment.edit(f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{bot_suffix}")
+        issue_comment.edit(f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{suffix}")
 
     def log_error(error_type, exception):
-        content = f"**{error_type} Error**\n{username}: {issue_url}\n```{traceback.format_exc()}```\n> {exception}"
+        content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
         discord_log_error(content)
 
     def fetch_file_contents_with_retry():
@@ -275,7 +279,7 @@ def on_ticket(
             "It looks like an issue has occured around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev.",
             -1
         )
-        log_error("File Fetch", str(e))
+        log_error("File Fetch", str(e) + "\n" + traceback.format_exc())
         raise e
     
     snippets = post_process_snippets(snippets, 
@@ -410,9 +414,19 @@ def on_ticket(
             )
 
             break
+    except MaxTokensExceeded as e:
+        logger.info("Max tokens exceeded")
+        log_error("Max Tokens Exceeded", str(e) + "\n" + traceback.format_exc())
+        if chat_logger.is_paying_user():
+            edit_sweep_comment(f"Sorry, I could not edit `{e.filename}` as this file is too long. We are currently working on improved file streaming to address this issue.\n", -1)
+        else:
+            edit_sweep_comment(f"Sorry, I could not edit `{e.filename}` as this file is too long.\n\nIf this file is incorrect, please describe the desired file in the prompt. However, if you would like to edit longer files, consider upgrading to [Sweep Pro](https://sweep.dev/) for longer context lengths.\n", -1)
+        raise e
     except NoFilesException:
         logger.info("No files to change.")
+        log_error("No Files to Change", str(e) + "\n" + traceback.format_exc())
         edit_sweep_comment("Sorry, I could find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!", -1)
+        raise e
     except openai.error.InvalidRequestError as e:
         logger.error(traceback.format_exc())
         logger.error(e)
@@ -420,7 +434,7 @@ def on_ticket(
             "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev.",
             -1
         )
-        log_error("Context Length", str(e))
+        log_error("Context Length", str(e) + "\n" + traceback.format_exc())
         posthog.capture(
             username,
             "failed",
@@ -438,7 +452,7 @@ def on_ticket(
             "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
             -1
         )
-        log_error("Workflow", str(e))
+        log_error("Workflow", str(e) + "\n" + traceback.format_exc())
         posthog.capture(
             username,
             "failed",
