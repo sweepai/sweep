@@ -323,8 +323,8 @@ Lines to change in the file:
 Code Generation:
 ```
 Generate a new_file based on the given plan, ensuring that you:
-1. It is imperative that we do not leave any work to the user/future readers of this code. So, WRITE FUNCTIONS COMPLETELY THAT WILL WORK.
-2. Do not write the original line numbers with the new code.
+1. It is imperative that we do not leave any work to the user/future readers of this code. Therefore write functions with complete business logic.
+2. Only write code, do not write line numbers.
 3. Make sure the new code follows the same programming language conventions as the old code.
 
 Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copy_lines A-B>"). Make sure to use this exact format.
