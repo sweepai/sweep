@@ -184,9 +184,12 @@ class ChatGPT(BaseModel):
         functions: list[Function] = [],
         function_name: dict | None = None,
     ):
-        if self.chat_logger and self.chat_logger.is_paying_user():
-            model = model or self.model
-            logger.warning(f"{self.chat_logger.get_ticket_count()} tickets found in MongoDB, using default {self.model} model.")
+        if self.chat_logger:
+            tickets_allocated = 60 if self.chat_logger.is_paying_user() else 3
+            tickets_count = self.chat_logger.get_ticket_count()
+            if tickets_count < tickets_allocated:
+                model = model or self.model
+                logger.warning(f"{tickets_count} tickets found in MongoDB, using default {self.model} model.")
         else:
             model = "gpt-3.5-turbo-16k-0613"
         
