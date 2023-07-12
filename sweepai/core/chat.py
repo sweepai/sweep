@@ -184,8 +184,17 @@ class ChatGPT(BaseModel):
         functions: list[Function] = [],
         function_name: dict | None = None,
     ):
-        if model is None:
-            model = self.model
+        if self.chat_logger:
+            tickets_allocated = 60 if self.chat_logger.is_paying_user() else 3
+            tickets_count = self.chat_logger.get_ticket_count()
+            if tickets_count < tickets_allocated:
+                model = model or self.model
+                logger.warning(f"{tickets_count} tickets found in MongoDB, using default gpt-3.5-turbo-16k-0313 model.")
+            else:
+                model = "gpt-3.5-turbo-16k-0613"
+        else:
+            model = "gpt-3.5-turbo-16k-0613"
+        
         count_tokens = modal.Function.lookup(UTILS_NAME, "Tiktoken.count")
         messages_length = sum(
             [count_tokens.call(message.content or "") for message in self.messages]
