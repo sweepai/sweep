@@ -10,8 +10,14 @@ import modal
 import openai
 from loguru import logger
 from tabulate import tabulate
+import traceback
 
 from sweepai.core.entities import Snippet
+from sweepai.core.entities import FileChangeRequest, Snippet, NoFilesException
+from sweepai.core.prompts import (
+    reply_prompt,
+)
+from sweepai.core.sweep_bot import SweepBot
 from sweepai.core.prompts import issue_comment_prompt
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.create_pr import create_pr, create_config_pr, safe_delete_sweep_branch
@@ -24,6 +30,8 @@ from sweepai.utils.config import SweepConfig
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.config import SweepConfig
 
 github_access_token = GITHUB_BOT_TOKEN
 openai.api_key = OPENAI_API_KEY
@@ -47,12 +55,11 @@ collapsible_template = '''
 chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
 
 num_of_snippets_to_query = 30
-# max_num_of_snippets = 5
 total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 num_extended_snippets = 2
 
-def post_process_snippets(snippets: list[Snippet]):
+def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5):
     for snippet in snippets[:num_full_files]:
         snippet = snippet.expand()
 
@@ -76,7 +83,7 @@ def post_process_snippets(snippets: list[Snippet]):
         if total_length > total_number_of_snippet_tokens * 5:
             break
         result_snippets.append(snippet)
-    return result_snippets
+    return result_snippets[:max_num_of_snippets]
 
 def on_ticket(
     title: str,
@@ -116,8 +123,6 @@ def on_ticket(
 
     g = get_github_client(installation_id)
 
-    if comment_id:
-        logger.info(f"Replying to comment {comment_id}...")
     logger.info(f"Getting repo {repo_full_name}")
     repo = g.get_repo(repo_full_name)
     current_issue = repo.get_issue(number=issue_number)
@@ -125,6 +130,32 @@ def on_ticket(
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
+    replies_text = ""
+    comments = list(current_issue.get_comments())
+    if comment_id:
+
+        logger.info(f"Replying to comment {comment_id}...")
+        replies_text = "\nComments:\n" + "\n".join(
+            [
+                issue_comment_prompt.format(
+                    username=comment.user.login,
+                    reply=comment.body,
+                ) for comment in comments if comment.user.type == "User"
+            ]
+        )
+
+    chat_logger = ChatLogger({
+        'repo_name': repo_name,
+        'title': title,
+        'summary': summary + replies_text,
+        "issue_number": issue_number,
+        "issue_url": issue_url,
+        "username": username,
+        "repo_full_name": repo_full_name,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "comment_id": comment_id,
+    })
 
     # Check if branch was already created for this issue
     preexisting_branch = None
@@ -165,11 +196,14 @@ def on_ticket(
             return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
         return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + ("\n" + stars_suffix + config_pr_message if index != -1 else "")
 
-    comments = current_issue.get_comments()
-
     # Find the first comment made by the bot
     issue_comment = None
-    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.{bot_suffix}"
+    is_paying_user = chat_logger.is_paying_user()
+    tickets_allocated = 60 if is_paying_user else 3
+    ticket_count = max(tickets_allocated - chat_logger.get_ticket_count(), 0)
+    use_faster_model = chat_logger.use_faster_model()
+    payment_message = f"To create this ticket, I used {'gpt 3.5. ' if use_faster_model else 'gpt 4. '}You have {ticket_count} gpt 4 tickets left." + (" For more gpt 4 tickets, visit [our payment portal.](https://buy.stripe.com/fZe03512h99u0AE6os)" if not is_paying_user else "")
+    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\nWorking on it...{bot_suffix}"
     for comment in comments:
         if comment.user.login == GITHUB_BOT_USERNAME:
             issue_comment = comment
@@ -180,45 +214,37 @@ def on_ticket(
 
     # Comment edit function
     past_messages = {}
+    current_index = {}
     def edit_sweep_comment(message: str, index: int, pr_message = ""):
+        nonlocal current_index
         # -1 = error, -2 = retry
         # Only update the progress bar if the issue generation errors.
         errored = (index == -1)
-        current_index = index
         if index >= 0:
             past_messages[index] = message
+            current_index = index
 
-        # Include progress history
         agg_message = None
-        for i in range(current_index + 1):
-            if i in past_messages:
-                header = progress_headers[i]
-                if header is not None: header = "## " + header + "\n"
-                else: header = "No header\n"
-                msg = header + past_messages[i]
-                if agg_message is None:
-                    agg_message = msg
-                else:
-                    agg_message = agg_message + f"\n{sep}" + msg
+        # Include progress history
+        # index = -2 is reserved for
+        for i in range(current_index + 2): # go to next header (for Working on it... text)
+            if i == 0 or i >= len(progress_headers): continue # skip None header
+            header = progress_headers[i]
+            if header is not None: header = "## " + header + "\n"
+            else: header = "No header\n"
+            msg = header + (past_messages.get(i) or "Working on it...")
+            if agg_message is None:
+                agg_message = msg
+            else:
+                agg_message = agg_message + f"\n{sep}" + msg
         if errored:
-            agg_message = "## Error: 🚫 Unable to Complete PR\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
+            agg_message = "## ❌ Unable to Complete PR" + '\n' + message + "\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
 
         # Update the issue comment
         issue_comment.edit(f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{bot_suffix}")
 
-    replies_text = ""
-    if comment_id:
-        replies_text = "\nComments:\n" + "\n".join(
-            [
-                issue_comment_prompt.format(
-                    username=comment.user.login,
-                    reply=comment.body,
-                ) for comment in comments
-            ]
-        )
-
     def log_error(error_type, exception):
-        content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
+        content = f"**{error_type} Error**\n{username}: {issue_url}\n```{traceback.format_exc()}```\n> {exception}"
         discord_log_error(content)
 
     def fetch_file_contents_with_retry():
@@ -247,7 +273,9 @@ def on_ticket(
         snippets, tree = fetch_file_contents_with_retry()
         assert len(snippets) > 0
     except Exception as e:
+        trace = traceback.format_exc()
         logger.error(e)
+        logger.error(trace)
         edit_sweep_comment(
             "It looks like an issue has occured around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev.",
             -1
@@ -256,6 +284,9 @@ def on_ticket(
         raise e
 
     snippets = post_process_snippets(snippets)
+
+    snippets = post_process_snippets(snippets,
+                                     max_num_of_snippets=2 if use_faster_model else 5)
 
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
@@ -268,18 +299,6 @@ def on_ticket(
         tree=tree, # TODO: Anything in repo tree that has something going through is expanded
     )
 
-    chat_logger = ChatLogger({
-        'repo_name': repo_name,
-        'title': title,
-        'summary': summary + replies_text,
-        "issue_number": issue_number,
-        "issue_url": issue_url,
-        "username": username,
-        "repo_full_name": repo_full_name,
-        "repo_description": repo_description,
-        "installation_id": installation_id,
-        "comment_id": comment_id,
-    })
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger
     )
@@ -300,7 +319,7 @@ def on_ticket(
             config_pr_url = config_pr.html_url
             edit_sweep_comment(message="", index=-2)
         except Exception as e:
-            logger.error("Failed to create new branch for sweep.yaml file.\n", e)
+            logger.error("Failed to create new branch for sweep.yaml file.\n", e, traceback.format_exc())
     else:
         logger.info("sweep.yaml file already exists.")
 
@@ -317,7 +336,7 @@ def on_ticket(
 
             newline = '\n'
             edit_sweep_comment(
-                "I found the following snippets in your repository. I will now analyze this snippets and come up with a plan."
+                "I found the following snippets in your repository. I will now analyze these snippets and come up with a plan."
                 + "\n\n"
                 + collapsible_template.format(
                     summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
@@ -351,9 +370,8 @@ def on_ticket(
             pull_request = sweep_bot.generate_pull_request()
             pull_request_content = pull_request.content.strip().replace("\n", "\n>")
             pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
-
             edit_sweep_comment(
-                f"I have created a plan for writing the pull request. I am now working on executing my plan and coding the required changes to address this issue. Here is the planned pull request:\n\n{pull_request_summary}",
+                f"I have created a plan for writing the pull request. I am now working my plan and coding the required changes to address this issue. Here is the planned pull request:\n\n{pull_request_summary}",
                 3
             )
 
@@ -395,11 +413,15 @@ def on_ticket(
             edit_sweep_comment(
                 "Success! 🚀",
                 5,
-                pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number})",
+                pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number}).\n{payment_message}",
             )
 
             break
+    except NoFilesException:
+        logger.info("No files to change.")
+        edit_sweep_comment("Sorry, I could find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!", -1)
     except openai.error.InvalidRequestError as e:
+        logger.error(traceback.format_exc())
         logger.error(e)
         edit_sweep_comment(
             "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev.",
@@ -417,6 +439,7 @@ def on_ticket(
         )
         raise e
     except Exception as e:
+        logger.error(traceback.format_exc())
         logger.error(e)
         edit_sweep_comment(
             "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",

@@ -44,10 +44,10 @@ def format_contents(file_contents, is_markdown=False):
         end_idx = len(lines)
         for idx, line in enumerate(lines):
             if start_idx == 0 and line.strip().startswith('```'):
-                start_idx = idx
+                start_idx = idx + 1
             if start_idx != 0 and line.strip().endswith('```'):
                 end_idx = idx
-        lines = lines[start_idx + 1:end_idx]
+        lines = lines[start_idx:end_idx]
         return '\n'.join(lines)
 
     first_three_lines = lines[:3]
@@ -83,10 +83,12 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
     # v5
     result = []
     lines = new_file.split('\n')
-    for line in lines:
+    for line_number, line in enumerate(lines):
         # Todo: make it support 1 number only
         matches = re.finditer(r"<copy_lines\s(\d+-\d+)>", line)
+        copied_lines = False
         for match in matches:
+            copied_lines = True
             start, end = match.group(1).split('-')
             start, end = int(start)-1, int(end)-1
 
@@ -96,7 +98,22 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
             replacements = old_file_lines[start:end + 1]
             replacements_str = '\n'.join(replacements)
             line = line.replace(match.group(0), replacements_str)
-        result.append(line)
+
+        # check if line was incorrectly duplicated
+        append = True
+        if not copied_lines: # if bot generated, and line before is not bot generated
+            if len(result) > 0:
+                # Get last line in results
+                last_group = result[-1]
+                #last_line = last_group
+                if '\n' in last_group:
+                    last_line = last_group[last_group.rindex('\n')+1:] # if its multiple lines
+                    # if last line is same is current line
+                    if last_line == line:
+                        append = False
+
+        if append:
+            result.append(line)
     result = '\n'.join(result)
 
     # Todo: v4 is inefficient; deprecated

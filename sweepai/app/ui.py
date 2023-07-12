@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import shutil
 import tempfile
 
@@ -41,7 +42,7 @@ pre, code {
     word-break: break-all !important;
 }
 #snippets {
-    height: 750px;
+    height: 400px;
     overflow-y: scroll;
 }
 #message_box > label > span {
@@ -125,6 +126,16 @@ def get_files_update(*args):
         repo = config.repo_full_name
     return gr.Dropdown.update(choices=get_files(repo))
 
+def parse_response(raw_response: str) -> tuple[str, list[tuple[str, str]]]:
+    if "Plan:" not in raw_response:
+        response, raw_plan = raw_response, ""
+    else:
+        response, raw_plan = raw_response.split("Plan:", 1)
+    if response.startswith("Response:"):
+        response = response[len("Response:"):]
+    plan = [(line[:line.find(":")].strip(), line[line.find(":") + 1:].strip()) for line in raw_plan.split("\n*") if line]
+    return response, plan
+
 global_state = config.state
 
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
@@ -142,17 +153,34 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
 
     with gr.Row():
         with gr.Column(scale=2):
-            chatbot = gr.Chatbot(height=750, value=lambda: global_state.chat_history)
+            chatbot = gr.Chatbot(height=400, value=lambda: global_state.chat_history)
         with gr.Column():
-            snippets_text = gr.Markdown(value=lambda: global_state.snippets_text, elem_id="snippets")
+            with gr.Row():
+                snippets_text = gr.Markdown(value=lambda: global_state.snippets_text, elem_id="snippets")
 
+    with gr.Row():
+        plan = gr.List(
+            value=[[filename + ": " + instructions] for filename, instructions in global_state.plan],
+            headers=["Proposed Plan"],
+            interactive=True,
+            col_count=(1, "static"),
+            wrap=True
+        )
+    
     with gr.Row():
         with gr.Column(scale=8):
             msg = gr.Textbox(placeholder="Send a message to Sweep", label=None, elem_id="message_box")
         with gr.Column(scale=0.5):
-            create_pr_button = gr.Button(value="Create PR", interactive=False)
+            create_pr_button = gr.Button(value="Create PR", interactive=bool(global_state.chat_history))
 
-    restart_button.click(lambda: ([], []), [], [file_names, chatbot])
+    def clear_inputs():
+        global global_state
+        global_state = State()
+        config.state = global_state
+        config.save()
+        return [], [], [[""]]
+
+    restart_button.click(clear_inputs, None, [file_names, chatbot, plan])
 
     file_names.change(get_files_update, repo_full_name, chatbot)
 
@@ -216,32 +244,34 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             raise Exception("Set the repository name first")
         return gr.update(value="", interactive=False), history + [[user_message, None]], gr.Button.update(interactive=True)
 
-    def _handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, file_names):
+    def _handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, file_names, plan):
         global selected_snippets
         global searched
+        if plan is None or plan == [[]] or plan == [[""]] or plan == [["", ""]]:
+            plan = [["", ""]]
         message = chat_history[-1][0]
-        yield chat_history, snippets_text, file_names
+        yield chat_history, snippets_text, file_names, plan
         if not selected_snippets:
             searched = True
             # Searching for relevant snippets
             chat_history[-1][1] = "Searching for relevant snippets..."
             snippets_text = build_string()
-            yield chat_history, snippets_text, file_names
+            yield chat_history, snippets_text, file_names, plan
             logger.info("Fetching relevant snippets...")
             selected_snippets += api_client.search(chat_history[-1][0], 3)
             snippets_text = build_string()
             file_names = [snippet.file_path for snippet in selected_snippets]
-            yield chat_history, snippets_text, file_names
+            yield chat_history, snippets_text, file_names, plan
             logger.info("Fetched relevant snippets.")
             chat_history[-1][1] = "Found relevant snippets."
             # Update using chat_history
             snippets_text = build_string()
-            yield chat_history, snippets_text, file_names
+            yield chat_history, snippets_text, file_names, plan
 
         # Generate response
         logger.info("...")
         chat_history.append([None, "..."])
-        yield chat_history, snippets_text, file_names
+        yield chat_history, snippets_text, file_names, plan
         chat_history[-1][1] = ""
         logger.info("Starting to generate response...")
         if len(chat_history) > 1 and "create pr" in message.lower():
@@ -255,17 +285,21 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             stream = api_client.stream_chat(chat_history, selected_snippets)
         function_name = ""
         raw_arguments = ""
+        raw_response = ""
+        parsed_response = ""
         for chunk in stream:
             if chunk.get("content"):
                 token = chunk["content"]
-                chat_history[-1][1] += token
-                yield chat_history, snippets_text, file_names
+                raw_response += token
+                parsed_response, plan = parse_response(raw_response)
+                chat_history[-1][1] = parsed_response
+                yield chat_history, snippets_text, file_names, plan
             if chunk.get("function_call"):
                 function_call = chunk["function_call"]
                 function_name = function_name or function_call.get("name")
                 raw_arguments += function_call.get("arguments")
                 chat_history[-1][1] = f"Calling function: `{function_name}`\n```json\n{raw_arguments}\n```"
-                yield chat_history, snippets_text, file_names
+                yield chat_history, snippets_text, file_names, plan
         if function_name:
             arguments = json.loads(raw_arguments)
             if function_name == "create_pr":
@@ -279,43 +313,50 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
                     summary=arguments["summary"],
                     plan="\n".join([f"* `{item['file_path']}`: {item['instructions']}" for item in arguments["plan"]])
                 )
-                yield chat_history, snippets_text, file_names
-                pull_request = api_client.create_pr(
-                    file_change_requests=[(item["file_path"], item["instructions"]) for item in arguments["plan"]],
-                    pull_request={
-                        "title": arguments["title"],
-                        "content": arguments["summary"],
-                        "branch_name": arguments["branch"],
-                    },
-                    messages=chat_history,
-                )
-                chat_history.append((None, f"✅ PR created at {pull_request['html_url']}"))
-                yield chat_history, snippets_text, file_names
+                yield chat_history, snippets_text, file_names, plan
+                plan = [(item["file_path"], item["instructions"]) for item in arguments["plan"]]
+                yield chat_history, snippets_text, file_names, plan
             else:
                 raise NotImplementedError
-
-    def handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, file_paths):
+    
+    def handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, file_paths, plan):
         global global_state
-        for chat_history, snippets_text, file_paths in _handle_message_stream(chat_history, snippets_text, file_paths):
+        for chat_history, snippets_text, file_paths, plan in _handle_message_stream(chat_history, snippets_text, file_paths, plan):
+            if plan is None or plan == [[]] or plan == [[""]] or plan == [["", ""]]:
+                plan = [["", ""]]
             global_state = State(
                 chat_history=chat_history,
                 snippets_text=snippets_text,
                 file_paths=file_paths,
+                plan=plan,
             )
             config.state = global_state
             config.save()
-            yield chat_history, snippets_text, file_paths
+            yield chat_history, snippets_text, file_paths, [(file_path + ": " + instructions,) for file_path, instructions in plan]
 
     response = msg \
-        .submit(handle_message_submit, [repo_full_name, msg, chatbot], [msg, chatbot, create_pr_button], queue=False)\
-        .then(handle_message_stream, [chatbot, snippets_text, file_names], [chatbot, snippets_text, file_names])
-    response.then(lambda: gr.update(interactive=True), None, [msg], queue=False)
+        .submit(handle_message_submit, [repo_full_name, msg, chatbot], [msg, chatbot, create_pr_button], queue=False) \
+        .then(handle_message_stream, [chatbot, snippets_text, file_names, plan], [chatbot, snippets_text, file_names, plan]) \
+        .then(lambda: gr.update(interactive=True), None, [msg], queue=False)
 
-    def on_create_pr_button_click(chat_history: list[tuple[str | None, str | None]], create_pr_button: str):
-        return chat_history + [(create_pr_button, None)]
+    def on_create_pr_button_click(chat_history: list[tuple[str | None, str | None]], plan: list[tuple[str]]):
+        chat_history.append((None, "⌛ Creating PR..."))
+        yield chat_history
+        title = chat_history[0][0]
+        content = chat_history[-1][1]
+        pull_request = api_client.create_pr(
+            file_change_requests=[(item[:item.find(":")], item[item.find(":") + 1:]) for item, *_ in plan],
+            pull_request={
+                "title": title,
+                "content": content,
+                "branch_name": title.lower().replace(" ", "_").replace("-", "_")[:50]
+            },
+            messages=chat_history,
+        )
+        chat_history.append((None, f"✅ PR created at {pull_request['html_url']}"))
+        yield chat_history
 
-    create_pr_button.click(on_create_pr_button_click, [chatbot, create_pr_button], chatbot).then(handle_message_stream, [chatbot, snippets_text, file_names], [chatbot, snippets_text, file_names])
-
+    create_pr_button.click(on_create_pr_button_click, [chatbot, plan], chatbot)
 
 if __name__ == "__main__":
     demo.queue()

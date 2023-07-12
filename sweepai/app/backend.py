@@ -20,8 +20,14 @@ from sweepai.core.prompts import gradio_system_message_prompt
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.config import PREFIX, DB_MODAL_INST_NAME, API_MODAL_INST_NAME
 from sweepai.utils.config import SweepConfig
+from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, PREFIX
+from sweepai.utils.github_utils import get_github_client, get_installation_id
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, get_installation_id
+from sweepai.core.chat import ChatGPT
+from sweepai.core.entities import FileChangeRequest, Function, Message, PullRequest, Snippet
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.core.prompts import gradio_system_message_prompt, gradio_user_prompt
 
 get_relevant_snippets = modal.Function.from_name(DB_MODAL_INST_NAME, "get_relevant_snippets")
 
@@ -97,7 +103,7 @@ def _asgi_app():
             posthog.capture(request.github_username, "failed", properties={"error": str(e), **metadata})
             raise fastapi.HTTPException(status_code=403, detail="Sweep app is not installed on this repo. To install it, go to https://github.com/apps/sweep-ai")
 
-        posthog.capture(request.github_username, "succeeded", properties=metadata)
+        posthog.capture(request.github_username, "success", properties=metadata)
 
         return {"installation_id": installation_id}
 
@@ -142,7 +148,7 @@ def _asgi_app():
             posthog.capture(request.config.github_username, "failed", properties={"error": str(e), **metadata})
             raise e
 
-        posthog.capture(request.config.github_username, "succeeded", properties=metadata)
+        posthog.capture(request.config.github_username, "success", properties=metadata)
         return snippets
 
     class CreatePRRequest(BaseModel):
@@ -223,6 +229,7 @@ def _asgi_app():
         messages: list[tuple[str | None, str | None]]
         snippets: list[Snippet]
         config: SweepChatConfig
+        do_add_plan: bool = False
         functions: list[Function] = []
         function_call: Any = "auto"
 
@@ -241,7 +248,7 @@ def _asgi_app():
     def chat_stream(request: ChatRequest):
         assert verify_config(request.config)
         metadata = {
-            "function": "ui_create_pr",
+            "function": "ui_chat_stream",
             "repo_full_name": request.config.repo_full_name,
             "organization": request.config.repo_full_name.split("/")[0],
             "username": request.config.github_username,
@@ -258,13 +265,15 @@ def _asgi_app():
                 repo_description="" # TODO: fill this
             )
             chatgpt = ChatGPT(messages=[Message(role="system", content=system_message, key="system")] + messages[:-1])
+            if request.do_add_plan:
+                chatgpt.messages[-1].content += gradio_user_prompt
         except Exception as e:
             posthog.capture(request.config.github_username, "failed", properties={"error": str(e), **metadata})
             raise e
         def stream_chat():
             for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=request.functions, function_call=request.function_call):
                 yield json.dumps(chunk)
-            posthog.capture(request.config.github_username, "succeeded", properties=metadata)
+            posthog.capture(request.config.github_username, "success", properties=metadata)
         return StreamingResponse(
             stream_chat(),
             media_type="text/event-stream"

@@ -1,7 +1,7 @@
-"""
-Creates PR given description.
-"""
+import os
+import openai
 
+from loguru import logger
 import modal
 import openai
 from github.Repository import Repository
@@ -107,6 +107,7 @@ def create_pr(
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("create_pr success")
+    sweep_bot.chat_logger.add_successful_ticket()
     return {"success": True, "pull_request": pr}
 
 def safe_delete_sweep_branch(
@@ -144,7 +145,7 @@ def create_config_pr(
         sweep_bot.repo.create_file(
             'sweep.yaml',
             'Create sweep.yaml config file',
-            GITHUB_DEFAULT_CONFIG,
+            DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
             branch=branch_name
         )
     except Exception as e:
@@ -162,7 +163,6 @@ def create_config_pr(
         if pr.title == title:
             return pr
 
-    pr_description = "Config file allows for customization of Sweep."
     pr = sweep_bot.repo.create_pull(
         title=title,
         body=
@@ -171,8 +171,9 @@ def create_config_pr(
 ## What's new?
 - **Sweep is now configurable**. 
 - To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
-- If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.com/invite/sweep-ai) for help.
+- If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep-ai) for help.
 
+If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
 Thank you for using Sweep! 🧹
 """,
         head=branch_name,

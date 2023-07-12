@@ -1,1 +1,2 @@
-branch: 'dev'
+branch: 'main'
+gha_enabled: True
