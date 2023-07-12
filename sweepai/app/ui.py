@@ -357,6 +357,17 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
 
     create_pr_button.click(on_create_pr_button_click, [chatbot, plan], chatbot)
 
-if __name__ == "__main__":
-    demo.queue()
-    demo.launch()
+def refresh_repo():
+    get_files_update(repo)
+
+demo = gr.Interface(
+    fn=refresh_repo,
+    inputs="",
+    outputs="",
+    on_reload=refresh_repo,
+    server_port=5000,
+    server_name="0.0.0.0",
+    theme="huggingface",
+)
+demo.queue()
+demo.launch()
