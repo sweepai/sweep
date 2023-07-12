@@ -140,3 +140,5 @@ Consider starring us if you're using Sweep so more people hear about us!
 <p align="center">
     and, of course, Sweep!
 </p>
+# New Section
+Content of the new section goes here.
