@@ -204,10 +204,11 @@ class ChatGPT(BaseModel):
         logger.info(f"Input to call openai:\n{messages_raw}")
 
         gpt_4_buffer = 800
-        if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
-            model = "gpt-4-0613"
+        if int(messages_length) + gpt_4_buffer < 6000:
+            model = random.choice(["gpt-4-0613", "gpt-4"])
             max_tokens = model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer # this is for the function tokens
         if "gpt-4" in model:
+            max_tokens = min(max_tokens, 5000)
             max_tokens = min(max_tokens, 5000)
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
         global retry_counter
@@ -394,8 +395,8 @@ class ChatGPT(BaseModel):
         logger.info(f"Input to call openai:\n{messages_raw}")
 
         gpt_4_buffer = 800
-        if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
-            model = "gpt-4-0613"
+        if int(messages_length) + gpt_4_buffer < 6000:
+            model = random.choice(["gpt-4-0613", "gpt-4"])
             max_tokens = model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer # this is for the function tokens
 
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
@@ -405,7 +406,7 @@ class ChatGPT(BaseModel):
                 messages=self.messages_dicts,
                 temperature=temperature,
                 functions=[json.loads(function.json()) for function in functions],
-                function_call=function_call or "auto",
+                function_call=function_call,
                 stream=True
             ) if functions else openai.ChatCompletion.create(
                 model=model,
