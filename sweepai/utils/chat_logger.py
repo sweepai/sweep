@@ -66,7 +66,7 @@ class ChatLogger(BaseModel):
             {'$project': {self.current_month: 1, '_id': 0}}
         ])
         result_list = list(result)
-        ticket_count = result_list[0][self.current_month] if result_list else 0
+        ticket_count = result_list[0].get(self.current_month, 0) if len(result_list) > 0 else 0
         logger.info(f'Ticket Count for {username} {ticket_count}')
         return ticket_count
 
@@ -93,5 +93,6 @@ def discord_log_error(content):
         headers = { 'Content-Type': 'application/json' }
         response = requests.post(url, data=json.dumps(data), headers=headers)
         # Success: response.status_code == 204:
-    except Exception:
+    except Exception as e:
+        logger.error(f'Could not log to Discord: {e}')
         pass
