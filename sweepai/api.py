@@ -2,8 +2,11 @@ import modal
 from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
+from sweepai.handlers.create_pr import create_pr
+from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 
 from sweepai.events import (
+    CheckRunCompleted,
     CommentCreatedRequest,
     InstallationCreatedRequest,
     IssueCommentRequest,
@@ -61,6 +64,7 @@ handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
 handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
+handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
@@ -117,9 +121,11 @@ async def webhook(raw_request: Request):
                         request.repository.full_name,
                         request.repository.description,
                         request.installation.id,
+                        None
                     )
             case "issue_comment", "created":
                 request = IssueCommentRequest(**request_dict)
+                # if replying to an issue with sweep label
                 if request.issue is not None \
                     and GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels] \
                     and request.comment.user.type == "User":
@@ -127,6 +133,10 @@ async def webhook(raw_request: Request):
                     request.repository.description = (
                         request.repository.description or ""
                     )
+
+                    if not request.comment.body.lower().startswith(GITHUB_LABEL_NAME):
+                        return {"success": True, "reason": "Comment does not start with 'Sweep', passing"}
+
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
                     handle_ticket.spawn(
@@ -169,6 +179,24 @@ async def webhook(raw_request: Request):
             case "pull_request_review", "submitted":
                 # request = ReviewSubmittedRequest(**request_dict)
                 pass
+            case "check_run", "completed":
+                request = CheckRunCompleted(**request_dict)
+                    # handle_check_suite
+                logs = None
+                # Must be Sweep firing the PR and it must fail
+                if request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
+                    logs = handle_check_suite.call(request)
+                if len(request.check_run.pull_requests) > 0 and logs:
+                    handle_comment.spawn(
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        comment="Sweep: " + logs,
+                        pr_path=None,
+                        pr_line_position=None,
+                        username=request.sender.login,
+                        installation_id=request.installation.id,
+                        pr_number=request.check_run.pull_requests[0].number,
+                    )
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {

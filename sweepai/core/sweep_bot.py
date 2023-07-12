@@ -7,14 +7,18 @@ from pydantic import BaseModel
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.code_repair import CodeRepairer
+from sweepai.utils.chat_logger import ChatLogger
+import re
+import traceback
+
 from sweepai.core.entities import (
-    FileChange,
+    FileCreation,
     FileChangeRequest,
     FilesToChange,
     PullRequest,
     RegexMatchError,
     Function,
-    Snippet
+    Snippet, NoFilesException
 )
 from sweepai.core.prompts import (
     files_to_change_prompt,
@@ -24,14 +28,17 @@ from sweepai.core.prompts import (
 )
 from sweepai.utils.config import DB_MODAL_INST_NAME
 from sweepai.utils.config import SweepConfig
-from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown
+from sweepai.utils.constants import DB_NAME, SECONDARY_MODEL
+from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown, revert_whitespace_changes
 
 
 class CodeGenBot(ChatGPT):
 
-    def get_files_to_change(self):
+    def get_files_to_change(self, retries=2):
         file_change_requests: list[FileChangeRequest] = []
-        for count in range(5):
+        # Todo: put retries into a constants file
+        # also, this retries multiple times as the calls for this function are in a for loop
+        for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
                 files_to_change_response = self.chat(files_to_change_prompt, message_key="files_to_change") # Dedup files to change here
@@ -69,17 +76,28 @@ class CodeGenBot(ChatGPT):
                 logger.warning("Failed to parse! Retrying...")
                 self.delete_messages_from_chat("files_to_change")
                 continue
-        raise Exception("Could not generate files to change")
+        raise NoFilesException()
 
-    def generate_pull_request(self) -> PullRequest:
-        pull_request = None
-        for count in range(5):
+    def generate_pull_request(self, retries=5) -> PullRequest:
+        for count in range(retries):
+            too_long = False
             try:
                 logger.info(f"Generating for the {count}th time...")
-                pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
+                if too_long or count == retries - 2: # if on last try, use gpt4-32k (improved context window)
+                    pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
+                else:
+                    pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)
+
+                # Add triple quotes if not present
+                if not pr_text_response.strip().endswith('"""'):
+                    pr_text_response += '"""'
+
                 self.delete_messages_from_chat("pull_request")
             except Exception as e:
-                logger.warning(f"Exception {e}. Failed to parse! Retrying...")
+                e_str = str(e)
+                if "too long" in e_str:
+                    too_long = True
+                logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
                 self.delete_messages_from_chat("pull_request")
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
@@ -238,8 +256,8 @@ class SweepBot(CodeGenBot, GithubBot):
         #             ) # update this constant
         return
 
-    def create_file(self, file_change_request: FileChangeRequest) -> FileChange:
-        file_change: FileChange | None = None
+    def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
+        file_change: FileCreation | None = None
         for count in range(5):
             key = f"file_change_created_{file_change_request.filename}"
             create_file_response = self.chat(
@@ -253,7 +271,7 @@ class SweepBot(CodeGenBot, GithubBot):
             self.file_change_paths.append(file_change_request.filename)
             # self.delete_file_from_system_message(file_path=file_change_request.filename)
             try:
-                file_change = FileChange.from_string(create_file_response)
+                file_change = FileCreation.from_string(create_file_response)
                 assert file_change is not None
                 file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
                 return file_change
@@ -328,10 +346,10 @@ class SweepBot(CodeGenBot, GithubBot):
                         code_repairer = CodeRepairer(chat_logger=self.chat_logger)
                         diff = generate_diff(old_code=contents, new_code=new_file)
                         new_file = code_repairer.repair_code(diff=diff, user_code=new_file, feature=file_change_request.instructions)
-                        # new_file = revert_whitespace_changes(original_file_str=contents, modified_file_str=new_file)
                     return (new_file, file_change_request.filename)
                 except Exception as e:
-                    logger.warning(f"Recieved error {e}")
+                    tb = traceback.format_exc()
+                    logger.warning(f"Recieved error {e}\n{tb}")
                     logger.warning(
                         f"Failed to parse. Retrying for the {count}th time..."
                     )
@@ -388,7 +406,7 @@ class SweepBot(CodeGenBot, GithubBot):
         try:
             contents = self.get_file(file_change_request.filename, branch=branch)
             new_file_contents, file_name = self.modify_file(
-                file_change_request, contents.decoded_content.decode("utf-8"), branch
+                file_change_request, contents.decoded_content.decode("utf-8"), branch=branch
             )
             new_file_contents = format_contents(new_file_contents, file_markdown)
             new_file_contents = new_file_contents.rstrip()
@@ -397,12 +415,23 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.debug(
                 f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
             )
-            self.repo.update_file(
-                file_name,
-                f'Update {file_name}',
-                new_file_contents,
-                contents.sha,
-                branch=branch,
-            )
+            try:
+                self.repo.update_file(
+                    file_name,
+                    f'Update {file_name}',
+                    new_file_contents,
+                    contents.sha,
+                    branch=branch,
+                )
+            except Exception as e:
+                logger.info(f"Error in updating file, repulling and trying again {e}")
+                contents = self.get_file(file_change_request.filename, branch=branch)
+                self.repo.update_file(
+                    file_name,
+                    f'Update {file_name}',
+                    new_file_contents,
+                    contents.sha,
+                    branch=branch,
+                )
         except Exception as e:
             logger.info(f"Error in handle_modify_file: {e}")

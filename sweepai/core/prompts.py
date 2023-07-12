@@ -201,15 +201,20 @@ Write a 1-paragraph response to this user:
 """
 
 create_file_prompt = """
+You are creating a PR for creating the single new file.
+
 Think step-by-step regarding the instructions and what should be added to the new file.
-Then create a plan of parts of the code to create, with low-level, detailed references to functions and variable to create, and what each function does.
-Then create the following file using the following instructions:
+Next, create a plan of parts of the code to create, with low-level, detailed references to functions and variable to create, and what each function does.
+Last, create the following file using the following instructions:
 
-File Name: {filename}
+DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags, and all text inside these tags will be placed in the newly created file.
 
-Instructions: {instructions}
+Reply in the following format:
+Commit planning:
+file_name = "..."
+instructions = "..."
+commit_message = "..."
 
-Reply in the following format. DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags, and all text inside these tags will be placed in the newly created file.
 
 Step-by-step thoughts with explanations: 
 * Thought 1 - Explanation 1
@@ -220,7 +225,7 @@ Detailed plan of additions:
 * Addition 1
 * Addition 2
 ...
-Commit Message: {{commit_message}}
+
 <new_file>
 {{new_file}}
 </new_file>
@@ -269,12 +274,9 @@ modify_file_prompt = """
 File contains lines {line_numbers}
 
 Generate a new_file based on the given plan, ensuring that you:
-1. Do not write "pass" statements.
-2. Provide complete functions with actual business logic. It is imperative that we do not leave any work to the user/future readers of this code.
-3. Do not write new "todo" comments.
-4. Do not write incomplete functions.
-5. Do not write the original line numbers with the new code.
-6. Make sure the new code follows the same programming language conventions as the old code.
+1. It is imperative that we do not leave any work to the user/future readers of this code. So, WRITE FUNCTIONS COMPLETELY THAT WILL WORK.
+2. Do not write the original line numbers with the new code.
+3. Make sure the new code follows the same programming language conventions as the old code.
 
 Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copied>0-25</copied>"). Make sure to use this exact format.
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copied>0-50</copied>".
@@ -289,7 +291,7 @@ print("debug statement")
 <copied>76-100</copied>
 </new_file>
 
-Do not rewrite entire file. Use <copied> XML tag when possible.
+Do not rewrite entire file. Use <copied> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
 """
 
 
@@ -321,12 +323,9 @@ Lines to change in the file:
 Code Generation:
 ```
 Generate a new_file based on the given plan, ensuring that you:
-1. Do not write "pass" statements.
-2. Provide complete functions with actual business logic. It is imperative that we do not leave any work to the user/future readers of this code.
-3. Do not write new "todo" comments.
-4. Do not write incomplete functions.
-5. Do not write the original line numbers with the new code.
-6. Make sure the new code follows the same programming language conventions as the old code.
+1. It is imperative that we do not leave any work to the user/future readers of this code. Therefore write functions with complete business logic.
+2. Only write code, do not write line numbers.
+3. Make sure the new code follows the same programming language conventions as the old code.
 
 Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copy_lines A-B>"). Make sure to use this exact format.
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copy_lines 1-50>".
@@ -341,7 +340,7 @@ print("debug statement")
 <copy_lines 76-100>
 </new_file>
 
-Do not rewrite entire file. Use <copy_lines A-B> XML tag when possible. Do not include the line numbers in the new file.
+Do not rewrite entire file. Use <copy_lines A-B> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
 ```
 
 Context: "{instructions}". Limit your changes to the context.
@@ -356,15 +355,14 @@ Instructions:
 pr_code_prompt = ""  # TODO: deprecate this
 
 
-pull_request_prompt = """
-Awesome! Could you also provide a PR message in the following format? Content should be in Github style markdown. Thanks!
+pull_request_prompt = """With your plan in mind, generate one PR for your planned changes using GitHub markdown.
 
-Title: {title}
-Branch Name: {branch_name}
-<content>
-{content}
-</content>
-"""
+title = "..."
+branch = "..."
+content = \"\"\"
+...
+...
+\"\"\""""
 
 summarize_system_prompt = """
 Your name is Sweep bot. You are an engineer assigned to helping summarize code instructions and code changes.
@@ -404,9 +402,9 @@ Gather information (i.e. fetch more snippets) to solve the problem. Use "create_
 """
 
 code_repair_system_prompt = """\
-You are a genius trained for code repair. 
+You are a genius trained for code stitching.
 You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the difference betwen the user_code and the original code, and the code inside <user_code></user_code> is a user's attempt at adding a change described as {feature}. 
-Our goal is to return a working version of user_code that follows {feature}.
+Our goal is to return a working version of user_code that follows {feature} while making as few edits as possible.
 """
 
 code_repair_prompt = """\
@@ -418,13 +416,15 @@ code_repair_prompt = """\
 </user_code>
 This is the user_code.
 Instructions:
-* Keep the logic changes from user_code.
-* Fix any issues using our knowledge of both the diff and user_code files. 
-* Fix syntax errors and accidentally deleted lines.
-* Do not perform code style cleanup.
-* Do not add or remove any whitespace besides what is necessary to fix syntax errors.
-* Do not add or remove any comments.
-Return the repaired user_code without xml tags. All of the text you return will be placed in the file. Revert any unrelated deletions to user_code, using the diff and described change.
+* The user_code may have accidental additions and deletions before and after the code that needs to be added. You can revert these changes.
+* Fix syntax errors and formatting, but only around lines mentioned in the diff.
+* Be as minimal as possible with the changes you make to user_code.
+* Add or remove whitespaces, but only around lines mentioned in the diff.
+* Add or remove comments, but only around lines mentioned in the diff.
+* Clean up the code, but only around lines mentioned in the diff.
+* Do not change the logic in user_code.
+
+Return the repaired user_code without xml tags. All of the text you return will be placed in the file.
 """
 
 gradio_system_message_prompt = """Your name is Sweep bot. You are a brilliant and thorough engineer assigned to assist the following user with their problems in the Github repo. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes. If the user asks you to create a PR, you will use the create_pr function.
@@ -432,4 +432,29 @@ gradio_system_message_prompt = """Your name is Sweep bot. You are a brilliant an
 Relevant snippets provided by search engine (decreasing relevance):
 {snippets}
 Repo: {repo_name}
-Description: {repo_description}"""
+Description: {repo_description}
+"""
+
+gradio_user_prompt = """
+Respond in the following format (one line per file change, no prefixes, each file should be unique, only files that should be created or changed should go into the plan). There must be a blank line between the summary and the plan:
+
+Response:
+Provide a summary of the proposed changes or inquiries for the user. This section will be displayed directly to the user.
+
+Plan:
+* filename_1: instructions_1
+* filename_2: instructions_2
+...
+"""
+
+gha_extraction_system_prompt = """\
+Your job is to extract the information needed to debug the log from the Github Actions workflow file.
+"""
+
+gha_extraction_prompt = """\
+Here are the logs:
+{gha_logs}
+Copy the important lines from the github action logs. Describe the issue as you would report a bug to a developer and do not mention the github action or preparation steps. Only mention the actual issue.
+For example, if the issue was because of github action -> pip install -> python black formatter -> file xyz is broken, only report that file xyz is broken and fails formatting. Do not mention the github action or pip install.
+Make sure to mention the file name and line number of the issue(if applicable).
+"""
