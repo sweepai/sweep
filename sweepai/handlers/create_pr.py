@@ -143,7 +143,7 @@ def create_config_pr(
         sweep_bot.repo.create_file(
             'sweep.yaml',
             'Create sweep.yaml config file',
-            "# Sweep AI turns bug fixes & feature requests into code changes (https://sweep.dev)\n# For details on our config file, check out our docs at https://docs.sweep.dev\n" + DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
+            DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
             branch=branch_name
         )
     except Exception as e:
@@ -161,7 +161,6 @@ def create_config_pr(
         if pr.title == title:
             return pr
 
-    pr_description = "Config file allows for customization of Sweep."
     pr = sweep_bot.repo.create_pull(
         title=title,
         body=
