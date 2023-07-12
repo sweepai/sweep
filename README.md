@@ -68,7 +68,7 @@ If you want Sweep to use a file, try to mention the full path. Similarly, to hav
 Sweep is unlikely to complete complex issues on the first try, similar to the average junior developer. Here are Sweep's limitations(for now):
 - Try to change less than 200 lines of code
 - Try to modify less than 3 files
-- Do not include files with >1000 lines of code
+- Do not include files with more than 1500 lines of code
 
 ### 🖥️ Sweep Chat
 Sweep Chat allows you to interact with Sweep and GitHub locally. Collaborate on the plan with Sweep, then have it create the pull request for you. 
