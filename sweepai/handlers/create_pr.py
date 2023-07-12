@@ -1,7 +1,3 @@
-"""
-Creates PR given description.
-"""
-
 import os
 import openai
 
@@ -147,7 +143,7 @@ def create_config_pr(
         sweep_bot.repo.create_file(
             'sweep.yaml',
             'Create sweep.yaml config file',
-            DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
+            "# Sweep AI turns bug fixes & feature requests into code changes (https://sweep.dev)\n# For details on our config file, check out our docs at https://docs.sweep.dev\n" + DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
             branch=branch_name
         )
     except Exception as e:
