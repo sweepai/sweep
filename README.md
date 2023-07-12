@@ -64,6 +64,12 @@ A good issue might include:
 
 If you want Sweep to use a file, try to mention the full path. Similarly, to have Sweep use a function, try to mention the class method or what it does. Also see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/tricks).
 
+#### Limitations:
+Sweep is unlikely to complete complex issues on the first try, similar to the average junior developer. Here are Sweep's limitations(for now):
+- Try to change less than 200 lines of code
+- Try to modify less than 3 files
+- Do not include files with >1000 lines of code
+
 ### 🖥️ Sweep Chat
 Sweep Chat allows you to interact with Sweep and GitHub locally. Collaborate on the plan with Sweep, then have it create the pull request for you. 
 
@@ -98,8 +104,7 @@ Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating 
 We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
 
 1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
-2. Create new issue in repo, like "Sweep: Write tests"
-3. Watch the magic happen 🪄
+2. Create new issue in repo, like "Sweep: In sweepai/app/ui.py use an os-agnostic temp directory"
 
 ## 🤝 Contributing
 
