@@ -36,9 +36,6 @@ Describe bugs, small features, and refactors like you would to a junior develope
 
 See highlights at https://docs.sweep.dev/examples.
 
-## ✨ Demo
-For the best experience, [install Sweep](https://github.com/apps/sweep-ai) to one of your repos and see the magic happen.
-
 [Demo](https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47)
 
 ## 🌠 Sweep
