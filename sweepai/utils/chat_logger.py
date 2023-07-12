@@ -47,6 +47,7 @@ class ChatLogger(BaseModel):
     def add_successful_ticket(self):
         if self.ticket_collection is None:
             logger.error('Ticket Collection Does Not Exist')
+            return
         username = self.data['username']
         self.ticket_collection.update_one(
             {'username': username},
@@ -58,6 +59,7 @@ class ChatLogger(BaseModel):
     def get_ticket_count(self):
         if self.ticket_collection is None:
             logger.error('Ticket Collection Does Not Exist')
+            return 0
         username = self.data['username']
         result = self.ticket_collection.aggregate([
             {'$match': {'username': username}},
@@ -67,9 +69,22 @@ class ChatLogger(BaseModel):
         ticket_count = result_list[0][self.current_month] if result_list else 0
         logger.info(f'Ticket Count for {username} {ticket_count}')
         return ticket_count
+
+    def is_paying_user(self):
+        if self.ticket_collection is None:
+            logger.error('Ticket Collection Does Not Exist')
+            return False
+        username = self.data['username']
+        result = self.ticket_collection.find_one({'username': username})
+        return result.get('is_paying_user', False) if result else False
     
     def use_faster_model(self):
-        return self.get_ticket_count() >= 0
+        if self.ticket_collection is None:
+            logger.error('Ticket Collection Does Not Exist')
+            return True
+        if self.is_paying_user():
+            return self.get_ticket_count() >= 60
+        return self.get_ticket_count() >= 5
 
 def discord_log_error(content):
     try:

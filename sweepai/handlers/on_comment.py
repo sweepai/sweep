@@ -25,12 +25,11 @@ github_access_token = os.environ.get("GITHUB_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 num_of_snippets_to_query = 30
-max_num_of_snippets = 3
 total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 num_extended_snippets = 2
 
-def post_process_snippets(snippets: list[Snippet]):
+def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3):
     for snippet in snippets[:num_full_files]:
         snippet = snippet.expand()
 
@@ -145,7 +144,23 @@ def on_comment(
         except Exception as e:
             logger.error(e)
             raise e
-        snippets = post_process_snippets(snippets)
+        chat_logger = ChatLogger({
+            'repo_name': repo_name,
+            'title': '(Comment) ' + pr_title,
+            "issue_url": pr.html_url,
+            "pr_file_path": pr_file_path,  # may be None
+            "pr_line": pr_line,  # may be None
+            "repo_full_name": repo_full_name,
+            "repo_description": repo_description,
+            "comment": comment,
+            "pr_path": pr_path,
+            "pr_line_position": pr_line_position,
+            "username": username,
+            "installation_id": installation_id,
+            "pr_number": pr_number,
+            "type": "comment",
+        })
+        snippets = post_process_snippets(snippets, max_num_of_snippets=2)
 
         logger.info("Getting response from ChatGPT...")
         human_message = HumanMessageCommentPrompt(
@@ -164,25 +179,9 @@ def on_comment(
         )
         logger.info(f"Human prompt{human_message.construct_prompt()}")
 
-        chat_logger = ChatLogger({
-            'repo_name': repo_name,
-            'title': '(Comment) ' + pr_title,
-            "issue_url": pr.html_url,
-            "pr_file_path": pr_file_path,  # may be None
-            "pr_line": pr_line,  # may be None
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "comment": comment,
-            "pr_path": pr_path,
-            "pr_line_position": pr_line_position,
-            "username": username,
-            "installation_id": installation_id,
-            "pr_number": pr_number,
-            "type": "comment",
-        })
         sweep_bot = SweepBot.from_system_message_content(
             # human_message=human_message, model="claude-v1.3-100k", repo=repo
-            human_message=human_message, repo=repo, chat_logger=chat_logger
+            human_message=human_message, repo=repo, chat_logger=chat_logger, model="gpt-4-32k-0613"
         )
     except Exception as e:
         posthog.capture(username, "failed", properties={
