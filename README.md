@@ -9,7 +9,7 @@
 <a href="https://sweep.dev">
     <img alt="Landing Page" src="https://img.shields.io/badge/Site-sweep.dev-blue?link=https%3A%2F%2Fsweep.dev">
 </a>
-<a href="https://docs.sweep.dev/">
+<a href="https://correct.documentation.link/">
     <img alt="Docs" src="https://img.shields.io/badge/Docs-docs.sweep.dev-blue?link=https%3A%2F%2Fdocs.sweep.dev">
 </a> 
 <a href="https://discord.gg/sweep-ai">
