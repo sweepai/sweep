@@ -8,6 +8,7 @@ def generate_diff(old_code, new_code):
     )
     return ''.join(diff)
 
+
 def revert_whitespace_changes(original_file_str, modified_file_str):
     original_lines = original_file_str.splitlines()
     modified_lines = modified_file_str.splitlines()
@@ -29,6 +30,7 @@ def revert_whitespace_changes(original_file_str, modified_file_str):
 
     return '\n'.join(final_lines)
 
+
 def format_contents(file_contents, is_markdown=False):
     """
     Add arbitrary postprocessing here, this affects files and diffs
@@ -37,7 +39,7 @@ def format_contents(file_contents, is_markdown=False):
 
     if is_markdown:
         return '\n'.join(lines)
-    
+
     # Handle small files
     if len(lines) <= 5:
         start_idx = 0
@@ -90,7 +92,7 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
         for match in matches:
             copied_lines = True
             start, end = match.group(1).split('-')
-            start, end = int(start)-1, int(end)-1
+            start, end = int(start) - 1, int(end) - 1
 
             start = max(0, start)
             end = min(len(old_file_lines) - 1, end)
@@ -101,13 +103,13 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
 
         # check if line was incorrectly duplicated
         append = True
-        if not copied_lines: # if bot generated, and line before is not bot generated
+        if not copied_lines:  # if bot generated, and line before is not bot generated
             if len(result) > 0:
                 # Get last line in results
                 last_group = result[-1]
-                #last_line = last_group
+                # last_line = last_group
                 if '\n' in last_group:
-                    last_line = last_group[last_group.rindex('\n')+1:] # if its multiple lines
+                    last_line = last_group[last_group.rindex('\n') + 1:]  # if its multiple lines
                     # if last line is same is current line
                     if last_line == line:
                         append = False
@@ -152,7 +154,8 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
     """
 
     return result
-    
+
+
 def join_contents_k(first, second, k):
     """
     Join contents together removing k duplicate lines
@@ -165,6 +168,7 @@ def join_contents_k(first, second, k):
         if first_lines[-i:] == second_lines[:i]:
             return "\n".join(first_lines) + "\n" + "\n".join(second_lines[i:])
     return "\n".join(first_lines) + "\n" + "\n".join(second_lines)
+
 
 def is_markdown(filename):
     return filename.endswith(".md") or filename.endswith(".rst") or filename.endswith(".txt")

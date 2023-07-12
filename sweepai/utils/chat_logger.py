@@ -1,5 +1,4 @@
 import json
-import os
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -8,7 +7,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
-from sweepai.utils.config import MONGODB_URI, DISCORD_WEBHOOK_URL
+from sweepai.utils.config.server import MONGODB_URI, DISCORD_WEBHOOK_URL
 
 
 class ChatLogger(BaseModel):
@@ -80,7 +79,7 @@ class ChatLogger(BaseModel):
         username = self.data['username']
         result = self.ticket_collection.find_one({'username': username})
         return result.get('is_paying_user', False) if result else False
-    
+
     def use_faster_model(self):
         if self.ticket_collection is None:
             logger.error('Ticket Collection Does Not Exist')
@@ -89,11 +88,12 @@ class ChatLogger(BaseModel):
             return self.get_ticket_count() >= 60
         return self.get_ticket_count() >= 3
 
+
 def discord_log_error(content):
     try:
         url = DISCORD_WEBHOOK_URL
-        data = { 'content': content }
-        headers = { 'Content-Type': 'application/json' }
+        data = {'content': content}
+        headers = {'Content-Type': 'application/json'}
         response = requests.post(url, data=json.dumps(data), headers=headers)
         # Success: response.status_code == 204:
     except Exception as e:

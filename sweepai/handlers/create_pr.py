@@ -1,7 +1,3 @@
-import os
-import openai
-
-from loguru import logger
 import modal
 import openai
 from github.Repository import Repository
@@ -9,9 +5,10 @@ from loguru import logger
 
 from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.utils.config import OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, GITHUB_BOT_USERNAME, \
-    GITHUB_CONFIG_BRANCH, GITHUB_DEFAULT_CONFIG
-from sweepai.utils.config import SweepConfig
+from sweepai.utils.config.client import SweepConfig
+from sweepai.utils.config.server import OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
+    GITHUB_BOT_USERNAME, \
+    GITHUB_CONFIG_BRANCH
 from sweepai.utils.event_logger import posthog
 
 github_access_token = GITHUB_BOT_TOKEN
@@ -22,13 +19,14 @@ update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
 
+
 def create_pr(
-    file_change_requests: list[FileChangeRequest],
-    pull_request: PullRequest,
-    sweep_bot: SweepBot,
-    username: str,
-    installation_id: int,
-    issue_number: int | None = None
+        file_change_requests: list[FileChangeRequest],
+        pull_request: PullRequest,
+        sweep_bot: SweepBot,
+        username: str,
+        installation_id: int,
+        issue_number: int | None = None
 ):
     # Flow:
     # 1. Get relevant files
@@ -110,9 +108,10 @@ def create_pr(
     sweep_bot.chat_logger.add_successful_ticket()
     return {"success": True, "pull_request": pr}
 
+
 def safe_delete_sweep_branch(
-    pr, # Github PullRequest
-    repo: Repository,
+        pr,  # Github PullRequest
+        repo: Repository,
 ) -> bool:
     """
     Safely delete Sweep branch
@@ -145,7 +144,7 @@ def create_config_pr(
         sweep_bot.repo.create_file(
             'sweep.yaml',
             'Create sweep.yaml config file',
-            DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
+            GITHUB_DEFAUKT_CONFIG.format(branch=sweep_bot.repo.default_branch),
             branch=branch_name
         )
     except Exception as e:
@@ -166,16 +165,16 @@ def create_config_pr(
     pr = sweep_bot.repo.create_pull(
         title=title,
         body=
-"""🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
-
-## What's new?
-- **Sweep is now configurable**. 
-- To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
-- If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep-ai) for help.
-
-If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
-Thank you for using Sweep! 🧹
-""",
+        """🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
+        
+        ## What's new?
+        - **Sweep is now configurable**. 
+        - To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
+        - If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep-ai) for help.
+        
+        If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
+        Thank you for using Sweep! 🧹
+        """,
         head=branch_name,
         base=SweepConfig.get_branch(sweep_bot.repo),
     )

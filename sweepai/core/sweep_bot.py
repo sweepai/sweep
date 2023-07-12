@@ -1,3 +1,5 @@
+import traceback
+
 import modal
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException
@@ -7,10 +9,6 @@ from pydantic import BaseModel
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.code_repair import CodeRepairer
-from sweepai.utils.chat_logger import ChatLogger
-import re
-import traceback
-
 from sweepai.core.entities import (
     FileCreation,
     FileChangeRequest,
@@ -26,10 +24,9 @@ from sweepai.core.prompts import (
     create_file_prompt,
     modify_file_prompt_2,
 )
-from sweepai.utils.config import DB_MODAL_INST_NAME
-from sweepai.utils.config import SweepConfig
-from sweepai.utils.constants import DB_NAME, SECONDARY_MODEL
-from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown, revert_whitespace_changes
+from sweepai.utils.config.client import SweepConfig
+from sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
+from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown
 
 
 class CodeGenBot(ChatGPT):
@@ -41,14 +38,15 @@ class CodeGenBot(ChatGPT):
         for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                files_to_change_response = self.chat(files_to_change_prompt, message_key="files_to_change") # Dedup files to change here
+                files_to_change_response = self.chat(files_to_change_prompt,
+                                                     message_key="files_to_change")  # Dedup files to change here
                 files_to_change = FilesToChange.from_string(files_to_change_response)
                 files_to_create: list[str] = files_to_change.files_to_create.split("\n*")
                 files_to_modify: list[str] = files_to_change.files_to_modify.split("\n*")
                 for file_change_request, change_type in zip(
-                    files_to_create + files_to_modify,
-                    ["create"] * len(files_to_create)
-                    + ["modify"] * len(files_to_modify),
+                        files_to_create + files_to_modify,
+                        ["create"] * len(files_to_create)
+                        + ["modify"] * len(files_to_modify),
                 ):
                     file_change_request = file_change_request.strip()
                     if not file_change_request or file_change_request == "* None":
@@ -63,13 +61,17 @@ class CodeGenBot(ChatGPT):
                 # Create a dictionary to hold file names and their corresponding instructions
                 file_instructions_dict = {}
                 for file_change_request in file_change_requests:
-                # If the file name is already in the dictionary, append the new instructions
+                    # If the file name is already in the dictionary, append the new instructions
                     if file_change_request.filename in file_instructions_dict:
                         instructions, change_type = file_instructions_dict[file_change_request.filename]
-                        file_instructions_dict[file_change_request.filename] = (instructions + " " + file_change_request.instructions, change_type)
+                        file_instructions_dict[file_change_request.filename] = (
+                            instructions + " " + file_change_request.instructions, change_type)
                     else:
-                        file_instructions_dict[file_change_request.filename] = (file_change_request.instructions, file_change_request.change_type)
-                file_change_requests = [FileChangeRequest(filename=file_name, instructions=instructions, change_type=change_type) for file_name, (instructions, change_type) in file_instructions_dict.items()]
+                        file_instructions_dict[file_change_request.filename] = (
+                            file_change_request.instructions, file_change_request.change_type)
+                file_change_requests = [
+                    FileChangeRequest(filename=file_name, instructions=instructions, change_type=change_type) for
+                    file_name, (instructions, change_type) in file_instructions_dict.items()]
                 if file_change_requests:
                     return file_change_requests
             except RegexMatchError:
@@ -83,7 +85,7 @@ class CodeGenBot(ChatGPT):
             too_long = False
             try:
                 logger.info(f"Generating for the {count}th time...")
-                if too_long or count == retries - 2: # if on last try, use gpt4-32k (improved context window)
+                if too_long or count == retries - 2:  # if on last try, use gpt4-32k (improved context window)
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
                 else:
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)
@@ -156,23 +158,25 @@ class GithubBot(BaseModel):
                 if new_branch:
                     return new_branch.name
             raise e
-    
+
     def populate_snippets(self, snippets: list[Snippet]):
         for snippet in snippets:
             try:
-                snippet.content = self.repo.get_contents(snippet.file_path, SweepConfig.get_branch(self.repo)).decoded_content.decode("utf-8")
+                snippet.content = self.repo.get_contents(snippet.file_path,
+                                                         SweepConfig.get_branch(self.repo)).decoded_content.decode(
+                    "utf-8")
             except Exception as e:
                 logger.error(snippet)
-    
+
     def search_snippets(
-        self, 
-        query: str, 
-        installation_id: str,
-        num_snippets: int = 30,
+            self,
+            query: str,
+            installation_id: str,
+            num_snippets: int = 30,
     ) -> list[Snippet]:
         get_relevant_snippets = modal.Function.lookup(DB_MODAL_INST_NAME, "get_relevant_snippets")
         snippets: list[Snippet] = get_relevant_snippets.call(
-            self.repo.full_name, 
+            self.repo.full_name,
             query=query,
             n_results=num_snippets,
             installation_id=installation_id,
@@ -183,7 +187,8 @@ class GithubBot(BaseModel):
     def validate_file_change_requests(self, file_change_requests: list[FileChangeRequest], branch: str = ""):
         for file_change_request in file_change_requests:
             try:
-                contents = self.repo.get_contents(file_change_request.filename, branch or SweepConfig.get_branch(self.repo))
+                contents = self.repo.get_contents(file_change_request.filename,
+                                                  branch or SweepConfig.get_branch(self.repo))
                 if contents:
                     file_change_request.change_type = "modify"
                 else:
@@ -191,6 +196,7 @@ class GithubBot(BaseModel):
             except:
                 file_change_request.change_type = "create"
         return file_change_requests
+
 
 class SweepBot(CodeGenBot, GithubBot):
     def cot_retrieval(self):
@@ -207,15 +213,14 @@ class SweepBot(CodeGenBot, GithubBot):
                             "description": "Paths to files. One per line."
                         },
                     }
-                } # manage file too large
+                }  # manage file too large
             ),
             Function(
                 name="finish",
                 description="Indicate you have sufficient data to proceed.",
-                parameters={"properties": {}} 
+                parameters={"properties": {}}
             ),
         ]
-
 
         # self.chat(
         #     cot_retrieval_prompt,
@@ -283,7 +288,7 @@ class SweepBot(CodeGenBot, GithubBot):
         raise Exception("Failed to parse response after 5 attempts.")
 
     def modify_file(
-        self, file_change_request: FileChangeRequest, contents: str = "", branch = None
+            self, file_change_request: FileChangeRequest, contents: str = "", branch=None
     ) -> tuple[str, str]:
         if not contents:
             contents = self.get_file(
@@ -345,7 +350,8 @@ class SweepBot(CodeGenBot, GithubBot):
                     if not is_markdown(file_change_request.filename):
                         code_repairer = CodeRepairer(chat_logger=self.chat_logger)
                         diff = generate_diff(old_code=contents, new_code=new_file)
-                        new_file = code_repairer.repair_code(diff=diff, user_code=new_file, feature=file_change_request.instructions)
+                        new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
+                                                             feature=file_change_request.instructions)
                     return (new_file, file_change_request.filename)
                 except Exception as e:
                     tb = traceback.format_exc()
@@ -356,7 +362,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     self.delete_messages_from_chat(key)
                     continue
         raise Exception("Failed to parse response after 5 attempts.")
- 
+
     def change_file(self, file_change_request: FileChangeRequest):
         if file_change_request.change_type == "create":
             return self.create_file(file_change_request)
@@ -366,9 +372,9 @@ class SweepBot(CodeGenBot, GithubBot):
             raise Exception("Not a valid file type")
 
     def change_files_in_github(
-        self,
-        file_change_requests: list[FileChangeRequest],
-        branch: str,
+            self,
+            file_change_requests: list[FileChangeRequest],
+            branch: str,
     ):
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
