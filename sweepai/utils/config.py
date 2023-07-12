@@ -53,5 +53,5 @@ class SweepConfig(BaseModel):
             except Exception as e:
                 logger.warning(f"Error when getting gha enabled: {e}, falling back to False")
                 return False
-        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8"))["gha_enabled"]
+        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("gha_enabled", False)
         return gha_enabled
