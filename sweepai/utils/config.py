@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import lru_cache
 from loguru import logger
 import yaml
@@ -24,7 +26,10 @@ class SweepConfig(BaseModel):
     def get_branch(repo: Repository) -> str:
         default_branch = repo.default_branch
         try:
-            contents = repo.get_contents(".github/sweep.yaml")
+            try:
+                contents = repo.get_contents("sweep.yaml")
+            except Exception:
+                contents = repo.get_contents(".github/sweep.yaml")
             branch_name = yaml.safe_load(contents.decoded_content.decode("utf-8"))["branch"]
             try:
                 repo.get_branch(branch_name)
@@ -41,9 +46,12 @@ class SweepConfig(BaseModel):
     @lru_cache(maxsize=None)
     def get_gha_enabled(repo: Repository) -> bool:
         try:
-            contents = repo.get_contents(".github/sweep.yaml")
-            gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8"))["gha_enabled"]
-            return gha_enabled
+            contents = repo.get_contents("sweep.yaml")
         except Exception as e:
-            logger.warning(f"Error when getting gha enabled: {e}, falling back to False")
-            return False
+            try:
+                contents = repo.get_contents(".github/sweep.yaml")
+            except Exception as e:
+                logger.warning(f"Error when getting gha enabled: {e}, falling back to False")
+                return False
+        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8"))["gha_enabled"]
+        return gha_enabled
