@@ -1,8 +1,4 @@
-"""
-Proxy for the UI.
-"""
-
-import json
+import random
 from typing import Any
 import fastapi
 from github import Github
@@ -11,6 +7,7 @@ from loguru import logger
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+import json
 
 from sweepai.app.config import SweepChatConfig
 from sweepai.utils.config import SweepConfig
@@ -234,7 +231,7 @@ def _asgi_app():
 
         messages = [Message.from_tuple(message) for message in request.messages]
         chatgpt = ChatGPT(messages=messages[:-1])
-        result = chatgpt.chat(messages[-1].content, model="gpt-4-0613")
+        result = chatgpt.chat(messages[-1].content, model=random.choice(["gpt-4-32k-0613", "gpt-4-0613"]))
         return result
     
     @app.post("/chat_stream")
@@ -264,7 +261,7 @@ def _asgi_app():
             posthog.capture(request.config.github_username, "failed", properties={"error": str(e), **metadata})
             raise e
         def stream_chat():
-            for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=request.functions, function_call=request.function_call):
+            for chunk in chatgpt.chat_stream(messages[-1].content, model=random.choice(["gpt-4-32k-0613", "gpt-4-0613"]), functions=request.functions, function_call=request.function_call):
                 yield json.dumps(chunk)
             posthog.capture(request.config.github_username, "success", properties=metadata)
         return StreamingResponse(
