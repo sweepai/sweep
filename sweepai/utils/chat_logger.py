@@ -1,12 +1,14 @@
-import os
-import requests
 import json
 from datetime import datetime, timedelta
 from typing import Any
 
-from pymongo import MongoClient
-from pydantic import BaseModel, Field
+from fastapi import requests
 from loguru import logger
+from pydantic import BaseModel, Field
+from pymongo import MongoClient
+
+from sweepai.utils.config.server import MONGODB_URI, DISCORD_WEBHOOK_URL
+
 
 class ChatLogger(BaseModel):
     data: dict = Field(default_factory=dict)
@@ -18,7 +20,7 @@ class ChatLogger(BaseModel):
 
     def __init__(self, data: dict = Field(default_factory=dict)):
         super().__init__(data=data)  # Call the BaseModel's __init__ method
-        key = os.environ.get('MONGODB_URI')
+        key = MONGODB_URI
         if key is None:
             logger.warning('Chat history logger has no key')
             return
@@ -77,7 +79,7 @@ class ChatLogger(BaseModel):
         username = self.data['username']
         result = self.ticket_collection.find_one({'username': username})
         return result.get('is_paying_user', False) if result else False
-    
+
     def use_faster_model(self):
         if self.ticket_collection is None:
             logger.error('Ticket Collection Does Not Exist')
@@ -86,11 +88,12 @@ class ChatLogger(BaseModel):
             return self.get_ticket_count() >= 60
         return self.get_ticket_count() >= 3
 
+
 def discord_log_error(content):
     try:
-        url = os.environ.get('DISCORD_WEBHOOK_URL')
-        data = { 'content': content }
-        headers = { 'Content-Type': 'application/json' }
+        url = DISCORD_WEBHOOK_URL
+        data = {'content': content}
+        headers = {'Content-Type': 'application/json'}
         response = requests.post(url, data=json.dumps(data), headers=headers)
         # Success: response.status_code == 204:
     except Exception as e:

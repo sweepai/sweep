@@ -4,25 +4,26 @@ Proxy for the UI.
 
 import json
 from typing import Any
+
 import fastapi
-from github import Github
 import modal
-from loguru import logger
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
+from github import Github
+from loguru import logger
 from pydantic import BaseModel
 
 from sweepai.app.config import SweepChatConfig
-from sweepai.utils.config import SweepConfig
-from sweepai.utils.constants import API_NAME, BOT_TOKEN_NAME, DB_NAME, PREFIX
-from sweepai.utils.github_utils import get_github_client, get_installation_id
-from sweepai.utils.event_logger import posthog
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Function, Message, PullRequest, Snippet
-from sweepai.core.sweep_bot import SweepBot
 from sweepai.core.prompts import gradio_system_message_prompt, gradio_user_prompt
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.utils.config.client import SweepConfig
+from sweepai.utils.config.server import PREFIX, DB_MODAL_INST_NAME, API_MODAL_INST_NAME, BOT_TOKEN_NAME
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import get_github_client, get_installation_id
 
-get_relevant_snippets = modal.Function.from_name(DB_NAME, "get_relevant_snippets")
+get_relevant_snippets = modal.Function.from_name(DB_MODAL_INST_NAME, "get_relevant_snippets")
 
 stub = modal.Stub(PREFIX + "-ui")
 image = (
@@ -44,6 +45,7 @@ image = (
 )
 secrets = [
     modal.Secret.from_name(BOT_TOKEN_NAME),
+    modal.Secret.from_name("github"),
     modal.Secret.from_name("openai-secret"),
     modal.Secret.from_name("posthog"),
     modal.Secret.from_name("highlight")
@@ -55,6 +57,7 @@ FUNCTION_SETTINGS = {
     "timeout": 15 * 60,
     "keep_warm": 1
 }
+
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.asgi_app(label=PREFIX + "-ui")
@@ -94,7 +97,8 @@ def _asgi_app():
         except Exception as e:
             logger.warning(e)
             posthog.capture(request.github_username, "failed", properties={"error": str(e), **metadata})
-            raise fastapi.HTTPException(status_code=403, detail="Sweep app is not installed on this repo. To install it, go to https://github.com/apps/sweep-ai")
+            raise fastapi.HTTPException(status_code=403,
+                                        detail="Sweep app is not installed on this repo. To install it, go to https://github.com/apps/sweep-ai")
 
         posthog.capture(request.github_username, "success", properties=metadata)
 
@@ -108,7 +112,7 @@ def _asgi_app():
     @app.post("/search")
     def search(request: SearchRequest) -> list[Snippet]:
         logger.info("Searching for snippets...")
-        get_relevant_snippets = modal.Function.lookup(DB_NAME, "get_relevant_snippets")
+        get_relevant_snippets = modal.Function.lookup(DB_MODAL_INST_NAME, "get_relevant_snippets")
 
         assert verify_config(request.config)
 
@@ -134,7 +138,8 @@ def _asgi_app():
             repo = g.get_repo(request.config.repo_full_name)
             for snippet in snippets:
                 try:
-                    snippet.content = repo.get_contents(snippet.file_path, SweepConfig.get_branch(repo)).decoded_content.decode("utf-8")
+                    snippet.content = repo.get_contents(snippet.file_path,
+                                                        SweepConfig.get_branch(repo)).decoded_content.decode("utf-8")
                 except Exception:
                     logger.error(snippet)
         except Exception as e:
@@ -147,14 +152,14 @@ def _asgi_app():
     class CreatePRRequest(BaseModel):
         # proposed PR information
         file_change_requests: list[tuple[str, str]]
-        pull_request: PullRequest 
+        pull_request: PullRequest
 
         # state information
         messages: list[tuple[str | None, str | None]]
         snippets: list[Snippet] = []
 
         config: SweepChatConfig
-    
+
     @app.post("/create_pr")
     def create_pr(request: CreatePRRequest):
         assert verify_config(request.config)
@@ -174,9 +179,10 @@ def _asgi_app():
         posthog.capture(request.config.github_username, "started", properties=metadata)
 
         try:
-            create_pr_func = modal.Function.lookup(API_NAME, "create_pr")
+            create_pr_func = modal.Function.lookup(API_MODAL_INST_NAME, "create_pr")
             system_message = gradio_system_message_prompt.format(
-                snippets="\n".join([snippet.denotation + f"\n```{snippet.get_snippet()}```" for snippet in request.snippets]),
+                snippets="\n".join(
+                    [snippet.denotation + f"\n```{snippet.get_snippet()}```" for snippet in request.snippets]),
                 repo_name=request.config.repo_full_name,
                 repo_description=repo.description
             )
@@ -190,19 +196,19 @@ def _asgi_app():
 
             results = create_pr_func.call(
                 [FileChangeRequest(
-                    filename = item[0],
-                    instructions = item[1],
-                    change_type = "modify" if file_exists(item[0]) else "create", # TODO update this
+                    filename=item[0],
+                    instructions=item[1],
+                    change_type="modify" if file_exists(item[0]) else "create",  # TODO update this
                 ) for item in request.file_change_requests],
                 request.pull_request,
                 SweepBot(
-                    repo = repo,
-                    messages = [Message(role="system", content=system_message, key="system")] +
-                        [Message.from_tuple(message) for message in request.messages],
+                    repo=repo,
+                    messages=[Message(role="system", content=system_message, key="system")] +
+                             [Message.from_tuple(message) for message in request.messages],
                 ),
                 request.config.github_username,
-                installation_id = request.config.installation_id,
-                issue_number = None,
+                installation_id=request.config.installation_id,
+                issue_number=None,
             )
             generated_pull_request = results["pull_request"]
             print(generated_pull_request)
@@ -217,7 +223,7 @@ def _asgi_app():
         return {
             "html_url": generated_pull_request.html_url,
         }
-    
+
     class ChatRequest(BaseModel):
         messages: list[tuple[str | None, str | None]]
         snippets: list[Snippet]
@@ -228,7 +234,7 @@ def _asgi_app():
 
     @app.post("/chat")
     def chat(
-        request: ChatRequest,
+            request: ChatRequest,
     ) -> str:
         assert verify_config(request.config)
 
@@ -236,7 +242,7 @@ def _asgi_app():
         chatgpt = ChatGPT(messages=messages[:-1])
         result = chatgpt.chat(messages[-1].content, model="gpt-4-0613")
         return result
-    
+
     @app.post("/chat_stream")
     def chat_stream(request: ChatRequest):
         assert verify_config(request.config)
@@ -253,9 +259,10 @@ def _asgi_app():
         try:
             messages = [Message.from_tuple(message) for message in request.messages]
             system_message = gradio_system_message_prompt.format(
-                snippets="\n".join([snippet.denotation + f"\n```{snippet.get_snippet()}```" for snippet in request.snippets]),
+                snippets="\n".join(
+                    [snippet.denotation + f"\n```{snippet.get_snippet()}```" for snippet in request.snippets]),
                 repo_name=request.config.repo_full_name,
-                repo_description="" # TODO: fill this
+                repo_description=""  # TODO: fill this
             )
             chatgpt = ChatGPT(messages=[Message(role="system", content=system_message, key="system")] + messages[:-1])
             if request.do_add_plan:
@@ -263,12 +270,16 @@ def _asgi_app():
         except Exception as e:
             posthog.capture(request.config.github_username, "failed", properties={"error": str(e), **metadata})
             raise e
+
         def stream_chat():
-            for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=request.functions, function_call=request.function_call):
+            for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=request.functions,
+                                             function_call=request.function_call):
                 yield json.dumps(chunk)
             posthog.capture(request.config.github_username, "success", properties=metadata)
+
         return StreamingResponse(
             stream_chat(),
             media_type="text/event-stream"
         )
+
     return app

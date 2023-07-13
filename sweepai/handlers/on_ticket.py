@@ -4,34 +4,32 @@ On Github ticket, get ChatGPT to deal with it
 
 # TODO: Add file validation
 
-import os
-import openai
-
-from loguru import logger
-import modal
-from tabulate import tabulate
 import traceback
 
-from sweepai.core.entities import FileChangeRequest, Snippet, NoFilesException
-from sweepai.core.prompts import (
-    reply_prompt,
-)
+import modal
+import openai
+from loguru import logger
+from tabulate import tabulate
+
+from sweepai.core.entities import Snippet, NoFilesException
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
 from sweepai.handlers.create_pr import create_pr, create_config_pr, safe_delete_sweep_branch
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.utils.config.client import SweepConfig
+from sweepai.utils.config.server import PREFIX, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, OPENAI_API_KEY, \
+    GITHUB_BOT_TOKEN, \
+    GITHUB_BOT_USERNAME
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.constants import DB_NAME, PREFIX, UTILS_NAME, SWEEP_LOGIN
-from sweepai.utils.chat_logger import ChatLogger, discord_log_error
-from sweepai.utils.config import SweepConfig
 
-github_access_token = os.environ.get("GITHUB_TOKEN")
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+github_access_token = GITHUB_BOT_TOKEN
+openai.api_key = OPENAI_API_KEY
 
-update_index = modal.Function.lookup(DB_NAME, "update_index")
+update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 sep = "\n---\n"
 bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
@@ -48,12 +46,13 @@ collapsible_template = '''
 </details>
 '''
 
-chunker = modal.Function.lookup(UTILS_NAME, "Chunking.chunk")
+chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
 
 num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 num_extended_snippets = 2
+
 
 def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5):
     for snippet in snippets[:num_full_files]:
@@ -81,16 +80,17 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5)
         result_snippets.append(snippet)
     return result_snippets[:max_num_of_snippets]
 
+
 def on_ticket(
-    title: str,
-    summary: str,
-    issue_number: int,
-    issue_url: str,
-    username: str,
-    repo_full_name: str,
-    repo_description: str,
-    installation_id: int,
-    comment_id: int = None
+        title: str,
+        summary: str,
+        issue_number: int,
+        issue_url: str,
+        username: str,
+        repo_full_name: str,
+        repo_description: str,
+        installation_id: int,
+        comment_id: int = None
 ):
     # Check if the title starts with "sweep" or "sweep: " and remove it
     if title.lower().startswith("sweep: "):
@@ -129,7 +129,6 @@ def on_ticket(
     replies_text = ""
     comments = list(current_issue.get_comments())
     if comment_id:
-        
         logger.info(f"Replying to comment {comment_id}...")
         replies_text = "\nComments:\n" + "\n".join(
             [
@@ -139,7 +138,7 @@ def on_ticket(
                 ) for comment in comments if comment.user.type == "User"
             ]
         )
-    
+
     chat_logger = ChatLogger({
         'repo_name': repo_name,
         'title': title,
@@ -159,7 +158,7 @@ def on_ticket(
     for pr in prs:
         # Check if this issue is mentioned in the PR, and pr is owned by bot
         # This is done in create_pr, (pr_description = ...)
-        if pr.user.login == SWEEP_LOGIN and f'Fixes #{issue_number}.\n' in pr.body:
+        if pr.user.login == GITHUB_BOT_USERNAME and f'Fixes #{issue_number}.\n' in pr.body:
             success = safe_delete_sweep_branch(pr, repo)
 
     # Add emojis
@@ -167,7 +166,7 @@ def on_ticket(
     # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
     reactions = item_to_react_to.get_reactions()
     for reaction in reactions:
-        if reaction.content == "rocket" and reaction.user.login == SWEEP_LOGIN:
+        if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
             item_to_react_to.delete_reaction(reaction.id)
 
     # Creates progress bar ASCII for 0-5 states
@@ -181,8 +180,10 @@ def on_ticket(
     ]
 
     config_pr_url = None
+
     def get_comment_header(index, errored=False, pr_message=""):
-        config_pr_message = ("\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})" if config_pr_url is not None else "")
+        config_pr_message = (
+            "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})" if config_pr_url is not None else "")
         if index < 0: index = 0
         if index == 5:
             return pr_message + config_pr_message
@@ -190,7 +191,8 @@ def on_ticket(
         index = min(100, index)
         if errored:
             return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
-        return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + ("\n" + stars_suffix + config_pr_message if index != -1 else "")
+        return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + (
+            "\n" + stars_suffix + config_pr_message if index != -1 else "")
 
     # Find the first comment made by the bot
     issue_comment = None
@@ -201,7 +203,7 @@ def on_ticket(
     payment_message = f"To create this ticket, I used {'gpt-3.5. ' if use_faster_model else 'gpt-4. '}You have {ticket_count} gpt-4 tickets left." + (" For more gpt-4 tickets, visit [our payment portal.](https://buy.stripe.com/fZe03512h99u0AE6os)" if not is_paying_user else "")
     first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\nWorking on it...{bot_suffix}{discord_suffix}"
     for comment in comments:
-        if comment.user.login == SWEEP_LOGIN:
+        if comment.user.login == GITHUB_BOT_USERNAME:
             issue_comment = comment
             issue_comment.edit(first_comment)
             break
@@ -211,7 +213,8 @@ def on_ticket(
     # Comment edit function
     past_messages = {}
     current_index = {}
-    def edit_sweep_comment(message: str, index: int, pr_message = ""):
+
+    def edit_sweep_comment(message: str, index: int, pr_message=""):
         nonlocal current_index
         # -1 = error, -2 = retry
         # Only update the progress bar if the issue generation errors.
@@ -223,11 +226,13 @@ def on_ticket(
         agg_message = None
         # Include progress history
         # index = -2 is reserved for
-        for i in range(current_index + 2): # go to next header (for Working on it... text)
-            if i == 0 or i >= len(progress_headers): continue # skip None header
+        for i in range(current_index + 2):  # go to next header (for Working on it... text)
+            if i == 0 or i >= len(progress_headers): continue  # skip None header
             header = progress_headers[i]
-            if header is not None: header = "## " + header + "\n"
-            else: header = "No header\n"
+            if header is not None:
+                header = "## " + header + "\n"
+            else:
+                header = "No header\n"
             msg = header + (past_messages.get(i) or "Working on it...")
             if agg_message is None:
                 agg_message = msg
@@ -281,8 +286,10 @@ def on_ticket(
         )
         log_error("File Fetch", str(e) + "\n" + traceback.format_exc())
         raise e
-    
-    snippets = post_process_snippets(snippets, 
+
+    snippets = post_process_snippets(snippets)
+
+    snippets = post_process_snippets(snippets,
                                      max_num_of_snippets=2 if use_faster_model else 5)
 
     human_message = HumanMessagePrompt(
@@ -293,13 +300,12 @@ def on_ticket(
         title=title,
         summary=summary + replies_text,
         snippets=snippets,
-        tree=tree, # TODO: Anything in repo tree that has something going through is expanded
+        tree=tree,  # TODO: Anything in repo tree that has something going through is expanded
     )
 
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger
     )
-
 
     # Check repository for sweep.yml file.
     sweep_yml_exists = False
@@ -319,7 +325,6 @@ def on_ticket(
             logger.error("Failed to create new branch for sweep.yaml file.\n", e, traceback.format_exc())
     else:
         logger.info("sweep.yaml file already exists.")
-
 
     sweepbot_retries = 3
     try:
@@ -353,7 +358,8 @@ def on_ticket(
             file_change_requests = sweep_bot.get_files_to_change()
             file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
             table = tabulate(
-                [[f"`{file_change_request.filename}`", file_change_request.instructions] for file_change_request in file_change_requests],
+                [[f"`{file_change_request.filename}`", file_change_request.instructions] for file_change_request in
+                 file_change_requests],
                 headers=["File Path", "Proposed Changes"],
                 tablefmt="pipe"
             )
@@ -390,18 +396,18 @@ def on_ticket(
             try:
                 # CODE REVIEW
                 changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
-                        repo_description=repo_description, title=title,
-                        summary=summary, replies_text=replies_text, tree=tree)
+                                                             repo_description=repo_description, title=title,
+                                                             summary=summary, replies_text=replies_text, tree=tree)
                 logger.info(f"Addressing review comment {review_comment}")
                 if changes_required:
                     on_comment(repo_full_name=repo_full_name,
-                            repo_description=repo_description,
-                            comment=review_comment,
-                            username=username,
-                            installation_id=installation_id,
-                            pr_path=None,
-                            pr_line_position=None,
-                            pr_number=pr.number)
+                               repo_description=repo_description,
+                               comment=review_comment,
+                               username=username,
+                               installation_id=installation_id,
+                               pr_path=None,
+                               pr_line_position=None,
+                               pr_number=pr.number)
             except Exception as e:
                 logger.error(traceback.format_exc())
                 logger.error(e)
@@ -469,4 +475,3 @@ def on_ticket(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
     return {"success": True}
-
