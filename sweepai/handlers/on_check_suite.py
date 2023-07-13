@@ -8,7 +8,7 @@ from loguru import logger
 
 from sweepai.core.gha_extraction import GHAExtractor
 from sweepai.events import CheckRunCompleted
-from sweepai.utils.config.client import SweepConfig
+from sweepai.utils.config.client import SweepConfig, get_gha_enabled
 from sweepai.utils.github_utils import get_github_client, get_token
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -58,7 +58,7 @@ def clean_logs(logs_str: str):
 def on_check_suite(request: CheckRunCompleted):
     g = get_github_client(request.installation.id)
     repo = g.get_repo(request.repository.full_name)
-    if not SweepConfig.get_gha_enabled(repo):
+    if not get_gha_enabled(repo):
         return None
     pr = repo.get_pull(request.check_run.pull_requests[0].number)
     num_pr_commits = len(list(pr.get_commits()))
