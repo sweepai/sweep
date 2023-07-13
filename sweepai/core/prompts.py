@@ -289,7 +289,7 @@ print("debug statement")
 <copied>76-100</copied>
 </new_file>
 
-Do not rewrite entire file. Use <copied> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
+Do not rewrite the entire file. Use <copied> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
 """
 
 modify_file_prompt_2 = """
@@ -337,7 +337,7 @@ print("debug statement")
 <copy_lines 76-100/>
 </new_file>
 
-Do not rewrite entire file. Use <copy_lines A-B/> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
+Do not rewrite the entire file. Use <copy_lines A-B/> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
 ```
 
 Context: "{instructions}". Limit your changes to the context.
