@@ -142,3 +142,5 @@ Consider starring us if you're using Sweep so more people hear about us!
 <p align="center">
     and, of course, Sweep!
 </p>
+## What is Sweep?
+Sweep is an AI junior developer that transforms bug reports & feature requests into code changes. It reads your codebase, plans the changes, and writes a pull request with the necessary code changes.
