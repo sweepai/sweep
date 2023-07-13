@@ -69,7 +69,7 @@ Sweep is unlikely to complete complex issues on the first try, similar to the av
 
 ### ✨ Sweep Github App
 ### Pricing
-We charge 120/month for 60 GPT4 tickets per month. For unpaid users, we offer 3 free GPT4 tickets per month. Otherwise, we offer unlimited GPT3.5 tickets.
+For just $120 a month, you can get up to 60 GPT4 tickets. Not ready to commit? No problem! We offer 3 GPT4 tickets per month for free. And if you're okay with GPT3.5, you can have unlimited tickets!
 Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
 We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
 
