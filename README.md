@@ -80,7 +80,14 @@ Sweep Chat allows you to interact with Sweep and GitHub locally. Collaborate on 
 **Prerequisites:** Install [Sweep GitHub app](https://github.com/apps/sweep-ai) to your repository
 
 1. Run `pip3 install sweepai && sweep`. Note that you need **python 3.10+.**
-    - Alternatively run `pip3 install --force-reinstall sweepai && sweep` if the previous command fails.
+## 🚀 Getting Started
+...
+</copy_lines>
+
+## 💰 Pricing
+
+We charge 120/month for 60 GPT4 tickets per month. For unpaid users, we offer 3 free GPT4 tickets per month. Otherwise, we provide unlimited GPT3.5 tickets.
+
     - This runs GitHub authentication in your browser.
 
 2. Copy the 🔵 blue 8-digit code from your terminal into the page. You should only need to do the authentication once.  
