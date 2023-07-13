@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import os
 import time
-from typing import Self
 import requests
 from urllib.parse import parse_qs, unquote
 import webbrowser
@@ -8,8 +9,6 @@ import webbrowser
 from config_path import ConfigPath
 from pydantic import BaseModel
 import yaml
-
-from sweepai.core.entities import Snippet
 
 CLIENT_ID = "Iv1.91fd31586a926a9f"
 
@@ -87,7 +86,7 @@ class SweepChatConfig(BaseModel):
         return os.path.exists(CONFIG_FILE)
     
     @classmethod
-    def load(cls, recreate=False) -> Self:
+    def load(cls, recreate=False) -> SweepChatConfig:
         if recreate or not SweepChatConfig.is_initialized():
             config = cls.create()
             config.save()
