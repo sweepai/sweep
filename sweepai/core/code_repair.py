@@ -1,5 +1,5 @@
-import re
 import subprocess
+
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.core.prompts import code_repair_system_prompt, code_repair_prompt
@@ -43,15 +43,15 @@ class CodeRepairer(ChatGPT):
             print(result.stderr)
             return False
 
-
-    def repair_code(self, diff: str, user_code: str, feature:str, retries=3) -> str:
+    def repair_code(self, diff: str, user_code: str, feature: str, retries=3) -> str:
         self.messages = [Message(role="system", content=code_repair_system_prompt.format(feature=feature))]
-        self.model = "gpt-3.5-turbo-16k-0613" # can be optimized
+        self.model = "gpt-3.5-turbo-16k-0613"  # can be optimized
         retry_count = 0
         while retry_count < retries:
             response = self.chat(code_repair_prompt.format(diff=diff, user_code=user_code), message_key='code_repair')
             # Check if the length of the response does not differ by more than 15% from the input
-            if len(user_code.splitlines()) > 50 and abs(len(response.splitlines()) - len(user_code.splitlines())) / len(user_code.splitlines()) > 0.15:
+            if len(user_code.splitlines()) > 50 and abs(len(response.splitlines()) - len(user_code.splitlines())) / len(
+                    user_code.splitlines()) > 0.15:
                 self.delete_messages_from_chat(key_to_delete='code_repair')
                 retry_count += 1
                 if retry_count == retries:

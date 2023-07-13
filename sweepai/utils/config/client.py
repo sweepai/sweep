@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import os
 from functools import lru_cache
-from loguru import logger
+
 import yaml
 from github.Repository import Repository
+from loguru import logger
 from pydantic import BaseModel
+
 
 class SweepConfig(BaseModel):
     include_dirs: list[str] = []
@@ -12,10 +15,10 @@ class SweepConfig(BaseModel):
     include_exts: list[str] = ['.cs', '.csharp', '.py', '.md', '.txt', '.ts', '.tsx', '.js', '.jsx', '.mjs']
     exclude_exts: list[str] = ['.min.js', '.min.js.map', '.min.css', '.min.css.map']
     max_file_limit: int = 60_000
-    
+
     def to_yaml(self) -> str:
         return yaml.safe_dump(self.dict())
-    
+
     @classmethod
     def from_yaml(cls, yaml_str: str) -> "SweepConfig":
         data = yaml.safe_load(yaml_str)
@@ -42,11 +45,15 @@ class SweepConfig(BaseModel):
             logger.warning(f"Error when getting branch: {e}, falling back to default branch")
             return default_branch
 
-    @staticmethod
-    @lru_cache(maxsize=None)
-    def get_gha_enabled(repo: Repository) -> bool:
+
+@staticmethod
+@lru_cache(maxsize=None)
+def get_gha_enabled(repo: Repository) -> bool:
+    try:
+        contents = repo.get_contents("sweep.yaml")
+    except Exception as e:
         try:
-            contents = repo.get_contents("sweep.yaml")
+            contents = repo.get_contents(".github/sweep.yaml")
         except Exception as e:
             try:
                 contents = repo.get_contents(".github/sweep.yaml")
@@ -55,3 +62,8 @@ class SweepConfig(BaseModel):
                 return False
         gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("gha_enabled", False)
         return gha_enabled
+
+# optional, can leave env var blank
+GITHUB_APP_CLIENT_ID = os.environ.get('GITHUB_APP_CLIENT_ID', 'Iv1.91fd31586a926a9f')
+local_env = os.environ.get('ENV', 'prod')
+SWEEP_API_ENDPOINT = os.environ.get('SWEEP_API_ENDPOINT', f"https://sweepai--{local_env}-ui.modal.run")

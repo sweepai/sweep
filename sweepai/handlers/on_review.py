@@ -2,13 +2,15 @@
 Take a PR and provide an AI generated review of the PR.
 """
 from loguru import logger
+
 from sweepai.core.entities import DiffSummarization, PullRequestComment
 from sweepai.core.prompts import review_prompt
 from sweepai.core.sweep_bot import SweepBot
-
-from sweepai.utils.github_utils import get_file_contents
-from sweepai.utils.prompt_constructor import HumanMessageFinalPRComment, HumanMessagePromptReview, HumanMessageReviewFollowup
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.github_utils import get_file_contents
+from sweepai.utils.prompt_constructor import HumanMessageFinalPRComment, HumanMessagePromptReview, \
+    HumanMessageReviewFollowup
+
 
 # Plan:
 # 1. Get PR
@@ -30,12 +32,14 @@ def get_pr_diffs(repo, pr):
         if file.status == "added":
             pr_diffs.append((file.filename, get_file_contents(repo, file_path=file.filename, ref=head_sha), "", diff))
         elif file.status == "modified":
-            pr_diffs.append((file.filename, get_file_contents(repo, file_path=file.filename, ref=head_sha), get_file_contents(repo, file_path=file.filename, ref=base_sha), diff))
+            pr_diffs.append((file.filename, get_file_contents(repo, file_path=file.filename, ref=head_sha),
+                             get_file_contents(repo, file_path=file.filename, ref=base_sha), diff))
         elif file.status == "removed":
             pr_diffs.append((file.filename, "", get_file_contents(repo, file_path=file.filename, ref=base_sha), diff))
         else:
-            logger.info(f"File status {file.status} not recognized") #TODO(sweep): We don't handle renamed files
+            logger.info(f"File status {file.status} not recognized")  # TODO(sweep): We don't handle renamed files
     return pr_diffs
+
 
 def review_pr(repo, pr, issue_url, username, repo_description, title, summary, replies_text, tree):
     repo_name = repo.full_name

@@ -1,4 +1,6 @@
+from loguru import logger
 from pydantic import BaseModel
+
 from sweepai.core.prompts import (
     human_message_prompt,
     human_message_prompt_comment,
@@ -9,7 +11,6 @@ from sweepai.core.prompts import (
     comment_line_prompt
 )
 
-from loguru import logger
 
 class HumanMessagePrompt(BaseModel):
     repo_name: str
@@ -37,7 +38,7 @@ class HumanMessagePrompt(BaseModel):
 
     def render_snippets(self):
         return "\n".join([snippet.xml for snippet in self.snippets])
-    
+
     def construct_prompt(self):
         human_messages = [{'role': msg['role'], 'content': msg['content'].format(
             repo_name=self.repo_name,
@@ -51,7 +52,8 @@ class HumanMessagePrompt(BaseModel):
             relevant_directories=self.get_relevant_directories(),
         ), 'key': msg.get('key')} for msg in human_message_prompt]
         return human_messages
-    
+
+
 class HumanMessagePromptReview(HumanMessagePrompt):
     pr_title: str
     pr_message: str = ""
@@ -87,8 +89,10 @@ class HumanMessagePromptReview(HumanMessagePrompt):
 
         return human_messages
 
+
 class HumanMessageReviewFollowup(BaseModel):
     diff: tuple
+
     def construct_prompt(self):
         file_name, new_file_contents, old_file_contents, file_patch = self.diff
         format_diff = diff_section_prompt.format(
@@ -98,6 +102,7 @@ class HumanMessageReviewFollowup(BaseModel):
             diffs=file_patch
         )
         return review_follow_up_prompt + format_diff
+
 
 class HumanMessageCommentPrompt(HumanMessagePrompt):
     comment: str
@@ -142,6 +147,7 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
             logger.info(f"General Comment {self.comment}")
 
         return human_messages
+
 
 class HumanMessageFinalPRComment(BaseModel):
     summarization_replies: list
