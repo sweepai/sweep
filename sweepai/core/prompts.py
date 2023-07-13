@@ -324,20 +324,20 @@ Generate a new_file based on the given plan, ensuring that you:
 2. Only write code, do not write line numbers.
 3. Make sure the new code follows the same programming language conventions as the old code.
 
-Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copy_lines A-B>"). Make sure to use this exact format.
-Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copy_lines 1-50>".
+Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copy_lines A-B/>"). Make sure to use this exact format.
+Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copy_lines 1-50/>".
 
 Example: If you want to modify lines 51-52 and add line after line 75:
 <new_file>
-<copy_lines 1-50>
+<copy_lines 1-50/>
 def main():
      print("hello world")
-<copy_lines 53-75>
+<copy_lines 53-75/>
 print("debug statement")
-<copy_lines 76-100>
+<copy_lines 76-100/>
 </new_file>
 
-Do not rewrite entire file. Use <copy_lines A-B> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
+Do not rewrite entire file. Use <copy_lines A-B/> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
 ```
 
 Context: "{instructions}". Limit your changes to the context.
