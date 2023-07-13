@@ -94,6 +94,7 @@ def on_comment(
 
     posthog.capture(username, "started", properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
+    file_comment = pr_path and pr_line_position
     try:
         g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
@@ -108,7 +109,7 @@ def on_comment(
         pr_line = None
         pr_file_path = None
         # This means it's a comment on a file
-        if pr_path and pr_line_position:
+        if file_comment:
             pr_file = repo.get_contents(pr_path, ref=branch_name).decoded_content.decode("utf-8")
             pr_lines = pr_file.splitlines()
             pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
@@ -147,7 +148,6 @@ def on_comment(
             assert len(snippets) > 0
         except Exception as e:
             logger.error(traceback.format_exc())
-            logger.error(e)
             raise e
         chat_logger = ChatLogger({
             'repo_name': repo_name,
@@ -165,7 +165,7 @@ def on_comment(
             "pr_number": pr_number,
             "type": "comment",
         })
-        snippets = post_process_snippets(snippets, max_num_of_snippets=2)
+        snippets = post_process_snippets(snippets, max_num_of_snippets=0 if file_comment else 2)
 
         logger.info("Getting response from ChatGPT...")
         human_message = HumanMessageCommentPrompt(
