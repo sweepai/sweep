@@ -428,7 +428,7 @@ def on_ticket(
         else:
             edit_sweep_comment(f"Sorry, I could not edit `{e.filename}` as this file is too long.\n\nIf this file is incorrect, please describe the desired file in the prompt. However, if you would like to edit longer files, consider upgrading to [Sweep Pro](https://sweep.dev/) for longer context lengths.\n", -1)
         raise e
-    except NoFilesException:
+    except NoFilesException as e:
         logger.info("No files to change.")
         log_error("No Files to Change", str(e) + "\n" + traceback.format_exc())
         edit_sweep_comment("Sorry, I could find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!", -1)
