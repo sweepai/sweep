@@ -1,4 +1,5 @@
 import traceback
+import re
 
 import modal
 from github.ContentFile import ContentFile
