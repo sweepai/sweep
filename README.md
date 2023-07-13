@@ -36,9 +36,6 @@ Describe bugs, small features, and refactors like you would to a junior develope
 
 See highlights at https://docs.sweep.dev/examples.
 
-## ✨ Demo
-For the best experience, [install Sweep](https://github.com/apps/sweep-ai) to one of your repos and see the magic happen.
-
 [Demo](https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47)
 
 ## 🌠 Sweep
@@ -63,6 +60,19 @@ A good issue might include:
 |In the config loader in `packages/server/src/config.ts`|add a third option called "env" to load the config settings from environment variables| At present, there are two options:  1. ... and 2. ...|
 
 If you want Sweep to use a file, try to mention the full path. Similarly, to have Sweep use a function, try to mention the class method or what it does. Also see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/tricks).
+
+#### Limitations:
+Sweep is unlikely to complete complex issues on the first try, similar to the average junior developer. Here are Sweep's limitations(for now):
+- Try to change less than 200 lines of code
+- Try to modify less than 3 files
+- Do not include files with more than 1500 lines of code
+
+### ✨ Sweep Github App
+Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
+We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
+
+1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
+2. Create new issue in repo, like "Sweep: In sweepai/app/ui.py use an os-agnostic temp directory"
 
 ### 🖥️ Sweep Chat
 Sweep Chat allows you to interact with Sweep and GitHub locally. Collaborate on the plan with Sweep, then have it create the pull request for you. 
@@ -92,14 +102,6 @@ If you want the nightly build and or if the latest build has issues.
 
 1. `git clone https://github.com/sweepai/sweep && poetry install`
 2. `python sweepai/app/cli.py`. Note that you need **python 3.10+**.
-
-### ✨ Sweep Github App
-Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
-We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
-
-1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
-2. Create new issue in repo, like "Sweep: Write tests"
-3. Watch the magic happen 🪄
 
 ## 🤝 Contributing
 

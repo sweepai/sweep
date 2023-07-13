@@ -55,13 +55,15 @@ def get_gha_enabled(repo: Repository) -> bool:
         try:
             contents = repo.get_contents(".github/sweep.yaml")
         except Exception as e:
-            logger.warning(f"Error when getting gha enabled: {e}, falling back to False")
-            return False
-    gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8"))["gha_enabled"]
-    return gha_enabled
-
+            try:
+                contents = repo.get_contents(".github/sweep.yaml")
+            except Exception as e:
+                logger.warning(f"Error when getting gha enabled: {e}, falling back to False")
+                return False
+        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("gha_enabled", False)
+        return gha_enabled
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get('GITHUB_APP_CLIENT_ID', 'Iv1.91fd31586a926a9f')
-localEnv = os.environ.get('ENV', 'prod')
-SWEEP_API_ENDPOINT = os.environ.get('SWEEP_API_ENDPOINT', f"https://sweepai--{localEnv}-ui.modal.run")
+local_env = os.environ.get('ENV', 'prod')
+SWEEP_API_ENDPOINT = os.environ.get('SWEEP_API_ENDPOINT', f"https://sweepai--{local_env}-ui.modal.run")
