@@ -103,11 +103,11 @@ If you want the nightly build and or if the latest build has issues.
 1. `git clone https://github.com/sweepai/sweep && poetry install`
 2. `python sweepai/app/cli.py`. Note that you need **python 3.10+**.
 
-## 🤝 Contributing
 ## 💰 Pricing
 * We charge $120/month for 60 GPT4 tickets per month.
 * For unpaid users, we offer 3 free GPT4 tickets per month.
 * We also offer unlimited GPT3.5 tickets.
+## 🤝 Contributing
 
 Contributions are welcome and greatly appreciated! For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
 For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/).
