@@ -9,7 +9,10 @@ UTILS_MODAL_INST_NAME = PREFIX + "-utils"
 SLACK_MODAL_INST_NAME = PREFIX + "-slack"
 
 # deprecated: old logic transfer so upstream can use this; just create an empty modal secret for this
-BOT_TOKEN_NAME = PREFIX + "-bot-token"
+if PREFIX == "prod":
+    BOT_TOKEN_NAME = "bot-token"
+else:
+    BOT_TOKEN_NAME = PREFIX + "-bot-token"
 
 # goes under Modal 'discord' secret name (optional, can leave env var blank)
 DISCORD_WEBHOOK_URL = os.environ.get('DISCORD_WEBHOOK_URL')
