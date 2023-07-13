@@ -4,6 +4,7 @@ from github.Repository import Repository
 from loguru import logger
 
 from sweepai.core.entities import FileChangeRequest, PullRequest
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import GITHUB_DEFAULT_CONFIG, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
     GITHUB_BOT_USERNAME, \
@@ -34,7 +35,14 @@ def create_pr(
     # 3. Get files to change
     # 4. Get file changes
     # 5. Create PR
-
+    chat_logger = ChatLogger({
+    "username": username,
+    "installation_id": installation_id,
+    "repo_full_name": sweep_bot.repo.full_name,
+    "title": pull_request.title,
+    "summary": "",
+    "issue_url": ""})
+    sweep_bot.chat_logger = chat_logger
     organization, repo_name = sweep_bot.repo.full_name.split("/")
     metadata = {
         "repo_full_name": sweep_bot.repo.full_name,

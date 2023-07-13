@@ -76,7 +76,7 @@ def break_json(raw_json: str):
 
 class APIClient(BaseModel):
     config: SweepChatConfig
-    api_endpoint = SWEEP_API_ENDPOINT
+    api_endpoint: str = SWEEP_API_ENDPOINT
 
     def __init__(self, config: SweepChatConfig):
         super().__init__(config=config)
@@ -133,7 +133,10 @@ class APIClient(BaseModel):
             },
             timeout=10 * 60
         )
-        return results.json()
+        try:
+            return results.json()
+        except json.JSONDecodeError:
+            raise Exception(f"{results.text} is invalid JSON")
 
     def chat(
             self,
@@ -149,7 +152,10 @@ class APIClient(BaseModel):
                 "config": self.config.dict()
             }
         )
-        return results.json()
+        try:
+            return results.json()
+        except json.JSONDecodeError:
+            raise Exception(f"{results.text} is invalid JSON")
 
     def stream_chat(
             self,
