@@ -51,6 +51,8 @@ class SweepConfig(BaseModel):
 def get_gha_enabled(repo: Repository) -> bool:
     try:
         contents = repo.get_contents("sweep.yaml")
+        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("gha_enabled", False)
+        return gha_enabled
     except Exception as e:
         try:
             contents = repo.get_contents(".github/sweep.yaml")
