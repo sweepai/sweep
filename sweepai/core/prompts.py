@@ -11,7 +11,7 @@ human_message_prompt = [
 {'role': 'assistant', 'content': 'Examining repo...'},
 {'role': 'user', 'content': """<relevant_snippets_in_repo>
 {relevant_snippets}
-</relevant_snippets_in_repo>"""},
+</relevant_snippets_in_repo>""", 'key': 'relevant_snippets'},
 {'role': 'user', 'content': """<relevant_paths_in_repo>
 {relevant_directories}
 </relevant_paths_in_repo>"""},
@@ -355,11 +355,11 @@ Instructions:
 pr_code_prompt = ""  # TODO: deprecate this
 
 
-pull_request_prompt = """With your plan in mind, generate one PR for your planned changes using GitHub markdown.
+pull_request_prompt = """Now, create a PR for your changes using GitHub markdown in the following format:
 
-title = "..."
+pr_title = "..."
 branch = "..."
-content = \"\"\"
+pr_content = \"\"\"
 ...
 ...
 \"\"\""""

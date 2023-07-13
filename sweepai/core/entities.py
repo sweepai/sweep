@@ -125,7 +125,7 @@ class PullRequest(RegexMatchableBaseModel):
     title: str
     branch_name: str
     content: str
-    _regex = r'''title\s+=\s+"(?P<title>.*?)"\n+branch\s+=\s+"(?P<branch_name>.*?)"\n+content\s+=\s+"""(?P<content>.*?)"""'''
+    _regex = r'''pr_title\s+=\s+"(?P<title>.*?)"\n+branch\s+=\s+"(?P<branch_name>.*?)"\n+pr_content\s+=\s+"""(?P<content>.*?)"""'''
 
 class Snippet(BaseModel):
     """
