@@ -165,12 +165,12 @@ Gather information to solve the problem. Use "finish" when you feel like you hav
 files_to_change_prompt = """
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
 Then, provide a list of files you would like to modify, abiding by the following:
-* Including the FULL path, e.g. src/main.py and not just main.py
-* Use a one-line, detailed, natural language instructions on what to modify, with reference to variable names
-* The list of files to create or modify may be empty, but you MUST leave the XML tags with a single list element with "* None"
+* Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
+* Use detailed, natural language instructions on what to modify, with reference to variable names
 * There MUST be both create and modify XML tags
+* The list of files to create or modify may be empty, but you MUST leave the XML tags with a single list element with "* None"
 * Create/modify up to 5 FILES
-* Do not modify non-text files, like images, svgs, binary, etc
+* Do not modify non-text files such as images, svgs, binary, etc
 * You MUST follow the following format:
 
 Step-by-step thoughts with explanations: 

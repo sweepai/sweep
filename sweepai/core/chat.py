@@ -25,7 +25,7 @@ AnthropicModel = (
         | Literal["claude-v1.3-100k"]
         | Literal["claude-instant-v1.1-100k"]
 )
-OpenAIModel = Literal["gpt-3.5-turbo"] | Literal["gpt-4"] | Literal["gpt-4-0613"] | Literal["gpt-3.5-turbo-16k-0613"]
+OpenAIModel = Literal["gpt-3.5-turbo"] | Literal["gpt-4"] | Literal["gpt-4-0613"] | Literal["gpt-3.5-turbo-16k-0613"] | Literal["gpt-4-32k"] | Literal["gpt-4-32k-0613"]
 
 ChatModel = OpenAIModel | AnthropicModel
 model_to_max_tokens = {
@@ -36,14 +36,11 @@ model_to_max_tokens = {
     "claude-v1.3-100k": 100000,
     "claude-instant-v1.3-100k": 100000,
     "gpt-3.5-turbo-16k-0613": 16000,
+    "gpt-4-32k-0613": 32000,
+    "gpt-4-32k": 32000,
+
 }
 temperature = 0.1
-
-if OPENAI_DO_HAVE_32K_MODEL_ACCESS:
-    OpenAIModel = OpenAIModel | Literal["gpt-4-32k"] | Literal["gpt-4-32k-0613"]
-    model_to_max_tokens["gpt-4-32k"] = 32000
-    model_to_max_tokens["gpt-4-32k-0613"] = 32000
-
 
 def format_for_anthropic(messages: list[Message]) -> str:
     if len(messages) > 1:
