@@ -117,7 +117,8 @@ def create_pr(
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("create_pr success")
-    sweep_bot.chat_logger.add_successful_ticket()
+    if sweep_bot.chat_logger is not None:
+        sweep_bot.chat_logger.add_successful_ticket()
     return {"success": True, "pull_request": pr}
 
 

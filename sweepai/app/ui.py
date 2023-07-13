@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import tempfile
+import re
 
 import gradio as gr
 from git import Repo
@@ -370,17 +371,24 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         .then(lambda: gr.update(interactive=True), None, [msg], queue=False)
 
 
+    def validate_branch_name(branch_name):
+        # Replace any characters that are not alphanumeric or '-' or '_' with '_'
+        valid_branch_name = re.sub('[^0-9a-zA-Z_-]', '_', branch_name)
+        return valid_branch_name
+
     def on_create_pr_button_click(chat_history: list[tuple[str | None, str | None]], plan: list[tuple[str]]):
         chat_history.append((None, "⌛ Creating PR..."))
         yield chat_history
         title = chat_history[0][0]
         content = chat_history[-1][1]
+        # Validate the branch name before it's used in the create_pr function
+        valid_branch_name = validate_branch_name(title.lower().replace(" ", "_").replace("-", "_")[:50])
         pull_request = api_client.create_pr(
             file_change_requests=[(item[:item.find(":")], item[item.find(":") + 1:]) for item, *_ in plan],
             pull_request={
                 "title": title,
                 "content": content,
-                "branch_name": title.lower().replace(" ", "_").replace("-", "_")[:50]
+                "branch_name": valid_branch_name
             },
             messages=chat_history,
         )
