@@ -142,3 +142,5 @@ Consider starring us if you're using Sweep so more people hear about us!
 <p align="center">
     and, of course, Sweep!
 </p>
+## What is Sweep?
+This is a placeholder for the new section content.
