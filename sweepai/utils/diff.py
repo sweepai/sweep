@@ -87,7 +87,7 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
     lines = new_file.split('\n')
     for line_number, line in enumerate(lines):
         # Todo: make it support 1 number only
-        matches = re.finditer(r"<copy_lines\s(\d+-\d+)>", line)
+        matches = re.finditer(r"<copy_lines\s(\d+-\d+)/?>", line)
         copied_lines = False
         for match in matches:
             copied_lines = True
