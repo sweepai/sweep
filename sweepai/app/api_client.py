@@ -133,7 +133,10 @@ class APIClient(BaseModel):
             },
             timeout=10 * 60
         )
-        return results.json()
+        try:
+            return results.json()
+        except json.JSONDecodeError:
+            raise Exception(f"{results.text} is invalid JSON")
 
     def chat(
             self,
@@ -149,7 +152,10 @@ class APIClient(BaseModel):
                 "config": self.config.dict()
             }
         )
-        return results.json()
+        try:
+            return results.json()
+        except json.JSONDecodeError:
+            raise Exception(f"{results.text} is invalid JSON")
 
     def stream_chat(
             self,
