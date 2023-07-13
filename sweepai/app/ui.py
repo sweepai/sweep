@@ -352,6 +352,8 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
                                                                                     file_paths, plan):
             if plan is None or plan == [[]] or plan == [[""]] or plan == [["", ""]]:
                 plan = [["", ""]]
+            if plan and isinstance(plan[0], list):
+                plan = [item.split(":") for item in plan]
             global_state = State(
                 chat_history=chat_history,
                 snippets_text=snippets_text,
