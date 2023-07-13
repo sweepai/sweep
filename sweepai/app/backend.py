@@ -1,6 +1,6 @@
-"""
+'''
 Proxy for the UI.
-"""
+'''
 
 import json
 from typing import Any
