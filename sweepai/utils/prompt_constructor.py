@@ -50,7 +50,7 @@ class HumanMessagePrompt(BaseModel):
             description=self.summary if self.summary else "No description provided.",
             relevant_snippets=self.render_snippets(),
             relevant_directories=self.get_relevant_directories(),
-        )} for msg in human_message_prompt]
+        ), 'key': msg.get('key')} for msg in human_message_prompt]
         return human_messages
 
 
