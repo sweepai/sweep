@@ -76,7 +76,7 @@ def break_json(raw_json: str):
 
 class APIClient(BaseModel):
     config: SweepChatConfig
-    api_endpoint = SWEEP_API_ENDPOINT
+    api_endpoint: str = SWEEP_API_ENDPOINT
 
     def __init__(self, config: SweepChatConfig):
         super().__init__(config=config)
