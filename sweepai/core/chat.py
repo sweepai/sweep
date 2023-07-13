@@ -67,11 +67,11 @@ class ChatGPT(BaseModel):
     model: ChatModel = "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
     human_message: HumanMessagePrompt | None = None
     file_change_paths = []
-    chat_logger: ChatLogger | None = None
+    chat_logger: ChatLogger | None
 
     @classmethod
     def from_system_message_content(
-            cls, human_message: HumanMessagePrompt, is_reply: bool = False, **kwargs
+            cls, human_message: HumanMessagePrompt, is_reply: bool = False, chat_logger = None, **kwargs
     ) -> Self:
         if is_reply:
             system_message_content = system_message_issue_comment_prompt
@@ -89,6 +89,7 @@ class ChatGPT(BaseModel):
         return cls(
             messages=messages,
             human_message=human_message,
+            chat_logger=chat_logger,
             **kwargs,
         )
 

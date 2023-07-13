@@ -7,6 +7,7 @@ import yaml
 from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
+from sweepai.utils.config.server import PREFIX
 
 
 class SweepConfig(BaseModel):
@@ -67,5 +68,4 @@ def get_gha_enabled(repo: Repository) -> bool:
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get('GITHUB_APP_CLIENT_ID', 'Iv1.91fd31586a926a9f')
-local_env = os.environ.get('ENV', 'prod')
-SWEEP_API_ENDPOINT = os.environ.get('SWEEP_API_ENDPOINT', f"https://sweepai--{local_env}-ui.modal.run")
+SWEEP_API_ENDPOINT = os.environ.get('SWEEP_API_ENDPOINT', f"https://sweepai--{PREFIX}-ui.modal.run")
