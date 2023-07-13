@@ -4,11 +4,11 @@ from github.Repository import Repository
 from loguru import logger
 
 from sweepai.core.entities import FileChangeRequest, PullRequest
-from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.config.client import SweepConfig
-from sweepai.utils.config.server import OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
+from sweepai.utils.config.server import GITHUB_DEFAULT_CONFIG, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
     GITHUB_BOT_USERNAME, \
     GITHUB_CONFIG_BRANCH
+from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.utils.event_logger import posthog
 
 github_access_token = GITHUB_BOT_TOKEN
@@ -78,6 +78,18 @@ def create_pr(
             head=pull_request.branch_name,
             base=SweepConfig.get_branch(sweep_bot.repo),
         )
+    except MaxTokensExceeded as e:
+        logger.error(e)
+        posthog.capture(
+            username,
+            "failed",
+            properties={
+                "error": str(e),
+                "reason": "Max tokens exceeded",
+                **metadata,
+            },
+        )
+        raise e
     except openai.error.InvalidRequestError as e:
         logger.error(e)
         posthog.capture(
@@ -144,7 +156,7 @@ def create_config_pr(
         sweep_bot.repo.create_file(
             'sweep.yaml',
             'Create sweep.yaml config file',
-            GITHUB_DEFAUKT_CONFIG.format(branch=sweep_bot.repo.default_branch),
+            GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
             branch=branch_name
         )
     except Exception as e:

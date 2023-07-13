@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import os
 import time
 import webbrowser
-from typing import Self
 from urllib.parse import parse_qs, unquote
 
 import requests
@@ -88,7 +89,7 @@ class SweepChatConfig(BaseModel):
         return os.path.exists(CONFIG_FILE)
 
     @classmethod
-    def load(cls, recreate=False) -> Self:
+    def load(cls, recreate=False) -> SweepChatConfig:
         if recreate or not SweepChatConfig.is_initialized():
             config = cls.create()
             config.save()
