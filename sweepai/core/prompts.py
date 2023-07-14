@@ -361,8 +361,8 @@ Do not rewrite the entire file. Use <copy_lines A-B/> XML tag when possible. Do 
 
 Context: "{instructions}". Limit your changes to the context.
 Instructions:
-- Complete Code Planning step
-- Complete Code Generation step"""
+1. Complete Code Planning step
+2. Complete Code Generation step (<new_file>...)"""
 
 pr_code_prompt = ""  # TODO: deprecate this
 
