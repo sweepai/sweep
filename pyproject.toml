@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sweepai"
-version = "0.4.6"
+version = "0.4.7"
 description = "Sweep software chores"
 authors = ["Kevin Lu", "William Zeng", "Luke Jagg"]
 packages = [{ include = "sweepai" }]
