@@ -1,3 +1,4 @@
+[![Sweep - Sweep is an AI-powered junior dev on your team | Product Hunt](https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=404410&theme=dark)](https://www.producthunt.com/posts/sweep-5?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-sweep-5)
 <p align="center">
     <img src="https://github.com/sweepai/sweep/assets/26889185/39d500fc-9276-402c-9ec7-3e61f57ad233">
 </p>
