@@ -92,10 +92,10 @@ Sweep Chat allows you to interact with Sweep and GitHub locally. You can collabo
     - Wait a few seconds and Sweep Chat will start. 
 
 3. Choose a repository from the dropdown at the top (the Github app must be installed to this repository).
-
     - ⚡ Start chatting with Sweep Chat! ⚡
 
-<img src="https://github.com/sweepai/sweep/blob/856ff66c2dbeaf39afbf6d8c49a620dfa70271fb/.assets/gradio-screenshot.png">
+
+![Screenshot_20230711_015033](https://github.com/sweepai/sweep/assets/26889185/ed9f05d8-ef86-4f2a-9bca-acdfa24990ac)
 
 Tips:
 * 🔍 Relevant searched files will show up on the right. 
