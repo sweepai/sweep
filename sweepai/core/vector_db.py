@@ -88,8 +88,12 @@ class Embedding:
         )
 
     @method()
-    def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
+import multiprocessing
+
+@method()
+def compute(self, texts: list[str]):
+    with multiprocessing.Pool() as pool:
+        return pool.map(self.model.encode, texts, batch_size=BATCH_SIZE).tolist()
 
     @method()
     def ping(self):
