@@ -335,7 +335,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         ),
                         message_key=key,
                     )
-                except Exception as e: # Check for max tokens error
+                except Exception as e:  # Check for max tokens error
                     if "max tokens" in str(e).lower():
                         raise MaxTokensExceeded(file_change_request.filename)
 
@@ -357,7 +357,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     changes.append(new_chunk)
                 except Exception as e:
                     tb = traceback.format_exc()
-                    logger.warning(f"Recieved error {e}\n{tb}")
+                    logger.warning(f"Received error {e}\n{tb}")
                     logger.warning(
                         f"Failed to parse. Retrying for the {count}th time..."
                     )
@@ -449,5 +449,3 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             logger.info(f"Error in handle_modify_file: {e}")
-
-# This is the repaired user_code.
