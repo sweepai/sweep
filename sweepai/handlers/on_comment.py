@@ -93,6 +93,34 @@ def on_comment(
         g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
+        # Check if the PR is closed
+        if pr.state == "closed":
+            return {"success": True, "message": "PR is closed. No event fired."}
+        branch_name = pr.head.ref
+        pr_title = pr.title
+        pr_body = pr.body
+        diffs = get_pr_diffs(repo, pr)
+        pr_line = None
+        pr_file_path = None
+        # This means it's a comment on a file
+        if file_comment:
+            pr_file = repo.get_contents(pr_path, ref=branch_name).decoded_content.decode("utf-8")
+            pr_lines = pr_file.splitlines()
+            pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
+            pr_file_path = pr_path.strip()
+        # This means it's a comment on the PR
+        else:
+            if not comment.strip().lower().startswith("sweep"):
+                logger.info("No event fired because it doesn't start with Sweep.")
+                return {"success": True, "message": "No event fired."}
+        try:
+            comments = list(pr.get_issue_comments())
+            if len(comments) > 0:
+                comment_id = comments[-1].id
+        except Exception as e:
+            logger.error(f"Failed to fetch comments: {str(e)}")
+            return {"success": False, "message": "Failed to fetch comments from the pull request."}
+        pr = repo.get_pull(pr_number)
         try:
             comments = list(pr.get_issue_comments())
             if len(comments) > 0:
@@ -232,40 +260,3 @@ def on_comment(
         item_to_react_to = pr.get_issue_comment(comment_id)
         item_to_react_to.create_reaction("eyes")
     return {"success": True}
-
-
-def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
-    g = get_github_client(installation_id)
-    repo = g.get_repo(repo_full_name)
-    pr = repo.get_pull(pr_number)
-    branch_name = pr.head.ref
-
-    # Get the file's content from the previous commit
-    commits = repo.get_commits(sha=branch_name)
-    if commits.totalCount < 2:
-        current_file = repo.get_contents(pr_path, ref=commits[0].sha)
-        current_file_sha = current_file.sha
-        previous_content = repo.get_contents(pr_path, ref=repo.default_branch)
-        previous_file_content = previous_content.decoded_content.decode("utf-8")
-        repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha,
-                         branch=branch_name)
-        return
-    previous_commit = commits[1]
-
-    # Get current file SHA
-    current_file = repo.get_contents(pr_path, ref=commits[0].sha)
-    current_file_sha = current_file.sha
-
-    # Check if the file exists in the previous commit
-    try:
-        previous_content = repo.get_contents(pr_path, ref=previous_commit.sha)
-        previous_file_content = previous_content.decoded_content.decode("utf-8")
-        # Create a new commit with the previous file content
-        repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha,
-                         branch=branch_name)
-    except Exception as e:
-        logger.error(traceback.format_exc())
-        if e.status == 404:
-            logger.warning(f"File {pr_path} was not found in previous commit {previous_commit.sha}")
-        else:
-            raise e
