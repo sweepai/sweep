@@ -342,7 +342,13 @@ class SweepBot(CodeGenBot, GithubBot):
 
                 try:
                     logger.info(f"modify_file_response: {modify_file_response}")
-                    new_chunk = generate_new_file(modify_file_response, chunk)
+                    try:
+                        new_chunk = generate_new_file(modify_file_response, chunk)
+                    except Exception as e:
+                        logger.error(f"Failed to generate new file: {e}")
+                        logger.error(f"modify_file_response: {modify_file_response}")
+                        logger.error(f"chunk: {chunk}")
+                        raise e
                     changes.append(new_chunk)
                     if not is_markdown(file_change_request.filename):
                         code_repairer = CodeRepairer(chat_logger=self.chat_logger)
