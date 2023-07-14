@@ -1,5 +1,3 @@
-# TODO: Add file validation
-
 import traceback
 
 import openai
@@ -95,8 +93,12 @@ def on_comment(
         g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
-        comments = pr.get_issue_comments()
-        comment_id = comments[-1].id
+        try:
+            comments = pr.get_issue_comments()
+            comment_id = comments[-1].id
+        except Exception as e:
+            logger.error(f"Failed to fetch comments: {str(e)}")
+            return {"success": False, "message": "Failed to fetch comments from the pull request."}
         repo = g.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
         # Check if the PR is closed
