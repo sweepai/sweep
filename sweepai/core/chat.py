@@ -1,4 +1,5 @@
 import json
+import random
 from copy import deepcopy
 from typing import Iterator, Literal, Self
 
@@ -186,12 +187,12 @@ class ChatGPT(BaseModel):
             tickets_allocated = 60 if self.chat_logger.is_paying_user() else 3
             tickets_count = self.chat_logger.get_ticket_count()
             if tickets_count < tickets_allocated:
-                model = model or self.model
+                model = random.choice(["gpt-4", "gpt-4-0613"]) if model is None else model
                 logger.warning(f"{tickets_count} tickets found in MongoDB, using {model}")
             else:
-                model = "gpt-3.5-turbo-16k-0613"
+                model = random.choice(["gpt-3.5-turbo-16k-0613", "gpt-4-32k-0613"])
         else:
-            model = "gpt-3.5-turbo-16k-0613"
+            model = random.choice(["gpt-3.5-turbo-16k-0613", "gpt-4-32k-0613"])
 
         count_tokens = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Tiktoken.count")
         messages_length = sum(
