@@ -275,6 +275,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             raise KeyError(f"File {file_name} does not exist in path_to_contents dictionary.")
         return file_names, build_string()
         return file_names, build_string()
+        return file_names, build_string()
 
 
     file_names.change(file_names_change, [file_names], [file_names, snippets_text])
