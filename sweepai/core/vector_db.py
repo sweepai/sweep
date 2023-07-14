@@ -36,6 +36,8 @@ timeout = 60 * 30  # 30 minutes
 CACHE_VERSION = "v1.0.0"
 MAX_FILES = 3000
 
+import multiprocessing
+
 image = (
     modal.Image.debian_slim()
     .apt_install("git")
@@ -88,12 +90,9 @@ class Embedding:
         )
 
     @method()
-import multiprocessing
-
-@method()
-def compute(self, texts: list[str]):
-    with multiprocessing.Pool() as pool:
-        return pool.map(self.model.encode, texts, batch_size=BATCH_SIZE).tolist()
+    def compute(self, texts: list[str]):
+        with multiprocessing.Pool() as pool:
+            return pool.map(self.model.encode, texts, batch_size=BATCH_SIZE).tolist()
 
     @method()
     def ping(self):
