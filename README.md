@@ -105,7 +105,7 @@ If you want the nightly build and or if the latest build has issues.
 
 ## 💰 Pricing
 * We charge $120/month for 60 GPT4 tickets per month.
-* For unpaid users, we offer 3 free GPT4 tickets per month.
+* For unpaid users, we offer 5 free GPT4 tickets per month.
 * We also offer unlimited GPT3.5 tickets.
 ## 🤝 Contributing
 
