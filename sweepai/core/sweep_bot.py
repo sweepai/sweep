@@ -351,11 +351,11 @@ class SweepBot(CodeGenBot, GithubBot):
                             logger.error(f"chunk: {chunk}")
                             raise e
                         changes.append(new_chunk)
-                        if not is_markdown(file_change_request.filename):
-                            code_repairer = CodeRepairer(chat_logger=self.chat_logger)
-                            diff = generate_diff(old_code=chunk, new_code=new_chunk)
-                            new_chunk = code_repairer.repair_code(diff=diff, user_code=new_chunk,
-                                                                  feature=file_change_request.instructions)
+                        self.undo()
+                        code_repairer = CodeRepairer(chat_logger=self.chat_logger)
+                        diff = generate_diff(old_code=chunk, new_code=new_chunk)
+                        new_chunk = code_repairer.repair_code(diff=diff, user_code=new_chunk,
+                                                              feature=file_change_request.instructions)
                         changes.append(new_chunk)
                     except Exception as e:
                         tb = traceback.format_exc()
