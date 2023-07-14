@@ -161,7 +161,7 @@ def get_file_contents(repo: Repository, file_path, ref=None):
     if ref is None:
         ref = repo.default_branch
     file = repo.get_contents(file_path, ref=ref)
-    contents = file.decoded_content.decode("utf-8")
+    contents = file.decoded_content.decode("utf-8", errors='replace')
     return contents
 
 
