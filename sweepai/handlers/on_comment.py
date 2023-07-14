@@ -218,9 +218,10 @@ def on_comment(
         raise e
 
     posthog.capture(username, "success", properties={**metadata})
-item_to_react_to = pr.get_issue_comment(comment_id)
-item_to_react_to.create_reaction("eyes")
-return {"success": True}
+    item_to_react_to = pr.get_issue_comment(comment_id)
+    item_to_react_to.create_reaction("eyes")
+    return {"success": True}
+
 
 def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
     g = get_github_client(installation_id)
