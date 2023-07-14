@@ -59,12 +59,11 @@ def create_pr(
     try:
         logger.info("Making PR...")
         pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
-        for fcr in file_change_requests:
+        try:
             if not fcr.content.strip():
-                try:
-                    sweep_bot.repo.delete_file(fcr.filename, "Delete empty file", fcr.sha, branch=pull_request.branch_name)
-                except Exception as e:
-                    logger.error(f"Failed to delete file: {e}")
+                sweep_bot.repo.delete_file(fcr.filename, "Delete empty file", fcr.sha, branch=pull_request.branch_name)
+        except Exception as e:
+            logger.error(f"Failed to delete file: {e}")
         completed_count, fcr_count = sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
         if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")
