@@ -85,17 +85,27 @@ class APIClient(BaseModel):
         logger.info(f"API endpoint: {self.api_endpoint}")
         logger.info(f"Github APP Client ID: {GITHUB_APP_CLIENT_ID}")
 
+    def get_user_info(self) -> dict:
+        results = requests.post(
+            self.api_endpoint + "/user_info",
+            json=self.config.dict(),
+        )
+        if results.status_code != 200:
+            raise Exception(results.text)
+        return results.json()
+
     def get_installation_id(self):
         results = requests.post(
             self.api_endpoint + "/installation_id",
             json=self.config.dict(),
         )
-        if results.status_code == 401:
+        if results.status_code in (401, 403):
             print("Installation ID not found! Please install sweep first.")
-            webbrowser.open_new_tab("https://github.com/apps/sweep-ai")
+            # if results.status_code == 403:
+            #     webbrowser.open_new_tab("https://github.com/apps/sweep-ai")
             raise Exception(results.json()["detail"])
         if results.status_code != 200:
-            raise Exception(results.json()["detail"])
+            raise Exception(results.text)
         obj = results.json()
         return obj["installation_id"]
 

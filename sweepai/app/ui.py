@@ -3,6 +3,7 @@ import os
 import shutil
 import tempfile
 import re
+import webbrowser
 
 import gradio as gr
 from git import Repo
@@ -144,7 +145,11 @@ def parse_response(raw_response: str) -> tuple[str, list[tuple[str, str]]]:
             line]
     return response, plan
 
-
+try:
+    user_info = api_client.get_user_info()
+except Exception as e:
+    logger.warning(e)
+    user_info = {"is_paying_user": False, "remaining_tickets": 0}
 global_state = config.state
 
 with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
@@ -171,7 +176,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
 
     with gr.Row():
         plan = gr.List(
-            value=[[filename + ": " + instructions] for filename, instructions in global_state.plan],
+            value=[[filename + ": " + instructions] for filename, instructions in global_state.plan] or [[""]],
             headers=["Proposed Plan"],
             interactive=True,
             col_count=(1, "static"),
@@ -182,8 +187,12 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         with gr.Column(scale=8):
             msg = gr.Textbox(placeholder="Send a message to Sweep", label=None, elem_id="message_box")
         with gr.Column(scale=0.5):
-            create_pr_button = gr.Button(value="Create PR", interactive=bool(global_state.chat_history))
+            create_pr_button = gr.Button(value="Create PR", interactive=bool(global_state.plan))
 
+    with gr.Row():
+        tier_message = "⚡ Free Tier" if not user_info["is_paying_user"] else "💎 Pro Tier"
+        remaining_tickets = user_info["remaining_tickets"]
+        user_status = gr.Markdown(value=f"Currently logged in as {config.github_username} ({tier_message}), {remaining_tickets} tickets remaining.")
 
     def clear_inputs():
         global global_state
@@ -205,7 +214,10 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
     def repo_name_change(repo_full_name):
         global installation_id
         try:
-            installation_id = get_installation_id(repo_full_name)
+            try:
+                installation_id = get_installation_id(repo_full_name)
+            except Exception as e:
+                raise gr.Error(str(e))
             assert installation_id
             config.installation_id = installation_id
             api_client.config = config
@@ -262,13 +274,11 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
 
     file_names.change(file_names_change, [file_names], [file_names, snippets_text])
 
-
     def handle_message_submit(repo_full_name: str, user_message: str, history: list[tuple[str | None, str | None]]):
         if not repo_full_name:
-            raise Exception("Set the repository name first")
+            raise gr.Error("Set the repository name first")
         return gr.update(value="", interactive=False), history + [[user_message, None]], gr.Button.update(
-            interactive=True)
-
+            interactive=False)
 
     def _handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, file_names, plan):
         global selected_snippets
@@ -284,7 +294,10 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             snippets_text = build_string()
             yield chat_history, snippets_text, file_names, plan
             logger.info("Fetching relevant snippets...")
-            selected_snippets += api_client.search(chat_history[-1][0], 3)
+            try:
+                selected_snippets += api_client.search(chat_history[-1][0], 3)
+            except Exception as e:
+                raise gr.Error(str(e))
             snippets_text = build_string()
             file_names = [snippet.file_path for snippet in selected_snippets]
             yield chat_history, snippets_text, file_names, plan
@@ -301,12 +314,15 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         chat_history[-1][1] = ""
         logger.info("Starting to generate response...")
         if len(chat_history) > 1 and "create pr" in message.lower():
-            stream = api_client.stream_chat(
-                chat_history,
-                selected_snippets,
-                functions=[create_pr_function],
-                function_call=create_pr_function_call,
-            )
+            try:
+                stream = api_client.stream_chat(
+                    chat_history,
+                    selected_snippets,
+                    functions=[create_pr_function],
+                    function_call=create_pr_function_call,
+                )
+            except Exception as e:
+                raise gr.Error(str(e))
         else:
             stream = api_client.stream_chat(chat_history, selected_snippets)
         function_name = ""
@@ -362,7 +378,10 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             )
             config.state = global_state
             config.save()
-            yield chat_history, snippets_text, file_paths, [(file_path + ": " + instructions,) for
+            if plan == [["", ""]]:
+                yield chat_history, snippets_text, file_paths, [[""]]
+            else:
+                yield chat_history, snippets_text, file_paths, [(file_path + ": " + instructions,) for
                                                             file_path, instructions in plan]
 
 
@@ -370,7 +389,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         .submit(handle_message_submit, [repo_full_name, msg, chatbot], [msg, chatbot, create_pr_button], queue=False) \
         .then(handle_message_stream, [chatbot, snippets_text, file_names, plan],
               [chatbot, snippets_text, file_names, plan]) \
-        .then(lambda: gr.update(interactive=True), None, [msg], queue=False)
+        .then(lambda: [gr.update(interactive=True), gr.update(interactive=True)], None, [msg, create_pr_button], queue=False)
 
 
     def validate_branch_name(branch_name):
@@ -384,21 +403,26 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         # Validate the branch name before it's used in the create_pr function
         valid_branch_name = validate_branch_name(title.lower().replace(" ", "_").replace("-", "_")[:50])
         chat_history.append((None, "⌛ Creating PR..."))
-        yield chat_history
-        pull_request = api_client.create_pr(
-            file_change_requests=[(item[:item.find(":")], item[item.find(":") + 1:]) for item, *_ in plan],
-            pull_request={
-                "title": title,
-                "content": content,
-                "branch_name": valid_branch_name
-            },
-            messages=chat_history,
-        )
-        chat_history.append((None, f"✅ PR created at {pull_request['html_url']}"))
-        yield chat_history
+        yield chat_history, gr.Button.update(interactive=False)
+        try:
+            pull_request = api_client.create_pr(
+                file_change_requests=[(item[:item.find(":")], item[item.find(":") + 1:]) for item, *_ in plan],
+                pull_request={
+                    "title": title,
+                    "content": content,
+                    "branch_name": valid_branch_name
+                },
+                messages=chat_history,
+            )
+            chat_history.append((None, f"✅ PR created at {pull_request['html_url']}"))
+            webbrowser.open_new_tab(pull_request["html_url"])
+            yield chat_history, gr.Button.update(interactive=True)
+        except Exception as e:
+            yield chat_history, gr.Button.update(interactive=True)
+            raise gr.Error(str(e))
 
 
-    create_pr_button.click(on_create_pr_button_click, [chatbot, plan], chatbot)
+    create_pr_button.click(on_create_pr_button_click, [chatbot, plan], [chatbot, create_pr_button])
 
 if __name__ == "__main__":
     demo.queue()
