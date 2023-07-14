@@ -266,12 +266,12 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         global selected_snippets
         global file_to_str
         global path_to_contents
-        if all(file_name in path_to_contents for file_name in file_names):
-            selected_snippets = [
-                Snippet(content=path_to_contents[file_name], start=0, end=path_to_contents[file_name].count('\n'),
-                        file_path=file_name) for file_name in file_names]
-        else:
-            raise KeyError("One or more file names do not exist in path_to_contents dictionary.")
+        selected_snippets = []
+        for file_name in file_names:
+            if file_name in path_to_contents:
+                selected_snippets.append(
+                    Snippet(content=path_to_contents[file_name], start=0, end=path_to_contents[file_name].count('\n'),
+                            file_path=file_name))
         return file_names, build_string()
 
 
