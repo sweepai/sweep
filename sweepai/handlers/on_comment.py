@@ -95,7 +95,8 @@ def on_comment(
         pr = repo.get_pull(pr_number)
         try:
             comments = pr.get_issue_comments()
-            comment_id = comments[-1].id
+            if comments.totalCount > 0:
+                comment_id = comments[-1].id
         except Exception as e:
             logger.error(f"Failed to fetch comments: {str(e)}")
             return {"success": False, "message": "Failed to fetch comments from the pull request."}
@@ -227,8 +228,9 @@ def on_comment(
         raise e
 
     posthog.capture(username, "success", properties={**metadata})
-    item_to_react_to = pr.get_issue_comment(comment_id)
-    item_to_react_to.create_reaction("eyes")
+    if comment_id:
+        item_to_react_to = pr.get_issue_comment(comment_id)
+        item_to_react_to.create_reaction("eyes")
     return {"success": True}
 
 
