@@ -12,7 +12,7 @@ from github import Github
 from loguru import logger
 from modal import method
 from redis import Redis
-from tqdm import tqdm
+from multiprocessing import Pool
 
 from sweepai.core.entities import Snippet
 from sweepai.utils.event_logger import posthog
@@ -89,7 +89,6 @@ class Embedding:
 
     @method()
     def compute(self, texts: list[str]):
-        from multiprocessing import Pool
         with Pool() as pool:
             embeddings = pool.map(self.model.encode, texts, BATCH_SIZE)
         return [embedding.tolist() for embedding in embeddings]
