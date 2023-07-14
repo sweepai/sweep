@@ -192,7 +192,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
     with gr.Row():
         tier_message = "⚡ Free Tier" if not user_info["is_paying_user"] else "💎 Pro Tier"
         remaining_tickets = user_info["remaining_tickets"]
-        user_status = gr.Markdown(value=f"Currently logged in as {config.github_username} ({tier_message}), {remaining_tickets} tickets remaining.")
+        user_status = gr.Markdown(value=f"Logged in as {config.github_username} ({tier_message}), {remaining_tickets} tickets remaining.")
 
     def clear_inputs():
         global global_state
