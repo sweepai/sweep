@@ -74,6 +74,7 @@ Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating 
 
 1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to your desired repos
 2. Create a new issue in your repo. The issue should describe the problem or feature you want Sweep to address. For example, you could write "Sweep: In sweepai/app/ui.py use an os-agnostic temp directory"
+3. Respond with a message like "Sweep: use a different package instead" to have Sweep retry the issue or pull request. You can also comment on the code for minor changes!
 
 We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
 
@@ -105,6 +106,7 @@ If you want the nightly build and or if the latest build has issues.
 
 1. `git clone https://github.com/sweepai/sweep && poetry install`
 2. `python sweepai/app/cli.py`. Note that you need **python 3.10+**.
+
 ## 💰 Pricing
 * We charge $120/month for 60 GPT4 tickets per month.
 * For unpaid users, we offer 5 free GPT4 tickets per month.
