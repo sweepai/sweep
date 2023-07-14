@@ -143,6 +143,13 @@ def on_comment(
             except Exception as e:
                 logger.error(traceback.format_exc())
                 raise e
+            logger.info("Fetching relevant files...")
+            try:
+                snippets, tree = fetch_file_contents_with_retry()
+                assert len(snippets) > 0
+            except Exception as e:
+                logger.error(traceback.format_exc())
+                raise e
             chat_logger = ChatLogger({
                 'repo_name': repo_name,
                 'title': '(Comment) ' + pr_title,
