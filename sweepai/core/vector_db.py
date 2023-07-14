@@ -5,6 +5,7 @@ import re
 import shutil
 import time
 
+import multiprocessing
 import modal
 from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from git.repo import Repo
@@ -36,7 +37,56 @@ timeout = 60 * 30  # 30 minutes
 CACHE_VERSION = "v1.0.0"
 MAX_FILES = 3000
 
+image = (
+    modal.Image.debian_slim()
+    .apt_install("git")
+    .pip_install("deeplake==3.6.3", "sentence-transformers")
+    .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "highlight-io", "anthropic",
+                 "posthog", "redis", "pyyaml")
+)
+secrets = [
+    modal.Secret.from_name(BOT_TOKEN_NAME),
+    modal.Secret.from_name("github"),
+    modal.Secret.from_name("openai-secret"),
+    modal.Secret.from_name("huggingface"),
+    modal.Secret.from_name("chroma-endpoint"),
+    modal.Secret.from_name("posthog"),
+    modal.Secret.from_name("highlight"),
+    modal.Secret.from_name("redis_url"),
+    modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
+]
+
 import multiprocessing
+import modal
+from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
+from git.repo import Repo
+from github import Github
+from loguru import logger
+from modal import method
+from redis import Redis
+from tqdm import tqdm
+
+from sweepai.core.entities import Snippet
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.hash import hash_sha256
+from sweepai.utils.scorer import compute_score, convert_to_percentiles
+from ..utils.config.client import SweepConfig
+from ..utils.config.server import ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, REDIS_URL, BOT_TOKEN_NAME
+from ..utils.github_utils import get_token
+
+# TODO: Lots of cleanups can be done here with these constants
+stub = modal.Stub(DB_MODAL_INST_NAME)
+chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
+model_volume = modal.SharedVolume().persist(f"{ENV}-storage")
+MODEL_DIR = "/root/cache/model"
+DEEPLAKE_DIR = "/root/cache/"
+DISKCACHE_DIR = "/root/cache/diskcache/"
+DEEPLAKE_FOLDER = "deeplake/"
+BATCH_SIZE = 256
+SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-MiniLM-L12-v2"
+timeout = 60 * 30  # 30 minutes
+CACHE_VERSION = "v1.0.0"
+MAX_FILES = 3000
 
 image = (
     modal.Image.debian_slim()
