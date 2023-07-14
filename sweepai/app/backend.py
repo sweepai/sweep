@@ -3,6 +3,7 @@ Proxy for the UI.
 """
 
 from datetime import datetime
+from http.client import HTTPException
 import json
 from typing import Any
 
@@ -322,9 +323,15 @@ def _asgi_app():
             raise e
 
         def stream_chat():
-            for chunk in chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=request.functions,
-                                             function_call=request.function_call):
-                yield json.dumps(chunk)
+            try:
+                stream = chatgpt.chat_stream(messages[-1].content, model="gpt-4-0613", functions=request.functions,
+                                                function_call=request.function_call)
+                for chunk in stream:
+                    yield json.dumps(chunk)
+            except Exception as e:
+                logger.error(e)
+                posthog.capture(request.config.github_username, "failed", properties={"error": str(e), **metadata})
+                yield json.dumps({"error": str(e)})
             posthog.capture(request.config.github_username, "success", properties=metadata)
 
         return StreamingResponse(
