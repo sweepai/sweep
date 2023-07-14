@@ -52,14 +52,14 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
 
 
 def on_comment(
-        repo_full_name: str,
-        repo_description: str,
-        comment: str,
-        pr_path: str | None,
-        pr_line_position: int | None,
-        username: str,
-        installation_id: int,
-        pr_number: int = None,
+    repo_full_name: str,
+    repo_description: str,
+    comment: str,
+    pr_path: str | None,
+    pr_line_position: int | None,
+    username: str,
+    installation_id: int,
+    pr_number: int = None,
 ):
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
@@ -73,7 +73,8 @@ def on_comment(
     # 4. Get file changes
     # 5. Create PR
     logger.info(
-        f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
+        f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}"
+    )
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "repo_full_name": repo_full_name,
@@ -135,83 +136,91 @@ def on_comment(
             )
             raise error
 
-    # Modify the second call to the fetch_file_contents_with_retry function to fetch files only when they are going to be used
-    try:
+        # Modify the second call to the fetch_file_contents_with_retry function to fetch files only when they are going to be used
         if num_of_snippets_to_query > 0:
             snippets, tree = fetch_file_contents_with_retry()
             assert len(snippets) > 0
-    except Exception as e:
-        logger.error("Failed to fetch snippets: " + str(e))
-        chat_logger = ChatLogger({
-            'repo_name': repo_name,
-            'title': '(Comment) ' + pr_title,
-            "issue_url": pr.html_url,
-            "pr_file_path": pr_file_path,  # may be None
-            "pr_line": pr_line,  # may be None
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "comment": comment,
-            "pr_path": pr_path,
-            "pr_line_position": pr_line_position,
-            "username": username,
-            "installation_id": installation_id,
-            "pr_number": pr_number,
-            "type": "comment",
-        })
-        snippets = post_process_snippets(snippets, max_num_of_snippets=0 if file_comment else 2)
+            chat_logger = ChatLogger(
+                {
+                    "repo_name": repo_name,
+                    "title": "(Comment) " + pr_title,
+                    "issue_url": pr.html_url,
+                    "pr_file_path": pr_file_path,  # may be None
+                    "pr_line": pr_line,  # may be None
+                    "repo_full_name": repo_full_name,
+                    "repo_description": repo_description,
+                    "comment": comment,
+                    "pr_path": pr_path,
+                    "pr_line_position": pr_line_position,
+                    "username": username,
+                    "installation_id": installation_id,
+                    "pr_number": pr_number,
+                    "type": "comment",
+                }
+            )
+            snippets = post_process_snippets(snippets, max_num_of_snippets=0 if file_comment else 2)
 
-        logger.info("Getting response from ChatGPT...")
-        human_message = HumanMessageCommentPrompt(
-            comment=comment,
-            repo_name=repo_name,
-            repo_description=repo_description if repo_description else "",
-            diffs=diffs,
-            issue_url=pr.html_url,
-            username=username,
-            title=pr_title,
-            tree=tree,
-            summary=pr_body,
-            snippets=snippets,
-            pr_file_path=pr_file_path,  # may be None
-            pr_line=pr_line,  # may be None
-        )
-        logger.info(f"Human prompt{human_message.construct_prompt()}")
+            logger.info("Getting response from ChatGPT...")
+            human_message = HumanMessageCommentPrompt(
+                comment=comment,
+                repo_name=repo_name,
+                repo_description=repo_description if repo_description else "",
+                diffs=diffs,
+                issue_url=pr.html_url,
+                username=username,
+                title=pr_title,
+                tree=tree,
+                summary=pr_body,
+                snippets=snippets,
+                pr_file_path=pr_file_path,  # may be None
+                pr_line=pr_line,  # may be None
+            )
+            logger.info(f"Human prompt{human_message.construct_prompt()}")
 
-        sweep_bot = SweepBot.from_system_message_content(
-            # human_message=human_message, model="claude-v1.3-100k", repo=repo
-            human_message=human_message, repo=repo, chat_logger=chat_logger, model="gpt-4-32k-0613"
-        )
+            sweep_bot = SweepBot.from_system_message_content(
+                # human_message=human_message, model="claude-v1.3-100k", repo=repo
+                human_message=human_message,
+                repo=repo,
+                chat_logger=chat_logger,
+                model="gpt-4-32k-0613",
+            )
     except Exception as e:
         logger.error(traceback.format_exc())
-        posthog.capture(username, "failed", properties={
-            "error": str(e),
-            "reason": "Failed to get files",
-            **metadata
-        })
+        posthog.capture(
+            username,
+            "failed",
+            properties={"error": str(e), "reason": "Failed to get files", **metadata},
+        )
         raise e
 
     try:
         logger.info("Fetching files to modify/create...")
         file_change_requests = sweep_bot.get_files_to_change(retries=3)
-        file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
+        file_change_requests = sweep_bot.validate_file_change_requests(
+            file_change_requests, branch=branch_name
+        )
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
 
         logger.info("Done!")
     except NoFilesException:
-        posthog.capture(username, "failed", properties={
-            "error": "No files to change",
-            "reason": "No files to change",
-            **metadata
-        })
+        posthog.capture(
+            username,
+            "failed",
+            properties={
+                "error": "No files to change",
+                "reason": "No files to change",
+                **metadata,
+            },
+        )
         return {"success": True, "message": "No files to change."}
     except Exception as e:
         logger.error(traceback.format_exc())
-        posthog.capture(username, "failed", properties={
-            "error": str(e),
-            "reason": "Failed to make changes",
-            **metadata
-        })
+        posthog.capture(
+            username,
+            "failed",
+            properties={"error": str(e), "reason": "Failed to make changes", **metadata},
+        )
         raise e
 
     posthog.capture(username, "success", properties={**metadata})
@@ -232,8 +241,13 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
         current_file_sha = current_file.sha
         previous_content = repo.get_contents(pr_path, ref=repo.default_branch)
         previous_file_content = previous_content.decoded_content.decode("utf-8")
-        repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha,
-                         branch=branch_name)
+        repo.update_file(
+            pr_path,
+            "Revert file to previous commit",
+            previous_file_content,
+            current_file_sha,
+            branch=branch_name,
+        )
         return
     previous_commit = commits[1]
 
@@ -246,11 +260,18 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
         previous_content = repo.get_contents(pr_path, ref=previous_commit.sha)
         previous_file_content = previous_content.decoded_content.decode("utf-8")
         # Create a new commit with the previous file content
-        repo.update_file(pr_path, "Revert file to previous commit", previous_file_content, current_file_sha,
-                         branch=branch_name)
+        repo.update_file(
+            pr_path,
+            "Revert file to previous commit",
+            previous_file_content,
+            current_file_sha,
+            branch=branch_name,
+        )
     except Exception as e:
         logger.error(traceback.format_exc())
         if e.status == 404:
-            logger.warning(f"File {pr_path} was not found in previous commit {previous_commit.sha}")
+            logger.warning(
+                f"File {pr_path} was not found in previous commit {previous_commit.sha}"
+            )
         else:
             raise e
