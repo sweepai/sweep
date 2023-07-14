@@ -141,7 +141,6 @@ def on_comment(
             )
             raise error
 
-        snippets, tree = fetch_file_contents_with_retry()
         logger.info("Fetching relevant files...")
         try:
             snippets, tree = fetch_file_contents_with_retry()
