@@ -95,7 +95,7 @@ def on_comment(
         pr = repo.get_pull(pr_number)
         try:
             comments = list(pr.get_issue_comments())
-            if comments.totalCount > 0:
+            if len(comments) > 0:
                 comment_id = comments[-1].id
         except Exception as e:
             logger.error(f"Failed to fetch comments: {str(e)}")
