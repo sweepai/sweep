@@ -197,7 +197,7 @@ def on_ticket(
     # Find the first comment made by the bot
     issue_comment = None
     is_paying_user = chat_logger.is_paying_user()
-    tickets_allocated = 60 if is_paying_user else 3
+    tickets_allocated = 60 if is_paying_user else 5
     ticket_count = max(tickets_allocated - chat_logger.get_ticket_count(), 0)
     use_faster_model = chat_logger.use_faster_model()
     payment_message = f"To create this ticket, I used {'gpt-3.5. ' if use_faster_model else 'gpt-4. '}You have {ticket_count} gpt-4 tickets left." + (" For more gpt-4 tickets, visit [our payment portal.](https://buy.stripe.com/fZe03512h99u0AE6os)" if not is_paying_user else "")
