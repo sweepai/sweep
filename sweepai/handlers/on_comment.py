@@ -95,6 +95,10 @@ def on_comment(
         g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
+        comments = pr.get_issue_comments()
+        comment_id = comments[-1].id
+        repo = g.get_repo(repo_full_name)
+        pr = repo.get_pull(pr_number)
         # Check if the PR is closed
         if pr.state == "closed":
             return {"success": True, "message": "PR is closed. No event fired."}
