@@ -314,7 +314,7 @@ class SweepBot(CodeGenBot, GithubBot):
             ).decoded_content.decode("utf-8")
         # Add line numbers to the contents; goes in prompts but not github
         contents_line_numbers = "\n".join([f"{i + 1}:{line}" for i, line in enumerate(contents.split("\n"))])
-        contents_line_numbers = contents_line_numbers.replace(''''', "'''")
+        contents_line_numbers = contents_line_numbers.replace("'''", "'''")
         
         # Break the contents into chunks
         chunk_size = 1000  # Define a suitable chunk size
@@ -358,7 +358,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
                     self.delete_messages_from_chat(key)
                     continue
-            raise Exception("Failed to parse response after 5 attempts.")
+                raise Exception("Failed to parse response after 5 attempts.")
         new_file_contents = ''.join(changes)
         return (new_file_contents, file_change_request.filename)
 
