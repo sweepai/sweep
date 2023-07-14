@@ -190,7 +190,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             create_pr_button = gr.Button(value="Create PR", interactive=bool(global_state.plan))
 
     with gr.Row():
-        tier_message = "⚡ Free Tier" if not user_info["is_paying_user"] else "💎 Pro Tier"
+        tier_message = "⚡ Free Trial" if not user_info["is_paying_user"] else "💎 Pro Tier"
         remaining_tickets = user_info["remaining_tickets"]
         user_status = gr.Markdown(value=f"Logged in as {config.github_username} ({tier_message}), {remaining_tickets} tickets remaining.")
 

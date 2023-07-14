@@ -181,6 +181,18 @@ def on_ticket(
 
     config_pr_url = None
 
+    # Find the first comment made by the bot
+    issue_comment = None
+    is_paying_user = chat_logger.is_paying_user()
+    tickets_allocated = 60 if is_paying_user else 5
+    ticket_count = max(tickets_allocated - chat_logger.get_ticket_count(), 0)
+    use_faster_model = chat_logger.use_faster_model()
+    model_name = "GPT-3.5" if use_faster_model else "GPT-4"
+    payment_link = "https://buy.stripe.com/fZe03512h99u0AE6os"
+    user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
+    payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
+    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
+
     def get_comment_header(index, errored=False, pr_message=""):
         config_pr_message = (
             "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})" if config_pr_url is not None else "")
@@ -192,15 +204,8 @@ def on_ticket(
         if errored:
             return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
         return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + (
-            "\n" + stars_suffix + config_pr_message if index != -1 else "")
+            "\n" + stars_suffix + config_pr_message if index != -1 else "") + "\n" + payment_message_start
 
-    # Find the first comment made by the bot
-    issue_comment = None
-    is_paying_user = chat_logger.is_paying_user()
-    tickets_allocated = 60 if is_paying_user else 5
-    ticket_count = max(tickets_allocated - chat_logger.get_ticket_count(), 0)
-    use_faster_model = chat_logger.use_faster_model()
-    payment_message = f"To create this ticket, I used {'gpt-3.5. ' if use_faster_model else 'gpt-4. '}You have {ticket_count} gpt-4 tickets left." + (" For more gpt-4 tickets, visit [our payment portal.](https://buy.stripe.com/fZe03512h99u0AE6os)" if not is_paying_user else "")
     first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\nWorking on it...{bot_suffix}{discord_suffix}"
     for comment in comments:
         if comment.user.login == GITHUB_BOT_USERNAME:
