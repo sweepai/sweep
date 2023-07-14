@@ -314,7 +314,7 @@ class SweepBot(CodeGenBot, GithubBot):
             ).decoded_content.decode("utf-8")
         # Add line numbers to the contents; goes in prompts but not github
         contents_line_numbers = "\n".join([f"{i + 1}:{line}" for i, line in enumerate(contents.split("\n"))])
-        contents_line_numbers = contents_line_numbers.replace("''''", "'''")
+        contents_line_numbers = contents_line_numbers.replace("'''", '\"\"\"')
         
         # Break the contents into chunks
         chunk_size = 1000  # Define a suitable chunk size
@@ -444,5 +444,3 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             logger.info(f"Error in handle_modify_file: {e}")
-
-This is the repaired user_code.
