@@ -97,8 +97,13 @@ Tips:
 * 🔍 Relevant searched files will show up on the right. 
 * 🔘 Sweep Chat creates PRs when the "Create PR" button is clicked. 
 * 💡 You can force dark mode by going to http://127.0.0.1:7861/?__theme=dark.
+<img src="https://github.com/sweepai/sweep/blob/856ff66c2dbeaf39afbf6d8c49a620dfa70271fb/.assets/gradio-screenshot.png">
 
+#### From Source
+If you want the nightly build and or if the latest build has issues.
 
+1. `git clone https://github.com/sweepai/sweep && poetry install`
+2. `python sweepai/app/cli.py`. Note that you need **python 3.10+**.
 ## 💰 Pricing
 * We charge $120/month for 60 GPT4 tickets per month.
 * For unpaid users, we offer 5 free GPT4 tickets per month.
