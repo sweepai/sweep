@@ -2,6 +2,7 @@
 Proxy for the UI.
 """
 
+from datetime import datetime
 import json
 from typing import Any
 
@@ -12,6 +13,7 @@ from fastapi.responses import StreamingResponse
 from github import Github
 from loguru import logger
 from pydantic import BaseModel
+from pymongo import MongoClient
 
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.chat import ChatGPT
@@ -19,7 +21,7 @@ from sweepai.core.entities import FileChangeRequest, Function, Message, PullRequ
 from sweepai.core.prompts import gradio_system_message_prompt, gradio_user_prompt
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.config.client import SweepConfig
-from sweepai.utils.config.server import PREFIX, DB_MODAL_INST_NAME, API_MODAL_INST_NAME, BOT_TOKEN_NAME
+from sweepai.utils.config.server import MONGODB_URI, PREFIX, DB_MODAL_INST_NAME, API_MODAL_INST_NAME, BOT_TOKEN_NAME
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, get_installation_id
 
@@ -48,7 +50,8 @@ secrets = [
     modal.Secret.from_name("github"),
     modal.Secret.from_name("openai-secret"),
     modal.Secret.from_name("posthog"),
-    modal.Secret.from_name("highlight")
+    modal.Secret.from_name("highlight"),
+    modal.Secret.from_name("mongodb"),
 ]
 
 FUNCTION_SETTINGS = {
@@ -64,6 +67,15 @@ FUNCTION_SETTINGS = {
 def _asgi_app():
     app = FastAPI()
 
+    def verify_user(request: SweepChatConfig) -> bool:
+        try:
+            github_user_client = Github(request.github_pat)
+            assert github_user_client.get_user().login == request.github_username
+        except Exception as e:
+            logger.warning(e)
+            raise fastapi.HTTPException(status_code=403, detail="You do not have access to this repo")
+        return True
+
     def verify_config(request: SweepChatConfig) -> bool:
         try:
             github_user_client = Github(request.github_pat)
@@ -73,6 +85,44 @@ def _asgi_app():
             logger.warning(e)
             raise fastapi.HTTPException(status_code=403, detail="You do not have access to this repo")
         return True
+
+    @app.post("/user_info")
+    def user_info(request: SweepChatConfig) -> dict:
+        assert verify_user(request)
+
+        metadata = {
+            "function": "ui_user_info",
+            "repo_full_name": request.repo_full_name,
+            "organization": (request.repo_full_name or "/").split("/")[0],
+            "username": request.github_username,
+            "installation_id": request.installation_id,
+            "mode": PREFIX,
+        }
+
+        posthog.capture(request.github_username, "started", properties=metadata)
+
+        current_month = datetime.utcnow().strftime('%m/%Y') 
+
+        client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000, socketTimeoutMS=5000)
+        db = client['llm']
+        ticket_collection = db['tickets']
+        user = ticket_collection.find_one({'username': request.github_username})
+        is_paying_user = user.get('is_paying_user', False) if user else False
+
+        result = ticket_collection.aggregate([
+            {'$match': {'username': request.github_username}},
+            {'$project': {current_month: 1, '_id': 0}}
+        ])
+        result_list = list(result)
+        ticket_count = result_list[0].get(current_month, 0) if len(result_list) > 0 else 0
+        logger.info(f'Ticket Count for {request.github_username} {ticket_count}')
+
+        posthog.capture(request.github_username, "success", properties=metadata)
+
+        return {
+            "is_paying_user": is_paying_user,
+            "remaining_tickets": max((60 if is_paying_user else 5) - ticket_count, 0),
+        }
 
     @app.post("/installation_id")
     def installation_id(request: SweepChatConfig) -> dict:
