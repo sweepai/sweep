@@ -111,9 +111,10 @@ class ChatGPT(BaseModel):
             ][0]
         return [message for message in self.messages if message.key == message_key][0]
 
-    def delete_messages_from_chat(self, key_to_delete: str):
+    def delete_messages_from_chat(self, key_to_delete: str, delete_user=True, delete_assistant=True):
         self.messages = [
-            message for message in self.messages if key_to_delete not in (message.key or '')
+            message for message in self.messages if not (key_to_delete in (message.key or '') and (delete_user and message.role == "user"
+                                                         or delete_assistant and message.role == "assistant")) # Only delete if message matches key to delete and role should be deleted
         ]
 
     def delete_file_from_system_message(self, file_path: str):
