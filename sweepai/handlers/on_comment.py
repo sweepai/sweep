@@ -135,12 +135,12 @@ def on_comment(
             )
             raise error
 
-    # Modify the second call to the fetch_file_contents_with_retry function to fetch files only when they are going to be used
-    if num_of_snippets_to_query > 0:
-        snippets, tree = fetch_file_contents_with_retry()
-        assert len(snippets) > 0
-        snippets, tree = fetch_file_contents_with_retry()
-        assert len(snippets) > 0
+        try:
+            snippets, tree = fetch_file_contents_with_retry()
+            assert len(snippets) > 0
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            raise e
         chat_logger = ChatLogger({
             'repo_name': repo_name,
             'title': '(Comment) ' + pr_title,
