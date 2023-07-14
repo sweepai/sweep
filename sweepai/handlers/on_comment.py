@@ -97,11 +97,10 @@ def on_comment(
             comments = list(pr.get_issue_comments())
             if len(comments) > 0:
                 comment_id = comments[-1].id
+                item_to_react_to = pr.get_issue_comment(comment_id)
+                item_to_react_to.create_reaction("eyes")
         except Exception as e:
             logger.error(f"Failed to fetch comments: {str(e)}")
-            return {"success": False, "message": "Failed to fetch comments from the pull request."}
-        repo = g.get_repo(repo_full_name)
-        pr = repo.get_pull(pr_number)
         # Check if the PR is closed
         if pr.state == "closed":
             return {"success": True, "message": "PR is closed. No event fired."}
@@ -228,9 +227,6 @@ def on_comment(
         raise e
 
     posthog.capture(username, "success", properties={**metadata})
-    if comment_id:
-        item_to_react_to = pr.get_issue_comment(comment_id)
-        item_to_react_to.create_reaction("eyes")
     return {"success": True}
 
 
