@@ -1,9 +1,4 @@
-import glob
-import json
-import os
-import re
-import shutil
-import time
+import multiprocessing
 
 import modal
 from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
@@ -278,7 +273,9 @@ def compute_deeplake_vs(collection_name,
         x in enumerate(embeddings) if x is None]
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
 
-        computed_embeddings = embedding_function(documents_to_compute)
+        # Use multiprocessing for generating embeddings
+        with multiprocessing.Pool() as pool:
+            computed_embeddings = pool.map(embedding_function, documents_to_compute)
 
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
