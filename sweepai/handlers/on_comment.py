@@ -137,7 +137,7 @@ def on_comment(
 
         if file_comment:
             snippets = []
-            tree = None
+            tree = ""
         else:
             try:
                 logger.info("Fetching relevant files...")
