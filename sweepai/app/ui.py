@@ -122,6 +122,8 @@ def get_files(repo_full_name):
             git_repo.git.checkout(branch_name)
             git_repo.remotes.origin.pull()
         all_files, path_to_contents = get_files_recursively(repo_dir)
+    # Add file watcher here
+    # Once a change is detected, re-fetch the list of files and update the UI
     return all_files
 
 
