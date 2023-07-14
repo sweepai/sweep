@@ -94,7 +94,7 @@ def on_comment(
         repo = g.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
         try:
-            comments = pr.get_issue_comments()
+            comments = list(pr.get_issue_comments())
             if comments.totalCount > 0:
                 comment_id = comments[-1].id
         except Exception as e:
