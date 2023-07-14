@@ -1,2 +1,2 @@
 gha_enabled: True
-main_branch: main
+branch: main
