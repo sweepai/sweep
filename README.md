@@ -25,6 +25,8 @@
 <a href="https://twitter.com/sweep__ai">
     <img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Ftwitter.com%2Fsweep__ai" />
 </a>
+<br>
+<a href="https://www.producthunt.com/posts/sweep-5?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-sweep&#0045;5" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=404410&theme=neutral" alt="Sweep - Sweep&#0032;is&#0032;an&#0032;AI&#0045;powered&#0032;junior&#0032;dev&#0032;on&#0032;your&#0032;team&#0046; | Product Hunt" style="width: 175px; height: 36px;" width="175" height="36" /></a>
 </p>
 
 <b>Sweep</b> is an AI junior developer that transforms bug reports & feature requests into code changes.
