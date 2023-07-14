@@ -1,9 +1,3 @@
-"""
-On Github ticket, get ChatGPT to deal with it
-"""
-
-# TODO: Add file validation
-
 import traceback
 
 import openai
@@ -141,6 +135,7 @@ def on_comment(
             )
             raise error
 
+    if file_comment:
         logger.info("Fetching relevant files...")
         try:
             snippets, tree = fetch_file_contents_with_retry()
