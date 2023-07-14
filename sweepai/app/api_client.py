@@ -193,6 +193,9 @@ class APIClient(BaseModel):
                         break
                     try:
                         for item in break_json(delta_chunk):
+                            if "error" in item:
+                                logger.error(item)
+                                raise Exception(item["error"])
                             yield item
                     except json.decoder.JSONDecodeError as e:
                         logger.error(delta_chunk)

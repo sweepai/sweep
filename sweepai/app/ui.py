@@ -266,9 +266,12 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         global selected_snippets
         global file_to_str
         global path_to_contents
-        selected_snippets = [
-            Snippet(content=path_to_contents[file_name], start=0, end=path_to_contents[file_name].count('\n'),
-                    file_path=file_name) for file_name in file_names]
+        selected_snippets = []
+        for file_name in file_names:
+            if file_name in path_to_contents:
+                selected_snippets.append(
+                    Snippet(content=path_to_contents[file_name], start=0, end=path_to_contents[file_name].count('\n'),
+                            file_path=file_name))
         return file_names, build_string()
 
 
@@ -329,19 +332,23 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         raw_arguments = ""
         raw_response = ""
         parsed_response = ""
-        for chunk in stream:
-            if chunk.get("content"):
-                token = chunk["content"]
-                raw_response += token
-                parsed_response, plan = parse_response(raw_response)
-                chat_history[-1][1] = parsed_response
-                yield chat_history, snippets_text, file_names, plan
-            if chunk.get("function_call"):
-                function_call = chunk["function_call"]
-                function_name = function_name or function_call.get("name")
-                raw_arguments += function_call.get("arguments")
-                chat_history[-1][1] = f"Calling function: `{function_name}`\n```json\n{raw_arguments}\n```"
-                yield chat_history, snippets_text, file_names, plan
+        try:
+            for chunk in stream:
+                if chunk.get("content"):
+                    token = chunk["content"]
+                    raw_response += token
+                    parsed_response, plan = parse_response(raw_response)
+                    chat_history[-1][1] = parsed_response
+                    yield chat_history, snippets_text, file_names, plan
+                if chunk.get("function_call"):
+                    function_call = chunk["function_call"]
+                    function_name = function_name or function_call.get("name")
+                    raw_arguments += function_call.get("arguments")
+                    chat_history[-1][1] = f"Calling function: `{function_name}`\n```json\n{raw_arguments}\n```"
+                    yield chat_history, snippets_text, file_names, plan
+        except Exception as e:
+            logger.error(e)
+            raise gr.Error(str(e))
         if function_name:
             arguments = json.loads(raw_arguments)
             if function_name == "create_pr":
