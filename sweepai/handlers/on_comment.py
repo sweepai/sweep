@@ -135,53 +135,53 @@ def on_comment(
             )
             raise error
 
-        if file_comment:
-            logger.info("Fetching relevant files...")
-            try:
-                snippets, tree = fetch_file_contents_with_retry()
-                assert len(snippets) > 0
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                raise e
-            chat_logger = ChatLogger({
-                'repo_name': repo_name,
-                'title': '(Comment) ' + pr_title,
-                "issue_url": pr.html_url,
-                "pr_file_path": pr_file_path,  # may be None
-                "pr_line": pr_line,  # may be None
-                "repo_full_name": repo_full_name,
-                "repo_description": repo_description,
-                "comment": comment,
-                "pr_path": pr_path,
-                "pr_line_position": pr_line_position,
-                "username": username,
-                "installation_id": installation_id,
-                "pr_number": pr_number,
-                "type": "comment",
-            })
-            snippets = post_process_snippets(snippets, max_num_of_snippets=0 if file_comment else 2)
+    if file_comment:
+        logger.info("Fetching relevant files...")
+        try:
+            snippets, tree = fetch_file_contents_with_retry()
+            assert len(snippets) > 0
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            raise e
+        chat_logger = ChatLogger({
+            'repo_name': repo_name,
+            'title': '(Comment) ' + pr_title,
+            "issue_url": pr.html_url,
+            "pr_file_path": pr_file_path,  # may be None
+            "pr_line": pr_line,  # may be None
+            "repo_full_name": repo_full_name,
+            "repo_description": repo_description,
+            "comment": comment,
+            "pr_path": pr_path,
+            "pr_line_position": pr_line_position,
+            "username": username,
+            "installation_id": installation_id,
+            "pr_number": pr_number,
+            "type": "comment",
+        })
+        snippets = post_process_snippets(snippets, max_num_of_snippets=0 if file_comment else 2)
 
-            logger.info("Getting response from ChatGPT...")
-            human_message = HumanMessageCommentPrompt(
-                comment=comment,
-                repo_name=repo_name,
-                repo_description=repo_description if repo_description else "",
-                diffs=diffs,
-                issue_url=pr.html_url,
-                username=username,
-                title=pr_title,
-                tree=tree,
-                summary=pr_body,
-                snippets=snippets,
-                pr_file_path=pr_file_path,  # may be None
-                pr_line=pr_line,  # may be None
-            )
-            logger.info(f"Human prompt{human_message.construct_prompt()}")
+        logger.info("Getting response from ChatGPT...")
+        human_message = HumanMessageCommentPrompt(
+            comment=comment,
+            repo_name=repo_name,
+            repo_description=repo_description if repo_description else "",
+            diffs=diffs,
+            issue_url=pr.html_url,
+            username=username,
+            title=pr_title,
+            tree=tree,
+            summary=pr_body,
+            snippets=snippets,
+            pr_file_path=pr_file_path,  # may be None
+            pr_line=pr_line,  # may be None
+        )
+        logger.info(f"Human prompt{human_message.construct_prompt()}")
 
-            sweep_bot = SweepBot.from_system_message_content(
-                # human_message=human_message, model="claude-v1.3-100k", repo=repo
-                human_message=human_message, repo=repo, chat_logger=chat_logger, model="gpt-4-32k-0613"
-            )
+        sweep_bot = SweepBot.from_system_message_content(
+            # human_message=human_message, model="claude-v1.3-100k", repo=repo
+            human_message=human_message, repo=repo, chat_logger=chat_logger, model="gpt-4-32k-0613"
+        )
     except Exception as e:
         logger.error(traceback.format_exc())
         posthog.capture(username, "failed", properties={
