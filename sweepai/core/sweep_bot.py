@@ -322,47 +322,49 @@ class SweepBot(CodeGenBot, GithubBot):
         # List to store the changes made to each chunk
         changes = []
         
-        for count, chunk in enumerate(contents_chunks):
-            if "0613" in self.model:
-                key = f"file_change_modified_{file_change_request.filename}_{count}"
-                try:
-                    modify_file_response = self.chat(
-                        modify_file_prompt_2.format(
-                            filename=file_change_request.filename,
-                            instructions=file_change_request.instructions,
-                            code=chunk,
-                            line_count=chunk.count('\n') + 1
-                        ),
-                        message_key=key,
-                    )
-                except Exception as e:  # Check for max tokens error
-                    if "max tokens" in str(e).lower():
-                        raise MaxTokensExceeded(file_change_request.filename)
-
-                try:
-                    logger.info(f"modify_file_response: {modify_file_response}")
+        # Add retries to the chunk processing
+        for retry in range(5):
+            for count, chunk in enumerate(contents_chunks):
+                if "0613" in self.model:
+                    key = f"file_change_modified_{file_change_request.filename}_{count}"
                     try:
-                        new_chunk = generate_new_file(modify_file_response, chunk)
+                        modify_file_response = self.chat(
+                            modify_file_prompt_2.format(
+                                filename=file_change_request.filename,
+                                instructions=file_change_request.instructions,
+                                code=chunk,
+                                line_count=chunk.count('\n') + 1
+                            ),
+                            message_key=key,
+                        )
+                    except Exception as e:  # Check for max tokens error
+                        if "max tokens" in str(e).lower():
+                            raise MaxTokensExceeded(file_change_request.filename)
+
+                    try:
+                        logger.info(f"modify_file_response: {modify_file_response}")
+                        try:
+                            new_chunk = generate_new_file(modify_file_response, chunk)
+                        except Exception as e:
+                            logger.error(f"Failed to generate new file: {e}")
+                            logger.error(f"modify_file_response: {modify_file_response}")
+                            logger.error(f"chunk: {chunk}")
+                            raise e
+                        changes.append(new_chunk)
+                        if not is_markdown(file_change_request.filename):
+                            code_repairer = CodeRepairer(chat_logger=self.chat_logger)
+                            diff = generate_diff(old_code=chunk, new_code=new_chunk)
+                            new_chunk = code_repairer.repair_code(diff=diff, user_code=new_chunk,
+                                                                  feature=file_change_request.instructions)
+                        changes.append(new_chunk)
                     except Exception as e:
-                        logger.error(f"Failed to generate new file: {e}")
-                        logger.error(f"modify_file_response: {modify_file_response}")
-                        logger.error(f"chunk: {chunk}")
-                        raise e
-                    changes.append(new_chunk)
-                    if not is_markdown(file_change_request.filename):
-                        code_repairer = CodeRepairer(chat_logger=self.chat_logger)
-                        diff = generate_diff(old_code=chunk, new_code=new_chunk)
-                        new_chunk = code_repairer.repair_code(diff=diff, user_code=new_chunk,
-                                                             feature=file_change_request.instructions)
-                    changes.append(new_chunk)
-                except Exception as e:
-                    tb = traceback.format_exc()
-                    logger.warning(f"Received error {e}\n{tb}")
-                    logger.warning(
-                        f"Failed to parse. Retrying for the {count}th time..."
-                    )
-                    self.delete_messages_from_chat(key)
-                    continue
+                        tb = traceback.format_exc()
+                        logger.warning(f"Received error {e}\n{tb}")
+                        logger.warning(
+                            f"Failed to parse. Retrying for the {count}th time..."
+                        )
+                        self.delete_messages_from_chat(key)
+                        continue
                 raise Exception("Failed to parse response after 5 attempts.")
         new_file_contents = ''.join(changes)
         return (new_file_contents, file_change_request.filename)
