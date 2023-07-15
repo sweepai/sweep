@@ -161,6 +161,7 @@ async def webhook(raw_request: Request):
                         username=request.comment.user.login,
                         installation_id=request.installation.id,
                         pr_number=request.issue.number,
+                        comment_id=request.comment.id,
                     )
             case "pull_request_review_comment", "created":
                 request = CommentCreatedRequest(**request_dict)
@@ -174,6 +175,7 @@ async def webhook(raw_request: Request):
                         username=request.comment.user.login,
                         installation_id=request.installation.id,
                         pr_number=request.pull_request.number,
+                        comment_id=request.comment.id,
                     )
                 # Todo: update index on comments
             case "pull_request_review", "submitted":
@@ -196,6 +198,7 @@ async def webhook(raw_request: Request):
                         username=request.sender.login,
                         installation_id=request.installation.id,
                         pr_number=request.check_run.pull_requests[0].number,
+                        comment_id=None,
                     )
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)

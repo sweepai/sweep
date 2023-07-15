@@ -60,6 +60,7 @@ def on_comment(
         username: str,
         installation_id: int,
         pr_number: int = None,
+        comment_id: int | None = None,
 ):
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
@@ -94,10 +95,13 @@ def on_comment(
         repo = g.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
         try:
-            comments = list(pr.get_issue_comments())
-            if len(comments) > 0:
-                comment_id = comments[-1].id
+            if not comment_id:
+                pass
+            elif not file_comment:
                 item_to_react_to = pr.get_issue_comment(comment_id)
+                item_to_react_to.create_reaction("eyes")
+            elif file_comment:
+                item_to_react_to = pr.get_review_comment(comment_id)
                 item_to_react_to.create_reaction("eyes")
         except Exception as e:
             logger.error(f"Failed to fetch comments: {str(e)}")
