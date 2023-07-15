@@ -164,7 +164,6 @@ class ReviewSubmittedRequest(BaseModel):
         url: str
         html_url: str
         followers_url: str
-        following_url: str
         gists_url: str
         starred_url: str
         subscriptions_url: str
