@@ -155,70 +155,21 @@ class CheckRunCompleted(BaseModel):
 
 
 class ReviewSubmittedRequest(BaseModel):
-    class User(BaseModel):
-        login: str
-        id: int
-        node_id: str
-        avatar_url: str
-        gravatar_id: str
-        url: str
-        html_url: str
-        followers_url: str
-        gists_url: str
-        starred_url: str
-        subscriptions_url: str
-        organizations_url: str
-        repos_url: str
-        events_url: str
-        received_events_url: str
-        type: str
-        site_admin: bool
-
-    class Links(BaseModel):
-        class Html(BaseModel):
-            href: str
-
-        class PullRequest(BaseModel):
-            href: str
-
-        html: Html
-        pull_request: PullRequest
+    class Repository(BaseModel):
+        full_name: str
+        description: str | None
 
     class Review(BaseModel):
-        id: int
-        node_id: str
-        user: User
+        class User(BaseModel):
+            login: str
+
         body: str
-        commit_id: str
-        submitted_at: str
-        state: str
-        html_url: str
-        pull_request_url: str
-        author_association: str
-        _links: Links
+        id: int
 
     class PullRequest(BaseModel):
-        url: str
-        id: int
-        node_id: str
-        html_url: str
-        diff_url: str
-        patch_url: str
-        issue_url: str
         number: int
-        state: str
-        locked: bool
-        title: str
-        user: User
-        body: str
-        created_at: str
-        updated_at: str
-        closed_at: str | None
-        merged_at: str | None
-        merge_commit_sha: str
-        assignee: str | None
-        assignees: list[str]
 
-    action: str
+    installation: Installation
+    repository: Repository
     review: Review
     pull_request: PullRequest
