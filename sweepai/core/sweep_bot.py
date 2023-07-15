@@ -329,8 +329,11 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.error(f"modify_file_response: {modify_file_response}")
                 logger.error(f"chunk: {chunk}")
                 raise e
-            changes.append(new_chunk)
             self.delete_messages_from_chat(key)
+            diff = generate_diff(old_code=chunk, new_code=new_chunk)
+            new_chunk = code_repairer.repair_code(diff=diff, user_code=new_chunk,
+                                                  feature=file_change_request.instructions)
+            changes.append(new_chunk)
             diff = generate_diff(old_code=chunk, new_code=new_chunk)
             new_chunk = code_repairer.repair_code(diff=diff, user_code=new_chunk,
                                                   feature=file_change_request.instructions)
@@ -455,3 +458,16 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             logger.info(f"Error in handle_modify_file: {e}")
+
+# Instantiate the CodeRepairer class
+code_repairer = CodeRepairer()
+
+# Remove the line changes.append(new_chunk) that appears before the code repair process
+user_code = re.sub(r"changes\.append\(new_chunk\)\n", "", user_code)
+
+# Call the change_files_in_github method to make the necessary changes to the user_code
+file_change_requests = [FileChangeRequest(filename="user_code", instructions="")]
+completed, num_fcr = change_files_in_github(file_change_requests, "main")
+
+# Return the repaired user_code
+user_code
