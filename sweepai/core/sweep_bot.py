@@ -333,84 +333,42 @@ class SweepBot(CodeGenBot, GithubBot):
         raise Exception("Failed to parse response after 5 attempts.")
 
     def modify_file(
-            self, file_change_request: FileChangeRequest, contents: str = "", branch=None
+            self, file_change_request: FileChangeRequest, contents: str = "", contents_line_numbers: str = "", branch=None, chunking: bool = False
     ) -> tuple[str, str]:
-        if not contents:
-            contents = self.get_file(
-                file_change_request.filename,
-                branch=branch
-            ).decoded_content.decode("utf-8")
-        # Add line numbers to the contents; goes in prompts but not github
-        contents_line_numbers = "\n".join([f"{i + 1}:{line}" for i, line in enumerate(contents.split("\n"))])
-        contents_line_numbers = contents_line_numbers.replace('"""', "'''")
         for count in range(5):
-            if "0613" in self.model:
-                """
-                planning_response = self.chat( # We don't use the plan in the next call
-                    modify_file_plan_prompt.format(
+            key = f"file_change_modified_{file_change_request.filename}"
+            try:
+                modify_file_response = self.chat(
+                    modify_file_prompt_2.format(
                         filename=file_change_request.filename,
                         instructions=file_change_request.instructions,
                         code=contents_line_numbers,
+                        line_count=contents.count('\n') + 1
                     ),
-                    message_key=f"file_change_{file_change_request.filename}",
+                    message_key=key,
                 )
-
-                snippet_string = ""
-                lines = []
-                for match in re.findall(r"(?:lines (\d+)-(\d+)|line (\d+))", planning_response):
-                    if len(match[2]) > 0:
-                        start_line = int(match[2])
-                        end_line = start_line
-                    else:
-                        start_line = int(match[0])
-                        end_line = int(match[1])
-                    lines.append('\n'.join(contents_line_numbers.splitlines()[start_line - 1:end_line]))
-
-                code_snippets = '\n...\n'.join(lines)
-
-                newline = '\n'
-                modify_file_response = self.chat(
-                    modify_file_prompt.format(
-                        snippets=code_snippets,
-                        line_numbers=f'{1} to {1 + contents.count(newline)}'
-                    ),
-                    message_key=f"file_change_{file_change_request.filename}",
-                )
-                """
-
-                # Todo: updated code is outdated by unified v2 prompt! remove?
-                key = f"file_change_modified_{file_change_request.filename}"
-                try:
-                    modify_file_response = self.chat(
-                        modify_file_prompt_2.format(
-                            filename=file_change_request.filename,
-                            instructions=file_change_request.instructions,
-                            code=contents_line_numbers,
-                            line_count=contents.count('\n') + 1
-                        ),
-                        message_key=key,
-                    )
-                except Exception as e: # Check for max tokens error
-                    if "max tokens" in str(e).lower():
-                        raise MaxTokensExceeded(file_change_request.filename)
-
-                try:
-                    logger.info(f"modify_file_response: {modify_file_response}")
-                    new_file = generate_new_file(modify_file_response, contents)
-                    if not is_markdown(file_change_request.filename):
-                        code_repairer = CodeRepairer(chat_logger=self.chat_logger)
-                        diff = generate_diff(old_code=contents, new_code=new_file)
-                        new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
-                                                             feature=file_change_request.instructions)
-                    return (new_file, file_change_request.filename)
-                except Exception as e:
-                    tb = traceback.format_exc()
-                    logger.warning(f"Recieved error {e}\n{tb}")
-                    logger.warning(
-                        f"Failed to parse. Retrying for the {count}th time..."
-                    )
+                if chunking:
                     self.delete_messages_from_chat(key)
-                    continue
+            except Exception as e: # Check for max tokens error
+                if "max tokens" in str(e).lower():
+                    raise MaxTokensExceeded(file_change_request.filename)
+            try:
+                logger.info(f"modify_file_response: {modify_file_response}")
+                new_file = generate_new_file(modify_file_response, contents)
+                if not is_markdown(file_change_request.filename):
+                    code_repairer = CodeRepairer(chat_logger=self.chat_logger)
+                    diff = generate_diff(old_code=contents, new_code=new_file)
+                    new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
+                                                            feature=file_change_request.instructions)
+                return (new_file, file_change_request.filename)
+            except Exception as e:
+                tb = traceback.format_exc()
+                logger.warning(f"Recieved error {e}\n{tb}")
+                logger.warning(
+                    f"Failed to parse. Retrying for the {count}th time..."
+                )
+                self.delete_messages_from_chat(key)
+                continue
         raise Exception("Failed to parse response after 5 attempts.")
 
     def change_file(self, file_change_request: FileChangeRequest):
@@ -468,13 +426,14 @@ class SweepBot(CodeGenBot, GithubBot):
             lines = file_contents.split("\n")
             
             new_file_contents = ""  # Initialize an empty string to hold the new file contents
-            
+            all_lines_numbered = "\n".join([f"{i + 1}:{line}" for i, line in lines])
+            chunking = len(lines) > CHUNK_SIZE # Only chunk if the file is large enough
             for i in range(0, len(lines), CHUNK_SIZE):
-                chunk = lines[i:i + CHUNK_SIZE]
-                chunk_contents = "\n".join(chunk)
-                
+                chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
+                contents_line_numbers = all_lines_numbered[i:i + CHUNK_SIZE]
+
                 new_chunk, file_name = self.modify_file(
-                    file_change_request, chunk_contents, branch=branch
+                    file_change_request, chunk_contents, branch=branch, contents_line_numbers=contents_line_numbers, chunking=chunking
                 )
                 new_chunk = format_contents(new_chunk, file_markdown)
                 new_chunk = new_chunk.rstrip()
@@ -486,7 +445,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.debug(
                     f"{file_name}, {f'Update {file_name}'}, {new_chunk}, {branch}"
                 )
-            
             # Update the file with the new contents after all chunks have been processed
             try:
                 self.repo.update_file(
