@@ -354,8 +354,8 @@ class SweepBot(CodeGenBot, GithubBot):
             )
             self.delete_messages_from_chat(key)
             continue
-        raise Exception("Failed to parse response after 5 attempts.")
         new_file_contents = ''.join(changes)
+        return (new_file_contents, file_change_request.filename)
         return (new_file_contents, file_change_request.filename)
 
     def modify_file(
