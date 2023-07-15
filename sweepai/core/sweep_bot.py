@@ -467,39 +467,45 @@ class SweepBot(CodeGenBot, GithubBot):
             file_contents = file.decoded_content.decode("utf-8")
             lines = file_contents.split("\n")
             
+            new_file_contents = ""  # Initialize an empty string to hold the new file contents
+            
             for i in range(0, len(lines), CHUNK_SIZE):
                 chunk = lines[i:i + CHUNK_SIZE]
                 chunk_contents = "\n".join(chunk)
                 
-                new_chunk_contents, file_name = self.modify_file(
+                new_chunk, file_name = self.modify_file(
                     file_change_request, chunk_contents, branch=branch
                 )
-                new_chunk_contents = format_contents(new_chunk_contents, file_markdown)
-                new_chunk_contents = new_chunk_contents.rstrip()
+                new_chunk = format_contents(new_chunk, file_markdown)
+                new_chunk = new_chunk.rstrip()
                 if chunk_contents.endswith("\n"):
-                    new_chunk_contents += "\n"
+                    new_chunk += "\n"
+                
+                new_file_contents += new_chunk  # Append the processed chunk to new_file_contents
                 
                 logger.debug(
-                    f"{file_name}, {f'Update {file_name}'}, {new_chunk_contents}, {branch}"
+                    f"{file_name}, {f'Update {file_name}'}, {new_chunk}, {branch}"
                 )
-                try:
-                    self.repo.update_file(
-                        file_name,
-                        f'Update {file_name}',
-                        new_chunk_contents,
-                        file.sha,
-                        branch=branch,
-                    )
-                except Exception as e:
-                    logger.info(f"Error in updating file, repulling and trying again {e}")
-                    file = self.get_file(file_change_request.filename, branch=branch)
-                    self.repo.update_file(
-                        file_name,
-                        f'Update {file_name}',
-                        new_chunk_contents,
-                        file.sha,
-                        branch=branch,
-                    )
+            
+            # Update the file with the new contents after all chunks have been processed
+            try:
+                self.repo.update_file(
+                    file_name,
+                    f'Update {file_name}',
+                    new_file_contents,
+                    file.sha,
+                    branch=branch,
+                )
+            except Exception as e:
+                logger.info(f"Error in updating file, repulling and trying again {e}")
+                file = self.get_file(file_change_request.filename, branch=branch)
+                self.repo.update_file(
+                    file_name,
+                    f'Update {file_name}',
+                    new_file_contents,
+                    file.sha,
+                    branch=branch,
+                )
         except MaxTokensExceeded as e:
             raise e
         except Exception as e:
