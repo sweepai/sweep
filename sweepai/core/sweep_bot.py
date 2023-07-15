@@ -157,7 +157,13 @@ class GithubBot(BaseModel):
     def get_file(self, file_path: str, branch: str = "") -> ContentFile:
         content = self.get_contents(file_path, branch)
         assert not isinstance(content, list)
+        content = content.decoded_content.decode("utf-8")
         return content
+
+    def get_file_chunks(self, file_path: str, branch: str = "", chunk_size: int = 1024):
+        content = self.get_file(file_path, branch)
+        for i in range(0, len(content), chunk_size):
+            yield content[i:i+chunk_size]
 
     def check_path_exists(self, path: str, branch: str = ""):
         try:
@@ -338,7 +344,7 @@ class SweepBot(CodeGenBot, GithubBot):
             contents = self.get_file(
                 file_change_request.filename,
                 branch=branch
-            ).decoded_content.decode("utf-8")
+            )
         # Add line numbers to the contents; goes in prompts but not github
         contents_line_numbers = "\n".join([f"{i + 1}:{line}" for i, line in enumerate(contents.split("\n"))])
         contents_line_numbers = contents_line_numbers.replace('"""', "'''")
@@ -461,13 +467,20 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str, file_markdown: bool):
         try:
-            contents = self.get_file(file_change_request.filename, branch=branch)
-            new_file_contents, file_name = self.modify_file(
-                file_change_request, contents.decoded_content.decode("utf-8"), branch=branch
-            )
+            file_name = file_change_request.filename
+            new_file_contents = ""
+            for chunk in self.get_file_chunks(file_name, branch=branch):
+                try:
+                    new_chunk_contents, _ = self.modify_file(
+                        file_change_request, chunk, branch=branch
+                    )
+                    new_file_contents += new_chunk_contents
+                except Exception as e:
+                    logger.warning(f"Error in processing chunk: {e}")
             new_file_contents = format_contents(new_file_contents, file_markdown)
             new_file_contents = new_file_contents.rstrip()
-            if contents.decoded_content.decode("utf-8").endswith("\n"):
+            contents = self.get_file(file_name, branch=branch)
+            if contents.endswith("\n"):
                 new_file_contents += "\n"
             logger.debug(
                 f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
@@ -482,7 +495,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
             except Exception as e:
                 logger.info(f"Error in updating file, repulling and trying again {e}")
-                contents = self.get_file(file_change_request.filename, branch=branch)
+                contents = self.get_file(file_name, branch=branch)
                 self.repo.update_file(
                     file_name,
                     f'Update {file_name}',
@@ -494,3 +507,6 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             logger.info(f"Error in handle_modify_file: {e}")
+
+change_files_in_github = SweepBot.change_files_in_github
+handle_modify_file = SweepBot.handle_modify_file
