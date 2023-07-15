@@ -73,6 +73,12 @@ def create_pr(
             )
             return {"success": False, "error": "No changes made"}
 
+        try:
+            if not fcr.content.strip():
+                sweep_bot.repo.delete_file(fcr.filename, "Delete empty file", fcr.sha, branch=pull_request.branch_name)
+        except Exception as e:
+            logger.error(f"Failed to delete file: {e}")
+
         # Include issue number in PR description
         if issue_number:
             # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)

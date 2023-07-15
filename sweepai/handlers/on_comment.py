@@ -60,6 +60,7 @@ def on_comment(
         username: str,
         installation_id: int,
         pr_number: int = None,
+        comment_id: int | None = None,
 ):
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
@@ -93,6 +94,17 @@ def on_comment(
         g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
+        try:
+            if not comment_id:
+                pass
+            elif not file_comment:
+                item_to_react_to = pr.get_issue_comment(comment_id)
+                item_to_react_to.create_reaction("eyes")
+            elif file_comment:
+                item_to_react_to = pr.get_review_comment(comment_id)
+                item_to_react_to.create_reaction("eyes")
+        except Exception as e:
+            logger.error(f"Failed to fetch comments: {str(e)}")
         # Check if the PR is closed
         if pr.state == "closed":
             return {"success": True, "message": "PR is closed. No event fired."}

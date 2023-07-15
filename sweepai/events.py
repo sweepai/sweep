@@ -33,6 +33,7 @@ class CommentCreatedRequest(BaseModel):
         path: str
         diff_hunk: str
         user: User
+        id: int
 
     class PullRequest(BaseModel):
         class Head(BaseModel):
