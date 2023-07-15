@@ -17,13 +17,14 @@ from sweepai.core.entities import (
     PullRequest,
     RegexMatchError,
     Function,
-    Snippet, NoFilesException
+    Snippet, NoFilesException, Message
 )
 from sweepai.core.prompts import (
     files_to_change_prompt,
     pull_request_prompt,
     create_file_prompt,
     modify_file_prompt_2,
+    snippet_replacement,
 )
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
@@ -34,17 +35,43 @@ class MaxTokensExceeded(Exception):
         self.filename = filename
 
 class CodeGenBot(ChatGPT):
+    def summarize_snippets(self, create_thoughts, modify_thoughts):
+        snippet_summarization = self.chat(
+            snippet_replacement.format(
+                thoughts=create_thoughts + "\n" + modify_thoughts
+            ),
+            message_key="snippet_summarization",
+        )
+
+        # Delete excessive tokens
+        self.delete_messages_from_chat("relevant_snippets")
+        self.delete_messages_from_chat("relevant_directories")
+        self.delete_messages_from_chat("relevant_tree")
+
+        # Delete past instructions
+        self.delete_messages_from_chat("files_to_change", delete_assistant=False)
+
+        # Delete summarization instructions
+        self.delete_messages_from_chat("snippet_summarization")
+
+        msg = Message(content=snippet_summarization, role="assistant", key="bot_analysis_summary")
+        self.messages.insert(-2, msg)
+        pass
 
     def get_files_to_change(self, retries=2):
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
+
         for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
                 files_to_change_response = self.chat(files_to_change_prompt,
                                                      message_key="files_to_change")  # Dedup files to change here
                 files_to_change = FilesToChange.from_string(files_to_change_response)
+                create_thoughts = files_to_change.files_to_create.strip()
+                modify_thoughts = files_to_change.files_to_modify.strip()
+
                 files_to_create: list[str] = files_to_change.files_to_create.split("\n*")
                 files_to_modify: list[str] = files_to_change.files_to_modify.split("\n*")
                 for file_change_request, change_type in zip(
@@ -77,7 +104,7 @@ class CodeGenBot(ChatGPT):
                     FileChangeRequest(filename=file_name, instructions=instructions, change_type=change_type) for
                     file_name, (instructions, change_type) in file_instructions_dict.items()]
                 if file_change_requests:
-                    return file_change_requests
+                    return file_change_requests, create_thoughts, modify_thoughts
             except RegexMatchError:
                 logger.warning("Failed to parse! Retrying...")
                 self.delete_messages_from_chat("files_to_change")

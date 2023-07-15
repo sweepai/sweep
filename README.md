@@ -25,7 +25,8 @@
 <a href="https://twitter.com/sweep__ai">
     <img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Ftwitter.com%2Fsweep__ai" />
 </a>
-<br>
+<br />
+<br />
 <a href="https://www.producthunt.com/posts/sweep-5?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-sweep&#0045;5" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=404410&theme=neutral" alt="Sweep - Sweep&#0032;is&#0032;an&#0032;AI&#0045;powered&#0032;junior&#0032;dev&#0032;on&#0032;your&#0032;team&#0046; | Product Hunt" style="width: 175px; height: 36px;" width="175" height="36" /></a>
 </p>
 
@@ -91,10 +92,10 @@ Sweep Chat allows you to interact with Sweep and GitHub locally. You can collabo
     - Wait a few seconds and Sweep Chat will start. 
 
 3. Choose a repository from the dropdown at the top (the Github app must be installed to this repository).
-
     - ⚡ Start chatting with Sweep Chat! ⚡
 
-<img src="https://github.com/sweepai/sweep/blob/856ff66c2dbeaf39afbf6d8c49a620dfa70271fb/.assets/gradio-screenshot.png">
+
+![Screenshot_20230711_015033](https://github.com/sweepai/sweep/assets/26889185/ed9f05d8-ef86-4f2a-9bca-acdfa24990ac)
 
 Tips:
 * 🔍 Relevant searched files will show up on the right. 

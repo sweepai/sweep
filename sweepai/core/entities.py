@@ -68,7 +68,17 @@ class RegexMatchableBaseModel(BaseModel):
 class FilesToChange(RegexMatchableBaseModel):
     files_to_modify: str
     files_to_create: str
-    _regex = r"""<create>(?P<files_to_create>.*)</create>\s*<modify>(?P<files_to_modify>.*)</modify>"""
+
+    @classmethod
+    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
+        create_pattern = r"""<create>(?P<files_to_create>.*)</create>"""
+        create_match = re.search(create_pattern, string, re.DOTALL)
+        modify_pattern = r"""<modify>(?P<files_to_modify>.*)</modify>"""
+        modify_match = re.search(modify_pattern, string, re.DOTALL)
+        return cls(
+            files_to_create=create_match.groupdict()["files_to_create"].strip() if create_match else "* None",
+            files_to_modify=modify_match.groupdict()["files_to_modify"].strip() if modify_match else "* None",
+        )
 
 
 # todo (fix double colon regex): Update the split from "file_tree.py : desc" to "file_tree.py\tdesc"

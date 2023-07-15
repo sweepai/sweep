@@ -13,10 +13,10 @@ human_message_prompt = [
 </relevant_snippets_in_repo>""", 'key': 'relevant_snippets'},
 {'role': 'user', 'content': """<relevant_paths_in_repo>
 {relevant_directories}
-</relevant_paths_in_repo>"""},
+</relevant_paths_in_repo>""", 'key': 'relevant_directories'},
 {'role': 'user', 'content': """<repo_tree>
 {tree}
-</repo_tree>"""},
+</repo_tree>""", 'key': 'relevant_tree'},
 {'role': 'user', 'content':
 """# Repo & Issue Metadata
 Repo: {repo_name}: {repo_description}
@@ -45,6 +45,24 @@ The new_file_content is the content of the file after the changes.
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
 {diffs}"""}]
+
+snippet_replacement = """
+In order to address this issue, what required information do you need about the snippets? Only include relevant code that provides you enough detail about the snippets for the problems: 
+"{thoughts}"
+
+<contextual_thoughts>
+* ...
+...
+</contextual_thoughts>
+
+<partial_snippet file="...">
+[insert relevant segments from thoughts here]
+</partial_snippet>
+
+<relevant_paths>
+[insert relevant paths from file tree]
+</relevant_paths>
+"""
 
 diff_section_prompt = """
 <file_path>
@@ -323,6 +341,7 @@ Generate a new_file based on the given plan, ensuring that you:
 1. It is imperative that we do not leave any work to the user/future readers of this code. Therefore write functions with complete business logic.
 2. Only write code, do not write line numbers.
 3. Make sure the new code follows the same programming language conventions as the old code.
+4. Ensure correct whitespace and indentation.
 
 Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copy_lines A-B/>"). Make sure to use this exact format.
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copy_lines 1-50/>".
@@ -330,10 +349,10 @@ Copy the correct line numbers and copy as long of a prefix and suffix as possibl
 Example: If you want to modify lines 51-52 and add line after line 75:
 <new_file>
 <copy_lines 1-50/>
-def main():
-    print("hello world")
+    def main():
+        print("hello world")
 <copy_lines 53-75/>
-print("debug statement")
+        print("debug statement")
 <copy_lines 76-100/>
 </new_file>
 
@@ -342,8 +361,8 @@ Do not rewrite the entire file. Use <copy_lines A-B/> XML tag when possible. Do 
 
 Context: "{instructions}". Limit your changes to the context.
 Instructions:
-- Complete Code Planning step
-- Complete Code Generation step"""
+1. Complete Code Planning step
+2. Complete Code Generation step (<new_file>...)"""
 
 pr_code_prompt = ""  # TODO: deprecate this
 
