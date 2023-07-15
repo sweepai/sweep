@@ -419,23 +419,27 @@ Our goal is to return a working version of user_code that follows {feature} whil
 """
 
 code_repair_prompt = """\
+This is the diff that was applied to create user_code. Only make changes to code in user_code if the code was affected by the diff.
 <diff>
 {diff}
 </diff>
+
+This is the user_code.
 <user_code>
 {user_code}
 </user_code>
-This is the user_code.
-Instructions:
-* The user_code may have accidental additions and deletions before and after the code that needs to be added. You can revert these changes.
-* Fix syntax errors and formatting, but only around lines mentioned in the diff.
-* Be as minimal as possible with the changes you make to user_code.
-* Add or remove whitespaces, but only around lines mentioned in the diff.
-* Add or remove comments, but only around lines mentioned in the diff.
-* Clean up the code, but only around lines mentioned in the diff.
-* Do not change the logic in user_code.
 
-Return the repaired user_code without xml tags. All of the text you return will be placed in the file.
+Instructions:
+* Fix syntax errors and formatting.
+* Be as minimal as possible with the changes you make to user_code.
+* Do not change the logic in user_code.
+* Do not modify comments, docstrings, or whitespace.
+
+The only operations you may perform are:
+1. Indenting or dedenting code in user_code that was affected by the diff.
+2. Adding or deduplicating code in user_code that was affected by the diff.
+
+Return the working user_code without xml tags. All of the text you return will be placed in the file.
 """
 
 gradio_system_message_prompt = """Your name is Sweep bot. You are a brilliant and thorough engineer assigned to assist the following user with their problems in the Github repo. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes. If the user asks you to create a PR, you will use the create_pr function.
