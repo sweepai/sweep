@@ -305,6 +305,17 @@ class SweepBot(CodeGenBot, GithubBot):
         raise Exception("Failed to parse response after 5 attempts.")
 
     def process_chunk(self, file_change_request: FileChangeRequest, chunk: str, branch=None) -> str:
+        """
+        Process a chunk of file content and return the modified content.
+        
+        Parameters:
+        file_change_request (FileChangeRequest): The file change request object.
+        chunk (str): The chunk of file content to process.
+        branch (str): The branch where the file is located. Default is None.
+        
+        Returns:
+        str: The modified file content.
+        """
         key = f"file_change_modified_{file_change_request.filename}_{count}"
         try:
             modify_file_response = self.chat(
@@ -329,11 +340,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.error(f"modify_file_response: {modify_file_response}")
                 logger.error(f"chunk: {chunk}")
                 raise e
-            self.delete_messages_from_chat(key)
-            diff = generate_diff(old_code=chunk, new_code=new_chunk)
-            new_chunk = code_repairer.repair_code(diff=diff, user_code=new_chunk,
-                                                  feature=file_change_request.instructions)
             changes.append(new_chunk)
+            self.delete_messages_from_chat(key)
             diff = generate_diff(old_code=chunk, new_code=new_chunk)
             new_chunk = code_repairer.repair_code(diff=diff, user_code=new_chunk,
                                                   feature=file_change_request.instructions)
@@ -458,16 +466,3 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             logger.info(f"Error in handle_modify_file: {e}")
-
-# Instantiate the CodeRepairer class
-code_repairer = CodeRepairer()
-
-# Remove the line changes.append(new_chunk) that appears before the code repair process
-user_code = re.sub(r"changes\.append\(new_chunk\)\n", "", user_code)
-
-# Call the change_files_in_github method to make the necessary changes to the user_code
-file_change_requests = [FileChangeRequest(filename="user_code", instructions="")]
-completed, num_fcr = change_files_in_github(file_change_requests, "main")
-
-# Return the repaired user_code
-user_code
