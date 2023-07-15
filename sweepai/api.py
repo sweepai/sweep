@@ -11,6 +11,7 @@ from sweepai.events import (
     IssueRequest,
     PRRequest,
     ReposAddedRequest,
+    ReviewSubmittedRequest,
 )
 from sweepai.handlers.create_pr import create_pr  # type: ignore
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
@@ -179,8 +180,18 @@ async def webhook(raw_request: Request):
                     )
                 # Todo: update index on comments
             case "pull_request_review", "submitted":
-                # request = ReviewSubmittedRequest(**request_dict)
-                pass
+                request = ReviewSubmittedRequest(**request_dict)
+                handle_comment.spawn(
+                    repo_full_name=request.repository.full_name,
+                    repo_description=request.repository.description,
+                    comment=request.review.body,
+                    pr_path=None,
+                    pr_line_position=None,
+                    username=request.review.user.login,
+                    installation_id=request.installation.id,
+                    pr_number=request.pull_request.number,
+                    comment_id=request.review.id,
+                )
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
                 # handle_check_suite
