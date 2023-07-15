@@ -352,8 +352,6 @@ class SweepBot(CodeGenBot, GithubBot):
                             raise e
                         changes.append(new_chunk)
                         self.delete_messages_from_chat(key)
-                        code_repairer = CodeRepairer(chat_logger=self.chat_logger)
-                        code_repairer = CodeRepairer(chat_logger=self.chat_logger)
                         diff = generate_diff(old_code=chunk, new_code=new_chunk)
                         new_chunk = code_repairer.repair_code(diff=diff, user_code=new_chunk,
                                                               feature=file_change_request.instructions)
