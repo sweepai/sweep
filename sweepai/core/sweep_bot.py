@@ -351,6 +351,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     self.delete_messages_from_chat(key)
             except Exception as e: # Check for max tokens error
                 if "max tokens" in str(e).lower():
+                    logger.error(f"Max tokens exceeded for {file_change_request.filename}")
                     raise MaxTokensExceeded(file_change_request.filename)
             try:
                 logger.info(f"modify_file_response: {modify_file_response}")
@@ -360,7 +361,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     diff = generate_diff(old_code=contents, new_code=new_file)
                     new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
                                                             feature=file_change_request.instructions)
-                return (new_file, file_change_request.filename)
+                return new_file
             except Exception as e:
                 tb = traceback.format_exc()
                 logger.warning(f"Recieved error {e}\n{tb}")
@@ -419,21 +420,26 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.info(f"Error in handle_create_file: {e}")
 
     def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str, file_markdown: bool):
-        CHUNK_SIZE = 1000  # Number of lines to process at a time
+        CHUNK_SIZE = 500  # Number of lines to process at a time
         try:
             file = self.get_file(file_change_request.filename, branch=branch)
             file_contents = file.decoded_content.decode("utf-8")
             lines = file_contents.split("\n")
             
             new_file_contents = ""  # Initialize an empty string to hold the new file contents
-            all_lines_numbered = "\n".join([f"{i + 1}:{line}" for i, line in lines])
+            all_lines_numbered = "\n".join([f"{i + 1}:{line}" for i, line in enumerate(lines)])
             chunking = len(lines) > CHUNK_SIZE # Only chunk if the file is large enough
+            file_name = file_change_request.filename
             for i in range(0, len(lines), CHUNK_SIZE):
                 chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
                 contents_line_numbers = all_lines_numbered[i:i + CHUNK_SIZE]
 
-                new_chunk, file_name = self.modify_file(
-                    file_change_request, chunk_contents, branch=branch, contents_line_numbers=contents_line_numbers, chunking=chunking
+                new_chunk = self.modify_file(
+                    file_change_request, 
+                    chunk_contents, 
+                    branch=branch, 
+                    contents_line_numbers=contents_line_numbers, 
+                    chunking=chunking
                 )
                 new_chunk = format_contents(new_chunk, file_markdown)
                 new_chunk = new_chunk.rstrip()
@@ -467,4 +473,5 @@ class SweepBot(CodeGenBot, GithubBot):
         except MaxTokensExceeded as e:
             raise e
         except Exception as e:
-            logger.info(f"Error in handle_modify_file: {e}")
+            tb = traceback.format_exc()
+            logger.info(f"Error in handle_modify_file: {tb}")    
