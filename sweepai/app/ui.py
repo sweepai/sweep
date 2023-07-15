@@ -4,6 +4,7 @@ import shutil
 import tempfile
 import re
 import webbrowser
+import platform
 
 import gradio as gr
 from git import Repo
@@ -145,6 +146,7 @@ def parse_response(raw_response: str) -> tuple[str, list[tuple[str, str]]]:
             line]
     return response, plan
 
+
 try:
     user_info = api_client.get_user_info()
 except Exception as e:
@@ -201,7 +203,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         config.save()
         return [], [], [[""]]
 
-
     restart_button.click(clear_inputs, None, [file_names, chatbot, plan])
 
     file_names.change(get_files_update, repo_full_name, chatbot)
@@ -209,7 +210,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
     searched = False
     selected_snippets = []
     file_to_str = {}
-
 
     def repo_name_change(repo_full_name):
         global installation_id
@@ -230,7 +230,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             api_client.config = config
             raise e
 
-
     def build_string():
         global selected_snippets
         global file_to_str
@@ -242,9 +241,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             [file_to_str[snippet.file_path] for snippet in selected_snippets])
         return snippets_text
 
-
     repo_full_name.change(repo_name_change, [repo_full_name], [msg])
-
 
     def add_file_to_dict(file_name):
         global file_to_str
@@ -261,7 +258,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         preview = "\n".join(file_contents_split[:3]).replace(backtick, escaped_backtick)
         file_to_str[file_name] = f'{file_name}:0:{length}\n```\n{preview}\n...\n```'
 
-
     def file_names_change(file_names):
         global selected_snippets
         global file_to_str
@@ -273,7 +269,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
                     Snippet(content=path_to_contents[file_name], start=0, end=path_to_contents[file_name].count('\n'),
                             file_path=file_name))
         return file_names, build_string()
-
 
     file_names.change(file_names_change, [file_names], [file_names, snippets_text])
 
@@ -368,7 +363,6 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             else:
                 raise NotImplementedError
 
-
     def handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, file_paths, plan):
         global global_state
         for chat_history, snippets_text, file_paths, plan in _handle_message_stream(chat_history, snippets_text,
@@ -391,45 +385,42 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
                 yield chat_history, snippets_text, file_paths, [(file_path + ": " + instructions,) for
                                                             file_path, instructions in plan]
 
-
     response = msg \
         .submit(handle_message_submit, [repo_full_name, msg, chatbot], [msg, chatbot, create_pr_button], queue=False) \
         .then(handle_message_stream, [chatbot, snippets_text, file_names, plan],
               [chatbot, snippets_text, file_names, plan]) \
         .then(lambda: [gr.update(interactive=True), gr.update(interactive=True)], None, [msg, create_pr_button], queue=False)
 
+def validate_branch_name(branch_name):
+    # Replace any characters that are not alphanumeric or '-' or '_' with '_'
+    valid_branch_name = re.sub('[^0-9a-zA-Z_-]', '_', branch_name)
+    return valid_branch_name
 
-    def validate_branch_name(branch_name):
-        # Replace any characters that are not alphanumeric or '-' or '_' with '_'
-        valid_branch_name = re.sub('[^0-9a-zA-Z_-]', '_', branch_name)
-        return valid_branch_name
+def on_create_pr_button_click(chat_history: list[tuple[str | None, str | None]], plan: list[tuple[str]]):
+    title = chat_history[0][0]
+    content = chat_history[-1][1]
+    # Validate the branch name before it's used in the create_pr function
+    valid_branch_name = validate_branch_name(title.lower().replace(" ", "_").replace("-", "_")[:50])
+    chat_history.append((None, "⌛ Creating PR..."))
+    yield chat_history, gr.Button.update(interactive=False)
+    try:
+        pull_request = api_client.create_pr(
+            file_change_requests=[(item[:item.find(":")], item[item.find(":") + 1:]) for item, *_ in plan],
+            pull_request={
+                "title": title,
+                "content": content,
+                "branch_name": valid_branch_name
+            },
+            messages=chat_history,
+        )
+        chat_history.append((None, f"✅ PR created at {pull_request['html_url']}"))
+        webbrowser.open_new_tab(pull_request["html_url"])
+        yield chat_history, gr.Button.update(interactive=True)
+    except Exception as e:
+        yield chat_history, gr.Button.update(interactive=True)
+        raise gr.Error(str(e))
 
-    def on_create_pr_button_click(chat_history: list[tuple[str | None, str | None]], plan: list[tuple[str]]):
-        title = chat_history[0][0]
-        content = chat_history[-1][1]
-        # Validate the branch name before it's used in the create_pr function
-        valid_branch_name = validate_branch_name(title.lower().replace(" ", "_").replace("-", "_")[:50])
-        chat_history.append((None, "⌛ Creating PR..."))
-        yield chat_history, gr.Button.update(interactive=False)
-        try:
-            pull_request = api_client.create_pr(
-                file_change_requests=[(item[:item.find(":")], item[item.find(":") + 1:]) for item, *_ in plan],
-                pull_request={
-                    "title": title,
-                    "content": content,
-                    "branch_name": valid_branch_name
-                },
-                messages=chat_history,
-            )
-            chat_history.append((None, f"✅ PR created at {pull_request['html_url']}"))
-            webbrowser.open_new_tab(pull_request["html_url"])
-            yield chat_history, gr.Button.update(interactive=True)
-        except Exception as e:
-            yield chat_history, gr.Button.update(interactive=True)
-            raise gr.Error(str(e))
-
-
-    create_pr_button.click(on_create_pr_button_click, [chatbot, plan], [chatbot, create_pr_button])
+create_pr_button.click(on_create_pr_button_click, [chatbot, plan], [chatbot, create_pr_button])
 
 if __name__ == "__main__":
     demo.queue()
