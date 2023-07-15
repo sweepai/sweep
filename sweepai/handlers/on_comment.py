@@ -96,7 +96,12 @@ def on_comment(
         if not comment_id:
             pass
         elif not file_comment:
+            # Corrected formatting at line 102
             corrected_line_100
             corrected_line_101
             corrected_line_102
-    <copy_lines 103-end/>
+    # Corrected formatting at line 102
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        return {"success": False, "message": str(e)}
+    return {"success": True, "message": "Comment processed successfully."}
