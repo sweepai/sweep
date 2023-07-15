@@ -1,6 +1,10 @@
 import os
+import subprocess
 
 PREFIX = "prod"
+current_branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).decode('utf-8').strip()
+if current_branch != 'main':
+    PREFIX = 'dev'
 ENV = PREFIX
 
 DB_MODAL_INST_NAME = PREFIX + "-db"
