@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -163,7 +163,7 @@ class ReviewSubmittedRequest(BaseModel):
         class User(BaseModel):
             login: str
 
-        body: str
+        body: Optional[str]
         id: int
 
     class PullRequest(BaseModel):
