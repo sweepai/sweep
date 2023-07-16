@@ -1,13 +1,44 @@
 import difflib
+import re
 
+def diff_contains_dups_or_removals(diff, new_code):
+    # The regex pattern for lines removed or added in the actual code
+    removed_line_pattern = r"^-.*"
+    added_line_pattern = r"^\+.*"
+
+    lines_removed = False
+    duplicate_lines_added = False
+
+    # Split the diff and new_code into separate lines
+    diff_lines = diff.split('\n')[3:]  # Start from the third line
+    new_code_lines = [line.strip() for line in new_code.split('\n')]
+
+    # Check if there are removed lines
+    for line in diff_lines:
+        if re.match(removed_line_pattern, line):
+            lines_removed = True
+
+    # Check if there are duplicate lines added
+    added_lines = [line[1:].strip() for line in diff_lines if re.match(added_line_pattern, line)]
+    for line in added_lines:
+        if new_code_lines.count(line) > 1:
+            duplicate_lines_added = True
+            break
+
+    return lines_removed or duplicate_lines_added
 
 def generate_diff(old_code, new_code):
+    old_code = old_code.strip()
+    new_code = new_code.strip()
+    
     diff = difflib.unified_diff(
         old_code.splitlines(keepends=True),
         new_code.splitlines(keepends=True)
     )
-    return ''.join(diff)
 
+    diff_text = ''.join(diff)
+    
+    return diff_text
 
 def revert_whitespace_changes(original_file_str, modified_file_str):
     original_lines = original_file_str.splitlines()
@@ -59,11 +90,15 @@ def format_contents(file_contents, is_markdown=False):
     for idx, line in enumerate(first_three_lines):
         line = line.strip()
         if line.startswith('```'):
-            first_line_idx = idx + 1
-    for idx, line in enumerate(last_three_lines):
+            first_line_idx = max(first_line_idx, idx + 1)
+        if 'user_code>' in line:
+            first_line_idx = max(first_line_idx, idx + 1)
+    for idx, line in enumerate(last_three_lines): # Check in reverse
         line = line.strip()
         if line.endswith('```'):
-            last_line_idx = idx
+            last_line_idx = min(idx, last_line_idx)
+        if 'user_code>' in line:
+            last_line_idx = min(idx, last_line_idx)
     first_three_lines = first_three_lines[first_line_idx:]
     last_three_lines = last_three_lines[:last_line_idx]
 
@@ -71,7 +106,7 @@ def format_contents(file_contents, is_markdown=False):
     return '\n'.join(lines)
 
 
-def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
+def generate_new_file(modify_file_response: str, old_file_content: str, chunk_offset: int=0) -> str:
     import re
 
     result_file = ""
@@ -93,7 +128,9 @@ def generate_new_file(modify_file_response: str, old_file_content: str) -> str:
             copied_lines = True
             start, end = match.group(1).split('-')
             start, end = int(start) - 1, int(end) - 1
-
+            if chunk_offset != 0: # Correct for the line numbers being much higher
+                start -= chunk_offset
+                end -= chunk_offset
             start = max(0, start)
             end = min(len(old_file_lines) - 1, end)
 
