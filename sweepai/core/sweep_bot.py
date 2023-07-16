@@ -461,11 +461,17 @@ class SweepBot(CodeGenBot, GithubBot):
                         chunking=chunking,
                         chunk_offset=0
                     )
-            else:
-                with Pool() as p:
-                    chunks = [(file_change_request, "\n".join(lines[i:i + CHUNK_SIZE]), branch, "\n".join(all_lines_numbered[i:i + CHUNK_SIZE]), chunking, i) for i in range(0, len(lines), CHUNK_SIZE)]
-                    new_chunks = p.map(self.modify_file, chunks)
-                new_file_contents = "\n".join(new_chunks)
+                if EditBot().should_edit(issue=file_change_request.instructions, snippet=chunk_contents):
+                    new_chunk = self.modify_file(
+                        file_change_request, 
+                        contents=chunk_contents, 
+                        branch=branch, 
+                        contents_line_numbers=contents_line_numbers, 
+                        chunking=chunking,
+                        chunk_offset=i
+                    )
+                else:
+                    new_chunk = chunk_contents
             logger.debug(
                 f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
             )
@@ -494,3 +500,7 @@ class SweepBot(CodeGenBot, GithubBot):
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")    
             logger.info(f"Error in handle_modify_file: {tb}")
+
+# Remove xml tags
+user_code = re.sub('<[^<]+?>', '', user_code)
+user_code
