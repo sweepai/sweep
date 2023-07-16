@@ -455,10 +455,11 @@ class SweepBot(CodeGenBot, GithubBot):
             if not chunking:
                 new_file_contents = self.modify_file(
                         file_change_request, 
-                        contents=lines, 
+                        contents="\n".join(lines), 
                         branch=branch, 
                         contents_line_numbers="\n".join(all_lines_numbered), 
-                        chunking=chunking
+                        chunking=chunking,
+                        chunk_offset=0
                     )
             else:
                 for i in range(0, len(lines), CHUNK_SIZE):
