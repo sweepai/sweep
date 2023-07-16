@@ -30,7 +30,7 @@ from sweepai.core.prompts import (
 )
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
-from sweepai.utils.diff import format_contents, generate_diff, generate_new_file, is_markdown
+from sweepai.utils.diff import diff_contains_dups_or_removals, format_contents, generate_diff, generate_new_file, is_markdown
 
 class MaxTokensExceeded(Exception):
     def __init__(self, filename):
@@ -335,7 +335,13 @@ class SweepBot(CodeGenBot, GithubBot):
         raise Exception("Failed to parse response after 5 attempts.")
 
     def modify_file(
-            self, file_change_request: FileChangeRequest, contents: str = "", contents_line_numbers: str = "", branch=None, chunking: bool = False
+            self, 
+            file_change_request: FileChangeRequest, 
+            contents: str = "", 
+            contents_line_numbers: str = "", 
+            branch=None, 
+            chunking: bool = False,
+            chunk_offset: int = 0,
     ) -> tuple[str, str]:
         for count in range(5):
             key = f"file_change_modified_{file_change_request.filename}"
@@ -364,13 +370,14 @@ class SweepBot(CodeGenBot, GithubBot):
                     logger.error(f"Max tokens exceeded for {file_change_request.filename}")
                     raise MaxTokensExceeded(file_change_request.filename)
             try:
-                logger.info(f"modify_file_response: {modify_file_response}")
-                new_file = generate_new_file(modify_file_response, contents)
+                logger.info(f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}")
+                new_file = generate_new_file(modify_file_response, contents, chunk_offset=chunk_offset)
                 if not is_markdown(file_change_request.filename):
                     code_repairer = CodeRepairer(chat_logger=self.chat_logger)
                     diff = generate_diff(old_code=contents, new_code=new_file)
-                    new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
-                                                            feature=file_change_request.instructions)
+                    if diff.strip() != "" and diff_contains_dups_or_removals(diff, new_file):
+                        new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
+                                                                feature=file_change_request.instructions)
                 new_file = format_contents(new_file, file_markdown)
                 new_file = new_file.rstrip()
                 if contents.endswith("\n"):
@@ -465,7 +472,8 @@ class SweepBot(CodeGenBot, GithubBot):
                             contents=chunk_contents, 
                             branch=branch, 
                             contents_line_numbers=contents_line_numbers, 
-                            chunking=chunking
+                            chunking=chunking,
+                            chunk_offset=i
                         )
                     if i + CHUNK_SIZE < len(lines):
                         new_file_contents += new_chunk + "\n"
