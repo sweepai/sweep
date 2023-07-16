@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import requests
+import requests
 from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
