@@ -349,12 +349,16 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
                 if chunking:
                     message = chunking_prompt + message
-                modify_file_response = self.chat(
-                    message,
-                    message_key=key,
-                )
-                if chunking:
+                    modify_file_response = self.chat(
+                        message,
+                        message_key=key,
+                    )
                     self.delete_messages_from_chat(key)
+                else:
+                    modify_file_response = self.chat(
+                        message,
+                        message_key=key,
+                    )
             except Exception as e: # Check for max tokens error
                 if "max tokens" in str(e).lower():
                     logger.error(f"Max tokens exceeded for {file_change_request.filename}")
@@ -444,9 +448,9 @@ class SweepBot(CodeGenBot, GithubBot):
             if not chunking:
                 new_file_contents = self.modify_file(
                         file_change_request, 
-                        chunk_contents, 
+                        contents=lines, 
                         branch=branch, 
-                        contents_line_numbers=contents_line_numbers, 
+                        contents_line_numbers="\n".join(all_lines_numbered), 
                         chunking=chunking
                     )
             else:
@@ -458,12 +462,11 @@ class SweepBot(CodeGenBot, GithubBot):
                     else:
                         new_chunk = self.modify_file(
                             file_change_request, 
-                            chunk_contents, 
+                            contents=chunk_contents, 
                             branch=branch, 
                             contents_line_numbers=contents_line_numbers, 
                             chunking=chunking
                         )
-                    
                     if i + CHUNK_SIZE < len(lines):
                         new_file_contents += new_chunk + "\n"
                     else:
