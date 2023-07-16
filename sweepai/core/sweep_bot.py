@@ -462,24 +462,10 @@ class SweepBot(CodeGenBot, GithubBot):
                         chunk_offset=0
                     )
             else:
-                for i in range(0, len(lines), CHUNK_SIZE):
-                    chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
-                    contents_line_numbers = "\n".join(all_lines_numbered[i:i + CHUNK_SIZE])
-                    if not EditBot().should_edit(issue=file_change_request.instructions, snippet=chunk_contents):
-                        new_chunk = chunk_contents
-                    else:
-                        new_chunk = self.modify_file(
-                            file_change_request, 
-                            contents=chunk_contents, 
-                            branch=branch, 
-                            contents_line_numbers=contents_line_numbers, 
-                            chunking=chunking,
-                            chunk_offset=i
-                        )
-                    if i + CHUNK_SIZE < len(lines):
-                        new_file_contents += new_chunk + "\n"
-                    else:
-                        new_file_contents += new_chunk
+                with Pool() as p:
+                    chunks = [(file_change_request, "\n".join(lines[i:i + CHUNK_SIZE]), branch, "\n".join(all_lines_numbered[i:i + CHUNK_SIZE]), chunking, i) for i in range(0, len(lines), CHUNK_SIZE)]
+                    new_chunks = p.map(self.modify_file, chunks)
+                new_file_contents = "\n".join(new_chunks)
             logger.debug(
                 f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
             )
@@ -507,3 +493,4 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")    
+            logger.info(f"Error in handle_modify_file: {tb}")
