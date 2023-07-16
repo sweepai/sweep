@@ -25,6 +25,7 @@ from sweepai.core.prompts import (
     create_file_prompt,
     modify_file_prompt_2,
     snippet_replacement,
+    chunking_prompt,
 )
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
@@ -337,14 +338,18 @@ class SweepBot(CodeGenBot, GithubBot):
     ) -> tuple[str, str]:
         for count in range(5):
             key = f"file_change_modified_{file_change_request.filename}"
+            file_markdown = is_markdown(file_change_request.filename)
             try:
-                modify_file_response = self.chat(
-                    modify_file_prompt_2.format(
+                message = modify_file_prompt_2.format(
                         filename=file_change_request.filename,
                         instructions=file_change_request.instructions,
                         code=contents_line_numbers,
                         line_count=contents.count('\n') + 1
-                    ),
+                    )
+                if chunking:
+                    message = chunking_prompt + message
+                modify_file_response = self.chat(
+                    message,
                     message_key=key,
                 )
                 if chunking:
@@ -361,6 +366,10 @@ class SweepBot(CodeGenBot, GithubBot):
                     diff = generate_diff(old_code=contents, new_code=new_file)
                     new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
                                                             feature=file_change_request.instructions)
+                new_file = format_contents(new_file, file_markdown)
+                new_file = new_file.rstrip()
+                if contents.endswith("\n"):
+                    new_file += "\n"
                 return new_file
             except Exception as e:
                 tb = traceback.format_exc()
@@ -391,11 +400,11 @@ class SweepBot(CodeGenBot, GithubBot):
         completed = 0
         for file_change_request in file_change_requests:
             try:
-                file_markdown = is_markdown(file_change_request.filename)
+                
                 if file_change_request.change_type == "create":
-                    self.handle_create_file(file_change_request, branch, file_markdown)
+                    self.handle_create_file(file_change_request, branch)
                 elif file_change_request.change_type == "modify":
-                    self.handle_modify_file(file_change_request, branch, file_markdown)
+                    self.handle_modify_file(file_change_request, branch)
             except MaxTokensExceeded as e:
                 raise e
             except Exception as e:
@@ -403,9 +412,10 @@ class SweepBot(CodeGenBot, GithubBot):
             completed += 1
         return completed, num_fcr
 
-    def handle_create_file(self, file_change_request: FileChangeRequest, branch: str, file_markdown: bool):
+    def handle_create_file(self, file_change_request: FileChangeRequest, branch: str):
         try:
             file_change = self.create_file(file_change_request)
+            file_markdown = is_markdown(file_change_request.filename)
             file_change.code = format_contents(file_change.code, file_markdown)
             logger.debug(
                 f"{file_change_request.filename}, {f'Create {file_change_request.filename}'}, {file_change.code}, {branch}"
@@ -419,7 +429,7 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             logger.info(f"Error in handle_create_file: {e}")
 
-    def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str, file_markdown: bool):
+    def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
         CHUNK_SIZE = 500  # Number of lines to process at a time
         try:
             file = self.get_file(file_change_request.filename, branch=branch)
@@ -427,12 +437,12 @@ class SweepBot(CodeGenBot, GithubBot):
             lines = file_contents.split("\n")
             
             new_file_contents = ""  # Initialize an empty string to hold the new file contents
-            all_lines_numbered = "\n".join([f"{i + 1}:{line}" for i, line in enumerate(lines)])
+            all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
             chunking = len(lines) > CHUNK_SIZE # Only chunk if the file is large enough
             file_name = file_change_request.filename
             for i in range(0, len(lines), CHUNK_SIZE):
                 chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
-                contents_line_numbers = all_lines_numbered[i:i + CHUNK_SIZE]
+                contents_line_numbers = "\n".join(all_lines_numbered[i:i + CHUNK_SIZE])
 
                 new_chunk = self.modify_file(
                     file_change_request, 
@@ -441,10 +451,6 @@ class SweepBot(CodeGenBot, GithubBot):
                     contents_line_numbers=contents_line_numbers, 
                     chunking=chunking
                 )
-                new_chunk = format_contents(new_chunk, file_markdown)
-                new_chunk = new_chunk.rstrip()
-                if chunk_contents.endswith("\n"):
-                    new_chunk += "\n"
                 
                 new_file_contents += new_chunk  # Append the processed chunk to new_file_contents
                 

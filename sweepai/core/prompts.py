@@ -310,6 +310,11 @@ print("debug statement")
 Do not rewrite the entire file. Use <copied> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
 """
 
+chunking_prompt = """\
+We are handling this file in chunks. Any lines that you do not see will be handled, so trust that the imports are managed, etc.
+If you see code that should be modified, please modify it. The changes may not need to be in this chunk, in that case just copy and return the code as is.
+"""
+
 modify_file_prompt_2 = """
 File Name: {filename}
 <old_file>
