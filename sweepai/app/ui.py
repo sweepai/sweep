@@ -405,9 +405,8 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         return valid_branch_name
 
     def on_create_pr_button_click(chat_history: list[tuple[str | None, str | None]], plan: list[tuple[str]]):
-        title = chat_history[0][0]
+        title = chat_history[0][0][:240]
         content = chat_history[-1][1]
-        # Validate the branch name before it's used in the create_pr function
         valid_branch_name = validate_branch_name(title.lower().replace(" ", "_").replace("-", "_")[:50])
         chat_history.append((None, "⌛ Creating PR..."))
         yield chat_history, gr.Button.update(interactive=False)
