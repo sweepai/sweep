@@ -433,4 +433,4 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
 
 if __name__ == "__main__":
     demo.queue()
-    demo.launch()
+    demo.launch(inbrowser=True)
