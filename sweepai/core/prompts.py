@@ -478,24 +478,26 @@ Make sure to mention the file name and line number of the issue(if applicable).
 """
 
 should_edit_code_system_prompt = """\
-Your job is to determine whether the code is relevant given a description of instructions to change the code and a code snippet.
+We are processing a large file and trying to make code changes to it.
+The file is definitely relevant, but the section we observe may not be relevant.
+Your job is to determine whether the instructions are referring to the given section of the file.
 """
 
 should_edit_code_prompt = """\
-Here are the instructions to change the code.
+Here are the instructions to change the code in the file:
 {problem_description}
-Here is the code snippet:
+Here is the code snippet from the file:
 {code_snippet}
 
-Respond in the following format:
-1. Planning:
-* Is the code relevant to the issue?
-* If so, what is the relevant part of the code?
-* If not, what is the reason?
-2. Step-by-step thoughts with explanations: 
+To determine whether the instructions are referring to this section of the file, respond in the following format:
+1. Step-by-step thoughts with explanations: 
 * Thought 1 - Explanation 1
 * Thought 2 - Explanation 2
 ...
+2. Planning:
+* Is the code relevant?
+* If so, what is the relevant part of the code?
+* If not, what is the reason?
 
 3. In the last line of your response, write either <relevant>True</relevant> or <relevant>False</relevant>.
 """
