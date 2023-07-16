@@ -43,6 +43,20 @@ class CodeRepairer(ChatGPT):
             print(result.stderr)
             return False
 
+    def should_edit_code(self, code: str, file_extension: str) -> bool:
+        # Check the syntax of the code
+        if not self.check_syntax(code, file_extension):
+            return True
+
+        # Custom rules
+        if file_extension == '.py':
+            # Bad practice: using `==` to compare to True or False
+            if '== True' in code or '== False' in code:
+                return True
+
+        # If none of the rules were triggered, the code doesn't need to be edited
+        return False
+
     def repair_code(self, diff: str, user_code: str, feature: str, retries=3) -> str:
         self.messages = [Message(role="system", content=code_repair_system_prompt.format(feature=feature))]
         self.model = "gpt-3.5-turbo-16k-0613"  # can be optimized
