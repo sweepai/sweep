@@ -24,31 +24,31 @@ num_full_files = 2
 num_extended_snippets = 2
 
 
-def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3):
-    for snippet in snippets[:num_full_files]:
-        snippet = snippet.expand()
+branch_queues = {}  # Dictionary to store the queues for each branch
+for snippet in snippets[:num_full_files]:
+    snippet = snippet.expand()
 
-    # snippet fusing
-    i = 0
-    while i < len(snippets):
-        j = i + 1
-        while j < len(snippets):
-            if snippets[i] ^ snippets[j]:  # this checks for overlap
-                snippets[i] = snippets[i] | snippets[j]  # merging
-                snippets.pop(j)
-            else:
-                j += 1
-        i += 1
+# snippet fusing
+i = 0
+while i < len(snippets):
+    j = i + 1
+    while j < len(snippets):
+        if snippets[i] ^ snippets[j]:  # this checks for overlap
+            snippets[i] = snippets[i] | snippets[j]  # merging
+            snippets.pop(j)
+        else:
+            j += 1
+    i += 1
 
-    # truncating snippets based on character length
-    result_snippets = []
-    total_length = 0
-    for snippet in snippets:
-        total_length += len(snippet.get_snippet())
-        if total_length > total_number_of_snippet_tokens * 5:
-            break
-        result_snippets.append(snippet)
-    return result_snippets[:max_num_of_snippets]
+# truncating snippets based on character length
+result_snippets = []
+total_length = 0
+for snippet in snippets:
+    total_length += len(snippet.get_snippet())
+    if total_length > total_number_of_snippet_tokens * 5:
+        break
+    result_snippets.append(snippet)
+return result_snippets[:max_num_of_snippets]
 
 
 def on_comment(
@@ -211,8 +211,17 @@ def on_comment(
         file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change(retries=3)
         file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
-        sweep_bot.change_files_in_github(file_change_requests, branch_name)
-
+        # Fetching files to modify/create...
+        if branch_name not in branch_queues:
+            branch_queues[branch_name] = []
+        branch_queues[branch_name].append((sweep_bot, file_change_requests, branch_name))
+        while branch_queues[branch_name]:
+            sweep_bot, file_change_requests, branch_name = branch_queues[branch_name][0]
+            file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change(retries=3)
+            file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
+            # Making Code Changes...
+            sweep_bot.change_files_in_github(file_change_requests, branch_name)
+            branch_queues[branch_name].pop(0)
         logger.info("Done!")
     except NoFilesException:
         posthog.capture(username, "failed", properties={
