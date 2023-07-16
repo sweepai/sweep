@@ -481,7 +481,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     else:
                         new_file_contents += new_chunk
             logger.debug(
-                f"{file_name}, {f'Update {file_name}'}, {new_chunk}, {branch}"
+                f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
             )
             # Update the file with the new contents after all chunks have been processed
             try:
