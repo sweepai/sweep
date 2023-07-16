@@ -1,4 +1,5 @@
 import json
+import random
 from copy import deepcopy
 from typing import Iterator, Literal, Self
 
@@ -147,7 +148,7 @@ class ChatGPT(BaseModel):
         else:
             name = self.messages[-1].function_call["name"]
             self.messages.append(Message(role="function", content=content, key=message_key, name=name))
-        model = model or self.model
+        model = model or random.choice(["gpt-4", "gpt-4-0613"])
         is_function_call = False
         if model in [args.__args__[0] for args in OpenAIModel.__args__]:
             # might be a bug here in all of this
@@ -374,7 +375,7 @@ class ChatGPT(BaseModel):
         else:
             name = self.messages[-1].function_call["name"]
             self.messages.append(Message(role="function", content=content, key=message_key, name=name))
-        model = model or self.model
+        model = model or random.choice(["gpt-4", "gpt-4-0613"])
         is_function_call = False
         # might be a bug here in all of this
         # return self.stream_openai(model=model, functions=functions, function_name=function_name)
