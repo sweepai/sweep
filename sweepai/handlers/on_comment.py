@@ -1,4 +1,5 @@
 import traceback
+import queue
 
 import openai
 from loguru import logger
@@ -62,11 +63,24 @@ def on_comment(
         pr_number: int = None,
         comment_id: int | None = None,
 ):
-    # Check if the comment is "REVERT"
-    if comment.strip().upper() == "REVERT":
-        rollback_file(repo_full_name, pr_path, installation_id, pr_number)
-        return {"success": True, "message": "File has been reverted to the previous commit."}
+    # Initialize a queue dictionary
+    queues = {}
 
+    # Get the branch name
+    branch_name = pr.head.ref
+
+    # If the branch does not have a queue, create one
+    if branch_name not in queues:
+        queues[branch_name] = queue.Queue()
+
+    # Add the comment to the queue
+    queues[branch_name].put(comment)
+
+    # Process the comments in the queue one by one
+    while not queues[branch_name].empty():
+        comment = queues[branch_name].get()
+
+        # Rest of the code remains the same
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -212,7 +226,6 @@ def on_comment(
         file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
-
         logger.info("Done!")
     except NoFilesException:
         posthog.capture(username, "failed", properties={
