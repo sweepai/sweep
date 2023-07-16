@@ -59,11 +59,15 @@ def format_contents(file_contents, is_markdown=False):
     for idx, line in enumerate(first_three_lines):
         line = line.strip()
         if line.startswith('```'):
-            first_line_idx = idx + 1
-    for idx, line in enumerate(last_three_lines):
+            first_line_idx = max(first_line_idx, idx + 1)
+        if 'user_code>' in line:
+            first_line_idx = max(first_line_idx, idx + 1)
+    for idx, line in enumerate(last_three_lines): # Check in reverse
         line = line.strip()
         if line.endswith('```'):
-            last_line_idx = idx
+            last_line_idx = min(idx, last_line_idx)
+        if 'user_code>' in line:
+            last_line_idx = min(idx, last_line_idx)
     first_three_lines = first_three_lines[first_line_idx:]
     last_three_lines = last_three_lines[:last_line_idx]
 

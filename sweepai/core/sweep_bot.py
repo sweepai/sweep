@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.code_repair import CodeRepairer
+from sweepai.core.edit_chunk import EditBot
 from sweepai.core.entities import (
     FileCreation,
     FileChangeRequest,
@@ -430,7 +431,7 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.info(f"Error in handle_create_file: {e}")
 
     def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
-        CHUNK_SIZE = 500  # Number of lines to process at a time
+        CHUNK_SIZE = 400  # Number of lines to process at a time
         try:
             file = self.get_file(file_change_request.filename, branch=branch)
             file_contents = file.decoded_content.decode("utf-8")
@@ -438,25 +439,38 @@ class SweepBot(CodeGenBot, GithubBot):
             
             new_file_contents = ""  # Initialize an empty string to hold the new file contents
             all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
-            chunking = len(lines) > CHUNK_SIZE # Only chunk if the file is large enough
+            chunking = len(lines) > CHUNK_SIZE * 1.5 # Only chunk if the file is large enough
             file_name = file_change_request.filename
-            for i in range(0, len(lines), CHUNK_SIZE):
-                chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
-                contents_line_numbers = "\n".join(all_lines_numbered[i:i + CHUNK_SIZE])
-
-                new_chunk = self.modify_file(
-                    file_change_request, 
-                    chunk_contents, 
-                    branch=branch, 
-                    contents_line_numbers=contents_line_numbers, 
-                    chunking=chunking
-                )
-                
-                new_file_contents += new_chunk  # Append the processed chunk to new_file_contents
-                
-                logger.debug(
-                    f"{file_name}, {f'Update {file_name}'}, {new_chunk}, {branch}"
-                )
+            if not chunking:
+                new_file_contents = self.modify_file(
+                        file_change_request, 
+                        chunk_contents, 
+                        branch=branch, 
+                        contents_line_numbers=contents_line_numbers, 
+                        chunking=chunking
+                    )
+            else:
+                for i in range(0, len(lines), CHUNK_SIZE):
+                    chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
+                    contents_line_numbers = "\n".join(all_lines_numbered[i:i + CHUNK_SIZE])
+                    if not EditBot().should_edit(issue=file_change_request.instructions, snippet=chunk_contents):
+                        new_chunk = chunk_contents
+                    else:
+                        new_chunk = self.modify_file(
+                            file_change_request, 
+                            chunk_contents, 
+                            branch=branch, 
+                            contents_line_numbers=contents_line_numbers, 
+                            chunking=chunking
+                        )
+                    
+                    if i + CHUNK_SIZE < len(lines):
+                        new_file_contents += new_chunk + "\n"
+                    else:
+                        new_file_contents += new_chunk
+            logger.debug(
+                f"{file_name}, {f'Update {file_name}'}, {new_chunk}, {branch}"
+            )
             # Update the file with the new contents after all chunks have been processed
             try:
                 self.repo.update_file(
