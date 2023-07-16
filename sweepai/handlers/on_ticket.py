@@ -204,8 +204,7 @@ def on_ticket(
         if errored:
             return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
         return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + (
-            "\n" + stars_suffix + config_pr_message if index != -1 else "") + "\n" + payment_message_start
-
+            "\n" + stars_suffix if index != -1 else "") + "\n" + payment_message_start + config_pr_message
     first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\nWorking on it...{bot_suffix}{discord_suffix}"
     for comment in comments:
         if comment.user.login == GITHUB_BOT_USERNAME:
