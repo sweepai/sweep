@@ -1,5 +1,4 @@
 import traceback
-
 import openai
 from loguru import logger
 
@@ -52,15 +51,15 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
 
 
 def on_comment(
-        repo_full_name: str,
-        repo_description: str,
-        comment: str,
-        pr_path: str | None,
-        pr_line_position: int | None,
-        username: str,
-        installation_id: int,
-        pr_number: int = None,
-        comment_id: int | None = None,
+    repo_full_name: str,
+    repo_description: str,
+    comment: str,
+    pr_path: str | None,
+    pr_line_position: int | None,
+    username: str,
+    installation_id: int,
+    pr_number: int = None,
+    comment_id: int | None = None,
 ):
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
@@ -194,7 +193,6 @@ def on_comment(
         logger.info(f"Human prompt{human_message.construct_prompt()}")
 
         sweep_bot = SweepBot.from_system_message_content(
-            # human_message=human_message, model="claude-v1.3-100k", repo=repo
             human_message=human_message, repo=repo, chat_logger=chat_logger, model="gpt-4-32k-0613"
         )
     except Exception as e:
