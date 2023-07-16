@@ -331,6 +331,60 @@ class SweepBot(CodeGenBot, GithubBot):
                 continue
         raise Exception("Failed to parse response after 5 attempts.")
 
+    def process_chunk(self, file_change_request: FileChangeRequest, chunk: str, branch=None) -> str:
+        """
+        Process a chunk of file content and return the modified content.
+        
+        Parameters:
+        file_change_request (FileChangeRequest): The file change request object.
+        chunk (str): The chunk of file content to process.
+        branch (str): The branch where the file is located. Default is None.
+        
+        Returns:
+        str: The modified file content.
+        """
+        key = f"file_change_modified_{file_change_request.filename}_{count}"
+        try:
+            modify_file_response = self.chat(
+                modify_file_prompt_2.format(
+                    filename=file_change_request.filename,
+                    instructions=file_change_request.instructions,
+                    code=chunk,
+                    line_count=chunk.count('\n') + 1
+                ),
+                message_key=key,
+            )
+        except Exception as e:  # Check for max tokens error
+            if "max tokens" in str(e).lower():
+                raise MaxTokensExceeded(file_change_request.filename)
+
+        try:
+            logger.info(f"modify_file_response: {modify_file_response}")
+            try:
+                new_chunk = generate_new_file(modify_file_response, chunk)
+            except Exception as e:
+                logger.error(f"Failed to generate new file: {e}")
+                logger.error(f"modify_file_response: {modify_file_response}")
+                logger.error(f"chunk: {chunk}")
+                raise e
+            changes.append(new_chunk)
+            self.delete_messages_from_chat(key)
+            diff = generate_diff(old_code=chunk, new_code=new_chunk)
+            new_chunk = code_repairer.repair_code(diff=diff, user_code=new_chunk,
+                                                  feature=file_change_request.instructions)
+            changes.append(new_chunk)
+        except Exception as e:
+            tb = traceback.format_exc()
+            logger.warning(f"Received error {e}\n{tb}")
+            logger.warning(
+                f"Failed to parse. Retrying for the {count}th time..."
+            )
+            self.delete_messages_from_chat(key)
+            continue
+        new_file_contents = ''.join(changes)
+        return (new_file_contents, file_change_request.filename)
+        return (new_file_contents, file_change_request.filename)
+
     def modify_file(
             self, file_change_request: FileChangeRequest, contents: str = "", branch=None
     ) -> tuple[str, str]:
@@ -341,76 +395,21 @@ class SweepBot(CodeGenBot, GithubBot):
             ).decoded_content.decode("utf-8")
         # Add line numbers to the contents; goes in prompts but not github
         contents_line_numbers = "\n".join([f"{i + 1}:{line}" for i, line in enumerate(contents.split("\n"))])
-        contents_line_numbers = contents_line_numbers.replace('"""', "'''")
-        for count in range(5):
-            if "0613" in self.model:
-                """
-                planning_response = self.chat( # We don't use the plan in the next call
-                    modify_file_plan_prompt.format(
-                        filename=file_change_request.filename,
-                        instructions=file_change_request.instructions,
-                        code=contents_line_numbers,
-                    ),
-                    message_key=f"file_change_{file_change_request.filename}",
-                )
-
-                snippet_string = ""
-                lines = []
-                for match in re.findall(r"(?:lines (\d+)-(\d+)|line (\d+))", planning_response):
-                    if len(match[2]) > 0:
-                        start_line = int(match[2])
-                        end_line = start_line
-                    else:
-                        start_line = int(match[0])
-                        end_line = int(match[1])
-                    lines.append('\n'.join(contents_line_numbers.splitlines()[start_line - 1:end_line]))
-
-                code_snippets = '\n...\n'.join(lines)
-
-                newline = '\n'
-                modify_file_response = self.chat(
-                    modify_file_prompt.format(
-                        snippets=code_snippets,
-                        line_numbers=f'{1} to {1 + contents.count(newline)}'
-                    ),
-                    message_key=f"file_change_{file_change_request.filename}",
-                )
-                """
-
-                # Todo: updated code is outdated by unified v2 prompt! remove?
-                key = f"file_change_modified_{file_change_request.filename}"
-                try:
-                    modify_file_response = self.chat(
-                        modify_file_prompt_2.format(
-                            filename=file_change_request.filename,
-                            instructions=file_change_request.instructions,
-                            code=contents_line_numbers,
-                            line_count=contents.count('\n') + 1
-                        ),
-                        message_key=key,
-                    )
-                except Exception as e: # Check for max tokens error
-                    if "max tokens" in str(e).lower():
-                        raise MaxTokensExceeded(file_change_request.filename)
-
-                try:
-                    logger.info(f"modify_file_response: {modify_file_response}")
-                    new_file = generate_new_file(modify_file_response, contents)
-                    if not is_markdown(file_change_request.filename):
-                        code_repairer = CodeRepairer(chat_logger=self.chat_logger)
-                        diff = generate_diff(old_code=contents, new_code=new_file)
-                        new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
-                                                             feature=file_change_request.instructions)
-                    return (new_file, file_change_request.filename)
-                except Exception as e:
-                    tb = traceback.format_exc()
-                    logger.warning(f"Recieved error {e}\n{tb}")
-                    logger.warning(
-                        f"Failed to parse. Retrying for the {count}th time..."
-                    )
-                    self.delete_messages_from_chat(key)
-                    continue
-        raise Exception("Failed to parse response after 5 attempts.")
+        
+        # Break the contents into chunks
+        chunk_size = 1000  # Define a suitable chunk size
+        contents_chunks = [contents_line_numbers[i:i+chunk_size] for i in range(0, len(contents_line_numbers), chunk_size)]
+        
+        # List to store the changes made to each chunk
+        changes = []
+        
+        # Add retries to the chunk processing
+        for retry in range(5):
+            for count, chunk in enumerate(contents_chunks):
+                if "0613" in self.model:
+                    new_file_contents = self.process_chunk(file_change_request, chunk, branch)
+        new_file_contents = ''.join(changes)
+        return (new_file_contents, file_change_request.filename)
 
     def change_file(self, file_change_request: FileChangeRequest):
         if file_change_request.change_type == "create":
