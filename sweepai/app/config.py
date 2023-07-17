@@ -25,6 +25,7 @@ class State(BaseModel):
     chat_history: list[tuple[str | None, str | None]] = []
     snippets_text: str = "### Relevant Snippets:"
     plan: list[tuple[str, str]] = []
+    plan_toggle: bool = False
 
 
 class SweepChatConfig(BaseModel):
