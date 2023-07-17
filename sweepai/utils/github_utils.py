@@ -191,13 +191,27 @@ def search_snippets(
         sweep_config: SweepConfig = SweepConfig(),
         filenames: list[str] = []  # Add filenames parameter
 ) -> tuple[list[Snippet], str]:
+    pass
+
+
+def search_snippets(
+        repo: Repository,
+        query: str,
+        installation_id: int,
+        num_files: int = 5,
+        include_tree: bool = True,
+        branch: str = None,
+        sweep_config: SweepConfig = SweepConfig(),
+        filenames: list[str] = []  # Add filenames parameter
+) -> tuple[list[Snippet], str]:
+    pass
 
 
 def index_full_repository(
-        repo_name: str,
-        installation_id: int = None,
+        repo: Repository,
+        installation_id: int,
         sweep_config: SweepConfig = SweepConfig(),
-):
+) -> tuple[list[Snippet], str]:
     update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
     num_indexed_docs = update_index.spawn(
         repo_name=repo_name,
