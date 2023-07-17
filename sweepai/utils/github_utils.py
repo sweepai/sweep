@@ -68,13 +68,13 @@ def get_installation_id(username: str):
 
 
 def display_directory_tree(
-        root_path,
-        includes: list[str] = [],
-        excludes: list[str] = [".git"],
+    root_path,
+    includes: list[str] = [],
+    excludes: list[str] = [".git"],
 ):
     def display_directory_tree_helper(
-            current_dir,
-            indent="",
+        current_dir,
+        indent="",
     ) -> str:
         files = os.listdir(current_dir)
         files.sort()
@@ -121,12 +121,13 @@ def get_file_list(root_directory: str) -> str:
 
 
 def get_tree_and_file_list(
-        repo: Repository,
-        installation_id: int,
-        snippet_paths: list[str],
-        force_include: list[str] = []  # Add new parameter for filenames to be included
+    repo: Repository,
+    installation_id: int,
+    snippet_paths: list[str],
+    force_include: list[str] = [],  # Add new parameter for filenames to be included
 ) -> str:
     from git import Repo
+
     token = get_token(installation_id)
     shutil.rmtree("repo", ignore_errors=True)
     repo_url = f"https://x-access-token:{token}@github.com/{repo.full_name}.git"
@@ -143,8 +144,8 @@ def get_tree_and_file_list(
         prefixes.append(snippet_path)
 
     def display_directory_tree_helper(
-            current_dir,
-            indent="",
+        current_dir,
+        indent="",
     ) -> str:
         files = os.listdir(current_dir)
         files.sort()
@@ -170,48 +171,34 @@ def get_tree_and_file_list(
     file_list = get_file_list("repo")
     shutil.rmtree("repo")
     return tree, file_list
-    return tree, file_list
 
 
 def get_file_contents(repo: Repository, file_path, ref=None):
     if ref is None:
         ref = repo.default_branch
     file = repo.get_contents(file_path, ref=ref)
-    contents = file.decoded_content.decode("utf-8", errors='replace')
+    contents = file.decoded_content.decode("utf-8", errors="replace")
     return contents
 
 
 def search_snippets(
-        repo: Repository,
-        query: str,
-        installation_id: int,
-        num_files: int = 5,
-        include_tree: bool = True,
-        branch: str = None,
-        sweep_config: SweepConfig = SweepConfig(),
-        filenames: list[str] = []  # Add filenames parameter
-) -> tuple[list[Snippet], str]:
-    pass
-
-
-def search_snippets(
-        repo: Repository,
-        query: str,
-        installation_id: int,
-        num_files: int = 5,
-        include_tree: bool = True,
-        branch: str = None,
-        sweep_config: SweepConfig = SweepConfig(),
-        filenames: list[str] = []  # Add filenames parameter
+    repo: Repository,
+    query: str,
+    installation_id: int,
+    num_files: int = 5,
+    include_tree: bool = True,
+    branch: str = None,
+    sweep_config: SweepConfig = SweepConfig(),
+    filenames: list[str] = [],  # Add filenames parameter
 ) -> tuple[list[Snippet], str]:
     pass
 
 
 def index_full_repository(
-        repo: Repository,
-        installation_id: int,
-        sweep_config: SweepConfig = SweepConfig(),
-) -> tuple[list[Snippet], str]:
+    repo_name: str,
+    installation_id: int = None,
+    sweep_config: SweepConfig = SweepConfig(),
+):
     update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
     num_indexed_docs = update_index.spawn(
         repo_name=repo_name,
