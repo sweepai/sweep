@@ -20,7 +20,6 @@ from sweepai.utils.config.server import DB_MODAL_INST_NAME, API_MODAL_INST_NAME,
     GITHUB_LABEL_NAME, GITHUB_LABEL_COLOR, GITHUB_LABEL_DESCRIPTION, BOT_TOKEN_NAME
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
-import re
 
 stub = modal.Stub(API_MODAL_INST_NAME)
 image = (
@@ -66,13 +65,6 @@ handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
 
-import re
-
-def extract_filenames(text):
-    """Extract potential filenames from a string."""
-    pattern = r'\b\w+\.\w+\b'
-    return re.findall(pattern, text)
-
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
 async def webhook(raw_request: Request):
@@ -109,7 +101,6 @@ async def webhook(raw_request: Request):
                     request.repository.description = (
                             request.repository.description or ""
                     )
-                    filenames = extract_filenames(request.issue.title + ' ' + request.issue.body)
                     handle_ticket.spawn(
                         request.issue.title,
                         request.issue.body,
@@ -119,7 +110,7 @@ async def webhook(raw_request: Request):
                         request.repository.full_name,
                         request.repository.description,
                         request.installation.id,
-                        filenames
+                        None
                     )
             case "issue_comment", "created":
                 request = IssueCommentRequest(**request_dict)
