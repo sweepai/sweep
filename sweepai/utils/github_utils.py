@@ -120,17 +120,11 @@ def get_file_list(root_directory: str) -> str:
     return files
 
 
-# def get_tree(repo_name: str, installation_id: int) -> str:
-#     token = get_token(installation_id)
-#     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
-#     Repo.clone_from(repo_url, "repo")
-#     tree = display_directory_tree("repo")
-#     shutil.rmtree("repo")
-#     return tree
 def get_tree_and_file_list(
         repo: Repository,
         installation_id: int,
-        snippet_paths: list[str]
+        snippet_paths: list[str],
+        force_include: list[str] = []  # Add new parameter for filenames to be included
 ) -> str:
     from git import Repo
     token = get_token(installation_id)
@@ -148,12 +142,34 @@ def get_tree_and_file_list(
         file_list += snippet_path.split("/")[-1]
         prefixes.append(snippet_path)
 
-    tree = display_directory_tree(
-        "repo",
-        includes=prefixes,
-    )
+    def display_directory_tree_helper(
+            current_dir,
+            indent="",
+    ) -> str:
+        files = os.listdir(current_dir)
+        files.sort()
+        tree = ""
+        for item_name in files:
+            full_path = os.path.join(current_dir, item_name)[len(root_path) + 1:]
+            if item_name in excludes:
+                continue
+            file_path = os.path.join(current_dir, item_name)
+            if os.path.isdir(file_path):
+                if full_path in includes or full_path in force_include:  # Check if file is in force_include list
+                    tree += f"{indent}|- {item_name}/\n"
+                    tree += display_directory_tree_helper(
+                        file_path, indent + "|   "
+                    )
+                else:
+                    tree += f"{indent}|- {item_name}/...\n"
+            else:
+                tree += f"{indent}|- {item_name}\n"
+        return tree
+
+    tree = display_directory_tree_helper("repo", includes=prefixes)
     file_list = get_file_list("repo")
     shutil.rmtree("repo")
+    return tree, file_list
     return tree, file_list
 
 
