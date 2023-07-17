@@ -187,7 +187,8 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
     with gr.Row():
         with gr.Column(scale=8):
             msg = gr.Textbox(placeholder="Send a message to Sweep", label=None, elem_id="message_box")
-        with gr.Column(scale=0.5):
+        create_pr_button_column = gr.Column(scale=0.5, visible=bool(global_state.plan))
+        with create_pr_button_column:
             create_pr_button = gr.Button(value="Create PR", interactive=bool(global_state.plan))
     
     with gr.Row():
@@ -203,9 +204,9 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         global_state.plan_toggle = plan_toggle
         config.state = global_state
         config.save()
-        return gr.update(visible=plan_toggle)
+        return gr.update(visible=plan_toggle), gr.update(visible=plan_toggle)
     
-    plan_toggle.change(on_plan_toggle_click, [plan_toggle], [plan])
+    plan_toggle.change(on_plan_toggle_click, [plan_toggle], [create_pr_button_column, plan])
 
     def clear_inputs():
         global global_state
@@ -415,7 +416,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             )
             config.state = global_state
             config.save()
-            if plan == [["", ""]]:
+            if plan == [] or plan == [["", ""]]:
                 yield chat_history, snippets_text, file_paths, [[""]]
             else:
                 yield chat_history, snippets_text, file_paths, [(file_path + ": " + instructions,) for
