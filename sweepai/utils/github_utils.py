@@ -67,10 +67,33 @@ def get_installation_id(username: str):
         raise Exception("Could not get installation id, probably not installed")
 
 
+def levenshtein_distance(s1, s2):
+    """Calculate the Levenshtein distance between two strings."""
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+
+    if len(s2) == 0:
+        return len(s1)
+
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+
+    return previous_row[-1]
+
+
 def display_directory_tree(
         root_path,
         includes: list[str] = [],
         excludes: list[str] = [".git"],
+        force_includes: list[str] = [],
+        distance_threshold: int = 5,
 ):
     def display_directory_tree_helper(
             current_dir,
@@ -93,7 +116,8 @@ def display_directory_tree(
                 else:
                     tree += f"{indent}|- {item_name}/...\n"
             else:
-                tree += f"{indent}|- {item_name}\n"
+                if any(levenshtein_distance(full_path, force_include) <= distance_threshold for force_include in force_includes):
+                    tree += f"{indent}|- {item_name}\n"
         return tree
 
     tree = display_directory_tree_helper(root_path)
@@ -120,13 +144,6 @@ def get_file_list(root_directory: str) -> str:
     return files
 
 
-# def get_tree(repo_name: str, installation_id: int) -> str:
-#     token = get_token(installation_id)
-#     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
-#     Repo.clone_from(repo_url, "repo")
-#     tree = display_directory_tree("repo")
-#     shutil.rmtree("repo")
-#     return tree
 def get_tree_and_file_list(
         repo: Repository,
         installation_id: int,
