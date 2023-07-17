@@ -211,9 +211,12 @@ def on_comment(
         file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change(retries=3)
         file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
-        sweep_bot.change_files_in_github(file_change_requests, branch_name)
-
-        logger.info("Done!")
+        try:
+            logger.info("Making Code Changes...")
+            sweep_bot.change_files_in_github(file_change_requests, branch_name)
+        except Exception as e:
+            logger.error(f"Error in change_files_in_github: {e}")
+            raise e
     except NoFilesException:
         posthog.capture(username, "failed", properties={
             "error": "No files to change",
