@@ -169,7 +169,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
 
     with gr.Row():
         with gr.Column(scale=2):
-            chatbot = gr.Chatbot(height=400, value=lambda: global_state.chat_history)
+            chatbot = gr.Chatbot(height=600, value=lambda: global_state.chat_history)
         with gr.Column():
             with gr.Row():
                 snippets_text = gr.Markdown(value=lambda: global_state.snippets_text, elem_id="snippets")
