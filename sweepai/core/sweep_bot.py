@@ -309,9 +309,9 @@ class SweepBot(CodeGenBot, GithubBot):
         return
 
     def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
-        # Check if the file extension is allowed
+        # Check if the file extension is excluded
         file_extension = os.path.splitext(file_change_request.filename)[1]
-        if file_extension not in SweepConfig.allowed_file_extensions:
+        if file_extension in SweepConfig.exclude_exts:
             raise Exception(f"File extension '{file_extension}' is not allowed.")
         
         file_change: FileCreation | None = None
@@ -510,3 +510,7 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
+
+# Remove xml tags
+user_code = re.sub('<[^<]+?>', '', user_code)
+user_code
