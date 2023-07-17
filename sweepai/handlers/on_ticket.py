@@ -68,11 +68,13 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5)
                 snippets.pop(j)
             else:
                 j += 1
-        i += 1
+import re
 
-    # truncating snippets based on character length
-    result_snippets = []
-    total_length = 0
+def extract_filenames(text):
+    """Extract potential filenames from a string."""
+    pattern = r'\b\w+\.\w+\b'
+    return re.findall(pattern, text)
+
     for snippet in snippets:
         total_length += len(snippet.get_snippet())
         if total_length > total_number_of_snippet_tokens * 5:
@@ -139,6 +141,8 @@ def on_ticket(
             ]
         )
 
+    filenames = extract_filenames(title + ' ' + summary)
+
     chat_logger = ChatLogger({
         'repo_name': repo_name,
         'title': title,
@@ -151,7 +155,6 @@ def on_ticket(
         "installation_id": installation_id,
         "comment_id": comment_id,
     })
-
     # Check if branch was already created for this issue
     preexisting_branch = None
     prs = repo.get_pulls(state='open', sort='created', base=SweepConfig.get_branch(repo))
