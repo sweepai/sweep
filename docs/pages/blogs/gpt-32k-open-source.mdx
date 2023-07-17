@@ -1,0 +1,19 @@
+# GPT 32k, 💻 Open-source, DeepLake 🏞️, GPT Functions Search 🔍 and more!
+
+Excited to announce our latest migrations to GPT 32k and ActiveLoop deep lake, open-sourcing of Sweep and improvements on Sweep’s file search mechanism.
+
+## GPT 32k Migration
+
+GPT 32k (June 13th edition) shows significantly more consistent code generation and instruction-following capabilities, at the cost of a higher price tag and slower PR generation times (2 - 3 min → 5 - 10 min). This drastically reduces some issues we were facing: failure to generate requested changes and failure to follow instructions and respond in specified formats. Expect to see less of “An error has occurred” and more well written PRs. Improving the formats also increases our prompt engineering speed.
+
+## Open-sourcing Sweep
+
+A lot of users we’re concerned about how we store your source code. We decided that open-sourcing Sweep would provide transparency with how we handle data as well, on top of showing some of the algorithms we use for chunking, indexing, querying and prompting.
+
+## ActiveLoop Deep Lake
+
+Migrating to Deep Lake drastically improved our vector DB’s consistency and reliability, with our previous system being another open-source vector DB library. Deep Lake’s developer interface was also much easier to use, with built-in locking features working well with our serverless Modal backend. There’s still additional work to be done to improve the efficiency like caching embeddings.
+
+## GPT Functions Search
+
+GPT Functions (https://openai.com/blog/function-calling-and-other-api-updates) is basically OpenAI’s interface for more easily creating agents (like ReAct) released yesterday. We integrated GPT Functions into our retrieval system to allow Sweep to decide at runtime whether more search queries should be made. This improves the system by only retrieving more relevant information when needed.

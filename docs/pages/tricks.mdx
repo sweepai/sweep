@@ -1,0 +1,8 @@
+# ✨ Tricks for prompting Sweep
+
+- 💻 Use Sweep Chat: Instead of using vanilla Sweep, you can use Sweep Chat to plan out the changes by chatting with Sweep, while interactively controlling which files Sweep should be looking at.
+- 🎯 Be specific: Don’t just put “fix typos” or “fix the first error”. Sweep will get confused and probably crash. Put a real issue that you would like solved in your codebase. Oftentimes, this is the lack of tests, especially unit tests.
+- ⚡ Use GitHub Actions! We highly recommend linters, as well as Netlify/Vercel preview builds. Not only can Sweep auto-correct based on linter and build errors, but it also helps with iteration cycles by providing previews of static sites using Netlify (which we use)
+- 📁 Mention important files: To ensure that Sweep scans a file, mention the file path or name (`src/main.py` or `main.py`) in your ticket. Sweep searches for relevant files at runtime, but specifying the file helps avoid missing important details.
+- ↩️ Reply to Sweep: If Sweep's plan isn't accurate, reply to the same ticket and provide instructions on what changes should be made instead.
+- 🗨️ Comment on PRs: If Sweep creates a pull request with a few lines missing small changes, leave a review comment in the file where the change should be made.
