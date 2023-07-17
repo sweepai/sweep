@@ -43,7 +43,7 @@ pre, code {
     word-break: break-all !important;
 }
 #snippets {
-    height: 400px;
+    height: 600px;
     overflow-y: scroll;
 }
 #message_box > label > span {
