@@ -510,6 +510,3 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
-
-user_code = re.sub('<[^<]+?>', '', user_code)
-user_code
