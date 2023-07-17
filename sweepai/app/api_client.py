@@ -171,10 +171,12 @@ class APIClient(BaseModel):
             self,
             messages: list[tuple[str | None, str | None]],
             snippets: list[Snippet] = [],
+            do_add_plan: bool = True,
             functions: list[Function] = [],
             function_call: Any = "auto",
             model: str = "gpt-4-0613"
     ):
+        print(do_add_plan)
         with httpx.Client(timeout=30) as client:  # sometimes this step is slow
             with client.stream(
                     'POST',
@@ -182,7 +184,7 @@ class APIClient(BaseModel):
                     json={
                         "messages": messages,
                         "snippets": [snippet.dict() for snippet in snippets],
-                        "do_add_plan": True,
+                        "do_add_plan": do_add_plan,
                         "functions": [func.dict() for func in functions],
                         "function_call": function_call,
                         "config": self.config.dict()
