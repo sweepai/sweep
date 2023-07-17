@@ -309,6 +309,11 @@ class SweepBot(CodeGenBot, GithubBot):
         return
 
     def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
+        # Check if the file extension is allowed
+        file_extension = os.path.splitext(file_change_request.filename)[1]
+        if file_extension not in SweepConfig.allowed_file_extensions:
+            raise Exception(f"File extension '{file_extension}' is not allowed.")
+        
         file_change: FileCreation | None = None
         for count in range(5):
             key = f"file_change_created_{file_change_request.filename}"
@@ -321,14 +326,12 @@ class SweepBot(CodeGenBot, GithubBot):
             )
             # Add file to list of changed_files
             self.file_change_paths.append(file_change_request.filename)
-            # self.delete_file_from_system_message(file_path=file_change_request.filename)
             try:
                 file_change = FileCreation.from_string(create_file_response)
                 assert file_change is not None
                 file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
                 return file_change
             except Exception:
-                # Todo: should we undo appending to file_change_paths?
                 logger.warning(f"Failed to parse. Retrying for the {count}th time...")
                 self.delete_messages_from_chat(key)
                 continue
@@ -506,4 +509,4 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")    
+            logger.info(f"Error in handle_modify_file: {tb}")
