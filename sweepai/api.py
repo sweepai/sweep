@@ -1,4 +1,3 @@
-import re
 import modal
 from fastapi import HTTPException, Request
 from loguru import logger
@@ -21,6 +20,7 @@ from sweepai.utils.config.server import DB_MODAL_INST_NAME, API_MODAL_INST_NAME,
     GITHUB_LABEL_NAME, GITHUB_LABEL_COLOR, GITHUB_LABEL_DESCRIPTION, BOT_TOKEN_NAME
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
+import re
 
 stub = modal.Stub(API_MODAL_INST_NAME)
 image = (
@@ -68,8 +68,6 @@ handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
 
 import re
 
-@stub.function(**FUNCTION_SETTINGS)
-@modal.web_endpoint(method="POST")
 def extract_filenames(text):
     """Extract potential filenames from a string."""
     pattern = r'\b\w+\.\w+\b'
