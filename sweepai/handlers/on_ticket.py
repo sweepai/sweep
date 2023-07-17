@@ -216,7 +216,7 @@ def on_ticket(
 
     # Comment edit function
     past_messages = {}
-    current_index = {}
+    current_index = 0
 
     def edit_sweep_comment(message: str, index: int, pr_message=""):
         nonlocal current_index
