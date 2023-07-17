@@ -1,3 +1,4 @@
+import re
 import modal
 from fastapi import HTTPException, Request
 from loguru import logger
@@ -65,11 +66,10 @@ handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
 
+import re
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
-import re
-
 def extract_filenames(text):
     """Extract potential filenames from a string."""
     pattern = r'\b\w+\.\w+\b'
