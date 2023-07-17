@@ -57,7 +57,7 @@ Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating 
 
 We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
 
-### 🖥️ Sweep Chat
+### 🗨️ Sweep Chat
 Sweep Chat allows you to interact with Sweep and GitHub locally. You can collaborate on the plan with Sweep, and then have it create the pull request for you. Here's how to use Sweep Chat:
 
 **Prerequisites:** Install [Sweep GitHub app](https://github.com/apps/sweep-ai) to your repository
