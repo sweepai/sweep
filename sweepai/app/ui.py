@@ -163,7 +163,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             file_names = gr.Dropdown(choices=get_files(config.repo_full_name), multiselect=True, label="Files",
                                      value=lambda: global_state.file_paths)
         print("Indexed files!")
-        repo_full_name.change(get_files_update, repo_full_name, file_names)
+        repo_full_name.change(fn=get_files_update, inputs=repo_full_name, outputs=file_names)
         with gr.Column(scale=1):
             restart_button = gr.Button("Restart")
 
@@ -218,7 +218,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
 
     restart_button.click(clear_inputs, None, [file_names, chatbot, plan])
 
-    file_names.change(get_files_update, repo_full_name, chatbot)
+    file_names.change(fn=get_files_update, inputs=repo_full_name, outputs=file_names)
 
     searched = False
     selected_snippets = []
@@ -257,7 +257,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         return snippets_text
 
 
-    repo_full_name.change(repo_name_change, [repo_full_name], [msg])
+    repo_full_name.change(fn=repo_name_change, inputs=[repo_full_name], outputs=[msg])
 
 
     def add_file_to_dict(file_name):
@@ -289,7 +289,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         return file_names, build_string()
 
 
-    file_names.change(file_names_change, [file_names], [file_names, snippets_text])
+    file_names.change(fn=file_names_change, inputs=[file_names], outputs=[file_names, snippets_text])
 
     def handle_message_submit(repo_full_name: str, user_message: str, history: list[tuple[str | None, str | None]]):
         if not repo_full_name:
@@ -463,4 +463,4 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
 
 if __name__ == "__main__":
     demo.queue()
-    demo.launch()
+    demo.launch(inbrowser=True)
