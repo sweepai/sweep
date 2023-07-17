@@ -189,54 +189,8 @@ def search_snippets(
         include_tree: bool = True,
         branch: str = None,
         sweep_config: SweepConfig = SweepConfig(),
+        filenames: list[str] = []  # Add filenames parameter
 ) -> tuple[list[Snippet], str]:
-    # Initialize the relevant directories string
-    get_relevant_snippets = modal.Function.lookup(DB_MODAL_INST_NAME, "get_relevant_snippets")
-    snippets: list[Snippet] = get_relevant_snippets.call(
-        repo.full_name, query, num_files, installation_id=installation_id
-    )
-    logger.info(f"Snippets: {snippets}")
-    # TODO: We should prioritize the mentioned files
-    for snippet in snippets:
-        try:
-            file_contents = get_file_contents(repo, snippet.file_path, ref=branch)
-            if len(file_contents) > sweep_config.max_file_limit:  # more than ~10000 tokens
-                logger.warning(f"Skipping {snippet.file_path}, too many tokens")
-                continue
-        except github.UnknownObjectException as e:
-            logger.warning(f"Error: {e}")
-            logger.warning(f"Skipping {snippet.file_path}")
-        else:
-            snippet.content = file_contents
-    tree, file_list = get_tree_and_file_list(
-        repo,
-        installation_id,
-        snippet_paths=[snippet.file_path for snippet in snippets]
-    )
-    for file_path in tqdm(file_list):
-        if file_path in query:
-            try:
-                file_contents = get_file_contents(repo, file_path, ref=branch)
-                if len(file_contents) > sweep_config.max_file_limit:  # more than 10000 tokens
-                    logger.warning(f"Skipping {file_path}, too many tokens")
-                    continue
-            except github.UnknownObjectException as e:
-                logger.warning(f"Error: {e}")
-                logger.warning(f"Skipping {file_path}")
-            else:
-                snippets = [
-                               Snippet(
-                                   content=file_contents,
-                                   start=0,
-                                   end=file_contents.count("\n") + 1,
-                                   file_path=file_path,
-                               )
-                           ] + snippets
-    snippets = [snippet.expand() for snippet in snippets]
-    if include_tree:
-        return snippets, tree
-    else:
-        return snippets
 
 
 def index_full_repository(
