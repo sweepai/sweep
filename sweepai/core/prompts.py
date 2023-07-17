@@ -310,6 +310,12 @@ print("debug statement")
 Do not rewrite the entire file. Use <copied> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
 """
 
+chunking_prompt = """
+We are handling this file in chunks. You have been provided a section of the code.
+Any lines that you do not see will be handled, so trust that the imports are managed and any other issues are taken care of.
+If you see code that should be modified, please modify it. The changes may not need to be in this chunk, in that case just copy and return the code as is.
+"""
+
 modify_file_prompt_2 = """
 File Name: {filename}
 <old_file>
@@ -346,7 +352,7 @@ Generate a new_file based on the given plan, ensuring that you:
 Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copy_lines A-B/>"). Make sure to use this exact format.
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copy_lines 1-50/>".
 
-Example: If you want to modify lines 51-52 and add line after line 75:
+Example: In a 100 line file, if you want to modify lines 51-52 and add line after line 75:
 <new_file>
 <copy_lines 1-50/>
     def main():
@@ -414,8 +420,8 @@ Gather information (i.e. fetch more snippets) to solve the problem. Use "create_
 
 code_repair_system_prompt = """\
 You are a genius trained for code stitching.
-You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the difference betwen the user_code and the original code, and the code inside <user_code></user_code> is a user's attempt at adding a change described as {feature}. 
-Our goal is to return a working version of user_code that follows {feature} while making as few edits as possible.
+You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product. The intention was to implement a change described as {feature}. 
+Our goal is to return a working version of user_code that follows {feature}. We should follow the instructions and make as few edits as possible.
 """
 
 code_repair_prompt = """\
@@ -430,14 +436,11 @@ This is the user_code.
 </user_code>
 
 Instructions:
-* Fix syntax errors and formatting.
-* Be as minimal as possible with the changes you make to user_code.
-* Do not change the logic in user_code.
 * Do not modify comments, docstrings, or whitespace.
 
 The only operations you may perform are:
-1. Indenting or dedenting code in user_code that was affected by the diff.
-2. Adding or deduplicating code in user_code that was affected by the diff.
+1. Indenting or dedenting code in user_code. This code MUST be code that was modified by the diff.
+2. Adding or deduplicating code in user_code. This code MUST be code that was modified by the diff.
 
 Return the working user_code without xml tags. All of the text you return will be placed in the file.
 """
@@ -472,4 +475,29 @@ Here are the logs:
 Copy the important lines from the github action logs. Describe the issue as you would report a bug to a developer and do not mention the github action or preparation steps. Only mention the actual issue.
 For example, if the issue was because of github action -> pip install -> python black formatter -> file xyz is broken, only report that file xyz is broken and fails formatting. Do not mention the github action or pip install.
 Make sure to mention the file name and line number of the issue(if applicable).
+"""
+
+should_edit_code_system_prompt = """\
+We are processing a large file and trying to make code changes to it.
+The file is definitely relevant, but the section we observe may not be relevant.
+Your job is to determine whether the instructions are referring to the given section of the file.
+"""
+
+should_edit_code_prompt = """\
+Here are the instructions to change the code in the file:
+{problem_description}
+Here is the code snippet from the file:
+{code_snippet}
+
+To determine whether the instructions are referring to this section of the file, respond in the following format:
+1. Step-by-step thoughts with explanations: 
+* Thought 1 - Explanation 1
+* Thought 2 - Explanation 2
+...
+2. Planning:
+* Is the code relevant?
+* If so, what is the relevant part of the code?
+* If not, what is the reason?
+
+3. In the last line of your response, write either <relevant>True</relevant> or <relevant>False</relevant>.
 """
