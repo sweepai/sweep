@@ -4,7 +4,7 @@ On Github ticket, get ChatGPT to deal with it
 
 # TODO: Add file validation
 
-import traceback
+import re
 
 import modal
 import openai
@@ -97,6 +97,11 @@ def on_ticket(
         title = title[7:]
     elif title.lower().startswith("sweep "):
         title = title[6:]
+    
+    # Detect filenames in the title and description
+    filename_pattern = r'\b\w+\.\w+\b'
+    filenames = re.findall(filename_pattern, title + ' ' + summary)
+    
 
     # Flow:
     # 1. Get relevant files
@@ -114,6 +119,7 @@ def on_ticket(
         "installation_id": installation_id,
         "function": "on_ticket",
         "mode": PREFIX,
+        "filenames": filenames,  # Add filenames to metadata
     }
     posthog.capture(username, "started", properties=metadata)
 
