@@ -492,6 +492,20 @@ class SweepBot(CodeGenBot, GithubBot):
                     file.sha,
                     branch=branch,
                 )
+            except GithubException as e:
+                if e.status == 409:
+                    # Handle version conflict error
+                    logger.info(f"Version conflict error, repulling and trying again {e}")
+                    file = self.get_file(file_change_request.filename, branch=branch)
+                    self.repo.update_file(
+                        file_name,
+                        f'Update {file_name}',
+                        new_file_contents,
+                        file.sha,
+                        branch=branch,
+                    )
+                else:
+                    raise e
             except Exception as e:
                 logger.info(f"Error in updating file, repulling and trying again {e}")
                 file = self.get_file(file_change_request.filename, branch=branch)
@@ -506,4 +520,4 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")    
+            logger.info(f"Error in handle_modify_file: {tb}")
