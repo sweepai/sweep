@@ -68,6 +68,15 @@ handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
+import re
+
+def extract_filenames(text):
+    """Extract potential filenames from a string."""
+    pattern = r'\b\w+\.\w+\b'
+    return re.findall(pattern, text)
+
+@stub.function(**FUNCTION_SETTINGS)
+@modal.web_endpoint(method="POST")
 async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
     try:
@@ -92,14 +101,6 @@ async def webhook(raw_request: Request):
                             color=GITHUB_LABEL_COLOR,
                             description=GITHUB_LABEL_DESCRIPTION,
                         )
-                    # TODO(sweep): figure out why this is breaking
-                    # else:
-                    #     label = repo.get_label(LABEL_NAME)
-                    #     label.edit(
-                    #         name=LABEL_NAME,
-                    #         color=LABEL_COLOR, 
-                    #         description=LABEL_DESCRIPTION
-                    #     )
 
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
@@ -110,8 +111,7 @@ async def webhook(raw_request: Request):
                     request.repository.description = (
                             request.repository.description or ""
                     )
-                    # Update before we handle the ticket to make sure index is up to date
-                    # other ways suboptimal
+                    filenames = extract_filenames(request.issue.title + ' ' + request.issue.body)
                     handle_ticket.spawn(
                         request.issue.title,
                         request.issue.body,
@@ -121,7 +121,7 @@ async def webhook(raw_request: Request):
                         request.repository.full_name,
                         request.repository.description,
                         request.installation.id,
-                        None
+                        filenames
                     )
             case "issue_comment", "created":
                 request = IssueCommentRequest(**request_dict)
