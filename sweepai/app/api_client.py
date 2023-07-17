@@ -176,7 +176,6 @@ class APIClient(BaseModel):
             function_call: Any = "auto",
             model: str = "gpt-4-0613"
     ):
-        print(do_add_plan)
         with httpx.Client(timeout=30) as client:  # sometimes this step is slow
             with client.stream(
                     'POST',
