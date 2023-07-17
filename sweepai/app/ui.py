@@ -180,19 +180,33 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             headers=["Proposed Plan"],
             interactive=True,
             col_count=(1, "static"),
-            wrap=True
+            wrap=True,
+            visible=global_state.plan_toggle,
         )
 
     with gr.Row():
         with gr.Column(scale=8):
             msg = gr.Textbox(placeholder="Send a message to Sweep", label=None, elem_id="message_box")
-        with gr.Column(scale=0.5):
+        create_pr_button_column = gr.Column(scale=0.5, visible=bool(global_state.plan))
+        with create_pr_button_column:
             create_pr_button = gr.Button(value="Create PR", interactive=bool(global_state.plan))
-
+    
     with gr.Row():
-        tier_message = "⚡ Free Trial" if not user_info["is_paying_user"] else "💎 Pro Tier"
-        remaining_tickets = user_info["remaining_tickets"]
-        user_status = gr.Markdown(value=f"Logged in as {config.github_username} ({tier_message}), {remaining_tickets} tickets remaining.")
+        with gr.Column():
+            plan_toggle = gr.Checkbox(label="Propose plan (Experimental)", value=lambda: global_state.plan_toggle, interactive=True, elem_id="plan_toggle")
+        with gr.Column(scale=5):
+            tier_message = "⚡ Free Trial" if not user_info["is_paying_user"] else "💎 Pro Tier"
+            remaining_tickets = user_info["remaining_tickets"]
+            user_status = gr.Markdown(value=f"Logged in as {config.github_username} ({tier_message}), {remaining_tickets} tickets remaining.")
+    
+    def on_plan_toggle_click(plan_toggle):
+        global global_state
+        global_state.plan_toggle = plan_toggle
+        config.state = global_state
+        config.save()
+        return gr.update(visible=plan_toggle), gr.update(visible=plan_toggle)
+    
+    plan_toggle.change(on_plan_toggle_click, [plan_toggle], [create_pr_button_column, plan])
 
     def clear_inputs():
         global global_state
@@ -283,7 +297,13 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
         return gr.update(value="", interactive=False), history + [[user_message, None]], gr.Button.update(
             interactive=False)
 
-    def _handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, file_names, plan):
+    def _handle_message_stream(
+        chat_history: list[tuple[str | None, str | None]], 
+        snippets_text, 
+        file_names, 
+        plan,
+        plan_toggle
+    ):
         global selected_snippets
         global searched
         if plan is None or plan == [[]] or plan == [[""]] or plan == [["", ""]]:
@@ -321,13 +341,14 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
                 stream = api_client.stream_chat(
                     chat_history,
                     selected_snippets,
+                    do_add_plan=plan_toggle,
                     functions=[create_pr_function],
                     function_call=create_pr_function_call,
                 )
             except Exception as e:
                 raise gr.Error(str(e))
         else:
-            stream = api_client.stream_chat(chat_history, selected_snippets)
+            stream = api_client.stream_chat(chat_history, selected_snippets, do_add_plan=plan_toggle)
         function_name = ""
         raw_arguments = ""
         raw_response = ""
@@ -337,9 +358,13 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
                 if chunk.get("content"):
                     token = chunk["content"]
                     raw_response += token
-                    parsed_response, plan = parse_response(raw_response)
-                    chat_history[-1][1] = parsed_response
-                    yield chat_history, snippets_text, file_names, plan
+                    if plan_toggle:
+                        parsed_response, plan = parse_response(raw_response)
+                        chat_history[-1][1] = parsed_response
+                        yield chat_history, snippets_text, file_names, plan
+                    else:
+                        chat_history[-1][1] = raw_response
+                        yield chat_history, snippets_text, file_names, plan
                 if chunk.get("function_call"):
                     function_call = chunk["function_call"]
                     function_name = function_name or function_call.get("name")
@@ -369,10 +394,16 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
                 raise NotImplementedError
 
 
-    def handle_message_stream(chat_history: list[tuple[str | None, str | None]], snippets_text, file_paths, plan):
+    def handle_message_stream(
+        chat_history: list[tuple[str | None, str | None]], 
+        snippets_text, 
+        file_paths, 
+        plan, 
+        plan_toggle
+    ):
         global global_state
         for chat_history, snippets_text, file_paths, plan in _handle_message_stream(chat_history, snippets_text,
-                                                                                    file_paths, plan):
+                                                                                    file_paths, plan, plan_toggle):
             if plan is None or plan == [[]] or plan == [[""]] or plan == [["", ""]]:
                 plan = [["", ""]]
             if plan and isinstance(plan[0], list):
@@ -385,7 +416,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
             )
             config.state = global_state
             config.save()
-            if plan == [["", ""]]:
+            if plan == [] or plan == [["", ""]]:
                 yield chat_history, snippets_text, file_paths, [[""]]
             else:
                 yield chat_history, snippets_text, file_paths, [(file_path + ": " + instructions,) for
@@ -394,7 +425,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
 
     response = msg \
         .submit(handle_message_submit, [repo_full_name, msg, chatbot], [msg, chatbot, create_pr_button], queue=False) \
-        .then(handle_message_stream, [chatbot, snippets_text, file_names, plan],
+        .then(handle_message_stream, [chatbot, snippets_text, file_names, plan, plan_toggle],
               [chatbot, snippets_text, file_names, plan]) \
         .then(lambda: [gr.update(interactive=True), gr.update(interactive=True)], None, [msg, create_pr_button], queue=False)
 
