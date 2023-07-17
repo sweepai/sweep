@@ -225,9 +225,8 @@ class ChatGPT(BaseModel):
             @backoff.on_exception(
                 backoff.expo,
                 Exception,
-                max_tries=12,
+                max_tries=5,
                 jitter=backoff.random_jitter,
-
             )
             def fetch():
                 global retry_counter
@@ -284,7 +283,7 @@ class ChatGPT(BaseModel):
             @backoff.on_exception(
                 backoff.expo,
                 Exception,
-                max_tries=12,
+                max_tries=5,
                 jitter=backoff.random_jitter,
             )
             def fetch():
@@ -334,7 +333,7 @@ class ChatGPT(BaseModel):
         @backoff.on_exception(
             backoff.expo,
             Exception,
-            max_tries=12,
+            max_tries=5,
             jitter=backoff.random_jitter,
         )
         def fetch() -> tuple[str, str]:
