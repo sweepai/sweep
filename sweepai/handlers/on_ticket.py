@@ -273,6 +273,7 @@ def on_ticket(
                     num_files=num_of_snippets_to_query,
                     branch=None,
                     installation_id=installation_id,
+                    filenames=filenames
                 )
             except Exception as e:
                 error = e
