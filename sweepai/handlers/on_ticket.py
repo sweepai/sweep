@@ -8,10 +8,10 @@ import traceback
 
 import modal
 import openai
-from loguru import logger
+from sweepai.core.entities import Snippet, NoFilesException
 from tabulate import tabulate
 
-from sweepai.core.entities import Snippet, NoFilesException
+from sweepai.core.entities import Snippet, NoFilesException, FileCreation # Ensure this import is correct and necessary
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
 from sweepai.handlers.create_pr import create_pr, create_config_pr, safe_delete_sweep_branch
@@ -356,25 +356,6 @@ def on_ticket(
                 1
             )
 
-            # COMMENT ON ISSUE
-            # TODO: removed issue commenting here
-            logger.info("Fetching files to modify/create...")
-            file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change()
-
-            sweep_bot.summarize_snippets(create_thoughts, modify_thoughts)
-
-            file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
-            table = tabulate(
-                [[f"`{file_change_request.filename}`", file_change_request.instructions] for file_change_request in
-                 file_change_requests],
-                headers=["File Path", "Proposed Changes"],
-                tablefmt="pipe"
-            )
-            edit_sweep_comment(
-                "From looking through the relevant snippets, I decided to make the following modifications:\n\n" + table + "\n\n",
-                2
-            )
-
             # CREATE PR METADATA
             logger.info("Generating PR...")
             pull_request = sweep_bot.generate_pull_request()
@@ -394,6 +375,30 @@ def on_ticket(
             edit_sweep_comment(
                 "I have finished coding the issue. I am now reviewing it for completeness.",
                 4
+            )
+
+            try:
+                current_issue.delete_reaction(eyes_reaction.id)
+            except:
+                pass
+            try:
+                # CODE REVIEW
+                changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
+                                                             repo_description=repo_description, title=title,
+                                                             summary=summary, replies_text=replies_text, tree=tree)
+                logger.info(f"Addressing review comment {review_comment}")
+                if changes_required:
+                    on_comment(repo_full_name=repo_full_name,
+                               repo_description=repo_description,
+                               comment=review_comment,
+                               username=username,
+                               installation_id=installation_id,
+                               pr_path=None,
+                               pr_line_position=None,
+                               pr_number=pr.number)
+            except Exception as e:
+                logger.error(traceback.format_exc())
+                logger.error(e)
             )
 
             try:

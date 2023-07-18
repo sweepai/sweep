@@ -17,5 +17,3 @@ If this issue is a bug, please provide detailed steps for reproducing the issue.
 # Expected Behavior
 
 Please describe what you expect to happen or see as a result of resolving this issue.
-
-

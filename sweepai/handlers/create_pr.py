@@ -161,15 +161,15 @@ def create_config_pr(
     branch_name = GITHUB_CONFIG_BRANCH
     branch_name = sweep_bot.create_branch(branch_name, retry=False)
     try:
+        issue_template_content = get_issue_template_content()
         sweep_bot.repo.create_file(
-            'sweep.yaml',
-            'Create sweep.yaml config file',
-            GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
+            '.github/ISSUE_TEMPLATE.md',
+            'Create issue_template.md file',
+            issue_template_content,
             branch=branch_name
         )
     except Exception as e:
         logger.error(e)
-
     # Check if the pull request from this branch to main already exists.
     # If it does, then we don't need to create a new one.
     pull_requests = sweep_bot.repo.get_pulls(
