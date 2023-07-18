@@ -316,6 +316,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 create_file_prompt.format(
                     filename=file_change_request.filename,
                     instructions=file_change_request.instructions,
+                    commit_message=f"Create {file_change_request.filename}"
                 ),
                 message_key=key,
             )
@@ -393,14 +394,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 continue
         raise Exception("Failed to parse response after 5 attempts.")
 
-    def change_file(self, file_change_request: FileChangeRequest):
-        if file_change_request.change_type == "create":
-            return self.create_file(file_change_request)
-        elif file_change_request.change_type == "modify":
-            return self.create_file(file_change_request)
-        else:
-            raise Exception("Not a valid file type")
-
     def change_files_in_github(
             self,
             file_change_requests: list[FileChangeRequest],
@@ -412,7 +405,6 @@ class SweepBot(CodeGenBot, GithubBot):
         completed = 0
         for file_change_request in file_change_requests:
             try:
-                
                 if file_change_request.change_type == "create":
                     self.handle_create_file(file_change_request, branch)
                 elif file_change_request.change_type == "modify":
