@@ -360,28 +360,17 @@ def on_ticket(
             # TODO: removed issue commenting here
             logger.info("Fetching files to modify/create...")
     # Fetching files to modify/create...
+    logger.info("Fetching files to modify/create...")
+    file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change()
+
     # Add a new FileCreation object for the issue_template file
-    issue_template_content = """
-# Issue Title
-
-Please provide a clear and concise title for the issue.
-
-# Issue Description
-
-Please provide a detailed description of the issue. Include any context or information that could be relevant to resolving the issue.
-
-# Steps to Reproduce (if applicable)
-
-If this issue is a bug, please provide detailed steps for reproducing the issue.
-
-1.
-2.
-3.
-
-# Expected Behavior
-
-Please describe what you expect to happen or see as a result of resolving this issue.
-"""
+    issue_template_content = (
+        "# Issue Title\n\nPlease provide a clear and concise title for the issue.\n\n"
+        "# Issue Description\n\nPlease provide a detailed description of the issue. Include any context or information that could be relevant to resolving the issue.\n\n"
+        "# Steps to Reproduce (if applicable)\n\nIf this issue is a bug, please provide detailed steps for reproducing the issue.\n\n1.\n2.\n3.\n\n"
+        "# Expected Behavior\n\nPlease describe what you expect to happen or see as a result of resolving this issue.\n"
+    )
+    file_change_requests.append(FileCreation(".github/ISSUE_TEMPLATE.md", issue_template_content))
     file_change_requests.append(FileCreation(".github/ISSUE_TEMPLATE.md", issue_template_content))
             sweep_bot.summarize_snippets(create_thoughts, modify_thoughts)
 
