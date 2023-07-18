@@ -167,9 +167,26 @@ def create_config_pr(
             GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
             branch=branch_name
         )
+        # Add a new FileCreation object for the issue_template file
+        issue_template_content = (
+            "# Issue Title\n\n"
+            "Please provide a clear and concise title for the issue.\n\n"
+            " # Issue Description\n\n"
+            "Please provide a detailed description of the issue. Include any context or information that could be relevant to resolving the issue.\n\n"
+            "# Steps to Reproduce (if applicable)\n\n"
+            "If this issue is a bug, please provide detailed steps for reproducing the issue.\n\n"
+            "1.\n2.\n3.\n\n"
+            "# Expected Behavior\n\n"
+            "Please describe what you expect to happen or see as a result of resolving this issue.\n"
+        )
+        sweep_bot.repo.create_file(
+            '.github/ISSUE_TEMPLATE.md',
+            'Create issue_template.md file',
+            issue_template_content,
+            branch=branch_name
+        )
     except Exception as e:
         logger.error(e)
-
     # Check if the pull request from this branch to main already exists.
     # If it does, then we don't need to create a new one.
     pull_requests = sweep_bot.repo.get_pulls(
