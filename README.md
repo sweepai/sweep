@@ -42,7 +42,7 @@ See highlights at https://docs.sweep.dev/examples.
 * 🔧 Turns issues directly into pull requests (without an IDE)
 * 👀 Addresses developer replies & comments on its PRs
 * 🕵️‍♂️ Uses embedding-based code search, with popularity reranking for repository-level code understanding ([🔍 Rebuilding our Search Engine in a Day](https://docs.sweep.dev/blogs/building-code-search))
-* 🎊 New: Fixes PRs based on Github Actions feedback
+* 🎊 New: Fixes PRs based on GitHub Actions feedback
 * 🎊 New: Sweep Chat, a local interface for Sweep (see below)
 
 ## 🚀 Getting Started
@@ -53,7 +53,8 @@ Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating 
 1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to your desired repos
 2. Read about [recipes](docs/Recipes.md) for best use cases.
 2. Create a new issue in your repo. The issue should describe the problem or feature you want Sweep to address. For example, you could write "Sweep: In sweepai/app/ui.py use an os-agnostic temp directory"
-3. Respond with a message like "Sweep: use a different package instead" to have Sweep retry the issue or pull request. You can also comment on the code for minor changes! 💡 Hint: commenting "revert" reverts all edits in a file.
+3. Respond with a message like "Sweep: use a different package instead" to have Sweep retry the issue or pull request. You can also comment on the code for minor changes! Remember to put the "Sweep:" prefix.
+   - 💡 Hint: commenting "revert" reverts all edits in a file.
 
 We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
 
@@ -90,8 +91,8 @@ If you want the nightly build and or if the latest build has issues.
 * We charge $120/month for 60 GPT4 tickets per month.
 * For unpaid users, we offer 5 free GPT4 tickets per month.
 * We also offer unlimited GPT3.5 tickets.
-## 🤝 Contributing
 
+## 🤝 Contributing
 Contributions are welcome and greatly appreciated! For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
 For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/).
 
