@@ -11,7 +11,7 @@ import openai
 from loguru import logger
 from tabulate import tabulate
 
-from sweepai.core.entities import Snippet, NoFilesException
+from sweepai.core.entities import Snippet, NoFilesException, FileCreation
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
 from sweepai.handlers.create_pr import create_pr, create_config_pr, safe_delete_sweep_branch
@@ -359,8 +359,33 @@ def on_ticket(
             # COMMENT ON ISSUE
             # TODO: removed issue commenting here
             logger.info("Fetching files to modify/create...")
-            file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change()
+    # Fetching files to modify/create...
+    logger.info("Fetching files to modify/create...")
+    file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change()
 
+    # Add a new FileCreation object for the issue_template file
+    issue_template_content = """
+    # Issue Title
+
+    Please provide a clear and concise title for the issue.
+
+    # Issue Description
+
+    Please provide a detailed description of the issue. Include any context or information that could be relevant to resolving the issue.
+
+    # Steps to Reproduce (if applicable)
+
+    If this issue is a bug, please provide detailed steps for reproducing the issue.
+
+    1.
+    2.
+    3.
+
+    # Expected Behavior
+
+    Please describe what you expect to happen or see as a result of resolving this issue.
+    """
+    file_change_requests.append(FileCreation(".github/ISSUE_TEMPLATE.md", issue_template_content))
             sweep_bot.summarize_snippets(create_thoughts, modify_thoughts)
 
             file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
