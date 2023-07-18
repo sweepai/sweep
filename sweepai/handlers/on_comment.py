@@ -95,22 +95,16 @@ def on_comment(
         repo = g.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
         try:
+            if not comment.lower().startswith('sweep:'):
+                return
             if not comment_id:
                 pass
             elif not file_comment:
                 item_to_react_to = pr.get_issue_comment(comment_id)
-                if comment.lower().startswith('sweep:'):
-                    item_to_react_to = pr.get_issue_comment(comment_id)
-                    item_to_react_to.create_reaction("eyes")
-                else:
-                    return
+                item_to_react_to.create_reaction("eyes")
             elif file_comment:
                 item_to_react_to = pr.get_review_comment(comment_id)
-                if comment.lower().startswith('sweep:'):
-                    item_to_react_to = pr.get_review_comment(comment_id)
-                    item_to_react_to.create_reaction("eyes")
-                else:
-                    return
+                item_to_react_to.create_reaction("eyes")
         except Exception as e:
             logger.error(f"Failed to fetch comments: {str(e)}")
         # Check if the PR is closed
