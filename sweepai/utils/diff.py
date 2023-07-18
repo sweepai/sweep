@@ -113,9 +113,12 @@ def generate_new_file(modify_file_response: str, old_file_content: str, chunk_of
     old_file_lines = old_file_content.splitlines()
 
     # Extract content between <new_file> tags
-    new_file = re.search(r".*?<new_file>\n?(.*)\n<\/new_file>", modify_file_response, re.DOTALL).group(1)
-    if "<copy_lines" not in new_file:
-        return new_file
+    match = re.search(r".*?<new_file>\n?(.*)\n<\/new_file>", modify_file_response, re.DOTALL)
+    if match is None:
+        return None
+    new_file = match.group(1)
+    if new_file is None:
+        return None
 
     # v5
     result = []
