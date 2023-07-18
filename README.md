@@ -86,8 +86,20 @@ If you want the nightly build and or if the latest build has issues.
 1. `git clone https://github.com/sweepai/sweep && poetry install`
 2. `python sweepai/app/cli.py`. Note that you need **python 3.10+**.
 
-## 💰 Pricing
-* We charge $120/month for 60 GPT4 tickets per month.
+#### Docker
+If you prefer to use Docker, you can also run Sweep Chat using a Docker container. Here's how:
+
+1. Build the Docker image from the Dockerfile:
+   ```
+   docker build -t sweepai/sweep .
+   ```
+   This will create a Docker image named `sweepai/sweep`.
+
+2. Run a container from the Docker image:
+   ```
+   docker run -p 7861:7861 sweepai/sweep
+   ```
+   This will start a Docker container and Sweep Chat will be accessible at http://127.0.0.1:7861.
 * For unpaid users, we offer 5 free GPT4 tickets per month.
 * We also offer unlimited GPT3.5 tickets.
 ## 🤝 Contributing
