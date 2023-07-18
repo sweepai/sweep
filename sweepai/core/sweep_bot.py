@@ -343,6 +343,20 @@ class SweepBot(CodeGenBot, GithubBot):
             chunking: bool = False,
             chunk_offset: int = 0,
     ) -> tuple[str, str]:
+        """
+        Modifies a file based on the given file change request. The function uses a streaming logic to handle larger files.
+        
+        Parameters:
+        file_change_request (FileChangeRequest): The request to change a file.
+        contents (str): The contents of the file. Default is an empty string.
+        contents_line_numbers (str): The line numbers of the contents. Default is an empty string.
+        branch (str): The branch where the file is located. Default is None.
+        chunking (bool): Whether to use chunking when handling the file. Default is False.
+        chunk_offset (int): The offset to use when chunking the file. Default is 0.
+        
+        Returns:
+        tuple[str, str]: The new contents of the file.
+        """
         for count in range(5):
             key = f"file_change_modified_{file_change_request.filename}"
             file_markdown = is_markdown(file_change_request.filename)
@@ -506,4 +520,4 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")    
+            logger.info(f"Error in handle_modify_file: {tb}")
