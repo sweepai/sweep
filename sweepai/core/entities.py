@@ -115,7 +115,8 @@ class FileChangeRequest(RegexMatchableBaseModel):
 class FileCreation(RegexMatchableBaseModel):
     commit_message: str
     code: str
-    _regex = r'''commit_message\s+=\s+"(?P<commit_message>.*?)".*?<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)<\/new_file>'''
+    _regex = r'''commit_message\s+=\s+"(?P<commit_message>.*?)".*?(```.*?\n<new_file>|```.*?\n)(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)(\/new_file>|```)'''
+    # Regex updated to support ``` outside of <new_file> tags
 
     # _regex = r"""Commit Message:(?P<commit_message>.*)<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)$"""
     # _regex = r"""Commit Message:(?P<commit_message>.*)(<new_file>|```)(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)($|```)"""
@@ -126,6 +127,7 @@ class FileCreation(RegexMatchableBaseModel):
         result.code = result.code.strip()
         if result.code.endswith("</new_file>"):
             result.code = result.code[: -len("</new_file>")]
+            result.code = result.code.strip()
         if len(result.code) == 1:
             result.code = result.code.replace("```", "")
             return result.code + "\n"
