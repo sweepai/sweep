@@ -1,0 +1,7 @@
+version: '3'
+services:
+  sweep_chat:
+    image: ghcr.io/sweepai/sweep
+    ports:
+      - "7860:7860"
+    build: .

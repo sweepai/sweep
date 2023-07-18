@@ -78,13 +78,24 @@ Sweep Chat allows you to interact with Sweep and GitHub locally. You can collabo
 Tips:
 * 🔍 Relevant searched files will show up on the right. 
 * 🔘 Sweep Chat creates PRs when the "Create PR" button is clicked. 
-* 💡 You can force dark mode by going to http://127.0.0.1:7861/?__theme=dark.
+* 💡 You can force dark mode by going to http://0.0.0.0:7861/?__theme=dark.
 
 #### From Source
 If you want the nightly build and or if the latest build has issues.
 
 1. `git clone https://github.com/sweepai/sweep && poetry install`
 2. `python sweepai/app/cli.py`. Note that you need **python 3.10+**.
+
+#### Docker
+If you prefer to use Docker, you can also run Sweep Chat using a Docker container by running
+
+```
+docker compose up
+```
+
+This will start a Docker container and Sweep Chat will be accessible at http://0.0.0.0:7861.
+
+To build the Docker image, run `docker compose build`.
 
 ## 💰 Pricing
 * We charge $120/month for 60 GPT4 tickets per month.

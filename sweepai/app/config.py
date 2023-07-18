@@ -93,6 +93,7 @@ class SweepChatConfig(BaseModel):
     def load(cls, recreate=False) -> SweepChatConfig:
         if recreate or not SweepChatConfig.is_initialized():
             config = cls.create()
+            print(f"Saving to {CONFIG_FILE}")
             config.save()
             return config
         with open(CONFIG_FILE, "r") as f:
