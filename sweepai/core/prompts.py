@@ -325,7 +325,7 @@ File Name: {filename}
 ---
 
 Code Planning:
-```
+<code_planning>
 Step-by-step thoughts with explanations: 
 * Thought 1 - Explanation 1
 * Thought 2 - Explanation 2
@@ -339,7 +339,7 @@ Detailed plan of modifications:
 Lines to change in the file:
 * lines a-b
 ...
-```
+<code_planning>
 
 Code Generation:
 ```
@@ -353,6 +353,7 @@ Instead of writing "# Rest of Code", specify the lines to copy from the old file
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copy_lines 1-50/>".
 
 Example: If you want to modify lines 51-52 and add line after line 75:
+```
 <new_file>
 <copy_lines 1-50/>
     def main():
@@ -361,8 +362,9 @@ Example: If you want to modify lines 51-52 and add line after line 75:
         print("debug statement")
 <copy_lines 76-100/>
 </new_file>
+```
 
-Do not rewrite the entire file. Use <copy_lines A-B/> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
+Do not rewrite the entire file. Use <copy_lines A-B/> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations. SURROUND WITH <new_file> XML TAGS.
 ```
 
 Context: "{instructions}". Limit your changes to the context.
