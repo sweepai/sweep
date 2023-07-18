@@ -11,7 +11,7 @@ import openai
 from loguru import logger
 from tabulate import tabulate
 
-from sweepai.core.entities import Snippet, NoFilesException, FileCreation
+from sweepai.core.entities import Snippet, NoFilesException, FileCreation # Ensure this import is correct and necessary
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
 from sweepai.handlers.create_pr import create_pr, create_config_pr, safe_delete_sweep_branch
