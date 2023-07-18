@@ -360,6 +360,9 @@ def on_ticket(
             # TODO: removed issue commenting here
             logger.info("Fetching files to modify/create...")
     # Fetching files to modify/create...
+    logger.info("Fetching files to modify/create...")
+    file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change()
+
     # Add a new FileCreation object for the issue_template file
     issue_template_content = (
         "# Issue Title\n\n"
@@ -372,69 +375,124 @@ def on_ticket(
         "# Expected Behavior\n\n"
         "Please describe what you expect to happen or see as a result of resolving this issue.\n"
     )
+    file_change_requests.append(FileCreation(".github/ISSUE_TEMPLATE.md", issue_template_content))
+            sweep_bot.summarize_snippets(create_thoughts, modify_thoughts)
 
-    file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
-    table = tabulate(
-        [[f"`{file_change_request.filename}`", file_change_request.instructions] for file_change_request in
-         file_change_requests],
-        headers=["File Path", "Proposed Changes"],
-        tablefmt="pipe"
-    )
-    edit_sweep_comment(
-        "From looking through the relevant snippets, I decided to make the following modifications:\n\n" + table + "\n\n",
-        2
-    )
+            file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
+            table = tabulate(
+                [[f"`{file_change_request.filename}`", file_change_request.instructions] for file_change_request in
+                 file_change_requests],
+                headers=["File Path", "Proposed Changes"],
+                tablefmt="pipe"
+            )
+            edit_sweep_comment(
+                "From looking through the relevant snippets, I decided to make the following modifications:\n\n" + table + "\n\n",
+                2
+            )
 
-    # CREATE PR METADATA
-    logger.info("Generating PR...")
-    pull_request = sweep_bot.generate_pull_request()
-    pull_request_content = pull_request.content.strip().replace("\n", "\n>")
-    pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
-    edit_sweep_comment(
-        f"I have created a plan for writing the pull request. I am now working my plan and coding the required changes to address this issue. Here is the planned pull request:\n\n{pull_request_summary}",
-        3
-    )
+            # CREATE PR METADATA
+            logger.info("Generating PR...")
+            pull_request = sweep_bot.generate_pull_request()
+            pull_request_content = pull_request.content.strip().replace("\n", "\n>")
+            pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
+            edit_sweep_comment(
+                f"I have created a plan for writing the pull request. I am now working my plan and coding the required changes to address this issue. Here is the planned pull request:\n\n{pull_request_summary}",
+                3
+            )
 
-    # WRITE PULL REQUEST
-    logger.info("Making PR...")
-    response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
-    if not response or not response["success"]: raise Exception("Failed to create PR")
-    pr = response["pull_request"]
-    current_issue.create_reaction("rocket")
-    edit_sweep_comment(
-        "I have finished coding the issue. I am now reviewing it for completeness.",
-        4
-    )
+            # WRITE PULL REQUEST
+            logger.info("Making PR...")
+            response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
+            if not response or not response["success"]: raise Exception("Failed to create PR")
+            pr = response["pull_request"]
+            current_issue.create_reaction("rocket")
+            edit_sweep_comment(
+                "I have finished coding the issue. I am now reviewing it for completeness.",
+                4
+            )
 
-    try:
-        current_issue.delete_reaction(eyes_reaction.id)
-    except:
-        pass
-    try:
-        # CODE REVIEW
-        changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
-                                                     repo_description=repo_description, title=title,
-                                                     summary=summary, replies_text=replies_text, tree=tree)
-        logger.info(f"Addressing review comment {review_comment}")
-        if changes_required:
-            on_comment(repo_full_name=repo_full_name,
-                       repo_description=repo_description,
-                       comment=review_comment,
-                       username=username,
-                       installation_id=installation_id,
-                       pr_path=None,
-                       pr_line_position=None,
-                       pr_number=pr.number)
+            try:
+                current_issue.delete_reaction(eyes_reaction.id)
+            except:
+                pass
+            try:
+                # CODE REVIEW
+                changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
+                                                             repo_description=repo_description, title=title,
+                                                             summary=summary, replies_text=replies_text, tree=tree)
+                logger.info(f"Addressing review comment {review_comment}")
+                if changes_required:
+                    on_comment(repo_full_name=repo_full_name,
+                               repo_description=repo_description,
+                               comment=review_comment,
+                               username=username,
+                               installation_id=installation_id,
+                               pr_path=None,
+                               pr_line_position=None,
+                               pr_number=pr.number)
+            except Exception as e:
+                logger.error(traceback.format_exc())
+                logger.error(e)
+
+            # Completed code review
+            edit_sweep_comment(
+                "Success! 🚀",
+                5,
+                pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number}).\n{payment_message}",
+            )
+
+            break
+    except MaxTokensExceeded as e:
+        logger.info("Max tokens exceeded")
+        log_error("Max Tokens Exceeded", str(e) + "\n" + traceback.format_exc())
+        if chat_logger.is_paying_user():
+            edit_sweep_comment(f"Sorry, I could not edit `{e.filename}` as this file is too long. We are currently working on improved file streaming to address this issue.\n", -1)
+        else:
+            edit_sweep_comment(f"Sorry, I could not edit `{e.filename}` as this file is too long.\n\nIf this file is incorrect, please describe the desired file in the prompt. However, if you would like to edit longer files, consider upgrading to [Sweep Pro](https://sweep.dev/) for longer context lengths.\n", -1)
+        raise e
+    except NoFilesException as e:
+        logger.info("No files to change.")
+        log_error("No Files to Change", str(e) + "\n" + traceback.format_exc())
+        edit_sweep_comment("Sorry, I could find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!", -1)
+        raise e
+    except openai.error.InvalidRequestError as e:
+        logger.error(traceback.format_exc())
+        logger.error(e)
+        edit_sweep_comment(
+            "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev.",
+            -1
+        )
+        log_error("Context Length", str(e) + "\n" + traceback.format_exc())
+        posthog.capture(
+            username,
+            "failed",
+            properties={
+                "error": str(e),
+                "reason": "Invalid request error / context length",
+                **metadata,
+            },
+        )
+        raise e
     except Exception as e:
         logger.error(traceback.format_exc())
         logger.error(e)
-
-    # Completed code review
-    edit_sweep_comment(
-        "Success! 🚀",
-        5,
-        pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number}).\n{payment_message}",
-    )
+        edit_sweep_comment(
+            "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
+            -1
+        )
+        log_error("Workflow", str(e) + "\n" + traceback.format_exc())
+        posthog.capture(
+            username,
+            "failed",
+            properties={"error": str(e), "reason": "Generic error", **metadata},
+        )
+        raise e
+    else:
+        try:
+            item_to_react_to.delete_reaction(eyes_reaction.id)
+        except:
+            pass
+        item_to_react_to.create_reaction("rocket")
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
