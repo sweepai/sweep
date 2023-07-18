@@ -352,7 +352,7 @@ Generate a new_file based on the given plan, ensuring that you:
 Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copy_lines A-B/>"). Make sure to use this exact format.
 Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copy_lines 1-50/>".
 
-Example: In a 100 line file, if you want to modify lines 51-52 and add line after line 75:
+Example: If you want to modify lines 51-52 and add line after line 75:
 <new_file>
 <copy_lines 1-50/>
     def main():
