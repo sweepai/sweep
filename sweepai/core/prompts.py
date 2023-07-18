@@ -371,6 +371,56 @@ Instructions:
 1. Complete Code Planning step
 2. Complete Code Generation step (<new_file>...)"""
 
+modify_file_prompt_3 = """
+File Name: {filename}
+<old_file>
+{code}
+</old_file>
+
+---
+
+Code Planning:
+<code_planning>
+Step-by-step thoughts with explanations: 
+* Thought 1 - Explanation 1
+* Thought 2 - Explanation 2
+...
+
+Detailed plan of modifications:
+* Modification 1
+* Modification 2
+...
+
+Lines to change in the file:
+* lines a-b
+...
+<code_planning>
+
+Code Generation:
+```
+Generate a diff based on the given plan, in the following format:
+
+Example:
+```
+<<<< ORIGINAL
+    print("hello")
+====
+    print("goodbye")
+>>>> UPDATED
+
+<<<< ORIGINAL
+    a = 3
+====
+    a = 4
+>>>> UPDATED
+``` 
+
+Context: "{instructions}". Limit your changes to the context.
+Instructions:
+1. Complete Code Planning step
+2. Complete Code Generation step (<new_file>...)
+"""
+
 pr_code_prompt = ""  # TODO: deprecate this
 
 pull_request_prompt = """Now, create a PR for your changes using GitHub markdown in the following format:
