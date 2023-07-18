@@ -99,6 +99,8 @@ If you prefer to use Docker, you can also run Sweep Chat using a Docker containe
    ```
    docker run -p 7861:7861 sweepai/sweep
    ```
+   This will start a Docker container and Sweep Chat will be accessible at http://127.0.0.1:7861.
+
 ## 💰 Pricing
 * We charge $120/month for 60 GPT4 tickets per month.
 * For unpaid users, we offer 5 free GPT4 tickets per month.
