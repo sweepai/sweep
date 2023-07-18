@@ -360,7 +360,23 @@ def on_ticket(
             # TODO: removed issue commenting here
             logger.info("Fetching files to modify/create...")
             sweep_bot.summarize_snippets(create_thoughts, modify_thoughts)
+    # Fetching files to modify/create...
+    logger.info("Fetching files to modify/create...")
+    file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change()
 
+    # Add a new FileCreation object for the issue_template file
+    issue_template_content = (
+        "# Issue Title\n\n"
+        "Please provide a clear and concise title for the issue.\n\n"
+        "# Issue Description\n\n"
+        "Please provide a detailed description of the issue. Include any context or information that could be relevant to resolving the issue.\n\n"
+        "# Steps to Reproduce (if applicable)\n\n"
+        "If this issue is a bug, please provide detailed steps for reproducing the issue.\n\n"
+        "1.\n2.\n3.\n\n"
+        "# Expected Behavior\n\n"
+        "Please describe what you expect to happen or see as a result of resolving this issue.\n"
+    )
+    file_change_requests.append(FileCreation(".github/ISSUE_TEMPLATE.md", issue_template_content))
             file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
             table = tabulate(
                 [[f"`{file_change_request.filename}`", file_change_request.instructions] for file_change_request in
