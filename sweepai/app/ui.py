@@ -5,15 +5,10 @@ import tempfile
 import re
 import webbrowser
 
-print(1)
 import gradio as gr
-print(1)
 from git import Repo
-print(1)
 from github import Github
-print(1)
 from loguru import logger
-print(1)
 
 from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import State, SweepChatConfig
@@ -468,4 +463,4 @@ with gr.Blocks(theme=gr.themes.Soft(), title="Sweep Chat", css=css) as demo:
 
 if __name__ == "__main__":
     demo.queue()
-    demo.launch(inbrowser=True)
+    demo.launch(inbrowser=True, server_name="0.0.0.0")

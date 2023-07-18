@@ -19,7 +19,7 @@ RUN cd /app && poetry install --no-root
 # Copy the rest of the application into the Docker image
 COPY . .
 
-# RUN poetry install
+RUN poetry install
 
 # Set the default command to run Sweep Chat
 CMD ["python", "-u", "sweepai/app/cli.py"]

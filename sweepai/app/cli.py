@@ -23,7 +23,7 @@ def start():
     # call([os.path.basename(sys.executable), "sweepai/app/ui.py"])
     from sweepai.app.ui import demo
     demo.queue()
-    demo.launch(inbrowser=True)
+    demo.launch(inbrowser=True, server_name="0.0.0.0")
     
 
 @typer_app.command()
