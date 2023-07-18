@@ -17,10 +17,13 @@ def start():
     """
     SweepChatConfig.load()
     
-    print("\033[93m⭐ Remember to star our repo at https://github.com/sweepai/sweep! \033[0m")
+    print("\033[93m⭐ Remember to star our repo at https://github.com/sweepai/sweep !\033[0m")
 
     # hacky solution based on https://stackoverflow.com/a/45047992 to keep the context on Gradio Blocks
-    call([os.path.basename(sys.executable), "sweepai/app/ui.py"])
+    # call([os.path.basename(sys.executable), "sweepai/app/ui.py"])
+    from sweepai.app.ui import demo
+    demo.queue()
+    demo.launch(inbrowser=True)
     
 
 @typer_app.command()
@@ -30,7 +33,7 @@ def auth():
     """
     SweepChatConfig.load(recreate=True)
     print("Setup completed successfully!")
-    print("\033[93m⭐ Remember to star our repo at https://github.com/sweepai/sweep! \033[0m")
+    print("\033[93m⭐ Remember to star our repo at https://github.com/sweepai/sweep !\033[0m")
 
 
 def app():

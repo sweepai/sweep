@@ -1,0 +1,8 @@
+docs
+.assets
+.github
+.vscode
+dist
+.mypy_cache
+.pytest_cache
+*.sh

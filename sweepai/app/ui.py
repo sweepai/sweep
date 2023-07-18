@@ -5,10 +5,15 @@ import tempfile
 import re
 import webbrowser
 
+print(1)
 import gradio as gr
+print(1)
 from git import Repo
+print(1)
 from github import Github
+print(1)
 from loguru import logger
+print(1)
 
 from sweepai.app.api_client import APIClient, create_pr_function, create_pr_function_call
 from sweepai.app.config import State, SweepChatConfig
