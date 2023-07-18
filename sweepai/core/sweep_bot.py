@@ -371,17 +371,20 @@ class SweepBot(CodeGenBot, GithubBot):
                     raise MaxTokensExceeded(file_change_request.filename)
             try:
                 logger.info(f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}")
-                new_file = generate_new_file(modify_file_response, contents, chunk_offset=chunk_offset)
-                if not is_markdown(file_change_request.filename):
-                    code_repairer = CodeRepairer(chat_logger=self.chat_logger)
-                    diff = generate_diff(old_code=contents, new_code=new_file)
-                    if diff.strip() != "" and diff_contains_dups_or_removals(diff, new_file):
-                        new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
-                                                                feature=file_change_request.instructions)
-                new_file = format_contents(new_file, file_markdown)
-                new_file = new_file.rstrip()
-                if contents.endswith("\n"):
-                    new_file += "\n"
+                new_file = ""
+                for line in contents.split('\n'):
+                    new_line = generate_new_file(modify_file_response, line, chunk_offset=chunk_offset)
+                    if not is_markdown(file_change_request.filename):
+                        code_repairer = CodeRepairer(chat_logger=self.chat_logger)
+                        diff = generate_diff(old_code=line, new_code=new_line)
+                        if diff.strip() != "" and diff_contains_dups_or_removals(diff, new_line):
+                            new_line = code_repairer.repair_code(diff=diff, user_code=new_line,
+                                                                    feature=file_change_request.instructions)
+                    new_line = format_contents(new_line, file_markdown)
+                    new_line = new_line.rstrip()
+                    if line.endswith("\n"):
+                        new_line += "\n"
+                    new_file += new_line
                 return new_file
             except Exception as e:
                 tb = traceback.format_exc()
@@ -506,4 +509,4 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")    
+            logger.info(f"Error in handle_modify_file: {tb}")
