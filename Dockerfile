@@ -4,11 +4,17 @@ FROM python:3.10
 # Set the working directory to /app
 WORKDIR /app
 
-# Copy the requirements.txt file into the Docker image
-COPY requirements.txt ./
+# Copy the pyproject.toml and poetry.lock files into the Docker image
+COPY pyproject.toml poetry.lock ./
 
-# Install the dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install poetry
+RUN pip install poetry
+
+# Configure poetry to not create virtual environments
+RUN poetry config virtualenvs.create false
+
+# Install the dependencies using poetry
+RUN poetry install --no-dev
 
 # Copy the rest of the application into the Docker image
 COPY . .
