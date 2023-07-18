@@ -20,7 +20,12 @@ def start():
     print("\033[93m⭐ Remember to star our repo at https://github.com/sweepai/sweep! \033[0m")
 
     # hacky solution based on https://stackoverflow.com/a/45047992 to keep the context on Gradio Blocks
-    call([os.path.basename(sys.executable), "sweepai/app/ui.py"])
+    # Get the absolute path of the current file's directory
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Append the relative path of the ui.py file
+    ui_file_path = os.path.join(current_dir, "ui.py")
+    # Call the ui.py file using its absolute path
+    call([os.path.basename(sys.executable), ui_file_path])
     
 
 @typer_app.command()
