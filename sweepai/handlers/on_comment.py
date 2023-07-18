@@ -99,10 +99,18 @@ def on_comment(
                 pass
             elif not file_comment:
                 item_to_react_to = pr.get_issue_comment(comment_id)
-                item_to_react_to.create_reaction("eyes")
+                if comment.lower().startswith('sweep:'):
+                    item_to_react_to = pr.get_issue_comment(comment_id)
+                    item_to_react_to.create_reaction("eyes")
+                else:
+                    return
             elif file_comment:
                 item_to_react_to = pr.get_review_comment(comment_id)
-                item_to_react_to.create_reaction("eyes")
+                if comment.lower().startswith('sweep:'):
+                    item_to_react_to = pr.get_review_comment(comment_id)
+                    item_to_react_to.create_reaction("eyes")
+                else:
+                    return
         except Exception as e:
             logger.error(f"Failed to fetch comments: {str(e)}")
         # Check if the PR is closed
