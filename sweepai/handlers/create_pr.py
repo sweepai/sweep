@@ -161,24 +161,7 @@ def create_config_pr(
     branch_name = GITHUB_CONFIG_BRANCH
     branch_name = sweep_bot.create_branch(branch_name, retry=False)
     try:
-        sweep_bot.repo.create_file(
-            'sweep.yaml',
-            'Create sweep.yaml config file',
-            GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
-            branch=branch_name
-        )
-        # Add a new FileCreation object for the issue_template file
-        issue_template_content = (
-            "# Issue Title\n\n"
-            "Please provide a clear and concise title for the issue.\n\n"
-            " # Issue Description\n\n"
-            "Please provide a detailed description of the issue. Include any context or information that could be relevant to resolving the issue.\n\n"
-            "# Steps to Reproduce (if applicable)\n\n"
-            "If this issue is a bug, please provide detailed steps for reproducing the issue.\n\n"
-            "1.\n2.\n3.\n\n"
-            "# Expected Behavior\n\n"
-            "Please describe what you expect to happen or see as a result of resolving this issue.\n"
-        )
+        issue_template_content = get_issue_template_content()
         sweep_bot.repo.create_file(
             '.github/ISSUE_TEMPLATE.md',
             'Create issue_template.md file',
