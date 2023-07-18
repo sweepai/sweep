@@ -95,6 +95,8 @@ def on_comment(
         repo = g.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
         try:
+            if not comment.lower().startswith('sweep:'):
+                return
             if not comment_id:
                 pass
             elif not file_comment:
