@@ -1,7 +1,7 @@
 name: Run tests/create_sample_issue.py
-
-on: [push]
-
+      run: python3 tests/create_sample_issue.py
+      env:
+        GITHUB_BOT_TOKEN: ${{ secrets.GITHUB_BOT_TOKEN }}
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -21,6 +21,6 @@ jobs:
       run: poetry install
 
     - name: Run tests/create_sample_issue.py
-      run: python tests/create_sample_issue.py
+      run: python3 tests/create_sample_issue.py
       env:
         GITHUB_BOT_TOKEN: ${{ secrets.GITHUB_BOT_TOKEN }}
