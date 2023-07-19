@@ -1,4 +1,5 @@
-# ❌ Limitations of Sweep
+- 🖼️ Sweep cannot modify non-code files such as images.
+- 📂 File Size Limitations: Sweep has recently been upgraded with a new logic that streams code in the `modify_file` function. This allows Sweep to handle larger files than before. The streaming code logic works by reading and processing the file in chunks, rather than loading the entire file into memory. This means that Sweep can now handle files that are larger than the available memory.
 
 - 🔢 Sweep, just like a regular junior developer will likely not get complex issues right first try. Try to keep the tickets to the following sizes. If you break it you’ll likely have to tweak it a lot with PR and code comments.
     - 150 lines of code changes
