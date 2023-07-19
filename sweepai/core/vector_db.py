@@ -21,6 +21,7 @@ from sweepai.utils.scorer import compute_score, convert_to_percentiles
 from ..utils.config.client import SweepConfig
 from ..utils.config.server import ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, REDIS_URL, BOT_TOKEN_NAME
 from ..utils.github_utils import get_token
+from ..utils.ctags_generator import generate_ctags
 
 # TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_MODAL_INST_NAME)
@@ -211,6 +212,7 @@ def get_deeplake_vs_from_repo(
             file_path = file[len("repo/"):]
             file_paths.append(file_path)
             file_contents.append(contents)
+            ctags = generate_ctags(file_path)
             if len(file_list) > MAX_FILES:
                 scores.append(1)
                 continue
@@ -227,6 +229,7 @@ def get_deeplake_vs_from_repo(
                 score = compute_score(contents, commits)
                 if cache_inst and cache_success:
                     cache_inst.set(cache_key, json.dumps(score), ex=60 * 60 * 2)
+                cache_inst.set(f"{file_path}-ctags", ctags)
                 scores.append(score)
             except Exception as e:
                 logger.warning(f"Received warning during scoring {e}, skipping...")
