@@ -125,22 +125,10 @@ def create_pr(
         )
         raise e
 
-    GITHUB_DEFAULT_CONFIG = """
-    branch: {branch}
-    openai_secret_manager: sm://openai/sweep
-    openai_model: text-davinci-002
-    max_tokens: 4096
-    temperature: 0.8
-    top_p: 1
-    frequency_penalty: 0
-    presence_penalty: 0
-    gha_enabled: False
-    stop_sequences:
-      - \n
-    """
     # Safely delete Sweep branch
     # 1. Only edited by Sweep
     # 2. Prefixed by sweep/
+    """
     pr_commits = pr.get_commits()
     pr_commit_authors = set([commit.author.login for commit in pr_commits])
 
@@ -155,7 +143,7 @@ def create_pr(
     else:
         # Failed to delete branch as it was edited by someone else
         return False
-
+    """
 
 def create_config_pr(
         sweep_bot: SweepBot,
