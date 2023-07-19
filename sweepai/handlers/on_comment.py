@@ -1,10 +1,5 @@
-import traceback
-
-import openai
 from loguru import logger
 
-from sweepai.core.entities import NoFilesException, Snippet
-from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.config.server import PREFIX, OPENAI_API_KEY, GITHUB_BOT_TOKEN
