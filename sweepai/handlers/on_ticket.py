@@ -290,6 +290,7 @@ def on_ticket(
         )
         log_error("File Fetch", str(e) + "\n" + traceback.format_exc())
         raise e
+    return {"success": True}
 
     snippets = post_process_snippets(snippets)
 

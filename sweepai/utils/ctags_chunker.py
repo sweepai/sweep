@@ -4,23 +4,8 @@ import os
 
 from sweepai.utils.ctags import Ctags
 
-image_with_ctags_and_code = (
-    modal.Image.debian_slim()
-    .pip_install("rapidfuzz")
-    .run_commands(
-        "apt-get update && apt-get install -y universal-ctags",
-        'export PATH="/usr/local/bin:$PATH"'
-    )
-)
-
-
-stub = modal.Stub("dev_tags")
-
-@stub.function(image=image_with_ctags_and_code)
-def run(user_query):
-
-    # Generate the tags
-    repo = Ctags("/tmp/code/test_directory/test.py")
+def get_ctags_for_file(file_path):
+    repo = Ctags(file_path)
     tags = repo.run_ctags()
     # Organize the tags by file and kind
     tag_structure = {}
@@ -28,6 +13,7 @@ def run(user_query):
         path = tag['path']
         kind = tag['kind']
         name = tag['name']
+        signature = tag['signature']
 
         if path not in tag_structure:
             tag_structure[path] = {}
@@ -36,6 +22,7 @@ def run(user_query):
             tag_structure[path][kind] = []
 
         tag_structure[path][kind].append(name)
+        tag_structure[path][kind].append(signature)
 
     # Generate the string
     output = ""
@@ -49,9 +36,4 @@ def run(user_query):
             for name in names:
                 output += f"      {name}\n"
         output += "...\n"
-    print(output)
-
-@stub.local_entrypoint()
-def f():
-    res = run("test")
-    import pdb; pdb.set_trace()
+    return output

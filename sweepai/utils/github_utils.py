@@ -15,6 +15,7 @@ from tqdm import tqdm
 from sweepai.core.entities import Snippet
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHUB_APP_PEM
+from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
 
 
@@ -86,13 +87,21 @@ def display_directory_tree(
             file_path = os.path.join(current_dir, item_name)
             if os.path.isdir(file_path):
                 if full_path in includes:
-                    tree += f"{indent}|- {item_name}/\n"
+                    tree += f"{indent}|- {file_path}/\n"
                     tree += display_directory_tree_helper(
                         file_path, indent + "|   "
                     )
                 else:
                     tree += f"{indent}|- {item_name}/...\n"
             else:
+                path_with_cwd = os.path.join(os.getcwd(), file_path)
+                logger.info(f"Current directory file {path_with_cwd}")
+                logger.info(f"os is file {os.path.isfile(path_with_cwd)}")
+                ctag_map = file_path
+                if os.path.isfile(path_with_cwd):
+                    ctag_map = get_ctags_for_file(path_with_cwd)
+                    logger.info(f"ctag_map: {ctag_map}")
+                    ctag_map = "\n".join([line + indent for line in ctag_map.splitlines()])
                 tree += f"{indent}|- {item_name}\n"
         return tree
 

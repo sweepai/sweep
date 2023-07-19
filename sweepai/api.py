@@ -24,7 +24,10 @@ from sweepai.utils.github_utils import get_github_client, index_full_repository
 stub = modal.Stub(API_MODAL_INST_NAME)
 image = (
     modal.Image.debian_slim()
-    .apt_install("git")
+    .apt_install("git", "universal-ctags")
+    .run_commands(
+        'export PATH="/usr/local/bin:$PATH"'
+    )
     .pip_install(
         "openai",
         "anthropic",

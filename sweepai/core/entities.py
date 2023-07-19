@@ -115,7 +115,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
 class FileCreation(RegexMatchableBaseModel):
     commit_message: str
     code: str
-    _regex = r'''commit_message\s+=\s+"(?P<commit_message>.*?)".*?(```.*?\n<new_file>|```.*?\n)(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)(\/new_file>|```)'''
+    _regex = r'''commit_message\s+=\s+(")?(?P<commit_message>.*?)(")?.*?(```.*?\n<new_file>|```.*?\n)(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)(\/new_file>|```)'''
     # Regex updated to support ``` outside of <new_file> tags
 
     # _regex = r"""Commit Message:(?P<commit_message>.*)<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)$"""
