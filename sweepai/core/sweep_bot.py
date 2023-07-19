@@ -1,12 +1,13 @@
-import traceback
-import re
-
-import modal
-from github.ContentFile import ContentFile
-from github.GithubException import GithubException
-from github.Repository import Repository
-from loguru import logger
-from pydantic import BaseModel
+437:        CHUNK_SIZE = chunk_size  # Number of lines to process at a time
+339:            self, 
+340:            file_change_request: FileChangeRequest, 
+341:            contents: str = "", 
+342:            contents_line_numbers: str = "", 
+343:            branch=None, 
+344:            chunking: bool = False,
+345:            chunk_offset: int = 0,
+346:            chunk_size: int = 400,
+347:    ) -> tuple[str, str]:
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.code_repair import CodeRepairer
@@ -498,4 +499,4 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")    
+            logger.info(f"Error in handle_modify_file: {tb}")
