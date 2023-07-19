@@ -1,61 +1,46 @@
-import traceback
-import re
-
-import modal
-from github.ContentFile import ContentFile
-from github.GithubException import GithubException
-from github.Repository import Repository
-from loguru import logger
-from pydantic import BaseModel
-
-from sweepai.core.chat import ChatGPT
-from sweepai.core.code_repair import CodeRepairer
-from sweepai.core.edit_chunk import EditBot
-from sweepai.core.entities import (
-    FileCreation,
-    FileChangeRequest,
-    FilesToChange,
-    PullRequest,
-    RegexMatchError,
-    Function,
-    Snippet, NoFilesException, Message
-)
-from sweepai.core.prompts import (
-    files_to_change_prompt,
-    pull_request_prompt,
-    create_file_prompt,
-    modify_file_prompt_2,
-    snippet_replacement,
-    chunking_prompt,
-)
-from sweepai.utils.config.client import SweepConfig
-from sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
-from sweepai.utils.diff import diff_contains_dups_or_removals, format_contents, generate_diff, generate_new_file, is_markdown
-
-class MaxTokensExceeded(Exception):
-    def __init__(self, filename):
-        self.filename = filename
-
-class CodeGenBot(ChatGPT):
-    def summarize_snippets(self, create_thoughts, modify_thoughts):
-        snippet_summarization = self.chat(
-            snippet_replacement.format(
-                thoughts=create_thoughts + "\n" + modify_thoughts
-            ),
-            message_key="snippet_summarization",
-        )
-
-        # Delete excessive tokens
-        self.delete_messages_from_chat("relevant_snippets")
-        self.delete_messages_from_chat("relevant_directories")
-        self.delete_messages_from_chat("relevant_tree")
-
-        # Delete past instructions
-        self.delete_messages_from_chat("files_to_change", delete_assistant=False)
-
-        # Delete summarization instructions
-        self.delete_messages_from_chat("snippet_summarization")
-
+338:    def modify_file(
+339:            self, 
+340:            file_change_request: FileChangeRequest, 
+341:            contents: str = "", 
+342:            contents_line_numbers: str = "", 
+343:            branch=None, 
+344:            chunking: bool = False,
+345:            chunk_offset: int = 0,
+346:    ) -> tuple[str, str]:
+347:        CHUNK_SIZE = 400  # Number of lines to process at a time
+348:        lines = contents.split("\n")
+349:        new_contents = ""  # Initialize an empty string to hold the new contents
+350:        all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
+351:        chunking = len(lines) > CHUNK_SIZE * 1.5 # Only chunk if the file is large enough
+352:        if not chunking:
+353:            new_contents = self.modify_file(
+354:                    file_change_request, 
+355:                    contents="\n".join(lines), 
+356:                    branch=branch, 
+357:                    contents_line_numbers="\n".join(all_lines_numbered), 
+358:                    chunking=chunking,
+359:                    chunk_offset=0
+360:                )
+361:        else:
+362:            for i in range(0, len(lines), CHUNK_SIZE):
+363:                chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
+364:                contents_line_numbers = "\n".join(all_lines_numbered[i:i + CHUNK_SIZE])
+365:                if not EditBot().should_edit(issue=file_change_request.instructions, snippet=chunk_contents):
+366:                    new_chunk = chunk_contents
+367:                else:
+368:                    new_chunk = self.modify_file(
+369:                        file_change_request, 
+370:                        contents=chunk_contents, 
+371:                        branch=branch, 
+372:                        contents_line_numbers=contents_line_numbers, 
+373:                        chunking=chunking,
+374:                        chunk_offset=i
+375:                    )
+376:                if i + CHUNK_SIZE < len(lines):
+377:                    new_contents += new_chunk + "\n"
+378:                else:
+379:                    new_contents += new_chunk
+380:        return new_contents
         msg = Message(content=snippet_summarization, role="assistant", key="bot_analysis_summary")
         self.messages.insert(-2, msg)
         pass
@@ -498,4 +483,4 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")    
+            logger.info(f"Error in handle_modify_file: {tb}")
