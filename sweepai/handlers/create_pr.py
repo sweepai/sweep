@@ -138,16 +138,16 @@ def create_pr(
     stop_sequences:
       - \n
     """
-    # Safely delete Sweep branch
-    # 1. Only edited by Sweep
-    # 2. Prefixed by sweep/
+    """
+    Safely delete Sweep branch
+    1. Only edited by Sweep
+    2. Prefixed by sweep/
+    """
     pr_commits = pr.get_commits()
     pr_commit_authors = set([commit.author.login for commit in pr_commits])
 
     # Check if only Sweep has edited the PR, and sweep/ prefix
-    if len(pr_commit_authors) == 1 \
-            and GITHUB_BOT_USERNAME in pr_commit_authors \
-            and pr.head.ref.startswith("sweep/"):
+    if len(pr_commit_authors) == 1 and GITHUB_BOT_USERNAME in pr_commit_authors and pr.head.ref.startswith("sweep/"):
         branch = repo.get_git_ref(f"heads/{pr.head.ref}")
         # pr.edit(state='closed')
         branch.delete()
