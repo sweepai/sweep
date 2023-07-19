@@ -344,55 +344,40 @@ class SweepBot(CodeGenBot, GithubBot):
             chunking: bool = False,
             chunk_offset: int = 0,
     ) -> tuple[str, str]:
-        for count in range(5):
-            key = f"file_change_modified_{file_change_request.filename}"
-            file_markdown = is_markdown(file_change_request.filename)
-            try:
-                message = modify_file_prompt_2.format(
-                        filename=file_change_request.filename,
-                        instructions=file_change_request.instructions,
-                        code=contents_line_numbers,
-                        line_count=contents.count('\n') + 1
-                    )
-                if chunking:
-                    message = chunking_prompt + message
-                    modify_file_response = self.chat(
-                        message,
-                        message_key=key,
-                    )
-                    self.delete_messages_from_chat(key)
-                else:
-                    modify_file_response = self.chat(
-                        message,
-                        message_key=key,
-                    )
-            except Exception as e: # Check for max tokens error
-                if "max tokens" in str(e).lower():
-                    logger.error(f"Max tokens exceeded for {file_change_request.filename}")
-                    raise MaxTokensExceeded(file_change_request.filename)
-            try:
-                logger.info(f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}")
-                new_file = generate_new_file(modify_file_response, contents, chunk_offset=chunk_offset)
-                if not is_markdown(file_change_request.filename):
-                    code_repairer = CodeRepairer(chat_logger=self.chat_logger)
-                    diff = generate_diff(old_code=contents, new_code=new_file)
-                    if diff.strip() != "" and diff_contains_dups_or_removals(diff, new_file):
-                        new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
-                                                                feature=file_change_request.instructions)
-                new_file = format_contents(new_file, file_markdown)
-                new_file = new_file.rstrip()
-                if contents.endswith("\n"):
-                    new_file += "\n"
-                return new_file
-            except Exception as e:
-                tb = traceback.format_exc()
-                logger.warning(f"Recieved error {e}\n{tb}")
-                logger.warning(
-                    f"Failed to parse. Retrying for the {count}th time..."
+        CHUNK_SIZE = 400  # Number of lines to process at a time
+        lines = contents.split("\n")
+        all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
+        chunking = len(lines) > CHUNK_SIZE * 1.5 # Only chunk if the file is large enough
+        new_file_contents = ""  # Initialize an empty string to hold the new file contents
+        if not chunking:
+            new_file_contents = self.modify_file(
+                    file_change_request, 
+                    contents="\n".join(lines), 
+                    branch=branch, 
+                    contents_line_numbers="\n".join(all_lines_numbered), 
+                    chunking=chunking,
+                    chunk_offset=0
                 )
-                self.delete_messages_from_chat(key)
-                continue
-        raise Exception("Failed to parse response after 5 attempts.")
+        else:
+            for i in range(0, len(lines), CHUNK_SIZE):
+                chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
+                contents_line_numbers = "\n".join(all_lines_numbered[i:i + CHUNK_SIZE])
+                if not EditBot().should_edit(issue=file_change_request.instructions, snippet=chunk_contents):
+                    new_chunk = chunk_contents
+                else:
+                    new_chunk = self.modify_file(
+                        file_change_request, 
+                        contents=chunk_contents, 
+                        branch=branch, 
+                        contents_line_numbers=contents_line_numbers, 
+                        chunking=chunking,
+                        chunk_offset=i
+                    )
+                if i + CHUNK_SIZE < len(lines):
+                    new_file_contents += new_chunk + "\n"
+                else:
+                    new_file_contents += new_chunk
+        return new_file_contents
 
     def change_files_in_github(
             self,
@@ -498,4 +483,4 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")    
+            logger.info(f"Error in handle_modify_file: {tb}")
