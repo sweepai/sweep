@@ -3,10 +3,13 @@ import os
 from github import Github
 from loguru import logger
 
-from sweepai.utils.config.server import GITHUB_BOT_TOKEN
+from os import getenv
+GITHUB_BOT_TOKEN = getenv('GITHUB_BOT_TOKEN')
 
 
 def create_issue(repo_name, title, body):
+    if GITHUB_BOT_TOKEN is None:
+        raise ValueError("GITHUB_BOT_TOKEN environment variable is not set.")
     g = Github(GITHUB_BOT_TOKEN)
     repo = g.get_repo(repo_name)
     issue = repo.create_issue(title=title, body=body)
