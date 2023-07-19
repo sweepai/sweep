@@ -229,7 +229,6 @@ Reply in the following format:
 Commit planning:
 file_name = "{filename}"
 instructions = "{instructions}"
-commit_message = "{commit_message}"
 
 Step-by-step thoughts with explanations: 
 * Thought 1 - Explanation 1
@@ -240,6 +239,8 @@ Detailed plan of additions:
 * Addition 1
 * Addition 2
 ...
+
+commit_message = "{commit_message}"
 
 <new_file>
 {{new_file}}
