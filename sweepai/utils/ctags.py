@@ -21,7 +21,6 @@ class Ctags:
             self.file
         ]
         output = subprocess.check_output(cmd, stderr=subprocess.PIPE).decode("utf-8")
-        print("ctag_output" + output)
         output_lines = output.splitlines()
         data = []
         for line in output_lines:
