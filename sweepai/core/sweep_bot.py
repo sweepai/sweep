@@ -1,15 +1,16 @@
-464:                                        logger.error(f"Error in black command execution for file {file_name} at line {i + CHUNK_SIZE}: {e}. File: {file_name}, Line: {i + CHUNK_SIZE}")
-465:                                        raise e
-340:            file_change_request: FileChangeRequest, 
-341:            contents: str = "", 
-342:            contents_line_numbers: str = "", 
-343:            branch=None, 
-344:            chunking: bool = False,
-345:            chunk_offset: int = 0,
-346:            chunk_size: int = 400,
-347:    ) -> tuple[str, str]:
-
-from sweepai.core.chat import ChatGPT
+454:                                    try:
+455:                                        new_chunk = self.modify_file(
+456:                                            file_change_request, 
+457:                                            contents=chunk_contents, 
+458:                                            branch=branch, 
+459:                                            contents_line_numbers=contents_line_numbers, 
+460:                                            chunking=chunking,
+461:                                            chunk_offset=i
+462:                                        )
+463:                                    except Exception as e:
+464:                                        logger.error(f"Error in black command execution for file {file_name} at line {i + CHUNK_SIZE}: {e}")
+465:                                        logger.error(f"File contents: {chunk_contents}")
+466:                                        raise e
 from sweepai.core.code_repair import CodeRepairer
 from sweepai.core.edit_chunk import EditBot
 from sweepai.core.entities import (
