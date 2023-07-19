@@ -1,6 +1,6 @@
 # 🔒 Privacy Policy
 
-Last updated: May 10th
+Last updated: July 19th
 
 This Privacy Policy describes how Sweep AI ("we", "us", "our") collects, uses, and discloses your Personal Information when you use our app Sweep AI ("the App").
 
@@ -8,11 +8,14 @@ By using the App, you agree to the collection and use of information in accordan
 
 ## Information Collection and Use
 
-We collect several different types of information for various purposes to provide and improve our App.
-
 Data Collection
 
 While using our App, we may collect information related to your codebase, commits, GitHub tickets, pull requests (PRs), and PR comments ("Data"). This Data is used to understand how you interact with our App and to improve our services.
+
+- The logs from Sweep(which contain snippets of code) are logged for debugging purposes. We send this data to OpenAI to generate code.
+- OpenAI has an agreement stating they will not train on this data and will persist it for 30 days to monitor trust and safety.
+- We store the codebase as embeddings, which are not readable as plaintext.
+- We use posthog to log telemetry in order to understand how Sweep is being used. This includes the number of tickets created, comments created, and PRs merged.
 
 ## Use of Data
 
