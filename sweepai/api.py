@@ -24,7 +24,10 @@ from sweepai.utils.github_utils import get_github_client, index_full_repository
 stub = modal.Stub(API_MODAL_INST_NAME)
 image = (
     modal.Image.debian_slim()
-    .apt_install("git")
+    .apt_install("git", "universal-ctags")
+    .run_commands(
+        'export PATH="/usr/local/bin:$PATH"'
+    )
     .pip_install(
         "openai",
         "anthropic",
@@ -240,9 +243,12 @@ async def webhook(raw_request: Request):
                 commit_author = pr_request.pull_request.user.login
                 merged_by = pr_request.pull_request.merged_by.login
                 if GITHUB_BOT_USERNAME == commit_author:
+                    event_name = "merged_sweep_pr"
+                    if pr_request.pull_request.title.startswith("[config]"):
+                        event_name = "config_pr_merged"
                     posthog.capture(
                         merged_by,
-                        "merged_sweep_pr",
+                        event_name,
                         properties={
                             "repo_name": repo_name,
                             "organization": organization,

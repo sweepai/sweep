@@ -227,10 +227,8 @@ DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". Yo
 
 Reply in the following format:
 Commit planning:
-file_name = "..."
-instructions = "..."
-commit_message = "..."
-
+file_name = "{filename}"
+instructions = "{instructions}"
 
 Step-by-step thoughts with explanations: 
 * Thought 1 - Explanation 1
@@ -241,6 +239,8 @@ Detailed plan of additions:
 * Addition 1
 * Addition 2
 ...
+
+commit_message = "{commit_message}"
 
 <new_file>
 {{new_file}}
@@ -371,6 +371,65 @@ Context: "{instructions}". Limit your changes to the context.
 Instructions:
 1. Complete Code Planning step
 2. Complete Code Generation step (<new_file>...)"""
+
+modify_file_prompt_3 = """
+File Name: {filename}
+<old_file>
+{code}
+</old_file>
+
+---
+
+Code Planning:
+<code_planning>
+Step-by-step thoughts with explanations: 
+* Thought 1 - Explanation 1
+* Thought 2 - Explanation 2
+...
+
+Detailed plan of modifications:
+* Modification 1
+* Modification 2
+...
+
+Lines to change in the file: (include multiple small changes as opposed to one large change)
+* lines a-b: Do x
+* lines c: Change to y
+...
+<code_planning>
+
+Code Generation:
+```
+Generate a diff based on the given plan, in the following format (do not include "..." anywhere):
+
+Example:
+```
+<<<< ORIGINAL
+    x = 1
+    print("hello")
+    x = 2
+====
+    x = 1
+    print("goodbye")
+    x = 2
+>>>> UPDATED
+
+<<<< ORIGINAL
+def example():
+    a = 3
+    
+====
+def example():
+    a = 4
+    
+>>>> UPDATED
+``` 
+
+Context: "{instructions}". Limit your changes to the context.
+Instructions:
+1. Complete Code Planning step
+2. Complete Code Generation step (<new_file>...)
+"""
 
 pr_code_prompt = ""  # TODO: deprecate this
 

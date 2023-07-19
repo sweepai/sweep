@@ -115,7 +115,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
 class FileCreation(RegexMatchableBaseModel):
     commit_message: str
     code: str
-    _regex = r'''commit_message\s+=\s+"(?P<commit_message>.*?)".*?(```.*?\n<new_file>|```.*?\n)(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)(\/new_file>|```)'''
+    _regex = r'''commit_message\s?=\s?"?(?P<commit_message>.*?)"?\n(?P<code>.*)'''
     # Regex updated to support ``` outside of <new_file> tags
 
     # _regex = r"""Commit Message:(?P<commit_message>.*)<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)$"""
@@ -124,13 +124,29 @@ class FileCreation(RegexMatchableBaseModel):
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
         result = super().from_string(string, **kwargs)
+
+        first_index = result.code.find("<new_file>")
+        if first_index >= 0:
+            last_index = result.code.rfind("</new_file>")
+            result.code = result.code[first_index + len('<new_file>'):last_index]
+        else:
+            first_index = result.code.find("```")
+            if first_index >= 0:
+                last_index = result.code.rfind("```")
+                result.code = result.code[first_index:last_index]
+            else:
+                raise ValueError("No <new_file> tags or ``` found in code block")
+
         result.code = result.code.strip()
         if result.code.endswith("</new_file>"):
             result.code = result.code[: -len("</new_file>")]
             result.code = result.code.strip()
+
+        # Todo: Remove this?
         if len(result.code) == 1:
             result.code = result.code.replace("```", "")
             return result.code + "\n"
+
         if result.code.startswith("```"):
             first_newline = result.code.find("\n")
             last_newline = result.code.rfind("\n")

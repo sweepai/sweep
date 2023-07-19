@@ -25,12 +25,15 @@ from sweepai.core.prompts import (
     pull_request_prompt,
     create_file_prompt,
     modify_file_prompt_2,
+    modify_file_prompt_3,
     snippet_replacement,
     chunking_prompt,
 )
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
-from sweepai.utils.diff import diff_contains_dups_or_removals, format_contents, generate_diff, generate_new_file, is_markdown
+from sweepai.utils.diff import diff_contains_dups_or_removals, format_contents, generate_diff, generate_new_file, generate_new_file_from_patch, is_markdown
+
+USING_DIFF = True
 
 class MaxTokensExceeded(Exception):
     def __init__(self, filename):
@@ -316,6 +319,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 create_file_prompt.format(
                     filename=file_change_request.filename,
                     instructions=file_change_request.instructions,
+                    commit_message=f"Create {file_change_request.filename}"
                 ),
                 message_key=key,
             )
@@ -346,60 +350,101 @@ class SweepBot(CodeGenBot, GithubBot):
         for count in range(5):
             key = f"file_change_modified_{file_change_request.filename}"
             file_markdown = is_markdown(file_change_request.filename)
-            try:
+            if USING_DIFF:
+                # TODO(sweep): edge case at empty file
+                message = modify_file_prompt_3.format(
+                    filename=file_change_request.filename,
+                    instructions=file_change_request.instructions,
+                    code=contents_line_numbers,
+                    line_count=contents.count('\n') + 1
+                )
+                try:
+                    if chunking:
+                        message = chunking_prompt + message
+                        modify_file_response = self.chat(
+                            message,
+                            message_key=key,
+                        )
+                        self.delete_messages_from_chat(key)
+                    else:
+                        modify_file_response = self.chat(
+                            message,
+                            message_key=key,
+                        )
+                except Exception as e:  # Check for max tokens error
+                    if "max tokens" in str(e).lower():
+                        logger.error(f"Max tokens exceeded for {file_change_request.filename}")
+                        raise MaxTokensExceeded(file_change_request.filename)
+                try:
+                    logger.info(
+                        f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}")
+                    new_file = generate_new_file_from_patch(modify_file_response, contents, chunk_offset=chunk_offset)
+                    if not is_markdown(file_change_request.filename):
+                        code_repairer = CodeRepairer(chat_logger=self.chat_logger)
+                        diff = generate_diff(old_code=contents, new_code=new_file)
+                        if diff.strip() != "" and diff_contains_dups_or_removals(diff, new_file):
+                            new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
+                                                                 feature=file_change_request.instructions)
+                    new_file = format_contents(new_file, file_markdown)
+                    new_file = new_file.rstrip()
+                    if contents.endswith("\n"):
+                        new_file += "\n"
+                    return new_file
+                except Exception as e:
+                    tb = traceback.format_exc()
+                    logger.warning(f"Recieved error {e}\n{tb}")
+                    logger.warning(
+                        f"Failed to parse. Retrying for the {count}th time..."
+                    )
+                    self.delete_messages_from_chat(key)
+                    continue
+            else:
                 message = modify_file_prompt_2.format(
                         filename=file_change_request.filename,
                         instructions=file_change_request.instructions,
                         code=contents_line_numbers,
                         line_count=contents.count('\n') + 1
                     )
-                if chunking:
-                    message = chunking_prompt + message
-                    modify_file_response = self.chat(
-                        message,
-                        message_key=key,
+                try:
+                    if chunking:
+                        message = chunking_prompt + message
+                        modify_file_response = self.chat(
+                            message,
+                            message_key=key,
+                        )
+                        self.delete_messages_from_chat(key)
+                    else:
+                        modify_file_response = self.chat(
+                            message,
+                            message_key=key,
+                        )
+                except Exception as e: # Check for max tokens error
+                    if "max tokens" in str(e).lower():
+                        logger.error(f"Max tokens exceeded for {file_change_request.filename}")
+                        raise MaxTokensExceeded(file_change_request.filename)
+                try:
+                    logger.info(f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}")
+                    new_file = generate_new_file(modify_file_response, contents, chunk_offset=chunk_offset)
+                    if not is_markdown(file_change_request.filename):
+                        code_repairer = CodeRepairer(chat_logger=self.chat_logger)
+                        diff = generate_diff(old_code=contents, new_code=new_file)
+                        if diff.strip() != "" and diff_contains_dups_or_removals(diff, new_file):
+                            new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
+                                                                    feature=file_change_request.instructions)
+                    new_file = format_contents(new_file, file_markdown)
+                    new_file = new_file.rstrip()
+                    if contents.endswith("\n"):
+                        new_file += "\n"
+                    return new_file
+                except Exception as e:
+                    tb = traceback.format_exc()
+                    logger.warning(f"Recieved error {e}\n{tb}")
+                    logger.warning(
+                        f"Failed to parse. Retrying for the {count}th time..."
                     )
                     self.delete_messages_from_chat(key)
-                else:
-                    modify_file_response = self.chat(
-                        message,
-                        message_key=key,
-                    )
-            except Exception as e: # Check for max tokens error
-                if "max tokens" in str(e).lower():
-                    logger.error(f"Max tokens exceeded for {file_change_request.filename}")
-                    raise MaxTokensExceeded(file_change_request.filename)
-            try:
-                logger.info(f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}")
-                new_file = generate_new_file(modify_file_response, contents, chunk_offset=chunk_offset)
-                if not is_markdown(file_change_request.filename):
-                    code_repairer = CodeRepairer(chat_logger=self.chat_logger)
-                    diff = generate_diff(old_code=contents, new_code=new_file)
-                    if diff.strip() != "" and diff_contains_dups_or_removals(diff, new_file):
-                        new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
-                                                                feature=file_change_request.instructions)
-                new_file = format_contents(new_file, file_markdown)
-                new_file = new_file.rstrip()
-                if contents.endswith("\n"):
-                    new_file += "\n"
-                return new_file
-            except Exception as e:
-                tb = traceback.format_exc()
-                logger.warning(f"Recieved error {e}\n{tb}")
-                logger.warning(
-                    f"Failed to parse. Retrying for the {count}th time..."
-                )
-                self.delete_messages_from_chat(key)
-                continue
+                    continue
         raise Exception("Failed to parse response after 5 attempts.")
-
-    def change_file(self, file_change_request: FileChangeRequest):
-        if file_change_request.change_type == "create":
-            return self.create_file(file_change_request)
-        elif file_change_request.change_type == "modify":
-            return self.create_file(file_change_request)
-        else:
-            raise Exception("Not a valid file type")
 
     def change_files_in_github(
             self,
@@ -412,7 +457,6 @@ class SweepBot(CodeGenBot, GithubBot):
         completed = 0
         for file_change_request in file_change_requests:
             try:
-                
                 if file_change_request.change_type == "create":
                     self.handle_create_file(file_change_request, branch)
                 elif file_change_request.change_type == "modify":
@@ -457,7 +501,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         file_change_request, 
                         contents="\n".join(lines), 
                         branch=branch, 
-                        contents_line_numbers="\n".join(all_lines_numbered), 
+                        contents_line_numbers=file_contents if USING_DIFF else "\n".join(all_lines_numbered),
                         chunking=chunking,
                         chunk_offset=0
                     )
@@ -472,7 +516,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             file_change_request, 
                             contents=chunk_contents, 
                             branch=branch, 
-                            contents_line_numbers=contents_line_numbers, 
+                            contents_line_numbers=file_contents if USING_DIFF else "\n".join(contents_line_numbers), 
                             chunking=chunking,
                             chunk_offset=i
                         )

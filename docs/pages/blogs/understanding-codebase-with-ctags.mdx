@@ -1,0 +1,42 @@
+# Sweep: Understanding Your Codebase Using universal-ctags
+
+In the past few weeks, we have greatly improved the performance of Sweep and I would like to share a significant piece of our journey: getting to know your codebase using universal-ctags.
+
+## Background
+In the realm of coding, understanding the structure and semantics of a codebase is key. It’s vital for pinpointing definitions, implementations, and usages of functions, classes, and variables. Traditionally, this would require manual navigation and significant familiarity with the codebase - a time-consuming process. We wanted to automate this and make it more efficient. 
+
+## File Tree
+Previously, Sweep could only see the file tree structure of the repository as well as some snippets from relevant scripts. The file tree looks similar to this:
+
+```
+
+[README.md](http://readme.md/)
+chatRoom/
+|- [README.md](http://readme.md/)
+|- demo_connect.gif
+|- demo_send_msg.gif
+|- include/
+|   |- Practical.cpp
+
+```
+
+However, we found that this did not provide enough adequate information about the codebase. So, we decided to include ctags as context. 
+
+## New File Tree
+Universal-ctags allows us to look through the repository with a better understanding of the code, like the location of methods, variables, and classes. With this context, Sweep can now provide intelligent context-aware assisstance. When you query about a particular function, Sweep can quickly identify it and provide relevant information about its definition and usage, enabling more accurate responses. The file tree has been updated to include the ctags:
+
+```
+
+.gitignore
+jp-app/
+|- App.xaml
+|- App.xaml.cs
+|   |- namespace jp_app
+|   |- class App
+|   |- method App (ISystemLanguageService systemLanguageService)
+|   |- method OnStart ()
+
+```
+
+## Conclusion
+We’re incredibly excited about how universal-ctags is boosting Sweep’s understanding of your codebase and can’t wait to share more updates! For anyone eager to learn more, check out our GitHub repo: https://github.com/sweepai/sweep 🌟

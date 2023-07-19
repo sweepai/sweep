@@ -107,8 +107,6 @@ def format_contents(file_contents, is_markdown=False):
 
 
 def generate_new_file(modify_file_response: str, old_file_content: str, chunk_offset: int=0) -> str:
-    import re
-
     result_file = ""
     old_file_lines = old_file_content.splitlines()
 
@@ -155,41 +153,46 @@ def generate_new_file(modify_file_response: str, old_file_content: str, chunk_of
             result.append(line)
     result = '\n'.join(result)
 
-    # Todo: v4 is inefficient; deprecated
-    """
-    first_section_idx = new_file.index("<copied>")
-    if first_section_idx > 0:
-        result_file += new_file[:first_section_idx]
-        new_file = new_file[first_section_idx:] # remove the first section from new_file
-    last_section_idx = new_file.rindex("</copied>")
-    last_section = ""
-    if last_section_idx < len(new_file) - 1:
-        last_section = new_file[last_section_idx + len("</copied>"):]
-        new_file = new_file[:last_section_idx + len("</copied>")] # remove the last section from new_file
-    
-    # Parse copied sections, first copying the content and then adding whatever is after the copied section
-    for copied_section in copied_sections:
-        if "-" in copied_section:
-            start_line, end_line = copied_section.split("-")
-        else: # <copied>num</copied>
-            start_line = copied_sections
-            end_line = start_line
+    return result
 
-        start_line = int(start_line) - 1 if int(start_line) - 1 > 0 else 0
-        end_line = int(end_line) - 1
-        # Check for duplicate lines
-        k = 30
-        result_file = join_contents_k(result_file, "\n".join(old_file_lines[start_line:end_line]), k)
-        # TODO: Use replace first instead of .replace, since duplicated <copied> sections might cause faulty copy
-        new_file = new_file.replace(f"<copied>{copied_section}</copied>\n", "")
-        next_section_idx = new_file.index("<copied>") if "<copied>" in new_file else len(new_file)
-        # Check for duplicate lines
-        result_file = join_contents_k(result_file, new_file[:next_section_idx], k)
-        new_file = new_file[next_section_idx:] # remove the first section from new_file
-    
-    return result_file + last_section
-    """
 
+def sliding_window_replacement(original, search, replace):
+    index = -1
+    max_similarity = -1
+    # sliding window comparison from original to search
+    for i in range(len(original) - len(search)):
+        count = 0
+        for j in range(len(search)):
+            if search[j].strip() == original[i + j].strip():
+                count += 1
+        if count > max_similarity:
+            index = i
+            max_similarity = count
+
+    snippet = original[index:index + len(search)]
+
+    # Fix whitespace
+    spaces = ''
+    if len(search[0]) - len(search[0].lstrip()) == 0:
+        spaces = ' ' * (len(snippet[0]) - len(snippet[0].lstrip()))
+    # Todo: What if whitespace in search is incorrect
+
+    modified = [spaces + line for line in replace]
+
+    # replaced original with modified
+    original = original[:index] + modified + original[index + len(search):]
+    return original
+
+def generate_new_file_from_patch(modify_file_response: str, old_file_content: str, chunk_offset: int=0) -> str:
+    old_file_lines = old_file_content.splitlines()
+
+    # Extract content between <new_file> tags
+    matches = re.findall(r'<<<<.*?\n(.*?)\n?====\n(.*?)\n?>>>>', modify_file_response, re.DOTALL)
+
+    for search, replace in matches:
+        old_file_lines = sliding_window_replacement(old_file_lines, search.splitlines(), replace.splitlines())
+
+    result = '\n'.join(old_file_lines)
     return result
 
 
