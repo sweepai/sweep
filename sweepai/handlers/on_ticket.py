@@ -284,7 +284,7 @@ def on_ticket(
         logger.error(e)
         logger.error(trace)
         edit_sweep_comment(
-            "It looks like an issue has occured around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev.",
+            "It looks like an issue has occurred around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev.",
             -1
         )
         log_error("File Fetch", str(e) + "\n" + traceback.format_exc())
@@ -461,7 +461,7 @@ def on_ticket(
         logger.error(traceback.format_exc())
         logger.error(e)
         edit_sweep_comment(
-            "I'm sorry, but it looks like an error has occured. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
+            "I'm sorry, but it looks like an error has occurred. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
             -1
         )
         log_error("Workflow", str(e) + "\n" + traceback.format_exc())
