@@ -40,8 +40,6 @@ human_message_review_prompt = [
 """These are the file changes.
 We have the file_path, the previous_file_content, the new_file_content, and the diffs.
 The file_path is the name of the file.
-The previous_file_content is the content of the file before the changes.
-The new_file_content is the content of the file after the changes.
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
 {diffs}"""}]
@@ -68,14 +66,6 @@ diff_section_prompt = """
 <file_path>
 {diff_file_path}
 </file_path>
-
-<previous_file_content>
-{previous_file_content}
-</previous_file_content>
-
-<new_file_content>
-{new_file_content}
-</new_file_content>
 
 <file_diffs>
 {diffs}
@@ -159,10 +149,8 @@ Pull Request Title: {title}
 Pull Request Description: {description}"""},
 {'role': 'user', 'content':
 """These are the file changes.
-We have the file_path, the previous_file_content, the new_file_content, and the diffs.
+We have the file_path and the diffs.
 The file_path is the name of the file.
-The previous_file_content is the content of the file before the changes.
-The new_file_content is the content of the file after the changes.
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
 {diff}"""},
