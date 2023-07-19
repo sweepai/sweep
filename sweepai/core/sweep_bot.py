@@ -1,5 +1,5 @@
-437:        CHUNK_SIZE = chunk_size  # Number of lines to process at a time
-339:            self, 
+464:                                        logger.error(f"Error in black command execution for file {file_name} at line {i + CHUNK_SIZE}: {e}. File: {file_name}, Line: {i + CHUNK_SIZE}")
+465:                                        raise e
 340:            file_change_request: FileChangeRequest, 
 341:            contents: str = "", 
 342:            contents_line_numbers: str = "", 
