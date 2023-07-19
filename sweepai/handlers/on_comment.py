@@ -87,7 +87,10 @@ def on_comment(
         "mode": PREFIX,
     }
 
-    posthog.capture(username, "started", properties=metadata)
+    event_name = "pr_comment"
+    if pr_title.startswith("[config]"):
+        event_name = "config_pr_comment"
+    posthog.capture(username, event_name, properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = pr_path and pr_line_position
     try:
