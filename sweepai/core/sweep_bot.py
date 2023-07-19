@@ -424,72 +424,76 @@ class SweepBot(CodeGenBot, GithubBot):
             file_change.code = format_contents(file_change.code, file_markdown)
             logger.debug(
                 f"{file_change_request.filename}, {f'Create {file_change_request.filename}'}, {file_change.code}, {branch}"
-            )
-            self.repo.create_file(
-                file_change_request.filename,
-                file_change.commit_message,
-                file_change.code,
-                branch=branch,
-            )
-        except Exception as e:
-            logger.info(f"Error in handle_create_file: {e}")
-
-    def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
-        CHUNK_SIZE = 400  # Number of lines to process at a time
-        try:
-            file = self.get_file(file_change_request.filename, branch=branch)
-            file_contents = file.decoded_content.decode("utf-8")
-            lines = file_contents.split("\n")
-            
-            new_file_contents = ""  # Initialize an empty string to hold the new file contents
-            all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
-            chunking = len(lines) > CHUNK_SIZE * 1.5 # Only chunk if the file is large enough
-            file_name = file_change_request.filename
-            if not chunking:
-                new_file_contents = self.modify_file(
-                        file_change_request, 
-                        contents="\n".join(lines), 
-                        branch=branch, 
-                        contents_line_numbers="\n".join(all_lines_numbered), 
-                        chunking=chunking,
-                        chunk_offset=0
-                    )
-            else:
-                for i in range(0, len(lines), CHUNK_SIZE):
-                    chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
-                    contents_line_numbers = "\n".join(all_lines_numbered[i:i + CHUNK_SIZE])
-                    if not EditBot().should_edit(issue=file_change_request.instructions, snippet=chunk_contents):
-                        new_chunk = chunk_contents
-                    else:
-                        new_chunk = self.modify_file(
-                            file_change_request, 
-                            contents=chunk_contents, 
-                            branch=branch, 
-                            contents_line_numbers=contents_line_numbers, 
-                            chunking=chunking,
-                            chunk_offset=i
+                def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
+                    CHUNK_SIZE = 400  # Number of lines to process at a time
+                    try:
+                        file = self.get_file(file_change_request.filename, branch=branch)
+                        file_contents = file.decoded_content.decode("utf-8")
+                        lines = file_contents.split("\n")
+                        
+                        new_file_contents = ""  # Initialize an empty string to hold the new file contents
+                        all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
+                        chunking = len(lines) > CHUNK_SIZE * 1.5 # Only chunk if the file is large enough
+                        file_name = file_change_request.filename
+                        if not chunking:
+                            new_file_contents = self.modify_file(
+                                    file_change_request, 
+                                    contents="\n".join(lines), 
+                                    branch=branch, 
+                                    contents_line_numbers="\n".join(all_lines_numbered), 
+                                    chunking=chunking,
+                                    chunk_offset=0
+                                )
+                        else:
+                            for i in range(0, len(lines), CHUNK_SIZE):
+                                chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
+                                contents_line_numbers = "\n".join(all_lines_numbered[i:i + CHUNK_SIZE])
+                                if not EditBot().should_edit(issue=file_change_request.instructions, snippet=chunk_contents):
+                                    new_chunk = chunk_contents
+                                else:
+                                    try:
+                                        new_chunk = self.modify_file(
+                                            file_change_request, 
+                                            contents=chunk_contents, 
+                                            branch=branch, 
+                                            contents_line_numbers=contents_line_numbers, 
+                                            chunking=chunking,
+                                            chunk_offset=i
+                                        )
+                                    except Exception as e:
+                                        logger.error(f"Error in black command execution for file {file_name} at line {i + CHUNK_SIZE}: {e}")
+                                        raise e
+                                if i + CHUNK_SIZE < len(lines):
+                                    new_file_contents += new_chunk + "\n"
+                                else:
+                                    new_file_contents += new_chunk
+                        logger.debug(
+                            f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
                         )
-                    if i + CHUNK_SIZE < len(lines):
-                        new_file_contents += new_chunk + "\n"
-                    else:
-                        new_file_contents += new_chunk
-            logger.debug(
-                f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
-            )
-            # Update the file with the new contents after all chunks have been processed
-            try:
-                self.repo.update_file(
-                    file_name,
-                    f'Update {file_name}',
-                    new_file_contents,
-                    file.sha,
-                    branch=branch,
-                )
-            except Exception as e:
-                logger.info(f"Error in updating file, repulling and trying again {e}")
-                file = self.get_file(file_change_request.filename, branch=branch)
-                self.repo.update_file(
-                    file_name,
+                        # Update the file with the new contents after all chunks have been processed
+                        try:
+                            self.repo.update_file(
+                                file_name,
+                                f'Update {file_name}',
+                                new_file_contents,
+                                file.sha,
+                                branch=branch,
+                            )
+                        except Exception as e:
+                            logger.info(f"Error in updating file, repulling and trying again {e}")
+                            file = self.get_file(file_change_request.filename, branch=branch)
+                            self.repo.update_file(
+                                file_name,
+                                f'Update {file_name}',
+                                new_file_contents,
+                                file.sha,
+                                branch=branch,
+                            )
+                    except MaxTokensExceeded as e:
+                        raise e
+                    except Exception as e:
+                        tb = traceback.format_exc()
+                        logger.info(f"Error in handle_modify_file: {tb}")
                     f'Update {file_name}',
                     new_file_contents,
                     file.sha,
