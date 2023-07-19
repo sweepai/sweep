@@ -15,6 +15,7 @@ from tqdm import tqdm
 from sweepai.core.entities import Snippet
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHUB_APP_PEM
+from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
 
 
@@ -66,40 +67,62 @@ def get_installation_id(username: str):
     except:
         raise Exception("Could not get installation id, probably not installed")
 
-
-def display_directory_tree(
-        root_path,
-        includes: list[str] = [],
-        excludes: list[str] = [".git"],
+def list_directory_tree(
+    root_directory,
+    included_directories=None,
+    excluded_directories=None,
+    included_files=None,
 ):
-    def display_directory_tree_helper(
-            current_dir,
-            indent="",
-    ) -> str:
-        files = os.listdir(current_dir)
-        files.sort()
-        tree = ""
-        for item_name in files:
-            full_path = os.path.join(current_dir, item_name)[len(root_path) + 1:]
-            if item_name in excludes:
+    """Display the directory tree.
+
+    Arguments:
+    root_directory -- String path of the root directory to display.
+    included_directories -- List of directory paths (relative to the root) to include in the tree. Default to None.
+    excluded_directories -- List of directory names to exclude from the tree. Default to None.
+    """
+
+    # Default values if parameters are not provided
+    if included_directories is None:
+        included_directories = []
+    if excluded_directories is None:
+        excluded_directories = [".git"]
+
+    def list_directory_contents(
+        current_directory,
+        indentation=""
+    ):
+        """Recursively list the contents of directories."""
+
+        file_and_folder_names = os.listdir(current_directory)
+        file_and_folder_names.sort()
+
+        directory_tree_string = ""
+
+        for name in file_and_folder_names:
+            relative_path = os.path.join(current_directory, name)[len(root_directory) + 1:]
+            if name in excluded_directories:
                 continue
-            file_path = os.path.join(current_dir, item_name)
-            if os.path.isdir(file_path):
-                if full_path in includes:
-                    tree += f"{indent}|- {item_name}/\n"
-                    tree += display_directory_tree_helper(
-                        file_path, indent + "|   "
+            complete_path = os.path.join(current_directory, name)
+
+            if os.path.isdir(complete_path):
+                if relative_path in included_directories:
+                    directory_tree_string += f"{indentation}{relative_path}/\n"
+                    directory_tree_string += list_directory_contents(
+                        complete_path, indentation + "  "
                     )
                 else:
-                    tree += f"{indent}|- {item_name}/...\n"
+                    directory_tree_string += f"{indentation}{name}/...\n"
             else:
-                tree += f"{indent}|- {item_name}\n"
-        return tree
+                directory_tree_string += f"{indentation}{name}\n"
+                if os.path.isfile(complete_path) and relative_path in included_files:
+                    ctags = get_ctags_for_file(complete_path)
+                    ctags = "\n".join([indentation + line for line in ctags.splitlines()])
+                    if ctags.strip():
+                        directory_tree_string += f"{ctags}\n"
+        return directory_tree_string
 
-    tree = display_directory_tree_helper(root_path)
-    lines = tree.splitlines()
-    return "\n".join([line[3:] for line in lines])
-
+    directory_tree = list_directory_contents(root_directory)
+    return directory_tree
 
 def get_file_list(root_directory: str) -> str:
     files = []
@@ -119,14 +142,6 @@ def get_file_list(root_directory: str) -> str:
     files = [file[len(root_directory) + 1:] for file in files]
     return files
 
-
-# def get_tree(repo_name: str, installation_id: int) -> str:
-#     token = get_token(installation_id)
-#     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
-#     Repo.clone_from(repo_url, "repo")
-#     tree = display_directory_tree("repo")
-#     shutil.rmtree("repo")
-#     return tree
 def get_tree_and_file_list(
         repo: Repository,
         installation_id: int,
@@ -148,9 +163,10 @@ def get_tree_and_file_list(
         file_list += snippet_path.split("/")[-1]
         prefixes.append(snippet_path)
 
-    tree = display_directory_tree(
+    tree = list_directory_tree(
         "repo",
-        includes=prefixes,
+        included_directories=prefixes,
+        included_files=snippet_paths,
     )
     file_list = get_file_list("repo")
     shutil.rmtree("repo")
