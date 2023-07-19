@@ -51,7 +51,6 @@ chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
 num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
 num_full_files = 2
-num_extended_snippets = 2
 
 
 def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5):
