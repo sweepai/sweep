@@ -122,10 +122,11 @@ def create_pr(
         )
         raise e
 
-    posthog.capture(username, "success", properties={**metadata})
-    logger.info("create_pr success")
-    if sweep_bot.chat_logger is not None:
-        sweep_bot.chat_logger.add_successful_ticket()
+        event_name = "config_pr_merged" if any(fcr.file_path == "sweep.yaml" for fcr in file_change_requests) else "success"
+        posthog.capture(username, event_name, properties={**metadata})
+        logger.info("create_pr success")
+        if sweep_bot.chat_logger is not None:
+            sweep_bot.chat_logger.add_successful_ticket()
     return {"success": True, "pull_request": pr}
 
 
