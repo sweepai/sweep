@@ -6,7 +6,7 @@
 343:            branch=None, 
 344:            chunking: bool = False,
 345:            chunk_offset: int = 0,
-346:            chunk_size: int = CHUNK_SIZE,
+346:            chunk_size: int = 400,
 347:    ) -> tuple[str, str]:
 
 from sweepai.core.chat import ChatGPT
