@@ -125,17 +125,18 @@ def create_pr(
         )
         raise e
 
-    posthog.capture(username, "success", properties={**metadata})
-    logger.info("create_pr success")
-    if sweep_bot.chat_logger is not None:
-        sweep_bot.chat_logger.add_successful_ticket()
-    return {"success": True, "pull_request": pr}
-
-
-def safe_delete_sweep_branch(
-        pr,  # Github PullRequest
-        repo: Repository,
-) -> bool:
+    GITHUB_DEFAULT_CONFIG = """
+    branch: {branch}
+    openai_secret_manager: sm://openai/sweep
+    openai_model: text-davinci-002
+    max_tokens: 4096
+    temperature: 0.8
+    top_p: 1
+    frequency_penalty: 0
+    presence_penalty: 0
+    gha_enabled: False
+    stop_sequences:
+      - \n
     """
     Safely delete Sweep branch
     1. Only edited by Sweep
