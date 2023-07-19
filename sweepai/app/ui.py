@@ -469,4 +469,6 @@ def main():
         demo.queue()
         demo.launch(inbrowser=True)
 
-main()
+
+if __name__ == "__main__":
+    main()
