@@ -125,8 +125,20 @@ def create_pr(
         )
         raise e
 
-    # Safely delete Sweep branch
+    GITHUB_DEFAULT_CONFIG = """
+    branch: {branch}
+    openai_secret_manager: sm://openai/sweep
+    openai_model: text-davinci-002
+    max_tokens: 4096
+    temperature: 0.8
+    top_p: 1
+    frequency_penalty: 0
+    presence_penalty: 0
+    gha_enabled: False
+    stop_sequences:
+      - \n
     """
+    # Safely delete Sweep branch
     pr_commits = pr.get_commits()
     pr_commit_authors = set([commit.author.login for commit in pr_commits])
 
@@ -141,21 +153,6 @@ def create_pr(
     else:
         # Failed to delete branch as it was edited by someone else
         return False
-    """
-    
-    GITHUB_DEFAULT_CONFIG = """
-    branch: {branch}
-    openai_secret_manager: sm://openai/sweep
-    openai_model: text-davinci-002
-    max_tokens: 4096
-    temperature: 0.8
-    top_p: 1
-    frequency_penalty: 0
-    presence_penalty: 0
-    gha_enabled: False
-    stop_sequences:
-      - \n
-    """
 
 
 def create_config_pr(
@@ -189,7 +186,7 @@ def create_config_pr(
     pr = sweep_bot.repo.create_pull(
         title=title,
         body=
-        """(celebration) Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
+        """🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
         
         ## What's new?
         - **Sweep is now configurable**. 
