@@ -467,5 +467,5 @@ def main():
 
         create_pr_button.click(on_create_pr_button_click, [chatbot, plan], [chatbot, create_pr_button])
 
-if __name__ == "__main__":
-    main()
+    demo.queue()
+    demo.launch(inbrowser=True)
