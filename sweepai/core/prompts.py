@@ -227,9 +227,9 @@ DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". Yo
 
 Reply in the following format:
 Commit planning:
-file_name = {filename}
-instructions = {instructions}
-commit_message = {commit_message}
+file_name = "{filename}"
+instructions = "{instructions}"
+commit_message = "{commit_message}"
 
 Step-by-step thoughts with explanations: 
 * Thought 1 - Explanation 1
