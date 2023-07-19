@@ -44,7 +44,7 @@ See highlights at https://docs.sweep.dev/examples.
 * 🕵️‍♂️ Uses embedding-based code search, with popularity reranking for repository-level code understanding ([🔍 Rebuilding our Search Engine in a Day](https://docs.sweep.dev/blogs/building-code-search))
 * 🎊 New: Fixes PRs based on GitHub Actions feedback
 * 🎊 New: Sweep Chat, a local interface for Sweep (see below)
-* 🎊 New: Enhanced file handling with streaming logic in modify_file, allowing for larger files to be processed.
+* 🎊 New: Enhanced file handling with streaming logic in modify_file, allowing for larger files to be processed. This new logic streams code in chunks, which allows Sweep to handle files of any size. This removes the previous limitation on file size, making Sweep more versatile and capable of handling larger projects.
 
 ## 🚀 Getting Started
 
