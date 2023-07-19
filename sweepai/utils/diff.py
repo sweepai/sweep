@@ -158,9 +158,10 @@ def generate_new_file(modify_file_response: str, old_file_content: str, chunk_of
 
 def sliding_window_replacement(original, search, replace):
     index = -1
-    max_similarity = -1
+    max_similarity = 0
     # sliding window comparison from original to search
-    for i in range(len(original) - len(search)):
+    # Todo: use rapidfuzz to compute fuzzy similarity over code
+    for i in range(len(original) - len(search) + 1):
         count = 0
         for j in range(len(search)):
             if search[j].strip() == original[i + j].strip():
@@ -168,6 +169,10 @@ def sliding_window_replacement(original, search, replace):
         if count > max_similarity:
             index = i
             max_similarity = count
+
+    # No changes could be found. Return original code.
+    if index == -1:
+        return original
 
     snippet = original[index:index + len(search)]
 
