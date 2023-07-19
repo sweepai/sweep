@@ -170,7 +170,13 @@ def sliding_window_replacement(original, search, replace):
             max_similarity = count
 
     snippet = original[index:index + len(search)]
-    spaces = ' ' * (len(snippet[0]) - len(snippet[0].lstrip()))
+
+    # Fix whitespace
+    spaces = ''
+    if len(search[0]) - len(search[0].lstrip()) == 0:
+        spaces = ' ' * (len(snippet[0]) - len(snippet[0].lstrip()))
+    # Todo: What if whitespace in search is incorrect
+
     modified = [spaces + line for line in replace]
 
     # replaced original with modified
