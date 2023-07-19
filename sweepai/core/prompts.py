@@ -392,14 +392,15 @@ Detailed plan of modifications:
 * Modification 2
 ...
 
-Lines to change in the file:
-* lines a-b
+Lines to change in the file: (include multiple small changes as opposed to one large change)
+* lines a-b: Do x
+* lines c: Change to y
 ...
 <code_planning>
 
 Code Generation:
 ```
-Generate a diff based on the given plan, in the following format:
+Generate a diff based on the given plan, in the following format (do not include "..." anywhere):
 
 Example:
 ```
