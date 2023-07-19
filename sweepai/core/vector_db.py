@@ -11,7 +11,7 @@ from git.repo import Repo
 from github import Github
 from loguru import logger
 from modal import method
-from redis import Redis
+from sweepai.utils.redis_client import RedisClient
 from tqdm import tqdm
 
 from sweepai.core.entities import Snippet
@@ -125,7 +125,7 @@ def get_deeplake_vs_from_repo(
     if REDIS_URL is not None:
         try:
             # todo: initialize once
-            cache_inst = Redis.from_url(REDIS_URL)
+            cache_inst = RedisClient(REDIS_URL)
             logger.info(f"Successfully connected to redis cache")
             cache_success = True
         except:
