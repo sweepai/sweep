@@ -403,15 +403,23 @@ Generate a diff based on the given plan, in the following format:
 Example:
 ```
 <<<< ORIGINAL
+    x = 1
     print("hello")
+    x = 2
 ====
+    x = 1
     print("goodbye")
+    x = 2
 >>>> UPDATED
 
 <<<< ORIGINAL
+def example():
     a = 3
+    
 ====
+def example():
     a = 4
+    
 >>>> UPDATED
 ``` 
 
