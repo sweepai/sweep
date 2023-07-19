@@ -1,0 +1,25 @@
+name: Run tests/create_sample_issue.py
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1.1.6
+
+    - name: Install dependencies
+      run: poetry install
+
+    - name: Run tests/create_sample_issue.py
+      run: python tests/create_sample_issue.py
