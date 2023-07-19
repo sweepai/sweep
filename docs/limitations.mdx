@@ -1,0 +1,9 @@
+# Limitations
+
+## File Size
+
+Previously, Sweep had a limitation on the size of the files it could handle. This was due to the way it read files into memory.
+
+However, we've made some updates to improve this. Now, Sweep uses a streaming method in the `modify_file` function to handle larger files. This means it reads and processes the file in chunks, rather than loading the entire file into memory at once.
+
+This update allows Sweep to handle much larger files than before, making it more versatile and useful for larger projects.
