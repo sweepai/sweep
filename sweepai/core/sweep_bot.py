@@ -351,6 +351,7 @@ class SweepBot(CodeGenBot, GithubBot):
             key = f"file_change_modified_{file_change_request.filename}"
             file_markdown = is_markdown(file_change_request.filename)
             if USING_DIFF:
+                # TODO(sweep): edge case at empty file
                 message = modify_file_prompt_3.format(
                     filename=file_change_request.filename,
                     instructions=file_change_request.instructions,
@@ -500,7 +501,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         file_change_request, 
                         contents="\n".join(lines), 
                         branch=branch, 
-                        contents_line_numbers="\n".join(all_lines_numbered), 
+                        contents_line_numbers=file_contents if USING_DIFF else "\n".join(all_lines_numbered),
                         chunking=chunking,
                         chunk_offset=0
                     )
@@ -515,7 +516,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             file_change_request, 
                             contents=chunk_contents, 
                             branch=branch, 
-                            contents_line_numbers=contents_line_numbers, 
+                            contents_line_numbers=file_contents if USING_DIFF else "\n".join(contents_line_numbers), 
                             chunking=chunking,
                             chunk_offset=i
                         )
