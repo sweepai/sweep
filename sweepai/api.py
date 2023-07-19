@@ -237,19 +237,15 @@ async def webhook(raw_request: Request):
             case ("pull_request", "closed"):
                 pr_request = PRRequest(**request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")
-                commit_author = pr_request.pull_request.user.login
-                merged_by = pr_request.pull_request.merged_by.login
-                if GITHUB_BOT_USERNAME == commit_author:
-                    event_name = "config_pr_merged" if 'sweep.yaml' in pr_request.pull_request.title else "merged_sweep_pr"
-                    posthog.capture(
-                        merged_by,
-                        event_name,
-                        properties={
-                            "repo_name": repo_name,
-                            "organization": organization,
-                            "repo_full_name": pr_request.repository.full_name,
-                            "username": merged_by
-                        })
+                posthog.capture(
+                    merged_by,
+                    "config_pr_merged" if 'sweep.yaml' in pr_request.pull_request.title else "merged_sweep_pr",
+                    properties={
+                        "repo_name": repo_name,
+                        "organization": organization,
+                        "repo_full_name": pr_request.repository.full_name,
+                        "username": merged_by
+                    })
                 update_index.spawn(
                     request_dict["repository"]["full_name"],
                     installation_id=request_dict["installation"]["id"],
