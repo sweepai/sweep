@@ -1,12 +1,12 @@
 437:        CHUNK_SIZE = chunk_size  # Number of lines to process at a time
-339:            self,
+339:            self, 
 340:            file_change_request: FileChangeRequest, 
 341:            contents: str = "", 
 342:            contents_line_numbers: str = "", 
 343:            branch=None, 
 344:            chunking: bool = False,
 345:            chunk_offset: int = 0,
-346:            chunk_size: int = 400,
+346:            chunk_size: int = CHUNK_SIZE,
 347:    ) -> tuple[str, str]:
 
 from sweepai.core.chat import ChatGPT
