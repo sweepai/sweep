@@ -98,7 +98,10 @@ def on_comment(
         repo = g.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
         try:
-            if not comment.lower().startswith('sweep:'):
+            issue = repo.get_issue(pr_number)
+            if 'Sweep' in [label.name for label in issue.get_labels()]:
+                pass
+            elif not comment.lower().startswith('sweep:'):
                 return
             if not comment_id:
                 pass
