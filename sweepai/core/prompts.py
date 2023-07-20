@@ -38,7 +38,7 @@ human_message_review_prompt = [
 </repo_tree>"""},
 {'role': 'user', 'content':
 """These are the file changes.
-We have the file_path, the previous_file_content, the new_file_content, and the diffs.
+We have the file_path, and the diffs.
 The file_path is the name of the file.
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
