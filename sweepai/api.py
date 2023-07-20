@@ -136,10 +136,6 @@ async def webhook(raw_request: Request):
                     request.repository.description = (
                             request.repository.description or ""
                     )
-
-                    if not request.comment.body.lower().startswith(GITHUB_LABEL_NAME):
-                        return {"success": True, "reason": "Comment does not start with 'Sweep', passing"}
-
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
                     handle_ticket.spawn(
@@ -155,31 +151,17 @@ async def webhook(raw_request: Request):
                     )
                 elif request.issue.pull_request and request.comment.user.type == "User":  # TODO(sweep): set a limit
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
-                    handle_comment.spawn(
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        comment=request.comment.body,
-                        pr_path=None,
-                        pr_line_position=None,
-                        username=request.comment.user.login,
-                        installation_id=request.installation.id,
-                        pr_number=request.issue.number,
-                        comment_id=request.comment.id,
-                    )
-            case "pull_request_review_comment", "created":
-                request = CommentCreatedRequest(**request_dict)
-                handle_comment.spawn(
-                    repo_full_name=request.repository.full_name,
-                    repo_description=request.repository.description,
-                    comment=request.comment.body,
-                    pr_path=request.comment.path,
-                    pr_line_position=request.comment.original_line,
-                    username=request.comment.user.login,
-                    installation_id=request.installation.id,
-                    pr_number=request.pull_request.number,
-                    comment_id=request.comment.id,
-                )
-                # Todo: update index on comments
+                    comment_queue.put({
+                        "repo_full_name": request.repository.full_name,
+                        "repo_description": request.repository.description,
+                        "comment": request.comment.body,
+                        "pr_path": None,
+                        "pr_line_position": None,
+                        "username": request.comment.user.login,
+                        "installation_id": request.installation.id,
+                        "pr_number": request.issue.number,
+                        "comment_id": request.comment.id,
+                    })
             case "pull_request_review", "submitted":
                 # request = ReviewSubmittedRequest(**request_dict)
                 pass
