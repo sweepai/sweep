@@ -170,8 +170,6 @@ async def webhook(raw_request: Request):
                             pr_number=request.issue.number,
                             comment_id=request.comment.id,
                         )
-                    else:
-                        return
             case "pull_request_review_comment", "created":
                 request = CommentCreatedRequest(**request_dict)
                 handle_comment.spawn(
