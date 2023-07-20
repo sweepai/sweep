@@ -415,8 +415,8 @@ def example():
 
 Context: "{instructions}". Limit your changes to the context.
 Instructions:
-1. Complete Code Planning step
-2. Complete Code Generation step (<new_file>...)
+1. Complete the Code Planning step
+2. Complete the Code Generation step
 """
 
 pr_code_prompt = ""  # TODO: deprecate this
