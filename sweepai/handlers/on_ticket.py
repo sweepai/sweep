@@ -80,6 +80,66 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5)
     return result_snippets[:max_num_of_snippets]
 
 
+def fetch_relevant_files(repo, title, summary, replies_text, num_files, branch, installation_id):
+    # Logic for fetching relevant files
+    try:
+        snippets, tree = search_snippets(
+            repo,
+            f"{title}\n{summary}\n{replies_text}",
+            num_files=num_files,
+            branch=branch,
+            installation_id=installation_id,
+        )
+        assert len(snippets) > 0
+        return snippets, tree
+    except Exception as e:
+        handle_errors(e, "File Fetch")
+        raise e
+
+
+def process_snippets(snippets, use_faster_model):
+    # Logic for processing snippets
+    return post_process_snippets(snippets, max_num_of_snippets=2 if use_faster_model else 5)
+
+
+def handle_errors(e, error_type):
+    # Error handling logic
+    content = f"**{error_type} Error**\n{username}: {issue_url}\n```{e}```"
+    discord_log_error(content)
+
+
+def create_pull_request(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number):
+    # Logic for creating pull requests
+    try:
+        response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
+        if not response or not response["success"]: raise Exception("Failed to create PR")
+        return response["pull_request"]
+    except Exception as e:
+        handle_errors(e, "Pull Request Creation")
+        raise e
+
+
+def interact_with_github(repo, installation_id):
+    # Logic for interacting with the GitHub API
+    return get_github_client(installation_id)
+
+
+def interact_with_chat_logger(repo_name, title, summary, issue_number, issue_url, username, repo_full_name, repo_description, installation_id, comment_id):
+    # Logic for interacting with the chat logger
+    return ChatLogger({
+        'repo_name': repo_name,
+        'title': title,
+        'summary': summary,
+        "issue_number": issue_number,
+        "issue_url": issue_url,
+        "username": username,
+        "repo_full_name": repo_full_name,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "comment_id": comment_id,
+    })
+
+
 def on_ticket(
         title: str,
         summary: str,
@@ -97,13 +157,6 @@ def on_ticket(
     elif title.lower().startswith("sweep "):
         title = title[6:]
 
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
-
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
@@ -116,7 +169,7 @@ def on_ticket(
     }
     posthog.capture(username, "started", properties=metadata)
 
-    g = get_github_client(installation_id)
+    g = interact_with_github(repo_full_name, installation_id)
 
     logger.info(f"Getting repo {repo_full_name}")
     repo = g.get_repo(repo_full_name)
@@ -138,18 +191,7 @@ def on_ticket(
             ]
         )
 
-    chat_logger = ChatLogger({
-        'repo_name': repo_name,
-        'title': title,
-        'summary': summary + replies_text,
-        "issue_number": issue_number,
-        "issue_url": issue_url,
-        "username": username,
-        "repo_full_name": repo_full_name,
-        "repo_description": repo_description,
-        "installation_id": installation_id,
-        "comment_id": comment_id,
-    })
+    chat_logger = interact_with_chat_logger(repo_name, title, summary, issue_number, issue_url, username, repo_full_name, repo_description, installation_id, comment_id)
 
     # Check if branch was already created for this issue
     preexisting_branch = None
@@ -260,7 +302,7 @@ def on_ticket(
         for i in range(retries):
             try:
                 logger.info(f"Fetching relevant files for the {i}th time...")
-                return search_snippets(
+                return fetch_relevant_files(
                     repo,
                     f"{title}\n{summary}\n{replies_text}",
                     num_files=num_of_snippets_to_query,
@@ -278,7 +320,6 @@ def on_ticket(
     logger.info("Fetching relevant files...")
     try:
         snippets, tree = fetch_file_contents_with_retry()
-        assert len(snippets) > 0
     except Exception as e:
         trace = traceback.format_exc()
         logger.error(e)
@@ -290,10 +331,7 @@ def on_ticket(
         log_error("File Fetch", str(e) + "\n" + traceback.format_exc())
         raise e
 
-    snippets = post_process_snippets(snippets)
-
-    snippets = post_process_snippets(snippets,
-                                     max_num_of_snippets=2 if use_faster_model else 5)
+    snippets = process_snippets(snippets, use_faster_model)
 
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
@@ -386,9 +424,7 @@ def on_ticket(
 
             # WRITE PULL REQUEST
             logger.info("Making PR...")
-            response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
-            if not response or not response["success"]: raise Exception("Failed to create PR")
-            pr = response["pull_request"]
+            pr = create_pull_request(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
             current_issue.create_reaction("rocket")
             edit_sweep_comment(
                 "I have finished coding the issue. I am now reviewing it for completeness.",
@@ -428,7 +464,7 @@ def on_ticket(
             break
     except MaxTokensExceeded as e:
         logger.info("Max tokens exceeded")
-        log_error("Max Tokens Exceeded", str(e) + "\n" + traceback.format_exc())
+        handle_errors(e, "Max Tokens Exceeded")
         if chat_logger.is_paying_user():
             edit_sweep_comment(f"Sorry, I could not edit `{e.filename}` as this file is too long. We are currently working on improved file streaming to address this issue.\n", -1)
         else:
@@ -436,7 +472,7 @@ def on_ticket(
         raise e
     except NoFilesException as e:
         logger.info("No files to change.")
-        log_error("No Files to Change", str(e) + "\n" + traceback.format_exc())
+        handle_errors(e, "No Files to Change")
         edit_sweep_comment("Sorry, I could find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!", -1)
         raise e
     except openai.error.InvalidRequestError as e:
@@ -446,7 +482,7 @@ def on_ticket(
             "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev.",
             -1
         )
-        log_error("Context Length", str(e) + "\n" + traceback.format_exc())
+        handle_errors(e, "Context Length")
         posthog.capture(
             username,
             "failed",
@@ -464,20 +500,8 @@ def on_ticket(
             "I'm sorry, but it looks like an error has occurred. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
             -1
         )
-        log_error("Workflow", str(e) + "\n" + traceback.format_exc())
+        handle_errors(e, "Workflow")
         posthog.capture(
             username,
             "failed",
-            properties={"error": str(e), "reason": "Generic error", **metadata},
-        )
-        raise e
-    else:
-        try:
-            item_to_react_to.delete_reaction(eyes_reaction.id)
-        except:
-            pass
-        item_to_react_to.create_reaction("rocket")
-
-    posthog.capture(username, "success", properties={**metadata})
-    logger.info("on_ticket success")
-    return {"success": True}
+            properties={"error": str(e), "
