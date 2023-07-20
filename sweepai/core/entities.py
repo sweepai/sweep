@@ -237,7 +237,7 @@ class Snippet(BaseModel):
             snippet = snippet + '\n'
         return snippet
 
-    def expand(self, num_lines: int = 50):
+    def expand(self, num_lines: int = 35):
         return Snippet(
             content=self.content,
             start=max(self.start - num_lines, 1),

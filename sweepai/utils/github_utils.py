@@ -5,6 +5,7 @@ import time
 
 import github
 import modal
+from redis import Redis
 import requests
 from github import Github
 from github.Repository import Repository
@@ -14,7 +15,8 @@ from tqdm import tqdm
 
 from sweepai.core.entities import Snippet
 from sweepai.utils.config.client import SweepConfig
-from sweepai.utils.config.server import DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHUB_APP_PEM
+from sweepai.utils.config.server import DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHUB_APP_PEM, REDIS_URL
+from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
 
@@ -72,6 +74,7 @@ def list_directory_tree(
     included_directories=None,
     excluded_directories=None,
     included_files=None,
+    ctags: CTags=None,
 ):
     """Display the directory tree.
 
@@ -89,7 +92,8 @@ def list_directory_tree(
 
     def list_directory_contents(
         current_directory,
-        indentation=""
+        indentation="",
+        ctags: CTags = None,
     ):
         """Recursively list the contents of directories."""
 
@@ -108,20 +112,21 @@ def list_directory_tree(
                 if relative_path in included_directories:
                     directory_tree_string += f"{indentation}{relative_path}/\n"
                     directory_tree_string += list_directory_contents(
-                        complete_path, indentation + "  "
+                        complete_path, indentation + "  ", ctags=ctags
                     )
                 else:
                     directory_tree_string += f"{indentation}{name}/...\n"
             else:
                 directory_tree_string += f"{indentation}{name}\n"
                 if os.path.isfile(complete_path) and relative_path in included_files:
-                    ctags = get_ctags_for_file(complete_path)
-                    ctags = "\n".join([indentation + line for line in ctags.splitlines()])
-                    if ctags.strip():
-                        directory_tree_string += f"{ctags}\n"
+                    # Todo, use these to fetch neighbors
+                    ctags_str, names = get_ctags_for_file(ctags, complete_path)
+                    ctags_str = "\n".join([indentation + line for line in ctags_str.splitlines()])
+                    if ctags_str.strip():
+                        directory_tree_string += f"{ctags_str}\n"
         return directory_tree_string
 
-    directory_tree = list_directory_contents(root_directory)
+    directory_tree = list_directory_contents(root_directory, ctags=ctags)
     return directory_tree
 
 def get_file_list(root_directory: str) -> str:
@@ -147,13 +152,6 @@ def get_tree_and_file_list(
         installation_id: int,
         snippet_paths: list[str]
 ) -> str:
-    from git import Repo
-    token = get_token(installation_id)
-    shutil.rmtree("repo", ignore_errors=True)
-    repo_url = f"https://x-access-token:{token}@github.com/{repo.full_name}.git"
-    git_repo = Repo.clone_from(repo_url, "repo")
-    git_repo.git.checkout(SweepConfig.get_branch(repo))
-
     prefixes = []
     for snippet_path in snippet_paths:
         file_list = ""
@@ -163,14 +161,20 @@ def get_tree_and_file_list(
         file_list += snippet_path.split("/")[-1]
         prefixes.append(snippet_path)
 
+    sha = repo.get_branch(repo.default_branch).commit.sha
+    cache_inst = Redis.from_url(REDIS_URL)
+    ctags = CTags(sha=sha, redis_instance=cache_inst)
+    all_names = []
+    for file in snippet_paths:
+        ctags_str, names = get_ctags_for_file(ctags, os.path.join("repo", file))
+        all_names.extend(names)
     tree = list_directory_tree(
         "repo",
         included_directories=prefixes,
         included_files=snippet_paths,
+        ctags=ctags,
     )
-    file_list = get_file_list("repo")
-    shutil.rmtree("repo")
-    return tree, file_list
+    return tree
 
 
 def get_file_contents(repo: Repository, file_path, ref=None):
@@ -180,6 +184,9 @@ def get_file_contents(repo: Repository, file_path, ref=None):
     contents = file.decoded_content.decode("utf-8", errors='replace')
     return contents
 
+def get_file_names_from_query(query: str) -> list[str]:
+    query_file_names = re.findall(r'\b[\w\-\.\/]*\w+\.\w{1,6}\b', query)
+    return [query_file_name for query_file_name in query_file_names if len(query_file_name) > 3]
 
 def search_snippets(
         repo: Repository,
@@ -208,31 +215,48 @@ def search_snippets(
             logger.warning(f"Skipping {snippet.file_path}")
         else:
             snippet.content = file_contents
-    tree, file_list = get_tree_and_file_list(
+    from git import Repo
+    token = get_token(installation_id)
+    shutil.rmtree("repo", ignore_errors=True)
+    repo_url = f"https://x-access-token:{token}@github.com/{repo.full_name}.git"
+    git_repo = Repo.clone_from(repo_url, "repo")
+    git_repo.git.checkout(SweepConfig.get_branch(repo))
+    file_list = get_file_list("repo")
+    query_file_names = get_file_names_from_query(query)
+    query_match_files = [] # files in both query and repo
+    for file_path in tqdm(file_list):
+        for query_file_name in query_file_names:
+            if query_file_name in file_path:
+                query_match_files.append(file_path)
+    
+    snippet_paths = [snippet.file_path for snippet in snippets] + query_match_files[:15]
+    snippet_paths = list(set(snippet_paths))
+    tree = get_tree_and_file_list(
         repo,
         installation_id,
-        snippet_paths=[snippet.file_path for snippet in snippets]
+        snippet_paths=snippet_paths
     )
-    for file_path in tqdm(file_list):
-        if file_path in query:
-            try:
-                file_contents = get_file_contents(repo, file_path, ref=branch)
-                if len(file_contents) > sweep_config.max_file_limit:  # more than 10000 tokens
-                    logger.warning(f"Skipping {file_path}, too many tokens")
-                    continue
-            except github.UnknownObjectException as e:
-                logger.warning(f"Error: {e}")
-                logger.warning(f"Skipping {file_path}")
-            else:
-                snippets = [
-                               Snippet(
-                                   content=file_contents,
-                                   start=0,
-                                   end=file_contents.count("\n") + 1,
-                                   file_path=file_path,
-                               )
-                           ] + snippets
+    shutil.rmtree("repo")
+    for file_path in query_match_files:
+        try:
+            file_contents = get_file_contents(repo, file_path, ref=branch)
+            if len(file_contents) > sweep_config.max_file_limit:  # more than 10000 tokens
+                logger.warning(f"Skipping {file_path}, too many tokens")
+                continue
+        except github.UnknownObjectException as e:
+            logger.warning(f"Error: {e}")
+            logger.warning(f"Skipping {file_path}")
+        else:
+            snippets = [
+                        Snippet(
+                            content=file_contents,
+                            start=0,
+                            end=file_contents.count("\n") + 1,
+                            file_path=file_path,
+                        )
+                    ] + snippets
     snippets = [snippet.expand() for snippet in snippets]
+    logger.info(f"Tree: {tree}")
     if include_tree:
         return snippets, tree
     else:
