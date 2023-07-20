@@ -156,18 +156,22 @@ async def webhook(raw_request: Request):
                         request.comment.id
                     )
                 elif request.issue.pull_request and request.comment.user.type == "User":  # TODO(sweep): set a limit
-                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
-                    handle_comment.spawn(
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        comment=request.comment.body,
-                        pr_path=None,
-                        pr_line_position=None,
-                        username=request.comment.user.login,
-                        installation_id=request.installation.id,
-                        pr_number=request.issue.number,
-                        comment_id=request.comment.id,
-                    )
+                    issue_labels = [label.name for label in request.issue.labels]
+                    if 'Sweep' in issue_labels or request.comment.body.lower().startswith('sweep:'):
+                        logger.info(f"Handling comment on PR: {request.issue.pull_request}")
+                        handle_comment.spawn(
+                            repo_full_name=request.repository.full_name,
+                            repo_description=request.repository.description,
+                            comment=request.comment.body,
+                            pr_path=None,
+                            pr_line_position=None,
+                            username=request.comment.user.login,
+                            installation_id=request.installation.id,
+                            pr_number=request.issue.number,
+                            comment_id=request.comment.id,
+                        )
+                    else:
+                        return
             case "pull_request_review_comment", "created":
                 request = CommentCreatedRequest(**request_dict)
                 handle_comment.spawn(
