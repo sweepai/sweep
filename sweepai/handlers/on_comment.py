@@ -3,6 +3,18 @@ import traceback
 import openai
 from loguru import logger
 
+def construct_metadata(repo_full_name, repo_name, organization, repo_description, installation_id, username, function, mode):
+    return {
+        "repo_full_name": repo_full_name,
+        "repo_name": repo_name,
+        "organization": organization,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "username": username,
+        "function": function,
+        "mode": mode,
+    }
+
 from sweepai.core.entities import NoFilesException, Snippet
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
@@ -76,18 +88,9 @@ def on_comment(
     logger.info(
         f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
     organization, repo_name = repo_full_name.split("/")
-    metadata = {
-        "repo_full_name": repo_full_name,
-        "repo_name": repo_name,
-        "organization": organization,
-        "repo_description": repo_description,
-        "installation_id": installation_id,
-        "username": username,
-        "function": "on_comment",
-        "mode": PREFIX,
-    }
+    metadata = construct_metadata(repo_full_name, repo_name, organization, repo_description, installation_id, username, "on_comment", PREFIX)
 
-    posthog.capture(username, "started", properties=metadata)
+    capture_posthog_event(username, "started", properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = pr_path and pr_line_position
     try:
@@ -149,7 +152,7 @@ def on_comment(
                 except Exception as e:
                     error = e
                     continue
-            posthog.capture(
+            capture_posthog_event(
                 username, "fetching_failed", properties={"error": error, **metadata}
             )
             raise error
@@ -206,7 +209,7 @@ def on_comment(
         )
     except Exception as e:
         logger.error(traceback.format_exc())
-        posthog.capture(username, "failed", properties={
+        capture_posthog_event(username, "failed", properties={
             "error": str(e),
             "reason": "Failed to get files",
             **metadata
@@ -222,7 +225,7 @@ def on_comment(
 
         logger.info("Done!")
     except NoFilesException:
-        posthog.capture(username, "failed", properties={
+        capture_posthog_event(username, "failed", properties={
             "error": "No files to change",
             "reason": "No files to change",
             **metadata
@@ -230,16 +233,20 @@ def on_comment(
         return {"success": True, "message": "No files to change."}
     except Exception as e:
         logger.error(traceback.format_exc())
-        posthog.capture(username, "failed", properties={
+        capture_posthog_event(username, "failed", properties={
             "error": str(e),
             "reason": "Failed to make changes",
             **metadata
         })
         raise e
 
-    posthog.capture(username, "success", properties={**metadata})
+    capture_posthog_event(username, "success", properties={**metadata})
     logger.info("on_comment success")
     return {"success": True}
+
+
+def capture_posthog_event(username, event, properties):
+    posthog.capture(username, event, properties=properties)
 
 
 def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
