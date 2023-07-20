@@ -3,6 +3,17 @@ import traceback
 import openai
 from loguru import logger
 
+def construct_metadata(repo_full_name, repo_name, organization, repo_description, installation_id, username, function, mode):
+    return {
+        "repo_full_name": repo_full_name,
+        "repo_name": repo_name,
+        "organization": organization,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "username": username,
+        "function": function,
+        "mode": mode,
+    }
 
 from sweepai.core.entities import NoFilesException, Snippet
 from sweepai.core.sweep_bot import SweepBot
