@@ -42,7 +42,8 @@ image = (
         "tqdm",
         "pyyaml",
         "pymongo",
-        "tabulate"
+        "tabulate",
+        "redis",
     )
 )
 secrets = [
@@ -53,7 +54,8 @@ secrets = [
     modal.Secret.from_name("posthog"),
     modal.Secret.from_name("highlight"),
     modal.Secret.from_name("mongodb"),
-    modal.Secret.from_name("discord")
+    modal.Secret.from_name("discord"),
+    modal.Secret.from_name("redis_url"),
 ]
 
 FUNCTION_SETTINGS = {

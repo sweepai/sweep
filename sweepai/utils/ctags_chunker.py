@@ -2,7 +2,7 @@ import modal
 import subprocess
 import os
 
-from sweepai.utils.ctags import Ctags
+from sweepai.utils.ctags import CTags
 
 MAX_NUM_TAGS = 5
 
@@ -35,10 +35,10 @@ def should_add_tag(tag):
         return False
     return True
 
-def get_ctags_for_file(file_path):
-    repo = Ctags(file_path)
-    tags = repo.run_ctags()
+def get_ctags_for_file(ctags: CTags, file_path: str):
+    tags = ctags.run_ctags(file_path)
     tag_structure = []
+    signatures = set()
     for tag in tags:
         kind = tag['kind']
         name = tag['name']
@@ -47,6 +47,7 @@ def get_ctags_for_file(file_path):
             signature = tag['signature']
         if should_add_tag(tag):
             tag_structure.append((kind, name, signature))
+            signatures.add((name, signature))
     # Organize the tags by file and kind
     tag_structure = unified_ctags_sorter(tag_structure)
 
@@ -55,4 +56,4 @@ def get_ctags_for_file(file_path):
     for (kind, name, signature) in tag_structure:
         sig = ' ' + signature if signature else ''
         output += f"  {kind} {name}{sig}\n"
-    return output
+    return output, signatures

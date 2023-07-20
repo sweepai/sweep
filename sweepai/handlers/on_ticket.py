@@ -255,7 +255,7 @@ def on_ticket(
         discord_log_error(content)
 
     def fetch_file_contents_with_retry():
-        retries = 3
+        retries = 1
         error = None
         for i in range(retries):
             try:

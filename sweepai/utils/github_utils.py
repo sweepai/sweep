@@ -5,6 +5,7 @@ import time
 
 import github
 import modal
+from redis import Redis
 import requests
 from github import Github
 from github.Repository import Repository
@@ -14,7 +15,8 @@ from tqdm import tqdm
 
 from sweepai.core.entities import Snippet
 from sweepai.utils.config.client import SweepConfig
-from sweepai.utils.config.server import DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHUB_APP_PEM
+from sweepai.utils.config.server import DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHUB_APP_PEM, REDIS_URL
+from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
 
@@ -72,6 +74,7 @@ def list_directory_tree(
     included_directories=None,
     excluded_directories=None,
     included_files=None,
+    ctags: CTags=None,
 ):
     """Display the directory tree.
 
@@ -86,10 +89,15 @@ def list_directory_tree(
         included_directories = []
     if excluded_directories is None:
         excluded_directories = [".git"]
+    
+    for file in included_files:
+        ctags_str, signatures = get_ctags_for_file(ctags, os.path.join(root_directory, file))
+        print("Ctags", ctags_str)
 
     def list_directory_contents(
         current_directory,
-        indentation=""
+        indentation="",
+        ctags: CTags = None,
     ):
         """Recursively list the contents of directories."""
 
@@ -108,20 +116,20 @@ def list_directory_tree(
                 if relative_path in included_directories:
                     directory_tree_string += f"{indentation}{relative_path}/\n"
                     directory_tree_string += list_directory_contents(
-                        complete_path, indentation + "  "
+                        complete_path, indentation + "  ", ctags=ctags
                     )
                 else:
                     directory_tree_string += f"{indentation}{name}/...\n"
             else:
                 directory_tree_string += f"{indentation}{name}\n"
                 if os.path.isfile(complete_path) and relative_path in included_files:
-                    ctags = get_ctags_for_file(complete_path)
-                    ctags = "\n".join([indentation + line for line in ctags.splitlines()])
-                    if ctags.strip():
-                        directory_tree_string += f"{ctags}\n"
+                    ctags_str, signatures = get_ctags_for_file(ctags, complete_path)
+                    ctags_str = "\n".join([indentation + line for line in ctags_str.splitlines()])
+                    if ctags_str.strip():
+                        directory_tree_string += f"{ctags_str}\n"
         return directory_tree_string
 
-    directory_tree = list_directory_contents(root_directory)
+    directory_tree = list_directory_contents(root_directory, ctags=ctags)
     return directory_tree
 
 def get_file_list(root_directory: str) -> str:
@@ -163,10 +171,14 @@ def get_tree_and_file_list(
         file_list += snippet_path.split("/")[-1]
         prefixes.append(snippet_path)
 
+    sha = repo.get_branch(repo.default_branch).commit.sha
+    cache_inst = Redis.from_url(REDIS_URL)
+    ctags = CTags(sha=sha, redis_instance=cache_inst)
     tree = list_directory_tree(
         "repo",
         included_directories=prefixes,
         included_files=snippet_paths,
+        ctags=ctags,
     )
     file_list = get_file_list("repo")
     shutil.rmtree("repo")
