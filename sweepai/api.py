@@ -1,7 +1,9 @@
 import modal
+import queue
 from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
+import threading
 
 from sweepai.events import (
     CheckRunCompleted,
@@ -67,6 +69,7 @@ handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
+comment_queue = queue.Queue()
 
 
 @stub.function(**FUNCTION_SETTINGS)
@@ -136,23 +139,12 @@ async def webhook(raw_request: Request):
                     request.repository.description = (
                             request.repository.description or ""
                     )
-
+            
                     if not request.comment.body.lower().startswith(GITHUB_LABEL_NAME):
                         return {"success": True, "reason": "Comment does not start with 'Sweep', passing"}
-
-                    # Update before we handle the ticket to make sure index is up to date
-                    # other ways suboptimal
-                    handle_ticket.spawn(
-                        request.issue.title,
-                        request.issue.body,
-                        request.issue.number,
-                        request.issue.html_url,
-                        request.issue.user.login,
-                        request.repository.full_name,
-                        request.repository.description,
-                        request.installation.id,
-                        request.comment.id
-                    )
+            
+                    # Enqueue the comment request
+                    comment_queue.put(request)
                 elif request.issue.pull_request and request.comment.user.type == "User":  # TODO(sweep): set a limit
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     handle_comment.spawn(
@@ -273,4 +265,23 @@ async def webhook(raw_request: Request):
     except ValidationError as e:
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
+    def process_comment_queue():
+        while True:
+            # Dequeue a comment request and process it
+            request = comment_queue.get()
+            handle_ticket.spawn(
+                request.issue.title,
+                request.issue.body,
+                request.issue.number,
+                request.issue.html_url,
+                request.issue.user.login,
+                request.repository.full_name,
+                request.repository.description,
+                request.installation.id,
+                request.comment.id
+            )
+    
+    # Run the process_comment_queue function in a separate thread
+    threading.Thread(target=process_comment_queue, daemon=True).start()
+    
     return {"success": True}
