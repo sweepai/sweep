@@ -364,7 +364,7 @@ def on_ticket(
 
             file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
             table = tabulate(
-                [[f"`{file_change_request.filename}`", file_change_request.instructions] for file_change_request in
+                [[f"`{file_change_request.filename}`", file_change_request.instructions.replace('\n', '<br/>').replace('```', '\\```')] for file_change_request in
                  file_change_requests],
                 headers=["File Path", "Proposed Changes"],
                 tablefmt="pipe"
