@@ -1,7 +1,16 @@
-import modal
+def process_comments():
+    while True:
+        comment = comment_queue.get()
+        handle_ticket.spawn(*comment)
+
+threading.Thread(target=process_comments).start()
+
+return {"success": True}
 from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
+from modal.queue import Queue
+import threading
 
 from sweepai.events import (
     CheckRunCompleted,
@@ -73,6 +82,7 @@ handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
 @modal.web_endpoint(method="POST")
 async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
+    comment_queue = Queue.new()
     try:
         request_dict = await raw_request.json()
         logger.info(f"Received request: {request_dict.keys()}")
@@ -142,7 +152,7 @@ async def webhook(raw_request: Request):
 
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
-                    handle_ticket.spawn(
+                    comment_queue.put(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
