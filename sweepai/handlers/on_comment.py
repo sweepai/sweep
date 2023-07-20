@@ -134,7 +134,7 @@ def on_comment(
                 return {"success": True, "message": "No event fired."}
 
         def fetch_file_contents_with_retry():
-            retries = 3
+            retries = 1
             error = None
             for i in range(retries):
                 try:
