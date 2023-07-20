@@ -51,17 +51,17 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     return result_snippets[:max_num_of_snippets]
 
 
-def on_comment(
-        repo_full_name: str,
-        repo_description: str,
-        comment: str,
-        pr_path: str | None,
-        pr_line_position: int | None,
-        username: str,
-        installation_id: int,
-        pr_number: int = None,
-        comment_id: int | None = None,
-):
+def on_comment(comment_data: dict):
+    repo_full_name = comment_data["repo_full_name"]
+    repo_description = comment_data["repo_description"]
+    comment = comment_data["comment"]
+    pr_path = comment_data["pr_path"]
+    pr_line_position = comment_data["pr_line_position"]
+    username = comment_data["username"]
+    installation_id = comment_data["installation_id"]
+    pr_number = comment_data["pr_number"]
+    comment_id = comment_data["comment_id"]
+
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
