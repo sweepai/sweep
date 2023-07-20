@@ -15,6 +15,7 @@ from github import Github
 from loguru import logger
 from pydantic import BaseModel
 from pymongo import MongoClient
+from talc import talc
 
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.chat import ChatGPT
@@ -62,6 +63,8 @@ FUNCTION_SETTINGS = {
     "keep_warm": 1
 }
 
+## Ideally this should be behind a DEV flag
+talc.init()
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.asgi_app(label=PREFIX + "-ui")

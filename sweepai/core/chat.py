@@ -8,6 +8,7 @@ import modal
 import openai
 from loguru import logger
 from pydantic import BaseModel
+from talc import talc
 
 from sweepai.core.entities import Message, Function
 from sweepai.core.prompts import (
@@ -68,6 +69,7 @@ class ChatGPT(BaseModel):
     human_message: HumanMessagePrompt | None = None
     file_change_paths = []
     chat_logger: ChatLogger | None
+    talc_session: str = talc.createSession()
 
     @classmethod
     def from_system_message_content(
@@ -243,6 +245,7 @@ class ChatGPT(BaseModel):
                                 temperature=temperature,
                                 functions=[json.loads(function.json()) for function in functions],
                                 function_call=function_name,
+                                session=self.talc_session,
                             )
                             .choices[0].message
                         )
@@ -254,6 +257,7 @@ class ChatGPT(BaseModel):
                                 max_tokens=max_tokens - token_sub,
                                 temperature=temperature,
                                 functions=[json.loads(function.json()) for function in functions],
+                                session=self.talc_session,
                             )
                             .choices[0].message
                         )
