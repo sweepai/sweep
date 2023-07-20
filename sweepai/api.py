@@ -1,11 +1,3 @@
-def process_comments():
-    while True:
-        comment = comment_queue.get()
-        handle_ticket.spawn(*comment)
-
-threading.Thread(target=process_comments).start()
-
-return {"success": True}
 from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
@@ -77,6 +69,14 @@ handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
 
+def process_comments():
+    while True:
+        comment = comment_queue.get()
+        handle_ticket.spawn(*comment)
+
+threading.Thread(target=process_comments).start()
+
+return {"success": True}
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
