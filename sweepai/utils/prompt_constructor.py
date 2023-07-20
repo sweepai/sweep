@@ -92,6 +92,8 @@ class HumanMessageReviewFollowup(BaseModel):
     diff: tuple
 
     def construct_prompt(self):
+        if len(self.diff) != 4:
+            raise ValueError("Expected diff to be a tuple of length 4, but got a tuple of length " + str(len(self.diff)))
         file_name, new_file_contents, old_file_contents, file_patch = self.diff
         format_diff = diff_section_prompt.format(
             diff_file_path=file_name,
