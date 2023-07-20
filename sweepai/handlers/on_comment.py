@@ -73,6 +73,9 @@ def on_comment(
         installation_id: int,
         pr_number: int = None,
         comment_id: int | None = None,
+        g: None = None,
+        repo: None = None,
+        pr: None = None,
 ):
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
@@ -93,28 +96,24 @@ def on_comment(
     capture_posthog_event(username, "started", properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = pr_path and pr_line_position
+
+    g = get_github_client(installation_id) if not g else g
+    repo = g.get_repo(repo_full_name) if not repo else repo
+    pr = repo.get_pull(pr_number) if not pr else pr
     try:
-        g = get_github_client(installation_id)
-        repo = g.get_repo(repo_full_name)
-        pr = repo.get_pull(pr_number)
-        try:
-            if not comment.lower().startswith('sweep:'):
-                return
-            if not comment_id:
+        if not comment_id:
+            pass
+        else:
+            try:
+                item_to_react_to = pr.get_issue_comment(comment_id)
+                item_to_react_to.create_reaction("eyes")
+            except Exception as e:
                 pass
-            else:
-                try:
-                    item_to_react_to = pr.get_issue_comment(comment_id)
-                    item_to_react_to.create_reaction("eyes")
-                except Exception as e:
-                    pass
-                try:
-                    item_to_react_to = pr.get_review_comment(comment_id)
-                    item_to_react_to.create_reaction("eyes")
-                except Exception as e:
-                    pass
-        except Exception as e:
-            logger.error(f"Failed to fetch comments: {str(e)}")
+            try:
+                item_to_react_to = pr.get_review_comment(comment_id)
+                item_to_react_to.create_reaction("eyes")
+            except Exception as e:
+                pass
         # Check if the PR is closed
         if pr.state == "closed":
             return {"success": True, "message": "PR is closed. No event fired."}
@@ -130,11 +129,6 @@ def on_comment(
             pr_lines = pr_file.splitlines()
             pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
             pr_file_path = pr_path.strip()
-        # This means it's a comment on the PR
-        else:
-            if not comment.strip().lower().startswith("sweep"):
-                logger.info("No event fired because it doesn't start with Sweep.")
-                return {"success": True, "message": "No event fired."}
 
         def fetch_file_contents_with_retry():
             retries = 1
