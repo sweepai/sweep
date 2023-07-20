@@ -133,7 +133,8 @@ async def webhook(raw_request: Request):
                 # if replying to an issue with sweep label
                 if request.issue is not None \
                         and GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels] \
-                        and request.comment.user.type == "User":
+                        and request.comment.user.type == "User"\
+                        and not request.issue.pull_request.url: # it's a PR
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
                             request.repository.description or ""
@@ -157,30 +158,49 @@ async def webhook(raw_request: Request):
                     )
                 elif request.issue.pull_request and request.comment.user.type == "User":  # TODO(sweep): set a limit
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
+                    g = get_github_client(request.installation.id)
+                    repo = g.get_repo(request.repository.full_name)
+                    pr = repo.get_pull(request.issue.number)
+                    labels = pr.get_labels()
+                    comment = request.comment.body
+                    if comment.lower().startswith('sweep:') or any(label.name.lower() == "sweep" for label in labels):
+                        handle_comment.spawn(
+                            repo_full_name=request.repository.full_name,
+                            repo_description=request.repository.description,
+                            comment=request.comment.body,
+                            pr_path=None,
+                            pr_line_position=None,
+                            username=request.comment.user.login,
+                            installation_id=request.installation.id,
+                            pr_number=request.issue.number,
+                            comment_id=request.comment.id,
+                            g=g,
+                            repo=repo,
+                            pr=pr,
+                        )
+            case "pull_request_review_comment", "created":
+                request = CommentCreatedRequest(**request_dict)
+                logger.info(f"Handling comment on PR: {request.pull_request.number}")
+                g = get_github_client(request.installation.id)
+                repo = g.get_repo(request.repository.full_name)
+                pr = repo.get_pull(request.pull_request.number)
+                labels = pr.get_labels()
+                comment = request.comment.body
+                if comment.lower().startswith('sweep:') or any(label.name.lower() == "sweep" for label in labels):
                     handle_comment.spawn(
                         repo_full_name=request.repository.full_name,
                         repo_description=request.repository.description,
                         comment=request.comment.body,
-                        pr_path=None,
-                        pr_line_position=None,
+                        pr_path=request.comment.path,
+                        pr_line_position=request.comment.original_line,
                         username=request.comment.user.login,
                         installation_id=request.installation.id,
-                        pr_number=request.issue.number,
+                        pr_number=request.pull_request.number,
                         comment_id=request.comment.id,
+                        g=g,
+                        repo=repo,
+                        pr=pr,
                     )
-            case "pull_request_review_comment", "created":
-                request = CommentCreatedRequest(**request_dict)
-                handle_comment.spawn(
-                    repo_full_name=request.repository.full_name,
-                    repo_description=request.repository.description,
-                    comment=request.comment.body,
-                    pr_path=request.comment.path,
-                    pr_line_position=request.comment.original_line,
-                    username=request.comment.user.login,
-                    installation_id=request.installation.id,
-                    pr_number=request.pull_request.number,
-                    comment_id=request.comment.id,
-                )
                 # Todo: update index on comments
             case "pull_request_review", "submitted":
                 # request = ReviewSubmittedRequest(**request_dict)
