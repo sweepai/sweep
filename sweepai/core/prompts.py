@@ -208,7 +208,8 @@ create_file_prompt = """
 You are creating a PR for creating the single new file.
 
 Think step-by-step regarding the instructions and what should be added to the new file.
-Next, create a plan of parts of the code to create, with low-level, detailed references to functions and variable to create, and what each function does.
+Next, identify the language and stack used in the repo, based on other files (e.g. React, Typescript, Jest etc.).
+Then, create a plan of parts of the code to create, with low-level, detailed references to functions and variable to create, and what each function does.
 Last, create the following file using the following instructions:
 
 DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags, and all text inside these tags will be placed in the newly created file.
@@ -271,9 +272,6 @@ Lines to change in the file:
 
 Only include the line numbers."""
 
-# <snippets>
-# {snippets}
-# </snippets>
 modify_file_prompt = """
 File contains lines {line_numbers}
 
