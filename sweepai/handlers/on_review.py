@@ -79,6 +79,8 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
     summarization_replies.append(extracted_summary.content)
     for diff in diffs[1:]:
         review_message = HumanMessageReviewFollowup(diff=diff)
+        if len(diff) != 4:
+            raise ValueError("Expected diff to be a tuple of length 4, but got a tuple of length " + str(len(diff)))
         review_prompt_constructed = review_message.construct_prompt()
         summarization_reply = sweep_bot.chat(review_prompt_constructed, message_key="review")
         extracted_summary = DiffSummarization.from_string(summarization_reply)
