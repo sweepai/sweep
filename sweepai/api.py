@@ -153,7 +153,7 @@ async def webhook(raw_request: Request):
                         request.installation.id,
                         request.comment.id
                     )
-                elif request.issue.pull_request and request.issue.user.login == GITHUB_BOT_USERNAME and request.comment.user.type == "User":  # TODO(sweep): set a limit
+                elif request.issue.pull_request and request.comment.user.type == "User":  # TODO(sweep): set a limit
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     handle_comment.spawn(
                         repo_full_name=request.repository.full_name,
@@ -168,18 +168,17 @@ async def webhook(raw_request: Request):
                     )
             case "pull_request_review_comment", "created":
                 request = CommentCreatedRequest(**request_dict)
-                if "sweep/" in request.pull_request.head.ref.lower():
-                    handle_comment.spawn(
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        comment=request.comment.body,
-                        pr_path=request.comment.path,
-                        pr_line_position=request.comment.original_line,
-                        username=request.comment.user.login,
-                        installation_id=request.installation.id,
-                        pr_number=request.pull_request.number,
-                        comment_id=request.comment.id,
-                    )
+                handle_comment.spawn(
+                    repo_full_name=request.repository.full_name,
+                    repo_description=request.repository.description,
+                    comment=request.comment.body,
+                    pr_path=request.comment.path,
+                    pr_line_position=request.comment.original_line,
+                    username=request.comment.user.login,
+                    installation_id=request.installation.id,
+                    pr_number=request.pull_request.number,
+                    comment_id=request.comment.id,
+                )
                 # Todo: update index on comments
             case "pull_request_review", "submitted":
                 # request = ReviewSubmittedRequest(**request_dict)
@@ -191,18 +190,18 @@ async def webhook(raw_request: Request):
                 # Must be Sweep firing the PR and it must fail
                 if request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
                     logs = handle_check_suite.call(request)
-                if len(request.check_run.pull_requests) > 0 and logs:
-                    handle_comment.spawn(
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        comment="Sweep: " + logs,
-                        pr_path=None,
-                        pr_line_position=None,
-                        username=request.sender.login,
-                        installation_id=request.installation.id,
-                        pr_number=request.check_run.pull_requests[0].number,
-                        comment_id=None,
-                    )
+                    if len(request.check_run.pull_requests) > 0 and logs:
+                        handle_comment.spawn(
+                            repo_full_name=request.repository.full_name,
+                            repo_description=request.repository.description,
+                            comment="Sweep: " + logs,
+                            pr_path=None,
+                            pr_line_position=None,
+                            username=request.sender.login,
+                            installation_id=request.installation.id,
+                            pr_number=request.check_run.pull_requests[0].number,
+                            comment_id=None,
+                        )
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {

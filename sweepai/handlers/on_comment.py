@@ -117,7 +117,7 @@ def on_comment(
             return {"success": True, "message": "PR is closed. No event fired."}
         branch_name = pr.head.ref
         pr_title = pr.title
-        pr_body = pr.body
+        pr_body = pr.body or ""
         diffs = get_pr_diffs(repo, pr)
         pr_line = None
         pr_file_path = None
