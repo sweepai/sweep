@@ -63,7 +63,7 @@ FUNCTION_SETTINGS = {
 }
 
 handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
-handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
+comments_queue = modal.queue.Queue.new()
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
@@ -155,30 +155,30 @@ async def webhook(raw_request: Request):
                     )
                 elif request.issue.pull_request and request.comment.user.type == "User":  # TODO(sweep): set a limit
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
-                    handle_comment.spawn(
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        comment=request.comment.body,
-                        pr_path=None,
-                        pr_line_position=None,
-                        username=request.comment.user.login,
-                        installation_id=request.installation.id,
-                        pr_number=request.issue.number,
-                        comment_id=request.comment.id,
-                    )
+                    comments_queue.put({
+                        "repo_full_name": request.repository.full_name,
+                        "repo_description": request.repository.description,
+                        "comment": request.comment.body,
+                        "pr_path": None,
+                        "pr_line_position": None,
+                        "username": request.comment.user.login,
+                        "installation_id": request.installation.id,
+                        "pr_number": request.issue.number,
+                        "comment_id": request.comment.id,
+                    })
             case "pull_request_review_comment", "created":
                 request = CommentCreatedRequest(**request_dict)
-                handle_comment.spawn(
-                    repo_full_name=request.repository.full_name,
-                    repo_description=request.repository.description,
-                    comment=request.comment.body,
-                    pr_path=request.comment.path,
-                    pr_line_position=request.comment.original_line,
-                    username=request.comment.user.login,
-                    installation_id=request.installation.id,
-                    pr_number=request.pull_request.number,
-                    comment_id=request.comment.id,
-                )
+                comments_queue.put({
+                    "repo_full_name": request.repository.full_name,
+                    "repo_description": request.repository.description,
+                    "comment": request.comment.body,
+                    "pr_path": request.comment.path,
+                    "pr_line_position": request.comment.original_line,
+                    "username": request.comment.user.login,
+                    "installation_id": request.installation.id,
+                    "pr_number": request.pull_request.number,
+                    "comment_id": request.comment.id,
+                })
                 # Todo: update index on comments
             case "pull_request_review", "submitted":
                 # request = ReviewSubmittedRequest(**request_dict)
@@ -191,17 +191,17 @@ async def webhook(raw_request: Request):
                 if request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
                     logs = handle_check_suite.call(request)
                     if len(request.check_run.pull_requests) > 0 and logs:
-                        handle_comment.spawn(
-                            repo_full_name=request.repository.full_name,
-                            repo_description=request.repository.description,
-                            comment="Sweep: " + logs,
-                            pr_path=None,
-                            pr_line_position=None,
-                            username=request.sender.login,
-                            installation_id=request.installation.id,
-                            pr_number=request.check_run.pull_requests[0].number,
-                            comment_id=None,
-                        )
+                        comments_queue.put({
+                            "repo_full_name": request.repository.full_name,
+                            "repo_description": request.repository.description,
+                            "comment": "Sweep: " + logs,
+                            "pr_path": None,
+                            "pr_line_position": None,
+                            "username": request.sender.login,
+                            "installation_id": request.installation.id,
+                            "pr_number": request.check_run.pull_requests[0].number,
+                            "comment_id": None,
+                        })
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
@@ -273,4 +273,19 @@ async def webhook(raw_request: Request):
     except ValidationError as e:
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
+    def handle_comments_from_queue():
+        while True:
+            comment_data = comments_queue.get()
+            on_comment(
+                repo_full_name=comment_data["repo_full_name"],
+                repo_description=comment_data["repo_description"],
+                comment=comment_data["comment"],
+                pr_path=comment_data["pr_path"],
+                pr_line_position=comment_data["pr_line_position"],
+                username=comment_data["username"],
+                installation_id=comment_data["installation_id"],
+                pr_number=comment_data["pr_number"],
+                comment_id=comment_data["comment_id"],
+            )
+    
     return {"success": True}
