@@ -92,11 +92,9 @@ class HumanMessageReviewFollowup(BaseModel):
     diff: tuple
 
     def construct_prompt(self):
-        file_name, new_file_contents, old_file_contents, file_patch = self.diff
+        file_name, file_patch = self.diff
         format_diff = diff_section_prompt.format(
             diff_file_path=file_name,
-            new_file_content=new_file_contents.rstrip("\n"),
-            previous_file_content=old_file_contents.rstrip("\n"),
             diffs=file_patch
         )
         return review_follow_up_prompt + format_diff
