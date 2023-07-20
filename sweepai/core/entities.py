@@ -237,7 +237,7 @@ class Snippet(BaseModel):
             snippet = snippet + '\n'
         return snippet
 
-    def expand(self, num_lines: int = 25):
+    def expand(self, num_lines: int = 35):
         return Snippet(
             content=self.content,
             start=max(self.start - num_lines, 1),
@@ -264,3 +264,15 @@ class PullRequestComment(RegexMatchableBaseModel):
 class NoFilesException(Exception):
     def __init__(self, message="Sweep could not find any files to modify"):
         super().__init__(message)
+
+
+def expand(self, num_lines: int = 35):
+    return Snippet(
+        content=self.content,
+        start=max(self.start - num_lines, 1),
+        end=min(self.end + num_lines, self.content.count("\n") + 1),
+        file_path=self.file_path
+    )
+
+
+Snippet.expand = expand
