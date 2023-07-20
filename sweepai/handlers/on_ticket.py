@@ -80,66 +80,6 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5)
     return result_snippets[:max_num_of_snippets]
 
 
-def fetch_relevant_files(repo, title, summary, replies_text, num_files, branch, installation_id):
-    # Logic for fetching relevant files
-    try:
-        snippets, tree = search_snippets(
-            repo,
-            f"{title}\n{summary}\n{replies_text}",
-            num_files=num_files,
-            branch=branch,
-            installation_id=installation_id,
-        )
-        assert len(snippets) > 0
-        return snippets, tree
-    except Exception as e:
-        handle_errors(e, "File Fetch")
-        raise e
-
-
-def process_snippets(snippets, use_faster_model):
-    # Logic for processing snippets
-    return post_process_snippets(snippets, max_num_of_snippets=2 if use_faster_model else 5)
-
-
-def handle_errors(e, error_type):
-    # Error handling logic
-    content = f"**{error_type} Error**\n{username}: {issue_url}\n```{e}```"
-    discord_log_error(content)
-
-
-def create_pull_request(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number):
-    # Logic for creating pull requests
-    try:
-        response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
-        if not response or not response["success"]: raise Exception("Failed to create PR")
-        return response["pull_request"]
-    except Exception as e:
-        handle_errors(e, "Pull Request Creation")
-        raise e
-
-
-def interact_with_github(repo, installation_id):
-    # Logic for interacting with the GitHub API
-    return get_github_client(installation_id)
-
-
-def interact_with_chat_logger(repo_name, title, summary, issue_number, issue_url, username, repo_full_name, repo_description, installation_id, comment_id):
-    # Logic for interacting with the chat logger
-    return ChatLogger({
-        'repo_name': repo_name,
-        'title': title,
-        'summary': summary,
-        "issue_number": issue_number,
-        "issue_url": issue_url,
-        "username": username,
-        "repo_full_name": repo_full_name,
-        "repo_description": repo_description,
-        "installation_id": installation_id,
-        "comment_id": comment_id,
-    })
-
-
 def on_ticket(
         title: str,
         summary: str,
@@ -157,6 +97,13 @@ def on_ticket(
     elif title.lower().startswith("sweep "):
         title = title[6:]
 
+    # Flow:
+    # 1. Get relevant files
+    # 2: Get human message
+    # 3. Get files to change
+    # 4. Get file changes
+    # 5. Create PR
+
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
@@ -169,7 +116,7 @@ def on_ticket(
     }
     posthog.capture(username, "started", properties=metadata)
 
-    g = interact_with_github(repo_full_name, installation_id)
+    g = get_github_client(installation_id)
 
     logger.info(f"Getting repo {repo_full_name}")
     repo = g.get_repo(repo_full_name)
@@ -191,7 +138,18 @@ def on_ticket(
             ]
         )
 
-    chat_logger = interact_with_chat_logger(repo_name, title, summary, issue_number, issue_url, username, repo_full_name, repo_description, installation_id, comment_id)
+    chat_logger = ChatLogger({
+        'repo_name': repo_name,
+        'title': title,
+        'summary': summary + replies_text,
+        "issue_number": issue_number,
+        "issue_url": issue_url,
+        "username": username,
+        "repo_full_name": repo_full_name,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "comment_id": comment_id,
+    })
 
     # Check if branch was already created for this issue
     preexisting_branch = None
@@ -234,9 +192,7 @@ def on_ticket(
     payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
     payment_message_start = f"{user_type}: I'm creating this ticket using {model_name}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
 
-    def get_comment_header(index, errored=False, pr_message=""):
-        config_pr_message = (
-            "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})" if config_pr_url is not None else "")
+    def get_comment_header_func(index, errored=False, pr_message=""):
         if index < 0: index = 0
         if index == 5:
             return pr_message + config_pr_message
@@ -246,20 +202,8 @@ def on_ticket(
             return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
         return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + (
             "\n" + stars_suffix if index != -1 else "") + "\n" + payment_message_start + config_pr_message
-    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\nWorking on it...{bot_suffix}{discord_suffix}"
-    for comment in comments:
-        if comment.user.login == GITHUB_BOT_USERNAME:
-            issue_comment = comment
-            issue_comment.edit(first_comment)
-            break
-    if issue_comment is None:
-        issue_comment = current_issue.create_comment(first_comment)
 
-    # Comment edit function
-    past_messages = {}
-    current_index = 0
-
-    def edit_sweep_comment(message: str, index: int, pr_message=""):
+    def edit_sweep_comment_func(message: str, index: int, pr_message=""):
         nonlocal current_index
         # -1 = error, -2 = retry
         # Only update the progress bar if the issue generation errors.
@@ -292,17 +236,17 @@ def on_ticket(
         # Update the issue comment
         issue_comment.edit(f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{suffix}")
 
-    def log_error(error_type, exception):
+    def log_error_func(error_type, exception):
         content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
         discord_log_error(content)
 
-    def fetch_file_contents_with_retry():
+    def fetch_file_contents_with_retry_func():
         retries = 1
         error = None
         for i in range(retries):
             try:
                 logger.info(f"Fetching relevant files for the {i}th time...")
-                return fetch_relevant_files(
+                return search_snippets(
                     repo,
                     f"{title}\n{summary}\n{replies_text}",
                     num_files=num_of_snippets_to_query,
@@ -319,19 +263,23 @@ def on_ticket(
 
     logger.info("Fetching relevant files...")
     try:
-        snippets, tree = fetch_file_contents_with_retry()
+        snippets, tree = fetch_file_contents_with_retry_func()
+        assert len(snippets) > 0
     except Exception as e:
         trace = traceback.format_exc()
         logger.error(e)
         logger.error(trace)
-        edit_sweep_comment(
+        edit_sweep_comment_func(
             "It looks like an issue has occurred around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev.",
             -1
         )
-        log_error("File Fetch", str(e) + "\n" + traceback.format_exc())
+        log_error_func("File Fetch", str(e) + "\n" + traceback.format_exc())
         raise e
 
-    snippets = process_snippets(snippets, use_faster_model)
+    snippets = post_process_snippets(snippets)
+
+    snippets = post_process_snippets(snippets,
+                                     max_num_of_snippets=2 if use_faster_model else 5)
 
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
@@ -361,7 +309,7 @@ def on_ticket(
             logger.info("Creating sweep.yaml file...")
             config_pr = create_config_pr(sweep_bot)
             config_pr_url = config_pr.html_url
-            edit_sweep_comment(message="", index=-2)
+            edit_sweep_comment_func(message="", index=-2)
         except Exception as e:
             logger.error("Failed to create new branch for sweep.yaml file.\n", e, traceback.format_exc())
     else:
@@ -378,7 +326,7 @@ def on_ticket(
                 logger.info("Did not execute CoT retrieval...")
 
             newline = '\n'
-            edit_sweep_comment(
+            edit_sweep_comment_func(
                 "I found the following snippets in your repository. I will now analyze these snippets and come up with a plan."
                 + "\n\n"
                 + collapsible_template.format(
@@ -407,7 +355,7 @@ def on_ticket(
                 headers=["File Path", "Proposed Changes"],
                 tablefmt="pipe"
             )
-            edit_sweep_comment(
+            edit_sweep_comment_func(
                 "From looking through the relevant snippets, I decided to make the following modifications:\n\n" + table + "\n\n",
                 2
             )
@@ -417,16 +365,18 @@ def on_ticket(
             pull_request = sweep_bot.generate_pull_request()
             pull_request_content = pull_request.content.strip().replace("\n", "\n>")
             pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
-            edit_sweep_comment(
+            edit_sweep_comment_func(
                 f"I have created a plan for writing the pull request. I am now working my plan and coding the required changes to address this issue. Here is the planned pull request:\n\n{pull_request_summary}",
                 3
             )
 
             # WRITE PULL REQUEST
             logger.info("Making PR...")
-            pr = create_pull_request(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
+            response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
+            if not response or not response["success"]: raise Exception("Failed to create PR")
+            pr = response["pull_request"]
             current_issue.create_reaction("rocket")
-            edit_sweep_comment(
+            edit_sweep_comment_func(
                 "I have finished coding the issue. I am now reviewing it for completeness.",
                 4
             )
@@ -455,7 +405,7 @@ def on_ticket(
                 logger.error(e)
 
             # Completed code review
-            edit_sweep_comment(
+            edit_sweep_comment_func(
                 "Success! 🚀",
                 5,
                 pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number}).\n{payment_message}",
@@ -464,25 +414,25 @@ def on_ticket(
             break
     except MaxTokensExceeded as e:
         logger.info("Max tokens exceeded")
-        handle_errors(e, "Max Tokens Exceeded")
+        log_error_func("Max Tokens Exceeded", str(e) + "\n" + traceback.format_exc())
         if chat_logger.is_paying_user():
-            edit_sweep_comment(f"Sorry, I could not edit `{e.filename}` as this file is too long. We are currently working on improved file streaming to address this issue.\n", -1)
+            edit_sweep_comment_func(f"Sorry, I could not edit `{e.filename}` as this file is too long. We are currently working on improved file streaming to address this issue.\n", -1)
         else:
-            edit_sweep_comment(f"Sorry, I could not edit `{e.filename}` as this file is too long.\n\nIf this file is incorrect, please describe the desired file in the prompt. However, if you would like to edit longer files, consider upgrading to [Sweep Pro](https://sweep.dev/) for longer context lengths.\n", -1)
+            edit_sweep_comment_func(f"Sorry, I could not edit `{e.filename}` as this file is too long.\n\nIf this file is incorrect, please describe the desired file in the prompt. However, if you would like to edit longer files, consider upgrading to [Sweep Pro](https://sweep.dev/) for longer context lengths.\n", -1)
         raise e
     except NoFilesException as e:
         logger.info("No files to change.")
-        handle_errors(e, "No Files to Change")
-        edit_sweep_comment("Sorry, I could find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!", -1)
+        log_error_func("No Files to Change", str(e) + "\n" + traceback.format_exc())
+        edit_sweep_comment_func("Sorry, I could find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!", -1)
         raise e
     except openai.error.InvalidRequestError as e:
         logger.error(traceback.format_exc())
         logger.error(e)
-        edit_sweep_comment(
+        edit_sweep_comment_func(
             "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev.",
             -1
         )
-        handle_errors(e, "Context Length")
+        log_error_func("Context Length", str(e) + "\n" + traceback.format_exc())
         posthog.capture(
             username,
             "failed",
@@ -496,12 +446,24 @@ def on_ticket(
     except Exception as e:
         logger.error(traceback.format_exc())
         logger.error(e)
-        edit_sweep_comment(
+        edit_sweep_comment_func(
             "I'm sorry, but it looks like an error has occurred. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
             -1
         )
-        handle_errors(e, "Workflow")
+        log_error_func("Workflow", str(e) + "\n" + traceback.format_exc())
         posthog.capture(
             username,
             "failed",
-            properties={"error": str(e), "
+            properties={"error": str(e), "reason": "Generic error", **metadata},
+        )
+        raise e
+    else:
+        try:
+            item_to_react_to.delete_reaction(eyes_reaction.id)
+        except:
+            pass
+        item_to_react_to.create_reaction("rocket")
+
+    posthog.capture(username, "success", properties={**metadata})
+    logger.info("on_ticket success")
+    return {"success": True}
