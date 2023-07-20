@@ -3,6 +3,18 @@ import traceback
 import openai
 from loguru import logger
 
+def construct_metadata(repo_full_name, repo_name, organization, repo_description, installation_id, username, function, mode):
+    return {
+        "repo_full_name": repo_full_name,
+        "repo_name": repo_name,
+        "organization": organization,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "username": username,
+        "function": function,
+        "mode": mode,
+    }
+
 from sweepai.core.entities import NoFilesException, Snippet
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
@@ -76,16 +88,7 @@ def on_comment(
     logger.info(
         f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
     organization, repo_name = repo_full_name.split("/")
-    metadata = {
-        "repo_full_name": repo_full_name,
-        "repo_name": repo_name,
-        "organization": organization,
-        "repo_description": repo_description,
-        "installation_id": installation_id,
-        "username": username,
-        "function": "on_comment",
-        "mode": PREFIX,
-    }
+    metadata = construct_metadata(repo_full_name, repo_name, organization, repo_description, installation_id, username, "on_comment", PREFIX)
 
     capture_posthog_event(username, "started", properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
