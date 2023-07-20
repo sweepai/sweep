@@ -78,7 +78,7 @@ class IssueRequest(BaseModel):
             name: str
 
         class PullRequest(BaseModel):
-            pass
+            url: str | None
 
         pull_request: PullRequest | None
         title: str
