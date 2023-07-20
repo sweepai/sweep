@@ -1,12 +1,3 @@
-if len(diff) != 4:
-    raise ValueError("Expected diff to be a tuple of length 4, but got a tuple of length " + str(len(diff)))
-review_prompt_constructed = review_message.construct_prompt()
-'''
-On Github ticket, get ChatGPT to deal with it
-'''
-
-# TODO: Add file validation
-
 import traceback
 
 import modal
