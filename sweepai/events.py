@@ -113,6 +113,7 @@ class PRRequest(BaseModel):
     class PullRequest(BaseModel):
         class User(BaseModel):
             login: str
+        title: str
 
         class MergedBy(BaseModel):
             login: str
