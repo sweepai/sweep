@@ -40,29 +40,37 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
                 j += 1
         i += 1
 
-    # truncating snippets based on character length
-    result_snippets = []
-    total_length = 0
-    for snippet in snippets:
-        total_length += len(snippet.get_snippet())
-        if total_length > total_number_of_snippet_tokens * 5:
-            break
-        result_snippets.append(snippet)
-    return result_snippets[:max_num_of_snippets]
-
-
-def on_comment(
-        repo_full_name: str,
-        repo_description: str,
-        comment: str,
-        pr_path: str | None,
-        pr_line_position: int | None,
-        username: str,
-        installation_id: int,
-        pr_number: int = None,
-        comment_id: int | None = None,
-):
-    # Check if the comment is "REVERT"
+    import traceback
+    
+    import openai
+    from loguru import logger
+    from modal.queue import Queue
+    ...
+    from sweepai.utils.github_utils import (
+        get_github_client,
+        search_snippets,
+    )
+    from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
+    ...
+    def on_comment(
+            repo_full_name: str,
+            repo_description: str,
+            comment: str,
+            pr_path: str | None,
+            pr_line_position: int | None,
+            username: str,
+            installation_id: int,
+            pr_number: int = None,
+            comment_id: int | None = None,
+    ):
+        comment_queue = Queue.new()
+        comment_queue.put(comment)
+        while True:
+            comment = comment_queue.get(block=False)
+            if comment is None:
+                break
+            ...
+    ...
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
         return {"success": True, "message": "File has been reverted to the previous commit."}
