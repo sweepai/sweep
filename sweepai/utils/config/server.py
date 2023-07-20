@@ -1,7 +1,7 @@
 import os
 import subprocess
 
-PREFIX = 'prod'
+PREFIX = 'dev'
 ENV = PREFIX
 
 DB_MODAL_INST_NAME = PREFIX + "-db"
