@@ -15,7 +15,7 @@ def compute_score(contents, commits):
 def convert_to_percentiles(values):
     sorted_values = sorted(values)  # Sort the values in ascending order
     n = len(sorted_values)
-    max_percentile = .25
+    max_percentile = .1
     percentile_mapping = {value: (i / (n)) * max_percentile for i, value in enumerate(sorted_values)}
     percentiles = [percentile_mapping[value] for value in values]  # Create the percentiles list based on the mapping
 
