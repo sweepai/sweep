@@ -191,12 +191,13 @@ async def webhook(raw_request: Request):
                         None
                     )
             case "issue_comment", "created":
-                logger.info("New issue created")
+                logger.info("New issue comment created")
                 request = IssueCommentRequest(**request_dict)
                 if request.issue is not None \
                         and GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels] \
                         and request.comment.user.type == "User"\
-                        and not request.issue.pull_request.url: # it's a PR
+                        and request.issue.pull_request is None:
+                    logger.info("New issue comment created")
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
                             request.repository.description or ""
