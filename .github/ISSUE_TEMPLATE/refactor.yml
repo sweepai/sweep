@@ -1,8 +1,6 @@
 name: Refactor
-description: Point Sweep to files to refactor
 title: 'Sweep: '
-description: What refactor should we handle?
-placeholder: Modify the ... api endpoint to use ... version and ... framework
+description: What refactor should Sweep handle? "Modify the ... api endpoint to use ... version and ... framework"
 labels: sweep
 body:
   - type: textarea
