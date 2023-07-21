@@ -1,7 +1,9 @@
+import time
 import modal
 from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
+from sweepai.core.entities import PRChangeRequest
 
 from sweepai.events import (
     CheckRunCompleted,
@@ -22,6 +24,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
 
 stub = modal.Stub(API_MODAL_INST_NAME)
+stub.pr_queues = modal.Dict.new() # maps (repo_full_name, pull_request_ids) -> queues
 image = (
     modal.Image.debian_slim()
     .apt_install("git", "universal-ctags")
@@ -70,6 +73,63 @@ handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
 
+
+@stub.function(**FUNCTION_SETTINGS)
+def handle_pr_change_request(
+    repo_full_name: str,
+    pr_id: int
+):
+    # TODO: put process ID here and check if it's still running
+    # TODO: GHA should have lower precedence than comments
+    try:
+        call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
+        while queue:
+            # popping
+            call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
+            print(queue)
+            pr_change_request: PRChangeRequest
+            *queue, pr_change_request = queue
+            logger.info(f"Currently handling PR change request: {pr_change_request}")
+            logger.info(f"PR queues: {queue}")
+
+            if pr_change_request.type == "comment":
+                handle_comment.call(**pr_change_request.params)
+            elif pr_change_request.type == "gha":
+                handle_check_suite.call(**pr_change_request.params)
+            else:
+                raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
+            stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
+    finally:
+        del stub.app.pr_queues[(repo_full_name, pr_id)]
+
+
+def function_call_is_completed(call_id: str):
+    from modal.functions import FunctionCall
+
+    function_call = FunctionCall.from_id(call_id)
+    try:
+        function_call.get(timeout=0)
+    except TimeoutError:
+        return False
+
+    return True
+
+def push_to_queue(
+    repo_full_name: str,
+    pr_id: int,
+    pr_change_request: PRChangeRequest
+):
+    key = (repo_full_name, pr_id)
+    call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
+    queue = [pr_change_request] + queue
+    print(call_id)
+    if call_id == "0" or function_call_is_completed(call_id):
+        stub.app.pr_queues[key] = ("0", queue)
+        call_id = handle_pr_change_request.spawn(
+            repo_full_name=repo_full_name, 
+            pr_id=pr_id
+        ).object_id
+    stub.app.pr_queues[key] = (call_id, queue)
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
@@ -130,7 +190,6 @@ async def webhook(raw_request: Request):
                     )
             case "issue_comment", "created":
                 request = IssueCommentRequest(**request_dict)
-                # if replying to an issue with sweep label
                 if request.issue is not None \
                         and GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels] \
                         and request.comment.user.type == "User"\
@@ -164,21 +223,40 @@ async def webhook(raw_request: Request):
                     labels = pr.get_labels()
                     comment = request.comment.body
                     if comment.lower().startswith('sweep:') or any(label.name.lower() == "sweep" for label in labels):
-                        handle_comment.spawn(
+                        pr_change_request = PRChangeRequest(
+                            type="comment",
+                            params={
+                                "repo_full_name": request.repository.full_name,
+                                "repo_description": request.repository.description,
+                                "comment": request.comment.body,
+                                "pr_path": None,
+                                "pr_line_position": None,
+                                "username": request.comment.user.login,
+                                "installation_id": request.installation.id,
+                                "pr_number": request.issue.number,
+                                "comment_id": request.comment.id,
+                                "g": g,
+                                "repo": repo,
+                                "pr": pr,
+                            }
+                        )
+                        # key = (request.repository.full_name, request.pull_request.number)
+                        # call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
+                        # queue = [pr_change_request] + queue
+                        # if call_id =="0" or function_call_is_completed(call_id):
+                        #     stub.app.pr_queues[key] = ("0", queue)
+                        #     call_id = handle_pr_change_request.spawn(
+                        #         repo_full_name=request.repository.full_name, 
+                        #         pr_id=request.pull_request.number
+                        #     )
+                        # stub.app.pr_queues[key] = (call_id, queue)
+                        push_to_queue(
                             repo_full_name=request.repository.full_name,
-                            repo_description=request.repository.description,
-                            comment=request.comment.body,
-                            pr_path=None,
-                            pr_line_position=None,
-                            username=request.comment.user.login,
-                            installation_id=request.installation.id,
-                            pr_number=request.issue.number,
-                            comment_id=request.comment.id,
-                            g=g,
-                            repo=repo,
-                            pr=pr,
+                            pr_id=request.pull_request.number,
+                            pr_change_request=pr_change_request
                         )
             case "pull_request_review_comment", "created":
+                # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
                 logger.info(f"Handling comment on PR: {request.pull_request.number}")
                 g = get_github_client(request.installation.id)
@@ -187,19 +265,43 @@ async def webhook(raw_request: Request):
                 labels = pr.get_labels()
                 comment = request.comment.body
                 if comment.lower().startswith('sweep:') or any(label.name.lower() == "sweep" for label in labels):
-                    handle_comment.spawn(
+                    pr_change_request = PRChangeRequest(
+                        type="comment",
+                        params={
+                            "repo_full_name": request.repository.full_name,
+                            "repo_description": request.repository.description,
+                            "comment": request.comment.body,
+                            "pr_path": request.comment.path,
+                            "pr_line_position": request.comment.original_line,
+                            "username": request.comment.user.login,
+                            "installation_id": request.installation.id,
+                            "pr_number": request.pull_request.number,
+                            "comment_id": request.comment.id,
+                            "g": g,
+                            "repo": repo,
+                            "pr": pr,
+                        }
+                    )
+                    # if (request.repository.full_name, request.pull_request.number) not in stub.app.pr_queues:
+                    #     stub.app.pr_queues[(request.repository.full_name, request.pull_request.number)] = [pr_change_request]
+                    #     handle_pr_change_request.spawn(repo_full_name=request.repository.full_name, pr_id=request.pull_request.number)
+                    # else:
+                    #     stub.app.pr_queues[(request.repository.full_name, request.pull_request.number)] = stub.app.pr_queues[(request.repository.full_name, request.pull_request.number)] + [pr_change_request]
+                    # print(stub.app.pr_queues[(request.repository.full_name, request.pull_request.number)])
+                    # key = (request.repository.full_name, request.pull_request.number)
+                    # call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
+                    # queue = [pr_change_request] + queue
+                    # if call_id =="0" or function_call_is_completed(call_id):
+                    #     stub.app.pr_queues[key] = ("0", queue)
+                    #     call_id = handle_pr_change_request.spawn(
+                    #         repo_full_name=request.repository.full_name, 
+                    #         pr_id=request.pull_request.number
+                    #     )
+                    # stub.app.pr_queues[key] = (call_id, queue)
+                    push_to_queue(
                         repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        comment=request.comment.body,
-                        pr_path=request.comment.path,
-                        pr_line_position=request.comment.original_line,
-                        username=request.comment.user.login,
-                        installation_id=request.installation.id,
-                        pr_number=request.pull_request.number,
-                        comment_id=request.comment.id,
-                        g=g,
-                        repo=repo,
-                        pr=pr,
+                        pr_id=request.pull_request.number,
+                        pr_change_request=pr_change_request
                     )
                 # Todo: update index on comments
             case "pull_request_review", "submitted":
@@ -207,23 +309,56 @@ async def webhook(raw_request: Request):
                 pass
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
-                # handle_check_suite
                 logs = None
-                # Must be Sweep firing the PR and it must fail
                 if request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
                     logs = handle_check_suite.call(request)
                     if len(request.check_run.pull_requests) > 0 and logs:
-                        handle_comment.spawn(
-                            repo_full_name=request.repository.full_name,
-                            repo_description=request.repository.description,
-                            comment="Sweep: " + logs,
-                            pr_path=None,
-                            pr_line_position=None,
-                            username=request.sender.login,
-                            installation_id=request.installation.id,
-                            pr_number=request.check_run.pull_requests[0].number,
-                            comment_id=None,
+                        pr_change_request = PRChangeRequest(
+                            type="comment",
+                            params={
+                                "repo_full_name": request.repository.full_name,
+                                "repo_description": request.repository.description,
+                                "comment": "Sweep: " + logs,
+                                "pr_path": None,
+                                "pr_line_position": None,
+                                "username": request.sender.login,
+                                "installation_id": request.installation.id,
+                                "pr_number": request.check_run.pull_requests[0].number,
+                                "comment_id": None,
+                            }
                         )
+                        # if (request.repository.full_name, request.pull_request.number) not in stub.pr_queues:
+                        #     stub.pr_queues[(request.repository.full_name, request.pull_request.number)] = [pr_change_request]
+                        #     handle_pr_change_request.spawn((request.repository.full_name, request.pull_request.number))
+                        # else:
+                        #     stub.pr_queues[(request.repository.full_name, request.pull_request.number)] = stub.pr_queues.get((request.repository.full_name, request.pull_request.number), []) + [pr_change_request]
+                        #     handle_pr_change_request.spawn(repo_full_name=request.repository.full_name, pr_id=request.pull_request.number)
+                        # key = (request.repository.full_name, request.pull_request.number)
+                        # call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
+                        # queue = [pr_change_request] + queue
+                        # if call_id =="0" or function_call_is_completed(call_id):
+                        #     stub.app.pr_queues[key] = ("0", queue)
+                        #     call_id = handle_pr_change_request.spawn(
+                        #         repo_full_name=request.repository.full_name, 
+                        #         pr_id=request.pull_request.number
+                        #     )
+                        # stub.app.pr_queues[key] = (call_id, queue)
+                        push_to_queue(
+                            repo_full_name=request.repository.full_name,
+                            pr_id=request.pull_request.number,
+                            pr_change_request=pr_change_request
+                        )
+                        # handle_comment.spawn(
+                        #     repo_full_name=request.repository.full_name,
+                        #     repo_description=request.repository.description,
+                        #     comment="Sweep: " + logs,
+                        #     pr_path=None,
+                        #     pr_line_position=None,
+                        #     username=request.sender.login,
+                        #     installation_id=request.installation.id,
+                        #     pr_number=request.check_run.pull_requests[0].number,
+                        #     comment_id=None,
+                        # )
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
@@ -258,7 +393,7 @@ async def webhook(raw_request: Request):
                         repo.full_name,
                         installation_id=repos_added_request.installation.id,
                     )
-            case ("pull_request", "closed"):
+            case "pull_request", "closed":
                 pr_request = PRRequest(**request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")
                 commit_author = pr_request.pull_request.user.login
@@ -280,7 +415,7 @@ async def webhook(raw_request: Request):
                     request_dict["repository"]["full_name"],
                     installation_id=request_dict["installation"]["id"],
                 )
-            case ("push", None):
+            case "push", None:
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
                     update_index.spawn(
                         request_dict["repository"]["full_name"],
