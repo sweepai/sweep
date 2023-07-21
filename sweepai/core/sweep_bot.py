@@ -24,7 +24,7 @@ from sweepai.core.prompts import (
     files_to_change_prompt,
     pull_request_prompt,
     create_file_prompt,
-    modify_file_prompt_2,
+    files_to_change_abstract_prompt,
     modify_file_prompt_3,
     snippet_replacement,
     chunking_prompt,
@@ -71,6 +71,8 @@ class CodeGenBot(ChatGPT):
         for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
+                abstract_plan = self.chat(files_to_change_abstract_prompt, message_key="files_to_change")
+
                 files_to_change_response = self.chat(files_to_change_prompt,
                                                      message_key="files_to_change")  # Dedup files to change here
                 files_to_change = FilesToChange.from_string(files_to_change_response)

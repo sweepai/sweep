@@ -71,9 +71,9 @@ class FilesToChange(RegexMatchableBaseModel):
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        create_pattern = r"""<create>(?P<files_to_create>.*)</create>"""
+        create_pattern = r"""<create_file>(?P<files_to_create>.*)</create_file>"""
         create_match = re.search(create_pattern, string, re.DOTALL)
-        modify_pattern = r"""<modify>(?P<files_to_modify>.*)</modify>"""
+        modify_pattern = r"""<modify_file>(?P<files_to_modify>.*)</modify_file>"""
         modify_match = re.search(modify_pattern, string, re.DOTALL)
         return cls(
             files_to_create=create_match.groupdict()["files_to_create"].strip() if create_match else "* None",
