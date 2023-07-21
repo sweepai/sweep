@@ -119,7 +119,7 @@ class PRRequest(BaseModel):
             login: str
 
         user: User
-        merged_by: MergedBy
+        merged_by: MergedBy | None
 
     class Repository(BaseModel):
         full_name: str
