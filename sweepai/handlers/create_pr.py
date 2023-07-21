@@ -79,6 +79,7 @@ def create_pr(
         else:
             pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
 
+        # Prepend "[DRAFT]" to the PR title to indicate that it's not ready for review yet
         pr_title = "[DRAFT] " + pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
