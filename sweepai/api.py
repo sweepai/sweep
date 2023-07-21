@@ -416,6 +416,11 @@ async def webhook(raw_request: Request):
                     installation_id=request_dict["installation"]["id"],
                 )
             case "push", None:
+                g = get_github_client(request.installation.id)
+                repo = g.get_repo(request.repository.full_name)
+                pr = repo.get_pull(request.pull_request.number)
+                if pr.title.startswith("[DRAFT] "):
+                    pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
                     update_index.spawn(
                         request_dict["repository"]["full_name"],
