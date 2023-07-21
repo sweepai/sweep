@@ -20,7 +20,7 @@ from sweepai.utils.hash import hash_sha256
 from sweepai.utils.scorer import compute_score, convert_to_percentiles
 from ..utils.config.client import SweepConfig
 from ..utils.config.server import ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, REDIS_URL, BOT_TOKEN_NAME
-from ..utils.github_utils import get_token
+from ..utils.github_utils import get_token, get_file_age
 
 # TODO: Lots of cleanups can be done here with these constants
 stub = modal.Stub(DB_MODAL_INST_NAME)
@@ -222,9 +222,9 @@ def get_deeplake_vs_from_repo(
                         score = json.loads(cached_value)
                         scores.append(score)
                         continue
-                commits = list(repo.get_commits(
-                    path=file_path, sha=branch_name))
-                score = compute_score(contents, commits)
+                commits = list(repo.get_commits(path=file_path, sha=branch_name))
+                file_age_in_days = get_file_age(repo, file_path)
+                score = compute_score(contents, commits, file_age_in_days)
                 if cache_inst and cache_success:
                     cache_inst.set(cache_key, json.dumps(score), ex=60 * 60 * 2)
                 scores.append(score)
