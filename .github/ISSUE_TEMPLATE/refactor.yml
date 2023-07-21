@@ -1,0 +1,13 @@
+name: Refactor
+description: Point Sweep to files to refactor
+title: 'Sweep: '
+description: What refactor should we handle?
+placeholder: Modify the ... api endpoint to use ... version and ... framework
+labels: sweep
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Details
+      description: More details for Sweep
+      placeholder: We are migrating this function because ...
