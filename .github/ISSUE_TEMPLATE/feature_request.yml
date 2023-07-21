@@ -1,8 +1,6 @@
 name: Feature Request
-description: Describe a feature to Sweep
 title: 'Sweep: '
-description: What feature should Sweep handle?
-placeholder: Write an api endpoint that does "..." in the "..." file
+description: What feature should Sweep handle? "Write an api endpoint that does "..." in the "..." file"
 labels: sweep
 body:
   - type: textarea
