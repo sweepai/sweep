@@ -297,18 +297,3 @@ def index_full_repository(
             "Adding label failed, probably because label already."
         )  # warn that the repo may already be indexed
     return num_indexed_docs
-
-
-def get_file_age(repo, file_path):
-    commits = list(repo.get_commits(path=file_path))
-    first_commit_date = commits[-1].commit.author.date
-    file_age_in_days = (datetime.now() - first_commit_date).days
-    return file_age_in_days
-
-
-# Remove the duplicated get_file_age function
-def get_file_age(repo, file_path):
-    commits = list(repo.get_commits(path=file_path))
-    first_commit_date = commits[-1].commit.author.date
-    file_age_in_days = (datetime.now() - first_commit_date).days
-    return file_age_in_days
