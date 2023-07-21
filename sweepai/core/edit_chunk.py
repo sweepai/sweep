@@ -9,8 +9,6 @@ from sweepai.core.prompts import should_edit_code_system_prompt, should_edit_cod
 class EditBot(ChatGPT):
     def should_edit(self, issue: str, snippet: str) -> bool:
         """
-        Determine if a given code snippet should be edited.
-
         Parameters:
         issue (str): The issue description.
         snippet (str): The code snippet to be evaluated. This should be a string of valid code.
