@@ -6,7 +6,7 @@ from loguru import logger
 from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.config.client import SweepConfig
-from sweepai.utils.config.server import GITHUB_DEFAULT_CONFIG, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
+from sweepai.utils.config.server import GITHUB_DEFAULT_CONFIG, GITHUB_LABEL_NAME, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
     GITHUB_BOT_USERNAME, \
     GITHUB_CONFIG_BRANCH
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
@@ -88,6 +88,7 @@ def create_pr(
             head=pull_request.branch_name,
             base=SweepConfig.get_branch(sweep_bot.repo),
         )
+        pr.add_to_labels(GITHUB_LABEL_NAME)
     except MaxTokensExceeded as e:
         logger.error(e)
         posthog.capture(
@@ -201,5 +202,5 @@ def create_config_pr(
         head=branch_name,
         base=SweepConfig.get_branch(sweep_bot.repo),
     )
-
+    pr.add_to_labels(GITHUB_LABEL_NAME)
     return pr
