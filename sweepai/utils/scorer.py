@@ -9,7 +9,7 @@ def compute_score(contents, commits, file_age_in_days):
         line_count_score = line_count / 20
     commit_count = len(commits) + 1
     days_since_last_modified = max(((datetime.now() - commits[0].commit.author.date).total_seconds() // 3600), 0) + 1
-    age_factor = 1 / (file_age_in_days + 1)
+    age_factor = min(1, 1 / (file_age_in_days + 1))
     return (line_count_score * commit_count / days_since_last_modified) * age_factor
 
 
