@@ -20,7 +20,7 @@ from sweepai.utils.hash import hash_sha256
 from sweepai.utils.scorer import compute_score, convert_to_percentiles
 from ..utils.config.client import SweepConfig
 from ..utils.config.server import ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, REDIS_URL, BOT_TOKEN_NAME
-from ..utils.github_utils import get_file_age
+from ..utils.github_utils import get_file_age, get_token
 
 
 stub = modal.Stub(DB_MODAL_INST_NAME)
@@ -33,7 +33,7 @@ DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 256
 SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-MiniLM-L12-v2"
 timeout = 60 * 30  # 30 minutes
-CACHE_VERSION = "v1.0.0"
+CACHE_VERSION = "v1.0.1"
 MAX_FILES = 3000
 
 image = (
