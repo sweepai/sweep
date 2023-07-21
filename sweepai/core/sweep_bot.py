@@ -219,6 +219,12 @@ class GithubBot(BaseModel):
             except Exception as e:
                 logger.error(snippet)
 
+    def get_file_age(self, file_path: str) -> int:
+        commits = self.repo.get_commits(path=file_path)
+        first_commit = commits[-1]
+        age = datetime.now() - first_commit.commit.author.date
+        return age.days
+
     def search_snippets(
             self,
             query: str,
@@ -232,6 +238,8 @@ class GithubBot(BaseModel):
             n_results=num_snippets,
             installation_id=installation_id,
         )
+        for snippet in snippets:
+            snippet.age = self.get_file_age(snippet.file_path)
         self.populate_snippets(snippets)
         return snippets
 
@@ -352,16 +360,25 @@ class SweepBot(CodeGenBot, GithubBot):
         for count in range(5):
             key = f"file_change_modified_{file_change_request.filename}"
             file_markdown = is_markdown(file_change_request.filename)
-            # TODO(sweep): edge case at empty file
-            message = modify_file_prompt_3.format(
-                filename=file_change_request.filename,
-                instructions=file_change_request.instructions,
-                code=contents_line_numbers,
-                line_count=contents.count('\n') + 1
-            )
+            # TODO: Add code to retrieve age of each file from the Github API and normalize the ages
+            age = self.get_file_age(file_change_request.filename)
+            # TODO: Incorporate the normalized age into the ranking model
+            ranking_model_input = f"{contents_line_numbers}\nAge: {age}"
+            # TODO: Use the ranking model to determine the relevance of the snippet
+            snippet_relevance = self.ranking_model.predict(ranking_model_input)
+            # TODO: Update the snippet object with the age and relevance information
+            snippet.age = age
+            snippet.relevance = snippet_relevance
+            # TODO: Sort the snippets based on age and relevance
+            snippets.sort(key=lambda x: (x.age, x.relevance), reverse=True)
             try:
                 if chunking:
-                    message = chunking_prompt + message
+                    message = chunking_prompt + modify_file_prompt_3.format(
+                        filename=file_change_request.filename,
+                        instructions=file_change_request.instructions,
+                        code=contents_line_numbers,
+                        line_count=contents.count('\n') + 1
+                    )
                     modify_file_response = self.chat(
                         message,
                         message_key=key,
@@ -369,7 +386,12 @@ class SweepBot(CodeGenBot, GithubBot):
                     self.delete_messages_from_chat(key)
                 else:
                     modify_file_response = self.chat(
-                        message,
+                        modify_file_prompt_3.format(
+                            filename=file_change_request.filename,
+                            instructions=file_change_request.instructions,
+                            code=contents_line_numbers,
+                            line_count=contents.count('\n') + 1
+                        ),
                         message_key=key,
                     )
             except Exception as e:  # Check for max tokens error
@@ -502,4 +524,4 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")    
+            logger.info(f"Error in handle_modify_file: {tb}")
