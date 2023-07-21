@@ -3,8 +3,8 @@ from datetime import datetime
 
 
 def compute_score(contents, commits, file_age_in_days):
-    MAX_FILE_AGE = 365
-    MAX_COMMIT_COUNT = 1000
+    MAX_FILE_AGE = 60
+    MAX_COMMIT_COUNT = 30
     line_count = contents.count("\n")
     if line_count > 200:
         line_count_score = 10
@@ -12,10 +12,10 @@ def compute_score(contents, commits, file_age_in_days):
         line_count_score = line_count / 20
     commit_count = min(len(commits) + 1, MAX_COMMIT_COUNT)
     days_since_last_modified = max(((datetime.now() - commits[0].commit.author.date).total_seconds() // 3600), 0) + 1
-    if min(file_age_in_days, MAX_FILE_AGE) <= 30:
-        age_factor = 1 / (math.ceil(min(file_age_in_days, MAX_FILE_AGE) / 5) + 1)
+    if file_age_in_days >= MAX_FILE_AGE:
+        age_factor = 6
     else:
-        age_factor = min(1, 1 / (min(file_age_in_days, MAX_FILE_AGE) + 1))
+        age_factor = (file_age_in_days // 10) + 1
     return (line_count_score * commit_count / days_since_last_modified) * age_factor
 
 

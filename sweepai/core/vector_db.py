@@ -225,7 +225,6 @@ def get_deeplake_vs_from_repo(
                 commits = list(repo.get_commits(path=file_path, sha=branch_name))
                 file_age_in_days = get_file_age(repo, file_path)
                 score = compute_score(contents, commits, file_age_in_days)
-                score = compute_score(contents, commits, file_age_in_days)
                 if cache_inst and cache_success:
                     cache_inst.set(cache_key, json.dumps(score), ex=60 * 60 * 2)
                 scores.append(score)
