@@ -386,16 +386,16 @@ Lines to change in the file: (include multiple small changes as opposed to one l
 
 Code Generation:
 ```
-Generate a diff based on the given plan, in the following format (do not include "..." anywhere):
+Generate a diff based on the given plan, in the following format (do not include "..." anywhere). Do not remove comments.
 
 Example:
 ```
 <<<< ORIGINAL
-    x = 1
+    x = 1 # comment
     print("hello")
     x = 2
 ====
-    x = 1
+    x = 1 # comment
     print("goodbye")
     x = 2
 >>>> UPDATED
