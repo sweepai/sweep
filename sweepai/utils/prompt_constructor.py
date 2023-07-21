@@ -118,7 +118,7 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
 
     def construct_prompt(self):
         human_messages = [{'role': msg['role'], 'content': msg['content'].format(
-            comment=self.comment,
+            comment=(self.comment[len("sweep:"):].strip() if self.comment.startswith("sweep:") else self.comment),
             repo_name=self.repo_name,
             repo_description=self.repo_description if self.repo_description else "",
             diff=self.format_diffs(),
