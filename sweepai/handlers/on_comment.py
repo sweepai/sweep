@@ -15,7 +15,7 @@ def construct_metadata(repo_full_name, repo_name, organization, repo_description
         "mode": mode,
     }
 
-from sweepai.core.entities import NoFilesException, Snippet
+from sweepai.core.entities import FileChangeRequest, NoFilesException, Snippet
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
@@ -212,8 +212,11 @@ def on_comment(
 
     try:
         logger.info("Fetching files to modify/create...")
-        file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change(retries=3)
-        file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
+        if file_comment:
+            file_change_requests = [FileChangeRequest(filename=pr_file_path, instructions=file_comment, change_type="modify")]
+        else:
+            file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change(retries=3)
+            file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
 
