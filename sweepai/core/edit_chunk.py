@@ -13,7 +13,7 @@ class EditBot(ChatGPT):
 
         Parameters:
         issue (str): The issue description.
-        snippet (str): The code snippet to be evaluated. This is a string of code that may need to be edited based on the issue description.
+        snippet (str): The code snippet to be evaluated. This should be a string of valid code.
 
         Returns:
         bool: True if the code snippet should be edited, False otherwise.
