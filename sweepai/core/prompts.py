@@ -168,6 +168,8 @@ cot_retrieval_prompt = """
 Gather information to solve the problem. Use "finish" when you feel like you have sufficient information.
 """
 
+files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
+
 files_to_change_prompt = """
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
 Then, provide a list of files you would like to modify, abiding by the following:
@@ -184,17 +186,17 @@ Step-by-step thoughts with explanations:
 * Thought 2 - Explanation 2
 ...
 
-<create>
-* filename_1: instructions_1
-* filename_2: instructions_2
-...
-</create>
-
-<modify>
+<modify_file>
 * filename_3: instructions_3
 * filename_4: instructions_4
 ...
-</modify>
+</modify_file>
+
+<create_file>
+* filename_1: instructions_1
+* filename_2: instructions_2
+...
+</create_file>
 """
 
 reply_prompt = """
