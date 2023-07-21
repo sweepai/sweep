@@ -1,3 +1,4 @@
+import logging
 import json
 import subprocess
 
@@ -22,7 +23,7 @@ class EditBot(ChatGPT):
         try:
             response = self.chat(should_edit_code_prompt.format(problem_description=issue, code_snippet=snippet), message_key='is_relevant')
         except Exception as e:
-            print(f"An error occurred: {e}")
+            logging.error(f"An error occurred: {e}")
             return False
         last_line = response.split('\n')[-1]
         if "true" in last_line.lower():
