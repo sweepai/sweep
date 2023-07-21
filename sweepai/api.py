@@ -142,6 +142,7 @@ async def webhook(raw_request: Request):
         assert event is not None
         match event, request_dict.get("action", None):
             case "issues", "opened":
+                logger.info("New issue opened")
                 request = IssueRequest(**request_dict)
                 issue_title_lower = request.issue.title.lower()
                 if issue_title_lower.startswith("sweep") or "sweep:" in issue_title_lower:
@@ -169,6 +170,7 @@ async def webhook(raw_request: Request):
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
             case "issues", "labeled":
+                logger.info("New issue labeled")
                 request = IssueRequest(**request_dict)
                 if 'label' in request_dict and str.lower(request_dict['label']['name']) == GITHUB_LABEL_NAME:
                     request.issue.body = request.issue.body or ""
@@ -189,6 +191,7 @@ async def webhook(raw_request: Request):
                         None
                     )
             case "issue_comment", "created":
+                logger.info("New issue created")
                 request = IssueCommentRequest(**request_dict)
                 if request.issue is not None \
                         and GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels] \
@@ -256,6 +259,7 @@ async def webhook(raw_request: Request):
                             pr_change_request=pr_change_request
                         )
             case "pull_request_review_comment", "created":
+                logger.info("New pull request review comment created")
                 # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
                 logger.info(f"Handling comment on PR: {request.pull_request.number}")
@@ -305,9 +309,11 @@ async def webhook(raw_request: Request):
                     )
                 # Todo: update index on comments
             case "pull_request_review", "submitted":
+                logger.info("New pull request review created")
                 # request = ReviewSubmittedRequest(**request_dict)
                 pass
             case "check_run", "completed":
+                logger.info("New check run completed")
                 request = CheckRunCompleted(**request_dict)
                 logs = None
                 if request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
@@ -360,6 +366,7 @@ async def webhook(raw_request: Request):
                         #     comment_id=None,
                         # )
             case "installation_repositories", "added":
+                logger.info("New installation added")
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
                     "installation_id": repos_added_request.installation.id,
@@ -387,6 +394,7 @@ async def webhook(raw_request: Request):
                         installation_id=repos_added_request.installation.id,
                     )
             case "installation", "created":
+                logger.info("New installation created")
                 repos_added_request = InstallationCreatedRequest(**request_dict)
                 for repo in repos_added_request.repositories:
                     index_full_repository(
@@ -394,6 +402,7 @@ async def webhook(raw_request: Request):
                         installation_id=repos_added_request.installation.id,
                     )
             case "pull_request", "closed":
+                logger.info("New pull request closed")
                 pr_request = PRRequest(**request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")
                 commit_author = pr_request.pull_request.user.login
@@ -424,12 +433,14 @@ async def webhook(raw_request: Request):
                     # Check for new commits and update the PR title to remove the "[DRAFT]" prefix
                     if pr.title.startswith("[DRAFT] "):
                         pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
+                logger.info("New push")
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
                     update_index.spawn(
                         request_dict["repository"]["full_name"],
                         installation_id=request_dict["installation"]["id"],
                     )
             case "ping", None:
+                logger.info("Ping")
                 return {"message": "pong"}
             case _:
                 logger.info(
