@@ -21,11 +21,15 @@ from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
 
+def get_file_age(repo, file_path):
+    commits = list(repo.get_commits(path=file_path))
+    first_commit_date = commits[-1].commit.author.date
+    file_age_in_days = (datetime.now() - first_commit_date).days
+    return file_age_in_days
 
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"
     return re.sub(pattern, "_", string)
-
 
 def get_jwt():
     signing_key = GITHUB_APP_PEM
@@ -33,7 +37,6 @@ def get_jwt():
     payload = {"iat": int(time.time()), "exp": int(time.time()) + 600, "iss": app_id}
 
     return encode(payload, signing_key, algorithm="RS256")
-
 
 def get_token(installation_id: int):
     jwt = get_jwt()
@@ -48,11 +51,9 @@ def get_token(installation_id: int):
     )
     return response.json()["token"]
 
-
 def get_github_client(installation_id: int):
     token = get_token(installation_id)
     return Github(token)
-
 
 def get_installation_id(username: str):
     jwt = get_jwt()
@@ -69,7 +70,6 @@ def get_installation_id(username: str):
         return obj["id"]
     except:
         raise Exception("Could not get installation id, probably not installed")
-
 
 def list_directory_tree(
     root_directory,
@@ -131,7 +131,6 @@ def list_directory_tree(
     directory_tree = list_directory_contents(root_directory, ctags=ctags)
     return directory_tree
 
-
 def get_file_list(root_directory: str) -> str:
     files = []
 
@@ -149,7 +148,6 @@ def get_file_list(root_directory: str) -> str:
     dfs_helper(root_directory)
     files = [file[len(root_directory) + 1:] for file in files]
     return files
-
 
 def get_tree_and_file_list(
     repo: Repository,
@@ -180,7 +178,6 @@ def get_tree_and_file_list(
     )
     return tree
 
-
 def get_file_contents(repo: Repository, file_path, ref=None):
     if ref is None:
         ref = repo.default_branch
@@ -188,11 +185,9 @@ def get_file_contents(repo: Repository, file_path, ref=None):
     contents = file.decoded_content.decode("utf-8", errors='replace')
     return contents
 
-
 def get_file_names_from_query(query: str) -> list[str]:
     query_file_names = re.findall(r'\b[\w\-\.\/]*\w+\.\w{1,6}\b', query)
     return [query_file_name for query_file_name in query_file_names if len(query_file_name) > 3]
-
 
 def search_snippets(
     repo: Repository,
@@ -267,7 +262,6 @@ def search_snippets(
         return snippets, tree
     else:
         return snippets
-
 
 def index_full_repository(
     repo_name: str,
