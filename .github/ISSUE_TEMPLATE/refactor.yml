@@ -1,6 +1,6 @@
-name: Refactor
+name: Refactor - What refactor should Sweep handle?
 title: 'Sweep: '
-description: What refactor should Sweep handle? "Modify the ... api endpoint to use ... version and ... framework"
+description: "Modify the ... api endpoint to use ... version and ... framework"
 labels: sweep
 body:
   - type: textarea
