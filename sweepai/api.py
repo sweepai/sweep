@@ -252,7 +252,7 @@ async def webhook(raw_request: Request):
                         # stub.app.pr_queues[key] = (call_id, queue)
                         push_to_queue(
                             repo_full_name=request.repository.full_name,
-                            pr_id=request.pull_request.number,
+                            pr_id=request.issue.number,
                             pr_change_request=pr_change_request
                         )
             case "pull_request_review_comment", "created":
@@ -345,7 +345,7 @@ async def webhook(raw_request: Request):
                         # stub.app.pr_queues[key] = (call_id, queue)
                         push_to_queue(
                             repo_full_name=request.repository.full_name,
-                            pr_id=request.pull_request.number,
+                            pr_id=request.check_run.pull_requests[0].number,
                             pr_change_request=pr_change_request
                         )
                         # handle_comment.spawn(
