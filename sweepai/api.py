@@ -419,9 +419,11 @@ async def webhook(raw_request: Request):
                 g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pr = repo.get_pull(request.pull_request.number)
-                # Check for new commits and update the PR title to remove the "[DRAFT]" prefix
-                if pr.title.startswith("[DRAFT] "):
-                    pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
+                # Check if the author of the PR is 'Sweep'
+                if pr.user.login == GITHUB_BOT_USERNAME:
+                    # Check for new commits and update the PR title to remove the "[DRAFT]" prefix
+                    if pr.title.startswith("[DRAFT] "):
+                        pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
                     update_index.spawn(
                         request_dict["repository"]["full_name"],
