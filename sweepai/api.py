@@ -197,7 +197,7 @@ async def webhook(raw_request: Request):
                         and GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels] \
                         and request.comment.user.type == "User" \
                         and request.issue.pull_request is None \
-                        and not request.issue.pull_request.id:
+                        and not request.issue.pull_request.url:
                     logger.info("New issue comment created")
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
