@@ -142,7 +142,6 @@ class CodeGenBot(ChatGPT):
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
             pull_request.branch_name = "sweep/" + pull_request.branch_name[:250]
-            pull_request.title = "[DRAFT] " + pull_request.title
             return pull_request
         raise Exception("Could not generate PR text")
 
