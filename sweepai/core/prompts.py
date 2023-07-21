@@ -157,7 +157,7 @@ Keep in mind that we may see a diff for a deletion and replacement, so don't poi
 {'role': 'user', 'content':
 """Please handle the user review comment, taking into account the snippets, paths, tree, pull request title, pull request description, and the file changes.
 Sometimes the user may not request changes, don't change anything in that case.
-User pull request review: {comment}"""}]
+User pull request review: "{comment}" """}]
 
 comment_line_prompt = """\
 The user made the review in this file: {pr_file_path}
