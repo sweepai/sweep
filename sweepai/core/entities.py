@@ -264,3 +264,7 @@ class PullRequestComment(RegexMatchableBaseModel):
 class NoFilesException(Exception):
     def __init__(self, message="Sweep could not find any files to modify"):
         super().__init__(message)
+
+class PRChangeRequest(BaseModel):
+    type: str # "comment", or "gha"
+    params: dict
