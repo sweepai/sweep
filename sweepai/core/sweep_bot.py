@@ -360,16 +360,18 @@ class SweepBot(CodeGenBot, GithubBot):
         for count in range(5):
             key = f"file_change_modified_{file_change_request.filename}"
             file_markdown = is_markdown(file_change_request.filename)
-            # TODO: Add code to retrieve age of each file from the Github API and normalize the ages
+            # Retrieve the age of the file
             age = self.get_file_age(file_change_request.filename)
-            # TODO: Incorporate the normalized age into the ranking model
-            ranking_model_input = f"{contents_line_numbers}\nAge: {age}"
-            # TODO: Use the ranking model to determine the relevance of the snippet
+            # Normalize the age by dividing it by the age of the oldest file in the repository
+            normalized_age = age / self.get_oldest_file_age()
+            # Incorporate the normalized age into the ranking model
+            ranking_model_input = f"{contents_line_numbers}\nAge: {normalized_age}"
+            # Use the ranking model to determine the relevance of the snippet
             snippet_relevance = self.ranking_model.predict(ranking_model_input)
-            # TODO: Update the snippet object with the age and relevance information
+            # Update the snippet object with the age and relevance information
             snippet.age = age
             snippet.relevance = snippet_relevance
-            # TODO: Sort the snippets based on age and relevance
+            # Sort the snippets based on age and relevance
             snippets.sort(key=lambda x: (x.age, x.relevance), reverse=True)
             try:
                 if chunking:
