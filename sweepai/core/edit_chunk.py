@@ -1,3 +1,4 @@
+import logging
 import json
 import subprocess
 
@@ -7,9 +8,23 @@ from sweepai.core.prompts import should_edit_code_system_prompt, should_edit_cod
 
 class EditBot(ChatGPT):
     def should_edit(self, issue: str, snippet: str) -> bool:
+        """
+        Determines if a given code snippet should be edited.
+
+        Parameters:
+        issue (str): The issue description.
+        snippet (str): The code snippet.
+
+        Returns:
+        bool: True if the code snippet should be edited, False otherwise.
+        """
         self.messages = [Message(role="system", content=should_edit_code_system_prompt)]
         self.model = "gpt-3.5-turbo-16k-0613"  # can be optimized
-        response = self.chat(should_edit_code_prompt.format(problem_description=issue, code_snippet=snippet), message_key='is_relevant')
+        try:
+            response = self.chat(should_edit_code_prompt.format(problem_description=issue, code_snippet=snippet), message_key='is_relevant')
+        except Exception as e:
+            logging.error(f"An error occurred: {e}")
+            return False
         last_line = response.split('\n')[-1]
         if "true" in last_line.lower():
             return True
