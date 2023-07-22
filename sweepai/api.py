@@ -190,9 +190,11 @@ async def webhook(raw_request: Request):
                 request = IssueCommentRequest(**request_dict)
                 if request.issue is not None \
                         and GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels] \
-                        and request.comment.user.type == "User"\
-                        and request.issue.pull_request is None\
-                        and request.issue.pull_request.url is None:
+                        and request.comment.user.type == "User" \
+                        and not (
+                            request.issue.pull_request
+                            and request.issue.pull_request.url
+                        ):
                     logger.info("New issue comment created")
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
@@ -397,7 +399,7 @@ async def webhook(raw_request: Request):
                 pr_request = PRRequest(**request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")
                 commit_author = pr_request.pull_request.user.login
-                merged_by = pr_request.pull_request.merged_by.login
+                merged_by = pr_request.pull_request.merged_by.login if pr_request.pull_request.merged_by else pr_request.pull_request.user.login
                 if GITHUB_BOT_USERNAME == commit_author:
                     event_name = "merged_sweep_pr"
                     if pr_request.pull_request.title.startswith("[config]"):
