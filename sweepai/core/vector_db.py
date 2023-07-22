@@ -40,7 +40,7 @@ image = (
     modal.Image.debian_slim()
     .apt_install("git")
     .pip_install("deeplake==3.6.3", "sentence-transformers")
-    .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "highlight-io", "anthropic",
+    .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "anthropic",
                  "posthog", "redis", "pyyaml")
 )
 secrets = [
@@ -50,7 +50,6 @@ secrets = [
     modal.Secret.from_name("huggingface"),
     modal.Secret.from_name("chroma-endpoint"),
     modal.Secret.from_name("posthog"),
-    modal.Secret.from_name("highlight"),
     modal.Secret.from_name("redis_url"),
     modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
 ]
