@@ -1,4 +1,4 @@
-name: Bugfix - What bug should Sweep try to fix?
+name: Bugfix
 title: 'Sweep: '
 description: Write something like "We notice ... behavior when ... happens instead of ...""
 labels: sweep

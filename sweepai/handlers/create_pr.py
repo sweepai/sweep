@@ -223,7 +223,7 @@ def create_config_pr(
     return pr
 
 REFACTOR_TEMPLATE = """\
-name: Refactor - What refactor should Sweep handle?
+name: Refactor
 title: 'Sweep: '
 description: Write something like "Modify the ... api endpoint to use ... version and ... framework"
 labels: sweep
@@ -236,7 +236,7 @@ body:
       placeholder: We are migrating this function to ... version because ..."""
 
 BUGFIX_TEMPLATE = """\
-name: Bugfix - What bug should Sweep try to fix?
+name: Bugfix
 title: 'Sweep: '
 description: Write something like "We notice ... behavior when ... happens instead of ...""
 labels: sweep
@@ -249,7 +249,7 @@ body:
       placeholder: The bug might be in ... file"""
 
 FEATURE_TEMPLATE = """\
-name: Feature Request - What feature should Sweep handle?
+name: Feature Request
 title: 'Sweep: '
 description: Write something like "Write an api endpoint that does "..." in the "..." file"
 labels: sweep
