@@ -80,6 +80,35 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5)
     return result_snippets[:max_num_of_snippets]
 
 
+def fetch_files(sweep_bot):
+    try:
+        return fetch_file_contents_with_retry()
+    except Exception as e:
+        handle_exceptions(e)
+
+
+def handle_exceptions(e):
+    trace = traceback.format_exc()
+    logger.error(e)
+    logger.error(trace)
+    edit_sweep_comment(
+        "It looks like an issue has occurred around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev.",
+        -1
+    )
+    log_error("File Fetch", str(e) + "\n" + traceback.format_exc())
+    raise e
+
+
+def generate_pr(sweep_bot):
+    logger.info("Generating PR...")
+    return sweep_bot.generate_pull_request()
+
+
+def make_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number):
+    logger.info("Making PR...")
+    return create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
+
+
 def on_ticket(
         title: str,
         summary: str,
@@ -277,18 +306,10 @@ def on_ticket(
 
     logger.info("Fetching relevant files...")
     try:
-        snippets, tree = fetch_file_contents_with_retry()
+        snippets, tree = fetch_files(sweep_bot)
         assert len(snippets) > 0
     except Exception as e:
-        trace = traceback.format_exc()
-        logger.error(e)
-        logger.error(trace)
-        edit_sweep_comment(
-            "It looks like an issue has occurred around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev.",
-            -1
-        )
-        log_error("File Fetch", str(e) + "\n" + traceback.format_exc())
-        raise e
+        handle_exceptions(e)
 
     snippets = post_process_snippets(snippets)
 
@@ -376,7 +397,7 @@ def on_ticket(
 
             # CREATE PR METADATA
             logger.info("Generating PR...")
-            pull_request = sweep_bot.generate_pull_request()
+            pull_request = generate_pr(sweep_bot)
             pull_request_content = pull_request.content.strip().replace("\n", "\n>")
             pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
             edit_sweep_comment(
@@ -386,7 +407,7 @@ def on_ticket(
 
             # WRITE PULL REQUEST
             logger.info("Making PR...")
-            response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
+            response = make_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
             if not response or not response["success"]: raise Exception("Failed to create PR")
             pr = response["pull_request"]
             current_issue.create_reaction("rocket")
@@ -458,19 +479,7 @@ def on_ticket(
         )
         raise e
     except Exception as e:
-        logger.error(traceback.format_exc())
-        logger.error(e)
-        edit_sweep_comment(
-            "I'm sorry, but it looks like an error has occurred. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
-            -1
-        )
-        log_error("Workflow", str(e) + "\n" + traceback.format_exc())
-        posthog.capture(
-            username,
-            "failed",
-            properties={"error": str(e), "reason": "Generic error", **metadata},
-        )
-        raise e
+        handle_exceptions(e)
     else:
         try:
             item_to_react_to.delete_reaction(eyes_reaction.id)
