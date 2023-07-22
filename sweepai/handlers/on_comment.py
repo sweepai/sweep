@@ -19,7 +19,7 @@ from sweepai.core.entities import FileChangeRequest, NoFilesException, Snippet
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.config.server import PREFIX, OPENAI_API_KEY, GITHUB_BOT_TOKEN
+from sweepai.utils.config.server import GITHUB_BOT_USERNAME, PREFIX, OPENAI_API_KEY, GITHUB_BOT_TOKEN
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     get_github_client,
@@ -101,6 +101,7 @@ def on_comment(
     repo = g.get_repo(repo_full_name) if not repo else repo
     pr = repo.get_pull(pr_number) if not pr else pr
     try:
+        
         if not comment_id:
             pass
         else:
@@ -219,6 +220,9 @@ def on_comment(
             file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
+        if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
+            # Update the PR title to remove the "[DRAFT]" prefix
+            pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
 
         logger.info("Done!")
     except NoFilesException:

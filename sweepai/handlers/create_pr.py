@@ -78,12 +78,11 @@ def create_pr(
             pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
         else:
             pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
-
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
         pr = sweep_bot.repo.create_pull(
-            title=pr_title,
+            title="[DRAFT] " + pr_title,
             body=pr_description,
             head=pull_request.branch_name,
             base=SweepConfig.get_branch(sweep_bot.repo),
@@ -161,7 +160,7 @@ def safe_delete_sweep_branch(
 def create_config_pr(
         sweep_bot: SweepBot,
 ):
-    title = "Create `sweep.yaml` Config File"
+    title = "Configure Sweep"
     branch_name = GITHUB_CONFIG_BRANCH
     branch_name = sweep_bot.create_branch(branch_name, retry=False)
     try:
@@ -169,6 +168,24 @@ def create_config_pr(
             'sweep.yaml',
             'Create sweep.yaml config file',
             GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
+            branch=branch_name
+        )
+        sweep_bot.repo.create_file(
+            '.github/ISSUE_TEMPLATE/sweep-bugfix.yml',
+            'Create bugfix template',
+            BUGFIX_TEMPLATE,
+            branch=branch_name
+        )
+        sweep_bot.repo.create_file(
+            '.github/ISSUE_TEMPLATE/sweep-feature.yml',
+            'Create feature template',
+            FEATURE_TEMPLATE,
+            branch=branch_name
+        )
+        sweep_bot.repo.create_file(
+            '.github/ISSUE_TEMPLATE/sweep-refactor.yml',
+            'Create refactor template',
+            REFACTOR_TEMPLATE,
             branch=branch_name
         )
     except Exception as e:
@@ -204,3 +221,42 @@ def create_config_pr(
     )
     pr.add_to_labels(GITHUB_LABEL_NAME)
     return pr
+
+REFACTOR_TEMPLATE = """\
+name: Refactor
+title: 'Sweep: '
+description: Write something like "Modify the ... api endpoint to use ... version and ... framework"
+labels: sweep
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Details
+      description: More details for Sweep
+      placeholder: We are migrating this function to ... version because ..."""
+
+BUGFIX_TEMPLATE = """\
+name: Bugfix
+title: 'Sweep: '
+description: Write something like "We notice ... behavior when ... happens instead of ...""
+labels: sweep
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Details
+      description: More details about the bug
+      placeholder: The bug might be in ... file"""
+
+FEATURE_TEMPLATE = """\
+name: Feature Request
+title: 'Sweep: '
+description: Write something like "Write an api endpoint that does "..." in the "..." file"
+labels: sweep
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Details
+      description: More details for Sweep
+      placeholder: The new endpoint should use the ... class from ... file because it contains ... logic"""

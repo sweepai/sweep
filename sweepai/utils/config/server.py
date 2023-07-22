@@ -54,6 +54,7 @@ GITHUB_DEFAULT_CONFIG = os.environ.get('GITHUB_DEFAULT_CONFIG', """# Sweep AI tu
 
 # If you use this be sure to frequently sync your default branch(main, master) to dev.
 branch: '{branch}'
+gha_enabled: False
 """)
 
 # goes under Modal 'openai-secret' secret name
