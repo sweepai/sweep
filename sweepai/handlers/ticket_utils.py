@@ -27,4 +27,4 @@ def handle_exceptions(e):
     Handles exceptions.
     """
     logger.error(f"An error occurred: {e}")
-    return
+    raise e
