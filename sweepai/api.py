@@ -97,6 +97,8 @@ def handle_pr_change_request(
             else:
                 raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
             stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
+            # Check for potential merge conflicts in other open PRs
+            check_for_merge_conflicts(repo_full_name, pr_id)
     finally:
         del stub.app.pr_queues[(repo_full_name, pr_id)]
 
@@ -417,6 +419,7 @@ async def webhook(raw_request: Request):
                     request_dict["repository"]["full_name"],
                     installation_id=request_dict["installation"]["id"],
                 )
+                check_for_merge_conflicts(request_dict["repository"]["full_name"], request_dict["installation"]["id"])
             case "push", None:
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
                     update_index.spawn(
