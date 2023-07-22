@@ -206,7 +206,8 @@ async def webhook(raw_request: Request):
                             request.repository.description or ""
                     )
 
-                    if not request.comment.body.lower().startswith(GITHUB_LABEL_NAME):
+                    if not request.comment.body.strip().lower().startswith(GITHUB_LABEL_NAME):
+                        logger.info("Comment does not start with 'Sweep', passing")
                         return {"success": True, "reason": "Comment does not start with 'Sweep', passing"}
 
                     # Update before we handle the ticket to make sure index is up to date
