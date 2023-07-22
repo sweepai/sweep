@@ -102,6 +102,10 @@ def handle_pr_change_request(
     finally:
         del stub.app.pr_queues[(repo_full_name, pr_id)]
 
+def check_for_merge_conflicts(repo_full_name: str, pr_id: int):
+    # TODO: Implement logic to check for potential merge conflicts in other open PRs
+    pass
+
 
 def function_call_is_completed(call_id: str):
     from modal.functions import FunctionCall
