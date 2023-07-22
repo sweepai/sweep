@@ -199,6 +199,25 @@ Step-by-step thoughts with explanations:
 </create_file>
 """
 
+files_to_change_follow_up_prompt = """Your response could not be parsed. You must follow this format:
+Thoughts about why my answer was not formatted correctly:
+* ...
+
+Step-by-step thoughts with explanations:
+* Thought 1 - Explanation 1
+...
+
+<modify_file>
+* filename_3: instructions_3
+...
+</modify_file>
+
+<create_file>
+* filename_1: instructions_1
+...
+</create_file>
+"""
+
 reply_prompt = """
 Write a 1-paragraph response to this user:
 * Tell them you have started working on this PR and a rough summary of your plan. 
