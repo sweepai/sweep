@@ -313,10 +313,6 @@ class SweepBot(CodeGenBot, GithubBot):
         #             return response
         return
 
-    def handle_merge_conflict(self, conflicting_prs):
-        # TODO: Implement logic to handle merge conflicts
-        pass
-
     def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
         file_change: FileCreation | None = None
         for count in range(5):
@@ -508,6 +504,16 @@ class SweepBot(CodeGenBot, GithubBot):
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")    
 
+    # Removed duplicate method
+
     def handle_merge_conflict(self, conflicting_prs):
         # TODO: Implement logic to handle merge conflicts
-        pass
+        # For example, you could iterate over the conflicting PRs and attempt to merge each one,
+        # handling any merge conflicts that arise.
+        for pr in conflicting_prs:
+            try:
+                # Attempt to merge PR
+                pass
+            except MergeConflictError:
+                # Handle merge conflict
+                pass
