@@ -1,4 +1,4 @@
-name: linter
+name: python linter
 
 on: [push, pull_request]
 
