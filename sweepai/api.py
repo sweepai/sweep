@@ -120,7 +120,6 @@ def push_to_queue(
     key = (repo_full_name, pr_id)
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
     queue = [pr_change_request] + queue
-    print(call_id)
     if call_id == "0" or function_call_is_completed(call_id):
         stub.app.pr_queues[key] = ("0", queue)
         call_id = handle_pr_change_request.spawn(
