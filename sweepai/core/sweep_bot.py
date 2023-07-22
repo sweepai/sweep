@@ -313,6 +313,10 @@ class SweepBot(CodeGenBot, GithubBot):
         #             return response
         return
 
+    def handle_merge_conflict(self, conflicting_prs):
+        # TODO: Implement logic to handle merge conflicts
+        pass
+
     def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
         file_change: FileCreation | None = None
         for count in range(5):
@@ -503,3 +507,7 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")    
+
+    def handle_merge_conflict(self, conflicting_prs):
+        # TODO: Implement logic to handle merge conflicts
+        pass
