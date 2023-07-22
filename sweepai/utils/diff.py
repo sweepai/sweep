@@ -160,11 +160,12 @@ def sliding_window_replacement(original, search, replace):
     index = -1
     max_similarity = 0
     # sliding window comparison from original to search
+    # Todo: 2 pointer approach (find start, then find end)
     # Todo: use rapidfuzz to compute fuzzy similarity over code
-    for i in range(len(original) - len(search) + 1):
+    for i in range(len(original)):
         count = 0
         for j in range(len(search)):
-            if search[j].strip() == original[i + j].strip():
+            if i + j < len(original) and search[j].strip() == original[i + j].strip():
                 count += 1
         if count > max_similarity:
             index = i
