@@ -1,6 +1,6 @@
-name: Bugfix - Describe the bug to Sweep
+name: Bugfix - What bug should Sweep try to fix?
 title: 'Sweep: '
-description: We notice ... behavior when ... happens instead of ...
+description: Write something like "We notice ... behavior when ... happens instead of ...""
 labels: sweep
 body:
   - type: textarea
