@@ -44,6 +44,7 @@ image = (
         "config-path",
         "pyyaml",
         "pymongo",
+        "redis",
     )
 )
 secrets = [
