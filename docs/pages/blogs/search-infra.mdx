@@ -15,7 +15,7 @@ We wanted to store multiple repositories in a scalable manner without relying on
 #### Insight: 
 Repositories change frequently but with a small delta. This is bounded(for now) by how fast humans can write and review code.
 
-Using Redis allows us to leverage cache misses to automatically handle differences. With each merged GitHub PR, 99% of the repository might be cached from before, leading to a small 1% cache miss.
+Using Redis allows us to leverage cache misses to automatically handle differences. During indexing, we use the code's sha256 hash as the key to check for cache hits. With each merged GitHub PR, 99% of the repository might be cached from before, leading to a small 1% cache miss.
 
 We then handle these misses at runtime and index them concurrently. This only takes 1-2 seconds, and we have an updated database. 
 
