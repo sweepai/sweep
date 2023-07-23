@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="https://github.com/sweepai/sweep/assets/26889185/39d500fc-9276-402c-9ec7-3e61f57ad233">
+    <img src="./docs/public/banner.png">
 </p>
 <p align="center">
     <i>Bug Reports & Feature Requests ⟶&nbsp; Code Changes</i>
