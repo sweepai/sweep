@@ -12,21 +12,20 @@ We decided on two main goals for our code search infrastructure:
 #### Problem: 
 We wanted to store multiple repositories in a scalable manner without relying on a hosted vector database like Pinecone. 
 
-#### Insights: 
+#### Insight: 
 Repositories change frequently but with a small delta. This is bounded(for now) by how fast humans can write and review code.
 
-Our setup leverages cache misses to automatically handle differences. With each merged GitHub PR, 99% of the repository might be indexed from before, leading to a small 1% cache miss. 
+Using Redis allows us to leverage cache misses to automatically handle differences. With each merged GitHub PR, 99% of the repository might be cached from before, leading to a small 1% cache miss.
 
-We can handle these misses at runtime and index them concurrently. This only takes 1-2 seconds, and we have an updated database. 
+We then handle these misses at runtime and index them concurrently. This only takes 1-2 seconds, and we have an updated database. 
 
 ## **Storing Vector Embeddings**
 
 #### Problem:
 Once we have embeddings, we need to retrieve the corresponding code. This typically requires us to key the embeddings with the plaintext code.
 
-#### Insights: 
+#### Insight: 
 We can store pointers to code and fetch the code at runtime. 
-
 For example, instead of storing:
 ```python
 if name == “sweep”:
