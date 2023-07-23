@@ -104,7 +104,7 @@ def handle_pr_change_request(
 def check_for_merge_conflicts(repo_full_name: str, pr_id: int):
     # Fetch the list of open PRs
     open_prs = fetch_open_prs(repo_full_name)
-    
+
     # Check for potential merge conflicts
     for pr in open_prs:
         if pr.id != pr_id and has_merge_conflict(pr_id, pr.id):
