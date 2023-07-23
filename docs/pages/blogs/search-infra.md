@@ -4,7 +4,7 @@ As we’re developing Sweep, our open-source AI junior developer, we implemented
 
 We decided on two main goals for our code search infrastructure:
 
-1. The search index needs to be up to date. Code search is unique from other types of search in that it requires high levels of consistency. You wouldn’t want to reference an old version(say two git commits earlier) of a function while writing code.
+1. The search index needs to be up to date. Code is unique from other types of content in that it requires high levels of consistency. You wouldn’t want to reference an old version of a function(say two git commits back) while writing something that uses it.
 2. For additional security, we don’t want to store the code as plaintext. However, we still need a way to map the original code to the embeddings.
 
 ## **Efficient Indexing**
@@ -32,16 +32,18 @@ For example, instead of storing:
 if name == “sweep”:
     print(”hello, I am a bot that writes pull requests”)”
 ```
-we can store “introduction.py:line2:line:3” and get lines 2-3 from introduction.py. The added latency from this is negligible (reading a file from disk is in the order of milliseconds). In this case, the code is temporarily read at runtime and then deleted from the container after the PR is written.
+we can store `introduction.py:line2:line:3` and get lines 2-3 from `introduction.py`. 
+
+The added latency from this is negligible (reading a file from disk is in the order of milliseconds). In this case, the code is temporarily read at runtime and then deleted from the container after the PR is written.
 
 ## **Architecture**
 The final diagram looks like this. We index and write to Redis when main is updated. At query time, we perform a vector search and fetch the actual code.
 
 ![vector_db (1)](https://github.com/sweepai/sweep/assets/44910023/b2a7a2d2-7880-4553-b233-5aa68fd6f14d)
 
-Our vector database architecture was critical to building Sweep. Our goal is to develop a highly competent AI junior developer. For more details, please visit our GitHub repo: **https://github.com/sweepai/sweep**.
+Our vector database architecture was critical to building Sweep. Our goal is to develop a highly competent AI junior developer. 
 
-We appreciate any feedback and insights.
+For more details, please visit our GitHub repo: **https://github.com/sweepai/sweep**. We appreciate any feedback and insights.
 
 ## **Additional Notes**
 
