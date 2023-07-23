@@ -1,5 +1,6 @@
 {
     "understanding-codebase-with-ctags": "Understanding your codebase with ctags",
     "building-code-search": "Building a code search engine in one day",
-    "gpt-32k-open-source": "GPT 32k, 💻 Open-source, DeepLake 🏞️, GPT Functions Search 🔍 and more!"
+    "gpt-32k-open-source": "GPT 32k, 💻 Open-source, DeepLake 🏞️, GPT Functions Search 🔍 and more!",
+    "search-infra": "Implementing a new architecture for our vector search database"
 }
