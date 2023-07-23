@@ -77,14 +77,13 @@ def handle_pr_change_request(
     repo_full_name: str,
     pr_id: int
 ):
-    # TODO: put process ID here and check if it's still running
-    # TODO: GHA should have lower precedence than comments
-    try:
-        call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
-        while queue:
-            # popping
-            call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
-            print(queue)
+    def handle_merge_conflict(self, conflicting_pr):
+        # Attempt to merge the PR
+        try:
+            merge_pr(conflicting_pr)
+        except MergeConflictError:
+            # Notify the user about the merge conflict
+            notify_user(conflicting_pr)
             pr_change_request: PRChangeRequest
             *queue, pr_change_request = queue
             logger.info(f"Currently handling PR change request: {pr_change_request}")
@@ -103,8 +102,13 @@ def handle_pr_change_request(
         del stub.app.pr_queues[(repo_full_name, pr_id)]
 
 def check_for_merge_conflicts(repo_full_name: str, pr_id: int):
-    # TODO: Implement logic to check for potential merge conflicts in other open PRs
-    pass
+    # Fetch the list of open PRs
+    open_prs = fetch_open_prs(repo_full_name)
+    
+    # Check for potential merge conflicts
+    for pr in open_prs:
+        if pr.id != pr_id and has_merge_conflict(pr_id, pr.id):
+            handle_merge_conflict(pr)
 
 
 def function_call_is_completed(call_id: str):
@@ -295,6 +299,7 @@ async def webhook(raw_request: Request):
                     #     handle_pr_change_request.spawn(repo_full_name=request.repository.full_name, pr_id=request.pull_request.number)
                     # else:
                     #     stub.app.pr_queues[(request.repository.full_name, request.pull_request.number)] = stub.app.pr_queues[(request.repository.full_name, request.pull_request.number)] + [pr_change_request]
+                    #     handle_pr_change_request.spawn(repo_full_name=request.repository.full_name, pr_id=request.pull_request.number)
                     # print(stub.app.pr_queues[(request.repository.full_name, request.pull_request.number)])
                     # key = (request.repository.full_name, request.pull_request.number)
                     # call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
