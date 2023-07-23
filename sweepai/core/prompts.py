@@ -175,11 +175,12 @@ Think step-by-step to break down the requested problem or feature, and then figu
 Then, provide a list of files you would like to modify, abiding by the following:
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
 * Use detailed, natural language instructions on what to modify, with reference to variable names
-* There MUST be both create and modify XML tags
+* There MUST be both create_file and modify_file XML tags
 * The list of files to create or modify may be empty, but you MUST leave the XML tags with a single list element with "* None"
 * Create/modify up to 5 FILES
 * Do not modify non-text files such as images, svgs, binary, etc
-* You MUST follow the following format:
+
+You MUST follow the following format delimited with XML tags:
 
 Step-by-step thoughts with explanations: 
 * Thought 1 - Explanation 1
@@ -234,7 +235,7 @@ Detailed plan of additions:
 commit_message = "{commit_message}"
 
 <new_file>
-{{new_file}}
+{{complete_new_file_contents}}
 </new_file>
 """
 
