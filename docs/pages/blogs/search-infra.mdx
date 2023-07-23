@@ -1,5 +1,7 @@
 # **Code Search Infra for an AI junior developer - that doesn't store code**
 
+- William Zeng
+
 As we’re developing Sweep, our open-source AI junior developer, we implemented a new architecture for our vector search database.
 
 We decided on two main goals for our code search infrastructure:
@@ -17,7 +19,7 @@ Repositories change frequently but with a small delta. This is bounded(for now) 
 
 Using Redis allows us to leverage cache misses to automatically handle differences. During indexing, we use the code's sha256 hash as the key to check for cache hits. With each merged GitHub PR, 99% of the repository might be cached from before, leading to a small 1% cache miss.
 
-We then handle these misses at runtime and index them concurrently. This only takes 1-2 seconds, and we have an updated database. 
+We then handle these misses at runtime and index them concurrently. This only takes 1-2 seconds, and we have an updated database. As a side note, this also lets us handle branches (which would require `num_branches * num_repositories` worth of storage otherwise).
 
 ## **Storing Vector Embeddings**
 
