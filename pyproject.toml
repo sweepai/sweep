@@ -26,6 +26,8 @@ typer = "^0.9.0"
 tabulate = "^0.9.0"
 GitPython = "^3.1.31"
 pyyaml = "^6.0"
+sentence-transformers = "^2.2.2"
+pylint-pydantic = "^0.2.3"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"
@@ -53,6 +55,7 @@ PyJWT = "^2.6.0"
 backoff = "^2.2.1"
 posthog = "^3.0.1"
 tree-sitter = "^0.20.1"
+pylint = "^2.17.4"
 
 [mypy]
 check_untyped_defs = true
@@ -60,3 +63,9 @@ check_untyped_defs = true
 [tool.poetry.scripts]
 sweep = "sweepai.app.cli:app"
 sweepai = "sweepai.app.cli:app"
+
+[tool.pylint.'MESSAGES CONTROL']
+
+disable=[
+  'no-name-in-module'
+]

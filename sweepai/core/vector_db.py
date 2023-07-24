@@ -100,7 +100,7 @@ class ModalEmbeddingFunction():
         pass
 
     def __call__(self, texts):
-        return Embedding.compute.call(texts)
+        return Embedding.compute.call(texts) # pylint: disable=no-member
 
 
 embedding_function = ModalEmbeddingFunction()
