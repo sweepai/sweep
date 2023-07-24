@@ -11,6 +11,7 @@ from sweepai.events import CheckRunCompleted, PullRequestClosed
 from sweepai.utils.config.client import SweepConfig, get_gha_enabled
 from sweepai.utils.github_utils import get_github_client, get_token
 from sweepai.handlers.create_pr import create_gha_pr
+from sweepai.constants import GITHUB_BOT_USERNAME
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
