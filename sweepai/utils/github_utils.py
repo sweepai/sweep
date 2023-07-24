@@ -286,7 +286,7 @@ def index_full_repository(
                 description="Assigns Sweep to an issue or pull request.",
             )
     except Exception as e:
-        posthog("index_full_repository", "failed", {"error": str(e)})
+        posthog.capture("index_full_repository", "failed", {"error": str(e)})
         logger.warning(
             "Adding label failed, probably because label already."
         )  # warn that the repo may already be indexed

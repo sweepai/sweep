@@ -101,10 +101,10 @@ def on_comment(
     repo = g.get_repo(repo_full_name) if not repo else repo
     pr = repo.get_pull(pr_number) if not pr else pr
     try:
-        
-        if not comment_id:
-            pass
-        else:
+        # Check if the PR is closed
+        if pr.state == "closed":
+            return {"success": True, "message": "PR is closed. No event fired."}
+        if comment_id:
             try:
                 item_to_react_to = pr.get_issue_comment(comment_id)
                 item_to_react_to.create_reaction("eyes")
@@ -115,9 +115,6 @@ def on_comment(
                 item_to_react_to.create_reaction("eyes")
             except Exception as e:
                 pass
-        # Check if the PR is closed
-        if pr.state == "closed":
-            return {"success": True, "message": "PR is closed. No event fired."}
         branch_name = pr.head.ref
         pr_title = pr.title
         pr_body = pr.body or ""
@@ -281,7 +278,7 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
                          branch=branch_name)
     except Exception as e:
         logger.error(traceback.format_exc())
-        if e.status == 404:
+        if e.status == 404: # pylint: disable=no-member
             logger.warning(f"File {pr_path} was not found in previous commit {previous_commit.sha}")
         else:
             raise e
