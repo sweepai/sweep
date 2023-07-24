@@ -2,8 +2,9 @@ import time
 import modal
 from fastapi import HTTPException, Request
 from loguru import logger
-from pydantic import ValidationError
-from sweepai.core.entities import PRChangeRequest
+
+def example():
+    a = 4
 
 from sweepai.events import (
     CheckRunCompleted,
