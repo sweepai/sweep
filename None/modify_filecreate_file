@@ -1,0 +1,24 @@
+from sweepai.core.entities import FileChangeRequest, PullRequest, SweepBot
+
+def create_pr(file_change_requests: list[FileChangeRequest], pull_request: PullRequest, sweep_bot: SweepBot, username: str, installation_id: int, issue_number: int | None = None):
+    # Generate pull request body
+    pull_request_body = generate_pull_request_body(pull_request, file_change_requests)
+
+    # Create pull request using GitHub API
+    create_pull_request(pull_request.title, pull_request_body, username, installation_id)
+
+    # Optionally associate pull request with an existing issue
+    if issue_number:
+        associate_pull_request_with_issue(issue_number)
+
+def generate_pull_request_body(pull_request: PullRequest, file_change_requests: list[FileChangeRequest]) -> str:
+    # Generate pull request body logic here
+    pass
+
+def create_pull_request(title: str, body: str, username: str, installation_id: int):
+    # Create pull request using GitHub API logic here
+    pass
+
+def associate_pull_request_with_issue(issue_number: int):
+    # Associate pull request with issue logic here
+    pass
