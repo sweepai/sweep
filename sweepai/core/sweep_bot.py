@@ -380,7 +380,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.info(
                     f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}")
                 new_file = generate_new_file_from_patch(modify_file_response, contents, chunk_offset=chunk_offset)
-                if not is_markdown(file_change_request.filename):
+                if not is_markdown(file_change_request.filename) and not chunking:
                     code_repairer = CodeRepairer(chat_logger=self.chat_logger)
                     diff = generate_diff(old_code=contents, new_code=new_file)
                     if diff.strip() != "" and diff_contains_dups_or_removals(diff, new_file):

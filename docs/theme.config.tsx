@@ -6,6 +6,9 @@ const config: DocsThemeConfig = {
   head: (
     <head>
       <link rel="icon" type="image/png" href="./favicon.png" />
+      <meta property="og:title" content="Sweep AI Documentation" />
+      <meta property="og:description" content="The official documentation for Sweep AI." />
+      <meta property="og:image" content="https://docs.sweep.dev/banner.png" />
     </head>
   ),
   project: {
@@ -20,6 +23,11 @@ const config: DocsThemeConfig = {
   footer: {
     text: 'Sweep AI © 2023',
   },
+  useNextSeoProps() {
+    return {
+      titleTemplate: '%s'
+    }
+  }
 }
 
 export default config
