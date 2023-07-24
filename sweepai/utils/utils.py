@@ -13,12 +13,12 @@ stub = modal.Stub(UTILS_MODAL_INST_NAME)
 tiktoken_image = modal.Image.debian_slim().pip_install("tiktoken", "loguru", "anthropic", "pyyaml", "PyGithub")
 
 TIKTOKEN_CACHE_DIR = "/root/cache/tiktoken"
-tiktoken_volume = modal.SharedVolume().persist("tiktoken-models")
+tiktoken_volume = modal.NetworkFileSystem.persisted("tiktoken-models")
 
 
 @stub.cls(
     image=tiktoken_image,
-    shared_volumes={TIKTOKEN_CACHE_DIR: tiktoken_volume},
+    network_file_systems={TIKTOKEN_CACHE_DIR: tiktoken_volume},
     secret=modal.Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR})
 )
 class Tiktoken:
@@ -40,7 +40,8 @@ chunking_image = modal.Image.debian_slim() \
     .pip_install("tree-sitter", "loguru", "pyyaml", "PyGithub")
 
 CHUNKING_CACHE_DIR = "/root/cache/"
-chunking_volume = modal.SharedVolume().persist("chunking-parsers")
+# chunking_volume = modal.SharedVolume().persist("chunking-parsers")
+chunking_volume = modal.NetworkFileSystem.persisted("chunking-parsers")
 
 
 @dataclass
@@ -160,7 +161,7 @@ extension_to_language = {
 
 @stub.cls(
     image=chunking_image,
-    shared_volumes={CHUNKING_CACHE_DIR: chunking_volume},
+    network_file_systems={CHUNKING_CACHE_DIR: chunking_volume},
 )
 class Chunking:
 
