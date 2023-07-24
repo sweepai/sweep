@@ -16,6 +16,7 @@ class CodeRepairer(ChatGPT):
     def check_syntax(old_code, file_extension: str) -> bool:
         # this is WIP
         raise NotImplementedError()
+        filename = ""
         if file_extension == '.py':
             # Use Python's built-in formatter "Black"
             result = subprocess.run(['black', '--check', filename], text=True, capture_output=True)
