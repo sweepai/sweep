@@ -27,7 +27,8 @@ def create_pr(
         sweep_bot: SweepBot,
         username: str,
         installation_id: int,
-        issue_number: int | None = None
+        issue_number: int | None = None,
+        pr_content: str | None = None
 ):
     # Flow:
     # 1. Get relevant files
@@ -83,7 +84,7 @@ def create_pr(
             pr_title = "[config] " + pr_title
         pr = sweep_bot.repo.create_pull(
             title="[DRAFT] " + pr_title,
-            body=pr_description,
+            body=pr_content if pr_content is not None else pr_description,
             head=pull_request.branch_name,
             base=SweepConfig.get_branch(sweep_bot.repo),
         )
