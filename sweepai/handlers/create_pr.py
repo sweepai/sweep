@@ -206,15 +206,10 @@ def create_config_pr(
     pr = sweep_bot.repo.create_pull(
         title=title,
         body=
-        """🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
+        """ Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
         
         ## What's new?
         - **Sweep is now configurable**. 
-    pr = sweep_bot.repo.create_pull(
-        title=title,
-        body=
-        """🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
-        ...
         """,
         head=branch_name,
         base=SweepConfig.get_branch(sweep_bot.repo),
