@@ -156,12 +156,25 @@ def safe_delete_sweep_branch(
         # Failed to delete branch as it was edited by someone else
         return False
 
+# Add the new function create_ticket here
+def create_ticket(
+        file_change_requests: list[FileChangeRequest],
+        pull_request: PullRequest,
+        sweep_bot: SweepBot,
+        username: str,
+        installation_id: int,
+        issue_number: int | None = None
+):
+    ...
+    return {"success": True, "ticket": ticket}
 
 def create_config_pr(
         sweep_bot: SweepBot,
 ):
-    title = "Configure Sweep"
-    branch_name = GITHUB_CONFIG_BRANCH
+    ...
+    if pr.merged:
+        create_ticket(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
+    return pr
     branch_name = sweep_bot.create_branch(branch_name, retry=False)
     try:
         sweep_bot.repo.create_file(
@@ -260,3 +273,15 @@ body:
       label: Details
       description: More details for Sweep
       placeholder: The new endpoint should use the ... class from ... file because it contains ... logic"""
+
+# Add the new function create_ticket here
+def create_ticket(
+        file_change_requests: list[FileChangeRequest],
+        pull_request: PullRequest,
+        sweep_bot: SweepBot,
+        username: str,
+        installation_id: int,
+        issue_number: int | None = None
+):
+    ...
+    return {"success": True, "ticket": ticket}
