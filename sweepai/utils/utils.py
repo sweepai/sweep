@@ -179,12 +179,6 @@ class Chunking:
             subprocess.run(f"cp cache/build/{language}.so /tmp/{language}.so", shell=True)  # copying for executability
         self.languages = {language: Language(f"/tmp/{language}.so", language) for language in LANGUAGE_NAMES}
 
-        subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-typescript cache/tree-sitter-typescript",
-                       shell=True)
-        Language.build_library(f'cache/build/typescript.so', [f"cache/tree-sitter-typescript/tsx"])
-        subprocess.run(f"cp cache/build/typescript.so /tmp/typescript.so", shell=True)
-        self.languages["tsx"] = Language("/tmp/typescript.so", "tsx")
-
         subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-c-sharp cache/tree-sitter-c-sharp",
                        shell=True)
         Language.build_library(f'cache/build/c-sharp.so', [f"cache/tree-sitter-c-sharp"])
@@ -208,6 +202,12 @@ class Chunking:
         Language.build_library(f'cache/build/vue.so', [f"cache/tree-sitter-vue"])
         subprocess.run(f"cp cache/build/vue.so /tmp/vue.so", shell=True)
         self.languages["vue"] = Language("/tmp/vue.so", "vue")
+
+        subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-typescript cache/tree-sitter-typescript",
+                       shell=True)
+        Language.build_library(f'cache/build/typescript.so', [f"cache/tree-sitter-typescript/tsx"])
+        subprocess.run(f"cp cache/build/typescript.so /tmp/typescript.so", shell=True)
+        self.languages["tsx"] = Language("/tmp/typescript.so", "tsx")
 
         logger.debug("Finished downloading tree-sitter parsers")
 
