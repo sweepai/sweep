@@ -2,6 +2,7 @@ import modal
 import openai
 from github.Repository import Repository
 from loguru import logger
+from sweepai.core.entities import FileChangeRequest, PullRequest
 
 from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.utils.chat_logger import ChatLogger
@@ -160,8 +161,32 @@ def safe_delete_sweep_branch(
 def create_config_pr(
         sweep_bot: SweepBot,
 ):
-    title = "Configure Sweep"
-    branch_name = GITHUB_CONFIG_BRANCH
+    ...
+    return pr
+
+def create_gha_pr(sweep_bot: SweepBot):
+    # Read the sweep.yaml file
+    sweep_config = sweep_bot.repo.get_contents("sweep.yaml")
+    sweep_config = yaml.safe_load(sweep_config.decoded_content)
+
+    # Check if GHA is already enabled
+    if sweep_config.get("gha_enabled"):
+        return
+
+    # Create a new FileChangeRequest with the changes to the sweep.yaml file
+    file_change_request = FileChangeRequest(
+        file_path="sweep.yaml",
+        change_type="modify",
+        content=yaml.safe_dump({**sweep_config, "gha_enabled": True}),
+    )
+
+    # Create a new PR with the changes
+    pull_request = PullRequest(
+        title="Enable GitHub Actions",
+        content="This PR enables GitHub Actions by adding 'gha_enabled: True' to the sweep.yaml file.",
+        branch_name="enable-gha",
+    )
+    create_pr([file_change_request], pull_request, sweep_bot, GITHUB_BOT_USERNAME, installation_id=None)
     branch_name = sweep_bot.create_branch(branch_name, retry=False)
     try:
         sweep_bot.repo.create_file(
@@ -221,42 +246,3 @@ def create_config_pr(
     )
     pr.add_to_labels(GITHUB_LABEL_NAME)
     return pr
-
-REFACTOR_TEMPLATE = """\
-name: Refactor
-title: 'Sweep: '
-description: Write something like "Modify the ... api endpoint to use ... version and ... framework"
-labels: sweep
-body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Details
-      description: More details for Sweep
-      placeholder: We are migrating this function to ... version because ..."""
-
-BUGFIX_TEMPLATE = """\
-name: Bugfix
-title: 'Sweep: '
-description: Write something like "We notice ... behavior when ... happens instead of ...""
-labels: sweep
-body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Details
-      description: More details about the bug
-      placeholder: The bug might be in ... file"""
-
-FEATURE_TEMPLATE = """\
-name: Feature Request
-title: 'Sweep: '
-description: Write something like "Write an api endpoint that does "..." in the "..." file"
-labels: sweep
-body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Details
-      description: More details for Sweep
-      placeholder: The new endpoint should use the ... class from ... file because it contains ... logic"""
