@@ -5,13 +5,22 @@ import modal
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException
 from github.Repository import Repository
+from github.PullRequest import PullRequest
 from loguru import logger
 from pydantic import BaseModel
-
-from sweepai.core.chat import ChatGPT
-from sweepai.core.code_repair import CodeRepairer
-from sweepai.core.edit_chunk import EditBot
-from sweepai.core.entities import (
+...
+class SweepBot(CodeGenBot, GithubBot):
+    ...
+    def merge_default_branch_into_pr(self, pr: PullRequest):
+        try:
+            default_branch = self.repo.default_branch
+            pr.merge(default_branch)
+        except GithubException as e:
+            logger.error(f"Error: {e}, marking PR as needing manual intervention...")
+            pr.create_issue_comment("This PR has merge conflicts and needs manual intervention.")
+    ...
+    def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
+        ...
     FileCreation,
     FileChangeRequest,
     FilesToChange,
@@ -502,4 +511,4 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")    
+            logger.info(f"Error in handle_modify_file: {tb}")
