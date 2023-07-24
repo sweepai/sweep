@@ -395,5 +395,19 @@ def update_sweep_prs(
     repo_full_name: str,
     installation_id: int
 ):
-    # TODO: Implement the function to iterate through all open pull requests created by Sweep and attempt to merge the changes from the default branch into the pull request branch.
-    pass
+    # Get a Github client
+    g = get_github_client(installation_id)
+    
+    # Get the repository
+    repo = g.get_repo(repo_full_name)
+    
+    # Get all open pull requests created by Sweep
+    pulls = repo.get_pulls(state='open', head='sweep')
+    
+    # For each pull request, attempt to merge the changes from the default branch into the pull request branch
+    for pr in pulls:
+        try:
+            pr.merge(commit_message=f"Merge changes from default branch into PR #{pr.number}")
+            logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
+        except Exception as e:
+            logger.error(f"Failed to merge changes from default branch into PR #{pr.number}: {e}")
