@@ -170,22 +170,48 @@ def create_config_pr(
             GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
             branch=branch_name
         )
+        ...
+    except Exception as e:
+        logger.error(e)
+    ...
+    pr = sweep_bot.repo.create_pull(
+        title=title,
+        body=
+        """🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
+        
+        ...
+        """,
+        head=branch_name,
+        base=SweepConfig.get_branch(sweep_bot.repo),
+    )
+    pr.add_to_labels(GITHUB_LABEL_NAME)
+    return pr
+
+def create_gha_pr(
+        sweep_bot: SweepBot,
+):
+    title = "Enable GHA"
+    branch_name = GITHUB_GHA_BRANCH
+    branch_name = sweep_bot.create_branch(branch_name, retry=False)
+    try:
         sweep_bot.repo.create_file(
-            '.github/ISSUE_TEMPLATE/sweep-bugfix.yml',
-            'Create bugfix template',
-            BUGFIX_TEMPLATE,
+            'sweep.yaml',
+            'Enable GitHub Actions',
+            'gha_enabled: True',
             branch=branch_name
         )
-        sweep_bot.repo.create_file(
-            '.github/ISSUE_TEMPLATE/sweep-feature.yml',
-            'Create feature template',
-            FEATURE_TEMPLATE,
-            branch=branch_name
-        )
-        sweep_bot.repo.create_file(
-            '.github/ISSUE_TEMPLATE/sweep-refactor.yml',
-            'Create refactor template',
-            REFACTOR_TEMPLATE,
+    except Exception as e:
+        logger.error(e)
+    pr = sweep_bot.repo.create_pull(
+        title=title,
+        body=
+        """This PR enables GitHub Actions for this repository by adding 'gha_enabled: True' to the sweep.yaml file.
+        """,
+        head=branch_name,
+        base=SweepConfig.get_branch(sweep_bot.repo),
+    )
+    pr.add_to_labels(GITHUB_LABEL_NAME)
+    return pr
             branch=branch_name
         )
     except Exception as e:
