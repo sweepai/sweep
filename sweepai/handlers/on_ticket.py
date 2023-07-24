@@ -1,6 +1,5 @@
-'''
-On Github ticket, get ChatGPT to deal with it
-'''
+def example():
+    a = 4
 
 # TODO: Add file validation
 
