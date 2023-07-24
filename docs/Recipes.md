@@ -14,6 +14,5 @@ If you want Sweep to use a file, try to mention the full path. Similarly, to hav
 
 #### Limitations:
 Sweep is unlikely to complete complex issues on the first try, similar to the average junior developer. Here are Sweep's limitations(for now):
-- Try to change less than 200 lines of code
+- Try to change less than 300 lines of code
 - Try to modify less than 3 files
-- Do not include files with more than 1500 lines of code

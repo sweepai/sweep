@@ -371,6 +371,10 @@ async def webhook(raw_request: Request):
                         request_dict["repository"]["full_name"],
                         installation_id=request_dict["installation"]["id"],
                     )
+                    update_sweep_prs.spawn(
+                        request_dict["repository"]["full_name"],
+                        installation_id=request_dict["installation"]["id"],
+                    )
             case "ping", None:
                 return {"message": "pong"}
             case _:
@@ -381,3 +385,30 @@ async def webhook(raw_request: Request):
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
+
+@stub.function(**FUNCTION_SETTINGS)
+def update_sweep_prs(
+    repo_full_name: str,
+    installation_id: int
+):
+    # Get a Github client
+    g = get_github_client(installation_id)
+    
+    # Get the repository
+    repo = g.get_repo(repo_full_name)
+    
+    # Get all open pull requests created by Sweep
+    pulls = repo.get_pulls(state='open', head='sweep')
+    
+    # For each pull request, attempt to merge the changes from the default branch into the pull request branch
+    for pr in pulls:
+        try:
+            # Get the base branch
+            # base = repo.get_git_ref(f"heads/{pr.base.ref}")
+            # Merge the base branch directly into the feature branch
+            # pr.merge(base.object.sha)
+            
+            # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
+            logger.info(f"Merging changes from default branch into PR #{pr.number}")
+        except Exception as e:
+            logger.error(f"Failed to merge changes from default branch into PR #{pr.number}: {e}")

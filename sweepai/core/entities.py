@@ -87,6 +87,7 @@ def clean_filename(file_name: str):
     valid_chars = "-_./[]%s%s" % (string.ascii_letters, string.digits)
     file_name = ''.join(c for c in file_name if c in valid_chars)
     file_name = file_name.replace(' ', '')
+    file_name = file_name.strip('`')
     return os.path.normpath(file_name)
 
 
