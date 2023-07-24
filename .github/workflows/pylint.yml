@@ -18,7 +18,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: <selected_python_version>
+          python-version: <compatible_python_version>
 
       - name: Install dependencies
         run: |
