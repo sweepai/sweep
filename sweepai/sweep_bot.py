@@ -1,10 +1,10 @@
 from github import Github
 from github.PullRequest import PullRequest
-from github.PullRequestEvent import PullRequestEvent
 from loguru import logger
 
 from sweepai.handlers.create_pr import create_gha_pr
 from sweepai.utils.config.client import SweepConfig
+from github.PullRequestEvent import PullRequestEvent
 
 class SweepBot:
     def __init__(self, github_token: str, repo_full_name: str):
