@@ -77,6 +77,12 @@ def on_comment(
         repo: None = None,
         pr: None = None,
 ):
+    # Fetch all comments in the current issue thread
+    issue_comments = repo.get_issue(pr_number).get_comments()
+    # Iterate through the comments and delete any that match "sweep: retry" (case-insensitive)
+    for issue_comment in issue_comments:
+        if issue_comment.body.strip().lower() == "sweep: retry":
+            issue_comment.delete()
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
@@ -101,10 +107,10 @@ def on_comment(
     repo = g.get_repo(repo_full_name) if not repo else repo
     pr = repo.get_pull(pr_number) if not pr else pr
     try:
-        
-        if not comment_id:
-            pass
-        else:
+        # Check if the PR is closed
+        if pr.state == "closed":
+            return {"success": True, "message": "PR is closed. No event fired."}
+        if comment_id:
             try:
                 item_to_react_to = pr.get_issue_comment(comment_id)
                 item_to_react_to.create_reaction("eyes")
@@ -115,9 +121,6 @@ def on_comment(
                 item_to_react_to.create_reaction("eyes")
             except Exception as e:
                 pass
-        # Check if the PR is closed
-        if pr.state == "closed":
-            return {"success": True, "message": "PR is closed. No event fired."}
         branch_name = pr.head.ref
         pr_title = pr.title
         pr_body = pr.body or ""
@@ -281,7 +284,7 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
                          branch=branch_name)
     except Exception as e:
         logger.error(traceback.format_exc())
-        if e.status == 404:
+        if e.status == 404: # pylint: disable=no-member
             logger.warning(f"File {pr_path} was not found in previous commit {previous_commit.sha}")
         else:
             raise e

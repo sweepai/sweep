@@ -2,7 +2,7 @@ import React from 'react'
 import { DocsThemeConfig } from 'nextra-theme-docs'
 
 const config: DocsThemeConfig = {
-  logo: <img width={120} src="./banner.png" style={{borderRadius: 5}}/>,
+  logo: <img width={120} src="https://docs.sweep.dev/banner.png" style={{borderRadius: 5}}/>,
   head: (
     <head>
       <link rel="icon" type="image/png" href="./favicon.png" />
