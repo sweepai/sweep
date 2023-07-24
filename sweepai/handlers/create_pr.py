@@ -2,7 +2,6 @@ import modal
 import openai
 from github.Repository import Repository
 from loguru import logger
-
 from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.config.client import SweepConfig
@@ -12,6 +11,24 @@ from sweepai.utils.config.server import GITHUB_DEFAULT_CONFIG, GITHUB_LABEL_NAME
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.utils.event_logger import posthog
 
+def create_gha_pr(sweep_bot: SweepBot):
+    branch_name = sweep_bot.create_branch("gha-setup")
+    sweep_bot.repo.create_file(
+        'sweep.yaml',
+        'Enable GitHub Actions',
+        'gha_enabled: True',
+        branch=branch_name
+    )
+    pr_title = "Enable GitHub Actions"
+    pr_description = "This PR enables GitHub Actions for this repository."
+    pr = sweep_bot.repo.create_pull(
+        title=pr_title,
+        body=pr_description,
+        head=branch_name,
+        base=SweepConfig.get_branch(sweep_bot.repo),
+    )
+    pr.add_to_labels(GITHUB_LABEL_NAME)
+
 github_access_token = GITHUB_BOT_TOKEN
 openai.api_key = OPENAI_API_KEY
 
@@ -19,7 +36,6 @@ update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
-
 
 def create_pr(
         file_change_requests: list[FileChangeRequest],
@@ -131,7 +147,6 @@ def create_pr(
         sweep_bot.chat_logger.add_successful_ticket()
     return {"success": True, "pull_request": pr}
 
-
 def safe_delete_sweep_branch(
         pr,  # Github PullRequest
         repo: Repository,
@@ -155,7 +170,6 @@ def safe_delete_sweep_branch(
     else:
         # Failed to delete branch as it was edited by someone else
         return False
-
 
 def create_config_pr(
         sweep_bot: SweepBot,
