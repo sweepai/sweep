@@ -91,6 +91,8 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
     changes_required = 'yes' in review_comment.changes_required.lower()
     while changes_required and iteration_count < max_iterations:
         pr.create_review(body=review_comment.content, event="COMMENT", comments=[])
+        reply = sweep_bot.chat(final_review_prompt, message_key="final_review")
+        review_comment = PullRequestComment.from_string(reply)
         changes_required = 'yes' in review_comment.changes_required.lower()
         iteration_count += 1
     return changes_required, review_comment.content
