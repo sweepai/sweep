@@ -81,7 +81,7 @@ def on_comment(
     issue_comments = repo.get_issue(pr_number).get_comments()
     # Iterate through the comments and delete any that match "sweep: retry" (case-insensitive)
     for issue_comment in issue_comments:
-        if issue_comment.body.strip().lower() == "sweep: retry":
+        if issue_comment.body.strip().lower() == "sweep: retry" and issue_comment.user.login == GITHUB_BOT_USERNAME:
             issue_comment.delete()
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
