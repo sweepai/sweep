@@ -1,6 +1,7 @@
 import modal
 import openai
 from github.Repository import Repository
+from github.PullRequest import PullRequest
 from loguru import logger
 
 from sweepai.core.entities import FileChangeRequest, PullRequest
@@ -157,6 +158,24 @@ def safe_delete_sweep_branch(
         return False
 
 
+def handle_pr_merge(
+        pr: PullRequest,
+        sweep_bot: SweepBot,
+):
+    if pr.title == "Configure Sweep":
+        file_change_request = FileChangeRequest(
+            file_path="sweep.yaml",
+            change_type="modify",
+            content="gha_enabled: True",
+        )
+        create_pr(
+            file_change_requests=[file_change_request],
+            pull_request=pr,
+            sweep_bot=sweep_bot,
+            username=pr.user.login,
+            installation_id=pr.installation.id,
+        )
+        
 def create_config_pr(
         sweep_bot: SweepBot,
 ):
@@ -221,42 +240,3 @@ def create_config_pr(
     )
     pr.add_to_labels(GITHUB_LABEL_NAME)
     return pr
-
-REFACTOR_TEMPLATE = """\
-name: Refactor
-title: 'Sweep: '
-description: Write something like "Modify the ... api endpoint to use ... version and ... framework"
-labels: sweep
-body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Details
-      description: More details for Sweep
-      placeholder: We are migrating this function to ... version because ..."""
-
-BUGFIX_TEMPLATE = """\
-name: Bugfix
-title: 'Sweep: '
-description: Write something like "We notice ... behavior when ... happens instead of ...""
-labels: sweep
-body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Details
-      description: More details about the bug
-      placeholder: The bug might be in ... file"""
-
-FEATURE_TEMPLATE = """\
-name: Feature Request
-title: 'Sweep: '
-description: Write something like "Write an api endpoint that does "..." in the "..." file"
-labels: sweep
-body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Details
-      description: More details for Sweep
-      placeholder: The new endpoint should use the ... class from ... file because it contains ... logic"""
