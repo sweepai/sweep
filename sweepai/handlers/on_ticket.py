@@ -390,30 +390,36 @@ def on_ticket(
             if not response or not response["success"]: raise Exception("Failed to create PR")
             pr = response["pull_request"]
             current_issue.create_reaction("rocket")
-            edit_sweep_comment(
-                "I have finished coding the issue. I am now reviewing it for completeness.",
-                4
-            )
-
-            try:
-                current_issue.delete_reaction(eyes_reaction.id)
-            except:
-                pass
+    max_iterations = 10
+    iteration_count = 0
+    try:
+        for i in range(sweepbot_retries):
+            # ANALYZE SNIPPETS
+            if sweep_bot.model == "gpt-4-32k-0613":
+                logger.info("CoT retrieval...")
+                sweep_bot.cot_retrieval()
+            else:
+                logger.info("Did not execute CoT retrieval...")
+...
             try:
                 # CODE REVIEW
-                changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
-                                                             repo_description=repo_description, title=title,
-                                                             summary=summary, replies_text=replies_text, tree=tree)
-                logger.info(f"Addressing review comment {review_comment}")
-                if changes_required:
-                    on_comment(repo_full_name=repo_full_name,
-                               repo_description=repo_description,
-                               comment=review_comment,
-                               username=username,
-                               installation_id=installation_id,
-                               pr_path=None,
-                               pr_line_position=None,
-                               pr_number=pr.number)
+                while iteration_count < max_iterations:
+                    changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
+                                                                 repo_description=repo_description, title=title,
+                                                                 summary=summary, replies_text=replies_text, tree=tree)
+                    logger.info(f"Addressing review comment {review_comment}")
+                    if changes_required:
+                        on_comment(repo_full_name=repo_full_name,
+                                   repo_description=repo_description,
+                                   comment=review_comment,
+                                   username=username,
+                                   installation_id=installation_id,
+                                   pr_path=None,
+                                   pr_line_position=None,
+                                   pr_number=pr.number)
+                    else:
+                        break
+                    iteration_count += 1
             except Exception as e:
                 logger.error(traceback.format_exc())
                 logger.error(e)
