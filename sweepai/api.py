@@ -102,6 +102,9 @@ def handle_pr_change_request(
 
 
 def function_call_is_completed(call_id: str):
+    if call_id == "0":
+        return True
+
     from modal.functions import FunctionCall
 
     function_call = FunctionCall.from_id(call_id)
@@ -119,9 +122,10 @@ def push_to_queue(
 ):
     key = (repo_full_name, pr_id)
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
-    if pr_change_request.type == "comment" or queue == []:
+    function_is_completed = function_call_is_completed(call_id)
+    if pr_change_request.type == "comment" or function_is_completed:
         queue = [pr_change_request] + queue
-        if call_id == "0" or function_call_is_completed(call_id):
+        if function_is_completed:
             stub.app.pr_queues[key] = ("0", queue)
             call_id = handle_pr_change_request.spawn(
                 repo_full_name=repo_full_name, 
