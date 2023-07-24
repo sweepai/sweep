@@ -64,6 +64,10 @@ def on_check_suite(request: CheckRunCompleted):
     num_pr_commits = len(list(pr.get_commits()))
     if num_pr_commits > 6:
         return None
+    if pr.merged:  # Check if the PR is merged
+        if "config" in pr.title.lower():  # Check if the PR is the configuration PR
+            # Create a new PR that adds "gha_enabled: True" to the sweep.yaml file
+            create_pr("gha_enabled: True", pr, sweep_bot, username, installation_id, issue_number)
     logger.info(f"Running github action for PR with {num_pr_commits} commits")
     logs = download_logs(
         request.repository.full_name,
