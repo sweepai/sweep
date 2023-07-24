@@ -210,16 +210,30 @@ def create_config_pr(
         
         ## What's new?
         - **Sweep is now configurable**. 
-        - To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
-        - If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep-ai) for help.
-        
-        If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
-        Thank you for using Sweep! 🧹
+    pr = sweep_bot.repo.create_pull(
+        title=title,
+        body=
+        """🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
+        ...
         """,
         head=branch_name,
         base=SweepConfig.get_branch(sweep_bot.repo),
     )
     pr.add_to_labels(GITHUB_LABEL_NAME)
+    
+    # Check if the PR is merged
+    if pr.is_merged():
+        # If the PR is merged, modify the `sweep.yaml` file to include `gha_enabled: True`
+        sweep_bot.repo.update_file(
+            'sweep.yaml',
+            'Update sweep.yaml config file',
+            'gha_enabled: True',
+            branch=branch_name
+        )
+        
+        # Create a GitHub action linter
+        create_github_action_linter(sweep_bot.repo)
+    
     return pr
 
 REFACTOR_TEMPLATE = """\
