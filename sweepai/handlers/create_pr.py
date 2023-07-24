@@ -229,6 +229,12 @@ def create_config_pr(
         # Create a GitHub action linter
         create_github_action_linter(sweep_bot.repo)
     
+def create_github_action_linter(repo: Repository):
+    """
+    Create a GitHub action linter based on the project's language when the config PR is merged.
+    """
+    # TODO: Add the logic to create a new file in the `.github/workflows` directory with the appropriate linter configuration based on the project's language.
+
     return pr
 
 REFACTOR_TEMPLATE = """\
