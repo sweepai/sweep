@@ -263,12 +263,24 @@ def search_snippets(
     else:
         return snippets
 
+def detect_language_and_linter(repo: Repository):
+    file_list = get_file_list("repo")
+    file_extensions = [os.path.splitext(file)[1] for file in file_list]
+    most_common_extension = max(set(file_extensions), key=file_extensions.count)
+
+    if most_common_extension in [".py"]:
+        return "pylint --errors-only"
+    elif most_common_extension in [".js", ".ts"]:
+        return "eslint" if most_common_extension == ".js" else "tsc"
+    else:
+        return None
+
 def index_full_repository(
     repo_name: str,
     installation_id: int = None,
     sweep_config: SweepConfig = SweepConfig(),
 ):
-    update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
+    ...
     num_indexed_docs = update_index.spawn(
         repo_name=repo_name,
         installation_id=installation_id,
