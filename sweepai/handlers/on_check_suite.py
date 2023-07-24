@@ -61,10 +61,9 @@ def on_check_suite(request: CheckRunCompleted):
         pr = repo.get_pull(request.check_run.pull_requests[0].number)
         handle_pr_merge(pr, sweep_bot)
     g = get_github_client(request.installation.id)
-    repo = g.get_repo(request.repository.full_name)
+    repo = g.get_repo(request.repository.full_name)  # Modification 1: Assign a value to the `repo` variable
     if not get_gha_enabled(repo):
         return None
-    repo = g.get_repo(request.repository.full_name)  # Modification 1: Assign a value to the `repo` variable
     pr = repo.get_pull(request.check_run.pull_requests[0].number)
     num_pr_commits = len(list(pr.get_commits()))
     if num_pr_commits > 6:
