@@ -122,6 +122,7 @@ def on_ticket(
     repo = g.get_repo(repo_full_name)
     current_issue = repo.get_issue(number=issue_number)
     if current_issue.state == 'closed':
+        logger.warning(f"Issue {issue_number} is closed")
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
