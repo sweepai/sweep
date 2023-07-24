@@ -42,9 +42,9 @@ See highlights at https://docs.sweep.dev/examples.
 * 🔧 Turns issues directly into pull requests (without an IDE)
 * 👀 Addresses developer replies & comments on its PRs
 * 🕵️‍♂️ Uses embedding-based code search, with popularity reranking for repository-level code understanding ([🔍 Rebuilding our Search Engine in a Day](https://docs.sweep.dev/blogs/building-code-search))
-* 🎊 New: Fixes PRs based on GitHub Actions feedback
-* 🎊 New: Sweep Chat, a local interface for Sweep (see below)
+* 👨‍⚕️ Fixes PRs based on GitHub Actions feedback
 * 🎊 New: Enhanced file handling with streaming logic in modify_file, allowing for larger files to be processed.
+* 🎊 New: Handles comments and reviews in a batch (leave 5+ comments at a time)
 
 ## 🚀 Getting Started
 
