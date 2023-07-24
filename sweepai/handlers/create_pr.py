@@ -3,9 +3,15 @@ import openai
 from github.Repository import Repository
 from loguru import logger
 
+
+def example():
+    a = 4
+
+
 from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.config.client import SweepConfig
+
 from sweepai.utils.config.server import GITHUB_DEFAULT_CONFIG, GITHUB_LABEL_NAME, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
     GITHUB_BOT_USERNAME, \
     GITHUB_CONFIG_BRANCH
@@ -36,12 +42,12 @@ def create_pr(
     # 4. Get file changes
     # 5. Create PR
     chat_logger = ChatLogger({
-    "username": username,
-    "installation_id": installation_id,
-    "repo_full_name": sweep_bot.repo.full_name,
-    "title": pull_request.title,
-    "summary": "",
-    "issue_url": ""})
+        "username": username,
+        "installation_id": installation_id,
+        "repo_full_name": sweep_bot.repo.full_name,
+        "title": pull_request.title,
+        "summary": "",
+        "issue_url": ""})
     sweep_bot.chat_logger = chat_logger
     organization, repo_name = sweep_bot.repo.full_name.split("/")
     metadata = {
@@ -191,6 +197,7 @@ def create_config_pr(
     except Exception as e:
         logger.error(e)
 
+
 def enable_gha(sweep_bot: SweepBot):
     title = "Enable GitHub Actions"
     branch_name = "enable-gha"
@@ -230,37 +237,38 @@ def enable_gha(sweep_bot: SweepBot):
     )
     pr.add_to_labels(GITHUB_LABEL_NAME)
     return pr
-...
-    # Check if the pull request from this branch to main already exists.
-    # If it does, then we don't need to create a new one.
-    pull_requests = sweep_bot.repo.get_pulls(
-        state="open",
-        sort="created",
-        base=SweepConfig.get_branch(sweep_bot.repo),
-        head=branch_name,
-    )
-    for pr in pull_requests:
-        if pr.title == title:
-            return pr
 
-    pr = sweep_bot.repo.create_pull(
-        title=title,
-        body=
-        """🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
-        
-        ## What's new?
-        - **Sweep is now configurable**. 
-        - To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
-        - If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep-ai) for help.
-        
-        If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
-        Thank you for using Sweep! 🧹
-        """,
-        head=branch_name,
-        base=SweepConfig.get_branch(sweep_bot.repo),
-    )
-    pr.add_to_labels(GITHUB_LABEL_NAME)
-    return pr
+
+# Check if the pull request from this branch to main already exists.
+# If it does, then we don't need to create a new one.
+pull_requests = sweep_bot.repo.get_pulls(
+    state="open",
+    sort="created",
+    base=SweepConfig.get_branch(sweep_bot.repo),
+    head=branch_name,
+)
+for pr in pull_requests:
+    if pr.title == title:
+        return pr
+
+pr = sweep_bot.repo.create_pull(
+    title=title,
+    body=
+    """🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
+    
+    ## What's new?
+    - **Sweep is now configurable**. 
+    - To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
+    - If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep-ai) for help.
+    
+    If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
+    Thank you for using Sweep! 🧹
+    """,
+    head=branch_name,
+    base=SweepConfig.get_branch(sweep_bot.repo),
+)
+pr.add_to_labels(GITHUB_LABEL_NAME)
+return pr
 
 REFACTOR_TEMPLATE = """\
 name: Refactor
