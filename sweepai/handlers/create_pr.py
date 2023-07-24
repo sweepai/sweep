@@ -170,8 +170,38 @@ def create_config_pr(
             GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
             branch=branch_name
         )
+        sweep_bot.repo.create_file(
+            '.github/ISSUE_TEMPLATE/sweep-bugfix.yml',
+            'Create bugfix template',
+            BUGFIX_TEMPLATE,
+            branch=branch_name
+        )
+        sweep_bot.repo.create_file(
+            '.github/ISSUE_TEMPLATE/sweep-feature.yml',
+            'Create feature template',
+            FEATURE_TEMPLATE,
+            branch=branch_name
+        )
+        sweep_bot.repo.create_file(
+            '.github/ISSUE_TEMPLATE/sweep-refactor.yml',
+            'Create refactor template',
+            REFACTOR_TEMPLATE,
+            branch=branch_name
+        )
     except Exception as e:
         logger.error(e)
+
+    # Check if the pull request from this branch to main already exists.
+    # If it does, then we don't need to create a new one.
+    pull_requests = sweep_bot.repo.get_pulls(
+        state="open",
+        sort="created",
+        base=SweepConfig.get_branch(sweep_bot.repo),
+        head=branch_name,
+    )
+    for pr in pull_requests:
+        if pr.title == title:
+            return pr
 
     pr = sweep_bot.repo.create_pull(
         title=title,
