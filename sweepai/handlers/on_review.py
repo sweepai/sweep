@@ -75,9 +75,8 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
         human_message=human_message, repo=repo, is_reply=False, chat_logger=chat_logger
     )
     max_iterations = 10
-    iteration_count = 0
     changes_required = True
-    while changes_required and iteration_count < max_iterations:
+    for iteration_count in range(max_iterations):
         summarization_reply = sweep_bot.chat(review_prompt, message_key="review")
         extracted_summary = DiffSummarization.from_string(summarization_reply)
         summarization_replies.append(extracted_summary.content)
@@ -92,5 +91,6 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
         review_comment = PullRequestComment.from_string(reply)
         pr.create_review(body=review_comment.content, event="COMMENT", comments=[])
         changes_required = 'yes' in review_comment.changes_required.lower()
-        iteration_count += 1
+        if not changes_required:
+            break
     return changes_required, review_comment.content
