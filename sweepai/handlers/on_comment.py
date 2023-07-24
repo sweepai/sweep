@@ -77,6 +77,12 @@ def on_comment(
         repo: None = None,
         pr: None = None,
 ):
+    # Fetch all comments in the current issue thread
+    issue_comments = repo.get_issue(pr_number).get_comments()
+    # Iterate through the comments and delete any that match "sweep: retry" (case-insensitive)
+    for issue_comment in issue_comments:
+        if issue_comment.body.strip().lower() == "sweep: retry":
+            issue_comment.delete()
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
