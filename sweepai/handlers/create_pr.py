@@ -191,6 +191,46 @@ def create_config_pr(
     except Exception as e:
         logger.error(e)
 
+def enable_gha(sweep_bot: SweepBot):
+    title = "Enable GitHub Actions"
+    branch_name = "enable-gha"
+    branch_name = sweep_bot.create_branch(branch_name, retry=False)
+    try:
+        sweep_bot.repo.create_file(
+            'sweep.yaml',
+            'Enable GitHub Actions',
+            'gha_enabled: True',
+            branch=branch_name
+        )
+    except Exception as e:
+        logger.error(e)
+
+    # Check if the pull request from this branch to main already exists.
+    # If it does, then we don't need to create a new one.
+    pull_requests = sweep_bot.repo.get_pulls(
+        state="open",
+        sort="created",
+        base=SweepConfig.get_branch(sweep_bot.repo),
+        head=branch_name,
+    )
+    for pr in pull_requests:
+        if pr.title == title:
+            return pr
+
+    pr = sweep_bot.repo.create_pull(
+        title=title,
+        body=
+        """🎉 This PR enables GitHub Actions for this repository.
+        
+        If you would like me to stop creating this PR, go to issues and say "Sweep: disable GitHub Actions".
+        Thank you for using Sweep! 🧹
+        """,
+        head=branch_name,
+        base=SweepConfig.get_branch(sweep_bot.repo),
+    )
+    pr.add_to_labels(GITHUB_LABEL_NAME)
+    return pr
+...
     # Check if the pull request from this branch to main already exists.
     # If it does, then we don't need to create a new one.
     pull_requests = sweep_bot.repo.get_pulls(
