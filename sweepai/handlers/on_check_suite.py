@@ -64,6 +64,7 @@ def on_check_suite(request: CheckRunCompleted):
     repo = g.get_repo(request.repository.full_name)
     if not get_gha_enabled(repo):
         return None
+    repo = g.get_repo(request.repository.full_name)  # Modification 1: Assign a value to the `repo` variable
     pr = repo.get_pull(request.check_run.pull_requests[0].number)
     num_pr_commits = len(list(pr.get_commits()))
     if num_pr_commits > 6:
@@ -77,7 +78,7 @@ def on_check_suite(request: CheckRunCompleted):
     if not logs:
         return None
     logs = clean_logs(logs)
-    extractor = GHAExtractor()
+    sweep_bot = SweepBot()  # Modification 2: Define the `sweep_bot` variable
     logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
     logs = extractor.gha_extract(logs)
     return logs
