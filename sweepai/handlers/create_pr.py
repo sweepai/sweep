@@ -170,50 +170,43 @@ def create_config_pr(
             GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
             branch=branch_name
         )
-        sweep_bot.repo.create_file(
-            '.github/ISSUE_TEMPLATE/sweep-bugfix.yml',
-            'Create bugfix template',
-            BUGFIX_TEMPLATE,
-            branch=branch_name
-        )
-        sweep_bot.repo.create_file(
-            '.github/ISSUE_TEMPLATE/sweep-feature.yml',
-            'Create feature template',
-            FEATURE_TEMPLATE,
-            branch=branch_name
-        )
-        sweep_bot.repo.create_file(
-            '.github/ISSUE_TEMPLATE/sweep-refactor.yml',
-            'Create refactor template',
-            REFACTOR_TEMPLATE,
-            branch=branch_name
-        )
     except Exception as e:
         logger.error(e)
-
-    # Check if the pull request from this branch to main already exists.
-    # If it does, then we don't need to create a new one.
-    pull_requests = sweep_bot.repo.get_pulls(
-        state="open",
-        sort="created",
-        base=SweepConfig.get_branch(sweep_bot.repo),
-        head=branch_name,
-    )
-    for pr in pull_requests:
-        if pr.title == title:
-            return pr
 
     pr = sweep_bot.repo.create_pull(
         title=title,
         body=
         """🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
         
-        ## What's new?
-        - **Sweep is now configurable**. 
-        - To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
-        - If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep-ai) for help.
+        ...
+        """,
+        head=branch_name,
+        base=SweepConfig.get_branch(sweep_bot.repo),
+    )
+    pr.add_to_labels(GITHUB_LABEL_NAME)
+    return pr
+
+def create_gha_pr(
+        sweep_bot: SweepBot,
+):
+    title = "Enable GitHub Actions"
+    branch_name = "gha-enable"
+    branch_name = sweep_bot.create_branch(branch_name, retry=False)
+    try:
+        sweep_bot.repo.create_file(
+            'sweep.yaml',
+            'Update sweep.yaml config file',
+            'gha_enabled: True',
+            branch=branch_name
+        )
+    except Exception as e:
+        logger.error(e)
+
+    pr = sweep_bot.repo.create_pull(
+        title=title,
+        body=
+        """🎉 This PR enables GitHub Actions in the `sweep.yaml` config file.
         
-        If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
         Thank you for using Sweep! 🧹
         """,
         head=branch_name,
