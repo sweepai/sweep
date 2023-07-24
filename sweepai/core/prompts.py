@@ -169,12 +169,14 @@ cot_retrieval_prompt = """
 Gather information to solve the problem. Use "finish" when you feel like you have sufficient information.
 """
 
-files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
+files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
 
 files_to_change_prompt = """
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
 Then, provide a list of files you would like to modify, abiding by the following:
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
+* Prefer modifying existing files over creating new files
+* Change as few files and lines as possible
 * Use detailed, natural language instructions on what to modify, with reference to variable names
 * Be concrete with instructions and do not write "check for x" or "look for y". Simply write "add x" or "change y to z".
 * There MUST be both create_file and modify_file XML tags
