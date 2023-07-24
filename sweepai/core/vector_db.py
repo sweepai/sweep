@@ -6,7 +6,6 @@ import shutil
 import time
 
 import modal
-from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from git.repo import Repo
 from github import Github
 from loguru import logger
@@ -25,7 +24,7 @@ from ..utils.github_utils import get_file_age, get_token
 
 stub = modal.Stub(DB_MODAL_INST_NAME)
 chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
-model_volume = modal.SharedVolume().persist(f"{ENV}-storage")
+model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
 MODEL_DIR = "/root/cache/model"
 DEEPLAKE_DIR = "/root/cache/"
 DISKCACHE_DIR = "/root/cache/diskcache/"
@@ -56,6 +55,7 @@ secrets = [
 
 
 def init_deeplake_vs(repo_name):
+    from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
     deeplake_repo_path = f"mem://{DEEPLAKE_FOLDER}{repo_name}"
     deeplake_vector_store = DeepLakeVectorStore(path=deeplake_repo_path)
     return deeplake_vector_store
@@ -72,7 +72,7 @@ def parse_collection_name(name: str) -> str:
 @stub.cls(
     image=image,
     secrets=secrets,
-    shared_volumes={MODEL_DIR: model_volume},
+    network_file_systems={MODEL_DIR: model_volume},
     keep_warm=1 if ENV == "prod" else 0,
     gpu="T4",
     retries=modal.Retries(
@@ -302,7 +302,7 @@ def compute_deeplake_vs(collection_name,
         return deeplake_vs
 
 
-@stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
+@stub.function(image=image, secrets=secrets, network_file_systems={DISKCACHE_DIR: model_volume}, timeout=timeout)
 def update_index(
         repo_name,
         installation_id: int,
@@ -313,7 +313,7 @@ def update_index(
     return 0
 
 
-@stub.function(image=image, secrets=secrets, shared_volumes={DEEPLAKE_DIR: model_volume}, timeout=timeout, keep_warm=1)
+@stub.function(image=image, secrets=secrets, network_file_systems={DEEPLAKE_DIR: model_volume}, timeout=timeout, keep_warm=1)
 def get_relevant_snippets(
         repo_name: str,
         query: str,
