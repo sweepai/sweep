@@ -295,30 +295,20 @@ async def webhook(raw_request: Request):
                 pass
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
-                logs = None
                 if request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
-                    # logs = handle_check_suite.call(request)
+                    g = get_github_client(request.installation.id)
+                    repo = g.get_repo(request.repository.full_name)
                     if len(request.check_run.pull_requests) > 0:
-                        pr_change_request = PRChangeRequest(
-                            type="gha",
-                            # params={
-                            #     "repo_full_name": request.repository.full_name,
-                            #     "repo_description": request.repository.description,
-                            #     "comment": "Sweep: " + logs,
-                            #     "pr_path": None,
-                            #     "pr_line_position": None,
-                            #     "username": request.sender.login,
-                            #     "installation_id": request.installation.id,
-                            #     "pr_number": request.check_run.pull_requests[0].number,
-                            #     "comment_id": None,
-                            # }
-                            params = {"request": request}
-                        )
-                        push_to_queue(
-                            repo_full_name=request.repository.full_name,
-                            pr_id=request.check_run.pull_requests[0].number,
-                            pr_change_request=pr_change_request
-                        )
+                        if not repo.get_pull(request.check_run.pull_requests[0].number).title.startswith("[DRAFT]"):
+                            pr_change_request = PRChangeRequest(
+                                type="gha",
+                                params = {"request": request}
+                            )
+                            push_to_queue(
+                                repo_full_name=request.repository.full_name,
+                                pr_id=request.check_run.pull_requests[0].number,
+                                pr_change_request=pr_change_request
+                            )
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {

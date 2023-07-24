@@ -84,11 +84,12 @@ def on_check_suite(request: CheckRunCompleted):
     logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
     problematic_logs = extractor.gha_extract(logs)
     comment = pr.as_issue().create_comment(problematic_logs.format(error_logs=logs))
-    logger.info(f"Summary of logs: {problematic_logs}")
+    # logger.info(f"GitHub actions failed with the following logs: {problematic_logs}")
     on_comment(
         repo_full_name=request.repository.full_name,
         repo_description=request.repository.description,
-        comment="sweep: " + problematic_logs,
+        # comment=f"Sweep: GitHub actions failed with the following logs:\n\n```{problematic_logs}```",
+        comment=problematic_logs,
         pr_path=None,
         pr_line_position=None,
         username=request.sender.login,
