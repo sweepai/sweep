@@ -5,6 +5,7 @@ import zipfile
 import openai
 import requests
 from loguru import logger
+from sweepai.handlers.create_pr import handle_pr_merge
 
 from sweepai.core.gha_extraction import GHAExtractor
 from sweepai.events import CheckRunCompleted
@@ -56,6 +57,9 @@ def clean_logs(logs_str: str):
 
 
 def on_check_suite(request: CheckRunCompleted):
+    if request.check_run.event == "pull_request" and request.check_run.action == "closed":
+        pr = repo.get_pull(request.check_run.pull_requests[0].number)
+        handle_pr_merge(pr, sweep_bot)
     g = get_github_client(request.installation.id)
     repo = g.get_repo(request.repository.full_name)
     if not get_gha_enabled(repo):
