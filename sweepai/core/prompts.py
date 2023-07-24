@@ -3,8 +3,9 @@ List of common prompts used across the codebase.
 """
 
 # Following two should be fused
-system_message_prompt = "Your name is Sweep bot. You are a brilliant and thorough engineer assigned to the following Github ticket. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes."
-system_message_issue_comment_prompt = "Your name is Sweep bot. You are a brilliant and thorough engineer assigned to the following Github ticket, and a user has just responded with feedback. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes."
+system_message_prompt = "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try and is formatted perfectly. You have the utmost care for the code that you write, so you do not make mistakes. Take into account the current repository's language, frameworks, and dependencies."
+
+system_message_issue_comment_prompt = "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to the following Github issue, and a user has just responded with feedback. When you write code, the code works on the first try and is formatted perfectly. You have the utmost care for the code that you write, so you do not make mistakes. Take into account the current repository's language, frameworks, and dependencies."
 
 human_message_prompt = [
 {'role': 'assistant', 'content': 'Examining repo...'},
@@ -212,7 +213,7 @@ You are creating a PR for creating the single new file.
 
 Think step-by-step regarding the instructions and what should be added to the new file.
 Next, identify the language and stack used in the repo, based on other files (e.g. React, Typescript, Jest etc.).
-Then, create a plan of parts of the code to create, with low-level, detailed references to functions and variable to create, and what each function does.
+Then, create a plan of parts of the code to create, with low-level, detailed references to functions, variables, and imports to create, and what each function does.
 Last, create the following file using the following instructions:
 
 DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags, and all text inside these tags will be placed in the newly created file.
@@ -275,91 +276,11 @@ Lines to change in the file:
 
 Only include the line numbers."""
 
-modify_file_prompt = """
-File contains lines {line_numbers}
-
-Generate a new_file based on the given plan, ensuring that you:
-1. It is imperative that we do not leave any work to the user/future readers of this code. So, WRITE FUNCTIONS COMPLETELY THAT WILL WORK.
-2. Do not write the original line numbers with the new code.
-3. Make sure the new code follows the same programming language conventions as the old code.
-
-Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copied>0-25</copied>"). Make sure to use this exact format.
-Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copied>0-50</copied>".
-
-Example: If you want to modify lines 51-52 and add line after line 75:
-<new_file>
-<copied>1-50</copied>
-def main():
-    print("hello world")
-<copied>53-75</copied>
-print("debug statement")
-<copied>76-100</copied>
-</new_file>
-
-Do not rewrite the entire file. Use <copied> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
-"""
-
 chunking_prompt = """
 We are handling this file in chunks. You have been provided a section of the code.
 Any lines that you do not see will be handled, so trust that the imports are managed and any other issues are taken care of.
 If you see code that should be modified, please modify it. The changes may not need to be in this chunk, in that case just copy and return the code as is.
 """
-
-modify_file_prompt_2 = """
-File Name: {filename}
-<old_file>
-{code}
-</old_file>
-
----
-
-Code Planning:
-<code_planning>
-Step-by-step thoughts with explanations: 
-* Thought 1 - Explanation 1
-* Thought 2 - Explanation 2
-...
-
-Detailed plan of modifications:
-* Modification 1
-* Modification 2
-...
-
-Lines to change in the file:
-* lines a-b
-...
-<code_planning>
-
-Code Generation:
-```
-Generate a new_file based on the given plan, ensuring that you:
-1. It is imperative that we do not leave any work to the user/future readers of this code. Therefore write functions with complete business logic.
-2. Only write code, do not write line numbers.
-3. Make sure the new code follows the same programming language conventions as the old code.
-4. Ensure correct whitespace and indentation.
-
-Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copy_lines A-B/>"). Make sure to use this exact format.
-Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copy_lines 1-50/>".
-
-Example: If you want to modify lines 51-52 and add line after line 75:
-```
-<new_file>
-<copy_lines 1-50/>
-    def main():
-        print("hello world")
-<copy_lines 53-75/>
-        print("debug statement")
-<copy_lines 76-100/>
-</new_file>
-```
-
-Do not rewrite the entire file. Use <copy_lines A-B/> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations. SURROUND WITH <new_file> XML TAGS.
-```
-
-Context: "{instructions}". Limit your changes to the context.
-Instructions:
-1. Complete Code Planning step
-2. Complete Code Generation step (<new_file>...)"""
 
 modify_file_prompt_3 = """
 File Name: {filename}
