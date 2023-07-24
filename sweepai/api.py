@@ -123,6 +123,7 @@ def push_to_queue(
     key = (repo_full_name, pr_id)
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
     function_is_completed = function_call_is_completed(call_id)
+    print(call_id, queue, function_is_completed, pr_change_request)
     if pr_change_request.type == "comment" or function_is_completed:
         queue = [pr_change_request] + queue
         if function_is_completed:
@@ -296,21 +297,22 @@ async def webhook(raw_request: Request):
                 request = CheckRunCompleted(**request_dict)
                 logs = None
                 if request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
-                    logs = handle_check_suite.call(request)
-                    if len(request.check_run.pull_requests) > 0 and logs:
+                    # logs = handle_check_suite.call(request)
+                    if len(request.check_run.pull_requests) > 0:
                         pr_change_request = PRChangeRequest(
-                            type="comment",
-                            params={
-                                "repo_full_name": request.repository.full_name,
-                                "repo_description": request.repository.description,
-                                "comment": "Sweep: " + logs,
-                                "pr_path": None,
-                                "pr_line_position": None,
-                                "username": request.sender.login,
-                                "installation_id": request.installation.id,
-                                "pr_number": request.check_run.pull_requests[0].number,
-                                "comment_id": None,
-                            }
+                            type="gha",
+                            # params={
+                            #     "repo_full_name": request.repository.full_name,
+                            #     "repo_description": request.repository.description,
+                            #     "comment": "Sweep: " + logs,
+                            #     "pr_path": None,
+                            #     "pr_line_position": None,
+                            #     "username": request.sender.login,
+                            #     "installation_id": request.installation.id,
+                            #     "pr_number": request.check_run.pull_requests[0].number,
+                            #     "comment_id": None,
+                            # }
+                            params = {"request": request}
                         )
                         push_to_queue(
                             repo_full_name=request.repository.full_name,

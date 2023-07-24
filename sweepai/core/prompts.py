@@ -310,7 +310,7 @@ Lines to change in the file: (include multiple small changes as opposed to one l
 
 Code Generation:
 ```
-Generate a diff based on the given plan, in the following format (do not include "..." anywhere). Do not remove comments.
+Generate a diff based on the given plan, in the following format (do not include "..." anywhere). Always prefer the least amount of changes possible. Do not remove comments.
 
 Example:
 ```
@@ -437,7 +437,7 @@ Plan:
 """
 
 gha_extraction_system_prompt = """\
-Your job is to extract the information needed to debug the log from the Github Actions workflow file.
+Your job is to extract the information needed to debug the log from the Github Actions workflow logs.
 """
 
 gha_extraction_prompt = """\
@@ -445,7 +445,8 @@ Here are the logs:
 {gha_logs}
 Copy the important lines from the github action logs. Describe the issue as you would report a bug to a developer and do not mention the github action or preparation steps. Only mention the actual issue.
 For example, if the issue was because of github action -> pip install -> python black formatter -> file xyz is broken, only report that file xyz is broken and fails formatting. Do not mention the github action or pip install.
-Make sure to mention the file name and line number of the issue(if applicable).
+Make sure to mention the file name and line number of the issue (if applicable).
+Then, suggest 1-2 potential solutions to the issue. Feel free to add ignore comments to the code if you think the linter or static checker has made a mistake.
 """
 
 should_edit_code_system_prompt = """\
