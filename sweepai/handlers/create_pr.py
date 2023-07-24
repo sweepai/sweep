@@ -225,7 +225,7 @@ def create_config_pr(
 
 def create_gha_pr(g, repo):
     # Create a new branch
-    branch_name = "gha-enable"
+    branch_name = "sweep/gha-enable"
     branch = repo.create_git_ref(ref=f"refs/heads/{branch_name}", sha=repo.get_branch(repo.default_branch).commit.sha)
 
     # Update the sweep.yaml file in this branch to add "gha_enabled: True"
