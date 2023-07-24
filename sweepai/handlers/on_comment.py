@@ -25,7 +25,6 @@ from sweepai.utils.github_utils import (
     get_github_client,
     search_snippets,
 )
-from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
 
 github_access_token = GITHUB_BOT_TOKEN
 openai.api_key = OPENAI_API_KEY
@@ -107,98 +106,104 @@ def on_comment(
         if comment_id:
             try:
                 item_to_react_to = pr.get_issue_comment(comment_id)
-                item_to_react_to.create_reaction("eyes")
+                if item_to_react_to.body.lower() == "sweep: retry":
+                    item_to_react_to.delete()
+                else:
+                    item_to_react_to.create_reaction("eyes")
             except Exception as e:
-                pass
+                logger.error(f"Failed to delete comment: {e}")
             try:
                 item_to_react_to = pr.get_review_comment(comment_id)
-                item_to_react_to.create_reaction("eyes")
+                if item_to_react_to.body.lower() == "sweep: retry":
+                    item_to_react_to.delete()
+                else:
+                    item_to_react_to.create_reaction("eyes")
             except Exception as e:
-                pass
-        branch_name = pr.head.ref
-        pr_title = pr.title
-        pr_body = pr.body or ""
-        diffs = get_pr_diffs(repo, pr)
-        pr_line = None
-        pr_file_path = None
-        # This means it's a comment on a file
-        if file_comment:
-            pr_file = repo.get_contents(pr_path, ref=branch_name).decoded_content.decode("utf-8")
-            pr_lines = pr_file.splitlines()
-            pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
-            pr_file_path = pr_path.strip()
+                logger.error(f"Failed to delete comment: {e}")
+            branch_name = pr.head.ref
+            pr_title = pr.title
+            pr_body = pr.body or ""
+            diffs = get_pr_diffs(repo, pr)
+            pr_line = None
+            pr_file_path = None
+            # This means it's a comment on a file
+            if file_comment:
+                pr_file = repo.get_contents(pr_path, ref=branch_name).decoded_content.decode("utf-8")
+                pr_lines = pr_file.splitlines()
+                pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
+                pr_file_path = pr_path.strip()
 
-        def fetch_file_contents_with_retry():
-            retries = 1
-            error = None
-            for i in range(retries):
+            def fetch_file_contents_with_retry():
+                retries = 1
+                error = None
+                for i in range(retries):
+                    try:
+                        logger.info(f"Fetching relevant files for the {i}th time...")
+                        return search_snippets(
+                            repo,
+                            f"{comment}\n{pr_title}" + (f"\n{pr_line}" if pr_line else ""),
+                            num_files=30,
+                            branch=branch_name,
+                            installation_id=installation_id,
+                        )
+                    except Exception as e:
+                        error = e
+                        continue
+                capture_posthog_event(
+                    username, "fetching_failed", properties={"error": error, **metadata}
+                )
+                raise error
+
+            if file_comment:
+                snippets = []
+                tree = ""
+            else:
                 try:
-                    logger.info(f"Fetching relevant files for the {i}th time...")
-                    return search_snippets(
-                        repo,
-                        f"{comment}\n{pr_title}" + (f"\n{pr_line}" if pr_line else ""),
-                        num_files=30,
-                        branch=branch_name,
-                        installation_id=installation_id,
-                    )
+                    logger.info("Fetching relevant files...")
+                    snippets, tree = fetch_file_contents_with_retry()
+                    assert len(snippets) > 0
                 except Exception as e:
-                    error = e
-                    continue
-            capture_posthog_event(
-                username, "fetching_failed", properties={"error": error, **metadata}
+                    logger.error(traceback.format_exc())
+                    raise e
+            chat_logger = ChatLogger({
+                'repo_name': repo_name,
+                'title': '(Comment) ' + pr_title,
+                "issue_url": pr.html_url,
+                "pr_file_path": pr_file_path,  # may be None
+                "pr_line": pr_line,  # may be None
+                "repo_full_name": repo_full_name,
+                "repo_description": repo_description,
+                "comment": comment,
+                "pr_path": pr_path,
+                "pr_line_position": pr_line_position,
+                "username": username,
+                "installation_id": installation_id,
+                "pr_number": pr_number,
+                "type": "comment",
+            })
+            snippets = post_process_snippets(snippets, max_num_of_snippets=0 if file_comment else 2)
+
+            logger.info("Getting response from ChatGPT...")
+            human_message = HumanMessageCommentPrompt(
+                comment=comment,
+                repo_name=repo_name,
+                repo_description=repo_description if repo_description else "",
+                diffs=diffs,
+                issue_url=pr.html_url,
+                username=username,
+                title=pr_title,
+                tree=tree,
+                summary=pr_body,
+                snippets=snippets,
+                pr_file_path=pr_file_path,  # may be None
+                pr_line=pr_line,  # may be None
             )
-            raise error
+            logger.info(f"Human prompt{human_message.construct_prompt()}")
 
-        if file_comment:
-            snippets = []
-            tree = ""
-        else:
-            try:
-                logger.info("Fetching relevant files...")
-                snippets, tree = fetch_file_contents_with_retry()
-                assert len(snippets) > 0
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                raise e
-        chat_logger = ChatLogger({
-            'repo_name': repo_name,
-            'title': '(Comment) ' + pr_title,
-            "issue_url": pr.html_url,
-            "pr_file_path": pr_file_path,  # may be None
-            "pr_line": pr_line,  # may be None
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "comment": comment,
-            "pr_path": pr_path,
-            "pr_line_position": pr_line_position,
-            "username": username,
-            "installation_id": installation_id,
-            "pr_number": pr_number,
-            "type": "comment",
-        })
-        snippets = post_process_snippets(snippets, max_num_of_snippets=0 if file_comment else 2)
-
-        logger.info("Getting response from ChatGPT...")
-        human_message = HumanMessageCommentPrompt(
-            comment=comment,
-            repo_name=repo_name,
-            repo_description=repo_description if repo_description else "",
-            diffs=diffs,
-            issue_url=pr.html_url,
-            username=username,
-            title=pr_title,
-            tree=tree,
-            summary=pr_body,
-            snippets=snippets,
-            pr_file_path=pr_file_path,  # may be None
-            pr_line=pr_line,  # may be None
-        )
-        logger.info(f"Human prompt{human_message.construct_prompt()}")
-
-        sweep_bot = SweepBot.from_system_message_content(
-            # human_message=human_message, model="claude-v1.3-100k", repo=repo
-            human_message=human_message, repo=repo, chat_logger=chat_logger, model="gpt-4-32k-0613"
-        )
+            sweep_bot = SweepBot.from_system_message_content(
+                # human_message=human_message, model="claude-v1.3-100k", repo=repo
+                human_message=human_message, repo=repo, chat_logger=chat_logger, model="gpt-4-32k-0613"
+            )
     except Exception as e:
         logger.error(traceback.format_exc())
         capture_posthog_event(username, "failed", properties={
