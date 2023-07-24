@@ -7,9 +7,10 @@ import requests
 from loguru import logger
 
 from sweepai.core.gha_extraction import GHAExtractor
-from sweepai.events import CheckRunCompleted
+from sweepai.events import CheckRunCompleted, PullRequestClosed
 from sweepai.utils.config.client import SweepConfig, get_gha_enabled
 from sweepai.utils.github_utils import get_github_client, get_token
+from sweepai.handlers.create_pr import create_gha_pr
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
@@ -77,3 +78,11 @@ def on_check_suite(request: CheckRunCompleted):
     logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
     logs = extractor.gha_extract(logs)
     return logs
+
+
+def on_pull_request_closed(request: PullRequestClosed):
+    g = get_github_client(request.installation.id)
+    repo = g.get_repo(request.repository.full_name)
+    pr = repo.get_pull(request.pull_request.number)
+    if pr.title == "Configure Sweep" and pr.merged:
+        create_gha_pr(repo)
