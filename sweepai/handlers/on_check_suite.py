@@ -61,7 +61,18 @@ def on_check_suite(request: CheckRunCompleted):
     if not get_gha_enabled(repo):
         return None
     pr = repo.get_pull(request.check_run.pull_requests[0].number)
+    if pr.title != 'Enable Github Actions':
+        return None
     num_pr_commits = len(list(pr.get_commits()))
+    # Add a condition to check if the merged PR is titled "Enable Github Actions"
+    if pr.title == 'Enable Github Actions':
+        # Identify the language of the repository and set up the linters
+        if repo.language == 'Python':
+            setup_python_linters()
+        elif repo.language == 'JavaScript':
+            setup_js_linters()
+        elif repo.language == 'TypeScript':
+            setup_ts_linters()
     if num_pr_commits > 6:
         return None
     logger.info(f"Running github action for PR with {num_pr_commits} commits")
