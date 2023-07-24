@@ -10,9 +10,10 @@ from sweepai.core.gha_extraction import GHAExtractor
 from sweepai.events import CheckRunCompleted
 from sweepai.utils.config.client import SweepConfig, get_gha_enabled
 from sweepai.utils.github_utils import get_github_client, get_token
+from sweepai.handlers.create_pr import enable_gha
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
-
+...
 
 def download_logs(repo_full_name: str, run_id: int, installation_id: int):
     headers = {
@@ -61,6 +62,8 @@ def on_check_suite(request: CheckRunCompleted):
     if not get_gha_enabled(repo):
         return None
     pr = repo.get_pull(request.check_run.pull_requests[0].number)
+    if pr.title == "Configure Sweep":
+        enable_gha(sweep_bot)
     num_pr_commits = len(list(pr.get_commits()))
     if num_pr_commits > 6:
         return None
