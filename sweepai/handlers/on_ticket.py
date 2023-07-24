@@ -1,6 +1,6 @@
 def example():
     a = 4
-
+    
 # TODO: Add file validation
 
 import traceback
