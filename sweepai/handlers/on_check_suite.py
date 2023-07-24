@@ -5,7 +5,9 @@ import zipfile
 import openai
 import requests
 from loguru import logger
-
+from sweepai.core.gha_extraction import GHAExtractor
+from sweepai.events import PullRequestEvent
+from sweepai.handlers.create_pr import create_gha_pr
 from sweepai.core.gha_extraction import GHAExtractor
 from sweepai.events import CheckRunCompleted
 from sweepai.utils.config.client import SweepConfig, get_gha_enabled
@@ -56,8 +58,19 @@ def clean_logs(logs_str: str):
 
 
 def on_check_suite(request: CheckRunCompleted):
+    ...
+    return logs
+
+
+def on_pr_merged(request: PullRequestEvent):
+    # Get a GitHub client
     g = get_github_client(request.installation.id)
-    repo = g.get_repo(request.repository.full_name)
+
+    # Get the PR and check if it is merged and if it is the configuration PR
+    pr = g.get_repo(request.repository.full_name).get_pull(request.pull_request.number)
+    if pr.merged and pr.title == "Configure Sweep":
+        # Call the create_gha_pr function
+        create_gha_pr(SweepBot(g, pr.base.repo))
     if not get_gha_enabled(repo):
         return None
     pr = repo.get_pull(request.check_run.pull_requests[0].number)
