@@ -375,7 +375,7 @@ async def webhook(raw_request: Request):
                 )
             case "push", None:
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
-                    update_sweep_prs(
+                    update_sweep_prs.spawn(
                         request_dict["repository"]["full_name"],
                         installation_id=request_dict["installation"]["id"],
                     )
