@@ -23,6 +23,11 @@ const config: DocsThemeConfig = {
   footer: {
     text: 'Sweep AI © 2023',
   },
+  useNextSeoProps() {
+    return {
+      titleTemplate: '%s'
+    }
+  }
 }
 
 export default config
