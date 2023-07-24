@@ -3,14 +3,12 @@ import openai
 from github.Repository import Repository
 from loguru import logger
 
+def example():
+    a = 4
+
 from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.config.client import SweepConfig
-from sweepai.utils.config.server import GITHUB_DEFAULT_CONFIG, GITHUB_LABEL_NAME, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
-    GITHUB_BOT_USERNAME, \
-    GITHUB_CONFIG_BRANCH
-from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
-from sweepai.utils.event_logger import posthog
 
 github_access_token = GITHUB_BOT_TOKEN
 openai.api_key = OPENAI_API_KEY
