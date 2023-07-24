@@ -14,124 +14,12 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
 )
-from sweepai.handlers.create_pr import create_pr  # type: ignore
+from sweepai.handlers.create_pr import create_pr, create_gha_pr  # type: ignore
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
-from sweepai.utils.config.server import DB_MODAL_INST_NAME, API_MODAL_INST_NAME, GITHUB_BOT_USERNAME, \
-    GITHUB_LABEL_NAME, GITHUB_LABEL_COLOR, GITHUB_LABEL_DESCRIPTION, BOT_TOKEN_NAME
-from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import get_github_client, index_full_repository
 
-stub = modal.Stub(API_MODAL_INST_NAME)
-stub.pr_queues = modal.Dict.new() # maps (repo_full_name, pull_request_ids) -> queues
-image = (
-    modal.Image.debian_slim()
-    .apt_install("git", "universal-ctags")
-    .run_commands(
-        'export PATH="/usr/local/bin:$PATH"'
-    )
-    .pip_install(
-        "openai",
-        "anthropic",
-        "PyGithub",
-        "loguru",
-        "docarray",
-        "backoff",
-        "tiktoken",
-        "GitPython",
-        "posthog",
-        "tqdm",
-        "pyyaml",
-        "pymongo",
-        "tabulate",
-        "redis",
-    )
-)
-secrets = [
-    modal.Secret.from_name(BOT_TOKEN_NAME),
-    modal.Secret.from_name("github"),
-    modal.Secret.from_name("openai-secret"),
-    modal.Secret.from_name("anthropic"),
-    modal.Secret.from_name("posthog"),
-    modal.Secret.from_name("mongodb"),
-    modal.Secret.from_name("discord"),
-    modal.Secret.from_name("redis_url"),
-]
-
-FUNCTION_SETTINGS = {
-    "image": image,
-    "secrets": secrets,
-    "timeout": 30 * 60,
-}
-
-handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
-handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
-handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
-update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
-handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
-
-
-@stub.function(**FUNCTION_SETTINGS)
-def handle_pr_change_request(
-    repo_full_name: str,
-    pr_id: int
-):
-    # TODO: put process ID here and check if it's still running
-    # TODO: GHA should have lower precedence than comments
-    try:
-        call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
-        logger.info(f"Current queue: {queue}")
-        while queue:
-            # popping
-            call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
-            pr_change_request: PRChangeRequest
-            *queue, pr_change_request = queue
-            logger.info(f"Currently handling PR change request: {pr_change_request}")
-            logger.info(f"PR queues: {queue}")
-
-            if pr_change_request.type == "comment":
-                handle_comment.call(**pr_change_request.params)
-            elif pr_change_request.type == "gha":
-                handle_check_suite.call(**pr_change_request.params)
-            else:
-                raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
-            stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
-    finally:
-        del stub.app.pr_queues[(repo_full_name, pr_id)]
-
-
-def function_call_is_completed(call_id: str):
-    if call_id == "0":
-        return True
-
-    from modal.functions import FunctionCall
-
-    function_call = FunctionCall.from_id(call_id)
-    try:
-        function_call.get(timeout=0)
-    except TimeoutError:
-        return False
-
-    return True
-
-def push_to_queue(
-    repo_full_name: str,
-    pr_id: int,
-    pr_change_request: PRChangeRequest
-):
-    key = (repo_full_name, pr_id)
-    call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
-    function_is_completed = function_call_is_completed(call_id)
-    if pr_change_request.type == "comment" or function_is_completed:
-        queue = [pr_change_request] + queue
-        if function_is_completed:
-            stub.app.pr_queues[key] = ("0", queue)
-            call_id = handle_pr_change_request.spawn(
-                repo_full_name=repo_full_name, 
-                pr_id=pr_id
-            ).object_id
-        stub.app.pr_queues[key] = (call_id, queue)
+...
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
@@ -369,6 +257,8 @@ async def webhook(raw_request: Request):
                             "repo_full_name": pr_request.repository.full_name,
                             "username": merged_by
                         })
+                if pr_request.pull_request.title == "Configure Sweep" and pr_request.pull_request.merged:
+                    create_gha_pr(sweep_bot)
                 update_index.spawn(
                     request_dict["repository"]["full_name"],
                     installation_id=request_dict["installation"]["id"],
@@ -420,3 +310,88 @@ def update_sweep_prs(
             logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
         except Exception as e:
             logger.error(f"Failed to merge changes from default branch into PR #{pr.number}: {e}")
+
+secrets = [
+    modal.Secret.from_name(BOT_TOKEN_NAME),
+    modal.Secret.from_name("github"),
+    modal.Secret.from_name("openai-secret"),
+    modal.Secret.from_name("anthropic"),
+    modal.Secret.from_name("posthog"),
+    modal.Secret.from_name("mongodb"),
+    modal.Secret.from_name("discord"),
+    modal.Secret.from_name("redis_url"),
+]
+
+FUNCTION_SETTINGS = {
+    "image": image,
+    "secrets": secrets,
+    "timeout": 30 * 60,
+}
+
+handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
+handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
+handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
+update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
+handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
+
+
+@stub.function(**FUNCTION_SETTINGS)
+def handle_pr_change_request(
+    repo_full_name: str,
+    pr_id: int
+):
+    # TODO: put process ID here and check if it's still running
+    # TODO: GHA should have lower precedence than comments
+    try:
+        call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
+        logger.info(f"Current queue: {queue}")
+        while queue:
+            # popping
+            call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
+            pr_change_request: PRChangeRequest
+            *queue, pr_change_request = queue
+            logger.info(f"Currently handling PR change request: {pr_change_request}")
+            logger.info(f"PR queues: {queue}")
+
+            if pr_change_request.type == "comment":
+                handle_comment.call(**pr_change_request.params)
+            elif pr_change_request.type == "gha":
+                handle_check_suite.call(**pr_change_request.params)
+            else:
+                raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
+            stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
+    finally:
+        del stub.app.pr_queues[(repo_full_name, pr_id)]
+
+
+def function_call_is_completed(call_id: str):
+    if call_id == "0":
+        return True
+
+    from modal.functions import FunctionCall
+
+    function_call = FunctionCall.from_id(call_id)
+    try:
+        function_call.get(timeout=0)
+    except TimeoutError:
+        return False
+
+    return True
+
+def push_to_queue(
+    repo_full_name: str,
+    pr_id: int,
+    pr_change_request: PRChangeRequest
+):
+    key = (repo_full_name, pr_id)
+    call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
+    function_is_completed = function_call_is_completed(call_id)
+    if pr_change_request.type == "comment" or function_is_completed:
+        queue = [pr_change_request] + queue
+        if function_is_completed:
+            stub.app.pr_queues[key] = ("0", queue)
+            call_id = handle_pr_change_request.spawn(
+                repo_full_name=repo_full_name, 
+                pr_id=pr_id
+            ).object_id
+        stub.app.pr_queues[key] = (call_id, queue)
