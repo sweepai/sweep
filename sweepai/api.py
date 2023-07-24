@@ -411,7 +411,16 @@ def update_sweep_prs(
     # For each pull request, attempt to merge the changes from the default branch into the pull request branch
     for pr in pulls:
         try:
-            pr.merge(commit_message=f"Merge changes from default branch into PR #{pr.number}")
+            # Create a new branch from the head branch of the pull request
+            new_branch = repo.create_git_ref(ref=f"refs/heads/sweep-merge-{pr.number}", sha=pr.head.sha)
+            
+            # Merge the base branch into the new branch
+            base = repo.get_git_ref(f"heads/{pr.base.ref}")
+            repo.merge(new_branch.ref, base.object.sha)
+            
+            # Create a new pull request with the new branch as the head and the original head branch of the pull request as the base
+            repo.create_pull(title=f"Merge changes from default branch into PR #{pr.number}", body="", head=new_branch.ref, base=pr.head.ref)
+            
             logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
         except Exception as e:
             logger.error(f"Failed to merge changes from default branch into PR #{pr.number}: {e}")
