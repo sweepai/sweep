@@ -375,7 +375,7 @@ async def webhook(raw_request: Request):
                 )
             case "push", None:
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
-                    update_index.spawn(
+                    update_sweep_prs(
                         request_dict["repository"]["full_name"],
                         installation_id=request_dict["installation"]["id"],
                     )
@@ -389,3 +389,11 @@ async def webhook(raw_request: Request):
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
+
+@stub.function(**FUNCTION_SETTINGS)
+def update_sweep_prs(
+    repo_full_name: str,
+    installation_id: int
+):
+    # TODO: Implement the function to iterate through all open pull requests created by Sweep and attempt to merge the changes from the default branch into the pull request branch.
+    pass
