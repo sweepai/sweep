@@ -81,8 +81,9 @@ def on_check_suite(request: CheckRunCompleted):
 
 
 def on_pull_request_closed(request: PullRequestClosed):
+    GITHUB_BOT_USERNAME = "your_bot_username"  # Replace with the actual bot username
     g = get_github_client(request.installation.id)
     repo = g.get_repo(request.repository.full_name)
     pr = repo.get_pull(request.pull_request.number)
-    if pr.title == "Configure Sweep" and pr.merged:
+    if pr.title == "Configure Sweep" and pr.merged and pr.user.login == GITHUB_BOT_USERNAME:
         create_gha_pr(repo)
