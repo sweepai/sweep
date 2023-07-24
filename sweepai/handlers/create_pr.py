@@ -173,6 +173,19 @@ def create_config_pr(
     except Exception as e:
         logger.error(e)
     ...
+
+    # Check if the pull request from this branch to main already exists.
+    # If it does, then we don't need to create a new one.
+    pull_requests = sweep_bot.repo.get_pulls(
+        state="open",
+        sort="created",
+        base=SweepConfig.get_branch(sweep_bot.repo),
+        head=branch_name,
+    )
+    for pr in pull_requests:
+        if pr.title == title:
+            return pr
+
     pr = sweep_bot.repo.create_pull(
         title=title,
         body=...,
@@ -260,3 +273,24 @@ body:
       label: Details
       description: More details for Sweep
       placeholder: The new endpoint should use the ... class from ... file because it contains ... logic"""
+
+# Check if the pull request from this branch to main already exists.
+# If it does, then we don't need to create a new one.
+pull_requests = sweep_bot.repo.get_pulls(
+    state="open",
+    sort="created",
+    base=SweepConfig.get_branch(sweep_bot.repo),
+    head=branch_name,
+)
+for pr in pull_requests:
+    if pr.title == title:
+        return pr
+
+pr = sweep_bot.repo.create_pull(
+    title=title,
+    body=...,
+    head=branch_name,
+    base=SweepConfig.get_branch(sweep_bot.repo),
+)
+pr.add_to_labels(GITHUB_LABEL_NAME)
+return pr
