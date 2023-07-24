@@ -81,8 +81,11 @@ def create_pr(
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
+        if pr.title == "Configure Sweep":
+            pr_title = "sweep: Enable GitHub Actions"
+            pr_description = """This PR enables GitHub Actions for your project by adding `gha_enabled: True` to the `sweep.yaml` file. It also sets up a GitHub Actions linter appropriate for your project's language."""
         pr = sweep_bot.repo.create_pull(
-            title="[DRAFT] " + pr_title,
+            title=pr_title,
             body=pr_description,
             head=pull_request.branch_name,
             base=SweepConfig.get_branch(sweep_bot.repo),
