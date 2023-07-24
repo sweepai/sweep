@@ -55,7 +55,7 @@ secrets = [
 
 
 def init_deeplake_vs(repo_name):
-    from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
+    from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore # pylint: disable=import-error
     deeplake_repo_path = f"mem://{DEEPLAKE_FOLDER}{repo_name}"
     deeplake_vector_store = DeepLakeVectorStore(path=deeplake_repo_path)
     return deeplake_vector_store
@@ -80,7 +80,7 @@ def parse_collection_name(name: str) -> str:
 )
 class Embedding:
     def __enter__(self):
-        from sentence_transformers import SentenceTransformer
+        from sentence_transformers import SentenceTransformer # pylint: disable=import-error
 
         self.model = SentenceTransformer(
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
