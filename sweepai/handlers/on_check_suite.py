@@ -62,7 +62,7 @@ def on_check_suite(request: CheckRunCompleted):
         return None
     pr = repo.get_pull(request.check_run.pull_requests[0].number)
     num_pr_commits = len(list(pr.get_commits()))
-    if num_pr_commits > 20:
+    if num_pr_commits > 6:
         return None
     logger.info(f"Running github action for PR with {num_pr_commits} commits")
     logs = download_logs(

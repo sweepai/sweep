@@ -38,12 +38,12 @@ image = (
         "posthog",
         "openai",
         "anthropic",
-        "highlight-io",
         "PyGithub",
         "GitPython",
         "config-path",
         "pyyaml",
         "pymongo",
+        "redis",
     )
 )
 secrets = [
@@ -51,7 +51,6 @@ secrets = [
     modal.Secret.from_name("github"),
     modal.Secret.from_name("openai-secret"),
     modal.Secret.from_name("posthog"),
-    modal.Secret.from_name("highlight"),
     modal.Secret.from_name("mongodb"),
 ]
 

@@ -1,0 +1,55 @@
+# **Code Search Infra for an AI junior developer - that doesn't store code**
+
+Author: William Zeng
+
+As we’re developing Sweep, our open-source AI junior developer, we implemented a new architecture for our vector search database.
+
+We decided on two main goals for our code search infrastructure:
+
+1. The search index needs to be up to date. Code is unique from other types of content in that it requires high levels of consistency. You wouldn’t want to reference an old version of a function(say two git commits back) while writing something that uses it.
+2. For additional security, we don’t want to store the code as plaintext. However, we still need a way to map the original code to the embeddings.
+
+## **Efficient Indexing**
+
+#### Problem: 
+We wanted to store multiple repositories in a scalable manner without relying on a hosted vector database like Pinecone. 
+
+#### Insight: 
+Repositories change frequently but with a small delta. This is bounded(for now) by how fast humans can write and review code.
+
+Using Redis allows us to leverage cache misses to automatically handle differences. During indexing, we use the code's sha256 hash as the key to check for cache hits. With each merged GitHub PR, 99% of the repository might be cached from before, leading to a small 1% cache miss.
+
+We then handle these misses at runtime and index them concurrently. This only takes 1-2 seconds, and we have an updated database. As a side note, this also lets us handle branches (which would require `num_branches * num_repositories` worth of storage otherwise).
+
+## **Storing Vector Embeddings**
+
+#### Problem:
+Once we have embeddings, we need to retrieve the corresponding code. This typically requires us to key the embeddings with the plaintext code.
+
+#### Insight: 
+We can store pointers to code and fetch the code at runtime. 
+For example, instead of storing:
+```python
+if name == “sweep”:
+    print(”hello, I am a bot that writes pull requests”)”
+```
+we can store `introduction.py:line2:line:3` and get lines 2-3 from `introduction.py`. 
+
+The added latency from this is negligible (reading a file from disk is in the order of milliseconds). In this case, the code is temporarily read at runtime and then deleted from the container after the PR is written.
+
+## **Architecture**
+The final diagram looks like this. We index and write to Redis when main is updated. At query time, we perform a vector search and fetch the actual code.
+
+![vector_db (1)](https://github.com/sweepai/sweep/assets/44910023/b2a7a2d2-7880-4553-b233-5aa68fd6f14d)
+
+Our vector database architecture was critical to building Sweep. Our goal is to develop a highly competent AI junior developer. 
+
+For more details, please visit our GitHub repo: **https://github.com/sweepai/sweep**. We appreciate any feedback and insights.
+
+## **Additional Notes**
+
+- This approach can be slow, but we’re hoping users are willing to wait minutes for a written pull request with code, instead of a search result.
+- We struggled a lot with the github rate limit when we first tried large repositories. The limit is typically 5000 requests per hour, which breaks on large repos if the user tries Sweep 2+ times.
+- This approach scales to huge repositories without additional latency. We’ve handled repositories upwards of 4000 files, and we’re excited to handle even large ones.
+- We chose [ActiveLoop Deeplake](https://docs.deeplake.ai/en/latest/index.html) as our vector store because of its clean interface and the fantastic support.
+- This is way cheaper than Pinecone. We pay ~500$/month for a Redis cluster, which serves thousands of repositories. For our infrastructure, we use [https://modal.com](https://modal.com/), which lets us run serverless functions in native python.

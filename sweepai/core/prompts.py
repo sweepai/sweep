@@ -3,8 +3,9 @@ List of common prompts used across the codebase.
 """
 
 # Following two should be fused
-system_message_prompt = "Your name is Sweep bot. You are a brilliant and thorough engineer assigned to the following Github ticket. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes."
-system_message_issue_comment_prompt = "Your name is Sweep bot. You are a brilliant and thorough engineer assigned to the following Github ticket, and a user has just responded with feedback. You will be helpful and friendly, but informal and concise: get to the point. When you write code to solve tickets, the code works on the first try and is formatted perfectly. You have the utmost care for the user that you write for, so you do not make mistakes."
+system_message_prompt = "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try and is formatted perfectly. You have the utmost care for the code that you write, so you do not make mistakes. Take into account the current repository's language, frameworks, and dependencies."
+
+system_message_issue_comment_prompt = "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to the following Github issue, and a user has just responded with feedback. When you write code, the code works on the first try and is formatted perfectly. You have the utmost care for the code that you write, so you do not make mistakes. Take into account the current repository's language, frameworks, and dependencies."
 
 human_message_prompt = [
 {'role': 'assistant', 'content': 'Examining repo...'},
@@ -38,10 +39,8 @@ human_message_review_prompt = [
 </repo_tree>"""},
 {'role': 'user', 'content':
 """These are the file changes.
-We have the file_path, the previous_file_content, the new_file_content, and the diffs.
+We have the file_path, and the diffs.
 The file_path is the name of the file.
-The previous_file_content is the content of the file before the changes.
-The new_file_content is the content of the file after the changes.
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
 {diffs}"""}]
@@ -68,14 +67,6 @@ diff_section_prompt = """
 <file_path>
 {diff_file_path}
 </file_path>
-
-<previous_file_content>
-{previous_file_content}
-</previous_file_content>
-
-<new_file_content>
-{new_file_content}
-</new_file_content>
 
 <file_diffs>
 {diffs}
@@ -159,17 +150,15 @@ Pull Request Title: {title}
 Pull Request Description: {description}"""},
 {'role': 'user', 'content':
 """These are the file changes.
-We have the file_path, the previous_file_content, the new_file_content, and the diffs.
+We have the file_path and the diffs.
 The file_path is the name of the file.
-The previous_file_content is the content of the file before the changes.
-The new_file_content is the content of the file after the changes.
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
 {diff}"""},
 {'role': 'user', 'content':
 """Please handle the user review comment, taking into account the snippets, paths, tree, pull request title, pull request description, and the file changes.
 Sometimes the user may not request changes, don't change anything in that case.
-User pull request review: {comment}"""}]
+User pull request review: "{comment}" """}]
 
 comment_line_prompt = """\
 The user made the review in this file: {pr_file_path}
@@ -180,33 +169,36 @@ cot_retrieval_prompt = """
 Gather information to solve the problem. Use "finish" when you feel like you have sufficient information.
 """
 
+files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
+
 files_to_change_prompt = """
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
 Then, provide a list of files you would like to modify, abiding by the following:
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
 * Use detailed, natural language instructions on what to modify, with reference to variable names
-* There MUST be both create and modify XML tags
+* There MUST be both create_file and modify_file XML tags
 * The list of files to create or modify may be empty, but you MUST leave the XML tags with a single list element with "* None"
 * Create/modify up to 5 FILES
 * Do not modify non-text files such as images, svgs, binary, etc
-* You MUST follow the following format:
+
+You MUST follow the following format delimited with XML tags:
 
 Step-by-step thoughts with explanations: 
 * Thought 1 - Explanation 1
 * Thought 2 - Explanation 2
 ...
 
-<create>
-* filename_1: instructions_1
-* filename_2: instructions_2
-...
-</create>
-
-<modify>
+<modify_file>
 * filename_3: instructions_3
 * filename_4: instructions_4
 ...
-</modify>
+</modify_file>
+
+<create_file>
+* filename_1: instructions_1
+* filename_2: instructions_2
+...
+</create_file>
 """
 
 reply_prompt = """
@@ -220,7 +212,8 @@ create_file_prompt = """
 You are creating a PR for creating the single new file.
 
 Think step-by-step regarding the instructions and what should be added to the new file.
-Next, create a plan of parts of the code to create, with low-level, detailed references to functions and variable to create, and what each function does.
+Next, identify the language and stack used in the repo, based on other files (e.g. React, Typescript, Jest etc.).
+Then, create a plan of parts of the code to create, with low-level, detailed references to functions, variables, and imports to create, and what each function does.
 Last, create the following file using the following instructions:
 
 DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags, and all text inside these tags will be placed in the newly created file.
@@ -243,7 +236,7 @@ Detailed plan of additions:
 commit_message = "{commit_message}"
 
 <new_file>
-{{new_file}}
+{{complete_new_file_contents}}
 </new_file>
 """
 
@@ -283,40 +276,13 @@ Lines to change in the file:
 
 Only include the line numbers."""
 
-# <snippets>
-# {snippets}
-# </snippets>
-modify_file_prompt = """
-File contains lines {line_numbers}
-
-Generate a new_file based on the given plan, ensuring that you:
-1. It is imperative that we do not leave any work to the user/future readers of this code. So, WRITE FUNCTIONS COMPLETELY THAT WILL WORK.
-2. Do not write the original line numbers with the new code.
-3. Make sure the new code follows the same programming language conventions as the old code.
-
-Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copied>0-25</copied>"). Make sure to use this exact format.
-Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copied>0-50</copied>".
-
-Example: If you want to modify lines 51-52 and add line after line 75:
-<new_file>
-<copied>1-50</copied>
-def main():
-    print("hello world")
-<copied>53-75</copied>
-print("debug statement")
-<copied>76-100</copied>
-</new_file>
-
-Do not rewrite the entire file. Use <copied> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations.
-"""
-
 chunking_prompt = """
 We are handling this file in chunks. You have been provided a section of the code.
 Any lines that you do not see will be handled, so trust that the imports are managed and any other issues are taken care of.
 If you see code that should be modified, please modify it. The changes may not need to be in this chunk, in that case just copy and return the code as is.
 """
 
-modify_file_prompt_2 = """
+modify_file_prompt_3 = """
 File Name: {filename}
 <old_file>
 {code}
@@ -336,41 +302,44 @@ Detailed plan of modifications:
 * Modification 2
 ...
 
-Lines to change in the file:
-* lines a-b
+Lines to change in the file: (include multiple small changes as opposed to one large change)
+* lines a-b: Do x
+* lines c: Change to y
 ...
 <code_planning>
 
 Code Generation:
 ```
-Generate a new_file based on the given plan, ensuring that you:
-1. It is imperative that we do not leave any work to the user/future readers of this code. Therefore write functions with complete business logic.
-2. Only write code, do not write line numbers.
-3. Make sure the new code follows the same programming language conventions as the old code.
-4. Ensure correct whitespace and indentation.
+Generate a diff based on the given plan, in the following format (do not include "..." anywhere). Do not remove comments.
 
-Instead of writing "# Rest of Code", specify the lines to copy from the old file using an XML tag, inclusive (e.g., "<copy_lines A-B/>"). Make sure to use this exact format.
-Copy the correct line numbers and copy as long of a prefix and suffix as possible. For instance, if you want to insert code after line 50, start with "<copy_lines 1-50/>".
+Example:
+```
+<<<< ORIGINAL
+    x = 1 # comment
+    print("hello")
+    x = 2
+====
+    x = 1 # comment
+    print("goodbye")
+    x = 2
+>>>> UPDATED
 
-Example: If you want to modify lines 51-52 and add line after line 75:
-```
-<new_file>
-<copy_lines 1-50/>
-    def main():
-        print("hello world")
-<copy_lines 53-75/>
-        print("debug statement")
-<copy_lines 76-100/>
-</new_file>
-```
-
-Do not rewrite the entire file. Use <copy_lines A-B/> XML tag when possible. Do not include the line numbers in the new file. Write complete implementations. SURROUND WITH <new_file> XML TAGS.
-```
+<<<< ORIGINAL
+def example():
+    a = 3
+    
+====
+def example():
+    a = 4
+    
+>>>> UPDATED
+``` 
 
 Context: "{instructions}". Limit your changes to the context.
 Instructions:
-1. Complete Code Planning step
-2. Complete Code Generation step (<new_file>...)"""
+1. Complete the Code Planning step
+2. Complete the Code Generation step
+"""
 
 pr_code_prompt = ""  # TODO: deprecate this
 

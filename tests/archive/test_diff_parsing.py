@@ -1,3 +1,6 @@
+from sweepai.utils.diff import generate_new_file_from_patch
+
+old_file = """
 import traceback
 import re
 
@@ -24,7 +27,7 @@ from sweepai.core.prompts import (
     files_to_change_prompt,
     pull_request_prompt,
     create_file_prompt,
-    files_to_change_abstract_prompt,
+    modify_file_prompt_2,
     modify_file_prompt_3,
     snippet_replacement,
     chunking_prompt,
@@ -71,8 +74,6 @@ class CodeGenBot(ChatGPT):
         for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                abstract_plan = self.chat(files_to_change_abstract_prompt, message_key="files_to_change")
-
                 files_to_change_response = self.chat(files_to_change_prompt,
                                                      message_key="files_to_change")  # Dedup files to change here
                 files_to_change = FilesToChange.from_string(files_to_change_response)
@@ -129,8 +130,8 @@ class CodeGenBot(ChatGPT):
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)
 
                 # Add triple quotes if not present
-                if not pr_text_response.strip().endswith('"""'):
-                    pr_text_response += '"""'
+                if not pr_text_response.strip().endswith('\"\"\"'):
+                    pr_text_response += '\"\"\"'
 
                 self.delete_messages_from_chat("pull_request")
             except Exception as e:
@@ -380,7 +381,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.info(
                     f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}")
                 new_file = generate_new_file_from_patch(modify_file_response, contents, chunk_offset=chunk_offset)
-                if not is_markdown(file_change_request.filename) and not chunking:
+                if not is_markdown(file_change_request.filename):
                     code_repairer = CodeRepairer(chat_logger=self.chat_logger)
                     diff = generate_diff(old_code=contents, new_code=new_file)
                     if diff.strip() != "" and diff_contains_dups_or_removals(diff, new_file):
@@ -503,3 +504,92 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")    
+"""
+
+code_replaces = """
+Code Generation:
+```
+<<<< ORIGINAL
+    def get_files_to_change(self, retries=2):
+        file_change_requests: list[FileChangeRequest] = []
+        for count in range(retries):
+            try:
+                logger.info(f"Generating for the {count}th time...")
+                files_to_change_response = self.chat(files_to_change_prompt,
+                                                     message_key="files_to_change")  
+                files_to_change = FilesToChange.from_string(files_to_change_response)
+                create_thoughts = files_to_change.files_to_create.strip()
+                modify_thoughts = files_to_change.files_to_modify.strip()
+
+                files_to_create: list[str] = files_to_change.files_to_create.split("\n*")
+                files_to_modify: list[str] = files_to_change.files_to_modify.split("\n*")
+                for file_change_request, change_type in zip(
+                        files_to_create + files_to_modify,
+                        ["create"] * len(files_to_create)
+                        + ["modify"] * len(files_to_modify),
+                ):
+                    file_change_request = file_change_request.strip()
+                    if not file_change_request or file_change_request == "* None":
+                        continue
+                    logger.debug(file_change_request)
+                    logger.debug(change_type)
+                    file_change_requests.append(
+                        FileChangeRequest.from_string(
+                            file_change_request, change_type=change_type
+                        )
+                    )
+                if file_change_requests:
+                    return file_change_requests, create_thoughts, modify_thoughts
+            except RegexMatchError:
+                logger.warning("Failed to parse! Retrying...")
+                self.delete_messages_from_chat("files_to_change")
+                continue
+        raise NoFilesException()
+====
+    def generate_files(self, retries):
+        for count in range(retries):
+            try:
+                logger.info(f"Generating for the {count}th time...")
+                files_to_change_response = self.chat(files_to_change_prompt,
+                                                     message_key="files_to_change")  
+                return files_to_change_response
+            except RegexMatchError:
+                logger.warning("Failed to parse! Retrying...")
+                self.delete_messages_from_chat("files_to_change")
+                continue
+        raise NoFilesException()
+
+    def parse_files_to_change_response(self, files_to_change_response):
+        file_change_requests: list[FileChangeRequest] = []
+        files_to_change = FilesToChange.from_string(files_to_change_response)
+        create_thoughts = files_to_change.files_to_create.strip()
+        modify_thoughts = files_to_change.files_to_modify.strip()
+
+        files_to_create: list[str] = files_to_change.files_to_create.split("\n*")
+        files_to_modify: list[str] = files_to_change.files_to_modify.split("\n*")
+        for file_change_request, change_type in zip(
+                files_to_create + files_to_modify,
+                ["create"] * len(files_to_create)
+                + ["modify"] * len(files_to_modify),
+        ):
+            file_change_request = file_change_request.strip()
+            if not file_change_request or file_change_request == "* None":
+                continue
+            logger.debug(file_change_request)
+            logger.debug(change_type)
+            file_change_requests.append(
+                FileChangeRequest.from_string(
+                    file_change_request, change_type=change_type
+                )
+            )
+        return file_change_requests, create_thoughts, modify_thoughts
+
+    def get_files_to_change(self, retries=2):
+        files_to_change_response = self.generate_files(retries)
+        return self.parse_files_to_change_response(files_to_change_response)
+>>>> UPDATED
+```
+"""
+
+if __name__ == "__main__":
+    print(generate_new_file_from_patch(code_replaces, old_file))

@@ -6,9 +6,10 @@ from loguru import logger
 from sweepai.core.entities import FileChangeRequest, PullRequest
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.config.client import SweepConfig
-from sweepai.utils.config.server import GITHUB_DEFAULT_CONFIG, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
+from sweepai.utils.config.server import GITHUB_DEFAULT_CONFIG, GITHUB_LABEL_NAME, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
     GITHUB_BOT_USERNAME, \
     GITHUB_CONFIG_BRANCH
+from sweepai.utils.github_utils import get_github_client
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.utils.event_logger import posthog
 
@@ -78,16 +79,16 @@ def create_pr(
             pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
         else:
             pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
-
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
         pr = sweep_bot.repo.create_pull(
-            title=pr_title,
+            title="[DRAFT] " + pr_title,
             body=pr_description,
             head=pull_request.branch_name,
             base=SweepConfig.get_branch(sweep_bot.repo),
         )
+        pr.add_to_labels(GITHUB_LABEL_NAME)
     except MaxTokensExceeded as e:
         logger.error(e)
         posthog.capture(
@@ -160,7 +161,7 @@ def safe_delete_sweep_branch(
 def create_config_pr(
         sweep_bot: SweepBot,
 ):
-    title = "Create `sweep.yaml` Config File"
+    title = "Configure Sweep"
     branch_name = GITHUB_CONFIG_BRANCH
     branch_name = sweep_bot.create_branch(branch_name, retry=False)
     try:
@@ -168,6 +169,24 @@ def create_config_pr(
             'sweep.yaml',
             'Create sweep.yaml config file',
             GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
+            branch=branch_name
+        )
+        sweep_bot.repo.create_file(
+            '.github/ISSUE_TEMPLATE/sweep-bugfix.yml',
+            'Create bugfix template',
+            BUGFIX_TEMPLATE,
+            branch=branch_name
+        )
+        sweep_bot.repo.create_file(
+            '.github/ISSUE_TEMPLATE/sweep-feature.yml',
+            'Create feature template',
+            FEATURE_TEMPLATE,
+            branch=branch_name
+        )
+        sweep_bot.repo.create_file(
+            '.github/ISSUE_TEMPLATE/sweep-refactor.yml',
+            'Create refactor template',
+            REFACTOR_TEMPLATE,
             branch=branch_name
         )
     except Exception as e:
@@ -201,5 +220,57 @@ def create_config_pr(
         head=branch_name,
         base=SweepConfig.get_branch(sweep_bot.repo),
     )
-
+    pr.add_to_labels(GITHUB_LABEL_NAME)
     return pr
+
+def create_gha_pr(g, repo):
+    # Create a new branch
+    branch_name = "sweep/gha-enable"
+    branch = repo.create_git_ref(ref=f"refs/heads/{branch_name}", sha=repo.get_branch(repo.default_branch).commit.sha)
+
+    # Update the sweep.yaml file in this branch to add "gha_enabled: True"
+    sweep_yaml_content = repo.get_contents("sweep.yaml", ref=branch_name).decoded_content.decode() + "\ngha_enabled: True"
+    repo.update_file("sweep.yaml", "Enable GitHub Actions", sweep_yaml_content, repo.get_contents("sweep.yaml", ref=branch_name).sha, branch=branch_name)
+
+    # Create a PR from this branch to the main branch
+    pr = repo.create_pull(title="Enable GitHub Actions", body="This PR enables GitHub Actions for this repository.", head=branch_name, base=repo.default_branch)
+    return pr
+
+REFACTOR_TEMPLATE = """\
+name: Refactor
+title: 'Sweep: '
+description: Write something like "Modify the ... api endpoint to use ... version and ... framework"
+labels: sweep
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Details
+      description: More details for Sweep
+      placeholder: We are migrating this function to ... version because ..."""
+
+BUGFIX_TEMPLATE = """\
+name: Bugfix
+title: 'Sweep: '
+description: Write something like "We notice ... behavior when ... happens instead of ...""
+labels: sweep
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Details
+      description: More details about the bug
+      placeholder: The bug might be in ... file"""
+
+FEATURE_TEMPLATE = """\
+name: Feature Request
+title: 'Sweep: '
+description: Write something like "Write an api endpoint that does "..." in the "..." file"
+labels: sweep
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Details
+      description: More details for Sweep
+      placeholder: The new endpoint should use the ... class from ... file because it contains ... logic"""
