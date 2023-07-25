@@ -1,2 +1,3 @@
 gha_enabled: True
 branch: main
+description: "The main api endpoints are in sweepai/api.py. The handlers for Github events are in sweepai/handlers/. The vector database logic is in sweepai/core/vector_db.py. The docs are in docs, and the blogs are in docs/pages/blogs/."
