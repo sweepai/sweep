@@ -64,11 +64,11 @@ def on_check_suite(request: CheckRunCompleted):
     if pr.title == "Enable Github Actions":
         primary_language = repo.get_languages()[0]
         if primary_language == "Python":
-            SweepBot.create_issue("Sweep: Set up black and pylint", "Instructions for setting up black and pylint...")
+            SweepBot.create_issue("Sweep: Set up black and pylint", "To set up black and pylint, first install them using pip. Then, you can run black to automatically format your code and pylint to check for any errors or style issues.")
         elif primary_language == "JavaScript":
-            SweepBot.create_issue("Sweep: Set up eslint", "Instructions for setting up eslint...")
+            SweepBot.create_issue("Sweep: Set up eslint", "To set up eslint, first install it using npm. Then, you can run eslint to check your code for any errors or style issues.")
         elif primary_language == "TypeScript":
-            SweepBot.create_issue("Sweep: Set up tsc", "Instructions for setting up tsc...")
+            SweepBot.create_issue("Sweep: Set up tsc", "To set up tsc, first install it using npm. Then, you can run tsc to compile your TypeScript code to JavaScript.")
     num_pr_commits = len(list(pr.get_commits()))
     if num_pr_commits > 6:
         return None
