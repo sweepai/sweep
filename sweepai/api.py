@@ -418,7 +418,7 @@ def update_sweep_prs(
     repo = g.get_repo(repo_full_name)
     
     # Get all open pull requests created by Sweep
-    pulls = repo.get_pulls(state='open', head='sweep')
+    pulls = repo.get_pulls(state='open', head='sweep', sort="updated", direction="desc")[:5]
     
     # For each pull request, attempt to merge the changes from the default branch into the pull request branch
     for pr in pulls:
