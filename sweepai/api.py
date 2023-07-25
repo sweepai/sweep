@@ -124,7 +124,16 @@ def push_to_queue(
     key = (repo_full_name, pr_id)
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
     function_is_completed = function_call_is_completed(call_id)
-    if pr_change_request.type == "comment" or function_is_completed:
+    if pr_change_request.type == "comment":
+        queue = [pr_change_request] + queue
+        if function_is_completed:
+            stub.app.pr_queues[key] = ("0", queue)
+            call_id = handle_pr_change_request.spawn(
+                repo_full_name=repo_full_name, 
+                pr_id=pr_id
+            ).object_id
+        stub.app.pr_queues[key] = (call_id, queue)
+    elif pr_change_request.type == "gha":
         queue = [pr_change_request] + queue
         if function_is_completed:
             stub.app.pr_queues[key] = ("0", queue)
@@ -255,6 +264,24 @@ async def webhook(raw_request: Request):
                             pr_id=request.issue.number,
                             pr_change_request=pr_change_request
                         )
+                elif request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
+                    g = get_github_client(request.installation.id)
+                    repo = g.get_repo(request.repository.full_name)
+                    if len(request.check_run.pull_requests) > 0:
+                        logger.info("Handling check suite")
+                        pr_change_request = PRChangeRequest(
+                            type="gha",
+                            params = {"request": request}
+                        )
+                        push_to_queue(
+                            repo_full_name=request.repository.full_name,
+                            pr_id=request.check_run.pull_requests[0].number,
+                            pr_change_request=pr_change_request
+                        )
+                    else:
+                        logger.info(f"Skipping check suite for {request.repository.full_name} because it is not a PR")
+                else:
+                    logger.info(f"Skipping check suite for {request.repository.full_name} because it is not a failure or not from the bot")
             case "pull_request_review_comment", "created":
                 # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
