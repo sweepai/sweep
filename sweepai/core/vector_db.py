@@ -22,6 +22,8 @@ from ..utils.config.server import ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME
 from ..utils.github_utils import get_token
 
 # Define the global variables
+MODEL_DIR = "/root/cache/model"
+model_volume = "placeholder"  # TODO: Replace with the actual value
 DEEPLAKE_FOLDER = "deeplake/"
 stub = modal.Stub(DB_MODAL_INST_NAME)
 image = modal.Image.debian_slim()
@@ -35,7 +37,6 @@ secrets = [
     modal.Secret.from_name("redis_url"),
     modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
 ]
-MODEL_DIR = "/root/cache/model"
 BATCH_SIZE = 256
 SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-MiniLM-L12-v2"
 CACHE_VERSION = "v1.0.1"
