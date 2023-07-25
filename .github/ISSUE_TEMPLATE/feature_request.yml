@@ -13,6 +13,6 @@ body:
     id: write
     attributes:
       label: Files to change
-      description: This is optional but can improve Sweep
+      description: Optional but can improve Sweep
       placeholder: "src/main.py\ntests/test.py"
       render: shell
