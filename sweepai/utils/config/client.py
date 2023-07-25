@@ -14,7 +14,7 @@ class SweepConfig(BaseModel):
     include_dirs: list[str] = []
     exclude_dirs: list[str] = [".git", "node_modules", "venv"]
     include_exts: list[str] = ['.cs', '.csharp', '.py', '.md', '.txt', '.ts', '.tsx', '.js', '.jsx', '.mjs']
-    exclude_exts: list[str] = ['.min.js', '.min.js.map', '.min.css', '.min.css.map']
+    exclude_exts: list[str] = ['.min.js', '.min.js.map', '.min.css', '.min.css.map', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.exe', '.dll', '.bin', '.dat', '.db']
     max_file_limit: int = 60_000
 
     def to_yaml(self) -> str:
@@ -47,24 +47,24 @@ class SweepConfig(BaseModel):
             return default_branch
 
 
-@staticmethod
-@lru_cache(maxsize=None)
-def get_gha_enabled(repo: Repository) -> bool:
-    try:
-        contents = repo.get_contents("sweep.yaml")
-        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("gha_enabled", False)
-        return gha_enabled
-    except Exception as e:
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def get_gha_enabled(repo: Repository) -> bool:
         try:
-            contents = repo.get_contents(".github/sweep.yaml")
+            contents = repo.get_contents("sweep.yaml")
+            gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("gha_enabled", False)
+            return gha_enabled
         except Exception as e:
             try:
                 contents = repo.get_contents(".github/sweep.yaml")
             except Exception as e:
-                logger.warning(f"Error when getting gha enabled: {e}, falling back to False")
-                return False
-        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("gha_enabled", False)
-        return gha_enabled
+                try:
+                    contents = repo.get_contents(".github/sweep.yaml")
+                except Exception as e:
+                    logger.warning(f"Error when getting gha enabled: {e}, falling back to False")
+                    return False
+            gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("gha_enabled", False)
+            return gha_enabled
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get('GITHUB_APP_CLIENT_ID', 'Iv1.91fd31586a926a9f')
