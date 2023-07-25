@@ -297,7 +297,7 @@ async def webhook(raw_request: Request):
                 g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pull_request = repo.get_pull(request.check_run.pull_requests[0].number)
-                if len(request.check_run.pull_requests) > 0 and pull_request.user.login.lower().startswith("sweep") and request.check_run.conclusion == "failure":
+                if len(request.check_run.pull_requests) > 0 and pull_request.user.login.lower().startswith("sweep") and request.check_run.conclusion == "failure" and pull_request.title.startswith("[DRAFT]"):
                     logger.info("Handling check suite")
                     pr_change_request = PRChangeRequest(
                         type="gha",
