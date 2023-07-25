@@ -1,9 +1,4 @@
-'''
-On Github ticket, get ChatGPT to deal with it
-'''
-
-# TODO: Add file validation
-
+import re
 import traceback
 
 import modal
@@ -96,6 +91,9 @@ def on_ticket(
         title = title[7:]
     elif title.lower().startswith("sweep "):
         title = title[6:]
+
+    # Extract all filenames from the issue title/description
+    filenames = re.findall(r'\b\w+\.\w+\b', title + summary)
 
     # Flow:
     # 1. Get relevant files
