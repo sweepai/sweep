@@ -355,6 +355,7 @@ class SweepBot(CodeGenBot, GithubBot):
             file_markdown = is_markdown(file_change_request.filename)
             # TODO: Modify the parts of the code that call the old scoring function to now use the new one
             score = compute_filename_score(file_change_request.filename)
+            # Add the necessary code here to use the 'score' variable in the subsequent operations
             # some code here
             return new_file_contents
             try:
@@ -438,6 +439,7 @@ class SweepBot(CodeGenBot, GithubBot):
     def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
         # some code here
         score = compute_filename_score(file_path)
+        # Add the necessary code here to use the 'score' variable in the subsequent operations
         # some code here
         return new_file_contents
             lines = file_contents.split("\n")
