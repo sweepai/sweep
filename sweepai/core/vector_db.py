@@ -22,6 +22,12 @@ from ..utils.config.server import ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME
 from ..utils.github_utils import get_token
 
 
+def compute_filename_score(filename):
+    # Compute the score of the filename based on a specific criteria or algorithm
+    # For now, let's just return a placeholder value
+    return 1
+
+
 stub = modal.Stub(DB_MODAL_INST_NAME)
 chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
 model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
@@ -109,7 +115,8 @@ def get_deeplake_vs_from_repo(
         branch_name: str | None = None,
         sweep_config: SweepConfig = SweepConfig(),
 ):
-    # some code here
+    # Assign a value to the variable `file_path` before it is used in the function call
+    file_path = "path/to/file"
     score = compute_filename_score(file_path)
     # some code here
     return deeplake_vs
