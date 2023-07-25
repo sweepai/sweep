@@ -71,7 +71,7 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
         "type": "review",
     })
     sweep_bot = SweepBot.from_system_message_content(
-        human_message=human_message, model="claude-v1.3-100k", repo=repo, is_reply=False
+        human_message=human_message, model="claude-v1.3-100k", repo=repo, is_reply=False, chat_logger=chat_logger
     )
     for _ in range(3):
         summarization_reply = sweep_bot.chat(review_prompt, message_key="review")
