@@ -258,7 +258,6 @@ async def webhook(raw_request: Request):
                         )
             case "pull_request_review_comment", "created":
                 # Add a separate endpoint for this
-                print(request_dict)
                 request = CommentCreatedRequest(**request_dict)
                 logger.info(f"Handling comment on PR: {request.pull_request.number}")
                 g = get_github_client(request.installation.id)
@@ -267,7 +266,6 @@ async def webhook(raw_request: Request):
                 labels = pr.get_labels()
                 comment = request.comment.body
                 if comment.lower().startswith('sweep:') or any(label.name.lower() == "sweep" for label in labels):
-                    print(request_dict)
                     pr_change_request = PRChangeRequest(
                         type="comment",
                         params={
@@ -300,6 +298,7 @@ async def webhook(raw_request: Request):
                     g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
                     if len(request.check_run.pull_requests) > 0:
+                        logger.info("Handling check suite")
                         pr_change_request = PRChangeRequest(
                             type="gha",
                             params = {"request": request}
@@ -312,7 +311,6 @@ async def webhook(raw_request: Request):
                     else:
                         logger.info(f"Skipping check suite for {request.repository.full_name} because it is not a PR")
                 else:
-                    print(request.sender.login)
                     logger.info(f"Skipping check suite for {request.repository.full_name} because it is not a failure or not from the bot")
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
@@ -406,7 +404,7 @@ def update_sweep_prs(
     pulls = repo.get_pulls(state='open', head='sweep')
     
     # For each pull request, attempt to merge the changes from the default branch into the pull request branch
-    for pr in pulls[:3]:
+    for pr in pulls:
         try:
             # make sure it's a sweep ticket
             feature_branch = pr.head.ref

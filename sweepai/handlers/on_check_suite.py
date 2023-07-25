@@ -14,9 +14,11 @@ from sweepai.utils.github_utils import get_github_client, get_token
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
-log_message = """GitHub actions yielded the following error. This is likely a linting or type-checking issue with the source code but could potentially be an issue with the GitHub Actions.
+log_message = """GitHub actions yielded the following error. 
 
-{error_logs}"""
+{error_logs}
+
+This is likely a linting or type-checking issue with the source code but could potentially be an issue with the GitHub Action yaml files."""
 
 def download_logs(repo_full_name: str, run_id: int, installation_id: int):
     headers = {
