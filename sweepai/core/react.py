@@ -119,4 +119,7 @@ class Toolbox(BaseModel):
     def process_results(self, parsed_results: "Toolbox.ParsedResults") -> str:
         # parsed_results = Toolbox.ParsedResults.parse(raw_output)
         tool = next((tool for tool in self.tools if tool._name == parsed_results.tool_name), None)
-        return tool(parsed_results.inputs)
+        if tool is not None:
+            return tool(parsed_results.inputs)
+        else:
+            return ""
