@@ -11,7 +11,7 @@ def handle_slow_mode():
     # This needs to be clarified with the user or referred to in the project documentation or other parts of the codebase
     # For example, if 'slow' mode means processing requests at a slower rate, you could add a delay here
     import time
-    time.sleep(10)
+    time.sleep(10) # Added a delay of 10 seconds when 'slow' mode is enabled
 ...
 import modal
 import openai
