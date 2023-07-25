@@ -13,11 +13,6 @@ body:
     id: write
     attributes:
       label: Files to change
-      description: Full file paths, one per line. Sweep can guess these files but including it can improve Sweep's results.
-      render: shell
-  - type: textarea
-    id: read
-    attributes:
-      label: Files to read
-      description: Full file paths, one per line. Sweep can guess these files but including it can improve Sweep's results.
+      description: Optional but can improve Sweep
+      placeholder: "src/main.py\ntests/test.py"
       render: shell
