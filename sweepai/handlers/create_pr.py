@@ -9,6 +9,7 @@ from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import GITHUB_DEFAULT_CONFIG, GITHUB_LABEL_NAME, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
     GITHUB_BOT_USERNAME, \
     GITHUB_CONFIG_BRANCH
+from sweepai.utils.github_utils import get_github_client
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.utils.event_logger import posthog
 
@@ -220,6 +221,19 @@ def create_config_pr(
         base=SweepConfig.get_branch(sweep_bot.repo),
     )
     pr.add_to_labels(GITHUB_LABEL_NAME)
+    return pr
+
+def create_gha_pr(g, repo):
+    # Create a new branch
+    branch_name = "sweep/gha-enable"
+    branch = repo.create_git_ref(ref=f"refs/heads/{branch_name}", sha=repo.get_branch(repo.default_branch).commit.sha)
+
+    # Update the sweep.yaml file in this branch to add "gha_enabled: True"
+    sweep_yaml_content = repo.get_contents("sweep.yaml", ref=branch_name).decoded_content.decode() + "\ngha_enabled: True"
+    repo.update_file("sweep.yaml", "Enable GitHub Actions", sweep_yaml_content, repo.get_contents("sweep.yaml", ref=branch_name).sha, branch=branch_name)
+
+    # Create a PR from this branch to the main branch
+    pr = repo.create_pull(title="Enable GitHub Actions", body="This PR enables GitHub Actions for this repository.", head=branch_name, base=repo.default_branch)
     return pr
 
 REFACTOR_TEMPLATE = """\

@@ -14,7 +14,7 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
 )
-from sweepai.handlers.create_pr import create_pr  # type: ignore
+from sweepai.handlers.create_pr import create_pr, create_gha_pr  # type: ignore
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
@@ -120,6 +120,7 @@ def push_to_queue(
     pr_id: int,
     pr_change_request: PRChangeRequest
 ):
+    logger.info(f"Pushing to queue: {repo_full_name}, {pr_id}, {pr_change_request}")
     key = (repo_full_name, pr_id)
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
     function_is_completed = function_call_is_completed(call_id)
@@ -256,7 +257,6 @@ async def webhook(raw_request: Request):
                         )
             case "pull_request_review_comment", "created":
                 # Add a separate endpoint for this
-                print(request_dict)
                 request = CommentCreatedRequest(**request_dict)
                 logger.info(f"Handling comment on PR: {request.pull_request.number}")
                 g = get_github_client(request.installation.id)
@@ -265,7 +265,6 @@ async def webhook(raw_request: Request):
                 labels = pr.get_labels()
                 comment = request.comment.body
                 if comment.lower().startswith('sweep:') or any(label.name.lower() == "sweep" for label in labels):
-                    print(request_dict)
                     pr_change_request = PRChangeRequest(
                         type="comment",
                         params={
@@ -294,29 +293,25 @@ async def webhook(raw_request: Request):
                 pass
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
-                logs = None
+                logger.info(f"Handling check suite for {request.repository.full_name}")
                 if request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
-                    logs = handle_check_suite.call(request)
-                    if len(request.check_run.pull_requests) > 0 and logs:
+                    g = get_github_client(request.installation.id)
+                    repo = g.get_repo(request.repository.full_name)
+                    if len(request.check_run.pull_requests) > 0:
+                        logger.info("Handling check suite")
                         pr_change_request = PRChangeRequest(
-                            type="comment",
-                            params={
-                                "repo_full_name": request.repository.full_name,
-                                "repo_description": request.repository.description,
-                                "comment": "Sweep: " + logs,
-                                "pr_path": None,
-                                "pr_line_position": None,
-                                "username": request.sender.login,
-                                "installation_id": request.installation.id,
-                                "pr_number": request.check_run.pull_requests[0].number,
-                                "comment_id": None,
-                            }
+                            type="gha",
+                            params = {"request": request}
                         )
                         push_to_queue(
                             repo_full_name=request.repository.full_name,
                             pr_id=request.check_run.pull_requests[0].number,
                             pr_change_request=pr_change_request
                         )
+                    else:
+                        logger.info(f"Skipping check suite for {request.repository.full_name} because it is not a PR")
+                else:
+                    logger.info(f"Skipping check suite for {request.repository.full_name} because it is not a failure or not from the bot")
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
@@ -411,12 +406,18 @@ def update_sweep_prs(
     # For each pull request, attempt to merge the changes from the default branch into the pull request branch
     for pr in pulls:
         try:
-            # Get the base branch
-            base = repo.get_git_ref(f"heads/{pr.base.ref}")
-
-            # Merge the base branch directly into the feature branch
-            pr.merge(base.object.sha)
+            # make sure it's a sweep ticket
+            feature_branch = pr.head.ref
+            if not feature_branch.startswith('sweep/'):
+                continue
+            repo.merge(feature_branch, repo.default_branch, f'Merge main into {feature_branch}')
             
-            logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
+            # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
+            logger.info(f"Merging changes from default branch into PR #{pr.number} for branch {feature_branch}")
+            
+            # Check if the merged PR is the config PR
+            if pr.title == "Configure Sweep" and pr.merged:
+                # Create a new PR to add "gha_enabled: True" to sweep.yaml
+                create_gha_pr(g, repo)
         except Exception as e:
             logger.error(f"Failed to merge changes from default branch into PR #{pr.number}: {e}")
