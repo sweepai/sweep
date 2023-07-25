@@ -7,7 +7,9 @@ class NewFeature:
     def method1(self):
         # Perform task1
         # Use self.variable1 and self.variable2 as needed
+        pass
 
     def method2(self):
         # Perform task2
         # Use self.variable1 and self.variable2 as needed
+        pass
