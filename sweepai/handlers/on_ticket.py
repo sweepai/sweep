@@ -53,7 +53,7 @@ total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 
 
-def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5):
+def post_process_snippets(snippets: List[Snippet], max_num_of_snippets: int = 5) -> List[Snippet]:
     for snippet in snippets[:num_full_files]:
         snippet = snippet.expand()
 
@@ -89,8 +89,8 @@ def on_ticket(
         repo_full_name: str,
         repo_description: str,
         installation_id: int,
-        comment_id: int = None
-):
+        comment_id: Optional[int] = None
+) -> Dict[str, bool]:
     # Check if the title starts with "sweep" or "sweep: " and remove it
     if title.lower().startswith("sweep: "):
         title = title[7:]
