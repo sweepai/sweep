@@ -1,15 +1,11 @@
-'''
-On Github ticket, get ChatGPT to deal with it
-'''
+def example():
+    a = 4
 
 # TODO: Add file validation
 
 import traceback
 
 def handle_slow_mode():
-    # Implement operations for 'slow' mode
-    # The exact operations will depend on the requirements of the 'slow' mode
-    # This needs to be clarified with the user or referred to in the project documentation or other parts of the codebase
     pass
 ...
 import modal
@@ -103,7 +99,7 @@ def on_ticket(
         title = title[7:]
     elif title.lower().startswith("sweep "):
         title = title[6:]
-    
+
     if slow_mode:
         handle_slow_mode()
 ...
