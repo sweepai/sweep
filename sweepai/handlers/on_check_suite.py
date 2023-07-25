@@ -84,5 +84,5 @@ def on_check_suite(request: CheckRunCompleted):
     logs = clean_logs(logs)
     extractor = GHAExtractor()
     logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
-    logs = extractor.gha_extract(logs)
-    return logs
+    snippets = extract_relevant_lines(logs)  # Modification 1: Extract relevant lines as snippets
+    return logs, snippets  # Modification 2: Pass snippets to the `sweep_bot` instance
