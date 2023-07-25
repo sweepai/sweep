@@ -37,8 +37,6 @@ from sweepai.core.prompts import (
 # Define the variable `THRESHOLD`
 THRESHOLD = 0.5
 
-USING_DIFF = True
-
 class MaxTokensExceeded(Exception):
     def __init__(self, filename):
         self.filename = filename
