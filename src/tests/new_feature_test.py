@@ -13,7 +13,9 @@ class TestNewFeature(unittest.TestCase):
     def test_method1(self):
         # Test the method1 of NewFeature
         # Call the method and assert that it works as expected
+        pass
 
     def test_method2(self):
         # Test the method2 of NewFeature
         # Call the method and assert that it works as expected
+        pass
