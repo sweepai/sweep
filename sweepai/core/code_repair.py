@@ -16,6 +16,7 @@ class CodeRepairer(ChatGPT):
     def check_syntax(old_code, file_extension: str) -> bool:
         # this is WIP
         raise NotImplementedError()
+        filename = ""
         if file_extension == '.py':
             # Use Python's built-in formatter "Black"
             result = subprocess.run(['black', '--check', filename], text=True, capture_output=True)
@@ -45,7 +46,7 @@ class CodeRepairer(ChatGPT):
 
     def repair_code(self, diff: str, user_code: str, feature: str, retries=3) -> str:
         self.messages = [Message(role="system", content=code_repair_system_prompt.format(feature=feature))]
-        self.model = "gpt-3.5-turbo-16k-0613"  # can be optimized
+        self.model = "gpt-3.5-turbo-16k-0613"
         retry_count = 0
         while retry_count < retries:
             response = self.chat(code_repair_prompt.format(diff=diff, user_code=user_code), message_key='code_repair')

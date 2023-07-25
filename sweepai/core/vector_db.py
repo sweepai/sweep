@@ -6,7 +6,6 @@ import shutil
 import time
 
 import modal
-from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore
 from git.repo import Repo
 from github import Github
 from loguru import logger
@@ -23,10 +22,10 @@ from ..utils.config.server import ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME
 from ..utils.github_utils import get_token
 from ..utils.ctags_generator import generate_ctags
 
-# TODO: Lots of cleanups can be done here with these constants
+
 stub = modal.Stub(DB_MODAL_INST_NAME)
 chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
-model_volume = modal.SharedVolume().persist(f"{ENV}-storage")
+model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
 MODEL_DIR = "/root/cache/model"
 DEEPLAKE_DIR = "/root/cache/"
 DISKCACHE_DIR = "/root/cache/diskcache/"
@@ -34,14 +33,14 @@ DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 256
 SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-MiniLM-L12-v2"
 timeout = 60 * 30  # 30 minutes
-CACHE_VERSION = "v1.0.0"
+CACHE_VERSION = "v1.0.1"
 MAX_FILES = 3000
 
 image = (
     modal.Image.debian_slim()
     .apt_install("git")
     .pip_install("deeplake==3.6.3", "sentence-transformers")
-    .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "highlight-io", "anthropic",
+    .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "anthropic",
                  "posthog", "redis", "pyyaml")
 )
 secrets = [
@@ -51,13 +50,13 @@ secrets = [
     modal.Secret.from_name("huggingface"),
     modal.Secret.from_name("chroma-endpoint"),
     modal.Secret.from_name("posthog"),
-    modal.Secret.from_name("highlight"),
     modal.Secret.from_name("redis_url"),
     modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
 ]
 
 
 def init_deeplake_vs(repo_name):
+    from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore # pylint: disable=import-error
     deeplake_repo_path = f"mem://{DEEPLAKE_FOLDER}{repo_name}"
     deeplake_vector_store = DeepLakeVectorStore(path=deeplake_repo_path)
     return deeplake_vector_store
@@ -74,7 +73,7 @@ def parse_collection_name(name: str) -> str:
 @stub.cls(
     image=image,
     secrets=secrets,
-    shared_volumes={MODEL_DIR: model_volume},
+    network_file_systems={MODEL_DIR: model_volume},
     keep_warm=1 if ENV == "prod" else 0,
     gpu="T4",
     retries=modal.Retries(
@@ -82,7 +81,7 @@ def parse_collection_name(name: str) -> str:
 )
 class Embedding:
     def __enter__(self):
-        from sentence_transformers import SentenceTransformer
+        from sentence_transformers import SentenceTransformer # pylint: disable=import-error
 
         self.model = SentenceTransformer(
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
@@ -102,7 +101,7 @@ class ModalEmbeddingFunction():
         pass
 
     def __call__(self, texts):
-        return Embedding.compute.call(texts)
+        return Embedding.compute.call(texts) # pylint: disable=no-member
 
 
 embedding_function = ModalEmbeddingFunction()
@@ -224,8 +223,7 @@ def get_deeplake_vs_from_repo(
                         score = json.loads(cached_value)
                         scores.append(score)
                         continue
-                commits = list(repo.get_commits(
-                    path=file_path, sha=branch_name))
+                commits = list(repo.get_commits(path=file_path, sha=branch_name))
                 score = compute_score(contents, commits)
                 if cache_inst and cache_success:
                     cache_inst.set(cache_key, json.dumps(score), ex=60 * 60 * 2)
@@ -306,7 +304,7 @@ def compute_deeplake_vs(collection_name,
         return deeplake_vs
 
 
-@stub.function(image=image, secrets=secrets, shared_volumes={DISKCACHE_DIR: model_volume}, timeout=timeout)
+@stub.function(image=image, secrets=secrets, network_file_systems={DISKCACHE_DIR: model_volume}, timeout=timeout)
 def update_index(
         repo_name,
         installation_id: int,
@@ -317,7 +315,7 @@ def update_index(
     return 0
 
 
-@stub.function(image=image, secrets=secrets, shared_volumes={DEEPLAKE_DIR: model_volume}, timeout=timeout, keep_warm=1)
+@stub.function(image=image, secrets=secrets, network_file_systems={DEEPLAKE_DIR: model_volume}, timeout=timeout, keep_warm=1)
 def get_relevant_snippets(
         repo_name: str,
         query: str,

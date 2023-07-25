@@ -78,7 +78,7 @@ class IssueRequest(BaseModel):
             name: str
 
         class PullRequest(BaseModel):
-            pass
+            url: str | None
 
         pull_request: PullRequest | None
         title: str
@@ -113,12 +113,13 @@ class PRRequest(BaseModel):
     class PullRequest(BaseModel):
         class User(BaseModel):
             login: str
+        title: str
 
         class MergedBy(BaseModel):
             login: str
 
         user: User
-        merged_by: MergedBy
+        merged_by: MergedBy | None
 
     class Repository(BaseModel):
         full_name: str

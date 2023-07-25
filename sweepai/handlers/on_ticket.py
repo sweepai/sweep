@@ -122,6 +122,7 @@ def on_ticket(
     repo = g.get_repo(repo_full_name)
     current_issue = repo.get_issue(number=issue_number)
     if current_issue.state == 'closed':
+        logger.warning(f"Issue {issue_number} is closed")
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
@@ -187,7 +188,7 @@ def on_ticket(
     ticket_count = max(tickets_allocated - chat_logger.get_ticket_count(), 0)
     use_faster_model = chat_logger.use_faster_model()
     model_name = "GPT-3.5" if use_faster_model else "GPT-4"
-    payment_link = "https://buy.stripe.com/fZe03512h99u0AE6os"
+    payment_link = "https://buy.stripe.com/9AQ8zB26letOgzC5kp"
     user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
     payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
     payment_message_start = f"{user_type}: I'm creating this ticket using {model_name}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
@@ -255,7 +256,7 @@ def on_ticket(
         discord_log_error(content)
 
     def fetch_file_contents_with_retry():
-        retries = 3
+        retries = 1
         error = None
         for i in range(retries):
             try:
@@ -364,7 +365,7 @@ def on_ticket(
 
             file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
             table = tabulate(
-                [[f"`{file_change_request.filename}`", file_change_request.instructions] for file_change_request in
+                [[f"`{file_change_request.filename}`", file_change_request.instructions.replace('\n', '<br/>').replace('```', '\\```')] for file_change_request in
                  file_change_requests],
                 headers=["File Path", "Proposed Changes"],
                 tablefmt="pipe"

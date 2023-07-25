@@ -61,11 +61,9 @@ class HumanMessagePromptReview(HumanMessagePrompt):
 
     def format_diffs(self):
         formatted_diffs = []
-        for file_name, new_file_contents, old_file_contents, file_patch in self.diffs:
+        for file_name, file_patch in self.diffs:
             format_diff = diff_section_prompt.format(
                 diff_file_path=file_name,
-                new_file_content=new_file_contents.rstrip("\n"),
-                previous_file_content=old_file_contents.rstrip("\n"),
                 diffs=file_patch
             )
             formatted_diffs.append(format_diff)
@@ -94,11 +92,9 @@ class HumanMessageReviewFollowup(BaseModel):
     diff: tuple
 
     def construct_prompt(self):
-        file_name, new_file_contents, old_file_contents, file_patch = self.diff
+        file_name, file_patch = self.diff
         format_diff = diff_section_prompt.format(
             diff_file_path=file_name,
-            new_file_content=new_file_contents.rstrip("\n"),
-            previous_file_content=old_file_contents.rstrip("\n"),
             diffs=file_patch
         )
         return review_follow_up_prompt + format_diff
@@ -112,11 +108,9 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
 
     def format_diffs(self):
         formatted_diffs = []
-        for file_name, new_file_contents, old_file_contents, file_patch in self.diffs:
+        for file_name, file_patch in self.diffs:
             format_diff = diff_section_prompt.format(
                 diff_file_path=file_name,
-                new_file_content=new_file_contents.rstrip("\n"),
-                previous_file_content=old_file_contents.rstrip("\n"),
                 diffs=file_patch
             )
             formatted_diffs.append(format_diff)
@@ -124,7 +118,7 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
 
     def construct_prompt(self):
         human_messages = [{'role': msg['role'], 'content': msg['content'].format(
-            comment=self.comment,
+            comment=(self.comment[len("sweep:"):].strip() if self.comment.startswith("sweep:") else self.comment),
             repo_name=self.repo_name,
             repo_description=self.repo_description if self.repo_description else "",
             diff=self.format_diffs(),

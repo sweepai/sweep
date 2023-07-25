@@ -3,11 +3,23 @@ import traceback
 import openai
 from loguru import logger
 
-from sweepai.core.entities import NoFilesException, Snippet
+def construct_metadata(repo_full_name, repo_name, organization, repo_description, installation_id, username, function, mode):
+    return {
+        "repo_full_name": repo_full_name,
+        "repo_name": repo_name,
+        "organization": organization,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "username": username,
+        "function": function,
+        "mode": mode,
+    }
+
+from sweepai.core.entities import FileChangeRequest, NoFilesException, Snippet
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.config.server import PREFIX, OPENAI_API_KEY, GITHUB_BOT_TOKEN
+from sweepai.utils.config.server import GITHUB_BOT_USERNAME, PREFIX, OPENAI_API_KEY, GITHUB_BOT_TOKEN
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     get_github_client,
@@ -61,7 +73,16 @@ def on_comment(
         installation_id: int,
         pr_number: int = None,
         comment_id: int | None = None,
+        g: None = None,
+        repo: None = None,
+        pr: None = None,
 ):
+    # Fetch all comments in the current issue thread
+    issue_comments = repo.get_issue(pr_number).get_comments()
+    # Iterate through the comments and delete any that match "sweep: retry" (case-insensitive)
+    for issue_comment in issue_comments:
+        if issue_comment.body.strip().lower() == "sweep: retry":
+            issue_comment.delete()
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
@@ -76,48 +97,33 @@ def on_comment(
     logger.info(
         f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
     organization, repo_name = repo_full_name.split("/")
-    metadata = {
-        "repo_full_name": repo_full_name,
-        "repo_name": repo_name,
-        "organization": organization,
-        "repo_description": repo_description,
-        "installation_id": installation_id,
-        "username": username,
-        "function": "on_comment",
-        "mode": PREFIX,
-    }
+    metadata = construct_metadata(repo_full_name, repo_name, organization, repo_description, installation_id, username, "on_comment", PREFIX)
 
-    posthog.capture(username, "started", properties=metadata)
+    capture_posthog_event(username, "started", properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = pr_path and pr_line_position
+
+    g = get_github_client(installation_id) if not g else g
+    repo = g.get_repo(repo_full_name) if not repo else repo
+    pr = repo.get_pull(pr_number) if not pr else pr
     try:
-        g = get_github_client(installation_id)
-        repo = g.get_repo(repo_full_name)
-        pr = repo.get_pull(pr_number)
-        try:
-            if not comment.lower().startswith('sweep:'):
-                return
-            if not comment_id:
-                pass
-            else:
-                try:
-                    item_to_react_to = pr.get_issue_comment(comment_id)
-                    item_to_react_to.create_reaction("eyes")
-                except Exception as e:
-                    pass
-                try:
-                    item_to_react_to = pr.get_review_comment(comment_id)
-                    item_to_react_to.create_reaction("eyes")
-                except Exception as e:
-                    pass
-        except Exception as e:
-            logger.error(f"Failed to fetch comments: {str(e)}")
         # Check if the PR is closed
         if pr.state == "closed":
             return {"success": True, "message": "PR is closed. No event fired."}
+        if comment_id:
+            try:
+                item_to_react_to = pr.get_issue_comment(comment_id)
+                item_to_react_to.create_reaction("eyes")
+            except Exception as e:
+                pass
+            try:
+                item_to_react_to = pr.get_review_comment(comment_id)
+                item_to_react_to.create_reaction("eyes")
+            except Exception as e:
+                pass
         branch_name = pr.head.ref
         pr_title = pr.title
-        pr_body = pr.body
+        pr_body = pr.body or ""
         diffs = get_pr_diffs(repo, pr)
         pr_line = None
         pr_file_path = None
@@ -127,14 +133,9 @@ def on_comment(
             pr_lines = pr_file.splitlines()
             pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
             pr_file_path = pr_path.strip()
-        # This means it's a comment on the PR
-        else:
-            if not comment.strip().lower().startswith("sweep"):
-                logger.info("No event fired because it doesn't start with Sweep.")
-                return {"success": True, "message": "No event fired."}
 
         def fetch_file_contents_with_retry():
-            retries = 3
+            retries = 1
             error = None
             for i in range(retries):
                 try:
@@ -149,7 +150,7 @@ def on_comment(
                 except Exception as e:
                     error = e
                     continue
-            posthog.capture(
+            capture_posthog_event(
                 username, "fetching_failed", properties={"error": error, **metadata}
             )
             raise error
@@ -206,7 +207,7 @@ def on_comment(
         )
     except Exception as e:
         logger.error(traceback.format_exc())
-        posthog.capture(username, "failed", properties={
+        capture_posthog_event(username, "failed", properties={
             "error": str(e),
             "reason": "Failed to get files",
             **metadata
@@ -215,14 +216,20 @@ def on_comment(
 
     try:
         logger.info("Fetching files to modify/create...")
-        file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change(retries=3)
-        file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
+        if file_comment:
+            file_change_requests = [FileChangeRequest(filename=pr_file_path, instructions=file_comment, change_type="modify")]
+        else:
+            file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change(retries=3)
+            file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
+        if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
+            # Update the PR title to remove the "[DRAFT]" prefix
+            pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
 
         logger.info("Done!")
     except NoFilesException:
-        posthog.capture(username, "failed", properties={
+        capture_posthog_event(username, "failed", properties={
             "error": "No files to change",
             "reason": "No files to change",
             **metadata
@@ -230,16 +237,20 @@ def on_comment(
         return {"success": True, "message": "No files to change."}
     except Exception as e:
         logger.error(traceback.format_exc())
-        posthog.capture(username, "failed", properties={
+        capture_posthog_event(username, "failed", properties={
             "error": str(e),
             "reason": "Failed to make changes",
             **metadata
         })
         raise e
 
-    posthog.capture(username, "success", properties={**metadata})
+    capture_posthog_event(username, "success", properties={**metadata})
     logger.info("on_comment success")
     return {"success": True}
+
+
+def capture_posthog_event(username, event, properties):
+    posthog.capture(username, event, properties=properties)
 
 
 def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
@@ -273,7 +284,7 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
                          branch=branch_name)
     except Exception as e:
         logger.error(traceback.format_exc())
-        if e.status == 404:
+        if e.status == 404: # pylint: disable=no-member
             logger.warning(f"File {pr_path} was not found in previous commit {previous_commit.sha}")
         else:
             raise e
