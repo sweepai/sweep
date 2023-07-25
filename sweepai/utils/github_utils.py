@@ -21,12 +21,6 @@ from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
 
-def get_file_age(repo, file_path):
-    commits = list(repo.get_commits(path=file_path))
-    first_commit_date = commits[-1].commit.author.date
-    file_age_in_days = (datetime.now() - first_commit_date).days
-    return file_age_in_days
-
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"
     return re.sub(pattern, "_", string)
