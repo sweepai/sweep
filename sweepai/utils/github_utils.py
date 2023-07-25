@@ -224,8 +224,14 @@ def search_snippets(
             if query_file_name in file_path:
                 query_match_files.append(file_path)
 
-    snippet_paths = [snippet.file_path for snippet in snippets] + query_match_files[:15]
+    # Extract all filenames from the issue title/description
+    filenames = re.findall(r'\b\w+\.\w+\b', query)
+
+    # Check if the current file is in the list of identified filenames
+    snippet_paths = [snippet.file_path for snippet in snippets if snippet.file_path in filenames] + query_match_files[:15]
     snippet_paths = list(set(snippet_paths))
+
+    # If the current file is in the list of identified filenames, force it to appear in the repo tree
     tree = get_tree_and_file_list(
         repo,
         installation_id,
