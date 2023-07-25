@@ -1,7 +1,9 @@
 import traceback
-
+from typing import Dict, List, Optional, Union
+import github
 import openai
 from loguru import logger
+
 
 def construct_metadata(repo_full_name: str, repo_name: str, organization: str, repo_description: str, installation_id: int, username: str, function: str, mode: str) -> Dict[str, str]:
     return {
