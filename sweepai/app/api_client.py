@@ -1,14 +1,15 @@
-from typing import Any
-import webbrowser
-import httpx
-from pydantic import BaseModel
-import requests
 import json
+import webbrowser
+from typing import Any
+
+import httpx
+import requests
 from loguru import logger
+from pydantic import BaseModel
 
 from sweepai.app.config import SweepChatConfig
 from sweepai.core.entities import Function, PullRequest, Snippet
-from sweepai.utils.constants import PREFIX
+from sweepai.utils.config.client import GITHUB_APP_CLIENT_ID, SWEEP_API_ENDPOINT
 
 create_pr_function = Function(
     name="create_pr",
@@ -27,7 +28,7 @@ create_pr_function = Function(
                         "instructions": {
                             "type": "string",
                             "description": "Concise NATURAL LANGUAGE summary of what to change in each file. There should be absolutely NO code, only English.",
-                            "example":  [
+                            "example": [
                                 "Refactor the algorithm by moving the main function to the top of the file.",
                                 "Change the implementation to recursion"
                             ]
@@ -56,6 +57,7 @@ create_pr_function = Function(
 
 create_pr_function_call = {"name": "create_pr"}
 
+
 def break_json(raw_json: str):
     # turns something like {"function_call": {"arguments": " \""}}{"function_call": {"arguments": "summary"}} into two objects
     try:
@@ -71,28 +73,46 @@ def break_json(raw_json: str):
             except json.JSONDecodeError:
                 pass
 
+
 class APIClient(BaseModel):
     config: SweepChatConfig
-    api_endpoint = f"https://sweepai--{PREFIX}-ui.modal.run"
+    api_endpoint: str = SWEEP_API_ENDPOINT
+
+    def __init__(self, config: SweepChatConfig):
+        super().__init__(config=config)
+        self.config = config
+        logger.info(f"Initializing API client")
+        logger.info(f"API endpoint: {self.api_endpoint}")
+        logger.info(f"Github APP Client ID: {GITHUB_APP_CLIENT_ID}")
+
+    def get_user_info(self) -> dict:
+        results = requests.post(
+            self.api_endpoint + "/user_info",
+            json=self.config.dict(),
+        )
+        if results.status_code != 200:
+            raise Exception(results.text)
+        return results.json()
 
     def get_installation_id(self):
         results = requests.post(
             self.api_endpoint + "/installation_id",
-            json= self.config.dict(),
+            json=self.config.dict(),
         )
-        if results.status_code == 401:
+        if results.status_code in (401, 403):
             print("Installation ID not found! Please install sweep first.")
-            webbrowser.open_new_tab("https://github.com/apps/sweep-ai")
+            # if results.status_code == 403:
+            #     webbrowser.open_new_tab("https://github.com/apps/sweep-ai")
             raise Exception(results.json()["detail"])
         if results.status_code != 200:
-            raise Exception(results.json()["detail"])
+            raise Exception(results.text)
         obj = results.json()
         return obj["installation_id"]
 
     def search(
-        self,
-        query: str,
-        n_results: int = 5,
+            self,
+            query: str,
+            n_results: int = 5,
     ):
         results = requests.post(
             self.api_endpoint + "/search",
@@ -102,14 +122,16 @@ class APIClient(BaseModel):
                 "config": self.config.dict(),
             }
         )
+        if results.status_code != 200:
+            raise Exception(results.text)
         snippets = [Snippet(**item) for item in results.json()]
         return snippets
-    
+
     def create_pr(
-        self,
-        file_change_requests: list[tuple[str, str]],
-        pull_request: PullRequest,
-        messages: list[tuple[str | None, str | None]],
+            self,
+            file_change_requests: list[tuple[str, str]],
+            pull_request: PullRequest,
+            messages: list[tuple[str | None, str | None]],
     ):
         results = requests.post(
             self.api_endpoint + "/create_pr",
@@ -121,13 +143,16 @@ class APIClient(BaseModel):
             },
             timeout=10 * 60
         )
-        return results.json()
-    
+        try:
+            return results.json()
+        except json.JSONDecodeError:
+            raise Exception(f"{results.text} is invalid JSON")
+
     def chat(
-        self, 
-        messages: list[tuple[str | None, str | None]],
-        snippets: list[Snippet] = [],
-        model: str = "gpt-4-0613",
+            self,
+            messages: list[tuple[str | None, str | None]],
+            snippets: list[Snippet] = [],
+            model: str = "gpt-4-0613",
     ) -> str:
         results = requests.post(
             self.api_endpoint + "/chat",
@@ -137,34 +162,42 @@ class APIClient(BaseModel):
                 "config": self.config.dict()
             }
         )
-        return results.json()
-    
+        try:
+            return results.json()
+        except json.JSONDecodeError:
+            raise Exception(f"{results.text} is invalid JSON")
+
     def stream_chat(
-        self, 
-        messages: list[tuple[str | None, str | None]], 
-        snippets: list[Snippet] = [],
-        functions: list[Function] = [],
-        function_call: Any = "auto",
-        model: str = "gpt-4-0613"
+            self,
+            messages: list[tuple[str | None, str | None]],
+            snippets: list[Snippet] = [],
+            do_add_plan: bool = True,
+            functions: list[Function] = [],
+            function_call: Any = "auto",
+            model: str = "gpt-4-0613"
     ):
-        with httpx.Client(timeout=30) as client: # sometimes this step is slow
+        with httpx.Client(timeout=30) as client:  # sometimes this step is slow
             with client.stream(
-                'POST', 
-                self.api_endpoint + '/chat_stream',
-                json={
-                    "messages": messages,
-                    "snippets": [snippet.dict() for snippet in snippets],
-                    "functions": [func.dict() for func in functions],
-                    "function_call": function_call,
-                    "config": self.config.dict()
-                }
+                    'POST',
+                    self.api_endpoint + '/chat_stream',
+                    json={
+                        "messages": messages,
+                        "snippets": [snippet.dict() for snippet in snippets],
+                        "do_add_plan": do_add_plan,
+                        "functions": [func.dict() for func in functions],
+                        "function_call": function_call,
+                        "config": self.config.dict()
+                    }
             ) as response:
                 for delta_chunk in response.iter_text():
                     if not delta_chunk:
                         break
                     try:
                         for item in break_json(delta_chunk):
+                            if "error" in item:
+                                logger.error(item)
+                                raise Exception(item["error"])
                             yield item
-                    except json.decoder.JSONDecodeError as e: 
+                    except json.decoder.JSONDecodeError as e:
                         logger.error(delta_chunk)
                         raise e
