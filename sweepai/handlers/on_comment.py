@@ -3,7 +3,7 @@ import traceback
 import openai
 from loguru import logger
 
-def construct_metadata(repo_full_name, repo_name, organization, repo_description, installation_id, username, function, mode):
+def construct_metadata(repo_full_name: str, repo_name: str, organization: str, repo_description: str, installation_id: int, username: str, function: str, mode: str) -> Dict[str, str]:
     return {
         "repo_full_name": repo_full_name,
         "repo_name": repo_name,
@@ -36,7 +36,7 @@ num_full_files = 2
 num_extended_snippets = 2
 
 
-def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3):
+def post_process_snippets(snippets: List[Snippet], max_num_of_snippets: int = 3) -> List[Snippet]:
     for snippet in snippets[:num_full_files]:
         snippet = snippet.expand()
 
@@ -67,16 +67,16 @@ def on_comment(
         repo_full_name: str,
         repo_description: str,
         comment: str,
-        pr_path: str | None,
-        pr_line_position: int | None,
+        pr_path: Optional[str],
+        pr_line_position: Optional[int],
         username: str,
         installation_id: int,
-        pr_number: int = None,
-        comment_id: int | None = None,
-        g: None = None,
-        repo: None = None,
-        pr: None = None,
-):
+        pr_number: Optional[int] = None,
+        comment_id: Optional[int] = None,
+        g: Optional[github.Github] = None,
+        repo: Optional[github.Repository.Repository] = None,
+        pr: Optional[github.PullRequest.PullRequest] = None,
+) -> Dict[str, Union[str, bool]]:
     # Fetch all comments in the current issue thread
     issue_comments = repo.get_issue(pr_number).get_comments()
     # Iterate through the comments and delete any that match "sweep: retry" (case-insensitive)
@@ -249,11 +249,11 @@ def on_comment(
     return {"success": True}
 
 
-def capture_posthog_event(username, event, properties):
+def capture_posthog_event(username: str, event: str, properties: Dict[str, str]) -> None:
     posthog.capture(username, event, properties=properties)
 
 
-def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
+def rollback_file(repo_full_name: str, pr_path: str, installation_id: int, pr_number: int) -> None:
     g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
     pr = repo.get_pull(pr_number)
