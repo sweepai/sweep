@@ -8,11 +8,17 @@ from loguru import logger
 
 from sweepai.core.gha_extraction import GHAExtractor
 from sweepai.events import CheckRunCompleted
+from sweepai.handlers.on_comment import on_comment
 from sweepai.utils.config.client import SweepConfig, get_gha_enabled
 from sweepai.utils.github_utils import get_github_client, get_token
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
+log_message = """GitHub actions yielded the following error. 
+
+{error_logs}
+
+This is likely a linting or type-checking issue with the source code but could potentially be an issue with the GitHub Action yaml files."""
 
 def download_logs(repo_full_name: str, run_id: int, installation_id: int):
     headers = {
@@ -56,13 +62,16 @@ def clean_logs(logs_str: str):
 
 
 def on_check_suite(request: CheckRunCompleted):
+    logger.info(f"Received check run completed event for {request.repository.full_name}")
     g = get_github_client(request.installation.id)
     repo = g.get_repo(request.repository.full_name)
     if not get_gha_enabled(repo):
+        logger.info(f"Skipping github action for {request.repository.full_name} because it is not enabled")
         return None
     pr = repo.get_pull(request.check_run.pull_requests[0].number)
     num_pr_commits = len(list(pr.get_commits()))
-    if num_pr_commits > 6:
+    if num_pr_commits > 20:
+        logger.info(f"Skipping github action for PR with {num_pr_commits} commits")
         return None
     logger.info(f"Running github action for PR with {num_pr_commits} commits")
     logs = download_logs(
@@ -75,5 +84,27 @@ def on_check_suite(request: CheckRunCompleted):
     logs = clean_logs(logs)
     extractor = GHAExtractor()
     logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
-    logs = extractor.gha_extract(logs)
-    return logs
+    problematic_logs = extractor.gha_extract(logs)
+    if problematic_logs.count("\n") > 15:
+        problematic_logs += "\n\nThere are a lot of errors. This is likely a larger issue with the PR and not a small linting/type-checking issue."
+    comments = list(pr.get_issue_comments())
+    if len(comments) >= 2 and problematic_logs == comments[-1].body and comments[-2].body == comments[-1].body:
+        comment = pr.as_issue().create_comment(log_message.format(error_logs=problematic_logs) + "\n\nI'm getting the same errors 3 times in a row, so I will stop working on fixing this PR.")
+        logger.warning("Skipping logs because it is duplicated")
+        raise Exception("Duplicate error logs")
+    print(problematic_logs)
+    comment = pr.as_issue().create_comment(log_message.format(error_logs=problematic_logs))
+    on_comment(
+        repo_full_name=request.repository.full_name,
+        repo_description=request.repository.description,
+        comment=problematic_logs,
+        pr_path=None,
+        pr_line_position=None,
+        username=request.sender.login,
+        installation_id=request.installation.id,
+        pr_number=request.check_run.pull_requests[0].number,
+        comment_id=comment.id,
+        repo=repo,
+    )
+    return {"success": True}
+
