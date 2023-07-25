@@ -21,6 +21,40 @@ from ..utils.config.client import SweepConfig
 from ..utils.config.server import ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, REDIS_URL, BOT_TOKEN_NAME
 from ..utils.github_utils import get_token
 
+# Define the global variables
+DEEPLAKE_FOLDER = "deeplake/"
+stub = modal.Stub(DB_MODAL_INST_NAME)
+image = modal.Image.debian_slim()
+secrets = [
+    modal.Secret.from_name(BOT_TOKEN_NAME),
+    modal.Secret.from_name("github"),
+    modal.Secret.from_name("openai-secret"),
+    modal.Secret.from_name("huggingface"),
+    modal.Secret.from_name("chroma-endpoint"),
+    modal.Secret.from_name("posthog"),
+    modal.Secret.from_name("redis_url"),
+    modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
+]
+MODEL_DIR = "/root/cache/model"
+BATCH_SIZE = 256
+SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-MiniLM-L12-v2"
+CACHE_VERSION = "v1.0.1"
+MAX_FILES = 3000
+chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
+DISKCACHE_DIR = "/root/cache/diskcache/"
+DEEPLAKE_DIR = "/root/cache/"
+timeout = 60 * 30  # 30 minutes
+
+# Define the `embedding_function`
+class ModalEmbeddingFunction():
+    def __init__(self):
+        pass
+
+    def __call__(self, texts):
+        return Embedding.compute.call(texts) # pylint: disable=no-member
+
+embedding_function = ModalEmbeddingFunction()
+
 
 def compute_filename_score(filename):
     # Compute the score of the filename based on a specific criteria or algorithm
@@ -71,14 +105,6 @@ class Embedding:
     @method()
     def ping(self):
         return "pong"
-
-
-class ModalEmbeddingFunction():
-    def __init__(self):
-        pass
-
-    def __call__(self, texts):
-        return Embedding.compute.call(texts) # pylint: disable=no-member
 
 
 def get_deeplake_vs_from_repo(
