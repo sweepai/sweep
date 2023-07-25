@@ -406,15 +406,21 @@ def on_ticket(
                                                              repo_description=repo_description, title=title,
                                                              summary=summary, replies_text=replies_text, tree=tree)
                 logger.info(f"Addressing review comment {review_comment}")
-                if changes_required:
-                    on_comment(repo_full_name=repo_full_name,
-                               repo_description=repo_description,
-                               comment=review_comment,
-                               username=username,
-                               installation_id=installation_id,
-                               pr_path=None,
-                               pr_line_position=None,
-                               pr_number=pr.number)
+                while changes_required and iterations < 3:
+                    changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
+                                                                 repo_description=repo_description, title=title,
+                                                                 summary=summary, replies_text=replies_text, tree=tree)
+                    logger.info(f"Addressing review comment {review_comment}")
+                    if changes_required:
+                        on_comment(repo_full_name=repo_full_name,
+                                   repo_description=repo_description,
+                                   comment=review_comment,
+                                   username=username,
+                                   installation_id=installation_id,
+                                   pr_path=None,
+                                   pr_line_position=None,
+                                   pr_number=pr.number)
+                    iterations += 1
             except Exception as e:
                 logger.error(traceback.format_exc())
                 logger.error(e)
