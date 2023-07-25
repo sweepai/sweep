@@ -144,139 +144,104 @@ async def webhook(raw_request: Request):
         assert event is not None
         action = request_dict.get("action", None)
         logger.info(f"Received event: {event}, {action}")
-        match event, action:
-            case "issues", "opened":
-                request = IssueRequest(**request_dict)
-                issue_title_lower = request.issue.title.lower()
-                if issue_title_lower.startswith("sweep") or "sweep:" in issue_title_lower:
-                    g = get_github_client(request.installation.id)
-                    repo = g.get_repo(request.repository.full_name)
-
-                    labels = repo.get_labels()
-                    label_names = [label.name for label in labels]
-
-                    if GITHUB_LABEL_NAME not in label_names:
-                        repo.create_label(
-                            name=GITHUB_LABEL_NAME,
-                            color=GITHUB_LABEL_COLOR,
-                            description=GITHUB_LABEL_DESCRIPTION,
-                        )
-                    # TODO(sweep): figure out why this is breaking
-                    # else:
-                    #     label = repo.get_label(LABEL_NAME)
-                    #     label.edit(
-                    #         name=LABEL_NAME,
-                    #         color=LABEL_COLOR, 
-                    #         description=LABEL_DESCRIPTION
-                    #     )
+        if event == "issues" and action == "opened":
+            ...
+        elif event == "issues" and action == "labeled":
+            ...
+        elif event == "issue_comment" and action == "created":
+            ...
+        elif event == "pull_request_review_comment" and action == "created":
+            ...
+        elif event == "pull_request_review" and action == "submitted":
+            ...
+        elif event == "check_run" and action == "completed":
+            ...
+        elif event == "installation_repositories" and action == "added":
+            ...
+        elif event == "installation" and action == "created":
+            ...
+        elif event == "pull_request" and action == "closed":
+            ...
+        elif event == "push" and action is None:
+            ...
+        elif event == "ping" and action is None:
+            ...
+        else:
+            ...
 
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
-            case "issues", "labeled":
-                request = IssueRequest(**request_dict)
-                if 'label' in request_dict and str.lower(request_dict['label']['name']) == GITHUB_LABEL_NAME:
-                    request.issue.body = request.issue.body or ""
-                    request.repository.description = (
-                            request.repository.description or ""
-                    )
-                    # Update before we handle the ticket to make sure index is up to date
-                    # other ways suboptimal
-                    handle_ticket.spawn(
-                        request.issue.title,
-                        request.issue.body,
-                        request.issue.number,
-                        request.issue.html_url,
-                        request.issue.user.login,
-                        request.repository.full_name,
-                        request.repository.description,
-                        request.installation.id,
-                        None
-                    )
-            case "issue_comment", "created":
-                request = IssueCommentRequest(**request_dict)
-                if request.issue is not None \
-                        and GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels] \
-                        and request.comment.user.type == "User" \
-                        and not (
-                            request.issue.pull_request
-                            and request.issue.pull_request.url
-                        ):
-                    logger.info("New issue comment created")
-                    request.issue.body = request.issue.body or ""
-                    request.repository.description = (
-                            request.repository.description or ""
-                    )
+        elif event == "issues" and action == "labeled":
+            request = IssueRequest(**request_dict)
+            if 'label' in request_dict and str.lower(request_dict['label']['name']) == GITHUB_LABEL_NAME:
+                request.issue.body = request.issue.body or ""
+                request.repository.description = (
+                        request.repository.description or ""
+                )
+                # Update before we handle the ticket to make sure index is up to date
+                # other ways suboptimal
+                handle_ticket.spawn(
+                    request.issue.title,
+                    request.issue.body,
+                    request.issue.number,
+                    request.issue.html_url,
+                    request.issue.user.login,
+                    request.repository.full_name,
+                    request.repository.description,
+                    request.installation.id,
+                    None
+                )
+        elif event == "issue_comment" and action == "created":
+            request = IssueCommentRequest(**request_dict)
+            if request.issue is not None \
+                    and GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels] \
+                    and request.comment.user.type == "User" \
+                    and not (
+                        request.issue.pull_request
+                        and request.issue.pull_request.url
+                    ):
+                logger.info("New issue comment created")
+                request.issue.body = request.issue.body or ""
+                request.repository.description = (
+                        request.repository.description or ""
+                )
 
-                    if not request.comment.body.strip().lower().startswith(GITHUB_LABEL_NAME):
-                        logger.info("Comment does not start with 'Sweep', passing")
-                        return {"success": True, "reason": "Comment does not start with 'Sweep', passing"}
+                if not request.comment.body.strip().lower().startswith(GITHUB_LABEL_NAME):
+                    logger.info("Comment does not start with 'Sweep', passing")
+                    return {"success": True, "reason": "Comment does not start with 'Sweep', passing"}
 
-                    # Update before we handle the ticket to make sure index is up to date
-                    # other ways suboptimal
-                    handle_ticket.spawn(
-                        request.issue.title,
-                        request.issue.body,
-                        request.issue.number,
-                        request.issue.html_url,
-                        request.issue.user.login,
-                        request.repository.full_name,
-                        request.repository.description,
-                        request.installation.id,
-                        request.comment.id
-                    )
-                elif request.issue.pull_request and request.comment.user.type == "User":  # TODO(sweep): set a limit
-                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
-                    g = get_github_client(request.installation.id)
-                    repo = g.get_repo(request.repository.full_name)
-                    pr = repo.get_pull(request.issue.number)
-                    labels = pr.get_labels()
-                    comment = request.comment.body
-                    if comment.lower().startswith('sweep:') or any(label.name.lower() == "sweep" for label in labels):
-                        pr_change_request = PRChangeRequest(
-                            type="comment",
-                            params={
-                                "repo_full_name": request.repository.full_name,
-                                "repo_description": request.repository.description,
-                                "comment": request.comment.body,
-                                "pr_path": None,
-                                "pr_line_position": None,
-                                "username": request.comment.user.login,
-                                "installation_id": request.installation.id,
-                                "pr_number": request.issue.number,
-                                "comment_id": request.comment.id,
-                                "g": g,
-                                "repo": repo,
-                                "pr": pr,
-                            }
-                        )
-                        push_to_queue(
-                            repo_full_name=request.repository.full_name,
-                            pr_id=request.issue.number,
-                            pr_change_request=pr_change_request
-                        )
-            case "pull_request_review_comment", "created":
-                # Add a separate endpoint for this
-                print(request_dict)
-                request = CommentCreatedRequest(**request_dict)
-                logger.info(f"Handling comment on PR: {request.pull_request.number}")
+                # Update before we handle the ticket to make sure index is up to date
+                # other ways suboptimal
+                handle_ticket.spawn(
+                    request.issue.title,
+                    request.issue.body,
+                    request.issue.number,
+                    request.issue.html_url,
+                    request.issue.user.login,
+                    request.repository.full_name,
+                    request.repository.description,
+                    request.installation.id,
+                    request.comment.id
+                )
+            elif request.issue.pull_request and request.comment.user.type == "User":  # TODO(sweep): set a limit
+                logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                 g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
-                pr = repo.get_pull(request.pull_request.number)
+                pr = repo.get_pull(request.issue.number)
                 labels = pr.get_labels()
                 comment = request.comment.body
                 if comment.lower().startswith('sweep:') or any(label.name.lower() == "sweep" for label in labels):
-                    print(request_dict)
                     pr_change_request = PRChangeRequest(
                         type="comment",
                         params={
                             "repo_full_name": request.repository.full_name,
                             "repo_description": request.repository.description,
                             "comment": request.comment.body,
-                            "pr_path": request.comment.path,
-                            "pr_line_position": request.comment.original_line,
+                            "pr_path": None,
+                            "pr_line_position": None,
                             "username": request.comment.user.login,
                             "installation_id": request.installation.id,
-                            "pr_number": request.pull_request.number,
+                            "pr_number": request.issue.number,
                             "comment_id": request.comment.id,
                             "g": g,
                             "repo": repo,
@@ -285,110 +250,144 @@ async def webhook(raw_request: Request):
                     )
                     push_to_queue(
                         repo_full_name=request.repository.full_name,
-                        pr_id=request.pull_request.number,
+                        pr_id=request.issue.number,
                         pr_change_request=pr_change_request
                     )
-                # Todo: update index on comments
-            case "pull_request_review", "submitted":
-                # request = ReviewSubmittedRequest(**request_dict)
-                pass
-            case "check_run", "completed":
-                request = CheckRunCompleted(**request_dict)
-                logs = None
-                if request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
-                    logs = handle_check_suite.call(request)
-                    if len(request.check_run.pull_requests) > 0 and logs:
-                        pr_change_request = PRChangeRequest(
-                            type="comment",
-                            params={
-                                "repo_full_name": request.repository.full_name,
-                                "repo_description": request.repository.description,
-                                "comment": "Sweep: " + logs,
-                                "pr_path": None,
-                                "pr_line_position": None,
-                                "username": request.sender.login,
-                                "installation_id": request.installation.id,
-                                "pr_number": request.check_run.pull_requests[0].number,
-                                "comment_id": None,
-                            }
-                        )
-                        push_to_queue(
-                            repo_full_name=request.repository.full_name,
-                            pr_id=request.check_run.pull_requests[0].number,
-                            pr_change_request=pr_change_request
-                        )
-            case "installation_repositories", "added":
-                repos_added_request = ReposAddedRequest(**request_dict)
-                metadata = {
-                    "installation_id": repos_added_request.installation.id,
-                    "repositories": [
-                        repo.full_name
-                        for repo in repos_added_request.repositories_added
-                    ],
-                }
-                posthog.capture("installation_repositories", "started", properties={
-                    **metadata
-                })
-                for repo in repos_added_request.repositories_added:
-                    organization, repo_name = repo.full_name.split("/")
-                    posthog.capture(
-                        organization,
-                        "installed_repository",
-                        properties={
-                            "repo_name": repo_name,
-                            "organization": organization,
-                            "repo_full_name": repo.full_name
+        elif event == "pull_request_review_comment" and action == "created":
+            # Add a separate endpoint for this
+            print(request_dict)
+            request = CommentCreatedRequest(**request_dict)
+            logger.info(f"Handling comment on PR: {request.pull_request.number}")
+            g = get_github_client(request.installation.id)
+            repo = g.get_repo(request.repository.full_name)
+            pr = repo.get_pull(request.pull_request.number)
+            labels = pr.get_labels()
+            comment = request.comment.body
+            if comment.lower().startswith('sweep:') or any(label.name.lower() == "sweep" for label in labels):
+                print(request_dict)
+                pr_change_request = PRChangeRequest(
+                    type="comment",
+                    params={
+                        "repo_full_name": request.repository.full_name,
+                        "repo_description": request.repository.description,
+                        "comment": request.comment.body,
+                        "pr_path": request.comment.path,
+                        "pr_line_position": request.comment.original_line,
+                        "username": request.comment.user.login,
+                        "installation_id": request.installation.id,
+                        "pr_number": request.pull_request.number,
+                        "comment_id": request.comment.id,
+                        "g": g,
+                        "repo": repo,
+                        "pr": pr,
+                    }
+                )
+                push_to_queue(
+                    repo_full_name=request.repository.full_name,
+                    pr_id=request.pull_request.number,
+                    pr_change_request=pr_change_request
+                )
+            # Todo: update index on comments
+        elif event == "pull_request_review" and action == "submitted":
+            # request = ReviewSubmittedRequest(**request_dict)
+            pass
+        elif event == "check_run" and action == "completed":
+            request = CheckRunCompleted(**request_dict)
+            logs = None
+            if request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
+                logs = handle_check_suite.call(request)
+                if len(request.check_run.pull_requests) > 0 and logs:
+                    pr_change_request = PRChangeRequest(
+                        type="comment",
+                        params={
+                            "repo_full_name": request.repository.full_name,
+                            "repo_description": request.repository.description,
+                            "comment": "Sweep: " + logs,
+                            "pr_path": None,
+                            "pr_line_position": None,
+                            "username": request.sender.login,
+                            "installation_id": request.installation.id,
+                            "pr_number": request.check_run.pull_requests[0].number,
+                            "comment_id": None,
                         }
                     )
-                    index_full_repository(
-                        repo.full_name,
-                        installation_id=repos_added_request.installation.id,
+                    push_to_queue(
+                        repo_full_name=request.repository.full_name,
+                        pr_id=request.check_run.pull_requests[0].number,
+                        pr_change_request=pr_change_request
                     )
-            case "installation", "created":
-                repos_added_request = InstallationCreatedRequest(**request_dict)
-                for repo in repos_added_request.repositories:
-                    index_full_repository(
-                        repo.full_name,
-                        installation_id=repos_added_request.installation.id,
-                    )
-            case "pull_request", "closed":
-                pr_request = PRRequest(**request_dict)
-                organization, repo_name = pr_request.repository.full_name.split("/")
-                commit_author = pr_request.pull_request.user.login
-                merged_by = pr_request.pull_request.merged_by.login if pr_request.pull_request.merged_by else pr_request.pull_request.user.login
-                if GITHUB_BOT_USERNAME == commit_author:
-                    event_name = "merged_sweep_pr"
-                    if pr_request.pull_request.title.startswith("[config]"):
-                        event_name = "config_pr_merged"
-                    posthog.capture(
-                        merged_by,
-                        event_name,
-                        properties={
-                            "repo_name": repo_name,
-                            "organization": organization,
-                            "repo_full_name": pr_request.repository.full_name,
-                            "username": merged_by
-                        })
+        elif event == "installation_repositories" and action == "added":
+            repos_added_request = ReposAddedRequest(**request_dict)
+            metadata = {
+                "installation_id": repos_added_request.installation.id,
+                "repositories": [
+                    repo.full_name
+                    for repo in repos_added_request.repositories_added
+                ],
+            }
+            posthog.capture("installation_repositories", "started", properties={
+                **metadata
+            })
+            for repo in repos_added_request.repositories_added:
+                organization, repo_name = repo.full_name.split("/")
+                posthog.capture(
+                    organization,
+                    "installed_repository",
+                    properties={
+                        "repo_name": repo_name,
+                        "organization": organization,
+                        "repo_full_name": repo.full_name
+                    }
+                )
+                index_full_repository(
+                    repo.full_name,
+                    installation_id=repos_added_request.installation.id,
+                )
+        elif event == "installation" and action == "created":
+            repos_added_request = InstallationCreatedRequest(**request_dict)
+            for repo in repos_added_request.repositories:
+                index_full_repository(
+                    repo.full_name,
+                    installation_id=repos_added_request.installation.id,
+                )
+        elif event == "pull_request" and action == "closed":
+            pr_request = PRRequest(**request_dict)
+            organization, repo_name = pr_request.repository.full_name.split("/")
+            commit_author = pr_request.pull_request.user.login
+            merged_by = pr_request.pull_request.merged_by.login if pr_request.pull_request.merged_by else pr_request.pull_request.user.login
+            if GITHUB_BOT_USERNAME == commit_author:
+                event_name = "merged_sweep_pr"
+                if pr_request.pull_request.title.startswith("[config]"):
+                    event_name = "config_pr_merged"
+                posthog.capture(
+                    merged_by,
+                    event_name,
+                    properties={
+                        "repo_name": repo_name,
+                        "organization": organization,
+                        "repo_full_name": pr_request.repository.full_name,
+                        "username": merged_by
+                    })
+            update_index.spawn(
+                request_dict["repository"]["full_name"],
+                installation_id=request_dict["installation"]["id"],
+            )
+        elif event == "push" and action is None:
+            if event != "pull_request" or request_dict["base"]["merged"] == True:
                 update_index.spawn(
                     request_dict["repository"]["full_name"],
                     installation_id=request_dict["installation"]["id"],
                 )
-            case "push", None:
-                if event != "pull_request" or request_dict["base"]["merged"] == True:
-                    update_index.spawn(
-                        request_dict["repository"]["full_name"],
-                        installation_id=request_dict["installation"]["id"],
-                    )
-                    update_sweep_prs.spawn(
-                        request_dict["repository"]["full_name"],
-                        installation_id=request_dict["installation"]["id"],
-                    )
-            case "ping", None:
-                return {"message": "pong"}
-            case _:
-                logger.info(
-                    f"Unhandled event: {event} {request_dict.get('action', None)}"
+                update_sweep_prs.spawn(
+                    request_dict["repository"]["full_name"],
+                    installation_id=request_dict["installation"]["id"],
                 )
+        elif event == "ping" and action is None:
+            return {"message": "pong"}
+        else:
+            logger.info(
+                f"Unhandled event: {event} {request_dict.get('action', None)}"
+            )
     except ValidationError as e:
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
