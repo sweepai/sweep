@@ -41,7 +41,7 @@ Describe bugs, small features, and refactors like you would to a junior develope
 
 ---
 
-## 🚀 Getting Started
+## Getting Started 🚀
 
 Install Sweep by adding the [**Sweep GitHub app**](https://github.com/apps/sweep-ai) to your desired repositories.
 
