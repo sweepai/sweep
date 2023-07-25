@@ -126,7 +126,9 @@ def get_deeplake_vs_from_repo(
     score = compute_filename_score(file_path)
     # some code here
     return deeplake_vs
-    commit_hash = commits[0].sha
+    # Replace the `get_commits` method call on a list object with the correct method or object that has a `get_commits` method.
+    # For example, if `repo` is the correct object that has a `get_commits` method, the code would be:
+    commit_hash = repo.get_commits()[0].sha
 
     cache_success = False
     cache_inst = None
