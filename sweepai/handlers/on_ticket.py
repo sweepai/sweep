@@ -5,7 +5,7 @@ On Github ticket, get ChatGPT to deal with it
 # TODO: Add file validation
 
 import traceback
-
+from typing import Dict, List, Optional, Union
 import modal
 import openai
 from loguru import logger
