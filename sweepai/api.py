@@ -4,6 +4,7 @@ from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
 from sweepai.core.entities import PRChangeRequest
+from typing import Dict, Union
 
 from sweepai.events import (
     CheckRunCompleted,
@@ -76,7 +77,7 @@ handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
 def handle_pr_change_request(
     repo_full_name: str,
     pr_id: int
-):
+) -> None:
     # TODO: put process ID here and check if it's still running
     # TODO: GHA should have lower precedence than comments
     try:
@@ -101,7 +102,7 @@ def handle_pr_change_request(
         del stub.app.pr_queues[(repo_full_name, pr_id)]
 
 
-def function_call_is_completed(call_id: str):
+def function_call_is_completed(call_id: str) -> bool:
     if call_id == "0":
         return True
 
@@ -119,7 +120,7 @@ def push_to_queue(
     repo_full_name: str,
     pr_id: int,
     pr_change_request: PRChangeRequest
-):
+) -> None:
     key = (repo_full_name, pr_id)
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
     function_is_completed = function_call_is_completed(call_id)
@@ -135,7 +136,7 @@ def push_to_queue(
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
-async def webhook(raw_request: Request):
+async def webhook(raw_request: Request) -> Dict[str, Union[str, bool]]:
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
@@ -398,7 +399,7 @@ async def webhook(raw_request: Request):
 def update_sweep_prs(
     repo_full_name: str,
     installation_id: int
-):
+) -> None:
     # Get a Github client
     g = get_github_client(installation_id)
     
