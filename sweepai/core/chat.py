@@ -1,4 +1,4 @@
-import json
+import random
 from copy import deepcopy
 from typing import Iterator, Literal, Self
 
@@ -64,7 +64,7 @@ class ChatGPT(BaseModel):
         )
     ]
     prev_message_states: list[list[Message]] = []
-    model: ChatModel = "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
+    model: ChatModel = random.choice(["gpt-4-32k-0613", "gpt-4-32k"]) if OPENAI_DO_HAVE_32K_MODEL_ACCESS else random.choice(["gpt-4-0613", "gpt-4"])
     human_message: HumanMessagePrompt | None = None
     file_change_paths = []
     chat_logger: ChatLogger | None
