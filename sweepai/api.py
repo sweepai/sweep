@@ -124,16 +124,7 @@ def push_to_queue(
     key = (repo_full_name, pr_id)
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
     function_is_completed = function_call_is_completed(call_id)
-    if pr_change_request.type == "comment":
-        queue = [pr_change_request] + queue
-        if function_is_completed:
-            stub.app.pr_queues[key] = ("0", queue)
-            call_id = handle_pr_change_request.spawn(
-                repo_full_name=repo_full_name, 
-                pr_id=pr_id
-            ).object_id
-        stub.app.pr_queues[key] = (call_id, queue)
-    elif pr_change_request.type == "gha":
+    if pr_change_request.type == "comment" or function_is_completed:
         queue = [pr_change_request] + queue
         if function_is_completed:
             stub.app.pr_queues[key] = ("0", queue)
@@ -282,6 +273,7 @@ async def webhook(raw_request: Request):
                         logger.info(f"Skipping check suite for {request.repository.full_name} because it is not a PR")
                 else:
                     logger.info(f"Skipping check suite for {request.repository.full_name} because it is not a failure or not from the bot")
+                    # TODO: Add tests here to verify the new functionality for handling failures from the GitHub bot.
             case "pull_request_review_comment", "created":
                 # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
