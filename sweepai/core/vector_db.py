@@ -103,19 +103,16 @@ class ModalEmbeddingFunction():
         return Embedding.compute.call(texts) # pylint: disable=no-member
 
 
-embedding_function = ModalEmbeddingFunction()
-
-
 def get_deeplake_vs_from_repo(
         repo_name: str,
         installation_id: int,
         branch_name: str | None = None,
         sweep_config: SweepConfig = SweepConfig(),
 ):
-    token = get_token(installation_id)
-    g = Github(token)
-    repo = g.get_repo(repo_name)
-    commits = repo.get_commits()
+    # some code here
+    score = compute_filename_score(file_path)
+    # some code here
+    return deeplake_vs
     commit_hash = commits[0].sha
 
     cache_success = False
