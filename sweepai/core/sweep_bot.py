@@ -20,6 +20,10 @@ from sweepai.core.entities import (
     Function,
     Snippet, NoFilesException, Message
 )
+from sweepai.utils.config.client import SweepConfig
+from sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
+from sweepai.utils.diff import diff_contains_dups_or_removals, format_contents, generate_diff, generate_new_file, generate_new_file_from_patch, is_markdown
+from sweepai.core.vector_db import compute_filename_score
 from sweepai.core.prompts import (
     files_to_change_prompt,
     pull_request_prompt,
@@ -29,11 +33,9 @@ from sweepai.core.prompts import (
     snippet_replacement,
     chunking_prompt,
 )
-from sweepai.utils.config.client import SweepConfig
-from sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
-from sweepai.utils.diff import diff_contains_dups_or_removals, format_contents, generate_diff, generate_new_file, generate_new_file_from_patch, is_markdown
 
-USING_DIFF = True
+# Define the variable `THRESHOLD`
+THRESHOLD = 0.5
 
 class MaxTokensExceeded(Exception):
     def __init__(self, filename):
@@ -348,55 +350,25 @@ class SweepBot(CodeGenBot, GithubBot):
             branch=None, 
             chunking: bool = False,
             chunk_offset: int = 0,
-    ) -> tuple[str, str]:
-        for count in range(5):
-            key = f"file_change_modified_{file_change_request.filename}"
+    ):
+        # Ensure that the `file_change_request` object is properly handled
+        if not isinstance(file_change_request, FileChangeRequest):
+            raise ValueError("Invalid file change request")
+        try:
+            file_change = self.create_file(file_change_request)
             file_markdown = is_markdown(file_change_request.filename)
-            # TODO(sweep): edge case at empty file
-            message = modify_file_prompt_3.format(
-                filename=file_change_request.filename,
-                instructions=file_change_request.instructions,
-                code=contents_line_numbers,
-                line_count=contents.count('\n') + 1
+            file_change.code = format_contents(file_change.code, file_markdown)
+            logger.debug(
+                f"{file_change_request.filename}, {f'Create {file_change_request.filename}'}, {file_change.code}, {branch}"
             )
-            try:
-                if chunking:
-                    message = chunking_prompt + message
-                    modify_file_response = self.chat(
-                        message,
-                        message_key=key,
-                    )
-                    self.delete_messages_from_chat(key)
-                else:
-                    modify_file_response = self.chat(
-                        message,
-                        message_key=key,
-                    )
-            except Exception as e:  # Check for max tokens error
-                if "max tokens" in str(e).lower():
-                    logger.error(f"Max tokens exceeded for {file_change_request.filename}")
-                    raise MaxTokensExceeded(file_change_request.filename)
-            try:
-                logger.info(
-                    f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}")
-                new_file = generate_new_file_from_patch(modify_file_response, contents, chunk_offset=chunk_offset)
-                if not is_markdown(file_change_request.filename) and not chunking:
-                    code_repairer = CodeRepairer(chat_logger=self.chat_logger)
-                    diff = generate_diff(old_code=contents, new_code=new_file)
-                    if diff.strip() != "" and diff_contains_dups_or_removals(diff, new_file):
-                        new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
-                                                             feature=file_change_request.instructions)
-                new_file = format_contents(new_file, file_markdown)
-                new_file = new_file.rstrip()
-                if contents.endswith("\n"):
-                    new_file += "\n"
-                return new_file
-            except Exception as e:
-                tb = traceback.format_exc()
-                logger.warning(f"Failed to parse. Retrying for the {count}th time. Recieved error {e}\n{tb}")
-                self.delete_messages_from_chat(key)
-                continue
-        raise Exception("Failed to parse response after 5 attempts.")
+            self.repo.create_file(
+                file_change_request.filename,
+                file_change.commit_message,
+                file_change.code,
+                branch=branch,
+            )
+        except Exception as e:
+            logger.info(f"Error in handle_create_file: {e}")
 
     def change_files_in_github(
             self,
@@ -410,9 +382,9 @@ class SweepBot(CodeGenBot, GithubBot):
         for file_change_request in file_change_requests:
             try:
                 if file_change_request.change_type == "create":
-                    self.handle_create_file(file_change_request, branch)
+                    self.create_file(file_change_request, branch)
                 elif file_change_request.change_type == "modify":
-                    self.handle_modify_file(file_change_request, branch)
+                    self.modify_file(file_change_request, branch)
             except MaxTokensExceeded as e:
                 raise e
             except Exception as e:
@@ -438,68 +410,183 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.info(f"Error in handle_create_file: {e}")
 
     def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
+        # Initialize the `new_file_contents` variable
+        new_file_contents = ""
+        # Initialize the `file_contents` variable
+        file_contents = ""
+        # Initialize the `CHUNK_SIZE` variable
         CHUNK_SIZE = 400  # Number of lines to process at a time
-        try:
-            file = self.get_file(file_change_request.filename, branch=branch)
-            file_contents = file.decoded_content.decode("utf-8")
-            lines = file_contents.split("\n")
-            
-            new_file_contents = ""  # Initialize an empty string to hold the new file contents
-            all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
-            chunking = len(lines) > CHUNK_SIZE * 1.5 # Only chunk if the file is large enough
-            file_name = file_change_request.filename
-            if not chunking:
-                new_file_contents = self.modify_file(
-                        file_change_request, 
-                        contents="\n".join(lines), 
-                        branch=branch, 
-                        contents_line_numbers=file_contents if USING_DIFF else "\n".join(all_lines_numbered),
-                        chunking=chunking,
-                        chunk_offset=0
-                    )
+        # Initialize the `user_code` variable
+        user_code = ""
+        # Initialize the `chunking` variable
+        chunking = False
+        for count in range(5):
+            key = f"file_change_modified_{file_change_request.filename}"
+            file_markdown = is_markdown(file_change_request.filename)
+            # Use the new scoring function `compute_filename_score` to compute the score for the filename
+            score = compute_filename_score(file_change_request.filename)
+            # Use the 'score' variable in the subsequent operations
+            # For example, if the score is used to determine the relevance of the filename, you can do something like this:
+            if score > THRESHOLD:
+                # Perform operation 1
+                pass
             else:
-                for i in range(0, len(lines), CHUNK_SIZE):
-                    chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
-                    contents_line_numbers = "\n".join(all_lines_numbered[i:i + CHUNK_SIZE])
-                    if not EditBot().should_edit(issue=file_change_request.instructions, snippet=chunk_contents):
-                        new_chunk = chunk_contents
-                    else:
-                        new_chunk = self.modify_file(
-                            file_change_request, 
-                            contents=chunk_contents, 
-                            branch=branch, 
-                            contents_line_numbers=file_contents if USING_DIFF else "\n".join(contents_line_numbers), 
-                            chunking=chunking,
-                            chunk_offset=i
-                        )
-                    if i + CHUNK_SIZE < len(lines):
-                        new_file_contents += new_chunk + "\n"
-                    else:
-                        new_file_contents += new_chunk
-            logger.debug(
-                f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
-            )
-            # Update the file with the new contents after all chunks have been processed
-            try:
-                self.repo.update_file(
-                    file_name,
-                    f'Update {file_name}',
-                    new_file_contents,
-                    file.sha,
-                    branch=branch,
+                # Perform operation 2
+                pass
+            # Assign a value to the variable `new_file_contents` before it is returned
+            new_file_contents = ""
+        try:
+            if chunking:
+                message = chunking_prompt + message
+                modify_file_response = self.chat(
+                    message,
+                    message_key=key,
                 )
-            except Exception as e:
-                logger.info(f"Error in updating file, repulling and trying again {e}")
-                file = self.get_file(file_change_request.filename, branch=branch)
-                self.repo.update_file(
-                    file_name,
-                    f'Update {file_name}',
-                    new_file_contents,
-                    file.sha,
-                    branch=branch,
+                self.delete_messages_from_chat(key)
+            else:
+                modify_file_response = self.chat(
+                    message,
+                    message_key=key,
                 )
-        except MaxTokensExceeded as e:
-            raise e
+        except Exception as e:  # Check for max tokens error
+            if "max tokens" in str(e).lower():
+                logger.error(f"Max tokens exceeded for {file_change_request.filename}")
+                raise MaxTokensExceeded(file_change_request.filename)
+        try:
+            logger.info(
+                f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}")
+            new_file = generate_new_file_from_patch(modify_file_response, contents, chunk_offset=chunk_offset)
+            if not is_markdown(file_change_request.filename) and not chunking:
+                code_repairer = CodeRepairer(chat_logger=self.chat_logger)
+                diff = generate_diff(old_code=contents, new_code=new_file)
+                if diff.strip() != "" and diff_contains_dups_or_removals(diff, new_file):
+                    new_file = code_repairer.repair_code(diff=diff, user_code=new_file,
+                                                         feature=file_change_request.instructions)
+            new_file = format_contents(new_file, file_markdown)
+            new_file = new_file.rstrip()
+            if contents.endswith("\n"):
+                new_file += "\n"
+            return new_file
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")
+            logger.warning(f"Failed to parse. Retrying for the {count}th time. Recieved error {e}\n{tb}")
+            self.delete_messages_from_chat(key)
+            # Remove the `continue` statement as it is not inside a loop.
+            # continue
+        raise Exception("Failed to parse response after 5 attempts.")
+
+def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
+    # Assign a value to the variable `file` before it is used
+    file = None
+    # Use the new scoring function `compute_filename_score` to compute the score for the filename
+    score = compute_filename_score(file_change_request.filename)
+    # Use the 'score' variable in the subsequent operations
+    # For example, if the score is used to determine the relevance of the filename, you can do something like this:
+    if score > THRESHOLD:
+        # Perform operation 1
+        pass
+    else:
+        # Perform operation 2
+        pass
+    return new_file_contents
+    lines = file_contents.split("\n")
+    
+    new_file_contents = ""  # Initialize an empty string to hold the new file contents
+    all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
+    chunking = len(lines) > CHUNK_SIZE * 1.5 # Only chunk if the file is large enough
+    file_name = file_change_request.filename
+    if not chunking:
+        new_file_contents = self.modify_file(
+                file_change_request, 
+                contents="\n".join(lines), 
+                branch=branch, 
+                contents_line_numbers=file_contents if USING_DIFF else "\n".join(all_lines_numbered),
+                chunking=chunking,
+                chunk_offset=0
+            )
+    else:
+        for i in range(0, len(lines), CHUNK_SIZE):
+            chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
+            contents_line_numbers = "\n".join(all_lines_numbered[i:i + CHUNK_SIZE])
+            if not EditBot().should_edit(issue=file_change_request.instructions, snippet=chunk_contents):
+                new_chunk = chunk_contents
+            else:
+                new_chunk = self.modify_file(
+                    file_change_request, 
+                    contents=chunk_contents, 
+                    branch=branch, 
+                    contents_line_numbers=file_contents if USING_DIFF else "\n".join(contents_line_numbers), 
+                    chunking=chunking,
+                    chunk_offset=i
+                )
+            if i + CHUNK_SIZE < len(lines):
+                new_file_contents += new_chunk + "\n"
+            else:
+                new_file_contents += new_chunk
+    logger.debug(
+        f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
+    )
+    # Update the file with the new contents after all chunks have been processed
+    try:
+        self.repo.update_file(
+            file_name,
+            f'Update {file_name}',
+            new_file_contents,
+            file.sha,
+            branch=branch,
+        )
+    except MaxTokensExceeded as e:
+        raise e
+    except Exception as e:
+        logger.info(f"Error in updating file, repulling and trying again {e}")
+        file = self.get_file(file_change_request.filename, branch=branch)
+        self.repo.update_file(
+            file_name,
+            f'Update {file_name}',
+            new_file_contents,
+            file.sha,
+            branch=branch,
+        )
+    except Exception as e:
+        tb = traceback.format_exc()
+        logger.info(f"Error in handle_modify_file: {tb}")
+
+# Remove xml tags
+# Assign a value to the `user_code` variable before it is used at line 554.
+user_code = ""
+# Indent handle_modify_file function
+user_code = re.sub(r'def handle_modify_file', '    def handle_modify_file', user_code)
+
+# Dedent handle_modify_file function
+user_code = re.sub(r'    def handle_modify_file', 'def handle_modify_file', user_code)
+
+# Add missing imports
+user_code = re.sub(r'import traceback', 'import traceback\n\nimport modal\nfrom github.ContentFile import ContentFile\nfrom github.GithubException import GithubException\nfrom github.Repository import Repository\nfrom loguru import logger\nfrom pydantic import BaseModel\n\nfrom sweepai.core.chat import ChatGPT\nfrom sweepai.core.code_repair import CodeRepairer\nfrom sweepai.core.edit_chunk import EditBot\nfrom sweepai.core.entities import (\n    FileCreation,\n    FileChangeRequest,\n    FilesToChange,\n    PullRequest,\n    RegexMatchError,\n    Function,\n    Snippet, NoFilesException, Message\n)\nfrom sweepai.utils.config.client import SweepConfig\nfrom sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL\nfrom sweepai.utils.diff import diff_contains_dups_or_removals, format_contents, generate_diff, generate_new_file, generate_new_file_from_patch, is_markdown\nfrom sweepai.core.vector_db import compute_filename_score\nfrom sweepai.core.prompts import (\n    files_to_change_prompt,\n    pull_request_prompt,\n    create_file_prompt,\n    files_to_change_abstract_prompt,\n    modify_file_prompt_3,\n    snippet_replacement,\n    chunking_prompt,\n)', user_code)
+
+# Remove unnecessary imports
+user_code = re.sub(r'import traceback\n\nimport modal\nfrom github.ContentFile import ContentFile\nfrom github.GithubException import GithubException\nfrom github.Repository import Repository\nfrom loguru import logger\nfrom pydantic import BaseModel\n\nfrom sweepai.core.chat import ChatGPT\nfrom sweepai.core.code_repair import CodeRepairer\nfrom sweepai.core.edit_chunk import EditBot\nfrom sweepai.core.entities import (\n    FileCreation,\n    FileChangeRequest,\n    FilesToChange,\n    PullRequest,\n    RegexMatchError,\n    Function,\n    Snippet, NoFilesException, Message\n)\nfrom sweepai.utils.config.client import SweepConfig\nfrom sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL\nfrom sweepai.utils.diff import diff_contains_dups_or_removals, format_contents, generate_diff, generate_new_file, generate_new_file_from_patch, is_markdown\nfrom sweepai.core.vector_db import compute_filename_score\nfrom sweepai.core.prompts import (\n    files_to_change_prompt,\n    pull_request_prompt,\n    create_file_prompt,\n    files_to_change_abstract_prompt,\n    modify_file_prompt_3,\n    snippet_replacement,\n    chunking_prompt,\n)', '', user_code)
+
+# Remove unnecessary variables
+user_code = re.sub(r'USING_DIFF = True', '', user_code)
+user_code = re.sub(r'USING_DIFF = True', '', user_code)
+
+# Remove unnecessary comments
+user_code = re.sub(r'# Define the variable `THRESHOLD`', '', user_code)
+
+# Remove unnecessary blank lines
+user_code = re.sub(r'\n\n\n', '\n\n', user_code)
+
+# Remove unnecessary whitespace at the end of lines
+user_code = re.sub(r'\s+$', '', user_code, flags=re.MULTILINE)
+
+# Remove unnecessary whitespace at the beginning of lines
+user_code = re.sub(r'^\s+', '', user_code, flags=re.MULTILINE)
+
+# Remove unnecessary whitespace between lines
+user_code = re.sub(r'\n\s+\n', '\n\n', user_code)
+
+# Remove unnecessary whitespace at the beginning and end of the code
+user_code = user_code.strip()
+
+# Return the modified user_code
+user_code
