@@ -66,6 +66,16 @@ def get_gha_enabled(repo: Repository) -> bool:
         gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("gha_enabled", False)
         return gha_enabled
 
+@staticmethod
+@lru_cache(maxsize=None)
+def get_description(repo: Repository) -> str:
+    try:
+        contents = repo.get_contents("sweep.yaml")
+        description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("description", "")
+        return description
+    except Exception as e:
+        return ""
+
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get('GITHUB_APP_CLIENT_ID', 'Iv1.91fd31586a926a9f')
 SWEEP_API_ENDPOINT = os.environ.get('SWEEP_API_ENDPOINT', f"https://sweepai--{PREFIX}-ui.modal.run")
