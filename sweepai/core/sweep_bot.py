@@ -403,12 +403,16 @@ class SweepBot(CodeGenBot, GithubBot):
             file_change_requests: list[FileChangeRequest],
             branch: str,
     ):
+        completed = 0
+        num_fcr = len(file_change_requests)
         for file_change_request in file_change_requests:
             try:
                 if file_change_request.change_type == "create":
                     self.handle_create_file(file_change_request, branch)
+                    completed += 1
                 elif file_change_request.change_type == "modify":
                     self.handle_modify_file(file_change_request, branch)
+                    completed += 1
             except MaxTokensExceeded as e:
                 raise e
             except Exception as e:
