@@ -32,7 +32,7 @@ DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 256
 SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-MiniLM-L12-v2"
 timeout = 60 * 30  # 30 minutes
-CACHE_VERSION = "v1.0.1"
+CACHE_VERSION = "v1.0.2"
 MAX_FILES = 3000
 
 image = (
