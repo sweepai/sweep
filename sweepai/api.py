@@ -401,11 +401,13 @@ def update_sweep_prs(
     pulls = repo.get_pulls(state='open', head='sweep')
     
     # For each pull request, attempt to merge the changes from the default branch into the pull request branch
-    for pr in pulls:
+    for pr in pulls[:3]:
         try:
-            # merge main to feature branch
-            # feature_branch = pr.head.ref
-            # repo.merge(repo.default_branch, feature_branch, f'Merge main into {feature_branch}')
+            # make sure it's a sweep ticket
+            feature_branch = pr.head.ref
+            if not feature_branch.startswith('sweep/'):
+                continue
+            repo.merge(feature_branch, repo.default_branch, f'Merge main into {feature_branch}')
             
             # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
             logger.info(f"Merging changes from default branch into PR #{pr.number}")
