@@ -401,26 +401,21 @@ class SweepBot(CodeGenBot, GithubBot):
     def change_files_in_github(
             self,
             file_change_requests: list[FileChangeRequest],
-            def change_files_in_github(
-                    self,
-                    file_change_requests: list[FileChangeRequest],
-                    branch: str,
-            ){
-                ...
-                for file_change_request in file_change_requests:
-                    try:
-                        if file_change_request.change_type == "comment":
-                            self.handle_create_file(file_change_request, branch)
-                        elif file_change_request.change_type == "gha":
-                            self.handle_modify_file(file_change_request, branch)
-                    except MaxTokensExceeded as e:
-                        raise e
-                    except Exception as e:
-                        logger.error(f"Error in change_files_in_github {e}")
-                    completed += 1
-                return completed, num_fcr
-            }
-            ...
+            branch: str,
+    ):
+        for file_change_request in file_change_requests:
+            try:
+                if file_change_request.change_type == "comment":
+                    self.handle_create_file(file_change_request, branch)
+                elif file_change_request.change_type == "gha":
+                    self.handle_modify_file(file_change_request, branch)
+            except MaxTokensExceeded as e:
+                raise e
+            except Exception as e:
+                logger.error(f"Error in change_files_in_github {e}")
+        return completed, num_fcr
+
+    def handle_create_file(self, file_change_request: FileChangeRequest, branch: str):
         try:
             file_change = self.create_file(file_change_request)
             file_markdown = is_markdown(file_change_request.filename)
