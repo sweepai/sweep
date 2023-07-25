@@ -1,0 +1,106 @@
+# 🔎 Building a Code Search Engine for an AI-powered Junior Developer
+
+Author: William Zeng
+
+The last month building Sweep has been fun. We’ve dealt with countless formatting errors, irrelevant search results, and LLM hallucinations.
+
+Sweep is an open source AI-powered junior developer. We take your codebase and provide it as context to GPT to solve small requests related to your code.
+
+## Code Search
+
+Code search is a key part of working with LLMs to automate programming. We used small language models to perform code retrieval(aka semantic search), which comes with several benefits (to be discussed in a later post!). 
+
+However, one shortcoming of pure semantic search is distinguishing between two similar pieces of code in a vacuum. 
+
+## Example
+
+Take the following code snippets:
+
+### Code Snippet **A:**
+
+```python
+access_token = os.environ.get("ACCESS_TOKEN")
+g = Github(access_token)
+repo_name = "sweepai/bot-internal"
+issue_url = "[github.com/sweepai/bot-internal/issues/28](http://github.com/sweepai/bot-internal/issues/28)"
+username = "wwzeng1"
+repo_description = "A repo for Sweep"
+title = "Sweep: Use [loguru.info](http://loguru.info/) to show the number of tokens in the anthropic call"
+summary = ""
+replies_text = ""
+```
+
+### **Code Snippet B:**
+
+```python
+g = get_github_client(installation_id)
+if comment_id:
+    logger.info(f"Replying to comment {comment_id}...")
+logger.info(f"Getting repo {repo_full_name}")
+repo = g.get_repo(repo_full_name)
+current_issue = repo.get_issue(number=issue_number)
+if current_issue.state == 'closed':
+    posthog.capture(username, "issue_closed", properties=metadata)
+    return {"success": False, "reason": "Issue is closed"}
+```
+
+### **********************Explanation**********************
+
+It might not be clear which file is more important, but Code Snippet A is from [test_pr_diffs.py#L63-L71](https://github.com/sweepai/sweep/blob/main/tests/test_pr_diffs.py#L63-L71) (a test I wrote that’s no longer used), while B is from [on_ticket.py#L87-L96](https://github.com/sweepai/sweep/blob/main/sweepai/handlers/on_ticket.py#L87-L96) (our core logic for handling tickets). Since Code Snippet B is in an often used file, it is likely that this snippet will be more relevant as input to the LLM.
+
+## Problem
+
+How can we differentiate between these two pieces of code when they’re both so similar? They both discuss issues, repositories, and some usernames. If the user asks “How can I change the username when creating an issue” it will be hard to differentiate between these two.
+
+## Solution
+
+The trick is a ranking model. An important piece of ranking results is the concept of “quality”, i.e. what makes a file or snippet of code intrinsically valuable to the user.
+
+The results from our vector search model are a list of items ([test_pr_diffs.py#L63-L71](https://github.com/sweepai/sweep/blob/main/tests/test_pr_diffs.py#L63-L71), [on_ticket.py#L87C1-L96C63](https://github.com/sweepai/sweep/blob/main/sweepai/handlers/on_ticket.py#L87C1-L96C63)) and similarity scores (0.65, 0.63). By combining intuition and attention to the data, we can create a ranking model that is “personalized” for each repository we onboard.
+
+## Ideas
+
+### 1. File Length
+
+Up to a point, longer files are generally more valuable for search. A 20-line file is probably not valuable unless the user specifically asks for it. However, 2000-line config files should not be ranked much higher either.
+
+```python
+line_count_score = min(line_count / 20, 10)
+```
+
+### 2. Number of Commits
+
+The more commits a file has, the more valuable it is. This lets us distinguish between one off tests and core logic (which should receive the majority of commits).
+
+```python
+commit_score = num_commits + 1
+```
+
+### 3. Recency of changes
+
+The more recently a file was modified, the better.
+
+```python
+recency_score = hours_since_last_modified + 1
+```
+
+### Scoring
+
+To get the final score, we normalize and multiply these three scores together and add the similarity score.
+
+```python
+quality_score = line_count_score * commit_score / recency_score
+final_score = quality_score/max(quality_score) + similarity_score
+```
+
+This solution usually worked fine, but we saw the same unexpected files showing up often. The max normalization was not enough. 
+
+We fixed this by squashing the scores into percentiles, and then capping the increase at .25. In this case, the best result gets a .25 boost and the worst gets no boost. 
+
+This lets us avoid fetching tests and configs which seem similar, and instead fetch business logic that actually helps Sweep write code!
+
+# Sweep GitHub
+
+If this was interesting, take a look through our github repo (and give it a star!).
+
+https://github.com/sweepai/sweep

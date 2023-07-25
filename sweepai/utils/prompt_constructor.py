@@ -1,4 +1,6 @@
+from loguru import logger
 from pydantic import BaseModel
+
 from sweepai.core.prompts import (
     human_message_prompt,
     human_message_prompt_comment,
@@ -9,7 +11,6 @@ from sweepai.core.prompts import (
     comment_line_prompt
 )
 
-from loguru import logger
 
 class HumanMessagePrompt(BaseModel):
     repo_name: str
@@ -37,9 +38,9 @@ class HumanMessagePrompt(BaseModel):
 
     def render_snippets(self):
         return "\n".join([snippet.xml for snippet in self.snippets])
-    
+
     def construct_prompt(self):
-        human_message = human_message_prompt.format(
+        human_messages = [{'role': msg['role'], 'content': msg['content'].format(
             repo_name=self.repo_name,
             issue_url=self.issue_url,
             username=self.username,
@@ -49,9 +50,10 @@ class HumanMessagePrompt(BaseModel):
             description=self.summary if self.summary else "No description provided.",
             relevant_snippets=self.render_snippets(),
             relevant_directories=self.get_relevant_directories(),
-        )
-        return human_message
-    
+        ), 'key': msg.get('key')} for msg in human_message_prompt]
+        return human_messages
+
+
 class HumanMessagePromptReview(HumanMessagePrompt):
     pr_title: str
     pr_message: str = ""
@@ -59,18 +61,16 @@ class HumanMessagePromptReview(HumanMessagePrompt):
 
     def format_diffs(self):
         formatted_diffs = []
-        for file_name, new_file_contents, old_file_contents, file_patch in self.diffs:
+        for file_name, file_patch in self.diffs:
             format_diff = diff_section_prompt.format(
                 diff_file_path=file_name,
-                new_file_content=new_file_contents.rstrip("\n"),
-                previous_file_content=old_file_contents.rstrip("\n"),
                 diffs=file_patch
             )
             formatted_diffs.append(format_diff)
         return "\n".join(formatted_diffs)
 
     def construct_prompt(self):
-        human_message = human_message_review_prompt.format(
+        human_messages = [{'role': msg['role'], 'content': msg['content'].format(
             repo_name=self.repo_name,
             issue_url=self.issue_url,
             username=self.username,
@@ -83,20 +83,22 @@ class HumanMessagePromptReview(HumanMessagePrompt):
             diffs=self.format_diffs(),
             pr_title=self.pr_title,
             pr_message=self.pr_message,
-        )
-        return human_message
+        )} for msg in human_message_review_prompt]
+
+        return human_messages
+
 
 class HumanMessageReviewFollowup(BaseModel):
     diff: tuple
+
     def construct_prompt(self):
-        file_name, new_file_contents, old_file_contents, file_patch = self.diff
+        file_name, file_patch = self.diff
         format_diff = diff_section_prompt.format(
             diff_file_path=file_name,
-            new_file_content=new_file_contents.rstrip("\n"),
-            previous_file_content=old_file_contents.rstrip("\n"),
             diffs=file_patch
         )
         return review_follow_up_prompt + format_diff
+
 
 class HumanMessageCommentPrompt(HumanMessagePrompt):
     comment: str
@@ -106,19 +108,17 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
 
     def format_diffs(self):
         formatted_diffs = []
-        for file_name, new_file_contents, old_file_contents, file_patch in self.diffs:
+        for file_name, file_patch in self.diffs:
             format_diff = diff_section_prompt.format(
                 diff_file_path=file_name,
-                new_file_content=new_file_contents.rstrip("\n"),
-                previous_file_content=old_file_contents.rstrip("\n"),
                 diffs=file_patch
             )
             formatted_diffs.append(format_diff)
         return "\n".join(formatted_diffs)
 
     def construct_prompt(self):
-        human_message = human_message_prompt_comment.format(
-            comment=self.comment,
+        human_messages = [{'role': msg['role'], 'content': msg['content'].format(
+            comment=(self.comment[len("sweep:"):].strip() if self.comment.startswith("sweep:") else self.comment),
             repo_name=self.repo_name,
             repo_description=self.repo_description if self.repo_description else "",
             diff=self.format_diffs(),
@@ -129,17 +129,20 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
             description=self.summary if self.summary else "No description provided.",
             relevant_directories=self.get_relevant_directories(),
             relevant_snippets=self.render_snippets()
-        )
+        )} for msg in human_message_prompt_comment]
+
         if self.pr_file_path and self.pr_line:
             logger.info(f"Review Comment {self.comment}")
-            human_message += comment_line_prompt.format( 
+            human_messages.append({'role': 'user', 'content': comment_line_prompt.format(
                 pr_file_path=self.pr_file_path,
                 pr_line=self.pr_line
-            )
+            )})
         else:
             logger.info(f"General Comment {self.comment}")
-        return human_message
-    
+
+        return human_messages
+
+
 class HumanMessageFinalPRComment(BaseModel):
     summarization_replies: list
 
