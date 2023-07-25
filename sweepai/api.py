@@ -113,6 +113,8 @@ def function_call_is_completed(call_id: str):
     except TimeoutError:
         return False
 
+    return True
+
 def push_to_queue(
     repo_full_name: str,
     pr_id: int,
@@ -139,6 +141,7 @@ def push_to_queue(
 
 def rerun_last_github_action(repo_full_name: str, pr_id: int):
     # Code to rerun the last GitHub action
+    # TODO: Implement this function
     pass
 
 @stub.function(**FUNCTION_SETTINGS)
