@@ -401,26 +401,26 @@ class SweepBot(CodeGenBot, GithubBot):
     def change_files_in_github(
             self,
             file_change_requests: list[FileChangeRequest],
-            branch: str,
-    ):
-        # should check if branch exists, if not, create it
-        logger.debug(file_change_requests)
-        num_fcr = len(file_change_requests)
-        completed = 0
-        for file_change_request in file_change_requests:
-            try:
-                if file_change_request.change_type == "create":
-                    self.handle_create_file(file_change_request, branch)
-                elif file_change_request.change_type == "modify":
-                    self.handle_modify_file(file_change_request, branch)
-            except MaxTokensExceeded as e:
-                raise e
-            except Exception as e:
-                logger.error(f"Error in change_files_in_github {e}")
-            completed += 1
-        return completed, num_fcr
-
-    def handle_create_file(self, file_change_request: FileChangeRequest, branch: str):
+            def change_files_in_github(
+                    self,
+                    file_change_requests: list[FileChangeRequest],
+                    branch: str,
+            ){
+                ...
+                for file_change_request in file_change_requests:
+                    try:
+                        if file_change_request.change_type == "comment":
+                            self.handle_create_file(file_change_request, branch)
+                        elif file_change_request.change_type == "gha":
+                            self.handle_modify_file(file_change_request, branch)
+                    except MaxTokensExceeded as e:
+                        raise e
+                    except Exception as e:
+                        logger.error(f"Error in change_files_in_github {e}")
+                    completed += 1
+                return completed, num_fcr
+            }
+            ...
         try:
             file_change = self.create_file(file_change_request)
             file_markdown = is_markdown(file_change_request.filename)
@@ -503,3 +503,7 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
+
+# Remove xml tags
+user_code = re.sub('<[^<]+?>', '', user_code)
+user_code
