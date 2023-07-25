@@ -14,9 +14,11 @@ from sweepai.utils.github_utils import get_github_client, get_token
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
-log_message = """GitHub actions yielded the following error:
+log_message = """GitHub actions yielded the following error. 
 
-{error_logs}"""
+{error_logs}
+
+This is likely a linting or type-checking issue with the source code but could potentially be an issue with the GitHub Action yaml files."""
 
 def download_logs(repo_full_name: str, run_id: int, installation_id: int):
     headers = {
@@ -87,10 +89,11 @@ def on_check_suite(request: CheckRunCompleted):
         problematic_logs += "\n\nThere are a lot of errors. This is likely a larger issue with the PR and not a small linting/type-checking issue."
     comments = list(pr.get_issue_comments())
     if len(comments) >= 2 and problematic_logs == comments[-1].body and comments[-2].body == comments[-1].body:
-        comment = pr.as_issue().create_comment(problematic_logs.format(error_logs=problematic_logs) + "\n\nI'm getting the same errors 3 times in a row, so I will stop working on fixing this PR.")
+        comment = pr.as_issue().create_comment(log_message.format(error_logs=problematic_logs) + "\n\nI'm getting the same errors 3 times in a row, so I will stop working on fixing this PR.")
         logger.warning("Skipping logs because it is duplicated")
         raise Exception("Duplicate error logs")
-    comment = pr.as_issue().create_comment(problematic_logs.format(error_logs=problematic_logs))
+    print(problematic_logs)
+    comment = pr.as_issue().create_comment(log_message.format(error_logs=problematic_logs))
     on_comment(
         repo_full_name=request.repository.full_name,
         repo_description=request.repository.description,
