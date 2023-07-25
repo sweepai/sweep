@@ -34,6 +34,9 @@ from sweepai.core.prompts import (
     chunking_prompt,
 )
 
+# Define the variable `THRESHOLD`
+THRESHOLD = 0.5
+
 USING_DIFF = True
 
 class MaxTokensExceeded(Exception):
@@ -350,6 +353,8 @@ class SweepBot(CodeGenBot, GithubBot):
             chunking: bool = False,
             chunk_offset: int = 0,
     ) -> tuple[str, str]:
+        # Define the variable `CHUNK_SIZE`
+        CHUNK_SIZE = 400  # Number of lines to process at a time
         for count in range(5):
             key = f"file_change_modified_{file_change_request.filename}"
             file_markdown = is_markdown(file_change_request.filename)
@@ -363,7 +368,8 @@ class SweepBot(CodeGenBot, GithubBot):
             else:
                 # Perform operation 2
                 pass
-            return new_file_contents
+            # Assign a value to the variable `new_file_contents` before it is returned
+            new_file_contents = ""
             try:
                 if chunking:
                     message = chunking_prompt + message
@@ -443,6 +449,8 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.info(f"Error in handle_create_file: {e}")
 
     def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
+        # Assign a value to the variable `file` before it is used
+        file = None
         # Use the new scoring function `compute_filename_score` to compute the score for the filename
         score = compute_filename_score(file_change_request.filename)
         # Use the 'score' variable in the subsequent operations
@@ -500,6 +508,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 file.sha,
                 branch=branch,
             )
+        except MaxTokensExceeded as e:
+            raise e
         except Exception as e:
             logger.info(f"Error in updating file, repulling and trying again {e}")
             file = self.get_file(file_change_request.filename, branch=branch)
@@ -510,8 +520,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 file.sha,
                 branch=branch,
             )
-        except MaxTokensExceeded as e:
-            raise e
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
