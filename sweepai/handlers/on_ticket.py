@@ -7,6 +7,9 @@ On Github ticket, get ChatGPT to deal with it
 import traceback
 
 def handle_slow_mode():
+    # Implement operations for 'slow' mode
+    # The exact operations will depend on the requirements of the 'slow' mode
+    # This needs to be clarified with the user or referred to in the project documentation or other parts of the codebase
     pass
 ...
 import modal
