@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import time
+import multiprocessing
 
 import modal
 from git.repo import Repo
@@ -88,7 +89,24 @@ class Embedding:
 
     @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
+        # Split the input texts into chunks
+        chunks = [texts[i:i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
+        
+        # Create a pool of worker processes
+        with multiprocessing.Pool() as pool:
+            # Apply the compute method to each chunk of input texts
+            results = pool.map(self._compute_chunk, chunks)
+        
+        # Combine the results into the final output
+        return [result for chunk_results in results for result in chunk_results]
+
+    def _compute_chunk(self, texts: list[str]):
+        # Create a new instance of the SentenceTransformer model
+        from sentence_transformers import SentenceTransformer # pylint: disable=import-error
+        model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
+        
+        # Compute the embeddings for the chunk of input texts
+        return model.encode(texts).tolist()
 
     @method()
     def ping(self):
