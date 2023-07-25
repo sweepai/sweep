@@ -12,7 +12,7 @@ body:
   - type: textarea
     id: write
     attributes:
-      label: Files to change (optional)
-      description: Sweep can guess these files but including it can improve Sweep's performance
+      label: Files to change
+      description: This is optional but can improve Sweep
       placeholder: "src/main.py\ntests/test.py"
       render: shell
