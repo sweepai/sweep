@@ -48,6 +48,8 @@ See highlights at https://docs.sweep.dev/examples.
 * 🎊 New: Enhanced file handling with streaming logic in modify_file, allowing for larger files to be processed.
 * 🎊 New: Handles comments and reviews in a batch (leave 5+ comments at a time)
 
+## 🎊 Enhanced File Handling
+Our latest update introduces an enhanced file handling mechanism in the `modify_file` function. This function now uses a streaming approach to process files in chunks, allowing it to handle larger files more efficiently. This is a significant improvement that allows Sweep to work with larger codebases and handle more complex tasks.
 ## 🚀 Getting Started
 
 ### 🍲 Recipes
