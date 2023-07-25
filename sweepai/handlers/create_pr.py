@@ -82,6 +82,8 @@ def create_pr(
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
+        from sweepai.utils.github_utils import get_primary_language
+        
         pr = sweep_bot.repo.create_pull(
             title="[DRAFT] " + pr_title,
             body=pr_description,
@@ -89,6 +91,19 @@ def create_pr(
             base=SweepConfig.get_branch(sweep_bot.repo),
         )
         pr.add_to_labels(GITHUB_LABEL_NAME)
+        
+        if pr.title == "Enable Github Actions" and pr.merged:
+            primary_language = get_primary_language(sweep_bot.repo)
+            if primary_language == "Python":
+                issue_title = "Sweep: Set up black and pylint using GitHub Actions"
+                issue_body = "Please set up black and pylint using GitHub Actions."
+            elif primary_language == "JavaScript":
+                issue_title = "Sweep: Set up eslint using GitHub Actions"
+                issue_body = "Please set up eslint using GitHub Actions."
+            elif primary_language == "TypeScript":
+                issue_title = "Sweep: Set up tsc using GitHub Actions"
+                issue_body = "Please set up tsc using GitHub Actions."
+            sweep_bot.repo.create_issue(title=issue_title, body=issue_body)
     except MaxTokensExceeded as e:
         logger.error(e)
         posthog.capture(
