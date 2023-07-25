@@ -124,7 +124,6 @@ def push_to_queue(
     key = (repo_full_name, pr_id)
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
     function_is_completed = function_call_is_completed(call_id)
-    print(call_id, queue, function_is_completed, pr_change_request)
     if pr_change_request.type == "comment" or function_is_completed:
         queue = [pr_change_request] + queue
         if function_is_completed:
@@ -294,6 +293,7 @@ async def webhook(raw_request: Request):
                 pass
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
+                logger.info(f"Handling check suite for {request.repository.full_name}")
                 if request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
                     g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
