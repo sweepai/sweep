@@ -30,7 +30,7 @@ Describe bugs, small features, and refactors like you would to a junior develope
 2. 📝 plans the changes
 3. ⚡**writes a pull request with code**⚡
 
-### 🌠 Features
+### Features 🌠
 * 🔧 Turns issues directly into pull requests (without an IDE)
 * 👀 Addresses developer replies & comments on its PRs
 * 🕵️‍♂️ Uses embedding-based code search
