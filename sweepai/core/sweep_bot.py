@@ -418,6 +418,10 @@ class SweepBot(CodeGenBot, GithubBot):
         file_contents = ""
         # Initialize the `CHUNK_SIZE` variable
         CHUNK_SIZE = 400  # Number of lines to process at a time
+        # Initialize the `user_code` variable
+        user_code = ""
+        # Initialize the `chunking` variable
+        chunking = False
         for count in range(5):
             key = f"file_change_modified_{file_change_request.filename}"
             file_markdown = is_markdown(file_change_request.filename)
