@@ -12,9 +12,10 @@ from pydantic import BaseModel
 from sweepai.core.entities import Message, Function
 from sweepai.core.prompts import (
     system_message_prompt,
-    system_message_issue_comment_prompt,
+    repo_description_prefix_prompt
 )
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.config.client import get_description
 from sweepai.utils.config.server import UTILS_MODAL_INST_NAME, ANTHROPIC_API_KEY, OPENAI_DO_HAVE_32K_MODEL_ACCESS
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
@@ -73,13 +74,16 @@ class ChatGPT(BaseModel):
     def from_system_message_content(
             cls, human_message: HumanMessagePrompt, is_reply: bool = False, chat_logger = None, **kwargs
     ) -> Self:
-        if is_reply:
-            system_message_content = system_message_issue_comment_prompt
-
-        # Todo: This moves prompts away from unified system message prompt
-        # system_message_prompt + "\n\n" + human_message.construct_prompt()
+        content = system_message_prompt
+        repo = kwargs.get("repo")
+        if repo:
+            logger.info(f"Repo: {repo}")
+            repo_description = get_description(repo)
+            if repo_description:
+                logger.info(f"Repo description: {repo_description}")
+                content += f"{repo_description_prefix_prompt}\n{repo_description}"
         messages = [
-            Message(role="system", content=system_message_prompt, key="system")
+            Message(role="system", content=content , key="system")
         ]
 
         added_messages = human_message.construct_prompt()  # [ { role, content }, ... ]

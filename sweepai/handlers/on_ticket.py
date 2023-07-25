@@ -413,6 +413,9 @@ def on_ticket(
                                pr_path=None,
                                pr_line_position=None,
                                pr_number=pr.number)
+                else:
+                    logger.info("No changes required")
+                    pr.edit(title=title.replace("[DRAFT] ", "", 1))
             except Exception as e:
                 logger.error(traceback.format_exc())
                 logger.error(e)
