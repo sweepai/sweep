@@ -61,6 +61,15 @@ def on_check_suite(request: CheckRunCompleted):
     if not get_gha_enabled(repo):
         return None
     pr = repo.get_pull(request.check_run.pull_requests[0].number)
+    if pr.title != "Enable Github Actions":
+        return None
+    primary_language = repo.language
+    if primary_language == "Python":
+        repo.create_issue(title="Sweep: Set up black and pylint", body="...")
+    elif primary_language == "JavaScript":
+        repo.create_issue(title="Sweep: Set up eslint", body="...")
+    elif primary_language == "TypeScript":
+        repo.create_issue(title="Sweep: Set up tsc", body="...")
     num_pr_commits = len(list(pr.get_commits()))
     if num_pr_commits > 6:
         return None
