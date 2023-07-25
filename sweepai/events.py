@@ -153,3 +153,17 @@ class CheckRunCompleted(BaseModel):
     installation: Installation
     repository: Repository
     sender: Sender
+
+
+class PullRequestMergedRequest(BaseModel):
+    class PullRequest(BaseModel):
+        title: str
+        merged: bool
+
+    class Repository(BaseModel):
+        full_name: str
+
+    action: str
+    pull_request: PullRequest
+    repository: Repository
+    installation: Installation
