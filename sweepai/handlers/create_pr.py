@@ -236,41 +236,12 @@ def create_gha_pr(g, repo):
     pr = repo.create_pull(title="Enable GitHub Actions", body="This PR enables GitHub Actions for this repository.", head=branch_name, base=repo.default_branch)
     return pr
 
-REFACTOR_TEMPLATE = """\
-name: Refactor
-title: 'Sweep: '
-description: Write something like "Modify the ... api endpoint to use ... version and ... framework"
-labels: sweep
-body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Details
-      description: More details for Sweep
-      placeholder: We are migrating this function to ... version because ..."""
-
-BUGFIX_TEMPLATE = """\
-name: Bugfix
-title: 'Sweep: '
-description: Write something like "We notice ... behavior when ... happens instead of ...""
-labels: sweep
-body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Details
-      description: More details about the bug
-      placeholder: The bug might be in ... file"""
-
-FEATURE_TEMPLATE = """\
-name: Feature Request
-title: 'Sweep: '
-description: Write something like "Write an api endpoint that does "..." in the "..." file"
-labels: sweep
-body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Details
-      description: More details for Sweep
-      placeholder: The new endpoint should use the ... class from ... file because it contains ... logic"""
+def create_linter_setup_issue(language):
+    if language == "Python":
+        return "Sweep: Set up black and pylint using GitHub Actions"
+    elif language == "JavaScript":
+        return "Sweep: Set up eslint using GitHub Actions"
+    elif language == "TypeScript":
+        return "Sweep: Set up tsc using GitHub Actions"
+    else:
+        return "Sweep: Set up linters using GitHub Actions"
