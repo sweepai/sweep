@@ -115,12 +115,20 @@ def on_comment(
         if comment_id:
             try:
                 item_to_react_to = pr.get_issue_comment(comment_id)
-                item_to_react_to.create_reaction("eyes")
+                item_to_react_to.create_reaction("rocket")
+                reactions = item_to_react_to.get_reactions()
+                for reaction in reactions:
+                    if reaction.content == "eyes":
+                        reaction.delete()
             except Exception as e:
                 pass
             try:
                 item_to_react_to = pr.get_review_comment(comment_id)
-                item_to_react_to.create_reaction("eyes")
+                item_to_react_to.create_reaction("rocket")
+                reactions = item_to_react_to.get_reactions()
+                for reaction in reactions:
+                    if reaction.content == "eyes":
+                        reaction.delete()
             except Exception as e:
                 pass
         branch_name = pr.head.ref
