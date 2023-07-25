@@ -53,7 +53,11 @@ GITHUB_DEFAULT_CONFIG = os.environ.get('GITHUB_DEFAULT_CONFIG', """# Sweep AI tu
 
 # If you use this be sure to frequently sync your default branch(main, master) to dev.
 branch: '{branch}'
+# If you want to enable GitHub Actions for Sweep, set this to true.
 gha_enabled: False
+# This is the description of your project. It will be used by sweep when creating PRs. You can tell Sweep what's unique about your project, what frameworks you use, or anything else you want.
+# Here's an example: sweepai/sweep is a python project. The main api endpoints are in sweepai/api.py. Write code that adheres to PEP8.
+description: ''
 """)
 
 # goes under Modal 'openai-secret' secret name

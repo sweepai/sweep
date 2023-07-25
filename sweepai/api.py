@@ -14,7 +14,7 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
 )
-from sweepai.handlers.create_pr import create_pr  # type: ignore
+from sweepai.handlers.create_pr import create_pr, create_gha_pr  # type: ignore
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
@@ -414,5 +414,10 @@ def update_sweep_prs(
             
             # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
             logger.info(f"Merging changes from default branch into PR #{pr.number}")
+            
+            # Check if the merged PR is the config PR
+            if pr.title == "Configure Sweep" and pr.merged:
+                # Create a new PR to add "gha_enabled: True" to sweep.yaml
+                create_gha_pr(g, repo)
         except Exception as e:
             logger.error(f"Failed to merge changes from default branch into PR #{pr.number}: {e}")
