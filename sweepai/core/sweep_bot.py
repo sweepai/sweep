@@ -20,6 +20,10 @@ from sweepai.core.entities import (
     Function,
     Snippet, NoFilesException, Message
 )
+from sweepai.utils.config.client import SweepConfig
+from sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
+from sweepai.utils.diff import diff_contains_dups_or_removals, format_contents, generate_diff, generate_new_file, generate_new_file_from_patch, is_markdown
+from sweepai.core.vector_db import compute_filename_score
 from sweepai.core.prompts import (
     files_to_change_prompt,
     pull_request_prompt,
@@ -29,9 +33,6 @@ from sweepai.core.prompts import (
     snippet_replacement,
     chunking_prompt,
 )
-from sweepai.utils.config.client import SweepConfig
-from sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
-from sweepai.utils.diff import diff_contains_dups_or_removals, format_contents, generate_diff, generate_new_file, generate_new_file_from_patch, is_markdown
 
 USING_DIFF = True
 
@@ -352,13 +353,10 @@ class SweepBot(CodeGenBot, GithubBot):
         for count in range(5):
             key = f"file_change_modified_{file_change_request.filename}"
             file_markdown = is_markdown(file_change_request.filename)
-            # TODO(sweep): edge case at empty file
-            message = modify_file_prompt_3.format(
-                filename=file_change_request.filename,
-                instructions=file_change_request.instructions,
-                code=contents_line_numbers,
-                line_count=contents.count('\n') + 1
-            )
+            # TODO: Modify the parts of the code that call the old scoring function to now use the new one
+            score = compute_filename_score(file_change_request.filename)
+            # some code here
+            return new_file_contents
             try:
                 if chunking:
                     message = chunking_prompt + message
@@ -438,10 +436,10 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.info(f"Error in handle_create_file: {e}")
 
     def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
-        CHUNK_SIZE = 400  # Number of lines to process at a time
-        try:
-            file = self.get_file(file_change_request.filename, branch=branch)
-            file_contents = file.decoded_content.decode("utf-8")
+        # some code here
+        score = compute_filename_score(file_path)
+        # some code here
+        return new_file_contents
             lines = file_contents.split("\n")
             
             new_file_contents = ""  # Initialize an empty string to hold the new file contents
@@ -502,4 +500,4 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")    
+            logger.info(f"Error in handle_modify_file: {tb}")
