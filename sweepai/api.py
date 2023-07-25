@@ -113,8 +113,6 @@ def function_call_is_completed(call_id: str):
     except TimeoutError:
         return False
 
-    return True
-
 def push_to_queue(
     repo_full_name: str,
     pr_id: int,
@@ -125,14 +123,23 @@ def push_to_queue(
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
     function_is_completed = function_call_is_completed(call_id)
     if pr_change_request.type == "comment" or function_is_completed:
-        queue = [pr_change_request] + queue
-        if function_is_completed:
-            stub.app.pr_queues[key] = ("0", queue)
-            call_id = handle_pr_change_request.spawn(
-                repo_full_name=repo_full_name, 
-                pr_id=pr_id
-            ).object_id
-        stub.app.pr_queues[key] = (call_id, queue)
+        if not pr_change_request.review_ongoing:
+            queue = [pr_change_request] + queue
+            if function_is_completed:
+                stub.app.pr_queues[key] = ("0", queue)
+                call_id = handle_pr_change_request.spawn(
+                    repo_full_name=repo_full_name, 
+                    pr_id=pr_id
+                ).object_id
+            stub.app.pr_queues[key] = (call_id, queue)
+        else:
+            rerun_last_github_action(repo_full_name, pr_id)
+    else:
+        logger.error(f"Failed to push to queue: {repo_full_name}, {pr_id}, {pr_change_request}")
+
+def rerun_last_github_action(repo_full_name: str, pr_id: int):
+    # Code to rerun the last GitHub action
+    pass
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
