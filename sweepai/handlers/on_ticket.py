@@ -97,6 +97,11 @@ def on_ticket(
     elif title.lower().startswith("sweep "):
         title = title[6:]
 
+    # Extract filenames from the title and description
+    import re
+    pattern = r'\b\w+\.\w+\b'
+    filenames = re.findall(pattern, title + summary)
+
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -255,7 +260,7 @@ def on_ticket(
         content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
         discord_log_error(content)
 
-    def fetch_file_contents_with_retry():
+    def fetch_file_contents_with_retry(filenames):
         retries = 1
         error = None
         for i in range(retries):
@@ -278,7 +283,7 @@ def on_ticket(
 
     logger.info("Fetching relevant files...")
     try:
-        snippets, tree = fetch_file_contents_with_retry()
+        snippets, tree = fetch_file_contents_with_retry(filenames)
         assert len(snippets) > 0
     except Exception as e:
         trace = traceback.format_exc()
