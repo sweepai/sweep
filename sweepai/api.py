@@ -147,7 +147,26 @@ async def webhook(raw_request: Request):
         if event == "issues" and action == "opened":
             ...
         elif event == "issues" and action == "labeled":
-            ...
+            # Corrected code goes here
+            request = IssueRequest(**request_dict)
+            if 'label' in request_dict and str.lower(request_dict['label']['name']) == GITHUB_LABEL_NAME:
+                request.issue.body = request.issue.body or ""
+                request.repository.description = (
+                    request.repository.description or ""
+                )
+                # Update before we handle the ticket to make sure index is up to date
+                # other ways suboptimal
+                handle_ticket.spawn(
+                    request.issue.title,
+                    request.issue.body,
+                    request.issue.number,
+                    request.issue.html_url,
+                    request.issue.user.login,
+                    request.repository.full_name,
+                    request.repository.description,
+                    request.installation.id,
+                    None
+                )
         elif event == "issue_comment" and action == "created":
             ...
         elif event == "pull_request_review_comment" and action == "created":
