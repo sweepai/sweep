@@ -400,7 +400,7 @@ def on_ticket(
                 current_issue.delete_reaction(eyes_reaction.id)
             except:
                 pass
-            for _ in range(3):
+            for _ in range(1):
                 try:
                     # CODE REVIEW
                     changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
