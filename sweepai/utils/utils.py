@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import modal
 from loguru import logger
-from modal import method
+import tiktoken
 
 from sweepai.utils.config.server import UTILS_MODAL_INST_NAME
 
@@ -30,7 +30,7 @@ class Tiktoken:
         import tiktoken
         self.openai_models = {model: tiktoken.encoding_for_model(model) for model in Tiktoken.openai_models}
 
-    @method()
+    @modal.method()
     def count(self, text: str, model: str = "gpt-4"):
         return len(self.openai_models[model].encode(text))
 
@@ -212,7 +212,7 @@ class Chunking:
 
         logger.debug("Finished downloading tree-sitter parsers")
 
-    @method()
+    @modal.method()
     def chunk(
             self,
             file_content: str,
