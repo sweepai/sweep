@@ -2,9 +2,16 @@ import os
 import re
 import shutil
 import time
-from datetime import datetime
+from typing import Literal
+from operator import itemgetter
 
-import github
+from pydantic import BaseModel
+
+def get_primary_language(repo):
+    languages = repo.get_languages()
+    primary_language = max(languages.items(), key=itemgetter(1))[0]
+    return primary_language
+
 import modal
 from redis import Redis
 import requests
