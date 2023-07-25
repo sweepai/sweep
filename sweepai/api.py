@@ -169,14 +169,14 @@ async def webhook(raw_request: Request):
         else:
             ...
 
-                    current_issue = repo.get_issue(number=request.issue.number)
-                    current_issue.add_to_labels(GITHUB_LABEL_NAME)
+        current_issue = repo.get_issue(number=request.issue.number)
+        current_issue.add_to_labels(GITHUB_LABEL_NAME)
         elif event == "issues" and action == "labeled":
             request = IssueRequest(**request_dict)
             if 'label' in request_dict and str.lower(request_dict['label']['name']) == GITHUB_LABEL_NAME:
                 request.issue.body = request.issue.body or ""
                 request.repository.description = (
-                        request.repository.description or ""
+                    request.repository.description or ""
                 )
                 # Update before we handle the ticket to make sure index is up to date
                 # other ways suboptimal
