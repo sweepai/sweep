@@ -3,6 +3,12 @@ from typing import Literal
 from pydantic import BaseModel
 
 
+class PRMergedRequest(BaseModel):
+    class PullRequest(BaseModel):
+        title: str
+        merged: bool
+
+
 class Installation(BaseModel):
     id: str
 
