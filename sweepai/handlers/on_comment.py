@@ -126,12 +126,6 @@ def on_comment(
                 item_to_react_to.create_reaction("eyes")
             except Exception as e:
                 pass
-            if comment_is_complete:
-                try:
-                    item_to_react_to.delete_reaction("eyes")
-                    item_to_react_to.create_reaction("rocket")
-                except Exception as e:
-                    pass
         branch_name = pr.head.ref
         pr_title = pr.title
         pr_body = pr.body or ""
@@ -240,6 +234,12 @@ def on_comment(
 
         logger.info("Done!")
         comment_is_complete = True
+        if comment_is_complete:
+            try:
+                item_to_react_to.delete_reaction("eyes")
+                item_to_react_to.create_reaction("rocket")
+            except Exception as e:
+                pass
     except NoFilesException:
         capture_posthog_event(username, "failed", properties={
             "error": "No files to change",
