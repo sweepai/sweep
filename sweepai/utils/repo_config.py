@@ -1,3 +1,5 @@
+import yaml
+
 class RepoConfig:
     def __init__(self):
         self.settings = {}
