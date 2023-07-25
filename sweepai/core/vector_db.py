@@ -25,7 +25,23 @@ from ..utils.github_utils import get_token
 def compute_filename_score(filename):
     # Compute the score of the filename based on a specific criteria or algorithm
     # For now, let's just return a placeholder value
-    return 1
+    # Ensure that the function returns a valid score
+    score = 1
+    if score < 0 or score > 1:
+        raise ValueError("Score must be between 0 and 1")
+    return score
+
+
+# Initialize the `deeplake_vs` variable
+deeplake_vs = None
+# Initialize the `commits` variable
+commits = None
+# Initialize the `token` variable
+token = None
+# Initialize the `repo` variable
+repo = None
+# Initialize the `embedding_function` variable
+embedding_function = None
 
 
 stub = modal.Stub(DB_MODAL_INST_NAME)
