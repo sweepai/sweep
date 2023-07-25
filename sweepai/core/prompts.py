@@ -169,13 +169,16 @@ cot_retrieval_prompt = """
 Gather information to solve the problem. Use "finish" when you feel like you have sufficient information.
 """
 
-files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
+files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
 
 files_to_change_prompt = """
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
 Then, provide a list of files you would like to modify, abiding by the following:
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
+* Prefer modifying existing files over creating new files
+* Change as few files and lines as possible
 * Use detailed, natural language instructions on what to modify, with reference to variable names
+* Be concrete with instructions and do not write "check for x" or "look for y". Simply write "add x" or "change y to z".
 * There MUST be both create_file and modify_file XML tags
 * The list of files to create or modify may be empty, but you MUST leave the XML tags with a single list element with "* None"
 * Create/modify up to 5 FILES
@@ -310,7 +313,7 @@ Lines to change in the file: (include multiple small changes as opposed to one l
 
 Code Generation:
 ```
-Generate a diff based on the given plan, in the following format (do not include "..." anywhere). Do not remove comments.
+Generate a diff based on the given plan, in the following format (do not include "..." anywhere). Always prefer the least amount of changes possible. Do not remove comments.
 
 Example:
 ```
@@ -437,15 +440,23 @@ Plan:
 """
 
 gha_extraction_system_prompt = """\
-Your job is to extract the information needed to debug the log from the Github Actions workflow file.
+Your job is to extract the relevant lines from the Github Actions workflow logs for debugging.
 """
+
+# gha_extraction_prompt = """\
+# Here are the logs:
+# {gha_logs}
+# Copy the important lines from the github action logs. Describe the issue as you would report a bug to a developer and do not mention the github action or preparation steps. Only mention the actual issue.
+# For example, if the issue was because of github action -> pip install -> python black formatter -> file xyz is broken, only report that file xyz is broken and fails formatting. Do not mention the github action or pip install.
+# Make sure to mention the file name and line number of the issue (if applicable).
+# Then, suggest 1-2 potential solutions to the issue. Feel free to add ignore comments to the code if you think the linter or static checker has made a mistake.
+# """
 
 gha_extraction_prompt = """\
 Here are the logs:
 {gha_logs}
-Copy the important lines from the github action logs. Describe the issue as you would report a bug to a developer and do not mention the github action or preparation steps. Only mention the actual issue.
-For example, if the issue was because of github action -> pip install -> python black formatter -> file xyz is broken, only report that file xyz is broken and fails formatting. Do not mention the github action or pip install.
-Make sure to mention the file name and line number of the issue(if applicable).
+
+Copy the lines from the logs corresponding to the error and wrap it in ```.
 """
 
 should_edit_code_system_prompt = """\

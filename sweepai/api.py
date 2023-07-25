@@ -123,6 +123,7 @@ def push_to_queue(
     key = (repo_full_name, pr_id)
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
     function_is_completed = function_call_is_completed(call_id)
+    print(call_id, queue, function_is_completed, pr_change_request)
     if pr_change_request.type == "comment" or function_is_completed:
         queue = [pr_change_request] + queue
         if function_is_completed:
@@ -294,29 +295,20 @@ async def webhook(raw_request: Request):
                 pass
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
-                logs = None
                 if request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
-                    logs = handle_check_suite.call(request)
-                    if len(request.check_run.pull_requests) > 0 and logs:
-                        pr_change_request = PRChangeRequest(
-                            type="comment",
-                            params={
-                                "repo_full_name": request.repository.full_name,
-                                "repo_description": request.repository.description,
-                                "comment": "Sweep: " + logs,
-                                "pr_path": None,
-                                "pr_line_position": None,
-                                "username": request.sender.login,
-                                "installation_id": request.installation.id,
-                                "pr_number": request.check_run.pull_requests[0].number,
-                                "comment_id": None,
-                            }
-                        )
-                        push_to_queue(
-                            repo_full_name=request.repository.full_name,
-                            pr_id=request.check_run.pull_requests[0].number,
-                            pr_change_request=pr_change_request
-                        )
+                    g = get_github_client(request.installation.id)
+                    repo = g.get_repo(request.repository.full_name)
+                    if len(request.check_run.pull_requests) > 0:
+                        if not repo.get_pull(request.check_run.pull_requests[0].number).title.startswith("[DRAFT]"):
+                            pr_change_request = PRChangeRequest(
+                                type="gha",
+                                params = {"request": request}
+                            )
+                            push_to_queue(
+                                repo_full_name=request.repository.full_name,
+                                pr_id=request.check_run.pull_requests[0].number,
+                                pr_change_request=pr_change_request
+                            )
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
@@ -411,10 +403,9 @@ def update_sweep_prs(
     # For each pull request, attempt to merge the changes from the default branch into the pull request branch
     for pr in pulls:
         try:
-            # Get the base branch
-            # base = repo.get_git_ref(f"heads/{pr.base.ref}")
-            # Merge the base branch directly into the feature branch
-            # pr.merge(base.object.sha)
+            # merge main to feature branch
+            # feature_branch = pr.head.ref
+            # repo.merge(repo.default_branch, feature_branch, f'Merge main into {feature_branch}')
             
             # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
             logger.info(f"Merging changes from default branch into PR #{pr.number}")
