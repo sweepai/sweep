@@ -1,0 +1,20 @@
+# 🗺️ Roadmap
+
+- 🪲 Respond to linters
+    - Ability for Sweep to take use type-checkers and linters
+- 🔍 External search (Anthropic docs, as GPT 3.5/4 is trained on pre-2019)
+    - WebPilot + SerpAPI + GPT Functions
+- 🤖 Slack /  Discord bot for better interactivity, bot creates ticket and Sweep solves them
+- 💻 CLI access ("install puppeteer" or "fix all mypy type-check errors")
+    - Give access to modal shell and standard CLI commands (git, ls, cat, npm, pip etc.)
+- 🗑️ Deleting old Sweep branches / PRs to declutter
+    - Cronjob to check for branches that have been inactive for over a week (configurable)
+- ⚙️ `sweep.toml` configuration file with files with config support for
+    - Include and exclude dirs and extensions
+    - Ability to switch back to Anthropic for LLM
+    - Max reply size
+    - Disable certain features
+- 🍴 Fork SyncLinear for better Linear integration
+    - One-way sync
+    - Auto-tag Sweep tickets
+    - No need for public tag in linear, just use “sweep:” prefix
