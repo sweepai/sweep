@@ -6,6 +6,9 @@ On Github ticket, get ChatGPT to deal with it
 
 import traceback
 
+def handle_slow_mode():
+    pass
+...
 import modal
 import openai
 from loguru import logger
@@ -89,14 +92,18 @@ def on_ticket(
         repo_full_name: str,
         repo_description: str,
         installation_id: int,
-        comment_id: int = None
+        comment_id: int = None,
+        slow_mode: bool = False
 ):
     # Check if the title starts with "sweep" or "sweep: " and remove it
     if title.lower().startswith("sweep: "):
         title = title[7:]
     elif title.lower().startswith("sweep "):
         title = title[6:]
-
+    
+    if slow_mode:
+        handle_slow_mode()
+...
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
