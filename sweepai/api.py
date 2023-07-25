@@ -413,7 +413,7 @@ def update_sweep_prs(
             repo.merge(feature_branch, repo.default_branch, f'Merge main into {feature_branch}')
             
             # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
-            logger.info(f"Merging changes from default branch into PR #{pr.number}")
+            logger.info(f"Merging changes from default branch into PR #{pr.number} for branch {feature_branch}")
             
             # Check if the merged PR is the config PR
             if pr.title == "Configure Sweep" and pr.merged:
