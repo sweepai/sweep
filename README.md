@@ -45,9 +45,9 @@ Describe bugs, small features, and refactors like you would to a junior develope
 
 Install Sweep by adding the [**Sweep GitHub app**](https://github.com/apps/sweep-ai) to your desired repositories.
 
-For more details, visit our [✨ Installation](docs/installation.md) page.
+* For more details, visit our [✨ Installation](docs/installation.md) page.
 
-We support all languages GPT-4 supports, including Python, JS/TS, Rust, Go, Java, C# and C++.
+* We support all languages GPT-4 supports, including Python, JS/TS, Rust, Go, Java, C# and C++.
 
 ---
 
@@ -63,13 +63,13 @@ Unlike existing AI solutions, this can solve entire tickets and can be paralleli
 - Modal Labs for infra + deployment
 - Gradio for Sweep Chat
 
-## Examples
-See highlights at https://docs.sweep.dev/examples.
+## Highlights 🌟
+Examine pull requests created by Sweep [here](https://docs.sweep.dev/examples).
 
 ## Pricing
-* We charge $240/month for 120 GPT4 tickets per month.
-* For unpaid users, we offer 5 free GPT4 tickets per month.
-* We also offer unlimited GPT3.5 tickets.
+* We charge $240/month for 120 GPT-4 tickets per month.
+* For unpaid users, we offer 5 free GPT-4 tickets per month.
+* We also offer unlimited GPT-3.5 tickets.
 
 ## Roadmap 🗺
 See [🗺️ Roadmap](https://docs.sweep.dev/roadmap)
@@ -98,4 +98,4 @@ Consider starring us if you're using Sweep so more people hear about us!
 
 ## Contributing 🤝
 Contributions are welcome and greatly appreciated! For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
-For more detailed docs, see [🚀 Quickstart](https://docs.sweep.dev/).
+* [Sweep Docs](https://docs.sweep.dev/).
