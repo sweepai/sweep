@@ -229,7 +229,7 @@ def get_deeplake_vs_from_repo(
                 score_factors.append(score_factor)
             except Exception as e:
                 logger.warning(f"Received warning during scoring {e}, skipping...")
-                score_factors.append(1)
+                score_factors.append((1, 2, 5))
                 continue
     scores = get_scores(score_factors) # take percentiles + sum the scores
 
