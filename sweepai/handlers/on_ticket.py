@@ -11,8 +11,8 @@ def handle_slow_mode():
     # This needs to be clarified with the user or referred to in the project documentation or other parts of the codebase
     # For example, if 'slow' mode means processing requests at a slower rate, you could add a delay here
     import time
-    time.sleep(10) # Added a delay of 10 seconds when 'slow' mode is enabled
-...
+    time.sleep(10)
+
 import modal
 import openai
 from loguru import logger
@@ -79,37 +79,37 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5)
     # truncating snippets based on character length
     result_snippets = []
     total_length = 0
-    for snippet in snippets:
-        total_length += len(snippet.get_snippet())
-        if total_length > total_number_of_snippet_tokens * 5:
-            break
-        result_snippets.append(snippet)
-    return result_snippets[:max_num_of_snippets]
-
-
-def on_ticket(
-        title: str,
-        summary: str,
-        issue_number: int,
-        issue_url: str,
-        username: str,
-        repo_full_name: str,
-        repo_description: str,
-        installation_id: int,
-        comment_id: int = None,
-        slow_mode: bool = False
-):
-    # Check if the title starts with "sweep" or "sweep: " and remove it
-    if title.lower().startswith("sweep: "):
-        title = title[7:]
-    elif title.lower().startswith("sweep "):
-        title = title[6:]
-
-    if slow_mode:
-        handle_slow_mode()
-        # Now that the 'handle_slow_mode' function is implemented, it will perform the intended operations when 'slow_mode' is True
-...
-    # Flow:
+    def handle_slow_mode():
+        # Implement operations for 'slow' mode
+        # The exact operations will depend on the requirements of the 'slow' mode
+        # This needs to be clarified with the user or referred to in the project documentation or other parts of the codebase
+        # For example, if 'slow' mode means processing requests at a slower rate, you could add a delay here
+        import time
+        time.sleep(10)
+    ...
+    def on_ticket(
+            title: str,
+            summary: str,
+            issue_number: int,
+            issue_url: str,
+            username: str,
+            repo_full_name: str,
+            repo_description: str,
+            installation_id: int,
+            comment_id: int = None,
+            slow_mode: bool = False
+    ):
+        # Check if the title starts with "sweep" or "sweep: " and remove it
+        if title.lower().startswith("sweep: "):
+            title = title[7:]
+        elif title.lower().startswith("sweep "):
+            title = title[6:]
+    
+        if slow_mode:
+            handle_slow_mode()
+            # Now that the 'handle_slow_mode' function is implemented, it will perform the intended operations when 'slow_mode' is True
+    ...
+        organization, repo_name = repo_full_name.split("/")
     # 1. Get relevant files
     # 2: Get human message
     # 3. Get files to change
