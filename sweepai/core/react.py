@@ -114,10 +114,15 @@ class Toolbox(BaseModel):
         @classmethod
         def parse(cls, results) -> "Toolbox.ParsedResults":
             match = re.search(cls._regex, results, flags=re.DOTALL)
-            return cls(tool_name=match.group("tool").strip(), inputs=match.group("inputs").strip())
+            if match is not None:
+                return cls(tool_name=match.group("tool").strip(), inputs=match.group("inputs").strip())
+            else:
+                return cls(tool_name="", inputs="")
 
     def process_results(self, parsed_results: "Toolbox.ParsedResults") -> str:
         # parsed_results = Toolbox.ParsedResults.parse(raw_output)
+        if parsed_results.tool_name == "":
+            return ""
         tool = next((tool for tool in self.tools if tool._name == parsed_results.tool_name), None)
         if tool is not None:
             return tool(parsed_results.inputs)
