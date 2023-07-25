@@ -2,6 +2,7 @@
 Take a PR and provide an AI generated review of the PR.
 """
 from loguru import logger
+from queue import Queue
 
 from sweepai.core.entities import DiffSummarization, PullRequestComment
 from sweepai.core.prompts import review_prompt
@@ -35,6 +36,13 @@ def get_pr_diffs(repo, pr):
     return pr_diffs
 
 
+def process_changes_queue(diffs):
+    queue = Queue()
+    for diff in diffs:
+        queue.put(diff)
+    return queue
+
+
 def review_pr(repo, pr, issue_url, username, repo_description, title, summary, replies_text, tree):
     repo_name = repo.full_name
     logger.info("Getting PR diffs...")
@@ -48,7 +56,7 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
         summary=summary + replies_text,
         snippets=[],
         tree=tree,
-        diffs=[diffs[0] if len(diffs) > 0 else ""],
+        diffs=process_changes_queue(diffs),
         pr_title=pr.title,
         pr_message=pr.body or "",
     )
