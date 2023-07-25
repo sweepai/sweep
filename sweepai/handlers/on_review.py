@@ -86,6 +86,8 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
     final_review_prompt = HumanMessageFinalPRComment(summarization_replies=summarization_replies).construct_prompt()
     reply = sweep_bot.chat(final_review_prompt, message_key="final_review")
     review_comment = PullRequestComment.from_string(reply)
-    pr.create_review(body=review_comment.content, event="COMMENT", comments=[])
-    changes_required = 'yes' in review_comment.changes_required.lower()
+    changes_required = 'yes'
+    while changes_required:
+        pr.create_review(body=review_comment.content, event="COMMENT", comments=[])
+        changes_required = 'yes' in review_comment.changes_required.lower()
     return changes_required, review_comment.content
