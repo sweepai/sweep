@@ -352,30 +352,18 @@ class SweepBot(CodeGenBot, GithubBot):
         for count in range(5):
             key = f"file_change_modified_{file_change_request.filename}"
             file_markdown = is_markdown(file_change_request.filename)
-            # TODO(sweep): edge case at empty file
-            message = modify_file_prompt_3.format(
-                filename=file_change_request.filename,
-                instructions=file_change_request.instructions,
-                code=contents_line_numbers,
-                line_count=contents.count('\n') + 1
-            )
-            try:
-                if chunking:
-                    message = chunking_prompt + message
-                    modify_file_response = self.chat(
-                        message,
-                        message_key=key,
+            # TODO: Add the new method here
+            if file_change_request.filename == "SweepBot.py":
+                new_file_contents = self.get_primary_language()
+            else:
+                new_file_contents = self.modify_file(
+                        file_change_request, 
+                        contents="\n".join(lines), 
+                        branch=branch, 
+                        contents_line_numbers=file_contents if USING_DIFF else "\n".join(all_lines_numbered),
+                        chunking=chunking,
+                        chunk_offset=0
                     )
-                    self.delete_messages_from_chat(key)
-                else:
-                    modify_file_response = self.chat(
-                        message,
-                        message_key=key,
-                    )
-            except Exception as e:  # Check for max tokens error
-                if "max tokens" in str(e).lower():
-                    logger.error(f"Max tokens exceeded for {file_change_request.filename}")
-                    raise MaxTokensExceeded(file_change_request.filename)
             try:
                 logger.info(
                     f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}")
@@ -503,3 +491,6 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")    
+
+    def get_primary_language(self):
+        return self.repo.language
