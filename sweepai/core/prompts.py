@@ -440,7 +440,7 @@ Plan:
 """
 
 gha_extraction_system_prompt = """\
-Your job is to extract the relevant lines from the Github Actions workflow logs for debugging.
+Your job is to extract the error logs from the Github Actions workflow logs.
 """
 
 # gha_extraction_prompt = """\
