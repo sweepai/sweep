@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import time
+from datetime import datetime
 
 import github
 import modal
@@ -20,11 +21,15 @@ from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
 
+def get_file_age(repo, file_path):
+    commits = list(repo.get_commits(path=file_path))
+    first_commit_date = commits[-1].commit.author.date
+    file_age_in_days = (datetime.now() - first_commit_date).days
+    return file_age_in_days
 
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"
     return re.sub(pattern, "_", string)
-
 
 def get_jwt():
     signing_key = GITHUB_APP_PEM
@@ -32,7 +37,6 @@ def get_jwt():
     payload = {"iat": int(time.time()), "exp": int(time.time()) + 600, "iss": app_id}
 
     return encode(payload, signing_key, algorithm="RS256")
-
 
 def get_token(installation_id: int):
     jwt = get_jwt()
@@ -47,11 +51,9 @@ def get_token(installation_id: int):
     )
     return response.json()["token"]
 
-
 def get_github_client(installation_id: int):
     token = get_token(installation_id)
     return Github(token)
-
 
 def get_installation_id(username: str):
     jwt = get_jwt()
@@ -74,7 +76,7 @@ def list_directory_tree(
     included_directories=None,
     excluded_directories=None,
     included_files=None,
-    ctags: CTags=None,
+    ctags: CTags = None,
 ):
     """Display the directory tree.
 
@@ -148,9 +150,9 @@ def get_file_list(root_directory: str) -> str:
     return files
 
 def get_tree_and_file_list(
-        repo: Repository,
-        installation_id: int,
-        snippet_paths: list[str]
+    repo: Repository,
+    installation_id: int,
+    snippet_paths: list[str]
 ) -> str:
     prefixes = []
     for snippet_path in snippet_paths:
@@ -176,7 +178,6 @@ def get_tree_and_file_list(
     )
     return tree
 
-
 def get_file_contents(repo: Repository, file_path, ref=None):
     if ref is None:
         ref = repo.default_branch
@@ -189,13 +190,13 @@ def get_file_names_from_query(query: str) -> list[str]:
     return [query_file_name for query_file_name in query_file_names if len(query_file_name) > 3]
 
 def search_snippets(
-        repo: Repository,
-        query: str,
-        installation_id: int,
-        num_files: int = 5,
-        include_tree: bool = True,
-        branch: str = None,
-        sweep_config: SweepConfig = SweepConfig(),
+    repo: Repository,
+    query: str,
+    installation_id: int,
+    num_files: int = 5,
+    include_tree: bool = True,
+    branch: str = None,
+    sweep_config: SweepConfig = SweepConfig(),
 ) -> tuple[list[Snippet], str]:
     # Initialize the relevant directories string
     get_relevant_snippets = modal.Function.lookup(DB_MODAL_INST_NAME, "get_relevant_snippets")
@@ -223,12 +224,12 @@ def search_snippets(
     git_repo.git.checkout(SweepConfig.get_branch(repo))
     file_list = get_file_list("repo")
     query_file_names = get_file_names_from_query(query)
-    query_match_files = [] # files in both query and repo
+    query_match_files = []  # files in both query and repo
     for file_path in tqdm(file_list):
         for query_file_name in query_file_names:
             if query_file_name in file_path:
                 query_match_files.append(file_path)
-    
+
     snippet_paths = [snippet.file_path for snippet in snippets] + query_match_files[:15]
     snippet_paths = list(set(snippet_paths))
     tree = get_tree_and_file_list(
@@ -248,13 +249,13 @@ def search_snippets(
             logger.warning(f"Skipping {file_path}")
         else:
             snippets = [
-                        Snippet(
-                            content=file_contents,
-                            start=0,
-                            end=file_contents.count("\n") + 1,
-                            file_path=file_path,
-                        )
-                    ] + snippets
+                Snippet(
+                    content=file_contents,
+                    start=0,
+                    end=file_contents.count("\n") + 1,
+                    file_path=file_path,
+                )
+            ] + snippets
     snippets = [snippet.expand() for snippet in snippets]
     logger.info(f"Tree: {tree}")
     if include_tree:
@@ -262,11 +263,10 @@ def search_snippets(
     else:
         return snippets
 
-
 def index_full_repository(
-        repo_name: str,
-        installation_id: int = None,
-        sweep_config: SweepConfig = SweepConfig(),
+    repo_name: str,
+    installation_id: int = None,
+    sweep_config: SweepConfig = SweepConfig(),
 ):
     update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
     num_indexed_docs = update_index.spawn(
@@ -286,7 +286,7 @@ def index_full_repository(
                 description="Assigns Sweep to an issue or pull request.",
             )
     except Exception as e:
-        posthog("index_full_repository", "failed", {"error": str(e)})
+        posthog.capture("index_full_repository", "failed", {"error": str(e)})
         logger.warning(
             "Adding label failed, probably because label already."
         )  # warn that the repo may already be indexed

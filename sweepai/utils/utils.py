@@ -13,12 +13,12 @@ stub = modal.Stub(UTILS_MODAL_INST_NAME)
 tiktoken_image = modal.Image.debian_slim().pip_install("tiktoken", "loguru", "anthropic", "pyyaml", "PyGithub")
 
 TIKTOKEN_CACHE_DIR = "/root/cache/tiktoken"
-tiktoken_volume = modal.SharedVolume().persist("tiktoken-models")
+tiktoken_volume = modal.NetworkFileSystem.persisted("tiktoken-models")
 
 
 @stub.cls(
     image=tiktoken_image,
-    shared_volumes={TIKTOKEN_CACHE_DIR: tiktoken_volume},
+    network_file_systems={TIKTOKEN_CACHE_DIR: tiktoken_volume},
     secret=modal.Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR})
 )
 class Tiktoken:
@@ -40,7 +40,8 @@ chunking_image = modal.Image.debian_slim() \
     .pip_install("tree-sitter", "loguru", "pyyaml", "PyGithub")
 
 CHUNKING_CACHE_DIR = "/root/cache/"
-chunking_volume = modal.SharedVolume().persist("chunking-parsers")
+# chunking_volume = modal.SharedVolume().persist("chunking-parsers")
+chunking_volume = modal.NetworkFileSystem.persisted("chunking-parsers")
 
 
 @dataclass
@@ -160,7 +161,7 @@ extension_to_language = {
 
 @stub.cls(
     image=chunking_image,
-    shared_volumes={CHUNKING_CACHE_DIR: chunking_volume},
+    network_file_systems={CHUNKING_CACHE_DIR: chunking_volume},
 )
 class Chunking:
 
@@ -178,12 +179,6 @@ class Chunking:
             Language.build_library(f'cache/build/{language}.so', [f"cache/tree-sitter-{language}"])
             subprocess.run(f"cp cache/build/{language}.so /tmp/{language}.so", shell=True)  # copying for executability
         self.languages = {language: Language(f"/tmp/{language}.so", language) for language in LANGUAGE_NAMES}
-
-        subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-typescript cache/tree-sitter-typescript",
-                       shell=True)
-        Language.build_library(f'cache/build/typescript.so', [f"cache/tree-sitter-typescript/tsx"])
-        subprocess.run(f"cp cache/build/typescript.so /tmp/typescript.so", shell=True)
-        self.languages["tsx"] = Language("/tmp/typescript.so", "tsx")
 
         subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-c-sharp cache/tree-sitter-c-sharp",
                        shell=True)
@@ -208,6 +203,12 @@ class Chunking:
         Language.build_library(f'cache/build/vue.so', [f"cache/tree-sitter-vue"])
         subprocess.run(f"cp cache/build/vue.so /tmp/vue.so", shell=True)
         self.languages["vue"] = Language("/tmp/vue.so", "vue")
+
+        subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-typescript cache/tree-sitter-typescript",
+                       shell=True)
+        Language.build_library(f'cache/build/typescript.so', [f"cache/tree-sitter-typescript/tsx"])
+        subprocess.run(f"cp cache/build/typescript.so /tmp/typescript.so", shell=True)
+        self.languages["tsx"] = Language("/tmp/typescript.so", "tsx")
 
         logger.debug("Finished downloading tree-sitter parsers")
 
@@ -248,15 +249,16 @@ class Chunking:
         else:
             language_names = list(self.languages.keys())
 
-        for language_name in language_names:
-            language = self.languages[language_name]
-            parser = Parser()
-            parser.set_language(language)
-            tree = parser.parse(bytes(file_content, "utf-8"))
-            if not tree.root_node.children or tree.root_node.children[0].type != "ERROR":
-                file_language = language
-                break
-            logger.warning(f"Not language {language_name}")
+        if ext != "mustache":
+            for language_name in language_names:
+                language = self.languages[language_name]
+                parser = Parser()
+                parser.set_language(language)
+                tree = parser.parse(bytes(file_content, "utf-8"))
+                if not tree.root_node.children or tree.root_node.children[0].type != "ERROR":
+                    file_language = language
+                    break
+                logger.warning(f"Not language {language_name}")
 
         ids = []
         metadatas = []

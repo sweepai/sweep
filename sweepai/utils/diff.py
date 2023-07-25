@@ -160,11 +160,12 @@ def sliding_window_replacement(original, search, replace):
     index = -1
     max_similarity = 0
     # sliding window comparison from original to search
+    # Todo: 2 pointer approach (find start, then find end)
     # Todo: use rapidfuzz to compute fuzzy similarity over code
-    for i in range(len(original) - len(search) + 1):
+    for i in range(len(original)):
         count = 0
         for j in range(len(search)):
-            if search[j].strip() == original[i + j].strip():
+            if i + j < len(original) and search[j].strip() == original[i + j].strip():
                 count += 1
         if count > max_similarity:
             index = i
@@ -195,6 +196,15 @@ def generate_new_file_from_patch(modify_file_response: str, old_file_content: st
     matches = re.findall(r'<<<<.*?\n(.*?)\n?====\n(.*?)\n?>>>>', modify_file_response, re.DOTALL)
 
     for search, replace in matches:
+        # Remove trailing tags
+        if search.lstrip().startswith('<old_file>') and replace.lstrip().startswith('<old_file'):
+            search = search.lstrip()[len('<old_file>'):]
+            replace = replace.lstrip()[len('<old_file>'):]
+        # Remove trailing tags
+        if search.rstrip().endswith('</old_file>') and replace.rstrip().endswith('</old_file'):
+            search = search.rstrip()[:-len('</old_file>')]
+            replace = replace.rstrip()[:-len('</old_file>')]
+
         old_file_lines = sliding_window_replacement(old_file_lines, search.splitlines(), replace.splitlines())
 
     result = '\n'.join(old_file_lines)

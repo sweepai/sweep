@@ -1,11 +1,14 @@
 {
   "index": "Getting Started",
+  "commenting": "Commenting on Pull Requests",
   "examples": "Examples",
   "tricks": "Tips & Tricks",
   "limitations": "Limitations",
   "roadmap": "Roadmap",
   "blogs": "Blogs",
   "privacy": "Privacy Policy", 
+  "ai_junior_dev_refactors_itself": "AI Junior Dev Refactors Itself by Writing Code",
+  "introducing_sweep": "Introducing Sweep - AI powered Bug Fixes and Feature Requests",
   "about": {
     "title": "🏠 Home",
     "type": "page",
@@ -20,7 +23,7 @@
   "payment": {
     "title": "💎 Sweep Pro",
     "type": "page",
-    "href": "https://buy.stripe.com/fZe03512h99u0AE6os",
+    "href": "https://buy.stripe.com/9AQ8zB26letOgzC5kp",
     "newWindow": true
   }
 }
