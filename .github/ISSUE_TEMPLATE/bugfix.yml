@@ -8,7 +8,7 @@ body:
     attributes:
       label: Details
       description: More details about the bug
-      placeholder: The bug might be in ... file
+      placeholder: "The bug might be in ... file. Here are the logs: ..."
   - type: textarea
     id: write
     attributes:
