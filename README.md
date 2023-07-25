@@ -26,7 +26,10 @@
 </a>
 <a href="https://twitter.com/sweep__ai">
     <img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Ftwitter.com%2Fsweep__ai" />
+<a href="https://twitter.com/sweep__ai">
+    <img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Ftwitter.com%2Fsweep__ai" />
 </a>
+[![Sweep - Sweep is an AI-powered junior dev on your team | Product Hunt](https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=404410&theme=dark)](https://www.producthunt.com/posts/sweep-5?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-sweep-5)
 </p>
 
 <b>Sweep</b> is an AI junior developer that transforms bug reports & feature requests into code changes.
