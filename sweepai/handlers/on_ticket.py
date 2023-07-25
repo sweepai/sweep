@@ -420,6 +420,16 @@ def on_ticket(
                     logger.error(traceback.format_exc())
                     logger.error(e)
                     break
+            
+            logger.info("Running github actions...")
+            try:
+                commit = pr.get_commits().reversed[0]
+                check_runs = commit.get_check_runs()
+
+                for check_run in check_runs:
+                    check_run.rerequest()
+            except Exception as e:
+                logger.error(e)
 
             # Completed code review
             edit_sweep_comment(
