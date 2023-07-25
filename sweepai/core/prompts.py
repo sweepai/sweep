@@ -456,7 +456,7 @@ gha_extraction_prompt = """\
 Here are the logs:
 {gha_logs}
 
-Copy the lines from the logs corresponding to the error and wrap it in ```. Add additional details like the action that ran but be concise.
+Copy the lines from the logs corresponding to the error and wrap it in ```. Mention the command that failed.
 """
 
 should_edit_code_system_prompt = """\
