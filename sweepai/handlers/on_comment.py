@@ -77,6 +77,7 @@ def on_comment(
         repo: None = None,
         pr: None = None,
 ):
+    comment_is_complete = False
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
@@ -238,6 +239,7 @@ def on_comment(
             pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
 
         logger.info("Done!")
+        comment_is_complete = True
     except NoFilesException:
         capture_posthog_event(username, "failed", properties={
             "error": "No files to change",
