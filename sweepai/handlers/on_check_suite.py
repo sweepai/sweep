@@ -7,6 +7,7 @@ import requests
 from loguru import logger
 
 from sweepai.core.gha_extraction import GHAExtractor
+from sweepai.core.sweep_bot import SweepBot
 from sweepai.events import CheckRunCompleted
 from sweepai.utils.config.client import SweepConfig, get_gha_enabled
 from sweepai.utils.github_utils import get_github_client, get_token
