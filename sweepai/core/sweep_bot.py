@@ -352,7 +352,7 @@ class SweepBot(CodeGenBot, GithubBot):
         for count in range(5):
             key = f"file_change_modified_{file_change_request.filename}"
             file_markdown = is_markdown(file_change_request.filename)
-            # TODO(sweep): edge case at empty file
+            # TODO: handle empty file case
             message = modify_file_prompt_3.format(
                 filename=file_change_request.filename,
                 instructions=file_change_request.instructions,
@@ -405,9 +405,9 @@ class SweepBot(CodeGenBot, GithubBot):
     ):
         for file_change_request in file_change_requests:
             try:
-                if file_change_request.change_type == "comment":
+                if file_change_request.change_type == "create":
                     self.handle_create_file(file_change_request, branch)
-                elif file_change_request.change_type == "gha":
+                elif file_change_request.change_type == "modify":
                     self.handle_modify_file(file_change_request, branch)
             except MaxTokensExceeded as e:
                 raise e
@@ -499,6 +499,4 @@ class SweepBot(CodeGenBot, GithubBot):
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
 
-# Remove xml tags
-user_code = re.sub('<[^<]+?>', '', user_code)
-user_code
+# Removed standalone piece of code that removes XML tags from the `user_code` string
