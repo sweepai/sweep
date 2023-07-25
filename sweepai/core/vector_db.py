@@ -88,7 +88,10 @@ class Embedding:
 
     @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(min(len(texts), os.cpu_count())) as executor:
+            embeddings = list(executor.map(self.model.encode, texts, chunksize=BATCH_SIZE))
+        return embeddings
 
     @method()
     def ping(self):
