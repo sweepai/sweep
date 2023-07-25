@@ -3,23 +3,23 @@ import re
 import subprocess
 from dataclasses import dataclass
 
-import modal
-from loguru import logger
+from modal import Stub, Image, NetworkFileSystem, Secret, method
+from tiktoken import Tiktoken
 import tiktoken
 
 from sweepai.utils.config.server import UTILS_MODAL_INST_NAME
 
-stub = modal.Stub(UTILS_MODAL_INST_NAME)
-tiktoken_image = modal.Image.debian_slim().pip_install("tiktoken", "loguru", "anthropic", "pyyaml", "PyGithub")
+stub = Stub(UTILS_MODAL_INST_NAME)
+tiktoken_image = Image.debian_slim().pip_install("tiktoken", "loguru", "anthropic", "pyyaml", "PyGithub")
 
 TIKTOKEN_CACHE_DIR = "/root/cache/tiktoken"
-tiktoken_volume = modal.NetworkFileSystem.persisted("tiktoken-models")
+tiktoken_volume = NetworkFileSystem.persisted("tiktoken-models")
 
 
 @stub.cls(
     image=tiktoken_image,
     network_file_systems={TIKTOKEN_CACHE_DIR: tiktoken_volume},
-    secret=modal.Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR})
+    secret=Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR})
 )
 class Tiktoken:
     openai_models = ["gpt-3.5-turbo", "gpt-4", "gpt-4-32k", "gpt-4-32k-0613"]
@@ -30,18 +30,18 @@ class Tiktoken:
         import tiktoken
         self.openai_models = {model: tiktoken.encoding_for_model(model) for model in Tiktoken.openai_models}
 
-    @modal.method()
-    def count(self, text: str, model: str = "gpt-4"):
+    @method()
+    def count(self, text: str, model: str = "gpt-4") -> int:
         return len(self.openai_models[model].encode(text))
 
 
-chunking_image = modal.Image.debian_slim() \
+chunking_image = Image.debian_slim() \
     .apt_install("git") \
     .pip_install("tree-sitter", "loguru", "pyyaml", "PyGithub")
 
 CHUNKING_CACHE_DIR = "/root/cache/"
 # chunking_volume = modal.SharedVolume().persist("chunking-parsers")
-chunking_volume = modal.NetworkFileSystem.persisted("chunking-parsers")
+chunking_volume = NetworkFileSystem.persisted("chunking-parsers")
 
 
 @dataclass
@@ -212,7 +212,7 @@ class Chunking:
 
         logger.debug("Finished downloading tree-sitter parsers")
 
-    @modal.method()
+    @method()
     def chunk(
             self,
             file_content: str,
@@ -222,7 +222,7 @@ class Chunking:
             max_chunk_size: int = 512 * 3,
             chunk_size: int = 30,
             overlap: int = 15
-    ) -> tuple[list[str], list[dict[str, str]]]:
+    ) -> tuple[list[str], list[dict[str, str]], list[str]]:
         """This function returns a list of chunks and a list of metadata for each chunk.
         chunks: list of file chunks
         metadata: list of metadata for each chunk example: {"file_path": "python", "start": 0, "end": 10}
