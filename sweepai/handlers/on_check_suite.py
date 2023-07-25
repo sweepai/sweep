@@ -83,12 +83,17 @@ def on_check_suite(request: CheckRunCompleted):
     extractor = GHAExtractor()
     logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
     problematic_logs = extractor.gha_extract(logs)
-    comment = pr.as_issue().create_comment(problematic_logs.format(error_logs=logs))
-    # logger.info(f"GitHub actions failed with the following logs: {problematic_logs}")
+    if problematic_logs.count("\n") > 15:
+        problematic_logs += "\n\nThere are a lot of errors. This is likely a larger issue with the PR and not a small linting/type-checking issue."
+    comments = list(pr.get_issue_comments())
+    if len(comments) >= 2 and problematic_logs == comments[-1].body and comments[-2].body == comments[-1].body:
+        comment = pr.as_issue().create_comment(problematic_logs.format(error_logs=problematic_logs) + "\n\nI'm getting the same errors 3 times in a row, so I will stop working on fixing this PR.")
+        logger.warning("Skipping logs because it is duplicated")
+        raise Exception("Duplicate error logs")
+    comment = pr.as_issue().create_comment(problematic_logs.format(error_logs=problematic_logs))
     on_comment(
         repo_full_name=request.repository.full_name,
         repo_description=request.repository.description,
-        # comment=f"Sweep: GitHub actions failed with the following logs:\n\n```{problematic_logs}```",
         comment=problematic_logs,
         pr_path=None,
         pr_line_position=None,
@@ -96,6 +101,7 @@ def on_check_suite(request: CheckRunCompleted):
         installation_id=request.installation.id,
         pr_number=request.check_run.pull_requests[0].number,
         comment_id=comment.id,
+        repo=repo,
     )
     return {"success": True}
 

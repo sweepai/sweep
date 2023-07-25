@@ -403,10 +403,9 @@ def update_sweep_prs(
     # For each pull request, attempt to merge the changes from the default branch into the pull request branch
     for pr in pulls:
         try:
-            # Get the base branch
-            # base = repo.get_git_ref(f"heads/{pr.base.ref}")
-            # Merge the base branch directly into the feature branch
-            # pr.merge(base.object.sha)
+            # merge main to feature branch
+            # feature_branch = pr.head.ref
+            # repo.merge(repo.default_branch, feature_branch, f'Merge main into {feature_branch}')
             
             # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
             logger.info(f"Merging changes from default branch into PR #{pr.number}")
