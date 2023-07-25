@@ -20,6 +20,7 @@ from sweepai.utils.config.server import DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHU
 from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
+from sweepai.utils.ctags_generator import generate_ctags
 
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"
@@ -177,6 +178,8 @@ def get_file_contents(repo: Repository, file_path, ref=None):
         ref = repo.default_branch
     file = repo.get_contents(file_path, ref=ref)
     contents = file.decoded_content.decode("utf-8", errors='replace')
+    ctags = generate_ctags(file_path)
+    cache_inst.set(f"{file_path}-ctags", ctags)
     return contents
 
 def get_file_names_from_query(query: str) -> list[str]:
