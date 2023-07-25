@@ -32,50 +32,6 @@ def compute_filename_score(filename):
     return score
 
 
-# Initialize the `deeplake_vs` variable
-deeplake_vs = None
-# Initialize the `commits` variable
-commits = None
-# Initialize the `token` variable
-token = None
-# Initialize the `repo` variable
-repo = None
-# Initialize the `embedding_function` variable
-embedding_function = None
-
-
-stub = modal.Stub(DB_MODAL_INST_NAME)
-chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
-model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
-MODEL_DIR = "/root/cache/model"
-DEEPLAKE_DIR = "/root/cache/"
-DISKCACHE_DIR = "/root/cache/diskcache/"
-DEEPLAKE_FOLDER = "deeplake/"
-BATCH_SIZE = 256
-SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-MiniLM-L12-v2"
-timeout = 60 * 30  # 30 minutes
-CACHE_VERSION = "v1.0.1"
-MAX_FILES = 3000
-
-image = (
-    modal.Image.debian_slim()
-    .apt_install("git")
-    .pip_install("deeplake==3.6.3", "sentence-transformers")
-    .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "anthropic",
-                 "posthog", "redis", "pyyaml")
-)
-secrets = [
-    modal.Secret.from_name(BOT_TOKEN_NAME),
-    modal.Secret.from_name("github"),
-    modal.Secret.from_name("openai-secret"),
-    modal.Secret.from_name("huggingface"),
-    modal.Secret.from_name("chroma-endpoint"),
-    modal.Secret.from_name("posthog"),
-    modal.Secret.from_name("redis_url"),
-    modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
-]
-
-
 def init_deeplake_vs(repo_name):
     from deeplake.core.vectorstore.deeplake_vectorstore import DeepLakeVectorStore # pylint: disable=import-error
     deeplake_repo_path = f"mem://{DEEPLAKE_FOLDER}{repo_name}"
@@ -131,6 +87,13 @@ def get_deeplake_vs_from_repo(
         branch_name: str | None = None,
         sweep_config: SweepConfig = SweepConfig(),
 ):
+    # Initialize the `deeplake_vs`, `commits`, `token`, `repo`, and `embedding_function` variables
+    deeplake_vs = []
+    commits = []
+    token = []
+    repo = []
+    embedding_function = lambda x: x  # Null function
+
     # Assign a value to the variable `file_path` before it is used in the function call
     file_path = "path/to/file"
     score = compute_filename_score(file_path)
