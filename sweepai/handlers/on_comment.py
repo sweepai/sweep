@@ -225,6 +225,10 @@ def on_comment(
             file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
+        # Remove the rocket emoji reaction from the comment
+        for reaction in item_to_react_to.get_reactions():
+            if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
+                item_to_react_to.delete_reaction(reaction.id)
         if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
             # Update the PR title to remove the "[DRAFT]" prefix
             pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
