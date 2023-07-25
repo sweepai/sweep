@@ -224,6 +224,9 @@ def search_snippets(
             if query_file_name in file_path:
                 query_match_files.append(file_path)
 
+    # Prioritize the filenames extracted from the issue's title and description
+    query_match_files = query_file_names + query_match_files
+
     snippet_paths = [snippet.file_path for snippet in snippets] + query_match_files[:15]
     snippet_paths = list(set(snippet_paths))
     tree = get_tree_and_file_list(
