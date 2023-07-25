@@ -222,10 +222,13 @@ def on_comment(
             file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change(retries=3)
             file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
-        sweep_bot.change_files_in_github(file_change_requests, branch_name)
-        if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
-            # Update the PR title to remove the "[DRAFT]" prefix
-            pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
+        if sweep_bot.has_changes(file_change_requests, branch_name):
+            sweep_bot.change_files_in_github(file_change_requests, branch_name)
+            if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
+                # Update the PR title to remove the "[DRAFT]" prefix
+                pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
+        else:
+            logger.info("No changes to commit.")
 
         logger.info("Done!")
     except NoFilesException:
