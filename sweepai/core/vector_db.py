@@ -89,8 +89,11 @@ class Embedding:
 
     @method()
     def compute(self, texts: list[str]):
-        with Pool() as p:
-            return p.map(self.model.encode, texts, BATCH_SIZE).tolist()
+        if len(texts) > 1000:
+            with Pool() as p:
+                return p.map(self.model.encode, texts, BATCH_SIZE).tolist()
+        else:
+            return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
 
     @method()
     def ping(self):
@@ -278,7 +281,7 @@ def compute_deeplake_vs(collection_name,
         x in enumerate(embeddings) if x is None]
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
 
-        computed_embeddings = list(embedding_function(documents_to_compute))
+        computed_embeddings = embedding_function(documents_to_compute) if isinstance(embedding_function(documents_to_compute), list) else list(embedding_function(documents_to_compute))
 
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
