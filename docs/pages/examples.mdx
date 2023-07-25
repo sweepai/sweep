@@ -1,0 +1,55 @@
+# 🎫 Example Sweep tickets
+
+## [PyTorch Ignite](https://github.com/pytorch/ignite)
+![Stars](https://img.shields.io/github/stars/pytorch/ignite?style=for-the-badge)
+
+PyTorch Ignite uses Sweep for documentation fixes.
+
+- [Fix warning in fast_neural_style example](https://github.com/pytorch/ignite/issues/2983) → [Fix warning in fast_neural_style example](https://github.com/pytorch/ignite/pull/2984)
+- [Docs test issue with roc_auc](https://github.com/pytorch/ignite/issues/2985) → [Update ROC_AUC Test Case in Documentation](https://github.com/pytorch/ignite/pull/2989)
+
+## [Medplum](https://github.com/medplum/medplum)
+![Stars](https://img.shields.io/github/stars/medplum/medplum?style=for-the-badge)
+
+Medplum uses Sweep for small refactors and bug fixes.
+
+- [Sweep: fix missing key prop in FormPage.tsx](https://github.com/medplum/medplum/issues/2409) → [Add missing key prop in FormPage.tsx](https://github.com/medplum/medplum/pull/2411)
+- [Sweep: prefer nullish coalescing operator in packages/app/src/HomePage.tsx](https://github.com/medplum/medplum/issues/2410) → [Use nullish coalescing operator in HomePage.tsx](https://github.com/medplum/medplum/pull/2412)
+- [Sweep: Add support for env var config settings in packages/server/src/config.ts](https://github.com/medplum/medplum/issues/2377) → [Add Environment Variable Config Support](https://github.com/medplum/medplum/pull/2378)
+- [Sweep: Add missing sort functions](https://github.com/medplum/medplum/issues/2364) → [Implement Alphabetical Sorting Using localeCompare](https://github.com/medplum/medplum/pull/2365)
+
+## [Sweep](https://github.com/sweepai/sweep) 
+![Stars](https://img.shields.io/github/stars/sweepai/sweep?style=for-the-badge)
+
+We use Sweep internally to fix small issues such as fixing a path to support windows and bug fixes like Python’s calling of git pull failing. We also have been doing setup things like GitHub Actions and ticket templates.
+
+- [Sweep: Use os agnostic temp directory for windows](https://github.com/sweepai/sweep/issues/367) → [Use OS Agnostic Temporary Directory](https://github.com/sweepai/sweep/pull/368)
+- [Handle git pull failure in sweepai/app/ui.py](https://github.com/sweepai/sweep/pull/366) → [Sweep: In sweepai/app/ui.py try except the git pull, if it crashes delete the cache and reclone it](https://github.com/sweepai/sweep/issues/365)
+- [Sweep: In on_comment.py it's possible that the comment is on a closed PR. If this is the case then we should not fire an event. Add logic to on_comment to address this. Use pr state](https://github.com/sweepai/sweep/issues/140) → [Prevent Event Firing on Closed PRs](https://github.com/sweepai/sweep/pull/143)
+
+## [Sweep.dev](https://github.com/sweepai/landing-page)
+![Stars](https://img.shields.io/github/stars/sweepai/landing-page?style=for-the-badge)
+
+We use Sweep for our landing page as well. We use Netlify to check for build completion and previews of our landing page and do iterations against the Netlify previews. This makes modifying the landing page possible with non-frontend devs like Will.
+
+- [Sweep: All of the testimonials say JE, can we change them to the correct initials](https://github.com/sweepai/landing-page/issues/16) → [Correct Testimonial Initials](https://github.com/sweepai/landing-page/pull/18)
+- [Sweep: Change the last testimonial (the one by Kunal) to a new message](https://github.com/sweepai/landing-page/issues/136) → [Update Testimonial Content](https://github.com/sweepai/landing-page/pull/138)
+
+## [Plug ‘n Plai](https://github.com/edreisMD/plugnplai)
+![Stars](https://img.shields.io/github/stars/edreisMD/plugnplai?style=for-the-badge)
+
+Eduardo (AI @ Stanford) is building Plug ‘n Plai, a marketplace for OpenAI plugins. He’s mainly using Sweep for single-file refactors like moving a chunk of code out of the script and small features like capping the max number of plugins.
+
+- [make .prompt a method and add verbosity and colors #140](https://github.com/edreisMD/plugnplai/issues/140) → [Make .prompt a method and add verbosity and colors #141](https://github.com/edreisMD/plugnplai/pull/141)
+- [Create an auxiliary function in Plugins to parse a \<API\>\</API\> message and call plugin #122](https://github.com/edreisMD/plugnplai/issues/122) → [Add auxiliary function to parse API calls from LLM and call plugins #124](https://github.com/edreisMD/plugnplai/pull/124)
+- [Only allow activating a maximum of 3 plugins #65](https://github.com/edreisMD/plugnplai/issues/65) → [Only allow activating a maximum of 3 plugins #75](https://github.com/edreisMD/plugnplai/pull/75)
+- [Cleanup the documentation in embeddings. The formatting is incorrect #89](https://github.com/edreisMD/plugnplai/issues/89) → [Cleanup documentation in embeddings.py #91](https://github.com/edreisMD/plugnplai/pull/91)
+
+## [ChangePack](https://github.com/changepack/changepack)
+![Stars](https://img.shields.io/github/stars/changepack/changepack?style=for-the-badge)
+
+- [Sweep: Redesign OmniAuth links in the registration form #145](https://github.com/changepack/changepack/issues/145) → [Redesign OmniAuth Links in Registration Form #146](https://github.com/changepack/changepack/pull/146)
+
+---
+
+To contribute more, feel free to ping Kevin and Will ****on Discord.

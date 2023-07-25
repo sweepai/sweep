@@ -18,7 +18,7 @@ If you're working on an existing issue, respond to the issue and express interes
 
 To submit a pull request, follow the following steps:
 
-1. Fork the repository.
+1. Clone the repository.
 2. Create a new branch from `main`.
 3. Make your changes.
 4. Push your branch and submit a pull request to the `main` branch.
