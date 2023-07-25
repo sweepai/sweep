@@ -107,6 +107,8 @@ def on_comment(
     for issue_comment in issue_comments:
         if issue_comment.body.strip().lower() == "sweep: retry":
             issue_comment.delete()
+    
+    reaction = None
 
     try:
         # Check if the PR is closed
@@ -115,7 +117,7 @@ def on_comment(
         if comment_id:
             try:
                 item_to_react_to = pr.get_issue_comment(comment_id)
-                item_to_react_to.create_reaction("eyes")
+                reaction = item_to_react_to.create_reaction("eyes")
             except Exception as e:
                 pass
             try:
@@ -251,6 +253,19 @@ def on_comment(
             **metadata
         })
         raise e
+    
+    if reaction is not None:
+        item_to_react_to.delete_reaction(reaction.id)
+    try:
+        item_to_react_to = pr.get_issue_comment(comment_id)
+        reaction = item_to_react_to.create_reaction("rocket")
+    except Exception as e:
+        pass
+    try:
+        item_to_react_to = pr.get_review_comment(comment_id)
+        item_to_react_to.create_reaction("rocket")
+    except Exception as e:
+        pass
 
     capture_posthog_event(username, "success", properties={**metadata})
     logger.info("on_comment success")

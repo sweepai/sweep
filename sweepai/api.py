@@ -294,22 +294,20 @@ async def webhook(raw_request: Request):
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
                 logger.info(f"Handling check suite for {request.repository.full_name}")
-                if request.sender.login == GITHUB_BOT_USERNAME and request.check_run.conclusion == "failure":
-                    g = get_github_client(request.installation.id)
-                    repo = g.get_repo(request.repository.full_name)
-                    if len(request.check_run.pull_requests) > 0:
-                        logger.info("Handling check suite")
-                        pr_change_request = PRChangeRequest(
-                            type="gha",
-                            params = {"request": request}
-                        )
-                        push_to_queue(
-                            repo_full_name=request.repository.full_name,
-                            pr_id=request.check_run.pull_requests[0].number,
-                            pr_change_request=pr_change_request
-                        )
-                    else:
-                        logger.info(f"Skipping check suite for {request.repository.full_name} because it is not a PR")
+                g = get_github_client(request.installation.id)
+                repo = g.get_repo(request.repository.full_name)
+                pull_request = repo.get_pull(request.check_run.pull_requests[0].number)
+                if len(request.check_run.pull_requests) > 0 and pull_request.user.login.lower().startswith("sweep") and request.check_run.conclusion == "failure":
+                    logger.info("Handling check suite")
+                    pr_change_request = PRChangeRequest(
+                        type="gha",
+                        params = {"request": request}
+                    )
+                    push_to_queue(
+                        repo_full_name=request.repository.full_name,
+                        pr_id=request.check_run.pull_requests[0].number,
+                        pr_change_request=pr_change_request
+                    )
                 else:
                     logger.info(f"Skipping check suite for {request.repository.full_name} because it is not a failure or not from the bot")
             case "installation_repositories", "added":
