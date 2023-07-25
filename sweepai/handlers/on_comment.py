@@ -115,14 +115,20 @@ def on_comment(
         if comment_id:
             try:
                 item_to_react_to = pr.get_issue_comment(comment_id)
-                item_to_react_to.create_reaction("rocket")
+                item_to_react_to.create_reaction("eyes")
             except Exception as e:
                 pass
             try:
                 item_to_react_to = pr.get_review_comment(comment_id)
-                item_to_react_to.create_reaction("rocket")
+                item_to_react_to.create_reaction("eyes")
             except Exception as e:
                 pass
+            if comment_is_complete:
+                try:
+                    item_to_react_to.delete_reaction("eyes")
+                    item_to_react_to.create_reaction("rocket")
+                except Exception as e:
+                    pass
         branch_name = pr.head.ref
         pr_title = pr.title
         pr_body = pr.body or ""
