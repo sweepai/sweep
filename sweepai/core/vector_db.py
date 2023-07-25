@@ -21,7 +21,6 @@ from ..utils.config.client import SweepConfig
 from ..utils.config.server import ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, REDIS_URL, BOT_TOKEN_NAME
 from ..utils.github_utils import get_token
 
-
 stub = modal.Stub(DB_MODAL_INST_NAME)
 chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
 model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
@@ -86,9 +85,12 @@ class Embedding:
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
         )
 
+    from multiprocessing import Pool
+
     @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
+        with Pool() as p:
+            return p.map(self.model.encode, texts, BATCH_SIZE).tolist()
 
     @method()
     def ping(self):
@@ -276,7 +278,7 @@ def compute_deeplake_vs(collection_name,
         x in enumerate(embeddings) if x is None]
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
 
-        computed_embeddings = embedding_function(documents_to_compute)
+        computed_embeddings = list(embedding_function(documents_to_compute))
 
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
