@@ -52,7 +52,7 @@ class SweepConfig(BaseModel):
 def get_gha_enabled(repo: Repository) -> bool:
     try:
         contents = repo.get_contents("sweep.yaml")
-        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("gha_enabled", False)
+        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("gha_enabled", True)
         return gha_enabled
     except Exception as e:
         try:
@@ -61,10 +61,20 @@ def get_gha_enabled(repo: Repository) -> bool:
             try:
                 contents = repo.get_contents(".github/sweep.yaml")
             except Exception as e:
-                logger.warning(f"Error when getting gha enabled: {e}, falling back to False")
-                return False
-        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("gha_enabled", False)
+                logger.warning(f"Error when getting gha enabled: {e}, falling back to True")
+                return True
+        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("gha_enabled", True)
         return gha_enabled
+
+@staticmethod
+@lru_cache(maxsize=None)
+def get_description(repo: Repository) -> str:
+    try:
+        contents = repo.get_contents("sweep.yaml")
+        description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("description", "")
+        return description
+    except Exception as e:
+        return ""
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get('GITHUB_APP_CLIENT_ID', 'Iv1.91fd31586a926a9f')
