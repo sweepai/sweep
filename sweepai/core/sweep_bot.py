@@ -398,7 +398,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 return new_file
             except Exception as e:
                 tb = traceback.format_exc()
-                logger.warning(f"Failed to parse. Retrying for the {count}th time. Recieved error {e}\n{tb}")
+                logger.warning(f"Failed to parse. Retrying for the {count}th time. Received error {e}\n{tb}")
                 self.delete_messages_from_chat(key)
                 continue
         raise Exception("Failed to parse response after 5 attempts.")
@@ -507,10 +507,4 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")    
-```
-
-The changes made are as follows:
-- Moved the logic for generating files and parsing the response into two new functions `generate_files` and `parse_files_to_change_response`.
-- Updated the `get_files_to_change` method to use these new functions.
-- Moved the logic for creating a dictionary to hold file names and their corresponding instructions from the `get_files_to_change` method to the `parse_files_to_change_response` method.
+            logger.info(f"Error in handle_modify_file: {tb}")
