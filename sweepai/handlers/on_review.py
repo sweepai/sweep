@@ -72,20 +72,22 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
     })
     sweep_bot = SweepBot.from_system_message_content(
         # human_message=human_message, model="claude-v1.3-100k", repo=repo, is_reply=False
-        human_message=human_message, repo=repo, is_reply=False, chat_logger=chat_logger
     )
-    summarization_reply = sweep_bot.chat(review_prompt, message_key="review")
-    extracted_summary = DiffSummarization.from_string(summarization_reply)
-    summarization_replies.append(extracted_summary.content)
-    for diff in diffs[1:]:
-        review_message = HumanMessageReviewFollowup(diff=diff)
-        review_prompt_constructed = review_message.construct_prompt()
-        summarization_reply = sweep_bot.chat(review_prompt_constructed, message_key="review")
+    for _ in range(3):
+        summarization_reply = sweep_bot.chat(review_prompt, message_key="review")
         extracted_summary = DiffSummarization.from_string(summarization_reply)
         summarization_replies.append(extracted_summary.content)
-    final_review_prompt = HumanMessageFinalPRComment(summarization_replies=summarization_replies).construct_prompt()
-    reply = sweep_bot.chat(final_review_prompt, message_key="final_review")
-    review_comment = PullRequestComment.from_string(reply)
-    pr.create_review(body=review_comment.content, event="COMMENT", comments=[])
-    changes_required = 'yes' in review_comment.changes_required.lower()
+        for diff in diffs[1:]:
+            review_message = HumanMessageReviewFollowup(diff=diff)
+            review_prompt_constructed = review_message.construct_prompt()
+            summarization_reply = sweep_bot.chat(review_prompt_constructed, message_key="review")
+            extracted_summary = DiffSummarization.from_string(summarization_reply)
+            summarization_replies.append(extracted_summary.content)
+        final_review_prompt = HumanMessageFinalPRComment(summarization_replies=summarization_replies).construct_prompt()
+        reply = sweep_bot.chat(final_review_prompt, message_key="final_review")
+        review_comment = PullRequestComment.from_string(reply)
+        pr.create_review(body=review_comment.content, event="COMMENT", comments=[])
+        changes_required = 'yes' in review_comment.changes_required.lower()
+        if not changes_required:
+            break
     return changes_required, review_comment.content
