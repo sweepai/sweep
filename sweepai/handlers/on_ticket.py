@@ -12,6 +12,7 @@ from loguru import logger
 from tabulate import tabulate
 
 from sweepai.core.entities import Snippet, NoFilesException
+from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
 from sweepai.handlers.create_pr import create_pr, create_config_pr, safe_delete_sweep_branch
@@ -92,10 +93,17 @@ def on_ticket(
         comment_id: int = None
 ):
     # Check if the title starts with "sweep" or "sweep: " and remove it
+    slow_mode = False
     if title.lower().startswith("sweep: "):
         title = title[7:]
     elif title.lower().startswith("sweep "):
         title = title[6:]
+    elif title.lower().startswith("sweep(slow): "):
+        title = title[13:]
+        slow_mode = True
+    elif title.lower().startswith("sweep(slow) "):
+        title = title[12:]
+        slow_mode = True
 
     # Flow:
     # 1. Get relevant files
@@ -187,11 +195,14 @@ def on_ticket(
     tickets_allocated = 60 if is_paying_user else 5
     ticket_count = max(tickets_allocated - chat_logger.get_ticket_count(), 0)
     use_faster_model = chat_logger.use_faster_model()
+
+    slow_mode = slow_mode and not use_faster_model
+
     model_name = "GPT-3.5" if use_faster_model else "GPT-4"
     payment_link = "https://buy.stripe.com/9AQ8zB26letOgzC5kp"
     user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
     payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
-    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
+    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name} and slow mode set to {slow_mode}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
 
     def get_comment_header(index, errored=False, pr_message=""):
         config_pr_message = (
@@ -291,8 +302,6 @@ def on_ticket(
         log_error("File Fetch", str(e) + "\n" + traceback.format_exc())
         raise e
 
-    snippets = post_process_snippets(snippets)
-
     snippets = post_process_snippets(snippets,
                                      max_num_of_snippets=2 if use_faster_model else 5)
 
@@ -304,8 +313,33 @@ def on_ticket(
         title=title,
         summary=summary + replies_text,
         snippets=snippets,
-        tree=tree,  # TODO: Anything in repo tree that has something going through is expanded
+        tree=tree,
     )
+
+    if slow_mode and not use_faster_model:
+        slow_mode_bot = SlowModeBot()
+        queries, additional_plan = slow_mode_bot.expand_plan(human_message)
+
+        snippets, tree = search_snippets(
+            repo,
+            f"{title}\n{summary}\n{replies_text}",
+            num_files=num_of_snippets_to_query,
+            branch=None,
+            installation_id=installation_id,
+            multi_query=queries,
+        )
+        snippets = post_process_snippets(snippets,
+                                        max_num_of_snippets=5)
+        human_message = HumanMessagePrompt(
+                repo_name=repo_name,
+                issue_url=issue_url,
+                username=username,
+                repo_description=repo_description,
+                title=title,
+                summary=summary + replies_text + additional_plan,
+                snippets=snippets,
+                tree=tree,
+            )
 
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger

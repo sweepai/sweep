@@ -80,6 +80,20 @@ class FilesToChange(RegexMatchableBaseModel):
             files_to_modify=modify_match.groupdict()["files_to_modify"].strip() if modify_match else "* None",
         )
 
+class ExpandedPlan(RegexMatchableBaseModel):
+    queries: str
+    additional_instructions: str
+
+    @classmethod
+    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
+        query_pattern = r"""<queries>(?P<queries>.*)</queries>"""
+        query_match = re.search(query_pattern, string, re.DOTALL)
+        instructions_pattern = r"""<additional_instructions>(?P<additional_instructions>.*)</additional_instructions>"""
+        instructions_match = re.search(instructions_pattern, string, re.DOTALL)
+        return cls(
+            queries=query_match.groupdict()["files_to_create"] if query_match else None,
+            additional_instructions=instructions_match.groupdict()["additional_instructions"].strip() if instructions_match else "",
+        )
 
 # todo (fix double colon regex): Update the split from "file_tree.py : desc" to "file_tree.py\tdesc"
 # tab supremacy
@@ -173,6 +187,14 @@ class Snippet(BaseModel):
     start: int
     end: int
     file_path: str
+
+    def __eq__(self, other):
+        if isinstance(other, Snippet):
+            return self.file_path == other.file_path and self.start == other.start and self.end == other.end
+        return False
+
+    def __hash__(self):
+        return hash((self.file_path, self.start, self.end))
 
     def get_snippet(self):
         snippet = "\n".join(self.content.splitlines()[self.start:self.end])

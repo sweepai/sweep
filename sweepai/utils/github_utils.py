@@ -20,6 +20,7 @@ from sweepai.utils.config.server import DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHU
 from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
+from sweepai.utils.scorer import merge_and_dedup_snippets
 
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"
@@ -191,14 +192,24 @@ def search_snippets(
     include_tree: bool = True,
     branch: str = None,
     sweep_config: SweepConfig = SweepConfig(),
+    multi_query: list[str] = None,
 ) -> tuple[list[Snippet], str]:
     # Initialize the relevant directories string
     get_relevant_snippets = modal.Function.lookup(DB_MODAL_INST_NAME, "get_relevant_snippets")
-    snippets: list[Snippet] = get_relevant_snippets.call(
-        repo.full_name, query, num_files, installation_id=installation_id
-    )
-    logger.info(f"Snippets: {snippets}")
-    # TODO: We should prioritize the mentioned files
+    if multi_query:
+        lists_of_snippets = list[list[Snippet]]
+        multi_query = [query] + multi_query
+        for query in multi_query:
+            lists_of_snippets.append(get_relevant_snippets.call(
+                repo.full_name, query, num_files, installation_id=installation_id
+            ))
+        snippets = merge_and_dedup_snippets(lists_of_snippets)
+        logger.info(f"Snippets for multi query {multi_query}: {snippets}")
+    else:
+        snippets: list[Snippet] = get_relevant_snippets.call(
+            repo.full_name, query, num_files, installation_id=installation_id
+        )
+        logger.info(f"Snippets for query {query}: {snippets}")
     for snippet in snippets:
         try:
             file_contents = get_file_contents(repo, snippet.file_path, ref=branch)
@@ -223,8 +234,10 @@ def search_snippets(
         for query_file_name in query_file_names:
             if query_file_name in file_path:
                 query_match_files.append(file_path)
-
-    snippet_paths = [snippet.file_path for snippet in snippets] + query_match_files[:15]
+    if multi_query:
+        snippet_paths = [snippet.file_path for snippet in snippets] + query_match_files[:20]
+    else:
+        snippet_paths = [snippet.file_path for snippet in snippets] + query_match_files[:10]
     snippet_paths = list(set(snippet_paths))
     tree = get_tree_and_file_list(
         repo,
