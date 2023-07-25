@@ -1,4 +1,5 @@
 from loguru import logger
+
 from sweepai.core.chat import Function
 from sweepai.utils.diff import format_contents
 
@@ -40,8 +41,9 @@ modify_file_function = Function(
             }
         },
         "required": ["file_name", "code_edits"]
-        }
+    }
 )
+
 
 def apply_code_edits(file_contents, code_edits):
     modifications = []
@@ -76,24 +78,24 @@ def apply_code_edits(file_contents, code_edits):
         # Handle duplicate lines between the existing code and new code
         indents = '  ' * indentation
         if start_line > 0 and end_line < len(lines) \
-            and new_code[0] == lines[start_line-1] and new_code[-1] == lines[end_line]:
+                and new_code[0] == lines[start_line - 1] and new_code[-1] == lines[end_line]:
             new_code = new_code[1:-1]
             new_code = [indents + line for line in new_code]
             lines[start_line:end_line] = new_code
             continue
-        elif start_line > 0 and new_code[0] == lines[start_line-1]:
+        elif start_line > 0 and new_code[0] == lines[start_line - 1]:
             new_code = new_code[1:]
             new_code = [indents + line for line in new_code]
-            lines[start_line-1:end_line + 1] = new_code # Exit and merge first line
+            lines[start_line - 1:end_line + 1] = new_code  # Exit and merge first line
             continue
         elif end_line < len(lines) and new_code[-1] == lines[end_line]:
             new_code = new_code[:-1]
             new_code = [indents + line for line in new_code]
-            lines[start_line:end_line] = new_code # Exit and merge last line
+            lines[start_line:end_line] = new_code  # Exit and merge last line
             continue
         # Check index error
         if end_line > len(lines) - 1:
             end_line = len(lines) - 1
         new_code = [indents + line for line in new_code]
-        lines[start_line:end_line + 1] = new_code # Start and end are inclusive
+        lines[start_line:end_line + 1] = new_code  # Start and end are inclusive
     return '\n'.join(lines)
