@@ -63,6 +63,7 @@ FUNCTION_SETTINGS = {
     "image": image,
     "secrets": secrets,
     "timeout": 30 * 60,
+    "keep_warm": 1,
 }
 
 handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)

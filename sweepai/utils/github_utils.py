@@ -197,12 +197,15 @@ def search_snippets(
     # Initialize the relevant directories string
     get_relevant_snippets = modal.Function.lookup(DB_MODAL_INST_NAME, "get_relevant_snippets")
     if multi_query:
-        lists_of_snippets = list[list[Snippet]]
+        lists_of_snippets = list[list[Snippet]]()
         multi_query = [query] + multi_query
         for query in multi_query:
-            lists_of_snippets.append(get_relevant_snippets.call(
+            snippets: list[Snippet] = get_relevant_snippets.call(
                 repo.full_name, query, num_files, installation_id=installation_id
-            ))
+            )
+            logger.info(f"Snippets for query {query}: {snippets}")
+            if snippets:
+                lists_of_snippets.append(snippets)
         snippets = merge_and_dedup_snippets(lists_of_snippets)
         logger.info(f"Snippets for multi query {multi_query}: {snippets}")
     else:

@@ -86,12 +86,12 @@ class ExpandedPlan(RegexMatchableBaseModel):
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        query_pattern = r"""<queries>(?P<queries>.*)</queries>"""
+        query_pattern = r"""<queries>(\n)?(?P<queries>.*)</queries>"""
         query_match = re.search(query_pattern, string, re.DOTALL)
-        instructions_pattern = r"""<additional_instructions>(?P<additional_instructions>.*)</additional_instructions>"""
+        instructions_pattern = r"""<additional_instructions>(\n)?(?P<additional_instructions>.*)</additional_instructions>"""
         instructions_match = re.search(instructions_pattern, string, re.DOTALL)
         return cls(
-            queries=query_match.groupdict()["files_to_create"] if query_match else None,
+            queries=query_match.groupdict()["queries"] if query_match else None,
             additional_instructions=instructions_match.groupdict()["additional_instructions"].strip() if instructions_match else "",
         )
 
