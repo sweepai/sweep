@@ -352,7 +352,7 @@ class SweepBot(CodeGenBot, GithubBot):
         for count in range(5):
             key = f"file_change_modified_{file_change_request.filename}"
             file_markdown = is_markdown(file_change_request.filename)
-            # TODO(sweep): edge case at empty file
+            # TODO: handle empty file case
             message = modify_file_prompt_3.format(
                 filename=file_change_request.filename,
                 instructions=file_change_request.instructions,
@@ -403,21 +403,20 @@ class SweepBot(CodeGenBot, GithubBot):
             file_change_requests: list[FileChangeRequest],
             branch: str,
     ):
-        # should check if branch exists, if not, create it
-        logger.debug(file_change_requests)
-        num_fcr = len(file_change_requests)
         completed = 0
+        num_fcr = len(file_change_requests)
         for file_change_request in file_change_requests:
             try:
                 if file_change_request.change_type == "create":
                     self.handle_create_file(file_change_request, branch)
+                    completed += 1
                 elif file_change_request.change_type == "modify":
                     self.handle_modify_file(file_change_request, branch)
+                    completed += 1
             except MaxTokensExceeded as e:
                 raise e
             except Exception as e:
                 logger.error(f"Error in change_files_in_github {e}")
-            completed += 1
         return completed, num_fcr
 
     def handle_create_file(self, file_change_request: FileChangeRequest, branch: str):
@@ -503,3 +502,5 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
+
+# Removed standalone piece of code that removes XML tags from the `user_code` string
