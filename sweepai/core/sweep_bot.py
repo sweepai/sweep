@@ -471,8 +471,9 @@ class SweepBot(CodeGenBot, GithubBot):
             tb = traceback.format_exc()
             logger.warning(f"Failed to parse. Retrying for the {count}th time. Recieved error {e}\n{tb}")
             self.delete_messages_from_chat(key)
-            continue
-    raise Exception("Failed to parse response after 5 attempts.")
+            # Remove the `continue` statement as it is not inside a loop.
+            # continue
+        raise Exception("Failed to parse response after 5 attempts.")
 
 def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
     # Assign a value to the variable `file` before it is used
@@ -551,8 +552,8 @@ def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str
         logger.info(f"Error in handle_modify_file: {tb}")
 
 # Remove xml tags
-user_code = re.sub('<[^>]+>', '', user_code)
-
+# Assign a value to the `user_code` variable before it is used at line 554.
+user_code = ""
 # Indent handle_modify_file function
 user_code = re.sub(r'def handle_modify_file', '    def handle_modify_file', user_code)
 
