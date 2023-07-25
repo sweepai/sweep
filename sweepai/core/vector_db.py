@@ -86,9 +86,19 @@ class Embedding:
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
         )
 
+    from multiprocessing import Pool
+    from itertools import chain
+
     @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
+        # Split the texts into chunks
+        chunks = [texts[i:i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
+        # Create a pool of worker processes
+        with Pool() as pool:
+            # Each worker process calls model.encode on a chunk of texts
+            results = pool.map(self.model.encode, chunks)
+        # Flatten the list of lists of embeddings into a single list
+        return list(chain.from_iterable(results))
 
     @method()
     def ping(self):
