@@ -4,7 +4,7 @@ import os
 from functools import lru_cache
 
 import yaml
-from github.Repository import Repository
+from github import Repository
 from loguru import logger
 from pydantic import BaseModel
 from sweepai.utils.config.server import PREFIX
