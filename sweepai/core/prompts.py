@@ -75,7 +75,7 @@ diff_section_prompt = """
 
 review_prompt = """\
 I need you to carefully review the code diffs in this pull request. 
-The code was written by an inexperienced programmer and may contain accidental deletions, logic errors or other issues.
+The code was written by an inexperienced programmer and may contain accidental deletions, logic errors, unimplemented sections (such as "...") or other issues.
 Think step-by-step logically and thoroughly analyze to summarize the diffs per file in the format:
 
 Step-by-step thoughts:
@@ -176,7 +176,7 @@ Think step-by-step to break down the requested problem or feature, and then figu
 Then, provide a list of files you would like to modify, abiding by the following:
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
 * Prefer modifying existing files over creating new files
-* Change as few files and lines as possible
+* Only modify or create files that definitely need to be touched
 * Use detailed, natural language instructions on what to modify, with reference to variable names
 * Be concrete with instructions and do not write "check for x" or "look for y". Simply write "add x" or "change y to z".
 * There MUST be both create_file and modify_file XML tags
@@ -456,7 +456,7 @@ gha_extraction_prompt = """\
 Here are the logs:
 {gha_logs}
 
-Copy the lines from the logs corresponding to the error and wrap it in ```.
+Copy the lines from the logs corresponding to the error and wrap it in ```. Add additional details like the action that ran but be concise.
 """
 
 should_edit_code_system_prompt = """\
