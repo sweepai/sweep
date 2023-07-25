@@ -120,6 +120,7 @@ def push_to_queue(
     pr_id: int,
     pr_change_request: PRChangeRequest
 ):
+    logger.info(f"Pushing to queue: {repo_full_name}, {pr_id}, {pr_change_request}")
     key = (repo_full_name, pr_id)
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
     function_is_completed = function_call_is_completed(call_id)
@@ -299,16 +300,20 @@ async def webhook(raw_request: Request):
                     g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
                     if len(request.check_run.pull_requests) > 0:
-                        if not repo.get_pull(request.check_run.pull_requests[0].number).title.startswith("[DRAFT]"):
-                            pr_change_request = PRChangeRequest(
-                                type="gha",
-                                params = {"request": request}
-                            )
-                            push_to_queue(
-                                repo_full_name=request.repository.full_name,
-                                pr_id=request.check_run.pull_requests[0].number,
-                                pr_change_request=pr_change_request
-                            )
+                        pr_change_request = PRChangeRequest(
+                            type="gha",
+                            params = {"request": request}
+                        )
+                        push_to_queue(
+                            repo_full_name=request.repository.full_name,
+                            pr_id=request.check_run.pull_requests[0].number,
+                            pr_change_request=pr_change_request
+                        )
+                    else:
+                        logger.info(f"Skipping check suite for {request.repository.full_name} because it is not a PR")
+                else:
+                    print(request.sender.login)
+                    logger.info(f"Skipping check suite for {request.repository.full_name} because it is not a failure or not from the bot")
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
