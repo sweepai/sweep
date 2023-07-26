@@ -346,7 +346,9 @@ Instructions:
 
 pr_code_prompt = ""  # TODO: deprecate this
 
-pull_request_prompt = """Now, create a PR for your changes using GitHub markdown in the following format:
+pull_request_prompt = """Now, create a PR for your changes. Be concise but cover all of the changes that were made. 
+For the pr_content, add two sections, description and summary. 
+Use GitHub markdown in the following format:
 
 pr_title = "..."
 branch = "..."
