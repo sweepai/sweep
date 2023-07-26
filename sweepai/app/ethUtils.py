@@ -2,16 +2,22 @@ import requests
 
 def getRentalAmountInfo():
     # Function to retrieve rental amount information
-    pass
+    response = requests.get("https://ethereum-api-endpoint.com/rental-amount-info")
+    return response.json()
 
 def getEthBalance():
     # Function to retrieve the Ethereum balance
-    pass
+    response = requests.get("https://ethereum-api-endpoint.com/eth-balance")
+    return response.json()
 
 def sendEth():
     # Function to handle sending Ethereum
-    pass
+    data = {"eth": "Ethereum details"}
+    response = requests.post("https://ethereum-api-endpoint.com/send-eth", data=data)
+    return response.json()
 
 def withdrawEth():
     # Function to handle withdrawing Ethereum
-    pass
+    data = {"eth": "Ethereum details"}
+    response = requests.post("https://ethereum-api-endpoint.com/withdraw-eth", data=data)
+    return response.json()
