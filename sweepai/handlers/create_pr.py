@@ -61,7 +61,7 @@ def create_pr(
         logger.info("Making PR...")
         pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
         completed_count, fcr_count = sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
-        if (completed_count, fcr_count) := sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name) and completed_count == 0 and fcr_count != 0:
+        if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")
             posthog.capture(
                 username,
