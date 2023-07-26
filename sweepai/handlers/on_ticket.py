@@ -289,7 +289,8 @@ def on_ticket(
 
     logger.info("Fetching relevant files...")
     try:
-        assert len((snippets := fetch_file_contents_with_retry())[0]) > 0
+        snippets, tree = fetch_file_contents_with_retry()
+        assert len(snippets) > 0
     except Exception as e:
         trace = traceback.format_exc()
         logger.error(e)
