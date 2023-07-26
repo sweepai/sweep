@@ -63,7 +63,7 @@ class CodeGenBot(ChatGPT):
         self.messages.insert(-2, msg)
         pass
 
-    def get_files_to_change(self, retries=2):
+    def get_files_to_change(self, retries=1):
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
@@ -81,10 +81,11 @@ class CodeGenBot(ChatGPT):
 
                 files_to_create: list[str] = files_to_change.files_to_create.split("\n*")
                 files_to_modify: list[str] = files_to_change.files_to_modify.split("\n*")
+
                 for file_change_request, change_type in zip(
-                        files_to_create + files_to_modify,
-                        ["create"] * len(files_to_create)
-                        + ["modify"] * len(files_to_modify),
+                        files_to_modify + files_to_create,
+                        ["modify"] * len(files_to_modify)
+                        + ["create"] * len(files_to_create),
                 ):
                     file_change_request = file_change_request.strip()
                     if not file_change_request or file_change_request == "* None":
@@ -348,8 +349,9 @@ class SweepBot(CodeGenBot, GithubBot):
             branch=None, 
             chunking: bool = False,
             chunk_offset: int = 0,
+            retries: int = 1,
     ) -> tuple[str, str]:
-        for count in range(5):
+        for count in range(retries):
             key = f"file_change_modified_{file_change_request.filename}"
             file_markdown = is_markdown(file_change_request.filename)
             # TODO(sweep): edge case at empty file
@@ -396,7 +398,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.warning(f"Failed to parse. Retrying for the {count}th time. Recieved error {e}\n{tb}")
                 self.delete_messages_from_chat(key)
                 continue
-        raise Exception("Failed to parse response after 5 attempts.")
+        raise Exception(f"Failed to parse response after {retries} attempts.")
 
     def change_files_in_github(
             self,
@@ -407,11 +409,20 @@ class SweepBot(CodeGenBot, GithubBot):
         logger.debug(file_change_requests)
         num_fcr = len(file_change_requests)
         completed = 0
+
+        added_modify_hallucination = False
+
         for file_change_request in file_change_requests:
             try:
                 if file_change_request.change_type == "create":
                     self.handle_create_file(file_change_request, branch)
                 elif file_change_request.change_type == "modify":
+                    if not added_modify_hallucination:
+                        added_modify_hallucination = True
+                        # Add hallucinated example for better parsing
+                        
+
+
                     self.handle_modify_file(file_change_request, branch)
             except MaxTokensExceeded as e:
                 raise e
