@@ -204,7 +204,7 @@ class APIClient(BaseModel):
                         "function_call": function_call,
                         "config": self.config.dict()
                     }
-            ) as response:
+            with client.stream('POST', self.api_endpoint + '/chat_stream', json={...}) as response:
                 for delta_chunk in response.iter_text():
                     if not delta_chunk:
                         break
