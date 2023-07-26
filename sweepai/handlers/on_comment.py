@@ -165,8 +165,7 @@ def on_comment(
         else:
             try:
                 logger.info("Fetching relevant files...")
-                snippets, tree = fetch_file_contents_with_retry()
-                assert len(snippets) > 0
+                assert len((snippets := fetch_file_contents_with_retry())[0]) > 0
             except Exception as e:
                 logger.error(traceback.format_exc())
                 raise e
