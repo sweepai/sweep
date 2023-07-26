@@ -285,6 +285,58 @@ Any lines that you do not see will be handled, so trust that the imports are man
 If you see code that should be modified, please modify it. The changes may not need to be in this chunk, in that case just copy and return the code as is.
 """
 
+modify_file_hallucination_prompt = [{'content': """File Name: (non-existent example)
+<old_file>
+example = True
+if example:
+    x = 1 # comment
+    print("hello")
+    x = 2
+
+def example():
+    a = 3
+    
+</old_file>
+
+Modify this file using GitHub diff patch format.""", 'role': 'user', 'key': 'modify_file_hallucination'},
+{'content': """Code Planning:
+<code_planning>
+Step-by-step thoughts with explanations:
+* Thought 1 - This script is an example script not in the repo. To show that I fully understand git diff format, I must write the diffs.
+
+Detailed plan of modifications:
+* Modification 1 - Change the output of the print statement from "hello" to "goodbye" as an example modification.
+* Modification 2 - I will update the value of a from 3 to 4.
+
+Lines to change in the file:
+* lines 4: update print statement
+* lines 8: update value of a
+</code_planning>
+
+Code Generation:
+```
+<<<< ORIGINAL
+    x = 1 # comment
+    print("hello")
+    x = 2
+====
+    x = 1 # comment
+    print("goodbye")
+    x = 2
+>>>> UPDATED
+
+<<<< ORIGINAL
+def example():
+    a = 3
+    
+====
+def example():
+    a = 4
+    
+>>>> UPDATED
+```""", 'role': 'assistant', 'key': 'modify_file_hallucination'}]
+
+# TODO: IMPORTANT: THIS DEPENDS ON THE ABOVE PROMPT, modify_file_hallucination_prompt
 modify_file_prompt_3 = """
 File Name: {filename}
 <old_file>
