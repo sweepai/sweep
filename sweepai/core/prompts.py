@@ -361,33 +361,13 @@ Lines to change in the file: (include multiple small changes as opposed to one l
 * lines a-b: Do x
 * lines c: Change to y
 ...
-<code_planning>
+</code_planning>
 
 Code Generation:
 ```
 Generate a diff based on the given plan, in the following format (do not include "..." anywhere). Always prefer the least amount of changes possible. Do not remove comments.
 
-Example:
-```
-<<<< ORIGINAL
-    x = 1 # comment
-    print("hello")
-    x = 2
-====
-    x = 1 # comment
-    print("goodbye")
-    x = 2
->>>> UPDATED
-
-<<<< ORIGINAL
-def example():
-    a = 3
-    
-====
-def example():
-    a = 4
-    
->>>> UPDATED
+{insert git diff patches here}
 ``` 
 
 Context: "{instructions}". Limit your changes to the context.
