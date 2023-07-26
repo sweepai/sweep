@@ -15,6 +15,7 @@ class SlowModeBot(ChatGPT):
             response = self.chat(generate_plan_and_queries_prompt, message_key='expanded_plan')
             expanded_plan = ExpandedPlan.from_string(response)
             queries = expanded_plan.queries.split('\n')
+            queries = [query for query in queries if len(query.strip()) > 10]
             additional_instructions = "Additional instructions:\n" + expanded_plan.additional_instructions if expanded_plan.additional_instructions.strip() else ""
             return queries, additional_instructions
         except Exception as e:
