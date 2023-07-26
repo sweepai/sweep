@@ -165,19 +165,35 @@ class APIClient(BaseModel):
         try:
             return results.json()
         except json.JSONDecodeError:
-            raise Exception(f"{results.text} is invalid JSON")
-
-    def stream_chat(
-            self,
-            messages: list[tuple[str | None, str | None]],
-            snippets: list[Snippet] = [],
-            do_add_plan: bool = True,
-            functions: list[Function] = [],
-            function_call: Any = "auto",
-            model: str = "gpt-4-0613"
-    ):
-        with httpx.Client(timeout=30) as client:  # sometimes this step is slow
-            with client.stream(
+            class APIClient(BaseModel):
+                ...
+                def initializeContracts(self):
+                    # Function to initialize contracts
+                    pass
+            
+                def initializeAlchemy(self):
+                    # Function to initialize Alchemy
+                    pass
+            
+                def initializeProvider(self):
+                    # Function to initialize the provider
+                    pass
+            
+                def connectToAccount(self):
+                    # Function to connect to the account
+                    pass
+            
+                def stream_chat(
+                        self,
+                        messages: list[tuple[str | None, str | None]],
+                        snippets: list[Snippet] = [],
+                        do_add_plan: bool = True,
+                        functions: list[Function] = [],
+                        function_call: Any = "auto",
+                        model: str = "gpt-4-0613"
+                ):
+                    ...
+                    return item
                     'POST',
                     self.api_endpoint + '/chat_stream',
                     json={
