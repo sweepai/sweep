@@ -192,14 +192,14 @@ Step-by-step thoughts with explanations:
 ...
 
 <modify_file>
-* filename_3: instructions_3
-* filename_4: instructions_4
+* filename_1: instructions_1
+* filename_2: instructions_2
 ...
 </modify_file>
 
 <create_file>
-* filename_1: instructions_1
-* filename_2: instructions_2
+* filename_3: instructions_3
+* filename_4: instructions_4
 ...
 </create_file>
 """
@@ -482,4 +482,31 @@ To determine whether the instructions are referring to this section of the file,
 * If not, what is the reason?
 
 3. In the last line of your response, write either <relevant>True</relevant> or <relevant>False</relevant>.
+"""
+
+slow_mode_system_prompt = """Your name is Sweep bot. You are a brilliant and meticulous software architect. Your job is to take in the user's GitHub issue and the relevant context from their repository to:
+1. Gather more code snippets using a code search engine.
+2. Expand upon the plan to address the issue."""
+
+generate_plan_and_queries_prompt = """Think step-by-step to break down the requested problem or feature, and write up to three queries for the code search engine. These queries should find relevant code that is not already mentioned in the existing snippets. They should all mention different files and subtasks of the initial issue, avoid duplicates.
+Then add more instructions that build on the user's instructions. These instructions should help plan how to solve the issue.
+* The code search engine is based on semantic similarity. Ask questions that involve code snippets, function references, or mention relevant file paths.
+* The user's instructions should be treated as the source of truth, but sometimes the user will not mention the entire context. In that case, you should add the missing context.
+
+You MUST follow the following format delimited with XML tags:
+
+Step-by-step thoughts with explanations: 
+* Thought 1 - Explanation 1
+* Thought 2 - Explanation 2
+...
+
+<queries>
+* query 1
+* query 2
+* query 3
+</queries>
+
+<additional_instructions>
+* additional instructions to be appended to the user's instructions
+</additional_instructions>
 """
