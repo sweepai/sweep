@@ -464,10 +464,10 @@ def main():
                 raise gr.Error(str(e))
 
 
-        create_pr_button.click(on_create_pr_button_click, [chatbot, plan], [chatbot, create_pr_button])
+        def exponentialBackoff():
+            # Function to handle backoff for exponential backoff algorithms
+            pass
 
-    demo.queue()
-    demo.launch(inbrowser=True)
 
-if __name__ == "__main__":
-    main()
+        if __name__ == "__main__":
+            main()
