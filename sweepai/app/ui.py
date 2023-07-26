@@ -4,6 +4,7 @@ import shutil
 import tempfile
 import re
 import webbrowser
+import time
 
 import gradio as gr
 from git import Repo
@@ -462,12 +463,28 @@ def main():
             except Exception as e:
                 yield chat_history, gr.Button.update(interactive=True)
                 raise gr.Error(str(e))
-
-
+        create_pr_button.click(on_create_pr_button_click, [chatbot, plan], [chatbot, create_pr_button])
+        
         def exponentialBackoff():
             # Function to handle backoff for exponential backoff algorithms
-            pass
+            # Initial wait time
+            wait_time = 1
+            while True:
+                try:
+                    # Operation that may fail temporarily
+                    pass
+                except Exception:
+                    # Wait for the specified time and then double the wait time
+                    time.sleep(wait_time)
+                    wait_time *= 2
+                else:
+                    # If the operation succeeds, break the loop
+                    break
 
+        exponentialBackoff()
+
+        demo.queue()
+        demo.launch(inbrowser=True)
 
         if __name__ == "__main__":
             main()
