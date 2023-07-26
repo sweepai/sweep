@@ -1,6 +1,9 @@
+from typing import List
 import math
 from datetime import datetime
+from itertools import cycle
 
+from sweepai.core.entities import Snippet
 
 def get_factors(contents: str,
                 commits: list):
@@ -31,3 +34,30 @@ def convert_to_percentiles(values, max_percentile=0.1):
     percentiles = [percentile_mapping[value] for value in values]  # Create the percentiles list based on the mapping
 
     return percentiles
+
+def merge_and_dedup_snippets(snippet_lists: List[List[Snippet]]) -> List[Snippet]:
+    merged_snippets = []
+    seen_files = set()
+
+    snippet_iterators = [iter(lst) for lst in snippet_lists]
+    snippet_iter_cycle = cycle(snippet_iterators)
+
+    while True:
+        iterator_exhausted = False
+        for snippet_iter in snippet_iter_cycle:
+            try:
+                while True:  # Keep looking for a unique snippet from this iterator
+                    snippet = next(snippet_iter)
+                    if snippet.file_path not in seen_files:
+                        merged_snippets.append(snippet)
+                        seen_files.add(snippet.file_path)
+                        break
+            except StopIteration:
+                snippet_iterators.remove(snippet_iter)
+                if not snippet_iterators:  # All iterators are exhausted
+                    iterator_exhausted = True
+                snippet_iter_cycle = cycle(snippet_iterators)
+                break
+        if iterator_exhausted:
+            break
+    return merged_snippets
