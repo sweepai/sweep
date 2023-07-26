@@ -365,117 +365,113 @@ def on_ticket(
     else:
         logger.info("sweep.yaml file already exists.")
 
-    sweepbot_retries = 3
     try:
-        for i in range(sweepbot_retries):
-            # ANALYZE SNIPPETS
-            if sweep_bot.model == "gpt-4-32k-0613":
-                logger.info("CoT retrieval...")
-                sweep_bot.cot_retrieval()
-            else:
-                logger.info("Did not execute CoT retrieval...")
+        # ANALYZE SNIPPETS
+        if sweep_bot.model == "gpt-4-32k-0613":
+            logger.info("CoT retrieval...")
+            sweep_bot.cot_retrieval()
+        else:
+            logger.info("Did not execute CoT retrieval...")
 
-            newline = '\n'
-            edit_sweep_comment(
-                "I found the following snippets in your repository. I will now analyze these snippets and come up with a plan."
-                + "\n\n"
-                + collapsible_template.format(
-                    summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
-                    body="\n".join(
-                        [
-                            f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline))}\n"
-                            for snippet in snippets
-                        ]
-                    ),
+        newline = '\n'
+        edit_sweep_comment(
+            "I found the following snippets in your repository. I will now analyze these snippets and come up with a plan."
+            + "\n\n"
+            + collapsible_template.format(
+                summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
+                body="\n".join(
+                    [
+                        f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline))}\n"
+                        for snippet in snippets
+                    ]
                 ),
-                1
-            )
+            ),
+            1
+        )
 
-            # COMMENT ON ISSUE
-            # TODO: removed issue commenting here
-            logger.info("Fetching files to modify/create...")
-            file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change()
+        # COMMENT ON ISSUE
+        # TODO: removed issue commenting here
+        logger.info("Fetching files to modify/create...")
+        file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change()
 
-            sweep_bot.summarize_snippets(create_thoughts, modify_thoughts)
+        sweep_bot.summarize_snippets(create_thoughts, modify_thoughts)
 
-            file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
-            table = tabulate(
-                [[f"`{file_change_request.filename}`", file_change_request.instructions.replace('\n', '<br/>').replace('```', '\\```')] for file_change_request in
-                 file_change_requests],
-                headers=["File Path", "Proposed Changes"],
-                tablefmt="pipe"
-            )
-            edit_sweep_comment(
-                "From looking through the relevant snippets, I decided to make the following modifications:\n\n" + table + "\n\n",
-                2
-            )
+        file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
+        table = tabulate(
+            [[f"`{file_change_request.filename}`", file_change_request.instructions.replace('\n', '<br/>').replace('```', '\\```')] for file_change_request in
+             file_change_requests],
+            headers=["File Path", "Proposed Changes"],
+            tablefmt="pipe"
+        )
+        edit_sweep_comment(
+            "From looking through the relevant snippets, I decided to make the following modifications:\n\n" + table + "\n\n",
+            2
+        )
 
-            # CREATE PR METADATA
-            logger.info("Generating PR...")
-            pull_request = sweep_bot.generate_pull_request()
-            pull_request_content = pull_request.content.strip().replace("\n", "\n>")
-            pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
-            edit_sweep_comment(
-                f"I have created a plan for writing the pull request. I am now working my plan and coding the required changes to address this issue. Here is the planned pull request:\n\n{pull_request_summary}",
-                3
-            )
+        # CREATE PR METADATA
+        logger.info("Generating PR...")
+        pull_request = sweep_bot.generate_pull_request()
+        pull_request_content = pull_request.content.strip().replace("\n", "\n>")
+        pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
+        edit_sweep_comment(
+            f"I have created a plan for writing the pull request. I am now working my plan and coding the required changes to address this issue. Here is the planned pull request:\n\n{pull_request_summary}",
+            3
+        )
 
-            # WRITE PULL REQUEST
-            logger.info("Making PR...")
-            response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
-            if not response or not response["success"]: raise Exception("Failed to create PR")
-            pr = response["pull_request"]
-            current_issue.create_reaction("rocket")
-            edit_sweep_comment(
-                "I have finished coding the issue. I am now reviewing it for completeness.",
-                4
-            )
+        # WRITE PULL REQUEST
+        logger.info("Making PR...")
+        response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
+        if not response or not response["success"]: raise Exception("Failed to create PR")
+        pr = response["pull_request"]
+        current_issue.create_reaction("rocket")
+        edit_sweep_comment(
+            "I have finished coding the issue. I am now reviewing it for completeness.",
+            4
+        )
 
+        try:
+            current_issue.delete_reaction(eyes_reaction.id)
+        except:
+            pass
+        for _ in range(1):
             try:
-                current_issue.delete_reaction(eyes_reaction.id)
-            except:
-                pass
-            for _ in range(1):
-                try:
-                    # CODE REVIEW
-                    changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
-                                                                 repo_description=repo_description, title=title,
-                                                                 summary=summary, replies_text=replies_text, tree=tree)
-                    logger.info(f"Addressing review comment {review_comment}")
-                    if changes_required:
-                        on_comment(repo_full_name=repo_full_name,
-                                   repo_description=repo_description,
-                                   comment=review_comment,
-                                   username=username,
-                                   installation_id=installation_id,
-                                   pr_path=None,
-                                   pr_line_position=None,
-                                   pr_number=pr.number)
-                    else:
-                        break
-                except Exception as e:
-                    logger.error(traceback.format_exc())
-                    logger.error(e)
+                # CODE REVIEW
+                changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
+                                                             repo_description=repo_description, title=title,
+                                                             summary=summary, replies_text=replies_text, tree=tree)
+                logger.info(f"Addressing review comment {review_comment}")
+                if changes_required:
+                    on_comment(repo_full_name=repo_full_name,
+                               repo_description=repo_description,
+                               comment=review_comment,
+                               username=username,
+                               installation_id=installation_id,
+                               pr_path=None,
+                               pr_line_position=None,
+                               pr_number=pr.number)
+                else:
                     break
-            
-            logger.info("Running github actions...")
-            try:
-                commit = pr.get_commits().reversed[0]
-                check_runs = commit.get_check_runs()
-
-                for check_run in check_runs:
-                    check_run.rerequest()
             except Exception as e:
+                logger.error(traceback.format_exc())
                 logger.error(e)
+                break
 
-            # Completed code review
-            edit_sweep_comment(
-                "Success! 🚀",
-                5,
-                pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number}).\n{payment_message}",
-            )
+        logger.info("Running github actions...")
+        try:
+            commit = pr.get_commits().reversed[0]
+            check_runs = commit.get_check_runs()
 
-            break
+            for check_run in check_runs:
+                check_run.rerequest()
+        except Exception as e:
+            logger.error(e)
+
+        # Completed code review
+        edit_sweep_comment(
+            "Success! 🚀",
+            5,
+            pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number}).\n{payment_message}",
+        )
     except MaxTokensExceeded as e:
         logger.info("Max tokens exceeded")
         log_error("Max Tokens Exceeded", str(e) + "\n" + traceback.format_exc())
