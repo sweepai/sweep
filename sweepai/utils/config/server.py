@@ -1,6 +1,6 @@
 import os
 
-PREFIX = 'dev2'
+PREFIX = 'prod'
 ENV = PREFIX
 
 DB_MODAL_INST_NAME = PREFIX + "-db"
@@ -49,7 +49,6 @@ GITHUB_APP_PEM = os.environ.get('GITHUB_APP_PEM')
 GITHUB_CONFIG_BRANCH = os.environ.get('GITHUB_CONFIG_BRANCH', 'sweep/add-sweep-config')
 GITHUB_DEFAULT_CONFIG = os.environ.get('GITHUB_DEFAULT_CONFIG', """# Sweep AI turns bug fixes & feature requests into code changes (https://sweep.dev)
 # For details on our config file, check out our docs at https://docs.sweep.dev
-# Reference: https://github.com/sweepai/sweep/blob/main/.github/sweep.yaml.
 
 # If you use this be sure to frequently sync your default branch(main, master) to dev.
 branch: '{branch}'
@@ -58,6 +57,8 @@ gha_enabled: False
 # This is the description of your project. It will be used by sweep when creating PRs. You can tell Sweep what's unique about your project, what frameworks you use, or anything else you want.
 # Here's an example: sweepai/sweep is a python project. The main api endpoints are in sweepai/api.py. Write code that adheres to PEP8.
 description: ''
+
+# Default Values: https://github.com/sweepai/sweep/blob/main/sweep.yaml
 """)
 
 # goes under Modal 'openai-secret' secret name
