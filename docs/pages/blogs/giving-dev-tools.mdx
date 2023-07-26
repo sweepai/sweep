@@ -213,7 +213,3 @@ outputs = model(inputs)
 ```
 
 As any data scientist would know, this is the correct code but simply a limitation of `pylint`. If we got GPT-3.5 to suggest a fix, it would suggest adding a `__call__` override which would break the script. However, without the remedy, Sweep would reasonably add a `# pylint: disable=E1102`, ignoring the Sweep issue.
-
----
-
-### ⭐ If this interests you, try out [Sweep](https://github.com/apps/sweep-ai)!
