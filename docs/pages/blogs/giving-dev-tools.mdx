@@ -1,0 +1,219 @@
+# Letting an AI run GitHub Actions
+
+Every time Sweep generates a pull request (PR) with over 10 lines of code changes, we have to test it locally, defeating the purpose of Sweep. Frequently, it would even have undefined variables or syntax errors, which are hard even for developers to catch without syntax highlighting, and even less so for a language model. So we gave Sweep some dev tools.
+
+There’s a plethora of dev tools used every day and implementing each one with configurability on our backend would not make sense. Thus, we decided to use GitHub Actions (GHA), as it was already implemented into most of our users’ repos, giving Sweep access to:
+
+- Tests (pytest, jest)
+- Linters (pylint, eslint)
+- Type-checkers (mypy, tsc)
+- Builds (compiled languages, Netlify and Vercel)
+- Code health monitors (Sonarqube, Deepsource)
+
+## ️Plan of Attack 🗺️
+
+Our approach is when GHA runs fail on a Sweep-generated PR, we pipe the logs to GPT-3.5 and add it as a PR comment, which gets processed by Sweep like a user-reported bug.
+
+The problem is that GHA logs are hundreds of lines long, mostly consisting of setting up the environment and running the scripts, corresponding to hundreds of thousands of tokens. However, the error logs are only a few dozen lines long. Thus, we decided to just filter out 75% of the logs using basic heuristics and send the rest to GPT-3.5 16k to extract the error logs.
+
+## Fetching Logs 🔌
+
+The first problem is fetching the logs. The GitHub logs [endpoint](https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2022-11-28#download-workflow-run-logs) returns a zip of multiple files, with unclear documentation on how the files are structured and consequently where the error lies. Let’s look at a simple example from running a Typescript compile GHA on our [landing page](https://github.com/sweepai/landing-page), with 11k tokens of [logs](https://drive.google.com/file/d/1ONHT6-HDJYaw2O43qT9KYNaOXpcqAwhy/view?usp=sharing), with the following file structure:
+
+```bash
+>>> tree
+
+├── 1_build (1).txt
+├── 1_build.txt
+└── build
+    ├── 10_Post Run actionscheckout@v2.txt
+    ├── 11_Complete job.txt
+    ├── 1_Set up job.txt
+    ├── 2_Run actionscheckout@v2.txt
+    ├── 3_Setup Node.js environment.txt
+    ├── 4_Install dependencies.txt
+    └── 5_Run tsc.txt
+
+2 directories, 9 files
+```
+
+From looking a bit further one of the “1_build” TXT files in the root directory looks like a concatenation of the TXT files in the build directory, but even then it’s still 300 lines of logs. So we concatenate all the files in root for the initial raw logs.
+
+```bash
+2023-07-26T04:41:37.9640546Z Requested labels: ubuntu-latest
+2023-07-26T04:41:37.9640912Z Job defined at: sweepai/landing-page/.github/workflows/tsc.yml@refs/pull/218/merge
+2023-07-26T04:41:37.9641007Z Waiting for a runner to pick up this job...
+2023-07-26T04:41:38.2078546Z Job is waiting for a hosted runner to come online.
+2023-07-26T04:41:40.5335196Z Job is about to start running on the hosted runner: GitHub Actions 3 (hosted)
+...
+2023-07-26T04:42:35.4373456Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2023-07-26T04:42:35.4408212Z http.https://github.com/.extraheader
+2023-07-26T04:42:35.4420660Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2023-07-26T04:42:35.4466986Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2023-07-26T04:42:35.4988019Z Cleaning up orphan processes
+```
+
+## Filtering Logs 🧹
+
+Firstly, cutting the timestamps cuts the token count to about half (6k tokens):
+
+```bash
+Requested labels: ubuntu-latest
+Job defined at: sweepai/landing-page/.github/workflows/tsc.yml@refs/pull/218/merge
+Waiting for a runner to pick up this job...
+Job is waiting for a hosted runner to come online.
+Job is about to start running on the hosted runner: GitHub Actions 3 (hosted)
+...
+[command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+http.https://github.com/.extraheader
+[command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Cleaning up orphan processes
+```
+
+Secondly, there’s large sections of logs corresponding to loading or downloading sequences:
+
+```bash
+remote: Counting objects:   1% (1/71)        
+remote: Counting objects:   2% (2/71)        
+remote: Counting objects:   4% (3/71)        
+remote: Counting objects:   5% (4/71)        
+remote: Counting objects:   7% (5/71) 
+```
+
+```bash
+remote: Compressing objects:   1% (1/65)        
+remote: Compressing objects:   3% (2/65)        
+remote: Compressing objects:   4% (3/65)        
+remote: Compressing objects:   6% (4/65)        
+remote: Compressing objects:   7% (5/65)
+```
+
+So we compiled a list of keywords.
+
+```python
+patterns = [
+    # for docker
+    "Already exists",
+    "Pulling fs layer",
+    "Waiting",
+    "Download complete",
+    "Verifying Checksum",
+    "Pull complete",
+    # For github
+    "remote: Counting objects",
+    "remote: Compressing objects:",
+    "Receiving objects:",
+    "Resolving deltas:"
+]
+```
+
+And filter out any lines of logs containing them, yielding the final [log cleaning script](https://github.com/sweepai/sweep/blob/794d138d09950e9f2addc34039231d221df4c63f/sweepai/handlers/on_check_suite.py#L44-L61):
+
+```python
+def clean_logs(logs_str: str):
+    log_list = logs_str.split("\n")
+    truncated_logs = [log[log.find(" ") + 1:] for log in log_list]
+    return "\n".join([log.strip() for log in truncated_logs if not any(pattern in log for pattern in patterns)])
+```
+
+Yielding a final 2866 tokens of logs, cutting 75% of the raw logs based on simple heuristics. Even for more complex logs, this likely wouldn’t break 10k tokens.
+
+## Finding the Error 🚨
+
+We can not feed this into GPT 3.5 with the following prompts:
+
+> System Message
+Your job is to extract the relevant lines from the Github Actions workflow logs for debugging.
+
+User Message
+> Here are the logs:
+> \{gha_logs\}
+> 
+> Copy the lines from the logs corresponding to the error and wrap it in ```. Mention the command that failed.
+> 
+
+Yielding a response like
+
+> ```bash
+> ##[error]src/components/CallToAction.tsx(26,28): error TS2769: No overload matches this call.
+> Overload 1 of 2, '(props: {} | Readonly<{}>): InteractiveSphere', gave the following error.
+> Type '{ style: { width: string; height: string; }; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<InteractiveSphere> & Readonly<{}>'.
+> Property 'style' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<InteractiveSphere> & Readonly<{}>'.
+> Overload 2 of 2, '(props: {}, context: any): InteractiveSphere', gave the following error.
+> Type '{ style: { width: string; height: string; }; }' is not assignable to type 'IntrinsicAttributes & IntrinsicClassAttributes<InteractiveSphere> & Readonly<{}>'.
+> Property 'style' does not exist on type 'IntrinsicAttributes & IntrinsicClassAttributes<InteractiveSphere> & Readonly<{}>'.
+> ##[error]src/components/InteractiveSphere.tsx(6,5): error TS2300: Duplicate identifier 'style'.
+> ##[error]src/components/InteractiveSphere.tsx(49,36): error TS2339: Property 'style' does not exist on type 'Readonly<{}>'.
+> error Command failed with exit code 2.
+> info Visit <https://yarnpkg.com/en/docs/cli/run> for documentation about this command.
+> ```
+> 
+> The error occurred in the `CallToAction.tsx` and `InteractiveSphere.tsx` files. The specific error messages are related to type mismatches and duplicate identifiers. The command `yarn run tsc` failed with exit code 2.
+> 
+
+We finally wrap the results with the following template, framing the failed GHA as a user-reported bug. This also makes it understand what Sweep is currently doing for the user. 
+
+> GitHub actions yielded the following error.
+> 
+> 
+> \{error_logs\}
+> 
+> This is likely a linting or type-checking issue with the source code but if you are updating the GitHub Actions or versioning, this could be an issue with the GitHub Action yaml files.
+> 
+
+## Notes on Prompt Tuning 📔
+
+There were earlier versions of the above prompts which lead to undesirable behaviour. For example, not asking GPT-3.5 to wrap the logs in ``` would result in natural language explanations of the logs like
+
+> 1. Line 35: The error E1101 indicates that the module 'torch' does not have a 'device' member. This suggests that the code is trying to access a member that does not exist in the 'torch' module.
+> 2. Line 72: The error E1102 indicates that the variable 'model' is not callable. This suggests that the code is trying to call a function or method on the 'model' variable, but it is not a callable object.
+> 3. Line 91: The error E1102 indicates that the variable 'model' is not callable. This suggests that the code is trying to call a function or method on the 'model' variable, but it is not a callable object.
+> 4. Line 92: The error E1101 indicates that the module 'torch' does not have a 'max' member. This suggests that the code is trying to access a member that does not exist in the 'torch' module.
+
+This altogether worsens performance, since the GPT-4 is trained on more raw logs than natural language descriptions of them. Sweep would also potentially suggest fixes that are wrong (more on this later).
+
+For the second prompt, adding that the issue could be with the run itself or versioning could allow the model to update versions in the `package.json` or `pyproject.toml` and GHA yaml’s which occasionally is the fix. As a bonus, this means the Sweep can now help users install GitHub Actions on their repos!
+
+## Suggesting Fixes 🛠️
+
+We also experimented with getting GPT-3.5 to provide potential remedies to the errors, as a user may. However, often without the diffs in the PR, the instructions are wrong. This further pollutes downstream decisions since Sweep would then be biased to follow the suggested fixes.
+
+For example, we ran `pylint` on a test repository containing a script for training a CNN in PyTorch. `pylint` complained that the CNN was not callable.
+
+```python
+class CNN(nn.Module):
+    def __init__(self, num_classes):
+        super(CNN, self).__init__()
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1)
+        self.relu1 = nn.ReLU()
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
+        self.relu2 = nn.ReLU()
+        self.fc = nn.Linear(32 * 8 * 8, num_classes)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.relu1(x)
+        x = self.pool(x)
+        x = self.conv2(x)
+        x = self.relu2(x)
+        x = self.pool(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        return x
+
+# ...
+
+model = CNN(config['model']['num_classes']).to(device)
+
+# ...
+
+outputs = model(inputs)
+```
+
+As any data scientist would know, this is the correct code but simply a limitation of `pylint`. If we got GPT-3.5 to suggest a fix, it would suggest adding a `__call__` override which would break the script. However, without the remedy, Sweep would reasonably add a `# pylint: disable=E1102`, ignoring the Sweep issue.
+
+---
+
+⭐ If this interests you, try out [Sweep](http://sweep.dev/)!
