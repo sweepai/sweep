@@ -94,14 +94,14 @@ def on_ticket(
 ):
     # Check if the title starts with "sweep" or "sweep: " and remove it
     slow_mode = False
-    if title.lower().startswith("sweep: "):
+    if (title := title.lower()).startswith("sweep: "):
         title = title[7:]
-    elif title.lower().startswith("sweep "):
+    elif title.startswith("sweep "):
         title = title[6:]
-    elif title.lower().startswith("sweep(slow): "):
+    elif title.startswith("sweep(slow): "):
         title = title[13:]
         slow_mode = True
-    elif title.lower().startswith("sweep(slow) "):
+    elif title.startswith("sweep(slow) "):
         title = title[12:]
         slow_mode = True
 
