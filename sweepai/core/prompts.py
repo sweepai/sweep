@@ -367,7 +367,7 @@ Code Generation:
 ```
 Generate a diff based on the given plan, in the following format (do not include "..." anywhere). Always prefer the least amount of changes possible. Do not remove comments.
 
-{insert git diff patches here}
+{{insert git diff patches here}}
 ``` 
 
 Context: "{instructions}". Limit your changes to the context.
