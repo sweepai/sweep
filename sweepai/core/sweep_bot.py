@@ -63,60 +63,65 @@ class CodeGenBot(ChatGPT):
         self.messages.insert(-2, msg)
         pass
 
-    def get_files_to_change(self, retries=2):
-        file_change_requests: list[FileChangeRequest] = []
-        # Todo: put retries into a constants file
-        # also, this retries multiple times as the calls for this function are in a for loop
-
+    def generate_files(self, retries):
         for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
                 abstract_plan = self.chat(files_to_change_abstract_prompt, message_key="files_to_change")
 
                 files_to_change_response = self.chat(files_to_change_prompt,
-                                                     message_key="files_to_change")  # Dedup files to change here
-                files_to_change = FilesToChange.from_string(files_to_change_response)
-                create_thoughts = files_to_change.files_to_create.strip()
-                modify_thoughts = files_to_change.files_to_modify.strip()
-
-                files_to_create: list[str] = files_to_change.files_to_create.split("\n*")
-                files_to_modify: list[str] = files_to_change.files_to_modify.split("\n*")
-                for file_change_request, change_type in zip(
-                        files_to_create + files_to_modify,
-                        ["create"] * len(files_to_create)
-                        + ["modify"] * len(files_to_modify),
-                ):
-                    file_change_request = file_change_request.strip()
-                    if not file_change_request or file_change_request == "* None":
-                        continue
-                    logger.debug(file_change_request)
-                    logger.debug(change_type)
-                    file_change_requests.append(
-                        FileChangeRequest.from_string(
-                            file_change_request, change_type=change_type
-                        )
-                    )
-                # Create a dictionary to hold file names and their corresponding instructions
-                file_instructions_dict = {}
-                for file_change_request in file_change_requests:
-                    # If the file name is already in the dictionary, append the new instructions
-                    if file_change_request.filename in file_instructions_dict:
-                        instructions, change_type = file_instructions_dict[file_change_request.filename]
-                        file_instructions_dict[file_change_request.filename] = (
-                            instructions + " " + file_change_request.instructions, change_type)
-                    else:
-                        file_instructions_dict[file_change_request.filename] = (
-                            file_change_request.instructions, file_change_request.change_type)
-                file_change_requests = [
-                    FileChangeRequest(filename=file_name, instructions=instructions, change_type=change_type) for
-                    file_name, (instructions, change_type) in file_instructions_dict.items()]
-                if file_change_requests:
-                    return file_change_requests, create_thoughts, modify_thoughts
+                                                     message_key="files_to_change")  
+                return files_to_change_response
             except RegexMatchError:
                 logger.warning("Failed to parse! Retrying...")
                 self.delete_messages_from_chat("files_to_change")
                 continue
         raise NoFilesException()
+
+    def parse_files_to_change_response(self, files_to_change_response):
+        file_change_requests: list[FileChangeRequest] = []
+        files_to_change = FilesToChange.from_string(files_to_change_response)
+        create_thoughts = files_to_change.files_to_create.strip()
+        modify_thoughts = files_to_change.files_to_modify.strip()
+
+        files_to_create: list[str] = files_to_change.files_to_create.split("\n*")
+        files_to_modify: list[str] = files_to_change.files_to_modify.split("\n*")
+        for file_change_request, change_type in zip(
+                files_to_create + files_to_modify,
+                ["create"] * len(files_to_create)
+                + ["modify"] * len(files_to_modify),
+        ):
+            file_change_request = file_change_request.strip()
+            if not file_change_request or file_change_request == "* None":
+                continue
+            logger.debug(file_change_request)
+            logger.debug(change_type)
+            file_change_requests.append(
+                FileChangeRequest.from_string(
+                    file_change_request, change_type=change_type
+                )
+            )
+        return file_change_requests, create_thoughts, modify_thoughts
+
+    def get_files_to_change(self, retries=2):
+        files_to_change_response = self.generate_files(retries)
+        file_change_requests, create_thoughts, modify_thoughts = self.parse_files_to_change_response(files_to_change_response)
+        # Create a dictionary to hold file names and their corresponding instructions
+        file_instructions_dict = {}
+        for file_change_request in file_change_requests:
+            # If the file name is already in the dictionary, append the new instructions
+            if file_change_request.filename in file_instructions_dict:
+                instructions, change_type = file_instructions_dict[file_change_request.filename]
+                file_instructions_dict[file_change_request.filename] = (
+                    instructions + " " + file_change_request.instructions, change_type)
+            else:
+                file_instructions_dict[file_change_request.filename] = (
+                    file_change_request.instructions, file_change_request.change_type)
+        file_change_requests = [
+            FileChangeRequest(filename=file_name, instructions=instructions, change_type=change_type) for
+            file_name, (instructions, change_type) in file_instructions_dict.items()]
+        if file_change_requests:
+            return file_change_requests, create_thoughts, modify_thoughts
 
     def generate_pull_request(self, retries=5) -> PullRequest:
         for count in range(retries):
@@ -393,7 +398,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 return new_file
             except Exception as e:
                 tb = traceback.format_exc()
-                logger.warning(f"Failed to parse. Retrying for the {count}th time. Recieved error {e}\n{tb}")
+                logger.warning(f"Failed to parse. Retrying for the {count}th time. Received error {e}\n{tb}")
                 self.delete_messages_from_chat(key)
                 continue
         raise Exception("Failed to parse response after 5 attempts.")
