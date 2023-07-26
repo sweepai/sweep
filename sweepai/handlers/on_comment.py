@@ -97,9 +97,9 @@ def on_comment(
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = pr_path and pr_line_position
 
-    g = get_github_client(installation_id) if not g else g
-    repo = g.get_repo(repo_full_name) if not repo else repo
-    pr = repo.get_pull(pr_number) if not pr else pr
+    g = get_github_client(installation_id) if not (g := g) else g
+    repo = g.get_repo(repo_full_name) if not (repo := repo) else repo
+    pr = repo.get_pull(pr_number) if not (pr := pr) else pr
 
     # Fetch all comments in the current issue thread
     issue_comments = repo.get_issue(pr_number).get_comments()
