@@ -208,15 +208,14 @@ def create_config_pr(
         title=title,
         body=
         """🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
-        
-        ## What's new?
-        - **Sweep is now configurable**. 
-        - To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
-        - If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep-ai) for help.
-        
-        If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
-        Thank you for using Sweep! 🧹
-        """,
+
+## What's new?
+- **Sweep is now configurable**. 
+- To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
+- If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep-ai) for help.
+
+If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
+Thank you for using Sweep! 🧹""",
         head=branch_name,
         base=SweepConfig.get_branch(sweep_bot.repo),
     )
