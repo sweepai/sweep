@@ -25,6 +25,7 @@ from sweepai.core.prompts import (
     pull_request_prompt,
     create_file_prompt,
     files_to_change_abstract_prompt,
+    modify_file_hallucination_prompt,
     modify_file_prompt_3,
     snippet_replacement,
     chunking_prompt,
@@ -420,8 +421,8 @@ class SweepBot(CodeGenBot, GithubBot):
                     if not added_modify_hallucination:
                         added_modify_hallucination = True
                         # Add hallucinated example for better parsing
-                        
-
+                        for message in modify_file_hallucination_prompt:
+                            self.messages.append(Message(**message))
 
                     self.handle_modify_file(file_change_request, branch)
             except MaxTokensExceeded as e:
