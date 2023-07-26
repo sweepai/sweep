@@ -92,9 +92,9 @@ def on_ticket(
         comment_id: int = None
 ):
     # Check if the title starts with "sweep" or "sweep: " and remove it
-    if title.lower().startswith("sweep: "):
+    if (title := title.lower()).startswith("sweep: "):
         title = title[7:]
-    elif title.lower().startswith("sweep "):
+    elif title.startswith("sweep "):
         title = title[6:]
 
     # Flow:
@@ -158,7 +158,7 @@ def on_ticket(
     for pr in prs:
         # Check if this issue is mentioned in the PR, and pr is owned by bot
         # This is done in create_pr, (pr_description = ...)
-        if pr.user.login == GITHUB_BOT_USERNAME and f'Fixes #{issue_number}.\n' in pr.body:
+        if pr.user.login == GITHUB_BOT_USERNAME and (success := f'Fixes #{issue_number}.\n' in pr.body):
             success = safe_delete_sweep_branch(pr, repo)
 
     # Add emojis
