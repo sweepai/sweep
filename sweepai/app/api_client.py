@@ -152,7 +152,7 @@ class APIClient(BaseModel):
             self,
             messages: list[tuple[str | None, str | None]],
             snippets: list[Snippet] = [],
-            model: str = "gpt-4-0613",
+            model: str = "gpt-4-0613"
     ) -> str:
         results = requests.post(
             self.api_endpoint + "/chat",
@@ -165,55 +165,59 @@ class APIClient(BaseModel):
         try:
             return results.json()
         except json.JSONDecodeError:
-            class APIClient(BaseModel):
-                ...
-                def initializeContracts(self):
-                    # Function to initialize contracts
-                    pass
-            
-                def initializeAlchemy(self):
-                    # Function to initialize Alchemy
-                    pass
-            
-                def initializeProvider(self):
-                    # Function to initialize the provider
-                    pass
-            
-                def connectToAccount(self):
-                    # Function to connect to the account
-                    pass
-            
-                def stream_chat(
-                        self,
-                        messages: list[tuple[str | None, str | None]],
-                        snippets: list[Snippet] = [],
-                        do_add_plan: bool = True,
-                        functions: list[Function] = [],
-                        function_call: Any = "auto",
-                        model: str = "gpt-4-0613"
-                ):
-                    ...
-                    return item
-                    'POST',
-                    self.api_endpoint + '/chat_stream',
-                    json={
-                        "messages": messages,
-                        "snippets": [snippet.dict() for snippet in snippets],
-                        "do_add_plan": do_add_plan,
-                        "functions": [func.dict() for func in functions],
-                        "function_call": function_call,
-                        "config": self.config.dict()
-                    }
-            with client.stream('POST', self.api_endpoint + '/chat_stream', json={...}) as response:
-                for delta_chunk in response.iter_text():
-                    if not delta_chunk:
-                        break
-                    try:
-                        for item in break_json(delta_chunk):
-                            if "error" in item:
-                                logger.error(item)
-                                raise Exception(item["error"])
-                            yield item
-                    except json.decoder.JSONDecodeError as e:
-                        logger.error(delta_chunk)
-                        raise e
+            raise Exception(f"{results.text} is invalid JSON")
+    
+    def initializeContracts(self):
+        # Function to initialize contracts
+        response = requests.post("https://ethereum-api-endpoint.com/initialize-contracts")
+        return response.json()
+    
+    def initializeAlchemy(self):
+        # Function to initialize Alchemy
+        response = requests.post("https://ethereum-api-endpoint.com/initialize-alchemy")
+        return response.json()
+    
+    def initializeProvider(self):
+        # Function to initialize the provider
+        response = requests.post("https://ethereum-api-endpoint.com/initialize-provider")
+        return response.json()
+    
+    def connectToAccount(self):
+        # Function to connect to the account
+        response = requests.post("https://ethereum-api-endpoint.com/connect-to-account")
+        return response.json()
+    
+    def stream_chat(
+            self,
+            messages: list[tuple[str | None, str | None]],
+            snippets: list[Snippet] = [],
+            do_add_plan: bool = True,
+            functions: list[Function] = [],
+            function_call: Any = "auto",
+            model: str = "gpt-4-0613"
+    ):
+        ...
+        return item
+        'POST',
+        self.api_endpoint + '/chat_stream',
+        json={
+            "messages": messages,
+            "snippets": [snippet.dict() for snippet in snippets],
+            "do_add_plan": do_add_plan,
+            "functions": [func.dict() for func in functions],
+            "function_call": function_call,
+            "config": self.config.dict()
+        }
+    with client.stream('POST', self.api_endpoint + '/chat_stream', json={...}) as response:
+        for delta_chunk in response.iter_text():
+            if not delta_chunk:
+                break
+            try:
+                for item in break_json(delta_chunk):
+                    if "error" in item:
+                        logger.error(item)
+                        raise Exception(item["error"])
+                    yield item
+            except json.decoder.JSONDecodeError as e:
+                logger.error(delta_chunk)
+                raise e
