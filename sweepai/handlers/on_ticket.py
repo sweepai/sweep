@@ -432,7 +432,7 @@ def on_ticket(
             current_issue.delete_reaction(eyes_reaction.id)
         except:
             pass
-        for _ in range(1):
+        for _ in range(3):
             try:
                 # CODE REVIEW
                 changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
@@ -454,6 +454,9 @@ def on_ticket(
                 logger.error(traceback.format_exc())
                 logger.error(e)
                 break
+        
+        logger.info("Removing draft from title...")
+        pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
 
         logger.info("Running github actions...")
         try:
@@ -519,9 +522,9 @@ def on_ticket(
     else:
         try:
             item_to_react_to.delete_reaction(eyes_reaction.id)
-        except:
-            pass
-        item_to_react_to.create_reaction("rocket")
+            item_to_react_to.create_reaction("rocket")
+        except Exception as e:
+            logger.error(e)
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")

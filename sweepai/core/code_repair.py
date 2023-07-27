@@ -2,20 +2,27 @@ import subprocess
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
-from sweepai.core.prompts import code_repair_system_prompt, code_repair_prompt
+from sweepai.core.prompts import code_repair_check_system_prompt, code_repair_check_prompt, code_repair_system_prompt, code_repair_prompt
 
 response_regex = r"```[^\n]*(?P<response>.+)```"
 
+class CodeRepairChecker(ChatGPT):
+    def check_code(self, diff: str, user_code: str) -> bool:
+        self.messages = [Message(role="system", content=code_repair_check_system_prompt)]
+        self.model = "gpt-3.5-turbo-16k-0613"
+        response = self.chat(code_repair_check_prompt.format(diff=diff, user_code=user_code), message_key='code_repair')
+        return "<valid>True</valid>" in response
 
 class CodeRepairer(ChatGPT):
     # idk why this part breaks
     # messages: list[Message] = [Message(role="system", content=code_repair_system_prompt)]
     # model = "gpt-3.5-turbo-16k-0613"
+    code_repair_checker: CodeRepairChecker = CodeRepairChecker()
 
     @staticmethod
     def check_syntax(old_code, file_extension: str) -> bool:
+        return False
         # this is WIP
-        raise NotImplementedError()
         filename = ""
         if file_extension == '.py':
             # Use Python's built-in formatter "Black"
@@ -47,6 +54,8 @@ class CodeRepairer(ChatGPT):
     def repair_code(self, diff: str, user_code: str, feature: str, retries=3) -> str:
         self.messages = [Message(role="system", content=code_repair_system_prompt.format(feature=feature))]
         self.model = "gpt-3.5-turbo-16k-0613"
+        if self.code_repair_checker.check_code(diff, user_code):
+            return user_code
         retry_count = 0
         while retry_count < retries:
             response = self.chat(code_repair_prompt.format(diff=diff, user_code=user_code), message_key='code_repair')
