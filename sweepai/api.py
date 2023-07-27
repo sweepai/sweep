@@ -14,7 +14,7 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
 )
-from sweepai.handlers.create_pr import create_pr, create_gha_pr  # type: ignore
+from sweepai.handlers.create_pr import create_pr_changes, create_gha_pr  # type: ignore
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
@@ -68,7 +68,7 @@ FUNCTION_SETTINGS = {
 
 handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
 handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
-handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr)
+handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr_changes)
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
 

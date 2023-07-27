@@ -291,3 +291,9 @@ class NoFilesException(Exception):
 class PRChangeRequest(BaseModel):
     type: str # "comment", or "gha"
     params: dict
+
+class PRFileChanges(BaseModel):
+    file_count: int = 0  # Number of files changes
+    pr_title: str
+    pr_body: str
+    pr_head: str

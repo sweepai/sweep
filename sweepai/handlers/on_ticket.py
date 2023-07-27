@@ -15,14 +15,14 @@ from sweepai.core.entities import Snippet, NoFilesException
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
-from sweepai.handlers.create_pr import create_pr, create_config_pr, safe_delete_sweep_branch
+from sweepai.handlers.create_pr import create_pr_changes, create_config_pr, safe_delete_sweep_branch
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import PREFIX, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, OPENAI_API_KEY, \
     GITHUB_BOT_TOKEN, \
-    GITHUB_BOT_USERNAME
+    GITHUB_BOT_USERNAME, GITHUB_LABEL_NAME
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
@@ -103,6 +103,12 @@ def on_ticket(
         slow_mode = True
     elif title.lower().startswith("sweep(slow) "):
         title = title[12:]
+        slow_mode = True
+    elif title.lower().startswith("sweep (slow): "):
+        title = title[14:]
+        slow_mode = True
+    elif title.lower().startswith("sweep (slow) "):
+        title = title[13:]
         slow_mode = True
 
     # Flow:
@@ -419,10 +425,10 @@ def on_ticket(
 
         # WRITE PULL REQUEST
         logger.info("Making PR...")
-        response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
+        response = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
         if not response or not response["success"]: raise Exception("Failed to create PR")
-        pr = response["pull_request"]
-        current_issue.create_reaction("rocket")
+        pr_changes = response["pull_request"]
+
         edit_sweep_comment(
             "I have finished coding the issue. I am now reviewing it for completeness.",
             4
@@ -474,6 +480,9 @@ def on_ticket(
             5,
             pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number}).\n{payment_message}",
         )
+
+        logger.info("Add successful ticket to counter")
+        chat_logger.add_successful_ticket()
     except MaxTokensExceeded as e:
         logger.info("Max tokens exceeded")
         log_error("Max Tokens Exceeded", str(e) + "\n" + traceback.format_exc())
