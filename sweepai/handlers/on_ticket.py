@@ -262,7 +262,7 @@ def on_ticket(
 
         suffix = bot_suffix + discord_suffix
         if errored:
-            agg_message = "## ❌ Unable to Complete PR" + '\n' + message + "\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
+            agg_message = "## ❌ Unable to Complete PR" + '\n' + message + "\n\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
             suffix = bot_suffix # don't include discord suffix for error messages
 
         # Update the issue comment
