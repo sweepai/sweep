@@ -22,7 +22,7 @@ num_of_snippets_to_query = 10
 max_num_of_snippets = 5
 
 
-def create_pr(
+def create_pr_changes(
         file_change_requests: list[FileChangeRequest],
         pull_request: PullRequest,
         sweep_bot: SweepBot,

@@ -15,7 +15,7 @@ from sweepai.core.entities import Snippet, NoFilesException
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
-from sweepai.handlers.create_pr import create_pr, create_config_pr, safe_delete_sweep_branch
+from sweepai.handlers.create_pr import create_pr_changes, create_config_pr, safe_delete_sweep_branch
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
@@ -425,7 +425,7 @@ def on_ticket(
 
         # WRITE PULL REQUEST
         logger.info("Making PR...")
-        response = create_pr(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
+        response = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
         if not response or not response["success"]: raise Exception("Failed to create PR")
         pr = response["pull_request"]
         current_issue.create_reaction("rocket")
