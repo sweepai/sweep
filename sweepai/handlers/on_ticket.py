@@ -265,7 +265,7 @@ def on_ticket(
 
         suffix = bot_suffix + discord_suffix
         if errored:
-            agg_message = "## ❌ Unable to Complete PR" + '\n' + message + "\nFor bonus GPT-4 tickets, please report this bug on **[Discord](https://discord.com/invite/sweep-ai)**."
+            agg_message = "## ❌ Unable to Complete PR" + '\n' + message + "\n\nFor bonus GPT-4 tickets, please report this bug on **[Discord](https://discord.com/invite/sweep-ai)**."
             if table is not None:
                 agg_message = agg_message + f'\n{sep}Please look at the generated plan. If something looks wrong, please add more details to your issue.\n\n{table}'
             suffix = bot_suffix # don't include discord suffix for error messages
