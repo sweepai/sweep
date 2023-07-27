@@ -287,6 +287,9 @@ If you see code that should be modified, please modify it. The changes may not n
 
 modify_file_hallucination_prompt = [{'content': """File Name: (non-existent example)
 <old_file>
+import math
+import numpy as np
+
 example = True
 if example:
     x = 1 # comment
@@ -307,21 +310,31 @@ Step-by-step thoughts with explanations:
 Detailed plan of modifications:
 * Modification 1 - Change the output of the print statement from "hello" to "goodbye" as an example modification.
 * Modification 2 - I will update the value of a from 3 to 4.
+* Modification 3 - Import packages required to print
 
 Lines to change in the file:
-* lines 4: update print statement
-* lines 8: update value of a
+* lines 6: update print statement
+* lines 10: update value of a
 </code_planning>
 
 Code Generation:
 ```
+<<<< ORIGINAL
+import math
+import numpy as np
+====
+import math
+import numpy as np
+import sys
+>>>> UPDATED
+
 <<<< ORIGINAL
     x = 1 # comment
     print("hello")
     x = 2
 ====
     x = 1 # comment
-    print("goodbye")
+    sys.stdout.write("goodbye")
     x = 2
 >>>> UPDATED
 
