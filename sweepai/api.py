@@ -298,7 +298,7 @@ async def webhook(raw_request: Request):
                 g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pull_request = repo.get_pull(request.check_run.pull_requests[0].number)
-                if len(request.check_run.pull_requests) > 0 and pull_request.user.login.lower().startswith("sweep") and request.check_run.conclusion == "failure" and pull_request.title.startswith("[DRAFT]"):
+                if len(request.check_run.pull_requests) > 0 and pull_request.user.login.lower().startswith("sweep") and request.check_run.conclusion == "failure" and not pull_request.title.startswith("[DRAFT]"):
                     logger.info("Handling check suite")
                     pr_change_request = PRChangeRequest(
                         type="gha",
@@ -310,7 +310,7 @@ async def webhook(raw_request: Request):
                         pr_change_request=pr_change_request
                     )
                 else:
-                    logger.info(f"Skipping check suite for {request.repository.full_name} because it is not a failure or not from the bot")
+                    logger.info(f"Skipping check suite for {request.repository.full_name} because it is not a failure or not from the bot or is a draft")
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
