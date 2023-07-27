@@ -235,6 +235,9 @@ def on_ticket(
     past_messages = {}
     current_index = 0
 
+    # Random variables to save in case of errors
+    table = None  # Show plan so user can finetune prompt
+
     def edit_sweep_comment(message: str, index: int, pr_message=""):
         nonlocal current_index
         # -1 = error, -2 = retry
@@ -262,7 +265,9 @@ def on_ticket(
 
         suffix = bot_suffix + discord_suffix
         if errored:
-            agg_message = "## ❌ Unable to Complete PR" + '\n' + message + "\nIf you would like to report this bug, please join our **[Discord](https://discord.com/invite/sweep-ai)**."
+            agg_message = "## ❌ Unable to Complete PR" + '\n' + message + "\nFor bonus GPT-4 tickets, please report this bug on **[Discord](https://discord.com/invite/sweep-ai)**."
+            if table is not None:
+                agg_message = agg_message + f'\n{sep}Please look at the generated plan. If something looks wrong, please add more details to your issue.\n\n{table}'
             suffix = bot_suffix # don't include discord suffix for error messages
 
         # Update the issue comment
