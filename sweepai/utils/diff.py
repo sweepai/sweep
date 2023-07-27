@@ -193,7 +193,7 @@ def generate_new_file_from_patch(modify_file_response: str, old_file_content: st
     old_file_lines = old_file_content.splitlines()
     
     # Extract content between <new_file> tags
-    matches = re.findall(r'<<<<.*?\n(.*?)\n?====.*?\n(.*?)\n?>>>>', modify_file_response, re.DOTALL)
+    matches = re.findall(r'<<<<.*?\n(.*?)\n====\n(.*?)\n?>>>>', modify_file_response, re.DOTALL)
 
     for search, replace in matches:
         # Remove trailing tags
