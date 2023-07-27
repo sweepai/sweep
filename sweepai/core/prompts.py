@@ -552,6 +552,7 @@ generate_plan_and_queries_prompt = """Think step-by-step to break down the reque
 Then add more instructions that build on the user's instructions. These instructions should help plan how to solve the issue.
 * The code search engine is based on semantic similarity. Ask questions that involve code snippets, function references, or mention relevant file paths.
 * The user's instructions should be treated as the source of truth, but sometimes the user will not mention the entire context. In that case, you should add the missing context.
+* Gather files that are relevant, including dependencies and similar files in the codebase. For example, if the user asked to write tests, look at similar tests.
 
 You MUST follow the following format delimited with XML tags:
 
