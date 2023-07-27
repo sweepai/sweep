@@ -1,19 +1,12 @@
 ---
-title: Commenting in Pull Requests
+title: Responding to Sweep
 ---
 
-# 💬 Commenting in Pull Requests
+# 💬 Responding to Sweep
 
-In Sweep, we use two types of comments in pull requests: general comments and file comments.
+You can respond to Sweep in three places:
+1. **Issue**: Sweep will create a new pull request and close the old one
+2. **Pull request**: Sweep will update the PR based on your PR comments
+3. **Code**: Sweep will only update the file that the comment is on
 
-## General Comments
-
-General comments use context to solve complex problems. If you want to suggest a change that affects multiple files or requires a deep understanding of the codebase, you would use a general comment.
-
-## File Comments
-
-File comments are quicker and only use the current file for context. If you want to suggest a change to a specific line of code, you would use a file comment.
-
-## Multiple Comments in Parallel
-
-Sweep also supports multiple comments in parallel. This means you can leave several comments at the same time, and Sweep will process them all concurrently.
+Further, on failed Github Action runs, Sweep will update the PR based on the error message.

@@ -1,15 +1,14 @@
 {
   "index": "Getting Started",
-  "commenting": "Commenting on Pull Requests",
   "examples": "Examples",
-  "tricks": "Tips & Tricks",
   "recipes": "Recipes",
+  "commenting": "Responding to Sweep",
+  "tricks": "Tips & Tricks",
   "limitations": "Limitations",
   "roadmap": "Roadmap",
   "blogs": "Blogs",
+  "videos": "Videos",
   "privacy": "Privacy Policy", 
-  "ai_junior_dev_refactors_itself": "AI Junior Dev Refactors Itself by Writing Code",
-  "introducing_sweep": "Introducing Sweep - AI powered Bug Fixes and Feature Requests",
   "about": {
     "title": "🏠 Home",
     "type": "page",
