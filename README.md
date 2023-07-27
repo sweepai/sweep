@@ -47,6 +47,8 @@ Install Sweep by adding the [**Sweep GitHub app**](https://github.com/apps/sweep
 
 * For more details, visit our [✨ Installation](docs/installation.md) page.
 
+* Note: Sweep only considers issues with the "Sweep:" title on creation and not on update. If you want Sweep to pick up an issue after it has been created, you can add the "Sweep" label to the issue.
+
 * We support all languages GPT-4 supports, including Python, JS/TS, Rust, Go, Java, C# and C++.
 
 ---
