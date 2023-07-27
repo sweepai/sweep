@@ -22,7 +22,7 @@ from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import PREFIX, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, OPENAI_API_KEY, \
     GITHUB_BOT_TOKEN, \
-    GITHUB_BOT_USERNAME
+    GITHUB_BOT_USERNAME, GITHUB_LABEL_NAME
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
@@ -427,8 +427,8 @@ def on_ticket(
         logger.info("Making PR...")
         response = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
         if not response or not response["success"]: raise Exception("Failed to create PR")
-        pr = response["pull_request"]
-        current_issue.create_reaction("rocket")
+        pr_changes = response["pull_request"]
+
         edit_sweep_comment(
             "I have finished coding the issue. I am now reviewing it for completeness.",
             4
@@ -457,6 +457,19 @@ def on_ticket(
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
+
+
+        # CREATE PR
+        pr = repo.create_pull(
+            title=pr_changes.pr_title,
+            body=pr_changes.pr_body,
+            head=pr_changes.pr_head,
+            base=SweepConfig.get_branch(repo)
+        )
+        pr.add_to_labels(GITHUB_LABEL_NAME)
+        chat_logger.add_successful_ticket()
+        current_issue.create_reaction("rocket")
+
 
         logger.info("Running github actions...")
         try:
