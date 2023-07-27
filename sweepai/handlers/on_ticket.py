@@ -105,6 +105,12 @@ def on_ticket(
     elif title.startswith("sweep(slow) "):
         title = title[12:]
         slow_mode = True
+    elif title.lower().startswith("sweep (slow): "):
+        title = title[14:]
+        slow_mode = True
+    elif title.lower().startswith("sweep (slow) "):
+        title = title[13:]
+        slow_mode = True
 
     # Flow:
     # 1. Get relevant files
