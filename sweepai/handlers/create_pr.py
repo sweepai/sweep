@@ -3,7 +3,7 @@ import openai
 from github.Repository import Repository
 from loguru import logger
 
-from sweepai.core.entities import FileChangeRequest, PullRequest
+from sweepai.core.entities import FileChangeRequest, PullRequest, PRFileChanges
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import GITHUB_DEFAULT_CONFIG, GITHUB_LABEL_NAME, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
@@ -22,7 +22,7 @@ num_of_snippets_to_query = 10
 max_num_of_snippets = 5
 
 
-def create_pr(
+def create_pr_changes(
         file_change_requests: list[FileChangeRequest],
         pull_request: PullRequest,
         sweep_bot: SweepBot,
@@ -72,6 +72,13 @@ def create_pr(
                     **metadata,
                 },
             )
+
+            # Todo: if no changes were made, delete branch
+            commits = sweep_bot.repo.get_commits(pull_request.branch_name)
+            if len(commits) == 0:
+                branch = sweep_bot.repo.get_git_ref(f"heads/{pull_request.branch_name}")
+                branch.delete()
+
             return {"success": False, "error": "No changes made"}
         # Include issue number in PR description
         if issue_number:
@@ -82,13 +89,14 @@ def create_pr(
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
-        pr = sweep_bot.repo.create_pull(
-            title="[DRAFT] " + pr_title,
-            body=pr_description,
-            head=pull_request.branch_name,
-            base=SweepConfig.get_branch(sweep_bot.repo),
-        )
-        pr.add_to_labels(GITHUB_LABEL_NAME)
+
+        # pr = sweep_bot.repo.create_pull(
+        #     title="[DRAFT] " + pr_title,
+        #     body=pr_description,
+        #     head=pull_request.branch_name,
+        #     base=SweepConfig.get_branch(sweep_bot.repo),
+        # )
+        # pr.add_to_labels(GITHUB_LABEL_NAME)
     except MaxTokensExceeded as e:
         logger.error(e)
         posthog.capture(
@@ -128,9 +136,7 @@ def create_pr(
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("create_pr success")
-    if sweep_bot.chat_logger is not None:
-        sweep_bot.chat_logger.add_successful_ticket()
-    return {"success": True, "pull_request": pr}
+    return {"success": True, "pull_request": PRFileChanges(file_count=completed_count, pr_title=pr_title, pr_body=pr_description, pr_head=pull_request.branch_name)}
 
 
 def safe_delete_sweep_branch(
