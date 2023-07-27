@@ -438,28 +438,25 @@ def on_ticket(
             current_issue.delete_reaction(eyes_reaction.id)
         except:
             pass
-        for _ in range(1):
-            try:
-                # CODE REVIEW
-                changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
-                                                             repo_description=repo_description, title=title,
-                                                             summary=summary, replies_text=replies_text, tree=tree)
-                logger.info(f"Addressing review comment {review_comment}")
-                if changes_required:
-                    on_comment(repo_full_name=repo_full_name,
-                               repo_description=repo_description,
-                               comment=review_comment,
-                               username=username,
-                               installation_id=installation_id,
-                               pr_path=None,
-                               pr_line_position=None,
-                               pr_number=pr.number)
-                else:
-                    break
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
-                break
+
+        try:
+            # CODE REVIEW
+            changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
+                                                         repo_description=repo_description, title=title,
+                                                         summary=summary, replies_text=replies_text, tree=tree)
+            logger.info(f"Addressing review comment {review_comment}")
+            if changes_required:
+                on_comment(repo_full_name=repo_full_name,
+                           repo_description=repo_description,
+                           comment=review_comment,
+                           username=username,
+                           installation_id=installation_id,
+                           pr_path=None,
+                           pr_line_position=None,
+                           pr_number=pr.number)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
 
         logger.info("Running github actions...")
         try:
