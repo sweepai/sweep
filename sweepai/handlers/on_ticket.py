@@ -444,38 +444,31 @@ def on_ticket(
             current_issue.delete_reaction(eyes_reaction.id)
         except:
             pass
-
-        try:
-            # CODE REVIEW
-            changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
-                                                         repo_description=repo_description, title=title,
-                                                         summary=summary, replies_text=replies_text, tree=tree)
-            logger.info(f"Addressing review comment {review_comment}")
-            if changes_required:
-                on_comment(repo_full_name=repo_full_name,
-                           repo_description=repo_description,
-                           comment=review_comment,
-                           username=username,
-                           installation_id=installation_id,
-                           pr_path=None,
-                           pr_line_position=None,
-                           pr_number=pr.number)
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
-
-
-        # CREATE PR
-        pr = repo.create_pull(
-            title=pr_changes.pr_title,
-            body=pr_changes.pr_body,
-            head=pr_changes.pr_head,
-            base=SweepConfig.get_branch(repo)
-        )
-        pr.add_to_labels(GITHUB_LABEL_NAME)
-        chat_logger.add_successful_ticket()
-        current_issue.create_reaction("rocket")
-
+        for _ in range(3):
+            try:
+                # CODE REVIEW
+                changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
+                                                             repo_description=repo_description, title=title,
+                                                             summary=summary, replies_text=replies_text, tree=tree)
+                logger.info(f"Addressing review comment {review_comment}")
+                if changes_required:
+                    on_comment(repo_full_name=repo_full_name,
+                               repo_description=repo_description,
+                               comment=review_comment,
+                               username=username,
+                               installation_id=installation_id,
+                               pr_path=None,
+                               pr_line_position=None,
+                               pr_number=pr.number)
+                else:
+                    break
+            except Exception as e:
+                logger.error(traceback.format_exc())
+                logger.error(e)
+                break
+        
+        logger.info("Removing draft from title...")
+        pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
 
         logger.info("Running github actions...")
         try:
@@ -493,6 +486,9 @@ def on_ticket(
             5,
             pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number}).\n{payment_message}",
         )
+
+        logger.info("Add successful ticket to counter")
+        chat_logger.add_successful_ticket()
     except MaxTokensExceeded as e:
         logger.info("Max tokens exceeded")
         log_error("Max Tokens Exceeded", str(e) + "\n" + traceback.format_exc())
@@ -541,9 +537,9 @@ def on_ticket(
     else:
         try:
             item_to_react_to.delete_reaction(eyes_reaction.id)
-        except:
-            pass
-        item_to_react_to.create_reaction("rocket")
+            item_to_react_to.create_reaction("rocket")
+        except Exception as e:
+            logger.error(e)
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")

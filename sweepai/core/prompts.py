@@ -426,12 +426,38 @@ Query: {query}
 Gather information (i.e. fetch more snippets) to solve the problem. Use "create_pr" if the user asks for changes or you think code changes are needed.
 """
 
+code_repair_check_system_prompt = """\
+You are a genius trained for validating code.
+You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product. 
+Our goal is to validate if the final code is valid. This means there's undefined variables, no syntax errors, and the code runs.
+"""
+
+code_repair_check_prompt = """\
+This is the diff that was applied to create user_code. Only make changes to code in user_code if the code was affected by the diff.
+<diff>
+{diff}
+</diff>
+
+This is the user_code.
+<user_code>
+{user_code}
+</user_code>
+
+Reply in the following format:
+
+Step-by-step thoughts with explanations:
+1. No syntax errors: True/False
+2. No undefined variables: True/False
+3. Code runs: True/False
+
+<valid>True</valid> or <valid>False</valid>
+"""
+
 code_repair_system_prompt = """\
 You are a genius trained for code stitching.
 You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product. The intention was to implement a change described as {feature}. 
 Our goal is to return a working version of user_code that follows {feature}. We should follow the instructions and make as few edits as possible.
 """
-
 code_repair_prompt = """\
 This is the diff that was applied to create user_code. Only make changes to code in user_code if the code was affected by the diff.
 <diff>
