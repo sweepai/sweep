@@ -27,7 +27,11 @@ Create a new issue in your repository. The issue title should start with "Sweep:
 
 Example: "Sweep: In sweepai/app/ui.py, use an os-agnostic temp directory".
 
-## Step 4: Comment on Sweep's Pull Request 💬
+## Step 4: How Sweep Picks Up Issues 🕵️‍♂️
+
+Sweep only considers issues with the "Sweep:" title on creation and not on update. If you want Sweep to pick up an issue after it has been created, you can add the "Sweep" label to the issue.
+
+## Step 5: Comment on Sweep's Pull Request 💬
 
 If you notice any issues with the pull request, comment on the pull request with "Sweep: " and your comment. For example, "Sweep: use a different package instead".
 
