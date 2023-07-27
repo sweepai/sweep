@@ -12,6 +12,8 @@ There’s a plethora of dev tools used every day and implementing each one with 
 - Builds (compiled languages, Netlify and Vercel)
 - Code health monitors (Sonarqube, Deepsource)
 
+💡 Demo: Sweep was able to set up a GHA to run `eslint` on Llama Index TS at https://github.com/run-llama/LlamaIndexTS/pull/40. There was a mistake in the original GHA but Sweep was able to correct itself and fix the GHA yaml.
+
 ## ️Plan of Attack 🗺️
 
 Our approach is when GHA runs fail on a Sweep-generated PR, we pipe the logs to GPT-3.5 and add it as a PR comment, which gets processed by Sweep like a user-reported bug.
