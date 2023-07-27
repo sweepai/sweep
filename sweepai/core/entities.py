@@ -293,8 +293,6 @@ class PRChangeRequest(BaseModel):
     params: dict
 
 class PRFileChanges(BaseModel):
-    role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal["function"]
-    branch_name: str  # Branch name for PR
     file_count: int = 0  # Number of files changes
     pr_title: str
     pr_body: str
