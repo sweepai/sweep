@@ -86,7 +86,7 @@ class ChatLogger(BaseModel):
             return True
         if self.is_paying_user():
             return self.get_ticket_count() >= 120
-        return self.get_ticket_count() >= 60
+        return self.get_ticket_count() >= 5
 
 
 def discord_log_error(content):
