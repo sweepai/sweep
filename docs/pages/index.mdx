@@ -62,35 +62,6 @@ A good issue might include:
 
 If you want Sweep to use a file, try to mention the full path. Similarly, to have Sweep use a function, try to mention the class method or what it does. Also see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/tricks).
 
-### 🖥️ Sweep Chat
-Sweep Chat allows you to interact with Sweep and GitHub locally. Collaborate on the plan with Sweep, then have it create the pull request for you. 
-
-**Prerequisites:** Install [Sweep GitHub app](https://github.com/apps/sweep-ai) to your repository
-
-1. Run `pip3 install sweepai && sweep`. Note that you need **python 3.10+.**
-    - Alternatively run `pip3 install --force-reinstall sweepai && sweep` if the previous command fails.
-    - This runs GitHub authentication in your browser.
-
-2. Copy the 🔵 blue 8-digit code from your terminal into the page. You should only need to do the authentication once.  
-    - Wait a few seconds and Sweep Chat will start. 
-
-3. Choose a repository from the dropdown at the top (the Github app must be installed to this repository).
-
-    - ⚡ Start chatting with Sweep Chat! ⚡
-
-![Demo of Sweep Chat](https://raw.githubusercontent.com/sweepai/sweep/856ff66c2dbeaf39afbf6d8c49a620dfa70271fb/.assets/gradio-screenshot.png)
-
-#### Tips
-* 🔍 Relevant searched files will show up on the right. 
-* 🔘 Sweep Chat creates PRs when the "Create PR" button is clicked. 
-* 💡 You can force dark mode by going to http://127.0.0.1:7861/?__theme=dark.
-
-#### From Source
-If you want the nightly build and or if the latest build has issues.
-
-1. `git clone https://github.com/sweepai/sweep && poetry install`
-2. `python sweepai/app/cli.py`. Note that you need **python 3.10+**.
-
 ### ✨ Sweep Github App
 Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
 We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
