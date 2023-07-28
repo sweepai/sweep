@@ -292,7 +292,8 @@ class PRChangeRequest(BaseModel):
     type: str # "comment", or "gha"
     params: dict
 
-class PRFileChanges(BaseModel):
+class MockPR(BaseModel):
+    # Used to mock a PR object without creating a PR (branch will be created tho)
     file_count: int = 0  # Number of files changes
     title: str
     body: str
