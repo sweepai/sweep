@@ -33,7 +33,7 @@ Sweep only considers issues with the "Sweep:" title on creation and not on updat
 
 ## Step 5: Comment on Sweep's Pull Request 💬
 
-If you notice any issues with the pull request, comment on the pull request with "Sweep: " and your comment. For example, "Sweep: use a different package instead".
+If you notice any issues with the pull request, comment on the pull request with "Sweep: " and your comment. For example, "Sweep: use a different package instead". You can also comment in the issue and code. For more details on this see [Commenting](https://docs.sweep/commenting).
 
 ---
 
