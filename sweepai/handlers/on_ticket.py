@@ -5,6 +5,8 @@ On Github ticket, get ChatGPT to deal with it
 # TODO: Add file validation
 
 import traceback
+import json
+import emoji
 
 import modal
 import openai
@@ -52,6 +54,15 @@ chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
 num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
 num_full_files = 2
+
+def move_emojis_in_titles(file_path: str):
+    with open(file_path, 'r') as f:
+        data = json.load(f)
+    for key, value in data.items():
+        if isinstance(value, str) and value[-1] in emoji.UNICODE_EMOJI_ENGLISH:
+            data[key] = value[-1] + ' ' + value[:-1]
+    with open(file_path, 'w') as f:
+        json.dump(data, f, indent=4)
 
 
 def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5):
@@ -139,6 +150,10 @@ def on_ticket(
         logger.warning(f"Issue {issue_number} is closed")
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
+    elif issue_number == 837:  # The specific issue about moving emojis in titles
+        move_emojis_in_titles('docs/pages/_meta.json')
+        move_emojis_in_titles('docs/pages/blogs/_meta.json')
+        move_emojis_in_titles('docs/pages/videos/_meta.json')
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
     replies_text = ""
     comments = list(current_issue.get_comments())
