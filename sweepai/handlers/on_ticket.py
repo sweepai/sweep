@@ -11,7 +11,7 @@ import openai
 from loguru import logger
 from tabulate import tabulate
 
-from sweepai.core.entities import PullRequest, Snippet, NoFilesException
+from sweepai.core.entities import Snippet, NoFilesException
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
