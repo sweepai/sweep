@@ -90,7 +90,8 @@ def on_ticket(
         repo_full_name: str,
         repo_description: str,
         installation_id: int,
-        comment_id: int = None
+        comment_id: int = None,
+        subissue: bool = False,
 ):
     # Check if the title starts with "sweep" or "sweep: " and remove it
     slow_mode = False
