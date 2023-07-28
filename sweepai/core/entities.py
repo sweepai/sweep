@@ -1,8 +1,8 @@
 import os
 import re
 import string
-from typing import ClassVar, Literal, Type, TypeVar
-
+from typing import ClassVar, Literal, Type, TypeVar, Any
+from github.Branch import Branch
 from loguru import logger
 from pydantic import BaseModel
 
@@ -294,6 +294,14 @@ class PRChangeRequest(BaseModel):
 
 class PRFileChanges(BaseModel):
     file_count: int = 0  # Number of files changes
-    pr_title: str
-    pr_body: str
+    title: str
+    body: str
     pr_head: str
+    base: Any
+    head: Any
+
+    html_url: str = ""
+
+    def create_review(self, *args, **kwargs):
+        # Todo: used to prevent erroring in on_review.py file
+        pass
