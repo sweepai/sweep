@@ -74,8 +74,8 @@ diff_section_prompt = """
 """
 
 review_prompt = """\
-I need you to carefully review the code diffs in this pull request. 
-The code was written by an inexperienced programmer and may contain accidental deletions, logic errors, unimplemented sections (such as "...") or other issues.
+I need you to carefully review the code diffs in this pull request.
+The code was written by an inexperienced programmer and may contain accidental deletions, logic errors, unimplemented sections (such as "...") or other issues. Ensure that the code actually reflects the pull request description and title and is complete.
 Think step-by-step logically and thoroughly analyze to summarize the diffs per file in the format:
 
 Step-by-step thoughts:
