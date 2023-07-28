@@ -63,7 +63,6 @@ Unlike existing AI solutions, this can solve entire tickets and can be paralleli
 - GPT-4 32k 0613 (default)
 - ActiveLoop DeepLake for Vector DB with MiniLM L12 as our embeddings model
 - Modal Labs for infra + deployment
-- Gradio for Sweep Chat
 
 ## Highlights 🌟
 Examine pull requests created by Sweep [here](https://docs.sweep.dev/examples).
