@@ -16,7 +16,7 @@ def construct_metadata(repo_full_name, repo_name, organization, repo_description
         "mode": mode,
     }
 
-from sweepai.core.entities import FileChangeRequest, NoFilesException, Snippet, PRFileChanges
+from sweepai.core.entities import FileChangeRequest, NoFilesException, Snippet, MockPR
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
@@ -236,7 +236,7 @@ def on_comment(
             file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
-        if type(pr) != PRFileChanges:
+        if type(pr) != MockPR:
             if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
                 # Update the PR title to remove the "[DRAFT]" prefix
                 pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
