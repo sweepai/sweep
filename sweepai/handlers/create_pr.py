@@ -3,7 +3,7 @@ import openai
 from github.Repository import Repository
 from loguru import logger
 
-from sweepai.core.entities import FileChangeRequest, PullRequest, PRFileChanges
+from sweepai.core.entities import FileChangeRequest, PullRequest, MockPR
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import GITHUB_DEFAULT_CONFIG, GITHUB_LABEL_NAME, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
@@ -136,9 +136,9 @@ def create_pr_changes(
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("create_pr success")
-    return {"success": True, "pull_request": PRFileChanges(file_count=completed_count, pr_title=pr_title, pr_body=pr_description, pr_head=pull_request.branch_name,
-                                                           base=sweep_bot.repo.get_branch(SweepConfig.get_branch(sweep_bot.repo)).commit,
-                                                           head=sweep_bot.repo.get_branch(pull_request.branch_name).commit)}
+    return {"success": True, "pull_request": MockPR(file_count=completed_count, title=pr_title, body=pr_description, pr_head=pull_request.branch_name,
+                                                    base=sweep_bot.repo.get_branch(SweepConfig.get_branch(sweep_bot.repo)).commit,
+                                                    head=sweep_bot.repo.get_branch(pull_request.branch_name).commit)}
 
 
 def safe_delete_sweep_branch(
