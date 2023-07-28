@@ -433,7 +433,7 @@ def on_ticket(
         logger.info("Making PR...")
         response = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
         if not response or not response["success"]: raise Exception("Failed to create PR")
-        pr = response["pull_request"]
+        pr_changes = response["pull_request"]
 
         edit_sweep_comment(
             "I have finished coding the issue. I am now reviewing it for completeness.",
@@ -444,10 +444,11 @@ def on_ticket(
             current_issue.delete_reaction(eyes_reaction.id)
         except:
             pass
+
         for _ in range(3):
             try:
                 # CODE REVIEW
-                changes_required, review_comment = review_pr(repo=repo, pr=pr, issue_url=issue_url, username=username,
+                changes_required, review_comment = review_pr(repo=repo, pr=pr_changes, issue_url=issue_url, username=username,
                                                              repo_description=repo_description, title=title,
                                                              summary=summary, replies_text=replies_text, tree=tree)
                 logger.info(f"Addressing review comment {review_comment}")
@@ -459,16 +460,27 @@ def on_ticket(
                                installation_id=installation_id,
                                pr_path=None,
                                pr_line_position=None,
-                               pr_number=pr.number)
+                               pr_number=None,
+                               pr=pr_changes)
                 else:
                     break
             except Exception as e:
                 logger.error(traceback.format_exc())
                 logger.error(e)
                 break
-        
-        logger.info("Removing draft from title...")
-        pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
+
+        pr = repo.create_pull(
+            title=pr_changes.title,
+            body=pr_changes.body,
+            head=pr_changes.pr_head,
+            base=SweepConfig.get_branch(repo)
+        )
+        # Get the branch (SweepConfig.get_branch(repo))'s sha
+        sha = repo.get_branch(SweepConfig.get_branch(repo)).commit.sha
+
+        pr.add_to_labels(GITHUB_LABEL_NAME)
+        chat_logger.add_successful_ticket()
+        current_issue.create_reaction("rocket")
 
         logger.info("Running github actions...")
         try:

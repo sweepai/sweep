@@ -136,7 +136,9 @@ def create_pr_changes(
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("create_pr success")
-    return {"success": True, "pull_request": PRFileChanges(file_count=completed_count, pr_title=pr_title, pr_body=pr_description, pr_head=pull_request.branch_name)}
+    return {"success": True, "pull_request": PRFileChanges(file_count=completed_count, pr_title=pr_title, pr_body=pr_description, pr_head=pull_request.branch_name,
+                                                           base=sweep_bot.repo.get_branch(SweepConfig.get_branch(sweep_bot.repo)).commit,
+                                                           head=sweep_bot.repo.get_branch(pull_request.branch_name).commit)}
 
 
 def safe_delete_sweep_branch(
