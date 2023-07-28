@@ -496,7 +496,8 @@ def on_ticket(
         edit_sweep_comment(
             "Success! 🚀",
             5,
-            pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number}).\n{payment_message}",
+            pr_message=f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}",
+            # pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number}).\n{payment_message}",
         )
 
         logger.info("Add successful ticket to counter")
