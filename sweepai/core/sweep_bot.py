@@ -445,7 +445,7 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.info(f"Error in handle_create_file: {e}")
 
     def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
-        CHUNK_SIZE = 400  # Number of lines to process at a time
+        CHUNK_SIZE = 1200  # Number of lines to process at a time
         try:
             file = self.get_file(file_change_request.filename, branch=branch)
             file_contents = file.decoded_content.decode("utf-8")
@@ -453,36 +453,42 @@ class SweepBot(CodeGenBot, GithubBot):
             
             new_file_contents = ""  # Initialize an empty string to hold the new file contents
             all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
-            chunking = len(lines) > CHUNK_SIZE * 1.5 # Only chunk if the file is large enough
-            file_name = file_change_request.filename
-            if not chunking:
-                new_file_contents = self.modify_file(
-                        file_change_request, 
-                        contents="\n".join(lines), 
-                        branch=branch, 
-                        contents_line_numbers=file_contents if USING_DIFF else "\n".join(all_lines_numbered),
-                        chunking=chunking,
-                        chunk_offset=0
-                    )
-            else:
-                for i in range(0, len(lines), CHUNK_SIZE):
-                    chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
-                    contents_line_numbers = "\n".join(all_lines_numbered[i:i + CHUNK_SIZE])
-                    if not EditBot().should_edit(issue=file_change_request.instructions, snippet=chunk_contents):
-                        new_chunk = chunk_contents
+            chunk_sizes = [1200, 1000, 800]  # Define the chunk sizes for the backoff mechanism
+            for CHUNK_SIZE in chunk_sizes:
+                try:
+                    chunking = len(lines) > CHUNK_SIZE * 1.5 # Only chunk if the file is large enough
+                    file_name = file_change_request.filename
+                    if not chunking:
+                        new_file_contents = self.modify_file(
+                                file_change_request, 
+                                contents="\n".join(lines), 
+                                branch=branch, 
+                                contents_line_numbers=file_contents if USING_DIFF else "\n".join(all_lines_numbered),
+                                chunking=chunking,
+                                chunk_offset=0
+                            )
                     else:
-                        new_chunk = self.modify_file(
-                            file_change_request, 
-                            contents=chunk_contents, 
-                            branch=branch, 
-                            contents_line_numbers=file_contents if USING_DIFF else "\n".join(contents_line_numbers), 
-                            chunking=chunking,
-                            chunk_offset=i
-                        )
-                    if i + CHUNK_SIZE < len(lines):
-                        new_file_contents += new_chunk + "\n"
-                    else:
-                        new_file_contents += new_chunk
+                        for i in range(0, len(lines), CHUNK_SIZE):
+                            chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
+                            contents_line_numbers = "\n".join(all_lines_numbered[i:i + CHUNK_SIZE])
+                            if not EditBot().should_edit(issue=file_change_request.instructions, snippet=chunk_contents):
+                                new_chunk = chunk_contents
+                            else:
+                                new_chunk = self.modify_file(
+                                    file_change_request, 
+                                    contents=chunk_contents, 
+                                    branch=branch, 
+                                    contents_line_numbers=file_contents if USING_DIFF else "\n".join(contents_line_numbers), 
+                                    chunking=chunking,
+                                    chunk_offset=i
+                                )
+                            if i + CHUNK_SIZE < len(lines):
+                                new_file_contents += new_chunk + "\n"
+                            else:
+                                new_file_contents += new_chunk
+                    break  # If the chunking was successful, break the loop
+                except MaxTokensExceeded:
+                    continue  # If the chunking was not successful, continue to the next chunk size
             logger.debug(
                 f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
             )
