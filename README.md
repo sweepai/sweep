@@ -31,11 +31,11 @@ Describe bugs, small features, and refactors like you would to a junior develope
 3. ⚡**writes a pull request with code**⚡
 
 ### Features 🌠
-* Turns issues directly into pull requests (without an IDE)
-* Addresses developer replies & comments on its PRs
-* Uses embedding-based code search
-* Fixes PRs based on GitHub Actions feedback
-* Large File Support using File Streaming
+* 🌠 Turns issues directly into pull requests (without an IDE)
+* 👀 Addresses developer replies & comments on its PRs
+* 🔎 Uses embedding-based code search
+* 🔧 Fixes PRs based on GitHub Actions feedback
+* 🎈 Large File Support using File Streaming
 
 [Demo](https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47)
 
@@ -82,6 +82,12 @@ See [🗺️ Roadmap](https://docs.sweep.dev/roadmap)
 [![Star History Chart](https://api.star-history.com/svg?repos=sweepai/sweep&type=Date)](https://star-history.com/#sweepai/sweep&Date)
 
 Consider starring us if you're using Sweep so more people hear about us!
+
+## Contributing 🤝
+Contributions are welcome and greatly appreciated! For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
+* [Sweep Docs](https://docs.sweep.dev/).
+
+
 <h2 align="center">
     Contributors
 </h2>
@@ -96,7 +102,3 @@ Consider starring us if you're using Sweep so more people hear about us!
 <p align="center">
     and, of course, Sweep!
 </p>
-
-## Contributing 🤝
-Contributions are welcome and greatly appreciated! For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
-* [Sweep Docs](https://docs.sweep.dev/).
