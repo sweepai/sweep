@@ -41,5 +41,5 @@ If you would like to learn more about Sweep, check out our [documentation](https
 
 If you encounter any issues, please reach out to us:
 
-- Email: team@sweep.dev
 - [Discord](https://discord.com/invite/sweep-ai)
+- Email: team@sweep.dev
