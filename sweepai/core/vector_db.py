@@ -32,7 +32,7 @@ DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 256
 SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-mpnet-base-v2"
 timeout = 60 * 30  # 30 minutes
-CACHE_VERSION = "v1.0.2"
+CACHE_VERSION = "v1.0.3"
 MAX_FILES = 3000
 
 image = (
