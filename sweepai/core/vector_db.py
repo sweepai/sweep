@@ -165,7 +165,8 @@ def get_deeplake_vs_from_repo(
     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
     shutil.rmtree("repo", ignore_errors=True)
 
-    branch_name = SweepConfig.get_branch(repo)
+    if branch_name is None:
+        branch_name = SweepConfig.get_branch(repo)
 
     git_repo = Repo.clone_from(repo_url, "repo")
     git_repo.git.checkout(branch_name)
@@ -308,7 +309,6 @@ def update_index(
         sweep_config: SweepConfig = SweepConfig(),
 ) -> int:
     get_deeplake_vs_from_repo(repo_name, installation_id, branch_name=None, sweep_config=sweep_config)
-    # todo: ?
     return 0
 
 
@@ -320,9 +320,10 @@ def get_relevant_snippets(
         installation_id: int,
         username: str | None = None,
         sweep_config: SweepConfig = SweepConfig(),
+        branch_name: str | None = None,
 ):
     deeplake_vs = get_deeplake_vs_from_repo(
-        repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
+        repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config, branch_name=branch_name
     )
     results = {"metadata": [], "text": []}
     for n_result in range(n_results, 0, -1):
