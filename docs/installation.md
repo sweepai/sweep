@@ -6,11 +6,19 @@ Prerequisites:
 - [Install Sweep](https://github.com/apps/sweep-ai)
 - [Enable Issues in Repo](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/enabling-or-disabling-github-discussions-for-a-repository)
 
-## Step 1: Star Sweep Repository ⭐
+## Step 1: Create an Issue 🐞
 
-First, make sure to star our [open-source GitHub repo](https://github.com/sweepai/sweep) to stay updated with all the latest features and improvements. We're constantly enhancing Sweep based on your feedback.
+Create a new issue in your repository. The issue title should start with "Sweep: ", like "Sweep: In sweepai/app/ui.py, use an os-agnostic temp directory" for Sweep to create an PR to solve it.
 
-## Step 2: Best Practices 📝
+## Step 2: Responding to Sweep 💬
+
+If you notice any issues with the pull request, comment on the pull request with "Sweep: " and your comment, e.g. "Sweep: use PyTorch instead of Tensorflow". You can also comment in the issue and code. For more details on this see [Commenting](https://docs.sweep/commenting).
+
+## Step 3: Star Sweep Repository ⭐
+
+Make sure to star our [open-source GitHub repo](https://github.com/sweepai/sweep) for better results! Also join our [Discord](https://discord.gg/sweep-ai) to stay updated with all the latest features and improvements. We're constantly enhancing Sweep based on your feedback.
+
+## Bonus: Best Practices for Prompting Sweep 📝
 
 To get the most out of Sweep, we recommend the following best practices. The better the input, the better Sweep's output!
 
@@ -20,20 +28,6 @@ Here's what a good issue might include:
 * **Additional context**: Provide any additional context that might be helpful.
 
 For more detailed guidance, visit our [Sweep Recipes](https://docs.sweep.dev/recipes).
-
-## Step 3: Create an Issue 🐞
-
-Create a new issue in your repository. The issue title should start with "Sweep: ".
-
-Example: "Sweep: In sweepai/app/ui.py, use an os-agnostic temp directory".
-
-## Step 4: How Sweep Picks Up Issues 🕵️‍♂️
-
-Sweep only considers issues with the "Sweep:" title on creation and not on update. If you want Sweep to pick up an issue after it has been created, you can add the "Sweep" label to the issue.
-
-## Step 5: Comment on Sweep's Pull Request 💬
-
-If you notice any issues with the pull request, comment on the pull request with "Sweep: " and your comment. For example, "Sweep: use a different package instead". You can also comment in the issue and code. For more details on this see [Commenting](https://docs.sweep/commenting).
 
 ---
 
