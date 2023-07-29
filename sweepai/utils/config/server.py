@@ -1,6 +1,6 @@
 import os
 
-PREFIX = 'dev2'
+PREFIX = 'prod'
 ENV = PREFIX
 
 DB_MODAL_INST_NAME = PREFIX + "-db"
