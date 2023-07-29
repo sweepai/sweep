@@ -1,6 +1,6 @@
 import os
 
-PREFIX = 'dev2'
+PREFIX = os.environ.get('PREFIX', 'dev')
 ENV = PREFIX
 
 DB_MODAL_INST_NAME = PREFIX + "-db"
