@@ -591,7 +591,11 @@ Thoughts:
 split_issue = true or false
 
 if split_issue is true, then do this too:
+Required Actions:
+* Action 1: {action}
+...
+
 Ticket 1:
-    Title: ...
-    Desc: ...
+    Title: {title}
+    Desc: {detailed description}
 ..."""

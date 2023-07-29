@@ -11,7 +11,7 @@ import openai
 from loguru import logger
 from tabulate import tabulate
 
-from sweepai.core.entities import Snippet, NoFilesException
+from sweepai.core.entities import Snippet, NoFilesException, ParentIssue
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt, files_to_change_abstract_prompt, split_into_subissues_prompt
@@ -92,6 +92,7 @@ def on_ticket(
         installation_id: int,
         comment_id: int = None,
         subissue: bool = False,
+        parent_issue: ParentIssue | None = None,
 ):
     # Check if the title starts with "sweep" or "sweep: " and remove it
     slow_mode = False
@@ -390,16 +391,51 @@ def on_ticket(
             split_issue = False
             try:
                 subissues_plan = sweep_bot.chat(split_into_subissues_prompt, message_key="split_into_subissues")
+                """
+                Ticket 1:
+    Title: Set up GitHub Actions for Python
+    Desc: For repositories that use Python, set up GitHub Actions with Black and Pylint. This setup should only be triggered when a user merges a PR titled "Enable Github Actions".
+
+Ticket 2:
+    Title: Set up GitHub Actions for JavaScript
+    Desc: For repositories that use JavaScript, set up GitHub Actions with ESLint. This setup should only be triggered when a user merges a PR titled "Enable Github Actions".
+
+Ticket 3:
+    Title: Set up GitHub Actions for TypeScript
+    Desc: For repositories that use TypeScript, set up GitHub Actions with TSC. This setup should only be triggered when a user merges a PR titled "Enable Github Actions"."""
+                # Split by Ticket \d
+                tickets = re.split(r'Ticket \d:', subissues_plan)
+                # Get Title: and Desc: in each ticket
+                tickets = [re.split(r'Title:|Desc:', ticket) for ticket in tickets]
+
+
                 # regex for finding \nsplit_issue = ...\n and extracting that and getting the value its set to
                 split_issue = re.search(r'(?<=split_issue = ).*(?=\n)', subissues_plan).group(0).lower() == "true"
                 if split_issue:
-                    sweep_bot.split_into_subissues()
-                    sweep_bot.delete_messages_from_chat(key_to_delete="split_into_subissues")
+                    # Split into subissues
+                    tickets = re.split(r'Ticket \d:\n', subissues_plan)[1:]  # Ignore spacing before first ticket
+                    tickets = [re.split(r'Title:|Desc:', ticket)[1:] for ticket in tickets]  # Get Title: and Desc: in each ticket
+                    tickets = [[t.strip().split('\n')[0] for t in ticket] for ticket in tickets]  # Remove whitespace
+                    for sub_title, sub_desc in tickets:
+                        on_ticket(
+                            title=sub_title,
+                            summary=sub_desc,
+                            issue_number=issue_number,
+                            issue_url=issue_url,
+                            username=username,
+                            repo_full_name=repo_full_name,
+                            repo_description=repo_description,
+                            installation_id=installation_id,
+                            comment_id=comment_id,
+                            subissue=True,
+                            parent_issue=ParentIssue(
+                                title=title,
+                                summary=summary
+                            )
+                        )
+
             except:
-                if split_issue:
-                    # Todo(lukejagg): Split into sub issues here
-                    # This includes: making all changes in same branch, creating multiple PRs, etc
-                    pass
+                pass
             finally:
                 sweep_bot.delete_messages_from_chat(key_to_delete="split_into_subissues")
 

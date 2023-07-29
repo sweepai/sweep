@@ -306,3 +306,7 @@ class MockPR(BaseModel):
     def create_review(self, *args, **kwargs):
         # Todo: used to prevent erroring in on_review.py file
         pass
+
+class ParentIssue(BaseModel):
+    title: str
+    summary: str
