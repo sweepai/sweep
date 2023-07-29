@@ -316,6 +316,8 @@ def on_ticket(
     snippets = post_process_snippets(snippets,
                                      max_num_of_snippets=2 if use_faster_model else 5)
 
+    if not repo_description:
+        repo_description = "No description provided."
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,

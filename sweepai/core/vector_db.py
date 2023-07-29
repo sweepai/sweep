@@ -30,7 +30,7 @@ DEEPLAKE_DIR = "/root/cache/"
 DISKCACHE_DIR = "/root/cache/diskcache/"
 DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 256
-SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-MiniLM-L12-v2"
+SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-mpnet-base-v2"
 timeout = 60 * 30  # 30 minutes
 CACHE_VERSION = "v1.0.2"
 MAX_FILES = 3000
@@ -346,6 +346,7 @@ def get_relevant_snippets(
                 "n_results": n_results
             },
         )
+        return []
     metadatas = results["metadata"]
     code_scores = [metadata["score"] for metadata in metadatas]
     vector_scores = results["score"]
