@@ -347,6 +347,7 @@ def get_relevant_snippets(
                 "n_results": n_results
             },
         )
+        return []
     metadatas = results["metadata"]
     code_scores = [metadata["score"] for metadata in metadatas]
     vector_scores = results["score"]
