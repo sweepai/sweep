@@ -42,6 +42,7 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
 
 
 def clean_logs(logs_str: str):
+    MAX_LINES = 300
     log_list = logs_str.split("\n")
     truncated_logs = [log[log.find(" ") + 1:] for log in log_list]
     patterns = [
@@ -56,9 +57,22 @@ def clean_logs(logs_str: str):
         "remote: Counting objects",
         "remote: Compressing objects:",
         "Receiving objects:",
-        "Resolving deltas:"
+        "Resolving deltas:",
+        "[command]/usr/bin/git ",
+        "Download action repository",
+        # For python
+        "Collecting",
+        "Downloading",
+        "Installing",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        # For prettier
+        "npm WARN EBADENGINE ",
+        "npm WARN deprecated ",
+        "prettier/prettier"
+
     ]
-    return "\n".join([log.strip() for log in truncated_logs if not any(pattern in log for pattern in patterns)])
+    cleaned_lines = [log.strip() for log in truncated_logs if not any(log.startswith(pattern) for pattern in patterns)]
+    return "\n".join(cleaned_lines[:min(MAX_LINES, len(cleaned_lines))])
 
 
 def on_check_suite(request: CheckRunCompleted):
