@@ -32,8 +32,8 @@ jobs:
 
       - name: Run install script
         run: |
-          poetry run sh bin/install.sh
+          sh bin/install.sh
 
       - name: Deploy job
         run: |
-          poetry run sh bin/deploy.sh
+          sh bin/deploy.sh
