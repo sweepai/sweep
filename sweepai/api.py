@@ -174,7 +174,7 @@ async def webhook(raw_request: Request):
 
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
-            case "issues", "edited":
+            case "issue_comment", "edited":
                 request = IssueRequest(**request_dict)
                 if GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels]:
                     handle_ticket.spawn(
