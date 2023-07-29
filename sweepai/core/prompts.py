@@ -574,3 +574,18 @@ Step-by-step thoughts with explanations:
 * additional instructions to be appended to the user's instructions
 </additional_instructions>
 """
+
+split_into_subissues_prompt = """You must now evaluate whether this ticket is small enough, or if it should be split into multiple tickets. If it involves complex tasks or large changes, you should split the task. If it is split, the tickets you create will be executed sequentially starting from 1 (up to 5)
+
+Answer in the following format:
+Thoughts:
+* ...
+...
+
+split_issue = true or false
+
+if split_issue is true, then do this too:
+Ticket 1:
+    Title: ...
+    Desc: ...
+..."""
