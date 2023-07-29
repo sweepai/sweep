@@ -310,3 +310,7 @@ class MockPR(BaseModel):
 class ParentIssue(BaseModel):
     title: str
     summary: str
+    branch: str
+    # Todo(lukejagg): Add more context about past subissues
+    # - Titles
+    # - Diffs

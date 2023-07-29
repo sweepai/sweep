@@ -11,10 +11,11 @@ import openai
 from loguru import logger
 from tabulate import tabulate
 
-from sweepai.core.entities import Snippet, NoFilesException, ParentIssue
+from sweepai.core.entities import Snippet, NoFilesException, ParentIssue, Message
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
-from sweepai.core.prompts import issue_comment_prompt, files_to_change_abstract_prompt, split_into_subissues_prompt
+from sweepai.core.prompts import issue_comment_prompt, files_to_change_abstract_prompt, split_into_subissues_prompt, \
+    subissue_parent_context_prompt
 from sweepai.handlers.create_pr import create_pr_changes, create_config_pr, safe_delete_sweep_branch
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
@@ -91,8 +92,7 @@ def on_ticket(
         repo_description: str,
         installation_id: int,
         comment_id: int = None,
-        subissue: bool = False,
-        parent_issue: ParentIssue | None = None,
+        subissue_context: ParentIssue | None = None,
 ):
     # Check if the title starts with "sweep" or "sweep: " and remove it
     slow_mode = False
@@ -112,6 +112,8 @@ def on_ticket(
     elif title.lower().startswith("sweep (slow) "):
         title = title[13:]
         slow_mode = True
+
+    is_subissue = subissue_context is not None
 
     # Flow:
     # 1. Get relevant files
@@ -358,6 +360,14 @@ def on_ticket(
         human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger
     )
 
+    if subissue_context is not None:
+        # Add context to sweep_bot messages (before the latest message)
+        msg = Message(role="assistant", content=subissue_parent_context_prompt.format(
+            parent_issue_title=subissue_context.title,
+            parent_issue_description=subissue_context.summary
+        ), key="subissue_parent_context")
+        sweep_bot.messages.insert(-1, msg)
+
     # Check repository for sweep.yml file.
     sweep_yml_exists = False
     for content_file in repo.get_contents(""):
@@ -366,7 +376,7 @@ def on_ticket(
             break
 
     # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
-    if not sweep_yml_exists:
+    if not sweep_yml_exists and is_subissue:
         try:
             logger.info("Creating sweep.yaml file...")
             config_pr = create_config_pr(sweep_bot)
@@ -389,6 +399,7 @@ def on_ticket(
 
         if slow_mode:
             split_issue = False
+            failed = False
             try:
                 subissues_plan = sweep_bot.chat(split_into_subissues_prompt, message_key="split_into_subissues")
                 """
@@ -416,9 +427,10 @@ Ticket 3:
                     tickets = re.split(r'Ticket \d:\n', subissues_plan)[1:]  # Ignore spacing before first ticket
                     tickets = [re.split(r'Title:|Desc:', ticket)[1:] for ticket in tickets]  # Get Title: and Desc: in each ticket
                     tickets = [[t.strip().split('\n')[0] for t in ticket] for ticket in tickets]  # Remove whitespace
-                    for sub_title, sub_desc in tickets:
-                        on_ticket(
-                            title=sub_title,
+                    current_branch = SweepConfig.get_branch(repo)
+                    for index, (sub_title, sub_desc) in enumerate(tickets):
+                        response = on_ticket(
+                            title=f'sweep(slow): Subissue {index+1}: ' + sub_title,
                             summary=sub_desc,
                             issue_number=issue_number,
                             issue_url=issue_url,
@@ -427,21 +439,26 @@ Ticket 3:
                             repo_description=repo_description,
                             installation_id=installation_id,
                             comment_id=comment_id,
-                            subissue=True,
-                            parent_issue=ParentIssue(
+                            subissue_context=ParentIssue(
                                 title=title,
-                                summary=summary
+                                summary=summary,
+                                branch=current_branch
                             )
                         )
+                        current_branch = response['branch']
 
-            except:
-                pass
+                        if not response["success"]:
+                            raise Exception("Failed to create subissue")
+
+            except Exception as e:
+                logger.error(str(e), traceback.format_exc())
+                failed = True
             finally:
                 sweep_bot.delete_messages_from_chat(key_to_delete="split_into_subissues")
 
             # Early termination for split issues.
             if split_issue:
-                return {"success": True}
+                return {"success": not failed}
 
 
         newline = '\n'

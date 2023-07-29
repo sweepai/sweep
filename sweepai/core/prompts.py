@@ -599,3 +599,11 @@ Ticket 1:
     Title: {title}
     Desc: {detailed description}
 ..."""
+
+# This prompt is used to add context before the subissue (about the parent issue, etc)
+subissue_parent_context_prompt = """I split the issue into multiple subissues. Here is the parent issue:
+Title: {parent_issue_title}
+Description: {parent_issue_description}
+
+Please provide context for the subissue you want me to work on.
+"""
