@@ -8,11 +8,11 @@ Prerequisites:
 
 ## Step 1: Create an Issue 🐞
 
-Create a new issue in your repository. The issue title should start with "Sweep: ", like "Sweep: In sweepai/app/ui.py, use an os-agnostic temp directory" for Sweep to create an PR to solve it.
+Create a new issue in your repository. The issue title should start with "Sweep: ", like "Sweep: In sweepai/app/ui.py, use an os-agnostic temp directory" for Sweep to create a PR to solve it.
 
 ## Step 2: Responding to Sweep 💬
 
-If you notice any issues with the pull request, comment on the pull request with "Sweep: " and your comment, e.g. "Sweep: use PyTorch instead of Tensorflow". You can also comment in the issue and code. For more details on this see [Commenting](https://docs.sweep/commenting).
+If you don't like something about the PR, comment on the PR with "Sweep: ", e.g. "Sweep: use PyTorch instead of Tensorflow". You can also comment in the issue and code. For more details on this see [Commenting](https://docs.sweep/commenting).
 
 ## Step 3: Star Sweep Repository ⭐
 
