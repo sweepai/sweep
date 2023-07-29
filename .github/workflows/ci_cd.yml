@@ -36,4 +36,4 @@ jobs:
 
       - name: Deploy job
         run: |
-          sh bin/deploy.sh
+          poetry run sh bin/deploy.sh
