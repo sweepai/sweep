@@ -8,6 +8,7 @@ fi
 # Install packages with poetry
 echo "Installing packages with poetry..."
 poetry install
+poetry shell
 # Install deeplake with pip
 echo "Installing deeplake with pip..."
 pip install deeplake
