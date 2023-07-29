@@ -21,7 +21,7 @@ jobs:
           python-version: "3.10"
 
       - name: Install Poetry
-        uses: abatilo/actions-poetry@v2.1.0
+        uses: snok/install-poetry@v1.1.6
 
       - name: Install Modal
         run: |
