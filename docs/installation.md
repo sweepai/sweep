@@ -11,7 +11,7 @@ Create a new issue in your repository. The issue title should start with "Sweep:
 
 ## 2. Responding to Sweep 💬
 
-To change the PR, comment on it with "Sweep: "(ex: "Sweep: use PyTorch instead of Tensorflow".)
+To change the PR, comment on it with "Sweep: (ex: "Sweep: use PyTorch instead of Tensorflow".)
 - You can also comment in the issue and code.
 - For more details on this see [Commenting](https://docs.sweep/commenting).
 
