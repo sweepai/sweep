@@ -1,7 +1,7 @@
 '''
 On Github ticket, get ChatGPT to deal with it
 '''
-
+import re
 # TODO: Add file validation
 
 import traceback
@@ -14,7 +14,7 @@ from tabulate import tabulate
 from sweepai.core.entities import Snippet, NoFilesException
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
-from sweepai.core.prompts import issue_comment_prompt
+from sweepai.core.prompts import issue_comment_prompt, files_to_change_abstract_prompt, split_into_subissues_prompt
 from sweepai.handlers.create_pr import create_pr_changes, create_config_pr, safe_delete_sweep_branch
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
@@ -383,6 +383,30 @@ def on_ticket(
             sweep_bot.cot_retrieval()
         else:
             logger.info("Did not execute CoT retrieval...")
+
+        abstract_plan = sweep_bot.chat(files_to_change_abstract_prompt, message_key="files_to_change")
+
+        if slow_mode:
+            split_issue = False
+            try:
+                subissues_plan = sweep_bot.chat(split_into_subissues_prompt, message_key="split_into_subissues")
+                # regex for finding \nsplit_issue = ...\n and extracting that and getting the value its set to
+                split_issue = re.search(r'(?<=split_issue = ).*(?=\n)', subissues_plan).group(0).lower() == "true"
+                if split_issue:
+                    sweep_bot.split_into_subissues()
+                    sweep_bot.delete_messages_from_chat(key_to_delete="split_into_subissues")
+            except:
+                if split_issue:
+                    # Todo(lukejagg): Split into sub issues here
+                    # This includes: making all changes in same branch, creating multiple PRs, etc
+                    pass
+            finally:
+                sweep_bot.delete_messages_from_chat(key_to_delete="split_into_subissues")
+
+            # Early termination for split issues.
+            if split_issue:
+                return {"success": True}
+
 
         newline = '\n'
         edit_sweep_comment(

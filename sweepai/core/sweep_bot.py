@@ -72,7 +72,6 @@ class CodeGenBot(ChatGPT):
         for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                abstract_plan = self.chat(files_to_change_abstract_prompt, message_key="files_to_change")
 
                 files_to_change_response = self.chat(files_to_change_prompt,
                                                      message_key="files_to_change")  # Dedup files to change here
