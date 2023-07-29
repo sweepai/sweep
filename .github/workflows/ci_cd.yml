@@ -25,6 +25,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install modal-client
 
+      - name: Run install script
+        run: |
+          sh bin/install.sh
+
       - name: Deploy job
         run: |
           sh bin/deploy.sh
