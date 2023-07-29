@@ -201,7 +201,7 @@ def search_snippets(
         multi_query = [query] + multi_query
         for query in multi_query:
             snippets: list[Snippet] = get_relevant_snippets.call(
-                repo.full_name, query, num_files, installation_id=installation_id
+                repo.full_name, query, num_files, installation_id=installation_id, branch=branch
             )
             logger.info(f"Snippets for query {query}: {snippets}")
             if snippets:
@@ -210,7 +210,7 @@ def search_snippets(
         logger.info(f"Snippets for multi query {multi_query}: {snippets}")
     else:
         snippets: list[Snippet] = get_relevant_snippets.call(
-            repo.full_name, query, num_files, installation_id=installation_id
+            repo.full_name, query, num_files, installation_id=installation_id, branch=branch
         )
         logger.info(f"Snippets for query {query}: {snippets}")
     for snippet in snippets:
