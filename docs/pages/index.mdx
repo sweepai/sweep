@@ -1,28 +1,6 @@
 # Sweep: AI-powered junior dev
 *Bug Reports & Feature Requests ⟶&nbsp; Code Changes*
 
-{/* <p align="center" display="inline-block">
-    <a href="https://sweep.dev">
-        <img alt="Landing Page" src="https://img.shields.io/badge/Site-sweep.dev-blue?link=https%3A%2F%2Fsweep.dev"/>
-    </a>
-    <a href="https://docs.sweep.dev/">
-        <img alt="Docs" src="https://img.shields.io/badge/Docs-docs.sweep.dev-blue?link=https%3A%2F%2Fdocs.sweep.dev"/>
-    </a> 
-    <a href="https://discord.gg/sweep-ai">
-        <img src="https://dcbadge.vercel.app/api/server/sweep-ai?style=flat" />
-    </a>
-    <img alt="PyPI" src="https://img.shields.io/pypi/v/sweepai" />
-    <a href="https://pepy.tech/project/sweepai">
-        <img src="https://static.pepy.tech/badge/sweepai/month" />
-    </a>
-    <a href="https://github.com/sweepai/sweep">
-        <img src="https://img.shields.io/github/stars/sweepai/sweep" />
-    </a>
-    <a href="https://twitter.com/sweep__ai">
-        <img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Ftwitter.com%2Fsweep__ai" />
-    </a>
-</p> */}
-
 <b>Sweep</b> is an AI junior developer that transforms bug reports & feature requests into code changes.
 
 Describe bugs, small features, and refactors like you would to a junior developer, and Sweep:
@@ -32,20 +10,25 @@ Describe bugs, small features, and refactors like you would to a junior develope
 
 See highlights at https://docs.sweep.dev/examples.
 
-<br/>
+## 🌠 Features
+* 🔧 Turns issues directly into pull requests (without an IDE)
+* 👀 Addresses developer replies & comments on its PRs
+* 🕵️‍♂️ Uses embedding-based code search, with popularity reranking for repository-level code understanding ([🔍 Rebuilding our Search Engine in a Day](https://docs.sweep.dev/blogs/building-code-search))
+* 🎊 New: Fixes PRs based on Github Actions feedback
 
 <video controls>
   <source src="https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47" type="video/mp4"/>
     Your browser does not support the video tag.
 </video>
 
-## 🌠 Sweep
-* 🔧 Turns issues directly into pull requests (without an IDE)
-* 👀 Addresses developer replies & comments on its PRs
-* 🕵️‍♂️ Uses embedding-based code search, with popularity reranking for repository-level code understanding ([🔍 Rebuilding our Search Engine in a Day](https://docs.sweep.dev/blogs/building-code-search))
-* 🎊 New: Fixes PRs based on Github Actions feedback
-
 ## 🚀 Getting Started
+
+Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
+We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
+
+1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
+2. Create new issue in repo, like "Sweep: Write tests"
+3. Watch the magic happen 🪄
 
 ### 🍲 Recipes
 #### To get the best performance from Sweep, we recommend the following approach to writing github issues/chats. 
@@ -60,14 +43,6 @@ A good issue might include:
 |In the config loader in `packages/server/src/config.ts`|add a third option called "env" to load the config settings from environment variables| At present, there are two options:  1. ... and 2. ...|
 
 If you want Sweep to use a file, try to mention the full path. Similarly, to have Sweep use a function, try to mention the class method or what it does. Also see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/tricks).
-
-### ✨ Sweep Github App
-Setting up Sweep is as simple as adding the GitHub bot to a repo, then creating an issue for the bot to address.
-We support all languages GPT4 supports, including Python, Typescript, Rust, Go, Java, C# and C++.
-
-1. Add the [Sweep GitHub app](https://github.com/apps/sweep-ai) to desired repos
-2. Create new issue in repo, like "Sweep: Write tests"
-3. Watch the magic happen 🪄
 
 ## 🤝 Contributing
 
