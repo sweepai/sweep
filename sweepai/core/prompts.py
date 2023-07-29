@@ -379,37 +379,6 @@ File Name: {filename}
 
 ---
 
-Code Planning:
-<code_planning>
-Step-by-step thoughts with explanations: 
-* Thought 1 - Explanation 1
-* Thought 2 - Explanation 2
-...
-
-Detailed plan of modifications:
-* Modification 1
-* Modification 2
-...
-
-Lines to change in the file: (include multiple small changes as opposed to one large change)
-* lines a-b: Do x
-* lines c: Change to y
-...
-</code_planning>
-
-Code Generation:
-```
-Generate a diff based on the given plan, in the following format (do not include "..." anywhere). Always prefer the least amount of changes possible. Do not remove comments.
-
-<<<< ORIGINAL
-...
-====
-...
->>>> UPDATED
-``` 
-
----
-
 Context: "{instructions}". Limit your changes to the context.
 Instructions:
 1. Complete the Code Planning step
