@@ -293,12 +293,46 @@ if example:
     print("hello")
     x = 2
 
-def example():
+def func():
     a = 3
     
 </old_file>
 
-Modify this file using GitHub diff patch format.""", 'role': 'user', 'key': 'modify_file_hallucination'},
+---
+
+Code Planning:
+<code_planning>
+Step-by-step thoughts with explanations: 
+* Thought 1 - Explanation 1
+* Thought 2 - Explanation 2
+...
+
+Detailed plan of modifications:
+* Modification 1
+* Modification 2
+...
+
+Lines to change in the file: (include multiple small changes as opposed to one large change)
+* lines a-b: Do x
+* lines c: Change to y
+...
+</code_planning>
+
+Code Generation:
+```
+Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Do not remove comments.
+
+<<<< ORIGINAL
+old_code
+====
+new_code
+>>>> UPDATED
+```
+
+Context: "Change hello to goodbye and change 3 to 4". Limit your changes to the context.
+Instructions:
+1. Complete the Code Planning step
+2. Complete the Code Generation step""", 'role': 'user', 'key': 'modify_file_hallucination'},
 {'content': """Code Planning:
 <code_planning>
 Step-by-step thoughts with explanations:
@@ -326,11 +360,11 @@ Code Generation:
 >>>> UPDATED
 
 <<<< ORIGINAL
-def example():
+def func():
     a = 3
     
 ====
-def example():
+def func():
     a = 4
     
 >>>> UPDATED
@@ -373,6 +407,8 @@ Generate a diff based on the given plan, in the following format (do not include
 ...
 >>>> UPDATED
 ``` 
+
+---
 
 Context: "{instructions}". Limit your changes to the context.
 Instructions:
