@@ -51,6 +51,21 @@ Install Sweep by adding the [**Sweep GitHub app**](https://github.com/apps/sweep
 
 * We support all languages GPT-4 supports, including Python, JS/TS, Rust, Go, Java, C# and C++.
 
+## Limitations of Sweep ⚠️
+
+* 🏗️ **Large-scale refactors**: >3 files or >150 lines of code changes (we're working on this!)
+    * e.g. Refactor entire codebase from Tensorflow to PyTorch
+
+* ⏲️ **Using the latest APIs** that have changed past 2022
+    * e.g. Set up a vector store using LlamaIndex Typescript    
+    * 🎩 If you provide the relevant docs however, then Sweep can do this
+
+* 🖼️ **Editing images** and other non-text assets
+    * e.g. Use the logo to create favicons for our landing page
+
+* ⤵️ **Accessing external APIs**, including fetching API tokens
+    * e.g. Set up sign-in using Ethereum
+
 ---
 
 ## Story 📘
