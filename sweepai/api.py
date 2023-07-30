@@ -46,6 +46,8 @@ image = (
         "pymongo",
         "tabulate",
         "redis",
+        "llama_index",
+        "bs4",
     )
 )
 secrets = [
