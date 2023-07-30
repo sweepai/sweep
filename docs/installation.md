@@ -4,20 +4,19 @@ Prerequisites:
 - [Sweep Installed](https://github.com/apps/sweep-ai)
 - [Issues enabled in Repo](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/enabling-or-disabling-github-discussions-for-a-repository)
 
-## 1. Go to your repository and create an issue 🐞
+## Go to your repository and create an issue 🐞
+
+![image](https://github.com/sweepai/sweep/assets/44910023/68b345eb-0ae5-455e-a1a3-c388b1f032f6)
 
 Create a new issue in your repository. The issue title should start with "Sweep: "
-- ex: "Sweep: In sweepai/app/ui.py, use an os-agnostic temp directory".
 
-## 2. Responding to Sweep 💬
+## Respond to Sweep 💬
+![image](https://github.com/sweepai/sweep/assets/44910023/9323aa0c-0f32-4da1-89bc-418e44372d8b)
 
 To change the PR, comment on it with "Sweep: (ex: "Sweep: use PyTorch instead of Tensorflow".)
-- You can also comment in the issue and code.
-- For more details on this see [Commenting](https://docs.sweep.dev/commenting).
+- You can also comment in the issue and code. See [Commenting](https://docs.sweep.dev/commenting).
 
 ## How to prompt Sweep 📝
-
-To get the most out of Sweep, we recommend the following best practices:
 
 * Mention filenames or function names.
 * Describe the changes or fixes you want.
@@ -28,15 +27,11 @@ To get the most out of Sweep, we recommend the following best practices:
 
 ### Documentation 📚
 
-If you would like to learn more about Sweep, check out our [documentation](https://docs.sweep.dev/).
+Check out our [documentation](https://docs.sweep.dev/).
 
 ### Contact Us 👥
-
-If you encounter any issues, please reach out to us:
-
 - [Discord](https://discord.com/invite/sweep-ai)
 - Email: team@sweep.dev
 
-## Star Sweep Repository ⭐
-
-Make sure to star our [open-source GitHub repo](https://github.com/sweepai/sweep) for better results!
+### Star ⭐
+Star our [repo(you're already here)](https://github.com/sweepai/sweep) for better results 😉
