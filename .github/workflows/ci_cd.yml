@@ -1,0 +1,40 @@
+name: CI/CD
+
+on:
+  push:
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    env:
+      MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+      MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Install Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+
+      - name: Install Modal
+        run: |
+          python -m pip install --upgrade pip
+          pip install modal-client
+
+      - name: Run install script
+        run: |
+          sh bin/install.sh
+
+      - name: Deploy job
+        run: |
+          export PREFIX=dev
+          poetry run sh bin/deploy.sh
