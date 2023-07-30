@@ -211,6 +211,7 @@ class ChatGPT(BaseModel):
             if len(self.file_change_paths) > 0:
                 pass
             else:
+                logger.error(f"Input to OpenAI:\n{self.messages_dicts}")
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
         logger.info(f"Input to call openai:\n{messages_raw}")
@@ -403,6 +404,7 @@ class ChatGPT(BaseModel):
             if len(self.file_change_paths) > 0:
                 pass
             else:
+                logger.error(f"Input to OpenAI:\n{self.messages_dicts}")
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
         logger.info(f"Input to call openai:\n{messages_raw}")
