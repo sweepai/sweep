@@ -16,7 +16,7 @@ from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt, files_to_change_abstract_prompt, split_into_subissues_prompt, \
-    subissue_parent_context_prompt
+    subissue_parent_context_prompt, too_many_subissues_prompt
 from sweepai.handlers.create_pr import create_pr_changes, create_config_pr, safe_delete_sweep_branch
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
@@ -429,6 +429,11 @@ def on_ticket(
 
                     # Split into subissues
                     tickets = re.split(r'Ticket \d:\n', subissues_plan)[1:]  # Ignore spacing before first ticket
+                    if len(tickets) > 4:
+                        sweep_bot.chat(too_many_subissues_prompt, message_key="split_into_subissues_retry")
+                        tickets = re.split(r'Ticket \d:\n', subissues_plan)[1:]  # Ignore spacing before first ticket
+                        assert len(tickets) > 0 and len(tickets) <= 4, "Invalid subissue count"
+
                     tickets = [re.split(r'Title:|Desc:', ticket)[1:] for ticket in tickets]  # Get Title: and Desc: in each ticket
                     tickets = [[t.strip().split('\n')[0] for t in ticket] for ticket in tickets]  # Remove whitespace
                     current_branch = SweepConfig.get_branch(repo)
@@ -456,10 +461,10 @@ def on_ticket(
                         # Set branch to perform snippet search on
                         context.branch = context.subissue_pr.branch_name
 
-                        context.actual_pr.edit(title=context.actual_pr.title.replace("[DRAFT] ", "", 1))
-
                         if not response["success"]:
                             raise Exception("Failed to create subissue")
+
+                    context.actual_pr.edit(title=context.actual_pr.title.replace("[DRAFT] ", "", 1))
 
             except Exception as e:
                 logger.error(str(e), traceback.format_exc())
@@ -572,7 +577,7 @@ def on_ticket(
 
         if not is_subissue or is_subissue and subissue_context.current_subissue_num == 0: # Todo(lukejagg): remove this, and make PR in parent
             pr = repo.create_pull(
-                title=pr_changes.title if not pr_changes.title.lower().startswith("[draft]") and is_subissue else f"[DRAFT] {pr_changes.title}",
+                title=f"[DRAFT] {pr_changes.title}" if not pr_changes.title.lower().startswith("[draft]") and is_subissue else pr_changes.title,  # Add [DRAFT] if first subissue
                 body=pr_changes.body,
                 head=pr_changes.pr_head,
                 base=SweepConfig.get_branch(repo)

@@ -581,7 +581,8 @@ Step-by-step thoughts with explanations:
 </additional_instructions>
 """
 
-split_into_subissues_prompt = """You must now evaluate whether this ticket is small enough, or if it should be split into multiple tickets. If it involves complex tasks or large changes, you should split the task. If it is split, the tickets you create will be executed sequentially starting from 1 (up to 5)
+split_into_subissues_prompt = """You must now evaluate whether this ticket is small enough, or if it should be split into multiple tickets. If it involves complex tasks or large changes, you should split the task. If it is split, the tickets you create will be executed sequentially starting from 1 (MAX 4 TICKETS)
+A single ticket should be around 2 files created or modified. If editing a LARGE file, you can split up the file into multiple tickets.
 
 Answer in the following format:
 Thoughts:
@@ -599,6 +600,19 @@ Ticket 1:
     Title: {title}
     Desc: {detailed description}
 ..."""
+
+too_many_subissues_prompt = """You created too many tickets. Please split the issue into MAX 4 TICKETS.
+
+Thoughts for combining tickets:
+* ...
+...
+
+Ticket 1:
+    Title: {title}
+    Desc: {detailed description}
+    Files: [{files}]
+...
+"""
 
 # This prompt is used to add context before the subissue (about the parent issue, etc)
 subissue_parent_context_prompt = """I split the issue into multiple subissues. Here is the parent issue:
