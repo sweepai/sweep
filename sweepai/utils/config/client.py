@@ -14,7 +14,7 @@ class SweepConfig(BaseModel):
     include_dirs: list[str] = []
     exclude_dirs: list[str] = [".git", "node_modules", "venv"]
     include_exts: list[str] = ['.cs', '.csharp', '.py', '.md', '.txt', '.ts', '.tsx', '.js', '.jsx', '.mjs']
-    exclude_exts: list[str] = ['.min.js', '.min.js.map', '.min.css', '.min.css.map']
+    exclude_exts: list[str] = ['.min.js', '.min.js.map', '.min.css', '.min.css.map', '.tfstate', '.tfstate.backup']
     max_file_limit: int = 60_000
 
     def to_yaml(self) -> str:
