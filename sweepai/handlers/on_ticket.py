@@ -494,7 +494,7 @@ def on_ticket(
 
         sweep_bot.summarize_snippets(create_thoughts, modify_thoughts)
 
-        file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
+        file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch="" if not is_subissue else subissue_context.branch)
         table = tabulate(
             [[f"`{file_change_request.filename}`", file_change_request.instructions.replace('\n', '<br/>').replace('```', '\\```')] for file_change_request in
              file_change_requests],
@@ -580,15 +580,17 @@ def on_ticket(
             chat_logger.add_successful_ticket()
             current_issue.create_reaction("rocket")
 
-            logger.info("Running github actions...")
-            try:
-                commit = pr.get_commits().reversed[0]
-                check_runs = commit.get_check_runs()
+            # Todo(lukejagg): Run GHA for all subissues
+            if not is_subissue:
+                logger.info("Running github actions...")
+                try:
+                    commit = pr.get_commits().reversed[0]
+                    check_runs = commit.get_check_runs()
 
-                for check_run in check_runs:
-                    check_run.rerequest()
-            except Exception as e:
-                logger.error(e)
+                    for check_run in check_runs:
+                        check_run.rerequest()
+                except Exception as e:
+                    logger.error(e)
 
             # Completed code review
             edit_sweep_comment(
@@ -597,6 +599,16 @@ def on_ticket(
                 pr_message=f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}",
                 # pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number}).\n{payment_message}",
             )
+        else:
+            pr = subissue_context.subissue_pr
+            # Completed code review
+            edit_sweep_comment(
+                "Success! 🚀",
+                5,
+                pr_message=f"## Completed Subissue {subissue_context.current_subissue_num}.\n{payment_message}",
+            )
+
+
 
         logger.info("Add successful ticket to counter")
         chat_logger.add_successful_ticket()

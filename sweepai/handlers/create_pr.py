@@ -61,10 +61,12 @@ def create_pr_changes(
     try:
         logger.info("Making PR...")
         if subissue_context is not None and subissue_context.current_subissue_num > 0:
+            pull_request.branch_name = subissue_context.branch
             # Use the same pull_reqest from the first sub_issue
             pass
         else:
             pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
+
         completed_count, fcr_count = sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
         if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")

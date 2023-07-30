@@ -64,7 +64,7 @@ class CodeGenBot(ChatGPT):
         self.messages.insert(-2, msg)
         pass
 
-    def get_files_to_change(self, retries=1):
+    def get_files_to_change(self, retries=2):
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
@@ -111,8 +111,11 @@ class CodeGenBot(ChatGPT):
                 file_change_requests = [
                     FileChangeRequest(filename=file_name, instructions=instructions, change_type=change_type) for
                     file_name, (instructions, change_type) in file_instructions_dict.items()]
-                if file_change_requests:
+                if len(file_change_requests) > 0:
                     return file_change_requests, create_thoughts, modify_thoughts
+                else:
+                    # Retry once if no files are found (temperature error?)
+                    continue
             except RegexMatchError:
                 logger.warning("Failed to parse! Retrying...")
                 self.delete_messages_from_chat("files_to_change")
