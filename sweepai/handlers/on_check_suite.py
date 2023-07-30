@@ -74,6 +74,10 @@ def clean_logs(logs_str: str):
     cleaned_lines = [log.strip() for log in truncated_logs if not any(log.startswith(pattern) for pattern in patterns)]
     return "\n".join(cleaned_lines[:min(MAX_LINES, len(cleaned_lines))])
 
+def extract_logs_from_comment(comment: str) -> str:
+    if comment.count("```") < 2:
+        return ""
+    return comment[comment.find("```") + 3:comment.rfind("```")]
 
 def on_check_suite(request: CheckRunCompleted):
     logger.info(f"Received check run completed event for {request.repository.full_name}")
@@ -102,7 +106,11 @@ def on_check_suite(request: CheckRunCompleted):
     if problematic_logs.count("\n") > 15:
         problematic_logs += "\n\nThere are a lot of errors. This is likely a larger issue with the PR and not a small linting/type-checking issue."
     comments = list(pr.get_issue_comments())
-    if len(comments) >= 2 and problematic_logs == comments[-1].body and comments[-2].body == comments[-1].body:
+
+    logs_list = [extract_logs_from_comment(comment.body) for comment in comments]
+    current_logs = extract_logs_from_comment(problematic_logs)
+
+    if logs_list.count(current_logs) >= 2:
         comment = pr.as_issue().create_comment(log_message.format(error_logs=problematic_logs) + "\n\nI'm getting the same errors 3 times in a row, so I will stop working on fixing this PR.")
         logger.warning("Skipping logs because it is duplicated")
         raise Exception("Duplicate error logs")
