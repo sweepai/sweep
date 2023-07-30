@@ -157,8 +157,39 @@ def generate_new_file(modify_file_response: str, old_file_content: str, chunk_of
 
 
 def sliding_window_replacement(original, search, replace):
+    # First, do check for "..." (example: define method, then put ... to ignore initial lines)
+    canDoDotCheck = not any('...' in line.strip() for line in original)  # If ... not in original file
+    if canDoDotCheck:
+        # Check first 3 lines for '...'
+        first_line_idx = -1
+        for i in range(len(search)):
+            if search[i].strip() == '...':
+                first_line_idx = i
+                break
+
+        # Do this for replace too
+        first_line_idx_replace = -1
+        for i in range(len(replace)):
+            if replace[i].strip() == '...':
+                first_line_idx_replace = i
+                break
+
+        if first_line_idx == 0 and first_line_idx_replace == 0:
+            search = search[1:]
+            replace = replace[1:]
+        elif first_line_idx == len(search) - 1 and first_line_idx_replace == len(replace) - 1:
+            search = search[:first_line_idx]
+            replace = replace[:first_line_idx_replace]
+        elif first_line_idx != -1 and first_line_idx_replace != -1:
+            # SPLIT INTO TWO PARTS
+            # TODO(lukejagg): pass in the first and last lines as context for matching (so ambiguous ... can be matched)
+            original = sliding_window_replacement(original, search[first_line_idx + 1:], replace[first_line_idx_replace + 1:])
+            search = search[:first_line_idx]
+            replace = replace[:first_line_idx_replace]
+
     index = -1
     max_similarity = 0
+    current_hits = 0
     # sliding window comparison from original to search
     # Todo: 2 pointer approach (find start, then find end)
     # Todo: use rapidfuzz to compute fuzzy similarity over code
@@ -170,8 +201,17 @@ def sliding_window_replacement(original, search, replace):
         if count > max_similarity:
             index = i
             max_similarity = count
+            current_hits = 1
+        elif count == max_similarity:
+            current_hits += 1
 
     # No changes could be found. Return original code.
+    if max_similarity == 0:
+        print('WARNING: No identical lines')
+        return original
+    if current_hits > 1:
+        print('WARNING: Multiple hits')
+        return original
     if index == -1:
         return original
 
