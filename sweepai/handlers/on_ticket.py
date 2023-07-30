@@ -347,6 +347,7 @@ def on_ticket(
         tree=tree,
     )
 
+    # Todo(lukejagg): not is_subissue?
     if slow_mode and not use_faster_model and not is_subissue:
         slow_mode_bot = SlowModeBot()
         queries, additional_plan = slow_mode_bot.expand_plan(human_message)
@@ -453,7 +454,7 @@ def on_ticket(
                         )
 
                         # Set branch to perform snippet search on
-                        current_branch = context.subissue_pr.branch_name
+                        context.branch = context.subissue_pr.branch_name
 
                         if not response["success"]:
                             raise Exception("Failed to create subissue")
@@ -541,29 +542,31 @@ def on_ticket(
         except:
             pass
 
-        for _ in range(3):
-            try:
-                # CODE REVIEW
-                changes_required, review_comment = review_pr(repo=repo, pr=pr_changes, issue_url=issue_url, username=username,
-                                                             repo_description=repo_description, title=title,
-                                                             summary=summary, replies_text=replies_text, tree=tree)
-                logger.info(f"Addressing review comment {review_comment}")
-                if changes_required:
-                    on_comment(repo_full_name=repo_full_name,
-                               repo_description=repo_description,
-                               comment=review_comment,
-                               username=username,
-                               installation_id=installation_id,
-                               pr_path=None,
-                               pr_line_position=None,
-                               pr_number=None,
-                               mock_pr=pr_changes)
-                else:
+        # Todo(lukejagg): Make code review on parent issue for all subissue changes.
+        if not is_subissue:
+            for _ in range(3):
+                try:
+                    # CODE REVIEW
+                    changes_required, review_comment = review_pr(repo=repo, pr=pr_changes, issue_url=issue_url, username=username,
+                                                                 repo_description=repo_description, title=title,
+                                                                 summary=summary, replies_text=replies_text, tree=tree)
+                    logger.info(f"Addressing review comment {review_comment}")
+                    if changes_required:
+                        on_comment(repo_full_name=repo_full_name,
+                                   repo_description=repo_description,
+                                   comment=review_comment,
+                                   username=username,
+                                   installation_id=installation_id,
+                                   pr_path=None,
+                                   pr_line_position=None,
+                                   pr_number=None,
+                                   mock_pr=pr_changes)
+                    else:
+                        break
+                except Exception as e:
+                    logger.error(traceback.format_exc())
+                    logger.error(e)
                     break
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
-                break
 
         if not is_subissue or is_subissue and subissue_context.current_subissue_num == 0: # Todo(lukejagg): remove this, and make PR in parent
             pr = repo.create_pull(
