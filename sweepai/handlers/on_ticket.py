@@ -56,7 +56,7 @@ num_full_files = 2
 
 
 def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5):
-    snippets = [snippet for snippet in snippets if not any(snippet.file_path.endswith(ext) for ext in SweepConfig.exclude_exts)]
+    snippets = [snippet for snippet in snippets if not any(snippet.file_path.endswith(ext) for ext in SweepConfig().exclude_exts)]
     for snippet in snippets[:num_full_files]:
         snippet = snippet.expand()
 
