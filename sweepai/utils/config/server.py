@@ -1,6 +1,7 @@
 import os
 
 PREFIX = os.environ.get('PREFIX', 'dev')
+print(f"Using prefix: {PREFIX}")
 ENV = PREFIX
 
 DB_MODAL_INST_NAME = PREFIX + "-db"
