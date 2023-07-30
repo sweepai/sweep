@@ -99,9 +99,11 @@ def on_ticket(
         title = title[7:]
     elif title.lower().startswith("sweep "):
         title = title[6:]
-    elif title.lower().startswith("sweep(slow): "):
+    if title.lower().startswith("sweep (slow) "):
         title = title[13:]
         slow_mode = True
+    else:
+        slow_mode = False
     elif title.lower().startswith("sweep(slow) "):
         title = title[12:]
         slow_mode = True
