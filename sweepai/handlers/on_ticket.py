@@ -319,17 +319,18 @@ def on_ticket(
 
     if not repo_description:
         repo_description = "No description provided."
-    else:
-        external_results = ExternalSearcher.extract_summaries(repo_description)
-        if external_results:
-            repo_description += "\n\n" + external_results
+
+    message_summary = summary + replies_text
+    external_results = ExternalSearcher.extract_summaries(message_summary)
+    if external_results:
+        message_summary += "\n\n" + external_results
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
         username=username,
         repo_description=repo_description,
         title=title,
-        summary=summary + replies_text,
+        summary=message_summary,
         snippets=snippets,
         tree=tree,
     )
@@ -354,7 +355,7 @@ def on_ticket(
                 username=username,
                 repo_description=repo_description,
                 title=title,
-                summary=summary + replies_text + additional_plan,
+                summary=message_summary + additional_plan,
                 snippets=snippets,
                 tree=tree,
             )
