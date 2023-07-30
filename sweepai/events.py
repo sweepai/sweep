@@ -120,6 +120,8 @@ class PRRequest(BaseModel):
 
         user: User
         merged_by: MergedBy | None
+        additions: int = 0
+        deletions: int = 0
 
     class Repository(BaseModel):
         full_name: str
