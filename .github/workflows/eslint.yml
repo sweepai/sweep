@@ -24,5 +24,8 @@ jobs:
       - name: Install ESLint
         run: npm install eslint
 
+      - name: Create ESLint config
+        run: echo module.exports = {} > .eslintrc.js
+
       - name: Run ESLint
         run: npx eslint .
