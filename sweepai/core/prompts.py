@@ -607,3 +607,19 @@ Description: {parent_issue_description}
 
 Please provide context for the subissue you want me to work on.
 """
+
+external_search_system_prompt = "You are an expert at summarizing content from pages that are relevant to a query. You will be given a page and asked to summarize it."
+
+external_search_prompt = """\
+Here is the page metadata:
+```
+{page_metadata}
+```
+
+The user is attempting to solve the following problem:
+\'\'\'
+{problem}
+\'\'\'
+
+Provide a summary of the page relevant to the problem, including all code snippets.
+"""

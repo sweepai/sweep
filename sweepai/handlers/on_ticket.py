@@ -12,6 +12,7 @@ from loguru import logger
 from tabulate import tabulate
 
 from sweepai.core.entities import Snippet, NoFilesException, ParentIssue, Message
+from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt, files_to_change_abstract_prompt, split_into_subissues_prompt, \
@@ -330,13 +331,18 @@ def on_ticket(
 
     if not repo_description:
         repo_description = "No description provided."
+
+    message_summary = summary + replies_text
+    external_results = ExternalSearcher.extract_summaries(message_summary)
+    if external_results:
+        message_summary += "\n\n" + external_results
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
         username=username,
         repo_description=repo_description,
         title=title,
-        summary=summary + replies_text,
+        summary=message_summary,
         snippets=snippets,
         tree=tree,
     )
@@ -361,7 +367,7 @@ def on_ticket(
                 username=username,
                 repo_description=repo_description,
                 title=title,
-                summary=summary + replies_text + additional_plan,
+                summary=message_summary + additional_plan,
                 snippets=snippets,
                 tree=tree,
             )
@@ -475,7 +481,8 @@ def on_ticket(
                         for snippet in snippets
                     ]
                 ),
-            ),
+            )
+            + f"I also found the following external resources that might be helpful:\n\n{external_results}\n\n" if external_results else "",
             1
         )
 
