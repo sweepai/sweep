@@ -107,11 +107,10 @@ def on_check_suite(request: CheckRunCompleted):
         problematic_logs += "\n\nThere are a lot of errors. This is likely a larger issue with the PR and not a small linting/type-checking issue."
     comments = list(pr.get_issue_comments())
 
+    logs_list = [extract_logs_from_comment(comment.body) for comment in comments]
     current_logs = extract_logs_from_comment(problematic_logs)
-    last_logs = extract_logs_from_comment(comments[-1].body) if comments else ""
-    second_last_logs = extract_logs_from_comment(comments[-2].body) if len(comments) >= 2 else ""
 
-    if current_logs == last_logs and last_logs == second_last_logs:
+    if logs_list.count(current_logs) >= 2:
         comment = pr.as_issue().create_comment(log_message.format(error_logs=problematic_logs) + "\n\nI'm getting the same errors 3 times in a row, so I will stop working on fixing this PR.")
         logger.warning("Skipping logs because it is duplicated")
         raise Exception("Duplicate error logs")
