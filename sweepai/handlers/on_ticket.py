@@ -456,6 +456,8 @@ def on_ticket(
                         # Set branch to perform snippet search on
                         context.branch = context.subissue_pr.branch_name
 
+                        context.actual_pr.edit(title=context.actual_pr.title.replace("[DRAFT] ", "", 1))
+
                         if not response["success"]:
                             raise Exception("Failed to create subissue")
 
@@ -560,7 +562,7 @@ def on_ticket(
                                    pr_path=None,
                                    pr_line_position=None,
                                    pr_number=None,
-                                   mock_pr=pr_changes)
+                                   pr=pr_changes)
                     else:
                         break
                 except Exception as e:
@@ -570,11 +572,14 @@ def on_ticket(
 
         if not is_subissue or is_subissue and subissue_context.current_subissue_num == 0: # Todo(lukejagg): remove this, and make PR in parent
             pr = repo.create_pull(
-                title=pr_changes.title,
+                title=pr_changes.title if not pr_changes.title.lower().startswith("[draft]") and is_subissue else f"[DRAFT] {pr_changes.title}",
                 body=pr_changes.body,
                 head=pr_changes.pr_head,
                 base=SweepConfig.get_branch(repo)
             )
+
+            if is_subissue:
+                subissue_context.actual_pr = pr
 
             pr.add_to_labels(GITHUB_LABEL_NAME)
             chat_logger.add_successful_ticket()

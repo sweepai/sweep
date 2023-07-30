@@ -76,7 +76,7 @@ def on_comment(
         comment_id: int | None = None,
         g: None = None,
         repo: None = None,
-        mock_pr: Any = None,  # Uses PRFileChanges type too
+        pr: Any = None,  # Uses PRFileChanges type too
 ):
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
@@ -100,9 +100,9 @@ def on_comment(
 
     g = get_github_client(installation_id) if not g else g
     repo = g.get_repo(repo_full_name) if not repo else repo
-    pr = repo.get_pull(pr_number) if not mock_pr else mock_pr
+    pr = repo.get_pull(pr_number) if not pr else pr
 
-    if mock_pr is None:
+    if pr is None:
         # Fetch all comments in the current issue thread
         issue_comments = repo.get_issue(pr_number).get_comments()
         # Iterate through the comments and delete any that match "sweep: retry" (case-insensitive)

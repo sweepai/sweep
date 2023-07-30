@@ -314,6 +314,7 @@ class ParentIssue(BaseModel):
     branch: str
     current_subissue_num: int
     subissue_pr: PullRequest = None # Todo(lukejagg): Create PR/branch in parent issue?
+    actual_pr: Any = None
     # Todo(lukejagg): Add more context about past subissues
     # Todo(lukejagg): Make it edit parent comment only with subissue progress.
     # - Titles
