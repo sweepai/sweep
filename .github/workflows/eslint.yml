@@ -21,8 +21,8 @@ jobs:
         with:
           node-version: '14'
 
-      - name: Install ESLint
-        run: npm install eslint
+      - name: Install ESLint and plugins
+        run: npm install eslint babel-eslint eslint-plugin-import
 
       - name: Create ESLint config
         run: echo module.exports = {} > .eslintrc.js
