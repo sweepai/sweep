@@ -442,6 +442,7 @@ async def webhook(raw_request: Request):
                             "username": merged_by,
                             "additions": pr_request.pull_request.additions,
                             "deletions": pr_request.pull_request.deletions,
+                            "total_changes": pr_request.pull_request.additions + pr_request.pull_request.deletions,
                         })
                 update_index.spawn(
                     request_dict["repository"]["full_name"],
