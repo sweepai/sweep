@@ -35,8 +35,10 @@ class ExternalSearcher(ChatGPT):
         result = "Summaries of links found in the content:\n\n"
         for link in ExternalSearcher.extract_links(content):
             logger.info(f"Extracting summary from {link}")
-            external_searcher = ExternalSearcher()
-            summary = external_searcher.extract_summary_from_link(link, content)
-            result += f'## {link}\n\n{summary}\n'
-            
+            try:
+                external_searcher = ExternalSearcher()
+                summary = external_searcher.extract_summary_from_link(link, content)
+                result += f'## {link}\n\n{summary}\n'
+            except Exception as e:
+                logger.error(f"External search error: {e}")
         return result
