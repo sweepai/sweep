@@ -425,7 +425,14 @@ def on_ticket(
                     tickets = [re.split(r'Title:|Desc:', ticket)[1:] for ticket in tickets]  # Get Title: and Desc: in each ticket
                     tickets = [[t.strip().split('\n')[0] for t in ticket] for ticket in tickets]  # Remove whitespace
                     current_branch = SweepConfig.get_branch(repo)
+                    context = ParentIssue(
+                        title=title,
+                        summary=summary,
+                        branch=current_branch,
+                        current_subissue_num=0
+                    )
                     for index, (sub_title, sub_desc) in enumerate(tickets):
+                        context.current_subissue_num = index
                         response = on_ticket(
                             title=f'sweep(slow): Subissue {index+1}: ' + sub_title,
                             summary=sub_desc,
@@ -436,14 +443,11 @@ def on_ticket(
                             repo_description=repo_description,
                             installation_id=installation_id,
                             comment_id=comment_id,
-                            subissue_context=ParentIssue(
-                                title=title,
-                                summary=summary,
-                                branch=current_branch,
-                                current_subbissue_num=index
-                            )
+                            subissue_context=context
                         )
-                        current_branch = response['branch']
+
+                        # Set branch to perform snippet search on
+                        current_branch = context.subissue_pr.branch_name
 
                         if not response["success"]:
                             raise Exception("Failed to create subissue")
@@ -516,7 +520,7 @@ def on_ticket(
 
         # WRITE PULL REQUEST
         logger.info("Making PR...")
-        response = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
+        response = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number, subissue_context)
         if not response or not response["success"]: raise Exception("Failed to create PR")
         pr_changes = response["pull_request"]
 
@@ -546,7 +550,7 @@ def on_ticket(
                                pr_path=None,
                                pr_line_position=None,
                                pr_number=None,
-                               pr=pr_changes)
+                               mock_pr=pr_changes)
                 else:
                     break
             except Exception as e:
@@ -554,36 +558,35 @@ def on_ticket(
                 logger.error(e)
                 break
 
-        pr = repo.create_pull(
-            title=pr_changes.title,
-            body=pr_changes.body,
-            head=pr_changes.pr_head,
-            base=SweepConfig.get_branch(repo)
-        )
-        # Get the branch (SweepConfig.get_branch(repo))'s sha
-        sha = repo.get_branch(SweepConfig.get_branch(repo)).commit.sha
+        if not is_subissue or is_subissue and subissue_context.current_subissue_num == 0: # Todo(lukejagg): remove this, and make PR in parent
+            pr = repo.create_pull(
+                title=pr_changes.title,
+                body=pr_changes.body,
+                head=pr_changes.pr_head,
+                base=SweepConfig.get_branch(repo)
+            )
 
-        pr.add_to_labels(GITHUB_LABEL_NAME)
-        chat_logger.add_successful_ticket()
-        current_issue.create_reaction("rocket")
+            pr.add_to_labels(GITHUB_LABEL_NAME)
+            chat_logger.add_successful_ticket()
+            current_issue.create_reaction("rocket")
 
-        logger.info("Running github actions...")
-        try:
-            commit = pr.get_commits().reversed[0]
-            check_runs = commit.get_check_runs()
+            logger.info("Running github actions...")
+            try:
+                commit = pr.get_commits().reversed[0]
+                check_runs = commit.get_check_runs()
 
-            for check_run in check_runs:
-                check_run.rerequest()
-        except Exception as e:
-            logger.error(e)
+                for check_run in check_runs:
+                    check_run.rerequest()
+            except Exception as e:
+                logger.error(e)
 
-        # Completed code review
-        edit_sweep_comment(
-            "Success! 🚀",
-            5,
-            pr_message=f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}",
-            # pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number}).\n{payment_message}",
-        )
+            # Completed code review
+            edit_sweep_comment(
+                "Success! 🚀",
+                5,
+                pr_message=f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}",
+                # pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number}).\n{payment_message}",
+            )
 
         logger.info("Add successful ticket to counter")
         chat_logger.add_successful_ticket()

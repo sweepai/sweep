@@ -6,10 +6,9 @@ if sh bin/lint.sh; then
     echo "Successfully linted"
     
     # Deploy each module in the background and wait for all of them to finish
-    modal deploy sweepai/api.py &
-    modal deploy sweepai/utils/utils.py &
-    modal deploy sweepai/core/vector_db.py &
-    modal deploy sweepai/app/backend.py &
+    modal deploy sweepai/api.py
+    modal deploy sweepai/utils/utils.py
+    modal deploy sweepai/core/vector_db.py
     wait
     
 else

@@ -302,6 +302,7 @@ class MockPR(BaseModel):
     head: Any
 
     html_url: str = ""
+    state: str = "open"
 
     def create_review(self, *args, **kwargs):
         # Todo: used to prevent erroring in on_review.py file
@@ -312,7 +313,7 @@ class ParentIssue(BaseModel):
     summary: str
     branch: str
     current_subissue_num: int
-    subissue_pr: PullRequest = None
+    subissue_pr: PullRequest = None # Todo(lukejagg): Create PR/branch in parent issue?
     # Todo(lukejagg): Add more context about past subissues
     # Todo(lukejagg): Make it edit parent comment only with subissue progress.
     # - Titles

@@ -3,7 +3,7 @@ import openai
 from github.Repository import Repository
 from loguru import logger
 
-from sweepai.core.entities import FileChangeRequest, PullRequest, MockPR
+from sweepai.core.entities import FileChangeRequest, PullRequest, MockPR, ParentIssue
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import GITHUB_DEFAULT_CONFIG, GITHUB_LABEL_NAME, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
@@ -28,7 +28,8 @@ def create_pr_changes(
         sweep_bot: SweepBot,
         username: str,
         installation_id: int,
-        issue_number: int | None = None
+        issue_number: int | None = None,
+        subissue_context: ParentIssue | None = None
 ):
     # Flow:
     # 1. Get relevant files
@@ -59,7 +60,11 @@ def create_pr_changes(
 
     try:
         logger.info("Making PR...")
-        pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
+        if subissue_context is not None and subissue_context.current_subissue_num > 0:
+            # Use the same pull_reqest from the first sub_issue
+            pass
+        else:
+            pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
         completed_count, fcr_count = sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
         if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")

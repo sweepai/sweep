@@ -190,7 +190,7 @@ def search_snippets(
     installation_id: int,
     num_files: int = 5,
     include_tree: bool = True,
-    branch: str = None,
+    branch: str | None = None,
     sweep_config: SweepConfig = SweepConfig(),
     multi_query: list[str] = None,
 ) -> tuple[list[Snippet], str]:
