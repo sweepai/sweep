@@ -99,20 +99,11 @@ def on_ticket(
         title = title[7:]
     elif title.lower().startswith("sweep "):
         title = title[6:]
-    if title.lower().startswith("sweep (slow) "):
-        title = title[13:]
+    if title.lower().startswith("sweep (slow) ") or title.lower().startswith("sweep(slow) ") or title.lower().startswith("sweep (slow): "):
+        title = title[title.index(" ")+1:]
         slow_mode = True
     else:
         slow_mode = False
-    elif title.lower().startswith("sweep(slow) "):
-        title = title[12:]
-        slow_mode = True
-    elif title.lower().startswith("sweep (slow): "):
-        title = title[14:]
-        slow_mode = True
-    elif title.lower().startswith("sweep (slow) "):
-        title = title[13:]
-        slow_mode = True
 
     # Flow:
     # 1. Get relevant files
