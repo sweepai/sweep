@@ -12,6 +12,7 @@ from loguru import logger
 from tabulate import tabulate
 
 from sweepai.core.entities import Snippet, NoFilesException
+from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
@@ -318,6 +319,10 @@ def on_ticket(
 
     if not repo_description:
         repo_description = "No description provided."
+    else:
+        external_results = ExternalSearcher.extract_summaries(repo_description)
+        if external_results:
+            repo_description += "\n\n" + external_results
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
