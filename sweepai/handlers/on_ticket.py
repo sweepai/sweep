@@ -405,7 +405,6 @@ def on_ticket(
                 ),
             )
             + f"I also found the following external resources that might be helpful:\n\n{external_results}\n\n" if external_results else "",
-            ,
             1
         )
 
