@@ -27,8 +27,8 @@ def parse_html(html):
     for ignore_tag in soup(["script", "style"]):
         ignore_tag.decompose()
 
-    title = soup.title.string
-    content = soup.body.get_text()
+    title = soup.title.string if soup.title else ""
+    content = soup.body.get_text() if soup.body else ""
     links = []
 
     for a in soup.find_all('a', href=True):
