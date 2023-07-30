@@ -1,4 +1,5 @@
 import re
+import requests
 from bs4 import BeautifulSoup
 from llama_index import download_loader
 
@@ -6,11 +7,11 @@ def parse_html(html):
     soup = BeautifulSoup(html)
 
     meta_properties = [
-    'og:description',
-    'og:site_name',
-    'og:title',
-    'og:type',
-    'og:url',
+        'og:description',
+        'og:site_name',
+        'og:title',
+        'og:type',
+        'og:url',
     ]
 
     meta = {}
@@ -41,10 +42,11 @@ def parse_html(html):
     return {'meta': meta, 'title': title, 'content': content}
 
 def download_html(url: str) -> str:
-    SimpleWebPageReader = download_loader("SimpleWebPageReader")
-    loader = SimpleWebPageReader()
-    document, *_ = loader.load_data(urls=[url])
-    return document.text
+    # SimpleWebPageReader = download_loader("SimpleWebPageReader")
+    # loader = SimpleWebPageReader()
+    # document, *_ = loader.load_data(urls=[url])
+    # return document.text
+    return requests.get(url).text
 
 def extract_info(url):
     html = download_html(url)
