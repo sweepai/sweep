@@ -311,6 +311,9 @@ class ParentIssue(BaseModel):
     title: str
     summary: str
     branch: str
+    current_subissue_num: int
+    subissue_pr: PullRequest = None
     # Todo(lukejagg): Add more context about past subissues
+    # Todo(lukejagg): Make it edit parent comment only with subissue progress.
     # - Titles
     # - Diffs

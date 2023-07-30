@@ -170,14 +170,15 @@ def on_ticket(
         "comment_id": comment_id,
     })
 
-    # Check if branch was already created for this issue
-    preexisting_branch = None
-    prs = repo.get_pulls(state='open', sort='created', base=SweepConfig.get_branch(repo))
-    for pr in prs:
-        # Check if this issue is mentioned in the PR, and pr is owned by bot
-        # This is done in create_pr, (pr_description = ...)
-        if pr.user.login == GITHUB_BOT_USERNAME and f'Fixes #{issue_number}.\n' in pr.body:
-            success = safe_delete_sweep_branch(pr, repo)
+    if not is_subissue:
+        # Check if branch was already created for this issue
+        preexisting_branch = None
+        prs = repo.get_pulls(state='open', sort='created', base=SweepConfig.get_branch(repo))
+        for pr in prs:
+            # Check if this issue is mentioned in the PR, and pr is owned by bot
+            # This is done in create_pr, (pr_description = ...)
+            if pr.user.login == GITHUB_BOT_USERNAME and f'Fixes #{issue_number}.\n' in pr.body:
+                success = safe_delete_sweep_branch(pr, repo)
 
     # Add emojis
     eyes_reaction = item_to_react_to.create_reaction("eyes")
@@ -214,6 +215,9 @@ def on_ticket(
     payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
     payment_message_start = f"{user_type}: I'm creating this ticket using {model_name} with slow mode set to {slow_mode}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
 
+    if is_subissue:
+        payment_message_start = f"## Subissue {subissue_context.current_subissue_num}\n\n" + payment_message_start
+
     def get_comment_header(index, errored=False, pr_message=""):
         config_pr_message = (
             "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})" if config_pr_url is not None else "")
@@ -227,11 +231,15 @@ def on_ticket(
         return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + (
             "\n" + stars_suffix if index != -1 else "") + "\n" + payment_message_start + config_pr_message
     first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\nWorking on it...{bot_suffix}{discord_suffix}"
-    for comment in comments:
-        if comment.user.login == GITHUB_BOT_USERNAME:
-            issue_comment = comment
-            issue_comment.edit(first_comment)
-            break
+
+    # If it is a sub_issue, create new comment for that sub_issue
+    if not is_subissue:
+        for comment in comments:
+            if comment.user.login == GITHUB_BOT_USERNAME:
+                issue_comment = comment
+                issue_comment.edit(first_comment)
+                break
+
     if issue_comment is None:
         issue_comment = current_issue.create_comment(first_comment)
 
@@ -291,7 +299,7 @@ def on_ticket(
                     repo,
                     f"{title}\n{summary}\n{replies_text}",
                     num_files=num_of_snippets_to_query,
-                    branch=None,
+                    branch=None if not is_subissue else subissue_context.branch,  # Use the branch of the parent issue
                     installation_id=installation_id,
                 )
             except Exception as e:
@@ -333,7 +341,7 @@ def on_ticket(
         tree=tree,
     )
 
-    if slow_mode and not use_faster_model:
+    if slow_mode and not use_faster_model and not is_subissue:
         slow_mode_bot = SlowModeBot()
         queries, additional_plan = slow_mode_bot.expand_plan(human_message)
 
@@ -362,7 +370,7 @@ def on_ticket(
         human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger
     )
 
-    if subissue_context is not None:
+    if is_subissue:
         # Add context to sweep_bot messages (before the latest message)
         msg = Message(role="assistant", content=subissue_parent_context_prompt.format(
             parent_issue_title=subissue_context.title,
@@ -370,24 +378,25 @@ def on_ticket(
         ), key="subissue_parent_context")
         sweep_bot.messages.insert(-1, msg)
 
-    # Check repository for sweep.yml file.
-    sweep_yml_exists = False
-    for content_file in repo.get_contents(""):
-        if content_file.name == "sweep.yaml":
-            sweep_yml_exists = True
-            break
+    if not is_subissue:
+        # Check repository for sweep.yml file.
+        sweep_yml_exists = False
+        for content_file in repo.get_contents(""):
+            if content_file.name == "sweep.yaml":
+                sweep_yml_exists = True
+                break
 
-    # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
-    if not sweep_yml_exists and is_subissue:
-        try:
-            logger.info("Creating sweep.yaml file...")
-            config_pr = create_config_pr(sweep_bot)
-            config_pr_url = config_pr.html_url
-            edit_sweep_comment(message="", index=-2)
-        except Exception as e:
-            logger.error("Failed to create new branch for sweep.yaml file.\n", e, traceback.format_exc())
-    else:
-        logger.info("sweep.yaml file already exists.")
+        # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
+        if not sweep_yml_exists:
+            try:
+                logger.info("Creating sweep.yaml file...")
+                config_pr = create_config_pr(sweep_bot)
+                config_pr_url = config_pr.html_url
+                edit_sweep_comment(message="", index=-2)
+            except Exception as e:
+                logger.error("Failed to create new branch for sweep.yaml file.\n", e, traceback.format_exc())
+        else:
+            logger.info("sweep.yaml file already exists.")
 
     try:
         # ANALYZE SNIPPETS
@@ -399,32 +408,18 @@ def on_ticket(
 
         abstract_plan = sweep_bot.chat(files_to_change_abstract_prompt, message_key="files_to_change")
 
-        if slow_mode:
+        # Attempt to split it up (only works if it is not a comment)
+        if slow_mode and comment_id is None and not is_subissue:  # No recursive subissues for now.
             split_issue = False
             failed = False
             try:
                 subissues_plan = sweep_bot.chat(split_into_subissues_prompt, message_key="split_into_subissues")
-                """
-                Ticket 1:
-    Title: Set up GitHub Actions for Python
-    Desc: For repositories that use Python, set up GitHub Actions with Black and Pylint. This setup should only be triggered when a user merges a PR titled "Enable Github Actions".
-
-Ticket 2:
-    Title: Set up GitHub Actions for JavaScript
-    Desc: For repositories that use JavaScript, set up GitHub Actions with ESLint. This setup should only be triggered when a user merges a PR titled "Enable Github Actions".
-
-Ticket 3:
-    Title: Set up GitHub Actions for TypeScript
-    Desc: For repositories that use TypeScript, set up GitHub Actions with TSC. This setup should only be triggered when a user merges a PR titled "Enable Github Actions"."""
-                # Split by Ticket \d
-                tickets = re.split(r'Ticket \d:', subissues_plan)
-                # Get Title: and Desc: in each ticket
-                tickets = [re.split(r'Title:|Desc:', ticket) for ticket in tickets]
-
 
                 # regex for finding \nsplit_issue = ...\n and extracting that and getting the value its set to
                 split_issue = re.search(r'(?<=split_issue = ).*(?=\n)', subissues_plan).group(0).lower() == "true"
                 if split_issue:
+                    # Todo(lukejagg): Display the subissue plan in the comment
+
                     # Split into subissues
                     tickets = re.split(r'Ticket \d:\n', subissues_plan)[1:]  # Ignore spacing before first ticket
                     tickets = [re.split(r'Title:|Desc:', ticket)[1:] for ticket in tickets]  # Get Title: and Desc: in each ticket
@@ -444,7 +439,8 @@ Ticket 3:
                             subissue_context=ParentIssue(
                                 title=title,
                                 summary=summary,
-                                branch=current_branch
+                                branch=current_branch,
+                                current_subbissue_num=index
                             )
                         )
                         current_branch = response['branch']
@@ -499,10 +495,20 @@ Ticket 3:
         )
 
         # CREATE PR METADATA
-        logger.info("Generating PR...")
-        pull_request = sweep_bot.generate_pull_request()
+        pull_request = None
+        pull_request_summary = "Skipped creating PR metadata"
+        if not is_subissue or subissue_context.current_subissue_num == 0:  # only create PR metadata for first subissue
+            logger.info("Generating PR...")
+            pull_request = sweep_bot.generate_pull_request()  # Need to pass in subissue_context (to not create new PR each time)
+            if subissue_context is not None:
+                subissue_context.subissue_pr = pull_request
+        else:
+            pull_request = subissue_context.subissue_pr
+
         pull_request_content = pull_request.content.strip().replace("\n", "\n>")
         pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
+
+
         edit_sweep_comment(
             f"I have created a plan for writing the pull request. I am now working my plan and coding the required changes to address this issue. Here is the planned pull request:\n\n{pull_request_summary}",
             3

@@ -194,6 +194,8 @@ def search_snippets(
     sweep_config: SweepConfig = SweepConfig(),
     multi_query: list[str] = None,
 ) -> tuple[list[Snippet], str]:
+    if branch is None:
+        branch = SweepConfig.get_branch(repo)
     # Initialize the relevant directories string
     get_relevant_snippets = modal.Function.lookup(DB_MODAL_INST_NAME, "get_relevant_snippets")
     if multi_query:
@@ -201,7 +203,7 @@ def search_snippets(
         multi_query = [query] + multi_query
         for query in multi_query:
             snippets: list[Snippet] = get_relevant_snippets.call(
-                repo.full_name, query, num_files, installation_id=installation_id, branch=branch
+                repo.full_name, query, num_files, installation_id=installation_id, branch_name=branch
             )
             logger.info(f"Snippets for query {query}: {snippets}")
             if snippets:
@@ -210,7 +212,7 @@ def search_snippets(
         logger.info(f"Snippets for multi query {multi_query}: {snippets}")
     else:
         snippets: list[Snippet] = get_relevant_snippets.call(
-            repo.full_name, query, num_files, installation_id=installation_id, branch=branch
+            repo.full_name, query, num_files, installation_id=installation_id, branch_name=branch
         )
         logger.info(f"Snippets for query {query}: {snippets}")
     for snippet in snippets:
@@ -229,7 +231,7 @@ def search_snippets(
     shutil.rmtree("repo", ignore_errors=True)
     repo_url = f"https://x-access-token:{token}@github.com/{repo.full_name}.git"
     git_repo = Repo.clone_from(repo_url, "repo")
-    git_repo.git.checkout(SweepConfig.get_branch(repo))
+    git_repo.git.checkout(branch)
     file_list = get_file_list("repo")
     query_file_names = get_file_names_from_query(query)
     query_match_files = []  # files in both query and repo

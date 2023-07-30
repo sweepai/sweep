@@ -119,12 +119,12 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    def generate_pull_request(self, retries=5) -> PullRequest:
+    def generate_pull_request(self, retries=3) -> PullRequest:
         for count in range(retries):
             too_long = False
             try:
                 logger.info(f"Generating for the {count}th time...")
-                if too_long or count == retries - 2:  # if on last try, use gpt4-32k (improved context window)
+                if too_long or count == retries - 1:  # if on last try, use gpt4-32k (improved context window)
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
                 else:
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)
