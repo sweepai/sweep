@@ -82,10 +82,10 @@ Unlike existing AI solutions, this can solve entire tickets and can be paralleli
 ## Highlights 🌟
 Examine pull requests created by Sweep [here](https://docs.sweep.dev/examples).
 
-## Pricing 💎
-* We charge $240/month for 120 GPT-4 tickets per month.
-* For unpaid users, we offer 5 free GPT-4 tickets per month.
-* We also offer unlimited GPT-3.5 tickets.
+## Pricing
+We offer unlimited GPT3.5 tickets to every user. You also start with 5 GPT4 credits which are used when a PR is created.
+
+For professionals who want more tickets and priority support/feature requests, check out Sweep Pro
 
 ## Roadmap 🗺
 See [🗺️ Roadmap](https://docs.sweep.dev/roadmap)
