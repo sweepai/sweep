@@ -38,7 +38,7 @@ Describe bugs, small features, and refactors like you would to a junior develope
 
 ### Why Sweep is Unique 🦄
 
-Unlike competitors like Copilot and ChatGPT which only provide IDE based autocompletion, Sweep handles the entire flow end-to-end without the need for using ChatGPT and pasting files. Also, Sweep's amazing codebase search feature allows users to mention files to direct Sweep.
+Unlike Copilot, which only provides IDE based autocompletion, Sweep handles the entire flow end-to-end. Unlike ChatGPT, Sweep does not require pasting files.
 
 | Recently Added Features                            | Date          |
 |----------------------------------------------------|---------------|
