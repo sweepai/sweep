@@ -36,6 +36,10 @@ Describe bugs, small features, and refactors like you would to a junior develope
 * 👀 Addresses developer replies & comments on its PRs
 * 🔎 Uses embedding-based code search
 
+### Why Sweep is Unique 🦄
+
+Unlike competitors like Copilot and ChatGPT which only provide IDE based autocompletion, Sweep handles the entire flow end-to-end without the need for using ChatGPT and pasting files. Also, Sweep's amazing codebase search feature allows users to mention files to direct Sweep.
+
 | Recently Added Features                            | Date          |
 |----------------------------------------------------|---------------|
 | Addresses developer replies & comments on its PRs  | Jul 10, 2023? |
