@@ -31,11 +31,18 @@ Describe bugs, small features, and refactors like you would to a junior develope
 3. ⚡**writes a pull request with code**⚡
 
 ### Features 🌠
+
 * 🌠 Turns issues directly into pull requests (without an IDE)
 * 👀 Addresses developer replies & comments on its PRs
 * 🔎 Uses embedding-based code search
-* 🔧 Fixes PRs based on GitHub Actions feedback
-* 🎈 Large File Support using File Streaming
+
+| Recently Added Features                            | Date          |
+|----------------------------------------------------|---------------|
+| Addresses developer replies & comments on its PRs  | Jul 10, 2023? |
+| Fixes PRs based on GitHub Actions feedback         | Jul 22, 2023? |
+| Large File Support using File Streaming            | Jul 25, 2023? |
+| Improved retrieval with newer code embedding model | Jul 29, 2023? |
+
 
 [Demo](https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47)
 
