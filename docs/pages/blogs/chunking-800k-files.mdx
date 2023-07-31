@@ -1,10 +1,10 @@
-# Chunking 800k+ files a day for Code Search using Syntax Trees
+# Chunking 800k files a day for Code Search using Syntax Trees
 
 Author: Kevin Lu
 
 Initializing any vector store requires chunking large documents for effective search.
 
-Why can’t we just embed entire files? Envision our main API [endpoint](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/api.py) as a file:
+Why can’t we just embed entire files? Consider our main API [endpoint](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/api.py)'s file:
 
 1. Imports
 2. Constants declarations
@@ -19,7 +19,9 @@ Our current code chunking algorithm chunks **800k+ files a day**, which is [open
 
 ## Constraints 🚧
 
-Generally, most are capped by token count, since it makes estimating the number of chunks to fetch easy to compute. For simplicity, we decided to use character count, with a max character count of 1500 This is because the average token to character ratio for code is about 1:5 and we want to be on the safer side. The problem becomes getting as close to 1500 characters as possible, while still ensuring the chunks are semantically similar and all relevant contexts are unseparated.
+Most chunkers for RAG-based (retrieval augmented generation) agents cap by token count. For simplicity, we decided to use character count, with a max character count of 1500 This is because the average token to character ratio for code is about 1:5 and embeddings models cap at 512. Further, 1500 characters correspond approximately to 40 lines, which work out to a small to medium sized function or class.
+
+The problem becomes getting as close to 1500 characters as possible, while still ensuring the chunks are semantically similar and all relevant contexts are unseparated.
 
 ## Out of the Box Solution 📦
 
