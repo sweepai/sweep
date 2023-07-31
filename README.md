@@ -37,12 +37,6 @@ Describe bugs, small features, and refactors like you would to a junior develope
 * 🔎 Uses embedding-based code search
 
 
-| Recently Added Features                            | Date          |
-|----------------------------------------------------|---------------|
-| Addresses developer replies & comments on its PRs  | Jul 10, 2023? |
-| Fixes PRs based on GitHub Actions feedback         | Jul 22, 2023? |
-| Large File Support using File Streaming            | Jul 25, 2023? |
-| Improved retrieval with newer code embedding model | Jul 29, 2023? |
 
 ### Why Sweep is Unique 🦄
 
