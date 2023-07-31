@@ -3,12 +3,7 @@
 If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?v=fr5V5EWVcyM&lc=UgxM_ZzFiFYfjo1ADU54AaABAg)
 
 ## Go to your repository and create an issue
-To create a Sweep issue, follow these steps:
-1. Go to your repository.
-2. Click on the "Issues" tab.
-3. Click on the "New issue" button.
-4. In the issue title, start with "Sweep: ".
-5. For issues and PRs, call Sweep using the Sweep label or by prefixing your text with "Sweep: ".
+The issue title should start with `"Sweep: "`. For issues and PRs, call Sweep using the Sweep label or by prefixing your text with `"Sweep: "`.
 - **Sweep works best with real repositories and real issues.**
 
 
