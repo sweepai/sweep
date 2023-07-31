@@ -230,7 +230,7 @@ def on_comment(
     try:
         logger.info("Fetching files to modify/create...")
         if file_comment:
-            file_change_requests = [FileChangeRequest(filename=pr_file_path, instructions=pr_line, change_type="modify")]
+            file_change_requests = [FileChangeRequest(filename=pr_file_path, instructions=f"{comment}\n\nCommented on this line: {pr_line}", change_type="modify")]
         else:
             file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change(retries=3)
             file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
