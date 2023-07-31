@@ -2,22 +2,35 @@
 
 If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?v=fr5V5EWVcyM&lc=UgxM_ZzFiFYfjo1ADU54AaABAg)
 
-## Go to your repository and create an issue 🐞
+## Go to your repository and create an issue
 The issue title should start with "Sweep: ". For issues and PRs, call Sweep using the Sweep label or by prefixing your text with "Sweep: "
+- **Sweep works best with real repositories and real issues.**
 
 
+<table>
+  <tr>
+    <td style="border: 2px solid black;">
+      <img src="https://github.com/sweepai/sweep/assets/44910023/68b345eb-0ae5-455e-a1a3-c388b1f032f6" alt="Image description">
+    </td>
+  </tr>
+</table>
 
-![image](https://github.com/sweepai/sweep/assets/44910023/68b345eb-0ae5-455e-a1a3-c388b1f032f6)
-
-
-## Fix Sweep's PRs 👷
+## Fix Sweep's PRs
 
 Sweep will mess up sometimes. Comment on it's PR. (ex: "use PyTorch instead of Tensorflow".)
 - You can also comment in the issue and code. See [Commenting](https://docs.sweep.dev/commenting).
 - To have Sweep automatically improve it's PRs, use Github Actions. [GHA Tech Blog](https://docs.sweep.dev/blogs/giving-dev-tools)
 - To disable Sweep on a PR/issue, remove the Sweep label.
 
-![image](https://github.com/sweepai/sweep/assets/44910023/9323aa0c-0f32-4da1-89bc-418e44372d8b)
+
+<table>
+  <tr>
+    <td style="border: 2px solid black;">
+      <img src="https://github.com/sweepai/sweep/assets/44910023/9323aa0c-0f32-4da1-89bc-418e44372d8b" alt="Image description">
+    </td>
+  </tr>
+</table>
+
 
 ## Sweep Prompting Tricks 📝
 
@@ -41,6 +54,11 @@ Sweep will mess up sometimes. Comment on it's PR. (ex: "use PyTorch instead of T
 * ⤵️ **Accessing external APIs**, including fetching API tokens
     * We can't do this - "Set up sign-in using Ethereum"
 
+## Pricing
+We offer unlimited GPT3.5 tickets to every user. You also start with 5 GPT4 credits which are used when a PR is created.
+
+For professionals who want more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/9AQ8zB26letOgzC5kp)
+
 ---
 
 ### Documentation 📚
@@ -49,9 +67,8 @@ Sweep will mess up sometimes. Comment on it's PR. (ex: "use PyTorch instead of T
 
 ### Contact Us 👥
 - [Discord](https://discord.com/invite/sweep-ai)
-- Email: team@sweep.dev
+- team@sweep.dev
+- [Star us on GitHub! ⭐](https://github.com/sweepai/sweep)
 
-### Star ⭐
-[Star our repo(you're already here)](https://github.com/sweepai/sweep) for better results 😉
 
 Note - you need to have Sweep installed and [Issues enabled in Repo](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/enabling-or-disabling-github-discussions-for-a-repository)
