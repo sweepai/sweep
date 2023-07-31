@@ -1,0 +1,380 @@
+# Chunking 800k+ files/day for Code Search using Concrete Syntax Trees
+
+Author: Kevin Lu
+
+Initializing any vector store requires chunking large documents for effective search.
+
+Why can’t we just embed entire files? Envision our main API [endpoint](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/api.py) as a file:
+
+1. Imports
+2. Constants declarations
+3. Helper functions
+4. Business logic for each webhook endpoint
+
+If I search “GitHub Action run”, it should match the section corresponding to the [switch case block](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/api.py#L295-L313) checking for the “check_runs completed” event. However, this is 20 lines of code out of 400+ lines so even a perfect search algorithm would only say that this is a 5% match. But if we chunked the 400 lines into 20 chunks of 20 lines, this would match the correct switch case block.
+
+But how do we get meaningful 20-line chunks? Naively we could break up the 400-line file evenly into 20-line chunks. But this would yield terrible results. Semantically similar code would not stay together and context would be lost. For example, function headers would be separated from their implementation details and the docstrings.
+
+Our current code chunking algorithm chunks **800k+ files a day**, which is [open-sourced](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/utils/utils.py#L48-L126)!
+
+## Constraints 🚧
+
+Generally, most are capped by token count, since it makes estimating the number of chunks to fetch easy to compute. For simplicity, we decided to use character count, with a max character count of 1500 This is because the average token to character ratio for code is about 1:5 and we want to be on the safer side. The problem becomes getting as close to 1500 characters as possible, while still ensuring the chunks are semantically similar and all relevant contexts are unseparated.
+
+## Out of the Box Solution 📦
+
+The easiest out-of-the-box solution for code chunking is [Langchain’s recursive chunker](https://js.langchain.com/docs/modules/data_connection/document_transformers/text_splitters/code_splitter). At a high level:
+
+1. Break the text using the top-level delimiter (firstly using classes, then function definitions, then function methods etc.)
+2. Loop through each section and greedily concatenate them until it breaks the character limit. For chunks that are too big, recursively chunk the section starting with the next-level delimiter. 
+
+```python
+delimiters = ["\nclass ", "\ndef ", "\n\tdef ", "\n\n", "\n", " ", ""]
+def chunk(text: str, delimiter_index: int = 0, MAX_CHARS: int = 1500) -> list[str]:
+	delimiter = delimiters[delimiter_index]
+	new_chunks = []
+	current_chunk = ""
+	for section in text.split(delimiter):
+		if len(section) > MAX_CHARS:
+			# Section is too big, recursively chunk this section
+			new_chunks.append(current_chunk)
+			current_chunk = ""
+			new_chunks.extend(chunk(section, delimiter_index + 1, MAX_CHARS)
+		elif len(current_chunk) + len(section) > MAX_CHARS:
+			# Current chunk is max size
+			new_chunks.append(current_chunk)
+			current_chunk = section
+		else:
+			# Concatenate section to current_chunk
+			current_chunk += section
+	return new_chunks
+```
+
+For each language, we would also use different delimiters.
+
+### Examples
+
+For full files of the examples, see https://gist.github.com/kevinlu1248/ded3ea33dcd8a9bd08078f4c64eb9268.
+
+#### Example #1
+Based on our `on_check_suite.py` file for handling GitHub Action runs. A bad split separating a string concatenation declaration from it’s contents. ❌
+
+```python
+...
+
+def on_check_suite(request: CheckRunCompleted):
+    logger.info(f"Received check run completed event for {request.repository.full_name}")
+    g = get_github_client(request.installation.id)
+    repo = g.get_repo(request.repository.full_name)
+    if not get_gha_enabled(repo):
+        logger.info(f"Skipping github action for {request.repository.full_name} because it is not enabled")
+        return None
+    pr = repo.get_pull(request.check_run.pull_requests[0].number)
+    num_pr_commits = len(list(pr.get_commits()))
+    if num_pr_commits > 20:
+        logger.info(f"Skipping github action for PR with {num_pr_commits} commits")
+        return None
+    logger.info(f"Running github action for PR with {num_pr_commits} commits")
+    logs = download_logs(
+        request.repository.full_name,
+        request.check_run.run_id,
+        request.installation.id
+    )
+    if not logs:
+        return None
+    logs = clean_logs(logs)
+    extractor = GHAExtractor()
+    logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
+    problematic_logs = extractor.gha_extract(logs)
+    if problematic_logs.count("
+") > 15:
+        problematic_logs += "
+
+========================================
+
+There are a lot of errors. This is likely a larger issue with the PR and not a small linting/type-checking issue."
+    comments = list(pr.get_issue_comments())
+    if len(comments) >= 2 and problematic_logs == comments[-1].body and comments[-2].body == comments[-1].body:
+        comment = pr.as_issue().create_comment(log_message.format(error_logs=problematic_logs) + "
+
+I'm getting the same errors 3 times in a row, so I will stop working on fixing this PR.")
+        logger.warning("Skipping logs because it is duplicated")
+        raise Exception("Duplicate error logs")
+    print(problematic_logs)
+    comment = pr.as_issue().create_comment(log_message.format(error_logs=problematic_logs))
+    on_comment(
+        repo_full_name=request.repository.full_name,
+        repo_description=request.repository.description,
+        comment=problematic_logs,
+        pr_path=None,
+        pr_line_position=None,
+        username=request.sender.login,
+        installation_id=request.installation.id,
+        pr_number=request.check_run.pull_requests[0].number,
+        comment_id=comment.id,
+        repo=repo,
+    )
+    return {"success": True}
+```
+
+#### Example #2
+Based on `BaseIndex.ts` file from LlamaIndex declaring the ABC for vector stores. A bad split separates a class method from its header. ❌
+
+```tsx
+...
+
+export class IndexDict extends IndexStruct {
+  nodesDict: Record<string, BaseNode> = {};
+  docStore: Record<string, Document> = {}; // FIXME: this should be implemented in storageContext
+  type: IndexStructType = IndexStructType.SIMPLE_DICT;
+
+========================================
+
+getSummary(): string {
+    if (this.summary === undefined) {
+      throw new Error("summary field of the index dict is not set");
+    }
+    return this.summary;
+  }
+
+  addNode(node: BaseNode, textId?: string) {
+    const vectorId = textId ?? node.id_;
+    this.nodesDict[vectorId] = node;
+  }
+
+  toJson(): Record<string, unknown> {
+    return {
+      ...super.toJson(),
+      nodesDict: this.nodesDict,
+      type: this.type,
+    };
+  }
+}
+
+...
+```
+
+### Problems 🤔
+
+However, it comes with some major problems:
+
+1. This chunker decently for Python but breaks curly-bracket-heavy languages like JS and XML-based languages like HTML in unexpected ways.
+    * Further, `str.split` does not work well for these more complex syntaxes like JS and HTML.
+    * E.g. Even for Python, it broke the problematic logs line by splitting `problematic_logs += \"` and the rest of the string
+2. Only 16 languages are currently supported, without support for JSX, Typescript, EJS and C#.
+    * JSX/TSX makes up the majority of our userbase 
+3. Langchain deletes important delimiters such as “def” and “class”.
+
+## Our Solution 🧠
+
+The inherent problem is that iterative `str.split` with different delimiters is a primitive method for approximating concrete syntax trees (CST). 
+
+To solve this, we decided to just use CST parsers. But how do we get CST parsers for a large number of languages? Thankfully, the library [tree-sitter](https://tree-sitter.github.io/) provides a standardized way to access 113 CST-parsers for programming languages and is fast (written in C) and dependency-free.
+
+The new algorithm is fairly similar to the Langchain algorithm and is as follows:
+
+1. To chunk a parent node, we iterate through its children and greedily bundle them together. For each child node:
+    1. If the current chunk is too big, we add that to our list of chunks and empty the bundle
+    2. If the next child node is too big, we recursively chunk the child node and add it to the list of chunks
+    3. Otherwise, concatenate the current chunk with the child node
+2. Post-process the final result by combining single-line chunks with the next chunk.
+    1. This guarantees that there are no chunks that are too small since they yield less meaningful results
+
+```python
+from tree_sitter import Node
+
+def chunk_node(node: Node, text: str, MAX_CHARS: int = 1500) -> list[str]:
+	new_chunks = []
+	current_chunk = ""
+	for child in node.children:
+		if child.end_byte - child.start_byte > MAX_CHARS:
+			new_chunks.append(current_chunk)
+			current_chunk = ""
+			new_chunks.extend(chunk_node(child, text, MAX_CHARS)
+		elif  > MAX_CHARS:
+			new_chunks.append(current_chunk)
+			current_chunk = text[node.start_byte:node.end_byte]
+		else:
+			current_chunk += text[node.start_byte:node.end_byte]
+	return new_chunks
+```
+
+### Example
+
+Full chunks can be found at https://gist.github.com/kevinlu1248/49a72a1978868775109c5627677dc512
+
+#### Example #1
+Based on our `on_check_suite.py` file for handling GitHub Action runs. Correct splitting, also splitting before an if statement instead of separating the if-statement from the body. ✅
+
+```python
+...
+
+def on_check_suite(request: CheckRunCompleted):
+    logger.info(f"Received check run completed event for {request.repository.full_name}")
+    g = get_github_client(request.installation.id)
+    repo = g.get_repo(request.repository.full_name)
+    if not get_gha_enabled(repo):
+        logger.info(f"Skipping github action for {request.repository.full_name} because it is not enabled")
+        return None
+    pr = repo.get_pull(request.check_run.pull_requests[0].number)
+    num_pr_commits = len(list(pr.get_commits()))
+    if num_pr_commits > 20:
+        logger.info(f"Skipping github action for PR with {num_pr_commits} commits")
+        return None
+    logger.info(f"Running github action for PR with {num_pr_commits} commits")
+    logs = download_logs(
+        request.repository.full_name,
+        request.check_run.run_id,
+        request.installation.id
+    )
+    if not logs:
+        return None
+    logs = clean_logs(logs)
+    extractor = GHAExtractor()
+    logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
+    problematic_logs = extractor.gha_extract(logs)
+    if problematic_logs.count("\n") > 15:
+        problematic_logs += "\n\nThere are a lot of errors. This is likely a larger issue with the PR and not a small linting/type-checking issue."
+    comments = list(pr.get_issue_comments())
+
+==========
+
+    if len(comments) >= 2 and problematic_logs == comments[-1].body and comments[-2].body == comments[-1].body:
+        comment = pr.as_issue().create_comment(log_message.format(error_logs=problematic_logs) + "\n\nI'm getting the same errors 3 times in a row, so I will stop working on fixing this PR.")
+        logger.warning("Skipping logs because it is duplicated")
+        raise Exception("Duplicate error logs")
+    print(problematic_logs)
+    comment = pr.as_issue().create_comment(log_message.format(error_logs=problematic_logs))
+    on_comment(
+        repo_full_name=request.repository.full_name,
+        repo_description=request.repository.description,
+        comment=problematic_logs,
+        pr_path=None,
+        pr_line_position=None,
+        username=request.sender.login,
+        installation_id=request.installation.id,
+        pr_number=request.check_run.pull_requests[0].number,
+        comment_id=comment.id,
+        repo=repo,
+    )
+```
+
+#### Example #2
+Based on `BaseIndex.ts` file from LlamaIndex declaring the ABC for vector stores. Our chunker correctly splits between exported classes and functions. ✅
+
+```tsx
+...
+
+export class IndexDict extends IndexStruct {
+  nodesDict: Record<string, BaseNode> = {};
+  docStore: Record<string, Document> = {}; // FIXME: this should be implemented in storageContext
+  type: IndexStructType = IndexStructType.SIMPLE_DICT;
+
+  getSummary(): string {
+    if (this.summary === undefined) {
+      throw new Error("summary field of the index dict is not set");
+    }
+    return this.summary;
+  }
+
+  addNode(node: BaseNode, textId?: string) {
+    const vectorId = textId ?? node.id_;
+    this.nodesDict[vectorId] = node;
+  }
+
+  toJson(): Record<string, unknown> {
+    return {
+      ...super.toJson(),
+      nodesDict: this.nodesDict,
+      type: this.type,
+    };
+  }
+}
+
+========================================
+
+export function jsonToIndexStruct(json: any): IndexStruct {
+  if (json.type === IndexStructType.LIST) {
+    const indexList = new IndexList(json.indexId, json.summary);
+    indexList.nodes = json.nodes;
+    return indexList;
+  } else if (json.type === IndexStructType.SIMPLE_DICT) {
+    const indexDict = new IndexDict(json.indexId, json.summary);
+    indexDict.nodesDict = json.nodesDict;
+    return indexDict;
+  } else {
+    throw new Error(`Unknown index struct type: ${json.type}`);
+  }
+}
+
+...
+```
+
+### Rest of the Algorithm 🤖
+
+1. Iterate through the list of languages until one of them successfully parses the code
+2. Chunk the code’s syntax tree root node
+3. If none of the languages hit, we use a naive chunker that takes 40 lines at a time with 15 lines of overlap in between (0.1% of cases)
+
+```python
+language_names = ["python", "java", "cpp", "go", "rust", "ruby", "php"] # and more
+
+# Installing the parsers
+languages = {} 
+for language in LANGUAGE_NAMES:
+   subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-{language} cache/tree-sitter-{language}", shell=True)
+  for language in LANGUAGE_NAMES:
+      Language.build_library(f'cache/build/{language}.so', [f"cache/tree-sitter-{language}"])
+  self.languages = {language: Language(f"cache/build/{language}.so", language) for language in LANGUAGE_NAMES}
+
+def chunk(text: str, MAX_CHARS: int = 1500) -> list[str]:
+	# Determining the language
+	for language_name in language_names:
+    language = languages[language_name]
+    parser = Parser()
+    parser.set_language(language)
+    tree = parser.parse(bytes(text, "utf-8"))
+    if not tree.root_node.children or tree.root_node.children[0].type != "ERROR":
+        file_language = language
+        break
+    logger.warning(f"Not language {language_name}")
+
+	# Smart chunker
+	if file_language:
+      return chunk_node(tree.root_node, text, max_chunk_size)
+
+	# Naive algorithm
+  source_lines = file_content.split('\n')
+  num_lines = len(source_lines)
+  logger.info(f"Number of lines: {num_lines}")
+  chunks = []
+  start_line = 0
+  while start_line < num_lines and num_lines > overlap:
+      end_line = min(start_line + chunk_size, num_lines)
+      chunk = '\n'.join(source_lines[start_line:end_line])
+      chunks.append(chunk)
+      start_line += chunk_size - overlap
+	return chunks
+```
+
+At Sweep, we currently installed Python, Java, C++, Go, Rust, Ruby, PHP, C#, Embedded Template (ERB & EJS), Markdown, Vue, and TSX. Also, note that C++ covers C and TSX covers JS, JSX and TS.
+
+## Pitfalls 🕳️
+
+Unfortunately, `tree-sitter` is unreliable at times and many of the parsers are community-driven: 
+
+- The TSX parser hangs when it doesn’t parse instead of returning an error
+- Further, the base language is written in C. Running it in production on our serverless architecture involves a convoluted method of caching C-compiled executables, moving it to executable directories and using a Python wrapper to call them.
+- Some parsers leave gaps in between children nodes. We solved this by coalescing
+- None of the parsers error out when they parse the wrong language and yield errors in different ways
+    - Some of them have root nodes that are “ERROR” nodes while others have that as the first child
+
+We worked around this by always defaulting to the naive chunker in cases of errors like these and prioritizing TSX last. We also prioritize the language corresponding to the file extension.
+
+## Future 🔮
+
+This algorithm is currently embedded into our codebase but can be open-sourced as a standalone project or as part of Langchain.
+
+A possible improvement is to somehow also include the class headers in a class method that’s deep into the code.
+
+We can consider using universal ctags or the like for simpler and more universal parsing or train a custom spaCy sentencizer on manually annotated chunks, but that might be a bit over-engineered.
