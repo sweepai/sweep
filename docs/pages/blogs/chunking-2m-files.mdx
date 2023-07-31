@@ -4,26 +4,26 @@ author: Kevin Lu
 
 # Chunking 2M+ files a day for Code Search using Syntax Trees
 
-**Kevin Lu** - July 3rd, 2023
+**Kevin Lu** - July 30th, 2023
 
 ---
 
-Initializing any vector store requires chunking large documents for effective search.
+To initialize any vector store, it is necessary to chunk large documents for effective search.
 
-Why can’t we just embed entire files? Consider our main API [endpoint](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/api.py)'s file:
+Why can't we simply embed entire files? Let's consider the file of our main API [endpoint](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/api.py):
 
 1. Imports
 2. Constants declarations
 3. Helper functions
 4. Business logic for each webhook endpoint
 
-If I search “GitHub Action run”, it should match the section corresponding to the [switch case block](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/api.py#L295-L313) checking for the “check_runs completed” event. However, this is 20 lines of code out of 400+ lines so even a perfect search algorithm would only say that this is a 5% match. But if we chunked the 400 lines into 20 chunks of 20 lines, this would match the correct switch case block.
+If I search for “GitHub Action run”, it should match the section corresponding to the [switch case block](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/api.py#L295-L313) that checks for the “check_runs completed” event. However, this is just 20 lines of code out of 400+ lines, so even a perfect search algorithm would only consider this a 5% match. However, if we chunk the 400 lines into 20 chunks of 20 lines each, it would match the correct switch case block.
 
-How do we get 20-line chunks? Naively we could break up the 400-line file evenly into 20-line chunks.
+How do we create 20-line chunks? One naive approach could be to evenly break up the 400-line file into 20-line chunks.
 
-But this would yield terrible results. Semantically similar code would not stay together and context would be lost. For example, function headers would be separated from their implementation details and the docstrings.
+However, this approach would yield unsatisfactory results. Semantically similar code would not stay together, and context would be lost. For instance, function headers could be separated from their implementation details and the docstrings.
 
-Our current code chunking algorithm chunks **2M+ files a day** and is [open-sourced](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/utils/utils.py#L48-L126)!
+Our current code chunking algorithm processes **2M+ files a day** and is [open-sourced](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/utils/utils.py#L48-L126)!
 
 ## Constraints 🚧
 
@@ -394,6 +394,3 @@ class Foo:
   ...
   def bar(self):
       pass
-```
-
-We can consider using universal ctags or the like for simpler and more universal parsing or train a custom spaCy sentencizer on manually annotated chunks, but that might be a bit over-engineered.
