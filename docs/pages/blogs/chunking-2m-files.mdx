@@ -4,34 +4,34 @@ author: Kevin Lu
 
 # Chunking 2M+ files a day for Code Search using Syntax Trees
 
-**Kevin Lu** - July 3rd, 2023
+**Kevin Lu** - July 30th, 2023
 
 ---
 
-Initializing any vector store requires chunking large documents for effective search.
+To initialize a vector store, its necessary to chunk large documents for effective search.
 
-Why can’t we just embed entire files? Consider our main API [endpoint](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/api.py)'s file:
+Why can't we just embed entire files? Let's consider the file of our main API [endpoint](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/api.py):
 
 1. Imports
 2. Constants declarations
 3. Helper functions
 4. Business logic for each webhook endpoint
 
-If I search “GitHub Action run”, it should match the section corresponding to the [switch case block](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/api.py#L295-L313) checking for the “check_runs completed” event. However, this is 20 lines of code out of 400+ lines so even a perfect search algorithm would only say that this is a 5% match. But if we chunked the 400 lines into 20 chunks of 20 lines, this would match the correct switch case block.
+If I search for “GitHub Action run”, it should match the section corresponding to the [switch case block](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/api.py#L295-L313) that checks for the “check_runs completed” event. However, this is only 20 lines of code out of 400+ lines, so even a perfect search algorithm would only consider this a 5% match. However, if we chunk the 400 lines into 20 chunks of 20 lines each, it would match the correct switch case block.
 
-How do we get 20-line chunks? Naively we could break up the 400-line file evenly into 20-line chunks.
+How do we create 20-line chunks? One naive approach is to evenly break up the 400-line file into 20-line chunks.
 
-But this would yield terrible results. Semantically similar code would not stay together and context would be lost. For example, function headers would be separated from their implementation details and the docstrings.
+However, this approach does not work. Semantically similar code will not stay together, and we'll lost context. For instance, function headers could be separated from their implementation details and the docstrings.
 
-Our current code chunking algorithm chunks **2M+ files a day** and is [open-sourced](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/utils/utils.py#L48-L126)!
+Our current code chunking algorithm processes **2M+ files a day** and is [open-source](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/utils/utils.py#L48-L126)!
 
 ## Constraints 🚧
 
-Most chunkers for RAG-based (retrieval augmented generation) agents cap by token count. For simplicity, we decided to use character count, with a max character count of 1500.
+Most chunkers for RAG-based (retrieval augmented generation) agents cap by token count. For simplicity, we decided to use character count, with a max of 1500.
 
-This is because the average token to character ratio for code is about 1:5 and embeddings models cap at 512. Further, 1500 characters correspond approximately to 40 lines, which work out to a small to medium sized function or class.
+This is because the average token to character ratio for code is ~1:5(300 tokens), and embeddings models are capped at 512 tokens. Further, 1500 characters correspond approximately to 40 lines, roughly equivalent to a small to medium sized function or class.
 
-The problem becomes getting as close to 1500 characters as possible, while still ensuring the chunks are semantically similar and all relevant contexts are unseparated.
+The challenge is getting as close to 1500 characters as possible, while ensuring the chunks are semantically similar and the relevant context is connected.
 
 ## Out of the Box Solution 📦
 
@@ -387,7 +387,7 @@ We worked around this by always defaulting to the naive chunker in cases of erro
 
 This algorithm is currently embedded into our codebase but can be open-sourced as a standalone project or as part of Langchain. Although we lack the time to undertake this task, we are more than willing to help anyone interested in implementing it.
 
-Another problem is that code far apart may still need the context of each other. For example, a class method may need the context of the class header and long functions also need their function signatures. A possible improvement would be to somehow use a format like:
+Another problem is that code snippets far apart(in lines) may still need to share context. For example, a class method may need the context of the class header and long functions also need their function signatures. A possible improvement would be to somehow use a format like:
 
 ```python
 class Foo:
@@ -395,5 +395,4 @@ class Foo:
   def bar(self):
       pass
 ```
-
 We can consider using universal ctags or the like for simpler and more universal parsing or train a custom spaCy sentencizer on manually annotated chunks, but that might be a bit over-engineered.
