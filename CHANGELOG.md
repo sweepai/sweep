@@ -15,6 +15,8 @@
 - Moved code review step to before PR is created, so the PR you see initially should be higher quality. Also various prompt improvements for more consistent code modifications!
 
 ## July 26, 2023
+- We just posted our blog "Letting an AI Junior Dev Run GitHub Actions" on HN.
+- We just improved our search ranking again!
 
 ## July 25, 2023
 - We've made drastic improvements to Sweep with Github Actions!
