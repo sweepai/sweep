@@ -36,9 +36,6 @@ Describe bugs, small features, and refactors like you would to a junior develope
 * 👀 Addresses developer replies & comments on its PRs
 * 🔎 Uses embedding-based code search
 
-### Why Sweep is Unique 🦄
-
-Unlike Copilot, which only provides IDE based autocompletion, Sweep handles the entire flow end-to-end. Unlike ChatGPT, Sweep does not require pasting files.
 
 | Recently Added Features                            | Date          |
 |----------------------------------------------------|---------------|
@@ -46,6 +43,10 @@ Unlike Copilot, which only provides IDE based autocompletion, Sweep handles the 
 | Fixes PRs based on GitHub Actions feedback         | Jul 22, 2023? |
 | Large File Support using File Streaming            | Jul 25, 2023? |
 | Improved retrieval with newer code embedding model | Jul 29, 2023? |
+
+### Why Sweep is Unique 🦄
+
+Unlike Copilot, which only provides IDE based autocompletion, Sweep handles the entire flow end-to-end. Unlike ChatGPT, Sweep does not require pasting files.
 
 
 [Demo](https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47)
