@@ -59,8 +59,8 @@ def create_pr_changes(
 
     try:
         logger.info("Making PR...")
-        pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
-        completed_count, fcr_count = sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
+        pull_request.branch_name = sweep_bot.git_hosting_service.create_branch(pull_request.branch_name)
+        completed_count, fcr_count = sweep_bot.git_hosting_service.change_files(file_change_requests, pull_request.branch_name)
         if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")
             posthog.capture(
@@ -90,13 +90,13 @@ def create_pr_changes(
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
 
-        # pr = sweep_bot.repo.create_pull(
-        #     title="[DRAFT] " + pr_title,
-        #     body=pr_description,
-        #     head=pull_request.branch_name,
-        #     base=SweepConfig.get_branch(sweep_bot.repo),
-        # )
-        # pr.add_to_labels(GITHUB_LABEL_NAME)
+        pr = sweep_bot.git_hosting_service.create_pull_request(
+            title="[DRAFT] " + pr_title,
+            body=pr_description,
+            head=pull_request.branch_name,
+            base=SweepConfig.get_branch(sweep_bot.repo),
+        )
+        pr.add_labels(GITHUB_LABEL_NAME)
     except MaxTokensExceeded as e:
         logger.error(e)
         posthog.capture(
