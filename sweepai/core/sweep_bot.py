@@ -435,12 +435,6 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.debug(
                 f"{file_change_request.filename}, {f'Create {file_change_request.filename}'}, {file_change.code}, {branch}"
             )
-            # Retrieve the original file content
-            original_file_content = self.get_file(file_change_request.filename, branch=branch).decoded_content.decode("utf-8")
-            # If the original file content is identical to the new file content, log a warning and return
-            if original_file_content == file_change.code:
-                logger.warning(f"No changes made to {file_change_request.filename}. Skipping file creation.")
-                return
             self.repo.create_file(
                 file_change_request.filename,
                 file_change.commit_message,
@@ -495,10 +489,6 @@ class SweepBot(CodeGenBot, GithubBot):
                     break  # If the chunking was successful, break the loop
                 except MaxTokensExceeded:
                     continue  # If the chunking was not successful, continue to the next chunk size
-            # If the original file content is identical to the new file content, log a warning and return
-            if file_contents == new_file_contents:
-                logger.warning(f"No changes made to {file_change_request.filename}. Skipping file update.")
-                return
             logger.debug(
                 f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
             )
