@@ -23,7 +23,7 @@ If I search for “GitHub Action run”, it should match the section correspondi
 
 How do we create 20-line chunks? One naive approach is to evenly break up the 400-line file into 20-line chunks.
 
-However, this approach does not work. Semantically similar code will not stay together, and we'll lost context. For instance, function headers could be separated from their implementation details and the docstrings.
+However, this approach does not work. Semantically similar code will not stay together, and will have lost context. For instance, function headers could be separated from their implementation details and the docstrings.
 
 Our current code chunking algorithm processes **2M+ files a day** and is [open-source](https://github.com/sweepai/sweep/blob/b267b613d4c706eaf959fe6789f11e9a856521d1/sweepai/utils/utils.py#L48-L126)!
 
