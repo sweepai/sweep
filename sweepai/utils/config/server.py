@@ -24,15 +24,14 @@ GITHUB_BOT_TOKEN = os.environ.get('GITHUB_BOT_TOKEN')
 if not GITHUB_BOT_TOKEN:
     GITHUB_BOT_TOKEN = os.environ.get('GITHUB_TOKEN')
 
-GITHUB_APP_ID = os.environ.get('GITHUB_APP_ID')
-# deprecated: old logic transfer so upstream can use this
-if not GITHUB_APP_ID:
+BITBUCKET_APP_ID = os.environ.get('BITBUCKET_APP_ID')
+if not BITBUCKET_APP_ID:
     if PREFIX == "prod":
-        GITHUB_APP_ID = "307814"
+        BITBUCKET_APP_ID = "Your Bitbucket App ID for production"
     elif PREFIX == "dev":
-        GITHUB_APP_ID = "324098"
+        BITBUCKET_APP_ID = "Your Bitbucket App ID for development"
     elif PREFIX == "dev2":
-        GITHUB_APP_ID = "327588"
+        BITBUCKET_APP_ID = "Your Bitbucket App ID for dev2"
 GITHUB_BOT_USERNAME = os.environ.get('GITHUB_BOT_USERNAME')
 # deprecated: old logic transfer so upstream can use this
 if not GITHUB_BOT_USERNAME:
@@ -46,8 +45,8 @@ if not GITHUB_BOT_USERNAME:
 GITHUB_LABEL_NAME = os.environ.get('GITHUB_LABEL_NAME', 'sweep')
 GITHUB_LABEL_COLOR = os.environ.get('GITHUB_LABEL_COLOR', '9400D3')
 GITHUB_LABEL_DESCRIPTION = os.environ.get('GITHUB_LABEL_DESCRIPTION', 'Sweep your software chores')
-GITHUB_APP_PEM = os.environ.get('GITHUB_APP_PEM')
-GITHUB_CONFIG_BRANCH = os.environ.get('GITHUB_CONFIG_BRANCH', 'sweep/add-sweep-config')
+BITBUCKET_APP_SECRET = os.environ.get('BITBUCKET_APP_SECRET')
+BITBUCKET_CONFIG_BRANCH = os.environ.get('BITBUCKET_CONFIG_BRANCH', 'sweep/add-sweep-config')
 GITHUB_DEFAULT_CONFIG = os.environ.get('GITHUB_DEFAULT_CONFIG', """# Sweep AI turns bug fixes & feature requests into code changes (https://sweep.dev)
 # For details on our config file, check out our docs at https://docs.sweep.dev
 
