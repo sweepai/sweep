@@ -29,6 +29,7 @@ pyyaml = "^6.0"
 pylint-pydantic = "^0.2.3"
 llama-index = "^0.7.15"
 greenlet = "2.0.1"
+modal-client = "^0.50.2846"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"

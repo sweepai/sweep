@@ -48,7 +48,8 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
         summary=summary + replies_text,
         snippets=[],
         tree=tree,
-        diffs=[diffs[0] if len(diffs) > 0 else ""],
+        # diffs=[diffs[0] if len(diffs) > 0 else ("", "")],
+        diffs=[diffs[0]],
         pr_title=pr.title,
         pr_message=pr.body or "",
     )
