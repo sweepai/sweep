@@ -120,12 +120,12 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    def generate_pull_request(self, retries=5) -> PullRequest:
+    def generate_pull_request(self, retries=3) -> PullRequest:
         for count in range(retries):
             too_long = False
             try:
                 logger.info(f"Generating for the {count}th time...")
-                if too_long or count == retries - 2:  # if on last try, use gpt4-32k (improved context window)
+                if too_long or count >= retries - 2:  # if on last try, use gpt4-32k (improved context window)
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
                 else:
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)
@@ -409,9 +409,10 @@ class SweepBot(CodeGenBot, GithubBot):
         added_modify_hallucination = False
 
         for file_change_request in file_change_requests:
+            changed_file = False
             try:
                 if file_change_request.change_type == "create":
-                    self.handle_create_file(file_change_request, branch)
+                    changed_file = self.handle_create_file(file_change_request, branch)
                 elif file_change_request.change_type == "modify":
                     if not added_modify_hallucination:
                         added_modify_hallucination = True
@@ -419,12 +420,14 @@ class SweepBot(CodeGenBot, GithubBot):
                         for message in modify_file_hallucination_prompt:
                             self.messages.append(Message(**message))
 
-                    self.handle_modify_file(file_change_request, branch)
+                    changed_file = self.handle_modify_file(file_change_request, branch)
             except MaxTokensExceeded as e:
                 raise e
             except Exception as e:
                 logger.error(f"Error in change_files_in_github {e}")
-            completed += 1
+
+            if changed_file:
+                completed += 1
         return completed, num_fcr
 
     def handle_create_file(self, file_change_request: FileChangeRequest, branch: str):
@@ -441,8 +444,11 @@ class SweepBot(CodeGenBot, GithubBot):
                 file_change.code,
                 branch=branch,
             )
+
+            return True
         except Exception as e:
             logger.info(f"Error in handle_create_file: {e}")
+            return False
 
     def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
         CHUNK_SIZE = 1200  # Number of lines to process at a time
@@ -492,7 +498,7 @@ class SweepBot(CodeGenBot, GithubBot):
             # If the original file content is identical to the new file content, log a warning and return
             if file_contents == new_file_contents:
                 logger.warning(f"No changes made to {file_change_request.filename}. Skipping file update.")
-                return
+                return False
             logger.debug(
                 f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
             )
@@ -505,6 +511,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     file.sha,
                     branch=branch,
                 )
+                return True
             except Exception as e:
                 logger.info(f"Error in updating file, repulling and trying again {e}")
                 file = self.get_file(file_change_request.filename, branch=branch)
@@ -515,8 +522,10 @@ class SweepBot(CodeGenBot, GithubBot):
                     file.sha,
                     branch=branch,
                 )
+                return True
         except MaxTokensExceeded as e:
             raise e
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
+            return False
