@@ -115,12 +115,12 @@ def list_directory_tree(
                     directory_tree_string += f"{indentation}{name}/...\n"
             else:
                 directory_tree_string += f"{indentation}{name}\n"
-                if os.path.isfile(complete_path) and relative_path in included_files:
-                    # Todo, use these to fetch neighbors
-                    ctags_str, names = get_ctags_for_file(ctags, complete_path)
-                    ctags_str = "\n".join([indentation + line for line in ctags_str.splitlines()])
-                    if ctags_str.strip():
-                        directory_tree_string += f"{ctags_str}\n"
+                # if os.path.isfile(complete_path) and relative_path in included_files:
+                #     # Todo, use these to fetch neighbors
+                #     ctags_str, names = get_ctags_for_file(ctags, complete_path)
+                #     ctags_str = "\n".join([indentation + line for line in ctags_str.splitlines()])
+                #     if ctags_str.strip():
+                #         directory_tree_string += f"{ctags_str}\n"
         return directory_tree_string
 
     directory_tree = list_directory_contents(root_directory, ctags=ctags)
