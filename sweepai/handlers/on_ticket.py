@@ -428,6 +428,7 @@ def on_ticket(
             2
         )
 
+        # TODO(lukejagg): Generate PR after modifications are made
         # CREATE PR METADATA
         logger.info("Generating PR...")
         pull_request = sweep_bot.generate_pull_request()
