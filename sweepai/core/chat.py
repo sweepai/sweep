@@ -188,7 +188,7 @@ class ChatGPT(BaseModel):
             function_name: dict | None = None,
     ):
         if self.chat_logger:
-            tickets_allocated = 60 if self.chat_logger.is_paying_user() else 3
+            tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
             tickets_count = self.chat_logger.get_ticket_count()
             if tickets_count < tickets_allocated:
                 model = model or self.model
