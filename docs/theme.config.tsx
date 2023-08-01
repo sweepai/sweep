@@ -1,6 +1,5 @@
 import React from 'react'
 import { DocsThemeConfig } from 'nextra-theme-docs'
-// import { Analytics } from '@vercel/analytics/react';
 
 const config: DocsThemeConfig = {
   logo: <img width={120} src="https://docs.sweep.dev/banner.png" style={{borderRadius: 5}}/>,
@@ -10,7 +9,6 @@ const config: DocsThemeConfig = {
       <meta property="og:title" content="Sweep AI Documentation" />
       <meta property="og:description" content="The official documentation for Sweep AI." />
       <meta property="og:image" content="https://docs.sweep.dev/banner.png" />
-      {/* <Analytics /> */}
       <script defer src="/_vercel/insights/script.js"></script>
     </head>
   ),
