@@ -522,7 +522,7 @@ def on_ticket(
     except NoFilesException as e:
         logger.info("Sweep needs more details")
         log_error("Sweep needs more details", str(e) + "\n" + traceback.format_exc())
-        edit_sweep_comment("Sorry, Sweep could not find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!", -1)
+        edit_sweep_comment("Sweep could not find any appropriate files to edit to address this issue. Please provide more details about the files that need to be modified or the changes that need to be made.", -1)
         raise e
     except openai.error.InvalidRequestError as e:
         logger.error(traceback.format_exc())
