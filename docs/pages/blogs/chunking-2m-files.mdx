@@ -6,9 +6,9 @@ author: Kevin Lu
 
 **Kevin Lu** - July 30th, 2023
 
----
+*Update: This algorithm is now publicly available in LlamaIndex at https://github.com/jerryjliu/llama_index/blob/e567e6a20cf89bfdc7e1c62fd456648cc59d7480/llama_index/langchain_helpers/text_splitter.py#L476-L559C1!*
 
-Hacker News link: https://news.ycombinator.com/item?id=36948403. Please leave a comment if you enjoy this blog post or have any questions!
+---
 
 Initializing any vector store requires chunking large documents for effective search.
 
@@ -387,9 +387,11 @@ We worked around this by always defaulting to the naive chunker in cases of erro
 
 ## Future 🔮
 
-This algorithm is currently embedded into our codebase but can be open-sourced as a standalone project or as part of Langchain. Although we lack the time to undertake this task, we are more than willing to help anyone interested in implementing it. Feel free to leave a comment or reach out to me on the HN post if interested at https://news.ycombinator.com/item?id=36948403.
+~~This algorithm is currently embedded into our codebase but can be open-sourced as a standalone project or as part of Langchain. Although we lack the time to undertake this task, we are more than willing to help anyone interested in implementing it.~~ 
 
-Another problem is that code snippets far apart(in lines) may still need to share context. For example, a class method may need the context of the class header and long functions also need their function signatures. A possible improvement would be to somehow use a format like:
+Edit: This algorithm is now integrated into LlamaIndex via https://github.com/jerryjliu/llama_index/pull/7100.
+
+Another problem is that code snippets far apart (in lines) may still need to share context. For example, a class method may need the context of the class header and long functions also need their function signatures. A possible improvement would be to somehow use a format like:
 
 ```python
 class Foo:
