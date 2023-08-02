@@ -64,7 +64,7 @@ secrets = [
 FUNCTION_SETTINGS = {
     "image": image,
     "secrets": secrets,
-    "timeout": 30 * 60,
+    "timeout": 60 * 60,
     "keep_warm": 1,
 }
 

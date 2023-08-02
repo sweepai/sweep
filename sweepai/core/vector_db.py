@@ -31,7 +31,7 @@ DISKCACHE_DIR = "/root/cache/diskcache/"
 DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 256
 SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-mpnet-base-v2"
-timeout = 60 * 30  # 30 minutes
+timeout = 60 * 60  # 30 minutes
 CACHE_VERSION = "v1.0.3"
 MAX_FILES = 3000
 
