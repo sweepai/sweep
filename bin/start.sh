@@ -8,5 +8,6 @@ if [ "$python_version" != "$required_python_version" ]; then
     pyenv global $required_python_version
 fi
 
+source $(pyenv root)/completions/pyenv.zsh
 export PYTHONPATH=.
 python sweepai/app/cli.py
