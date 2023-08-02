@@ -75,13 +75,20 @@ diff_section_prompt = """
 
 review_prompt = """\
 I need you to carefully review the code diffs in this pull request.
-The code was written by an inexperienced programmer and may contain accidental deletions, logic errors, unimplemented sections (such as "...") or other issues. Ensure that the code actually reflects the pull request description and title and is complete.
+The code was written by an inexperienced programmer and may contain
+* Accidental deletions
+* Logic errors
+* Unimplemented sections (such as "pass", "...", "# rest of code here")
+* Other issues. 
+
+Ensure that the code actually reflects the pull request description and title and is complete.
 Think step-by-step logically and thoroughly analyze to summarize the diffs per file in the format:
 
 Step-by-step thoughts:
-* Lines x1-x2: Summary of the changes (added, deleted, modified, errors, issues) 
-* Lines y1-y2: Summary of the changes (added, deleted, modified, errors, issues)
+* Lines x1-x2: Summary of the changes and errors introduced if any (added, deleted, modified, errors, issues) 
+* Lines y1-y2: Summary of the changes and errors introduced if any (added, deleted, modified, errors, issues)
 ...
+
 <file_summarization>
 * file_1 - changes in file_1
 * file_1 - more changes in file_1
@@ -438,7 +445,7 @@ Gather information (i.e. fetch more snippets) to solve the problem. Use "create_
 code_repair_check_system_prompt = """\
 You are a genius trained for validating code.
 You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product. 
-Our goal is to validate if the final code is valid. This means there's undefined variables, no syntax errors, and the code runs.
+Our goal is to validate if the final code is valid. This means there's undefined variables, no syntax errors, has no unimplemented functions (e.g. pass's, comments saying "rest of code") and the code runs.
 """
 
 code_repair_check_prompt = """\
@@ -457,7 +464,8 @@ Reply in the following format:
 Step-by-step thoughts with explanations:
 1. No syntax errors: True/False
 2. No undefined variables: True/False
-3. Code runs: True/False
+3. No unimplemented functions: True/False
+4. Code runs: True/False
 
 <valid>True</valid> or <valid>False</valid>
 """
