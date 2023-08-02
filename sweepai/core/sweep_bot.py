@@ -451,7 +451,7 @@ class SweepBot(CodeGenBot, GithubBot):
             return False
 
     def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
-        CHUNK_SIZE = 1200  # Number of lines to process at a time
+        CHUNK_SIZE = 800  # Number of lines to process at a time
         try:
             file = self.get_file(file_change_request.filename, branch=branch)
             file_contents = file.decoded_content.decode("utf-8")
@@ -459,7 +459,7 @@ class SweepBot(CodeGenBot, GithubBot):
             
             new_file_contents = ""  # Initialize an empty string to hold the new file contents
             all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
-            chunk_sizes = [1200, 1000, 800]  # Define the chunk sizes for the backoff mechanism
+            chunk_sizes = [800, 600, 400]  # Define the chunk sizes for the backoff mechanism
             for CHUNK_SIZE in chunk_sizes:
                 try:
                     chunking = len(lines) > CHUNK_SIZE * 1.5 # Only chunk if the file is large enough
@@ -493,7 +493,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             else:
                                 new_file_contents += new_chunk
                     break  # If the chunking was successful, break the loop
-                except MaxTokensExceeded:
+                except Exception:
                     continue  # If the chunking was not successful, continue to the next chunk size
             # If the original file content is identical to the new file content, log a warning and return
             if file_contents == new_file_contents:
