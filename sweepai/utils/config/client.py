@@ -76,6 +76,11 @@ def get_description(repo: Repository) -> str:
     except Exception as e:
         return ""
 
+@staticmethod
+def read_sweep_yaml() -> None:
+    with open('sweep.yaml', 'r') as file:
+        print(file.read())
+
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get('GITHUB_APP_CLIENT_ID', 'Iv1.91fd31586a926a9f')
 SWEEP_API_ENDPOINT = os.environ.get('SWEEP_API_ENDPOINT', f"https://sweepai--{PREFIX}-ui.modal.run")
