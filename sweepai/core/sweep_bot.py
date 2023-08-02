@@ -529,3 +529,17 @@ class SweepBot(CodeGenBot, GithubBot):
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
             return False
+
+    def remove_file(self, file_removal_request: FileRemovalRequest, branch: str):
+        try:
+            file = self.get_file(file_removal_request.filename, branch=branch)
+            self.repo.delete_file(
+                file_removal_request.filename,
+                f'Remove {file_removal_request.filename}',
+                file.sha,
+                branch=branch,
+            )
+            return True
+        except Exception as e:
+            logger.info(f"Error in remove_file: {e}")
+            return False
