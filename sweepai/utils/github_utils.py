@@ -213,9 +213,13 @@ def search_snippets(
             repo.full_name, query, num_files, installation_id=installation_id
         )
         logger.info(f"Snippets for query {query}: {snippets}")
+    new_snippets = []
     for snippet in snippets:
         try:
             file_contents = get_file_contents(repo, snippet.file_path, ref=branch)
+        except:
+            continue
+        try:
             if len(file_contents) > sweep_config.max_file_limit:  # more than ~10000 tokens
                 logger.warning(f"Skipping {snippet.file_path}, too many tokens")
                 continue
@@ -224,6 +228,8 @@ def search_snippets(
             logger.warning(f"Skipping {snippet.file_path}")
         else:
             snippet.content = file_contents
+            new_snippets.append(snippet)
+    snippets = new_snippets
     from git import Repo
     token = get_token(installation_id)
     shutil.rmtree("repo", ignore_errors=True)
