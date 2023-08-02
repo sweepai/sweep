@@ -176,25 +176,25 @@ def create_config_pr(
         sweep_bot.repo.create_file(
             'sweep.yaml',
             'Create sweep.yaml config file',
-            GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
+            GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch) + '\n',
             branch=branch_name
         )
         sweep_bot.repo.create_file(
             '.github/ISSUE_TEMPLATE/sweep-bugfix.yml',
             'Create bugfix template',
-            BUGFIX_TEMPLATE,
+            BUGFIX_TEMPLATE + '\n',
             branch=branch_name
         )
         sweep_bot.repo.create_file(
             '.github/ISSUE_TEMPLATE/sweep-feature.yml',
             'Create feature template',
-            FEATURE_TEMPLATE,
+            FEATURE_TEMPLATE + '\n',
             branch=branch_name
         )
         sweep_bot.repo.create_file(
             '.github/ISSUE_TEMPLATE/sweep-refactor.yml',
             'Create refactor template',
-            REFACTOR_TEMPLATE,
+            REFACTOR_TEMPLATE + '\n',
             branch=branch_name
         )
     except Exception as e:
