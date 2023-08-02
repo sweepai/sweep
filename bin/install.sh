@@ -1,6 +1,6 @@
 #!/bin/bash
 # Check Python version
-if ! python --version | grep -q "Python 3.10"
+if ! python3.10 --version &> /dev/null
 then
     echo "Python 3.10 is not installed, installing..."
     pyenv install 3.10.0
