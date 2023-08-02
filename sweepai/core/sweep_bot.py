@@ -500,7 +500,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.warning(f"No changes made to {file_change_request.filename}. Skipping file update.")
                 return False
             # Check if the file has been modified to a single line of whitespace
-            if new_file_contents.strip() == "":
+            if file_contents.strip() != "" and new_file_contents.strip() == "":
                 logger.debug(f"{file_name}, {f'Delete {file_name}'}, {branch}")
                 # Delete the file using the GitHub API
                 self.repo.delete_file(
