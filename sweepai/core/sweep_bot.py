@@ -414,11 +414,14 @@ class SweepBot(CodeGenBot, GithubBot):
                 if file_change_request.change_type == "create":
                     changed_file = self.handle_create_file(file_change_request, branch)
                 elif file_change_request.change_type == "modify":
-                    if not added_modify_hallucination:
-                        added_modify_hallucination = True
-                        # Add hallucinated example for better parsing
-                        for message in modify_file_hallucination_prompt:
-                            self.messages.append(Message(**message))
+                    changed_file = self.handle_modify_file(file_change_request, branch)
+                elif file_change_request.change_type == "delete":
+                    self.repo.delete_file(file_change_request.filename, "Delete file", branch)
+                    changed_file = True
+            except MaxTokensExceeded as e:
+                raise e
+            except Exception as e:
+                logger.error(f"Error in change_files_in_github {e}")
 
                     changed_file = self.handle_modify_file(file_change_request, branch)
             except MaxTokensExceeded as e:
