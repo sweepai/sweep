@@ -112,7 +112,7 @@ def clean_instructions(instructions: str):
 class FileChangeRequest(RegexMatchableBaseModel):
     filename: str
     instructions: str
-    change_type: Literal["modify"] | Literal["create"]
+    change_type: Literal["modify"] | Literal["create"] | Literal["delete"]
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
