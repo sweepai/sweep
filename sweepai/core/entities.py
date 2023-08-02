@@ -126,6 +126,9 @@ class FileChangeRequest(RegexMatchableBaseModel):
                                 change_type="modify")
         return res
 
+class FileRemovalRequest(BaseModel):
+    filename: str
+
 
 class FileCreation(RegexMatchableBaseModel):
     commit_message: str
