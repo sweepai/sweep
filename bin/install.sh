@@ -1,4 +1,11 @@
 #!/bin/bash
+# Check Python version
+if ! python --version | grep -q "Python 3.10"
+then
+    echo "Python 3.10 is not installed, installing..."
+    pyenv install 3.10.0
+    pyenv global 3.10.0
+fi
 # Check if poetry is installed
 if ! command -v poetry &> /dev/null
 then
@@ -13,4 +20,3 @@ poetry shell
 echo "Installing deeplake with pip..."
 pip install deeplake
 echo "Installation complete!"
-
