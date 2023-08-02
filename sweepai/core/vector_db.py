@@ -90,9 +90,10 @@ class Embedding:
     def compute(self, texts: list[str]):
         return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
 
-    @method()
-    def ping(self):
-        return "pong"
+    # Deprecated ping method
+    # @method()
+    # def ping(self):
+    #     return "pong"
 
 
 class ModalEmbeddingFunction():
