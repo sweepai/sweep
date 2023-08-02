@@ -523,6 +523,15 @@ class SweepBot(CodeGenBot, GithubBot):
                     branch=branch,
                 )
                 return True
+            # Check if the modified file contains only whitespace and delete the file if necessary
+            if new_file_contents.strip() == "":
+                logger.debug(f"Deleting file: {file_name}")
+                self.repo.delete_file(
+                    file_name,
+                    f'Delete {file_name}',
+                    file.sha,
+                    branch=branch,
+                )
         except MaxTokensExceeded as e:
             raise e
         except Exception as e:
