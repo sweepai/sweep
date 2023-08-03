@@ -15,8 +15,8 @@ Homepage = "https://sweep.dev"
 "Bug Tracker" = "https://github.com/sweepai/sweep/issues"
 
 [tool.poetry.dependencies]
-python = "^3.10"
-PyGithub = "1.59.0"
+python = "^3.11" # or another compatible version
+PyGithub = "1.60.0" # or another compatible version
 loguru = "^0.6.0"
 requests = "^2.28.2"
 urllib3 = "<2.0.0"
