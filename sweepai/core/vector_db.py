@@ -90,6 +90,7 @@ class Embedding:
 
     @method()
     def compute(self, texts: list[str]):
+        logger.info(f"Computing embeddings for {len(texts)} texts")
         return self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
 
 @stub.cls(
@@ -111,6 +112,7 @@ class CPUEmbedding:
 
     @method()
     def compute(self, texts: list[str]):
+        logger.info(f"Computing embeddings for {len(texts)} texts")
         return self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
 
 
@@ -126,6 +128,7 @@ class ModalEmbeddingFunction:
         else:
             batches = [texts[i:i + self.batch_size] for i in range(0, len(texts), ModalEmbeddingFunction.batch_size)]
             batches = [batch for batch in batches if len(batch) > 0]
+            logger.info([len(batch) for batch in batches])
             results = []
             for batch in tqdm(Embedding.compute.map(batches)): # pylint: disable=no-member
                 results.extend(batch)
