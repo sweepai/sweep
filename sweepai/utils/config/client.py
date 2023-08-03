@@ -18,7 +18,7 @@ class SweepConfig(BaseModel):
                                '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.ico', '.mp3', '.wav', '.wma', '.ogg',
                                '.flac', '.mp4', '.avi', '.mkv', '.mov', '.wmv', '.m4a', '.m4v', '.3gp', '.3g2', '.rm',
                                '.swf', '.flv', '.iso', '.bin', '.tar', '.zip', '.7z', '.gz', '.rar', '.pdf', '.doc',
-                               '.docx', '.xls', '.xlsx', '.ppt', '.pptx']
+                               '.docx', '.xls', '.xlsx', '.ppt', '.pptx'
                                ]  # Image formats
     max_file_limit: int = 60_000
 
