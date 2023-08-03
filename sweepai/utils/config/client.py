@@ -18,8 +18,7 @@ class SweepConfig(BaseModel):
                                '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.ico', '.mp3', '.wav', '.wma', '.ogg',
                                '.flac', '.mp4', '.avi', '.mkv', '.mov', '.wmv', '.m4a', '.m4v', '.3gp', '.3g2', '.rm',
                                '.swf', '.flv', '.iso', '.bin', '.tar', '.zip', '.7z', '.gz', '.rar', '.pdf', '.doc',
-                               '.docx', '.xls', '.xlsx', '.ppt', '.pptx']
-    ]  # Image formats
+                               '.docx', '.xls', '.xlsx', '.ppt', '.pptx']  # Image formats
     max_file_limit: int = 60_000
 
     def to_yaml(self) -> str:
@@ -80,6 +79,11 @@ def get_description(repo: Repository) -> str:
         return description
     except Exception as e:
         return ""
+
+@staticmethod
+def read_sweep_yaml() -> None:
+    with open('sweep.yaml', 'r') as file:
+        print(file.read())
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get('GITHUB_APP_CLIENT_ID', 'Iv1.91fd31586a926a9f')
