@@ -31,10 +31,9 @@ DEEPLAKE_DIR = "/root/cache/"
 DISKCACHE_DIR = "/root/cache/diskcache/"
 DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 256
-# SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-mpnet-base-v2"
-SENTENCE_TRANSFORMERS_MODEL = "thenlper/gte-small"
+SENTENCE_TRANSFORMERS_MODEL = "thenlper/gte-base"
 timeout = 60 * 60  # 30 minutes
-CACHE_VERSION = "v1.0.4"
+CACHE_VERSION = "v1.0.6"
 MAX_FILES = 3000
 
 image = (
@@ -326,21 +325,10 @@ def compute_deeplake_vs(collection_name,
                 {"metadatas": metadatas, "ids": ids, "embeddings": embeddings}))
         if cache_inst and cache_success and len(documents_to_compute) > 0:
             logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
-            # cache_keys = [hash_sha256(
-            #     doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in documents_to_compute]
-            # cache_inst.mset({key: json.dumps(value)
-            #                 for key, value in zip(cache_keys, computed_embeddings)})
-            #                     # Calculate the total number of batches
-            batch_size = 8192
-            total_batches = math.ceil(len(documents_to_compute) / batch_size)
-            for batch_idx in range(total_batches):
-                start_idx = batch_idx * batch_size
-                end_idx = (batch_idx + 1) * batch_size
-                current_batch_docs = documents_to_compute[start_idx:end_idx]
-                current_batch_embeddings = computed_embeddings[start_idx:end_idx]
-                cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in current_batch_docs]
-                batch_data = {key: json.dumps(value) for key, value in zip(cache_keys, current_batch_embeddings)}
-                cache_inst.mset(batch_data)
+            cache_keys = [hash_sha256(
+                doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in documents_to_compute]
+            cache_inst.mset({key: json.dumps(value)
+                            for key, value in zip(cache_keys, computed_embeddings)})
         logger.info("Finished indexing repository")
         return deeplake_vs
     else:
