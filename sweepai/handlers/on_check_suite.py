@@ -18,7 +18,7 @@ log_message = """GitHub actions yielded the following error.
 
 {error_logs}
 
-This is likely a linting or type-checking issue with the source code but if you are updating the GitHub Actions or versioning, this could be an issue with the GitHub Action yaml files."""
+This is likely a linting or type-checking issue with the source code."""
 
 def download_logs(repo_full_name: str, run_id: int, installation_id: int):
     headers = {
