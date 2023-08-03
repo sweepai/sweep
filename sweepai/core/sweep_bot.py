@@ -435,6 +435,8 @@ class SweepBot(CodeGenBot, GithubBot):
             file_change = self.create_file(file_change_request)
             file_markdown = is_markdown(file_change_request.filename)
             file_change.code = format_contents(file_change.code, file_markdown)
+            if file_markdown and not file_change.code.endswith('\n'):
+                file_change.code += '\n'
             logger.debug(
                 f"{file_change_request.filename}, {f'Create {file_change_request.filename}'}, {file_change.code}, {branch}"
             )
@@ -491,7 +493,9 @@ class SweepBot(CodeGenBot, GithubBot):
                             if i + CHUNK_SIZE < len(lines):
                                 new_file_contents += new_chunk + "\n"
                             else:
-                                new_file_contents += new_chunk
+                new_file_contents += new_chunk
+                if file_markdown and not new_file_contents.endswith('\n'):
+                    new_file_contents += '\n'
                     break  # If the chunking was successful, break the loop
                 except Exception:
                     continue  # If the chunking was not successful, continue to the next chunk size
