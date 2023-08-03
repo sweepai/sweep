@@ -6,8 +6,6 @@ If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?
 The issue title should start with `Sweep: ` For issues and PRs, call Sweep using the Sweep label or by prefixing your text with `Sweep: `
 - **Sweep works best with real repositories and real issues.**
 
-Note: The initial startup time typically takes around 3-5 minutes depending on your codebase.
-
 
 <table>
   <tr>
@@ -16,6 +14,8 @@ Note: The initial startup time typically takes around 3-5 minutes depending on y
     </td>
   </tr>
 </table>
+
+Note: The initial startup time typically takes around 3-5 minutes depending on your codebase.
 
 ## Fix Sweep's PRs
 
