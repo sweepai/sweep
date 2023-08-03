@@ -1,4 +1,4 @@
-# Welcome to Sweep - Your AI Junior Developer! 🎉
+# Welcome to Sweep - GitHub App installed successfully! 🎉
 
 If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?v=fr5V5EWVcyM&lc=UgxM_ZzFiFYfjo1ADU54AaABAg)
 
