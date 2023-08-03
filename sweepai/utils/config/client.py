@@ -21,6 +21,7 @@ class SweepConfig(BaseModel):
                                '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.svg', '.parquet', '.pyc', '.pub', '.pem']
     # Image formats
     max_file_limit: int = 60_000
+    newline_at_eof: bool = True
 
     def to_yaml(self) -> str:
         return yaml.safe_dump(self.dict())
@@ -39,7 +40,9 @@ class SweepConfig(BaseModel):
                 contents = repo.get_contents("sweep.yaml")
             except Exception:
                 contents = repo.get_contents(".github/sweep.yaml")
-            branch_name = yaml.safe_load(contents.decoded_content.decode("utf-8"))["branch"]
+            config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
+            branch_name = config["branch"]
+            newline_at_eof = config.get("newline_at_eof", True)
             try:
                 repo.get_branch(branch_name)
                 return branch_name
