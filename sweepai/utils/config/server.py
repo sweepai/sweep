@@ -1,6 +1,6 @@
 import os
 
-PREFIX = os.environ.get('PREFIX', 'dev')
+PREFIX = 'dev'
 print(f"Using prefix: {PREFIX}")
 ENV = PREFIX
 
