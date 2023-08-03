@@ -22,6 +22,7 @@ class SweepConfig(BaseModel):
     # Image formats
     max_file_limit: int = 60_000
     newline_at_eof: bool = True
+    newline_at_eof: bool = True
 
     def to_yaml(self) -> str:
         return yaml.safe_dump(self.dict())
