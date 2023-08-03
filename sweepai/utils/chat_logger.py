@@ -30,8 +30,8 @@ class ChatLogger(BaseModel):
             self.chat_collection = db['chat_history']
             self.ticket_collection = db['tickets']
             self.ticket_collection.create_index('username')
-            self.chat_collection.create_index('expireAt', expireAfterSeconds=0)
-            self.expiration = datetime.utcnow() + timedelta(days=1)
+            self.chat_collection.create_index('expiration', expireAfterSeconds=2419200)  # 28 days data persistence
+            self.expiration = datetime.utcnow() + timedelta(days=1)  # 1 day since historical use case
         except Exception as e:
             logger.warning('Chat history could not connect to MongoDB')
             logger.warning(e)
