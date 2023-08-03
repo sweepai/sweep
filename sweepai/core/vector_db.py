@@ -77,6 +77,7 @@ def parse_collection_name(name: str) -> str:
     gpu="T4",
     retries=modal.Retries(
         max_retries=5, backoff_coefficient=2, initial_delay=5),
+    timeout=timeout,
 )
 class Embedding:
     def __enter__(self):
@@ -88,12 +89,7 @@ class Embedding:
 
     @method()
     def compute(self, texts: list[str]):
-        return self.model.encode(texts, batch_size=BATCH_SIZE).tolist()
-
-    @method()
-    def ping(self):
-        return "pong"
-
+        return self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
 
 class ModalEmbeddingFunction():
     def __init__(self):
@@ -276,15 +272,20 @@ def compute_deeplake_vs(collection_name,
         x in enumerate(embeddings) if x is None]
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
 
+        logger.info(f"Computing {len(documents_to_compute)} embeddings...")
         computed_embeddings = embedding_function(documents_to_compute)
+        logger.info(f"Computed {len(computed_embeddings)} embeddings")
 
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
+       
+        logger.info("Adding embeddings to deeplake vector store...")
         deeplake_vs.add(
             text=ids,
             embedding=embeddings,
             metadata=metadatas
         )
+        logger.info("Added embeddings to deeplake vector store")
         if cache_inst and cache_success:
             cache_inst.set(f"github-{sha}{CACHE_VERSION}", json.dumps(
                 {"metadatas": metadatas, "ids": ids, "embeddings": embeddings}))
@@ -295,6 +296,7 @@ def compute_deeplake_vs(collection_name,
                 doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in documents_to_compute]
             cache_inst.mset({key: json.dumps(value)
                              for key, value in zip(cache_keys, computed_embeddings)})
+        logger.info("Finished indexing repository")
         return deeplake_vs
     else:
         logger.error("No documents found in repository")
@@ -321,9 +323,11 @@ def get_relevant_snippets(
         username: str | None = None,
         sweep_config: SweepConfig = SweepConfig(),
 ):
+    logger.info("Starting search by getting vector store...")
     deeplake_vs = get_deeplake_vs_from_repo(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
     )
+    logger.info("Searching for relevant snippets...")
     results = {"metadata": [], "text": []}
     for n_result in range(n_results, 0, -1):
         try:
@@ -332,6 +336,7 @@ def get_relevant_snippets(
             break
         except Exception:
             pass
+    logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
         if username is None:
             username = "anonymous"
