@@ -201,7 +201,7 @@ class GithubBot(BaseModel):
             return branch
         except GithubException as e:
             logger.error(f"Error: {e}, trying with other branch names...")
-            logger.warning(f'{base_branch}, {base_branch.name}')
+            logger.warning(f'{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}')
             if retry:
                 for i in range(1, 6):
                     try:
