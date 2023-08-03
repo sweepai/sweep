@@ -216,6 +216,24 @@ class Chunking:
     @method()
     def chunk(
             self,
+            file_content: Union[str, List[str]],
+            file_path: str,
+            score: float = 1.0,
+            additional_metadata: dict[str, str] = {},
+            max_chunk_size: int = 512 * 3,
+            chunk_size: int = 30,
+            overlap: int = 15
+    ) -> tuple[list[str], list[dict[str, str]]]:
+        if isinstance(file_content, list):
+            results = []
+            for content in file_content:
+                result = self._chunk_single(content, file_path, score, additional_metadata, max_chunk_size, chunk_size, overlap)
+                results.append(result)
+            return results
+        else:
+            return self._chunk_single(file_content, file_path, score, additional_metadata, max_chunk_size, chunk_size, overlap)
+    def _chunk_single(
+            self,
             file_content: str,
             file_path: str,
             score: float = 1.0,
