@@ -207,7 +207,6 @@ def get_deeplake_vs_from_repo(
            and all(not file.endswith(ext) for ext in sweep_config.exclude_exts)
            and all(not file[len("repo/"):].startswith(dir_name) for dir_name in sweep_config.exclude_dirs)
     ]
-    NUM_FILES = len(file_list)
 
     file_paths = []
     file_contents = []
@@ -253,7 +252,7 @@ def get_deeplake_vs_from_repo(
                         continue
                 commits = list(repo.get_commits(path=file_path, sha=branch_name))
                 score_factor = get_factors(contents, commits)
-                if cache_inst and cache_success and NUM_FILES < 300:
+                if cache_inst and cache_success:
                     cache_inst.set(cache_key, json.dumps(score_factor), ex=60 * 60 * 2)
                 score_factors.append(score_factor)
             except Exception as e:
@@ -320,7 +319,7 @@ def compute_deeplake_vs(collection_name,
             metadata=metadatas
         )
         logger.info("Added embeddings to deeplake vector store")
-        if cache_inst and cache_success:
+        if cache_inst and cache_success and len(documents) < 300:
             cache_inst.set(f"github-{sha}{CACHE_VERSION}", json.dumps(
                 {"metadatas": metadatas, "ids": ids, "embeddings": embeddings}))
         if cache_inst and cache_success and len(documents_to_compute) > 0:
