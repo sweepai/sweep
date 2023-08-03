@@ -276,9 +276,15 @@ def get_deeplake_vs_from_repo(
                 continue
     scores = get_scores(score_factors) # take percentiles + sum the scores
 
-    chunked_results = chunker.map(file_contents, file_paths, scores, kwargs={
-        "additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}
-    })
+    # Split the file_contents, file_paths, and scores into sublists of length 10
+    file_contents_sublists = [file_contents[i:i + 10] for i in range(0, len(file_contents), 10)]
+    file_paths_sublists = [file_paths[i:i + 10] for i in range(0, len(file_paths), 10)]
+    scores_sublists = [scores[i:i + 10] for i in range(0, len(scores), 10)]
+    
+    # Pass the sublists to the chunker.map call
+    chunked_results = [chunker.map(file_contents_sublist, file_paths_sublist, scores_sublist, kwargs={
+            "additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}
+        }) for file_contents_sublist, file_paths_sublist, scores_sublist in zip(file_contents_sublists, file_paths_sublists, scores_sublists)]
 
     documents, metadatas, ids = zip(*chunked_results)
     documents = [item for sublist in documents for item in sublist]
