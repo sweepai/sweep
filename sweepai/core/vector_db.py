@@ -92,7 +92,11 @@ class Embedding:
     def compute(self, texts: list[str]):
         logger.info(f"Computing embeddings for {len(texts)} texts")
         vector = self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
-        logger.info(len(vector), len(vector[0]))
+        try:
+            logger.info(f'{len(vector)}\n{len(vector[0])}')
+        except Exception as e:
+            print(f'oops {e}')
+            pass
         return vector
 
 @stub.cls(
@@ -116,7 +120,11 @@ class CPUEmbedding:
     def compute(self, texts: list[str]) -> list[list[float]]:
         logger.info(f"Computing embeddings for {len(texts)} texts")
         vector = self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
-        logger.info(len(vector), len(vector[0]))
+        try:
+            logger.info(f'{len(vector)}\n{len(vector[0])}')
+        except Exception as e:
+            logger.info(f'oops {e}')
+            pass
         return vector
 
 
