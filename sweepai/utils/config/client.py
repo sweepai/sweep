@@ -14,7 +14,12 @@ class SweepConfig(BaseModel):
     include_dirs: list[str] = []
     exclude_dirs: list[str] = [".git", "node_modules", "venv"]
     include_exts: list[str] = ['.cs', '.csharp', '.py', '.md', '.txt', '.ts', '.tsx', '.js', '.jsx', '.mjs']
-    exclude_exts: list[str] = ['.min.js', '.min.js.map', '.min.css', '.min.css.map', '.tfstate', '.tfstate.backup']
+    exclude_exts: list[str] = ['.min.js', '.min.js.map', '.min.css', '.min.css.map', '.tfstate', '.tfstate.backup',
+                               '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.ico', '.mp3', '.wav', '.wma', '.ogg',
+                               '.flac', '.mp4', '.avi', '.mkv', '.mov', '.wmv', '.m4a', '.m4v', '.3gp', '.3g2', '.rm',
+                               '.swf', '.flv', '.iso', '.bin', '.tar', '.zip', '.7z', '.gz', '.rar', '.pdf', '.doc',
+                               '.docx', '.xls', '.xlsx', '.ppt', '.pptx']
+    ]  # Image formats
     max_file_limit: int = 60_000
 
     def to_yaml(self) -> str:
