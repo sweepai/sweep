@@ -1,4 +1,12 @@
 #!/bin/bash
+# Check Python version
+version=$(python -c 'import sys; print(sys.version_info.major, sys.version_info.minor)' | tr -d ' ,')
+if [ "$version" != "310" ]
+then
+    echo "Python 3.10 is not installed, installing..."
+    pyenv install 3.10.6
+    pyenv global 3.10.6
+fi
 # Check if poetry is installed
 if ! command -v poetry &> /dev/null
 then
@@ -13,4 +21,3 @@ poetry shell
 echo "Installing deeplake with pip..."
 pip install deeplake
 echo "Installation complete!"
-
