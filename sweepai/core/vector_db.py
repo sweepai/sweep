@@ -208,6 +208,8 @@ def get_deeplake_vs_from_repo(
            and all(not file.endswith(ext) for ext in sweep_config.exclude_exts)
            and all(not file[len("repo/"):].startswith(dir_name) for dir_name in sweep_config.exclude_dirs)
     ]
+    if len(file_list) > 500:
+        cache_success = False
 
     file_paths = []
     file_contents = []
