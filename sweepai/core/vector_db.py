@@ -91,7 +91,9 @@ class Embedding:
     @method()
     def compute(self, texts: list[str]):
         logger.info(f"Computing embeddings for {len(texts)} texts")
-        return self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
+        vector = self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
+        logger.info(len(vector), len(vector[0]))
+        return vector
 
 @stub.cls(
     image=image,
@@ -111,9 +113,11 @@ class CPUEmbedding:
         )
 
     @method()
-    def compute(self, texts: list[str]):
+    def compute(self, texts: list[str]) -> list[list[float]]:
         logger.info(f"Computing embeddings for {len(texts)} texts")
-        return self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
+        vector = self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
+        logger.info(len(vector), len(vector[0]))
+        return vector
 
 
 class ModalEmbeddingFunction:
