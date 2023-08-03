@@ -496,7 +496,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 new_file_contents += new_chunk
                 if file_markdown and not new_file_contents.endswith('\n'):
                     new_file_contents += '\n'
-            break  # If the chunking was successful, break the loop
+                break  # If the chunking was successful, break the loop
                 except Exception:
                     continue  # If the chunking was not successful, continue to the next chunk size
             # If the original file content is identical to the new file content, log a warning and return
