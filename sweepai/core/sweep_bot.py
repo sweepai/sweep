@@ -201,8 +201,9 @@ class GithubBot(BaseModel):
             return branch
         except GithubException as e:
             logger.error(f"Error: {e}, trying with other branch names...")
+            logger.warning(f'{base_branch}, {base_branch.name}')
             if retry:
-                for i in range(1, 100):
+                for i in range(1, 6):
                     try:
                         logger.warning(f"Retrying {branch}_{i}...")
                         self.repo.create_git_ref(
