@@ -165,6 +165,7 @@ def get_deeplake_vs_from_repo(
 
     if cache_inst and cache_success:
 
+    if len(file_list) <= 500 and cache_inst and cache_success:
         try:
             github_cache_key = f"github-{commit_hash}{CACHE_VERSION}"
             cache_hit = cache_inst.get(github_cache_key)
@@ -174,7 +175,6 @@ def get_deeplake_vs_from_repo(
             else:
                 deeplake_items = None
                 logger.info(f"Cache miss for {repo_name}")
-
             if deeplake_items:
                 deeplake_vs = init_deeplake_vs(repo_name)
                 deeplake_vs.add(
@@ -328,18 +328,18 @@ def compute_deeplake_vs(collection_name,
             # cache_keys = [hash_sha256(
             #     doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in documents_to_compute]
             # cache_inst.mset({key: json.dumps(value)
-            #                 for key, value in zip(cache_keys, computed_embeddings)})
-            #                     # Calculate the total number of batches
-            batch_size = 8192
-            total_batches = math.ceil(len(documents_to_compute) / batch_size)
-            for batch_idx in range(total_batches):
-                start_idx = batch_idx * batch_size
-                end_idx = (batch_idx + 1) * batch_size
-                current_batch_docs = documents_to_compute[start_idx:end_idx]
-                current_batch_embeddings = computed_embeddings[start_idx:end_idx]
-                cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in current_batch_docs]
-                batch_data = {key: json.dumps(value) for key, value in zip(cache_keys, current_batch_embeddings)}
-                cache_inst.mset(batch_data)
+    if len(documents) <= 500 and cache_inst and cache_success and len(documents_to_compute) > 0:
+        logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
+        batch_size = 8192
+        total_batches = math.ceil(len(documents_to_compute) / batch_size)
+        for batch_idx in range(total_batches):
+            start_idx = batch_idx * batch_size
+            end_idx = (batch_idx + 1) * batch_size
+            current_batch_docs = documents_to_compute[start_idx:end_idx]
+            current_batch_embeddings = computed_embeddings[start_idx:end_idx]
+            cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in current_batch_docs]
+            batch_data = {key: json.dumps(value) for key, value in zip(cache_keys, current_batch_embeddings)}
+            cache_inst.mset(batch_data)
         logger.info("Finished indexing repository")
         return deeplake_vs
     else:
