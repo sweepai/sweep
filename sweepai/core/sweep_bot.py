@@ -143,7 +143,12 @@ class CodeGenBot(ChatGPT):
                 self.delete_messages_from_chat("pull_request")
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
-            pull_request.branch_name = "sweep/" + pull_request.branch_name[:250]
+
+            # Remove duplicate slashes from branch name (max 1)
+            final_branch = pull_request.branch_name[:240]
+            final_branch = final_branch.split("/", 1)[-1]
+
+            pull_request.branch_name = "sweep/" + final_branch
             return pull_request
         raise Exception("Could not generate PR text")
 
