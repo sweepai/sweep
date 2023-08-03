@@ -83,7 +83,7 @@ def create_pr_changes(
         # Include issue number in PR description
         if issue_number:
             # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)
-            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\n---\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```\n To make tweaks to this pull request, leave a comment below or in the code."
+            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\n---\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```\n To get Sweep to edit this pull request, leave a comment below or in the code. Leaving a comment in the code will only modify the file but commenting below can change the entire PR."
         else:
             pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
         pr_title = pull_request.title
