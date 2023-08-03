@@ -1,5 +1,6 @@
 import glob
 import json
+import math
 import os
 import re
 import shutil
@@ -30,9 +31,10 @@ DEEPLAKE_DIR = "/root/cache/"
 DISKCACHE_DIR = "/root/cache/diskcache/"
 DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 256
-SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-mpnet-base-v2"
+# SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-mpnet-base-v2"
+SENTENCE_TRANSFORMERS_MODEL = "thenlper/gte-small"
 timeout = 60 * 60  # 30 minutes
-CACHE_VERSION = "v1.0.3"
+CACHE_VERSION = "v1.0.4"
 MAX_FILES = 3000
 
 image = (
@@ -91,21 +93,45 @@ class Embedding:
     def compute(self, texts: list[str]):
         return self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
 
-class ModalEmbeddingFunction():
+@stub.cls(
+    image=image,
+    secrets=secrets,
+    network_file_systems={MODEL_DIR: model_volume},
+    keep_warm=1,
+    retries=modal.Retries(max_retries=5, backoff_coefficient=2, initial_delay=5),
+    cpu=1, # this can change later
+    timeout=timeout,
+)
+class CPUEmbedding:
+    def __enter__(self):
+        from sentence_transformers import SentenceTransformer # pylint: disable=import-error
+
+        self.model = SentenceTransformer(
+            SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
+        )
+
+    @method()
+    def compute(self, texts: list[str]):
+        return self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
+
+
+class ModalEmbeddingFunction:
+    batch_size: int = 4096 # can pick a better constant later
+
     def __init__(self):
-        self.batch_size = 4096
+        pass
 
-    def __call__(self, texts):
-        # Divide the input data into batches
-        batches = [texts[i:i + self.batch_size] for i in range(0, len(texts), self.batch_size)]
-        
-        # Process each batch in parallel and collect the results
-        results = []
-        for batch in batches:
-            results.extend(Embedding.compute.call(batch)) # pylint: disable=no-member
+    def __call__(self, texts: list[str], cpu=False):
+        if cpu:
+            return CPUEmbedding.compute.call(texts) # pylint: disable=no-member
+        else:
+            batches = [texts[i:i + self.batch_size] for i in range(0, len(texts), ModalEmbeddingFunction.batch_size)]
+            batches = [batch for batch in batches if len(batch) > 0]
+            results = []
+            for batch in tqdm(Embedding.compute.map(batches)): # pylint: disable=no-member
+                results.extend(batch)
 
-        return results
-
+            return results
 
 embedding_function = ModalEmbeddingFunction()
 
@@ -298,12 +324,22 @@ def compute_deeplake_vs(collection_name,
             cache_inst.set(f"github-{sha}{CACHE_VERSION}", json.dumps(
                 {"metadatas": metadatas, "ids": ids, "embeddings": embeddings}))
         if cache_inst and cache_success and len(documents_to_compute) > 0:
-            logger.info(
-                f"Updating cache with {len(computed_embeddings)} embeddings")
-            cache_keys = [hash_sha256(
-                doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in documents_to_compute]
-            cache_inst.mset({key: json.dumps(value)
-                             for key, value in zip(cache_keys, computed_embeddings)})
+            logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
+            # cache_keys = [hash_sha256(
+            #     doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in documents_to_compute]
+            # cache_inst.mset({key: json.dumps(value)
+            #                 for key, value in zip(cache_keys, computed_embeddings)})
+            #                     # Calculate the total number of batches
+            batch_size = 8192
+            total_batches = math.ceil(len(documents_to_compute) / batch_size)
+            for batch_idx in range(total_batches):
+                start_idx = batch_idx * batch_size
+                end_idx = (batch_idx + 1) * batch_size
+                current_batch_docs = documents_to_compute[start_idx:end_idx]
+                current_batch_embeddings = computed_embeddings[start_idx:end_idx]
+                cache_keys = [hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION for doc in current_batch_docs]
+                batch_data = {key: json.dumps(value) for key, value in zip(cache_keys, current_batch_embeddings)}
+                cache_inst.mset(batch_data)
         logger.info("Finished indexing repository")
         return deeplake_vs
     else:
@@ -339,7 +375,7 @@ def get_relevant_snippets(
     results = {"metadata": [], "text": []}
     for n_result in range(n_results, 0, -1):
         try:
-            query_embedding = embedding_function([query])[0]
+            query_embedding = embedding_function([query], cpu=True)[0]
             results = deeplake_vs.search(embedding=query_embedding, k=n_result)
             break
         except Exception:
