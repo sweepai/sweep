@@ -85,8 +85,8 @@ Ensure that the code actually reflects the pull request description and title an
 Think step-by-step logically and thoroughly analyze to summarize the diffs per file in the format:
 
 Step-by-step thoughts:
-* Lines x1-x2: Summary of the changes and errors introduced if any (added, deleted, modified, errors, issues) 
-* Lines y1-y2: Summary of the changes and errors introduced if any (added, deleted, modified, errors, issues)
+* Lines x1-x2: Summary of the changes and errors if any (added, deleted, modified, errors, issues) 
+* Lines y1-y2: Summary of the changes and errors if any (added, deleted, modified, errors, issues)
 ...
 
 <file_summarization>
