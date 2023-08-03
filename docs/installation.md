@@ -73,6 +73,8 @@ For professionals who want more tickets and priority support/feature requests, c
 
 Note - you need to have Sweep installed and [Issues enabled in Repo](https://docs.github.com/en/repositories/managing-your-repositorys/settings-and-features/enabling-features-for-your-repository/enabling-or-disabling-github-discussions-for-a-repository)
 
+Note: The initial startup time typically takes around 3-5 minutes depending on your codebase.
+
 # Bug Reports
 
 If Sweep fails to solve your issue that is within the scope of Sweep (see Limitations) and you submit a high-quality bug report at our [Discord](https://discord.gg/sweep-ai), we will reset your ticket count, giving your GPT-4 tickets back.
