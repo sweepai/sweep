@@ -1,6 +1,9 @@
 import json
 import webbrowser
 from typing import Any
+import rasterio
+import numpy as np
+from pykrige.ok import OrdinaryKriging
 
 import httpx
 import requests
@@ -77,6 +80,37 @@ def break_json(raw_json: str):
 class APIClient(BaseModel):
     config: SweepChatConfig
     api_endpoint: str = SWEEP_API_ENDPOINT
+
+    def load_geotiffs(self, file_paths: list[str]) -> list:
+        geotiffs = []
+        for file_path in file_paths:
+            with rasterio.open(file_path) as src:
+                geotiffs.append(src.read())
+        return geotiffs
+
+    def calculate_ndvi(self, geotiffs: list) -> list:
+        ndvi_values = []
+        for geotiff in geotiffs:
+            red = geotiff[3]
+            nir = geotiff[4]
+            ndvi = (nir.astype(float) - red) / (nir + red)
+            ndvi_values.append(ndvi)
+        return ndvi_values
+
+    def perform_kriging(self, ndvi_values: list) -> list:
+        kriging_results = []
+        for ndvi in ndvi_values:
+            OK = OrdinaryKriging(
+                np.linspace(0, 4, 100),
+                np.linspace(0, 4, 100),
+                ndvi,
+                variogram_model='gaussian',
+                verbose=False,
+                enable_plotting=False
+            )
+            z, ss = OK.execute('grid', np.linspace(0, 4, 100), np.linspace(0, 4, 100))
+            kriging_results.append((z, ss))
+        return kriging_results
 
     def __init__(self, config: SweepChatConfig):
         super().__init__(config=config)
