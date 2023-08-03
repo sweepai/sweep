@@ -78,7 +78,11 @@ def get_line_number(index: int, source_code: str) -> int:
     return line_number - 1
 
 
-def chunker(tree, source_code_bytes, max_chunk_size=512 * 3, coalesce=50):
+def chunker(input, max_chunk_size=512 * 3, coalesce=50):
+    if isinstance(input, list):
+        return [chunker(i, max_chunk_size, coalesce) for i in input]
+    else:
+        tree, source_code_bytes = input
     # Recursively form chunks with a maximum chunk size of max_chunk_size
     def chunker_helper(node, source_code_bytes, start_position=0):
         chunks = []
@@ -98,7 +102,7 @@ def chunker(tree, source_code_bytes, max_chunk_size=512 * 3, coalesce=50):
             chunks.append(current_chunk)
         return chunks
 
-    chunks = chunker_helper(tree.root_node, source_code_bytes)
+    chunks = [chunker_helper(tree.root_node, source_code_bytes[i:i+10]) for i in range(0, len(source_code_bytes), 10)]
 
     # removing gaps
     for prev, curr in zip(chunks[:-1], chunks[1:]):
