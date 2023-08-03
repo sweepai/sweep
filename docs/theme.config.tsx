@@ -20,7 +20,7 @@ const config: DocsThemeConfig = {
   },
   docsRepositoryBase: 'https://github.com/sweepai/sweep-docs',
   darkMode: true,
-  primaryHue: 240,
+  primaryHue: 220,
   footer: {
     text: 'Sweep AI © 2023',
   },
