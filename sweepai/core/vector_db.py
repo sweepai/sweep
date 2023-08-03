@@ -93,10 +93,18 @@ class Embedding:
 
 class ModalEmbeddingFunction():
     def __init__(self):
-        pass
+        self.batch_size = 4096
 
     def __call__(self, texts):
-        return Embedding.compute.call(texts) # pylint: disable=no-member
+        # Divide the input data into batches
+        batches = [texts[i:i + self.batch_size] for i in range(0, len(texts), self.batch_size)]
+        
+        # Process each batch in parallel and collect the results
+        results = []
+        for batch in batches:
+            results.extend(Embedding.compute.call(batch)) # pylint: disable=no-member
+
+        return results
 
 
 embedding_function = ModalEmbeddingFunction()
