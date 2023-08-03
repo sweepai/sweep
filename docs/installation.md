@@ -15,6 +15,8 @@ The issue title should start with `Sweep: ` For issues and PRs, call Sweep using
   </tr>
 </table>
 
+Note: The initial startup time typically takes around 3-5 minutes depending on your codebase.
+
 ## Fix Sweep's PRs
 
 Sweep will mess up sometimes. Comment on it's PR. (ex: "use PyTorch instead of Tensorflow".)
