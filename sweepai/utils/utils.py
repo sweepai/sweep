@@ -163,6 +163,7 @@ extension_to_language = {
 @stub.cls(
     image=chunking_image,
     network_file_systems={CHUNKING_CACHE_DIR: chunking_volume},
+    timeout=300,
 )
 class Chunking:
 
@@ -212,17 +213,66 @@ class Chunking:
         self.languages["tsx"] = Language("/tmp/typescript.so", "tsx")
 
         logger.debug("Finished downloading tree-sitter parsers")
-
+    
     @method()
     def chunk(
-            self,
-            file_content: str,
-            file_path: str,
-            score: float = 1.0,
-            additional_metadata: dict[str, str] = {},
-            max_chunk_size: int = 512 * 3,
-            chunk_size: int = 30,
-            overlap: int = 15
+        self, 
+        file_content: str,
+        file_path: str,
+        score: float = 1.0,
+        additional_metadata: dict[str, str] = {},
+        max_chunk_size: int = 512 * 3,
+        chunk_size: int = 30,
+        overlap: int = 15,
+    ):
+        try:
+            results = Chunking._chunk_core.call( # pylint: disable=no-member
+                file_content,
+                file_path,
+                score,
+                additional_metadata,
+                max_chunk_size,
+                chunk_size,
+                overlap,
+            )
+            return results
+        except modal.exception.TimeoutError as e:
+            # duplicate code
+            logger.error(e)
+            logger.info(file_path)
+            ids = []
+            metadatas = []
+            logger.info("Unknown language")
+            source_lines = file_content.split('\n')
+            num_lines = len(source_lines)
+            logger.info(f"Number of lines: {num_lines}")
+            chunks = []
+            start_line = 0
+            while start_line < num_lines and num_lines > overlap:
+                end_line = min(start_line + chunk_size, num_lines)
+                chunk = '\n'.join(source_lines[start_line:end_line])
+                chunks.append(chunk)
+                ids.append(f"{file_path}:{start_line}:{end_line}")
+                metadatas.append({
+                    "file_path": file_path,
+                    "start": start_line,
+                    "end": end_line,
+                    "score": score,
+                    **additional_metadata
+                })
+                start_line += chunk_size - overlap
+            return results
+
+    @method()
+    def _chunk_core(
+        self,
+        file_content: str,
+        file_path: str,
+        score: float = 1.0,
+        additional_metadata: dict[str, str] = {},
+        max_chunk_size: int = 512 * 3,
+        chunk_size: int = 30,
+        overlap: int = 15,
     ) -> tuple[list[str], list[dict[str, str]]]:
         """This function returns a list of chunks and a list of metadata for each chunk.
         chunks: list of file chunks

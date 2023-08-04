@@ -55,11 +55,11 @@ In order to address this issue, what required information do you need about the 
 </contextual_thoughts>
 
 <partial_snippet file="...">
-[insert relevant segments from thoughts here]
+relevant snippet
 </partial_snippet>
 
 <relevant_paths>
-[insert relevant paths from file tree]
+file relevant path
 </relevant_paths>
 """
 
@@ -327,12 +327,16 @@ Lines to change in the file: (include multiple small changes as opposed to one l
 
 Code Generation:
 ```
-Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Do not remove comments.
+Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Always add lines before and after if possible.
 
 <<<< ORIGINAL
+line_before
 old_code
+line_after
 ====
+line_before
 new_code
+line_after
 >>>> UPDATED
 ```
 
