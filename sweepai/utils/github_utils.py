@@ -29,6 +29,8 @@ from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.scorer import merge_and_dedup_snippets
 
+MAX_FILE_COUNT = 100
+
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"
     return re.sub(pattern, "_", string)
@@ -106,7 +108,7 @@ def list_directory_tree(
 
         directory_tree_string = ""
 
-        for name in file_and_folder_names:
+        for name in file_and_folder_names[:MAX_FILE_COUNT]:
             relative_path = os.path.join(current_directory, name)[len(root_directory) + 1:]
             if name in excluded_directories:
                 continue
