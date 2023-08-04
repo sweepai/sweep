@@ -1,0 +1,26 @@
+name: Run tests/create_sample_issue.py
+      run: python3 tests/create_sample_issue.py
+      env:
+        GITHUB_BOT_TOKEN: ${{ secrets.GITHUB_BOT_TOKEN }}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.10'
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1.1.8
+
+    - name: Install dependencies
+      run: poetry install
+
+    - name: Run tests/create_sample_issue.py
+      run: python3 tests/create_sample_issue.py
+      env:
+        GITHUB_BOT_TOKEN: ${{ secrets.GITHUB_BOT_TOKEN }}
