@@ -42,6 +42,7 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
 
 
 def clean_logs(logs_str: str):
+    # Extraction process could be better
     MAX_LINES = 300
     log_list = logs_str.split("\n")
     truncated_logs = [log[log.find(" ") + 1:] for log in log_list]
@@ -107,14 +108,13 @@ def on_check_suite(request: CheckRunCompleted):
         problematic_logs += "\n\nThere are a lot of errors. This is likely a larger issue with the PR and not a small linting/type-checking issue."
     comments = list(pr.get_issue_comments())
 
-    logs_list = [extract_logs_from_comment(comment.body) for comment in comments]
-    current_logs = extract_logs_from_comment(problematic_logs)
+    # logs_list = [extract_logs_from_comment(comment.body) for comment in comments]
+    # current_logs = extract_logs_from_comment(problematic_logs)
 
-    if logs_list.count(current_logs) >= 2:
+    if all([comment.startswith("GitHub actions yielded the following error.") for comment in comments[-3:]]):
         comment = pr.as_issue().create_comment(log_message.format(error_logs=problematic_logs) + "\n\nI'm getting the same errors 3 times in a row, so I will stop working on fixing this PR.")
         logger.warning("Skipping logs because it is duplicated")
         raise Exception("Duplicate error logs")
-    print(problematic_logs)
     comment = pr.as_issue().create_comment(log_message.format(error_logs=problematic_logs))
     on_comment(
         repo_full_name=request.repository.full_name,
