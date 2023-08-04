@@ -230,7 +230,7 @@ def get_deeplake_vs_from_repo(
            and all(not file.endswith(ext) for ext in sweep_config.exclude_exts)
            and all(not file[len("repo/"):].startswith(dir_name) for dir_name in sweep_config.exclude_dirs)
     ]
-
+    logger.info(f"First pass through files complete, found {len(file_list)} files")
     file_paths = []
     file_contents = []
     score_factors = []
