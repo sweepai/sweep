@@ -340,7 +340,7 @@ def compute_deeplake_vs(collection_name,
             metadata=metadatas
         )
         logger.info("Added embeddings to deeplake vector store")
-        if cache_inst and cache_success and len(documents) < 300:
+        if cache_inst and cache_success and len(documents) < 500:
             cache_inst.set(f"github-{sha}{CACHE_VERSION}", json.dumps(
                 {"metadatas": metadatas, "ids": ids, "embeddings": embeddings}))
         if cache_inst and cache_success and len(documents_to_compute) > 0:
