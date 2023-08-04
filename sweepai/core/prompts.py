@@ -55,11 +55,11 @@ In order to address this issue, what required information do you need about the 
 </contextual_thoughts>
 
 <partial_snippet file="...">
-[insert relevant segments from thoughts here]
+relevant snippet
 </partial_snippet>
 
 <relevant_paths>
-[insert relevant paths from file tree]
+file relevant path
 </relevant_paths>
 """
 
