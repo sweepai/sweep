@@ -1,3 +1,11 @@
+from redis.backoff import ExponentialBackoff
+from redis.retry import Retry
+from redis.client import Redis
+from redis.exceptions import (
+   BusyLoadingError,
+   ConnectionError,
+   TimeoutError
+)
 import os
 
 PREFIX = 'dev'
@@ -79,10 +87,12 @@ ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 MONGODB_URI = os.environ.get('MONGODB_URI')
 
 # goes under Modal 'redis_url' secret name (optional, can leave env var blank)
-REDIS_URL = os.environ.get('REDIS_URL')
-# deprecated: old logic transfer so upstream can use this
-if not REDIS_URL:
-    REDIS_URL = os.environ.get('redis_url')
+# Run 3 retries with exponential backoff strategy
+retry = Retry(ExponentialBackoff(), 3)
+# Redis client with retries on custom errors
+REDIS_URL = Redis(host='localhost', port=6379, retry=retry, retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError])
+# Redis client with retries on TimeoutError only
+r_only_timeout = Redis(host='localhost', port=6379, retry=retry, retry_on_timeout=True)
 
 # goes under Modal 'posthog' secret name (optional, can leave env var blank)
 POSTHOG_API_KEY = os.environ.get('POSTHOG_API_KEY')
