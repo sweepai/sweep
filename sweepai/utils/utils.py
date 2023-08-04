@@ -216,7 +216,7 @@ class Chunking:
     @method()
     def chunk(
             self,
-            file_content: Union[str, List[str]],
+            file_content: str | list[str],
             file_path: str,
             score: float = 1.0,
             additional_metadata: dict[str, str] = {},
