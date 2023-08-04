@@ -313,51 +313,56 @@ class Chunking:
 @stub.function(
     image=chunking_image,
     network_file_systems={CHUNKING_CACHE_DIR: chunking_volume},
-    timeout=40,
+    timeout=300,
 )
 def chunk(
-    file_content: str,
-    file_path: str,
-    score: float = 1.0,
+    file_content: str | list[str],
+    file_path: str | list[str],
+    score: float | list[float] = 1.0,
     additional_metadata: dict[str, str] = {},
     max_chunk_size: int = 512 * 3,
     chunk_size: int = 30,
     overlap: int = 15,
 ):
-    try:
-        results = Chunking.chunk_core.call( # pylint: disable=no-member
-            file_content,
-            file_path,
-            score,
-            additional_metadata,
-            max_chunk_size,
-            chunk_size,
-            overlap,
-        )
-        return results
-    except modal.exception.TimeoutError as e:
-        # duplicate code
-        logger.error(e)
-        logger.info(file_path)
-        ids = []
-        metadatas = []
-        logger.info("Unknown language")
-        source_lines = file_content.split('\n')
-        num_lines = len(source_lines)
-        logger.info(f"Number of lines: {num_lines}")
-        chunks = []
-        start_line = 0
-        while start_line < num_lines and num_lines > overlap:
-            end_line = min(start_line + chunk_size, num_lines)
-            chunk = '\n'.join(source_lines[start_line:end_line])
-            chunks.append(chunk)
-            ids.append(f"{file_path}:{start_line}:{end_line}")
-            metadatas.append({
-                "file_path": file_path,
-                "start": start_line,
-                "end": end_line,
-                "score": score,
-                **additional_metadata
-            })
-            start_line += chunk_size - overlap
-        return results
+    def chunk_single(file_content: str, file_path: str, score: str):
+        try:
+            results = Chunking.chunk_core.call( # pylint: disable=no-member
+                file_content,
+                file_path,
+                score,
+                additional_metadata,
+                max_chunk_size,
+                chunk_size,
+                overlap,
+            )
+            return results
+        except modal.exception.TimeoutError as e:
+            # duplicate code
+            logger.error(e)
+            logger.info(file_path)
+            ids = []
+            metadatas = []
+            logger.info("Unknown language")
+            source_lines = file_content.split('\n')
+            num_lines = len(source_lines)
+            logger.info(f"Number of lines: {num_lines}")
+            chunks = []
+            start_line = 0
+            while start_line < num_lines and num_lines > overlap:
+                end_line = min(start_line + chunk_size, num_lines)
+                chunk = '\n'.join(source_lines[start_line:end_line])
+                chunks.append(chunk)
+                ids.append(f"{file_path}:{start_line}:{end_line}")
+                metadatas.append({
+                    "file_path": file_path,
+                    "start": start_line,
+                    "end": end_line,
+                    "score": score,
+                    **additional_metadata
+                })
+                start_line += chunk_size - overlap
+            return chunks, metadatas, ids
+    if isinstance(file_content, str):
+        return chunk_single(file_content, file_path, score)
+    else:
+        return [chunk_single(content, path, score) for content, path, score in zip(file_content, file_path, score)]
