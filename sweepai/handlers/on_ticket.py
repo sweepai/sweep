@@ -200,7 +200,7 @@ def on_ticket(
     # Find the first comment made by the bot
     issue_comment = None
     is_paying_user = chat_logger.is_paying_user()
-    tickets_allocated = 60 if is_paying_user else 5
+    tickets_allocated = 120 if is_paying_user else 5
     ticket_count = max(tickets_allocated - chat_logger.get_ticket_count(), 0)
     use_faster_model = chat_logger.use_faster_model()
 
