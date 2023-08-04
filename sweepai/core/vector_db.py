@@ -281,7 +281,7 @@ def calculate_score_factor(repo_name, file_path, contents, cache_inst, cache_suc
         logger.warning(f"Received warning during scoring {e}, skipping...")
         return (1, 2, 5)
 
-score_factors = [calculate_score_factor(repo_name, file_path, contents, cache_inst, cache_success, repo, branch_name) for file_path, contents in zip(file_paths, file_contents)]
+    score_factors = [calculate_score_factor(repo_name, file_path, contents, cache_inst, cache_success, repo, branch_name) for file_path, contents in zip(file_paths, file_contents)]
     scores = get_scores(score_factors) # take percentiles + sum the scores
 
     logger.info(f"Finished getting list of files, chunking...")
