@@ -143,7 +143,12 @@ class CodeGenBot(ChatGPT):
                 self.delete_messages_from_chat("pull_request")
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
-            pull_request.branch_name = "sweep/" + pull_request.branch_name[:250]
+
+            # Remove duplicate slashes from branch name (max 1)
+            final_branch = pull_request.branch_name[:240]
+            final_branch = final_branch.split("/", 1)[-1]
+
+            pull_request.branch_name = "sweep/" + final_branch
             return pull_request
         raise Exception("Could not generate PR text")
 
@@ -196,8 +201,9 @@ class GithubBot(BaseModel):
             return branch
         except GithubException as e:
             logger.error(f"Error: {e}, trying with other branch names...")
+            logger.warning(f'{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}')
             if retry:
-                for i in range(1, 100):
+                for i in range(1, 6):
                     try:
                         logger.warning(f"Retrying {branch}_{i}...")
                         self.repo.create_git_ref(
