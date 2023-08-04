@@ -330,13 +330,13 @@ Code Generation:
 Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Always add lines before and after if possible.
 
 <<<< ORIGINAL
-lines_before
+line_before
 old_code
-lines_after
+line_after
 ====
-lines_before
+line_before
 new_code
-lines_after
+line_after
 >>>> UPDATED
 ```
 
