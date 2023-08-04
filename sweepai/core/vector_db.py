@@ -31,7 +31,7 @@ from ..utils.github_utils import get_token
 
 
 stub = modal.Stub(DB_MODAL_INST_NAME)
-chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "chunk")
+chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
 model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
 MODEL_DIR = "/root/cache/model"
 DEEPLAKE_DIR = "/root/cache/"
