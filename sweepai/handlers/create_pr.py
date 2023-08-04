@@ -120,7 +120,7 @@ def create_pr_changes(
                 **metadata,
             },
         )
-        raise e
+        return {"success": False, "error": str(e)}
     except Exception as e:
         logger.error(e)
         posthog.capture(
@@ -132,7 +132,7 @@ def create_pr_changes(
                 **metadata,
             },
         )
-        raise e
+        return {"success": False, "error": str(e)}
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("create_pr success")
