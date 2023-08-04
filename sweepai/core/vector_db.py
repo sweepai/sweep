@@ -135,7 +135,7 @@ class ModalEmbeddingFunction:
         pass
 
     def __call__(self, texts: list[str], cpu=False):
-        if cpu or len(texts) < 6: 
+        if cpu or len(texts) < 10: 
             return CPUEmbedding.compute.call(texts) # pylint: disable=no-member
         else:
             batches = [texts[i:i + ModalEmbeddingFunction.batch_size] for i in range(0, len(texts), ModalEmbeddingFunction.batch_size)]
