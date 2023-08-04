@@ -316,48 +316,53 @@ class Chunking:
     timeout=40,
 )
 def chunk(
-    file_content: str,
-    file_path: str,
+    file_content: str | list[str],
+    file_path: str | list[str],
     score: float = 1.0,
     additional_metadata: dict[str, str] = {},
     max_chunk_size: int = 512 * 3,
     chunk_size: int = 30,
     overlap: int = 15,
 ):
-    try:
-        results = Chunking.chunk_core.call( # pylint: disable=no-member
-            file_content,
-            file_path,
-            score,
-            additional_metadata,
-            max_chunk_size,
-            chunk_size,
-            overlap,
-        )
-        return results
-    except modal.exception.TimeoutError as e:
-        # duplicate code
-        logger.error(e)
-        logger.info(file_path)
-        ids = []
-        metadatas = []
-        logger.info("Unknown language")
-        source_lines = file_content.split('\n')
-        num_lines = len(source_lines)
-        logger.info(f"Number of lines: {num_lines}")
-        chunks = []
-        start_line = 0
-        while start_line < num_lines and num_lines > overlap:
-            end_line = min(start_line + chunk_size, num_lines)
-            chunk = '\n'.join(source_lines[start_line:end_line])
-            chunks.append(chunk)
-            ids.append(f"{file_path}:{start_line}:{end_line}")
-            metadatas.append({
-                "file_path": file_path,
-                "start": start_line,
-                "end": end_line,
-                "score": score,
-                **additional_metadata
-            })
-            start_line += chunk_size - overlap
-        return results
+    def chunk_single(file_content: str, file_path: str):
+        try:
+            results = Chunking.chunk_core.call( # pylint: disable=no-member
+                file_content,
+                file_path,
+                score,
+                additional_metadata,
+                max_chunk_size,
+                chunk_size,
+                overlap,
+            )
+            return results
+        except modal.exception.TimeoutError as e:
+            # duplicate code
+            logger.error(e)
+            logger.info(file_path)
+            ids = []
+            metadatas = []
+            logger.info("Unknown language")
+            source_lines = file_content.split('\n')
+            num_lines = len(source_lines)
+            logger.info(f"Number of lines: {num_lines}")
+            chunks = []
+            start_line = 0
+            while start_line < num_lines and num_lines > overlap:
+                end_line = min(start_line + chunk_size, num_lines)
+                chunk = '\n'.join(source_lines[start_line:end_line])
+                chunks.append(chunk)
+                ids.append(f"{file_path}:{start_line}:{end_line}")
+                metadatas.append({
+                    "file_path": file_path,
+                    "start": start_line,
+                    "end": end_line,
+                    "score": score,
+                    **additional_metadata
+                })
+                start_line += chunk_size - overlap
+            return results
+    if isinstance(file_content, str):
+        return chunk_single(file_content, file_path)
+    else:
+        return [chunk_single(content, path) for content, path in zip(file_content, file_path)]
