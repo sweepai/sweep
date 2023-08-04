@@ -216,14 +216,25 @@ class Chunking:
     @method()
     def chunk(
             self,
-            file_content: str,
-            file_path: str,
+            file_content: str | list[str],
+            file_path: str | list[str],
             score: float = 1.0,
             additional_metadata: dict[str, str] = {},
             max_chunk_size: int = 512 * 3,
             chunk_size: int = 30,
             overlap: int = 15
     ) -> tuple[list[str], list[dict[str, str]]]:
+    
+        if isinstance(file_content, list) and isinstance(file_path, list):
+            all_chunks = []
+            all_metadatas = []
+            all_ids = []
+            for single_file_content, single_file_path in zip(file_content, file_path):
+                chunks, metadatas, ids = self.chunk(single_file_content, single_file_path, score, additional_metadata, max_chunk_size, chunk_size, overlap)
+                all_chunks.extend(chunks)
+                all_metadatas.extend(metadatas)
+                all_ids.extend(ids)
+            return all_chunks, all_metadatas, all_ids
         """This function returns a list of chunks and a list of metadata for each chunk.
         chunks: list of file chunks
         metadata: list of metadata for each chunk example: {"file_path": "python", "start": 0, "end": 10}
