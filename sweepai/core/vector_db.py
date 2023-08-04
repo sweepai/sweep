@@ -285,6 +285,7 @@ def get_deeplake_vs_from_repo(
                 continue
     scores = get_scores(score_factors) # take percentiles + sum the scores
 
+    logger.info(f"Finished getting list of files, chunking...")
     chunked_results = chunker.map(file_contents, file_paths, scores, kwargs={
         "additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}
     })
