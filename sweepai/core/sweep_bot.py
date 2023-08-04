@@ -197,6 +197,14 @@ class GithubBot(BaseModel):
         branch = self.clean_branch_name(branch)
         base_branch = self.repo.get_branch(SweepConfig.get_branch(self.repo))
         try:
+            try:
+                test = self.repo.get_branch("sweep")
+                assert test is not None
+                # If it does exist, fix
+                branch = branch.replace('/', '_')  # Replace sweep/ with sweep_ (temp fix)
+            except Exception:
+                pass
+
             self.repo.create_git_ref(f"refs/heads/{branch}", base_branch.commit.sha)
             return branch
         except GithubException as e:
