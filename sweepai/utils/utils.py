@@ -163,7 +163,7 @@ extension_to_language = {
 @stub.cls(
     image=chunking_image,
     network_file_systems={CHUNKING_CACHE_DIR: chunking_volume},
-    timeout=20,
+    timeout=300,
 )
 class Chunking:
 
