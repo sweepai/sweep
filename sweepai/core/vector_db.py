@@ -41,7 +41,7 @@ BATCH_SIZE = 128
 SENTENCE_TRANSFORMERS_MODEL = "thenlper/gte-base"
 timeout = 60 * 60  # 30 minutes
 CACHE_VERSION = "v1.0.6"
-MAX_FILES = 3000
+MAX_FILES = 500
 
 image = (
     modal.Image.debian_slim()
