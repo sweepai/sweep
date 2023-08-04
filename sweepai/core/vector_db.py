@@ -11,7 +11,14 @@ from git.repo import Repo
 from github import Github
 from loguru import logger
 from modal import method
-from redis import Redis
+from redis.backoff import ExponentialBackoff
+from redis.retry import Retry
+from redis.client import Redis
+from redis.exceptions import (
+   BusyLoadingError,
+   ConnectionError,
+   TimeoutError
+)
 from tqdm import tqdm
 
 from sweepai.core.entities import Snippet
@@ -166,16 +173,18 @@ def get_deeplake_vs_from_repo(
     cache_inst = None
 
     if REDIS_URL is not None:
-        try:
-            # todo: initialize once
-            cache_inst = Redis.from_url(REDIS_URL)
-            logger.info(f"Successfully connected to redis cache")
-            cache_success = True
-        except:
-            cache_success = False
-            logger.error(f"Failed to connect to redis cache")
-    else:
-        logger.warning(f"REDIS_URL is None, skipping cache")
+            try:
+                # Run 3 retries with exponential backoff strategy
+                retry = Retry(ExponentialBackoff(), 3)
+                # Redis client with retries on custom errors
+                cache_inst = Redis(host='localhost', port=6379, retry=retry, retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError])
+                logger.info(f"Successfully connected to redis cache")
+                cache_success = True
+            except:
+                cache_success = False
+                logger.error(f"Failed to connect to redis cache")
+        else:
+            logger.warning(f"REDIS_URL is None, skipping cache")
 
     if cache_inst and cache_success:
 
