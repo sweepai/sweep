@@ -31,7 +31,7 @@ from ..utils.github_utils import get_token
 
 
 stub = modal.Stub(DB_MODAL_INST_NAME)
-chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
+chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "chunk")
 model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
 MODEL_DIR = "/root/cache/model"
 DEEPLAKE_DIR = "/root/cache/"
@@ -41,7 +41,7 @@ BATCH_SIZE = 128
 SENTENCE_TRANSFORMERS_MODEL = "thenlper/gte-base"
 timeout = 60 * 60  # 30 minutes
 CACHE_VERSION = "v1.0.6"
-MAX_FILES = 3000
+MAX_FILES = 500
 
 image = (
     modal.Image.debian_slim()
