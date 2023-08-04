@@ -29,7 +29,7 @@ from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.scorer import merge_and_dedup_snippets
 
-MAX_FILE_COUNT = 100
+MAX_FILE_COUNT = 50
 
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"
