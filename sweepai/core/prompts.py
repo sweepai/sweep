@@ -327,12 +327,16 @@ Lines to change in the file: (include multiple small changes as opposed to one l
 
 Code Generation:
 ```
-Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Do not remove comments.
+Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Always add lines before and after if possible.
 
 <<<< ORIGINAL
+lines_before
 old_code
+lines_after
 ====
+lines_before
 new_code
+lines_after
 >>>> UPDATED
 ```
 
