@@ -40,7 +40,7 @@ DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 128
 SENTENCE_TRANSFORMERS_MODEL = "thenlper/gte-base"
 timeout = 60 * 60  # 30 minutes
-CACHE_VERSION = "v1.0.6"
+CACHE_VERSION = "v1.0.9"
 MAX_FILES = 500
 
 image = (
@@ -285,24 +285,17 @@ def get_deeplake_vs_from_repo(
     scores = get_scores(score_factors) # take percentiles + sum the scores
 
     logger.info(f"Finished getting list of files, chunking...")
-    # chunked_results = chunker.map(file_contents, file_paths, scores, kwargs={
-    #     "additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}
-    # })
-    def chunk_into_sublists(lst, sublist_size=10):
+    def chunk_into_sublists(lst, sublist_size=30) -> list[list]:
         return [lst[i:i + sublist_size] for i in range(0, len(lst), sublist_size)]
 
-    chunked_file_contents = chunk_into_sublists(file_contents)
-    chunked_file_paths = chunk_into_sublists(file_paths)
-    chunked_scores = chunk_into_sublists(scores)
+    file_contents_batches = chunk_into_sublists(file_contents)
+    file_paths_batches = chunk_into_sublists(file_paths)
+    scores_batches = chunk_into_sublists(scores)
 
     chunked_results = []
-    for file_contents_sublist, file_paths_sublist, scores_sublist in chunker.map(chunked_file_contents, chunked_file_paths, chunked_scores, kwargs={
-            "additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}
-        }):
-        # chunked_results.extend(chunker.map(file_contents_sublist, file_paths_sublist, scores_sublist, kwargs={
-        #     "additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}
-        # }))
-        chunked_results.extend(zip(file_contents_sublist, file_paths_sublist, scores_sublist))
+    for batch in chunker.starmap(zip(file_contents_batches, file_paths_batches, scores_batches), kwargs={"additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}}):
+
+        chunked_results.extend(batch)
 
     documents, metadatas, ids = zip(*chunked_results)
     documents = [item for sublist in documents for item in sublist]

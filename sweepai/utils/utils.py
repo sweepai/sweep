@@ -313,18 +313,18 @@ class Chunking:
 @stub.function(
     image=chunking_image,
     network_file_systems={CHUNKING_CACHE_DIR: chunking_volume},
-    timeout=40,
+    timeout=300,
 )
 def chunk(
     file_content: str | list[str],
     file_path: str | list[str],
-    score: float = 1.0,
+    score: float | list[float] = 1.0,
     additional_metadata: dict[str, str] = {},
     max_chunk_size: int = 512 * 3,
     chunk_size: int = 30,
     overlap: int = 15,
 ):
-    def chunk_single(file_content: str, file_path: str):
+    def chunk_single(file_content: str, file_path: str, score: str):
         try:
             results = Chunking.chunk_core.call( # pylint: disable=no-member
                 file_content,
@@ -361,8 +361,8 @@ def chunk(
                     **additional_metadata
                 })
                 start_line += chunk_size - overlap
-            return results
+            return chunks, metadatas, ids
     if isinstance(file_content, str):
-        return chunk_single(file_content, file_path)
+        return chunk_single(file_content, file_path, score)
     else:
-        return [chunk_single(content, path) for content, path in zip(file_content, file_path)]
+        return [chunk_single(content, path, score) for content, path, score in zip(file_content, file_path, score)]
