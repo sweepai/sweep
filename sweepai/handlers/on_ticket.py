@@ -553,7 +553,7 @@ def on_ticket(
         logger.error(traceback.format_exc())
         logger.error(e)
         edit_sweep_comment(
-            "I'm sorry, but it looks like an error has occurred. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
+            "I'm sorry, but it looks like an error has occurred. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev.",
             -1
         )
         log_error("Workflow", str(e) + "\n" + traceback.format_exc())
