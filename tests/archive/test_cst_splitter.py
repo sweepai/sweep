@@ -275,7 +275,7 @@ export interface VectorIndexConstructorProps extends BaseIndexInit<IndexDict> {
 }
 """
 
-chunker = modal.Function.lookup("dev-utils", "Chunking.chunk")
+chunker = modal.Function.lookup("dev-utils", "chunk")
 
 if __name__ == "__main__":
     chunks, metadata, _id = chunker.call(js_text, "main.py")
