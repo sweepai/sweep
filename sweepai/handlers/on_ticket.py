@@ -444,7 +444,7 @@ def on_ticket(
         # WRITE PULL REQUEST
         logger.info("Making PR...")
         response = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
-        if not response or not response["success"]: raise Exception("Failed to create PR")
+        if not response or not response["success"]: raise Exception(f"Failed to create PR: {response['error']}")
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
