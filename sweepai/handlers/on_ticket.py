@@ -211,7 +211,7 @@ def on_ticket(
     payment_link = "https://buy.stripe.com/9AQ8zB26letOgzC5kp"
     user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
     payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
-    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name} with slow mode set to {slow_mode}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
+    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name} with slow mode set to {slow_mode}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link}) " if not is_paying_user else " ")
 
     def get_comment_header(index, errored=False, pr_message=""):
         config_pr_message = (
@@ -338,7 +338,7 @@ def on_ticket(
             description=message_summary,
             has_comments=comment_id == None
         )
-        logger.info(f"Rewrite complete for {title} {summary}")
+        logger.info(f"Rewrite complete for new title/summary: {new_title} {new_summary}")
 
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
