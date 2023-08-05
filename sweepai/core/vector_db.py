@@ -113,7 +113,7 @@ class Embedding:
     network_file_systems={MODEL_DIR: model_volume},
     keep_warm=1,
     retries=modal.Retries(max_retries=5, backoff_coefficient=2, initial_delay=5),
-    cpu=1, # this can change later
+    cpu=2, # this can change later
     timeout=timeout,
 )
 class CPUEmbedding:
