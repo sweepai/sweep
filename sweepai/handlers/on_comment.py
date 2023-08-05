@@ -236,6 +236,8 @@ def on_comment(
             file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
+        # Post a reply to the comment with the message "Done."
+        pr.create_issue_comment("Done.", in_reply_to=comment_id)
         if type(pr) != MockPR:
             if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
                 # Update the PR title to remove the "[DRAFT]" prefix
