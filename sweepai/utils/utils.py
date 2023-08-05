@@ -89,7 +89,6 @@ chunking_image = (
     modal.Image.debian_slim()
     .apt_install("git")
     .pip_install("tree-sitter", "loguru", "pyyaml", "PyGithub")
-    .run_function(download_parsers)
 )
 
 CHUNKING_CACHE_DIR = "/root/cache/"
@@ -218,6 +217,8 @@ extension_to_language = {
     timeout=10,
 )
 class Chunking:
+    def __init__(self):
+        self.languages = download_parsers()
     
 
     @method()
