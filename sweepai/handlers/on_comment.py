@@ -242,6 +242,10 @@ def on_comment(
                 pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
 
         logger.info("Done!")
+        try:
+            pr.create_issue_comment("Done.")
+        except Exception as e:
+            logger.error(f"Failed to post 'Done.' comment: {str(e)}")
     except NoFilesException:
         capture_posthog_event(username, "failed", properties={
             "error": "No files to change",
