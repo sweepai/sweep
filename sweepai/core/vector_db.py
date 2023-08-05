@@ -44,6 +44,14 @@ CACHE_VERSION = "v1.0.9"
 MAX_FILES = 500
 CPU = 0.5
 
+def download_models():
+    from sentence_transformers import SentenceTransformer # pylint: disable=import-error
+
+    model = SentenceTransformer(
+        SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
+    )
+    model.save_pretrained(MODEL_DIR)
+
 image = (
     modal.Image.debian_slim()
     .apt_install("git")
@@ -91,7 +99,7 @@ def parse_collection_name(name: str) -> str:
 )
 class Embedding:
     def __init__(self):
-        self.download_models()
+        download_models()
 
     def download_models(self):
         from sentence_transformers import SentenceTransformer # pylint: disable=import-error
