@@ -93,8 +93,15 @@ def on_ticket(
         repo_full_name: str,
         repo_description: str,
         installation_id: int,
-        comment_id: int = None
+        comment_id: int = None,
+        secrets: list = None
 ):
+    # Check if the user is in the hold list
+    if secrets and 'USER_HOLDS' in secrets and username in secrets['USER_HOLDS']:
+        # Update the initial comment to inform the user about the unusual activity
+        first_comment = f"Your account has detected unusual activity. Please join our [Discord](https://discord.com/invite/sweep-ai) for further assistance."
+        issue_comment = current_issue.create_comment(first_comment)
+        return {"success": False, "reason": "User is on hold"}
     # Check if the title starts with "sweep" or "sweep: " and remove it
     slow_mode = False
     if title.lower().startswith("sweep: "):
