@@ -81,7 +81,7 @@ We were frustrated by small tickets, like simple bug fixes, annoying refactors, 
 Unlike existing AI solutions, this can solve entire tickets and can be parallelized + asynchronous: developers can spin up 10 tickets and Sweep will address them all at once.
 
 ## The Stack 📚
-- GPT-4 32k 0613 (default)
+- GPT-4 32k 0613
 - ActiveLoop DeepLake for Vector DB with MiniLM L12 as our embeddings model
 - Modal Labs for infra + deployment
 
