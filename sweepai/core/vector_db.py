@@ -152,6 +152,8 @@ class ModalEmbeddingFunction:
         pass
 
     def __call__(self, texts: list[str], cpu=False):
+        if len(texts) == 0:
+            return []
         if cpu or len(texts) < 10: 
             return CPUEmbedding.compute.call(texts) # pylint: disable=no-member
         else:
