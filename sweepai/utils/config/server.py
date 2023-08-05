@@ -62,6 +62,7 @@ description: ''
 # Default Values: https://github.com/sweepai/sweep/blob/main/sweep.yaml
 """)
 
+
 # goes under Modal 'openai-secret' secret name
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 OPENAI_DO_HAVE_32K_MODEL_ACCESS = os.environ.get('OPENAI_DO_HAVE_32K_MODEL_ACCESS', 'true').lower() == 'true'
