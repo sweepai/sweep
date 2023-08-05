@@ -195,7 +195,6 @@ def get_snippet_with_padding(original, index, search):
         spaces = ' ' * (len(snippet[0]) - len(snippet[0].lstrip()))
         strip = True
 
-
     return snippet, spaces, strip
 
 def sliding_window_replacement(original, search, replace, search_context_before=None):
@@ -255,11 +254,13 @@ def sliding_window_replacement(original, search, replace, search_context_before=
     if index == -1:
         return original, None, NOT_FOUND
 
-    snippet, spaces, strip = get_snippet_with_padding(original, index, search)
-    # Todo: What if whitespace in search is incorrect
-
-
-    modified = [spaces + (line.lstrip() if strip else line) for line in replace]
+    if max_similarity != len(search):
+        snippet, spaces, strip = get_snippet_with_padding(original, index, search)
+        # Todo: What if whitespace in search is incorrect
+        modified = [spaces + (line.lstrip() if strip else line) for line in replace]
+    else:
+        # I'm sorry luke i have no idea what your code does
+        modified = replace
 
     # replaced original with modified
     original = original[:index] + modified + original[index + len(search):]
@@ -270,6 +271,12 @@ def generate_new_file_from_patch(modify_file_response: str, old_file_content: st
     
     # Extract content between <new_file> tags
     matches = re.findall(r'<<<<.*?\n(.*?)\n====[^\n=]*\n(.*?)\n?>>>>', modify_file_response, re.DOTALL)
+
+    if not old_file_content.strip():
+        # If old file is empty, just return the first match
+        print(matches)
+        search_and_replace, *_ = matches
+        return search_and_replace[1]
 
     for search, replace in matches:
         # Remove trailing tags
