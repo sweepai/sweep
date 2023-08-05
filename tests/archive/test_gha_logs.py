@@ -17,13 +17,25 @@ def download_logs(repo_full_name: str, run_id: int):
 
     logs_str = ""
     if response.status_code == 200:
+        # this is the worst code I've ever written. I'm sorry.
         zip_file = zipfile.ZipFile(io.BytesIO(response.content))
+        files = [file[file.find("/") + 1:] for file in zip_file.namelist() if "/" in file and not file.endswith("/")]
+        numbers = [int(file[:file.find("_")]) for file in files]
+        for i in range(1, 100):
+            if i not in numbers:
+                break
+        i -= 1
+        target_file = ""
         for file in zip_file.namelist():
-            if "/" not in file:
-                with zip_file.open(file) as f:
-                    logs_str += f.read().decode("utf-8")
+            if "/" in file and file[file.find("/") + 1: file.rfind("_")] == str(i):
+                target_file = file
+                break
+        else:
+            raise ValueError("No file found")
+        with zip_file.open(target_file) as f:
+            logs_str += f.read().decode("utf-8")
     else:
-        print(response.status_code)
+        logger.info(response.text)
         logger.warning(f"Failed to download logs for run id: {run_id}")
     return logs_str
 
@@ -59,10 +71,9 @@ def clean_logs(logs_str: str):
         "prettier/prettier"
 
     ]
-    cleaned_lines = [log.strip() for log in truncated_logs if not any(log.startswith(pattern) for pattern in patterns)]
+    cleaned_lines = [log.strip() for log in truncated_logs if not any(log.strip().startswith(pattern) for pattern in patterns)]
     return "\n".join(cleaned_lines[:min(MAX_LINES, len(cleaned_lines))])
 
 if __name__ == "__main__":
-    run_id = 15606656854
-    # run_id = 
-    download_logs("sweepai/sweep", run_id)
+    run_id = 5753755655
+    print(clean_logs(download_logs("sweepai/sweep", run_id)))
