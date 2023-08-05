@@ -218,7 +218,6 @@ extension_to_language = {
 class Chunking:
     def __enter__(self):
         LANGUAGE_NAMES = ["python", "java", "cpp", "go", "rust", "ruby", "php"]
-        self.languages = download_parsers()
     
 
     @method()
