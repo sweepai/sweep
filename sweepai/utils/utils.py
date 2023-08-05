@@ -163,7 +163,7 @@ extension_to_language = {
 @stub.cls(
     image=chunking_image,
     network_file_systems={CHUNKING_CACHE_DIR: chunking_volume},
-    timeout=20,
+    timeout=1,
 )
 class Chunking:
 
@@ -313,7 +313,6 @@ class Chunking:
 @stub.function(
     image=chunking_image,
     network_file_systems={CHUNKING_CACHE_DIR: chunking_volume},
-    timeout=300,
 )
 def chunk(
     file_content: str | list[str],
