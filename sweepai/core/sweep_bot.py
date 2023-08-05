@@ -47,7 +47,30 @@ class CodeGenBot(ChatGPT):
                 thoughts=create_thoughts + "\n" + modify_thoughts
             ),
             message_key="snippet_summarization",
-        )
+        ) # maybe add relevant info
+        contextual_thought_match = re.search("<contextual_thoughts>(?P<thoughts>.*)</contextual_thoughts>", snippet_summarization, re.DOTALL)
+        contextual_thought: str = contextual_thought_match.group("thoughts").strip() if contextual_thought_match else ""
+        relevant_snippets_match = re.search("<relevant_snippets>(?P<snippets>.*)</relevant_snippets>", snippet_summarization, re.DOTALL)
+        relevant_snippets: str = relevant_snippets_match.group("snippets").strip() if relevant_snippets_match else ""
+
+        snippets: Snippet = []
+        for raw_snippet in relevant_snippets.split("\n"):
+            file_path, lines = raw_snippet.split(":", 1)
+            start, end = lines.split("-", 1)
+            start = int(start)
+            end = int(end)
+            end = min(end, start + 200)
+            snippet = Snippet(file_path=file_path, start=start, end=end, content="")
+            snippet.expand(15)
+            snippets.append(snippet)
+        
+        try:
+            self.populate_snippets(snippets)
+        except Exception as e:
+            logger.error(f"Error in populate_snippets: {e}")
+        print(snippets)
+
+        msg_content = "Contextual thoughts: \n" + contextual_thought + "\n\nRelevant snippets:\n\n" + "\n".join([snippet.xml for snippet in snippets]) + "\n\n"
 
         # Delete excessive tokens
         self.delete_messages_from_chat("relevant_snippets")
@@ -60,9 +83,8 @@ class CodeGenBot(ChatGPT):
         # Delete summarization instructions
         self.delete_messages_from_chat("snippet_summarization")
 
-        msg = Message(content=snippet_summarization, role="assistant", key="bot_analysis_summary")
+        msg = Message(content=msg_content, role="assistant", key="bot_analysis_summary")
         self.messages.insert(-2, msg)
-        pass
 
     def get_files_to_change(self, retries=1):
         file_change_requests: list[FileChangeRequest] = []
