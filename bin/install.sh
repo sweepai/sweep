@@ -1,4 +1,5 @@
 #!/bin/bash
+rm -f poetry.lock
 # Check if poetry is installed
 if ! command -v poetry &> /dev/null
 then
@@ -13,4 +14,3 @@ poetry shell
 echo "Installing deeplake with pip..."
 pip install deeplake
 echo "Installation complete!"
-
