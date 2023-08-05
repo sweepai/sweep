@@ -156,6 +156,7 @@ def on_ticket(
             ]
         )
 
+    summary = summary or ""
     chat_logger = ChatLogger({
         'repo_name': repo_name,
         'title': title,
@@ -448,6 +449,7 @@ def on_ticket(
         response = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
         if not response or not response["success"]: raise Exception(f"Failed to create PR: {response['error']}")
         pr_changes = response["pull_request"]
+        response_pr = response["pr"]
 
         edit_sweep_comment(
             "I have finished coding the issue. I am now reviewing it for completeness.",
@@ -467,6 +469,8 @@ def on_ticket(
                                                              summary=summary, replies_text=replies_text, tree=tree)
                 logger.info(f"Addressing review comment {review_comment}")
                 if changes_required:
+                    # branch_name = pr_changes.pr_head
+                    # repo.get_branch(branch_name).pull
                     on_comment(repo_full_name=repo_full_name,
                                repo_description=repo_description,
                                comment=review_comment,
@@ -474,7 +478,7 @@ def on_ticket(
                                installation_id=installation_id,
                                pr_path=None,
                                pr_line_position=None,
-                               pr_number=pr_changes.number,
+                               pr_number=response_pr.number,
                                pr=pr_changes)
                 else:
                     break
