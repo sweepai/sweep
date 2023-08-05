@@ -417,6 +417,10 @@ def on_ticket(
         # TODO: removed issue commenting here
         logger.info("Fetching files to modify/create...")
         file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change()
+        
+        # Check if any changes have been made
+        if not file_change_requests:
+            logger.error(f"No changes made for ticket '{title}': {summary}")
 
         sweep_bot.summarize_snippets(create_thoughts, modify_thoughts)
 
