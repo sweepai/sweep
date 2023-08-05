@@ -4,7 +4,7 @@ from loguru import logger
 from sweepai.core.entities import Snippet
 from sweepai.utils.config.server import UTILS_MODAL_INST_NAME
 
-chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
+chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "chunk")
 
 
 def format_snippets(snippets: list[Snippet]):

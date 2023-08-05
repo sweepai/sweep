@@ -155,8 +155,45 @@ def generate_new_file(modify_file_response: str, old_file_content: str, chunk_of
 
     return result
 
+NOT_FOUND = "NOT_FOUND"
+IDENTICAL_LINES = "IDENTICAL_LINES"
+MULTIPLE_HITS = "MULTIPLE_HITS"
+def match_string(original, search, start_index=None):
+    index = -1
+    max_similarity = 0
+    current_hits = 0
+    # sliding window comparison from original to search
+    # Todo: 2 pointer approach (find start, then find end)
+    # Todo: use rapidfuzz to compute fuzzy similarity over code
+    for i in range(start_index or 0, len(original)):
+        count = 0
+        for j in range(len(search)):
+            if i + j < len(original) and search[j].strip() == original[i + j].strip():
+                count += 1
 
-def sliding_window_replacement(original, search, replace):
+                # If searching for previous snippet (like regex)
+                if start_index is not None and search[j] == original[i + j]:
+                    count += 0.01
+        if count > max_similarity:
+            index = i
+            max_similarity = count
+            current_hits = 1
+        elif count == max_similarity:
+            current_hits += 1
+    return index, max_similarity, current_hits
+
+def get_snippet_with_padding(original, index, search):
+    snippet = original[index:index + len(search)]
+
+    # Fix whitespace
+    spaces = ''
+    if len(search[0]) - len(search[0].lstrip()) == 0:
+        spaces = ' ' * (len(snippet[0]) - len(snippet[0].lstrip()))
+
+    return snippet, spaces
+
+def sliding_window_replacement(original, search, replace, search_context_before=None):
+    status, replace_index = None, None
     # First, do check for "..." (example: define method, then put ... to ignore initial lines)
     canDoDotCheck = not any('...' in line.strip() for line in original)  # If ... not in original file
     if canDoDotCheck:
@@ -183,57 +220,50 @@ def sliding_window_replacement(original, search, replace):
         elif first_line_idx != -1 and first_line_idx_replace != -1:
             # SPLIT INTO TWO PARTS
             # TODO(lukejagg): pass in the first and last lines as context for matching (so ambiguous ... can be matched)
-            original = sliding_window_replacement(original, search[first_line_idx + 1:], replace[first_line_idx_replace + 1:])
+            search_context_before = search[:first_line_idx]
+            original, replace_index, status = sliding_window_replacement(original, search[first_line_idx + 1:], replace[first_line_idx_replace + 1:], search_context_before)
             search = search[:first_line_idx]
             replace = replace[:first_line_idx_replace]
 
-    index = -1
-    max_similarity = 0
-    current_hits = 0
-    # sliding window comparison from original to search
-    # Todo: 2 pointer approach (find start, then find end)
-    # Todo: use rapidfuzz to compute fuzzy similarity over code
-    for i in range(len(original)):
-        count = 0
-        for j in range(len(search)):
-            if i + j < len(original) and search[j].strip() == original[i + j].strip():
-                count += 1
-        if count > max_similarity:
-            index = i
-            max_similarity = count
-            current_hits = 1
-        elif count == max_similarity:
-            current_hits += 1
+    index, max_similarity, current_hits = match_string(original, search)
 
     # No changes could be found. Return original code.
     if max_similarity == 0:
         print('WARNING: No identical lines')
-        return original
+        return original, None, IDENTICAL_LINES
     if current_hits > 1:
-        print('WARNING: Multiple hits')
-        return original
+        # First, try matching beginning of search
+        success = False
+        if search_context_before:
+            old_index, _, current_hits = match_string(original, search_context_before)
+            _, old_spaces = get_snippet_with_padding(original, old_index, search_context_before)
+
+            if current_hits == 1:
+                index, max_similarity, current_hits = match_string(original, [old_spaces + s for s in search], start_index=old_index + 1)
+                current_hits = 1  # Ignore multiple hits, use first complete comparison
+                success = True
+
+        if not success:
+            print('WARNING: Multiple hits')
+            return original, None, MULTIPLE_HITS
     if index == -1:
-        return original
+        return original, None, NOT_FOUND
 
-    snippet = original[index:index + len(search)]
-
-    # Fix whitespace
-    spaces = ''
-    if len(search[0]) - len(search[0].lstrip()) == 0:
-        spaces = ' ' * (len(snippet[0]) - len(snippet[0].lstrip()))
+    snippet, spaces = get_snippet_with_padding(original, index, search)
     # Todo: What if whitespace in search is incorrect
+
 
     modified = [spaces + line for line in replace]
 
     # replaced original with modified
     original = original[:index] + modified + original[index + len(search):]
-    return original
+    return original, index, None
 
 def generate_new_file_from_patch(modify_file_response: str, old_file_content: str, chunk_offset: int=0) -> str:
     old_file_lines = old_file_content.splitlines()
     
     # Extract content between <new_file> tags
-    matches = re.findall(r'<<<<.*?\n(.*?)\n====\n(.*?)\n?>>>>', modify_file_response, re.DOTALL)
+    matches = re.findall(r'<<<<.*?\n(.*?)\n====[^\n=]*\n(.*?)\n?>>>>', modify_file_response, re.DOTALL)
 
     for search, replace in matches:
         # Remove trailing tags
@@ -245,7 +275,7 @@ def generate_new_file_from_patch(modify_file_response: str, old_file_content: st
             search = search.rstrip()[:-len('</old_file>')]
             replace = replace.rstrip()[:-len('</old_file>')]
 
-        old_file_lines = sliding_window_replacement(old_file_lines, search.splitlines(), replace.splitlines())
+        old_file_lines, replace_index, status = sliding_window_replacement(old_file_lines, search.splitlines(), replace.splitlines())
 
     result = '\n'.join(old_file_lines)
     return result

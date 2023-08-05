@@ -12,6 +12,13 @@ from github import Github
 from loguru import logger
 from modal import method
 from redis import Redis
+from redis.backoff import ExponentialBackoff
+from redis.retry import Retry
+from redis.exceptions import (
+   BusyLoadingError,
+   ConnectionError,
+   TimeoutError
+)
 from tqdm import tqdm
 
 from sweepai.core.entities import Snippet
@@ -24,7 +31,7 @@ from ..utils.github_utils import get_token
 
 
 stub = modal.Stub(DB_MODAL_INST_NAME)
-chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
+chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "chunk")
 model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
 MODEL_DIR = "/root/cache/model"
 DEEPLAKE_DIR = "/root/cache/"
@@ -33,8 +40,8 @@ DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 128
 SENTENCE_TRANSFORMERS_MODEL = "thenlper/gte-base"
 timeout = 60 * 60  # 30 minutes
-CACHE_VERSION = "v1.0.6"
-MAX_FILES = 3000
+CACHE_VERSION = "v1.0.9"
+MAX_FILES = 500
 
 image = (
     modal.Image.debian_slim()
@@ -168,7 +175,8 @@ def get_deeplake_vs_from_repo(
     if REDIS_URL is not None:
         try:
             # todo: initialize once
-            cache_inst = Redis.from_url(REDIS_URL)
+            retry = Retry(ExponentialBackoff(), 3)
+            cache_inst = Redis.from_url(REDIS_URL, retry=retry, retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError])
             logger.info(f"Successfully connected to redis cache")
             cache_success = True
         except:
@@ -222,7 +230,7 @@ def get_deeplake_vs_from_repo(
            and all(not file.endswith(ext) for ext in sweep_config.exclude_exts)
            and all(not file[len("repo/"):].startswith(dir_name) for dir_name in sweep_config.exclude_dirs)
     ]
-
+    logger.info(f"First pass through files complete, found {len(file_list)} files")
     file_paths = []
     file_contents = []
     score_factors = []
@@ -276,9 +284,20 @@ def get_deeplake_vs_from_repo(
                 continue
     scores = get_scores(score_factors) # take percentiles + sum the scores
 
-    chunked_results = chunker.map(file_contents, file_paths, scores, kwargs={
-        "additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}
-    })
+    logger.info(f"Finished getting list of files, chunking...")
+    def chunk_into_sublists(lst, sublist_size=300) -> list[list]:
+        return [lst[i:i + sublist_size] for i in range(0, len(lst), sublist_size)]
+
+    file_contents_batches = chunk_into_sublists(file_contents)
+    file_paths_batches = chunk_into_sublists(file_paths)
+    scores_batches = chunk_into_sublists(scores)
+
+    logger.info(f"Batched into {len(file_contents_batches)} batches...")
+
+    chunked_results = []
+    for batch in chunker.starmap(zip(file_contents_batches, file_paths_batches, scores_batches), kwargs={"additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}}):
+
+        chunked_results.extend(batch)
 
     documents, metadatas, ids = zip(*chunked_results)
     documents = [item for sublist in documents for item in sublist]
