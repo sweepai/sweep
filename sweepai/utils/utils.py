@@ -8,8 +8,6 @@ def download_parsers():
     from tree_sitter import Language
 
     logger.debug("Downloading tree-sitter parsers")
-
-    LANGUAGE_NAMES = ["python", "java", "cpp", "go", "rust", "ruby", "php"]
     for language in LANGUAGE_NAMES:
         subprocess.run(
             f"git clone https://github.com/tree-sitter/tree-sitter-{language} cache/tree-sitter-{language}",
@@ -89,6 +87,7 @@ chunking_image = (
     modal.Image.debian_slim()
     .apt_install("git")
     .pip_install("tree-sitter", "loguru", "pyyaml", "PyGithub")
+    .run_function(download_parsers)
 )
 
 CHUNKING_CACHE_DIR = "/root/cache/"
@@ -217,7 +216,8 @@ extension_to_language = {
     timeout=10,
 )
 class Chunking:
-    def __init__(self):
+    def __enter__(self):
+        LANGUAGE_NAMES = ["python", "java", "cpp", "go", "rust", "ruby", "php"]
         self.languages = download_parsers()
     
 
