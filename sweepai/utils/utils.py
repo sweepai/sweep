@@ -33,7 +33,7 @@ class Tiktoken:
 
     @method()
     def count(self, text: str, model: str = "gpt-4"):
-        return len(self.openai_models[model].encode(text))
+        return len(self.openai_models[model].encode(text, disallowed_special=()))
 
 
 chunking_image = modal.Image.debian_slim() \

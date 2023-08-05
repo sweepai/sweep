@@ -285,7 +285,7 @@ def calculate_score_factor(repo_name, file_path, contents, cache_inst, cache_suc
     scores = get_scores(score_factors) # take percentiles + sum the scores
 
     logger.info(f"Finished getting list of files, chunking...")
-    def chunk_into_sublists(lst, sublist_size=30) -> list[list]:
+    def chunk_into_sublists(lst, sublist_size=300) -> list[list]:
         return [lst[i:i + sublist_size] for i in range(0, len(lst), sublist_size)]
 
     file_contents_batches = chunk_into_sublists(file_contents)
