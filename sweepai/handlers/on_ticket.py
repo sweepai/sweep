@@ -330,14 +330,15 @@ def on_ticket(
         message_summary += "\n\n" + external_results
 
     # perform rewrite
-    logger.info(f"Performing rewrite for {title} {message_summary}")
-    issue_rewriter = IssueRewriter()
-    new_title, new_summary = issue_rewriter.issue_rewrite(
-        title=title,
-        description=message_summary,
-        has_comments=comment_id == None
-    )
-    logger.info(f"Rewrite complete for {title} {summary}")
+    if message_summary:
+        logger.info(f"Performing rewrite for {title} {message_summary}")
+        issue_rewriter = IssueRewriter(chat_logger=chat_logger)
+        new_title, new_summary = issue_rewriter.issue_rewrite(
+            title=title,
+            description=message_summary,
+            has_comments=comment_id == None
+        )
+        logger.info(f"Rewrite complete for {title} {summary}")
 
     human_message = HumanMessagePrompt(
         repo_name=repo_name,

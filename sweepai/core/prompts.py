@@ -624,6 +624,7 @@ The above is a GitHub issue title and description. Assume that the writer of the
 2. You should rewrite the issue as if you are assigning this issue to someone else.
 3. Do not repeat yourself in the new issue description. 
 4. If file names are mentioned, keep the entire path as it's critical for handling the issue.
+5. Sometimes issue templates will be left empty. In this case it will say _No response_ or _No description provided_. Remove these and the associated headers.
 
 You MUST follow the following format delimited with XML tags:
 
@@ -653,6 +654,7 @@ The above is a GitHub issue title and description. Assume that the writer of the
 3. Do not repeat yourself in the new issue description. 
 4. If file names are mentioned, keep the entire path as it's critical for handling the issue.
 5. There may be discussion between different users prefaced with "Comment: ". If those are irrelevant please remove them entirely.
+6. Sometimes issue templates will be left empty. In this case it will say _No response_ or _No description provided_. Remove these and the associated headers.
 
 You MUST follow the following format delimited with XML tags:
 

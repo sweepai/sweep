@@ -10,10 +10,10 @@ class IssueRewriter(ChatGPT):
             self.messages = [Message(role="system", content=issue_description_rewrite_system_prompt)]
             self.model = "gpt-4"
             if has_comments:
-                response = self.chat(issue_description_rewrite_prompt.format(title=title, description=description))
+                response = self.chat(issue_description_rewrite_prompt.format(original_title=title, original_description=description))
             else:
-                response = self.chat(issue_description_rewrite_comments_prompt.format(title=title, description=description))
-            rewritten_title_and_description = RewrittenTitleAndDescription(response)
+                response = self.chat(issue_description_rewrite_comments_prompt.format(original_title=title, original_description=description))
+            rewritten_title_and_description = RewrittenTitleAndDescription.from_string(response)
             issue_title = rewritten_title_and_description.new_title if rewritten_title_and_description.new_title else title
             issue_description = rewritten_title_and_description.new_description if rewritten_title_and_description.new_description else description
             return issue_title, issue_description
