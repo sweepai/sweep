@@ -56,7 +56,11 @@ class CodeGenBot(ChatGPT):
         try:
             snippets: Snippet = []
             for raw_snippet in relevant_snippets.split("\n"):
+                if ":" not in raw_snippet:
+                    logger.warning(f"Error in summarize_snippets: {raw_snippet}. Likely failed to parse")
                 file_path, lines = raw_snippet.split(":", 1)
+                if "-" not in lines:
+                    logger.warning(f"Error in summarize_snippets: {raw_snippet}. Likely failed to parse")
                 start, end = lines.split("-", 1)
                 start = int(start)
                 end = int(end)
@@ -74,15 +78,10 @@ class CodeGenBot(ChatGPT):
 
         msg_content = "Contextual thoughts: \n" + contextual_thought + "\n\nRelevant snippets:\n\n" + snippets_text + "\n\n"
 
-        # Delete excessive tokens
         self.delete_messages_from_chat("relevant_snippets")
         self.delete_messages_from_chat("relevant_directories")
         self.delete_messages_from_chat("relevant_tree")
-
-        # Delete past instructions
         self.delete_messages_from_chat("files_to_change", delete_assistant=False)
-
-        # Delete summarization instructions
         self.delete_messages_from_chat("snippet_summarization")
 
         msg = Message(content=msg_content, role="assistant", key="bot_analysis_summary")
