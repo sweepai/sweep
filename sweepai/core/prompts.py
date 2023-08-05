@@ -50,8 +50,8 @@ In order to address this issue, what required information do you need about the 
 "{thoughts}"
 
 <contextual_thoughts>
-* Thought_1: Explanation_1
-* Thought_2: Explanation_2
+* Thought_1
+* Thought_2
 ...
 </contextual_thoughts>
 
