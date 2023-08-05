@@ -12,21 +12,22 @@ def download_logs(repo_full_name: str, run_id: int):
         "Authorization": f"Bearer {token}",
         "X-GitHub-Api-Version": "2022-11-28"
     }
-    response = requests.get(f"https://api.github.com/repos/{repo_full_name}/actions/runs/{run_id}/logs",
-                            headers=headers)
+    response = requests.get(f"https://api.github.com/repos/{repo_full_name}/actions/runs/{run_id}/logs", headers=headers)
 
     logs_str = ""
     if response.status_code == 200:
         # this is the worst code I've ever written. I'm sorry.
-        zip_file = zipfile.ZipFile(io.BytesIO(response.content))
-        files = [file[file.find("/") + 1:] for file in zip_file.namelist() if "/" in file and not file.endswith("/")]
+        content = response.content
+        zip_file = zipfile.ZipFile(io.BytesIO(content))
+        file_list = zip_file.namelist()
+        files = [file[file.find("/") + 1:] for file in file_list if "/" in file and not file.endswith("/")]
         numbers = [int(file[:file.find("_")]) for file in files]
         for i in range(1, 100):
             if i not in numbers:
                 break
         i -= 1
         target_file = ""
-        for file in zip_file.namelist():
+        for file in file_list:
             if "/" in file and file[file.find("/") + 1: file.rfind("_")] == str(i):
                 target_file = file
                 break
