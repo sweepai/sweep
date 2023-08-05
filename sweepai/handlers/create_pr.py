@@ -74,12 +74,14 @@ def create_pr_changes(
             )
 
             # Todo: if no changes were made, delete branch
+            error_msg = "No changes made"
             commits = sweep_bot.repo.get_commits(pull_request.branch_name)
             if commits.totalCount == 0:
                 branch = sweep_bot.repo.get_git_ref(f"heads/{pull_request.branch_name}")
                 branch.delete()
+                error_msg = "No changes made. Branch deleted."
 
-            return {"success": False, "error": "No changes made"}
+            return {"success": False, "error": error_msg}
         # Include issue number in PR description
         if issue_number:
             # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)

@@ -73,7 +73,7 @@ For professionals who want more tickets and priority support/feature requests, c
 - [Star us on GitHub! ⭐](https://github.com/sweepai/sweep)
 
 
-Note - you need to have Sweep installed and [Issues enabled in Repo](https://docs.github.com/en/repositories/managing-your-repositorys/settings-and-features/enabling-features-for-your-repository/enabling-or-disabling-github-discussions-for-a-repository)
+Note - you need to have Sweep installed and [Issues enabled in Repo](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/disabling-issues)
 
 # Bug Reports
 

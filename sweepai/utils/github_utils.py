@@ -7,6 +7,13 @@ from datetime import datetime
 import github
 import modal
 from redis import Redis
+from redis.backoff import ExponentialBackoff
+from redis.retry import Retry
+from redis.exceptions import (
+   BusyLoadingError,
+   ConnectionError,
+   TimeoutError
+)
 import requests
 from github import Github
 from github.Repository import Repository
@@ -21,6 +28,8 @@ from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.scorer import merge_and_dedup_snippets
+
+MAX_FILE_COUNT = 50
 
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"
@@ -99,7 +108,7 @@ def list_directory_tree(
 
         directory_tree_string = ""
 
-        for name in file_and_folder_names:
+        for name in file_and_folder_names[:MAX_FILE_COUNT]:
             relative_path = os.path.join(current_directory, name)[len(root_directory) + 1:]
             if name in excluded_directories:
                 continue
@@ -159,7 +168,8 @@ def get_tree_and_file_list(
         prefixes.append(snippet_path)
 
     sha = repo.get_branch(repo.default_branch).commit.sha
-    cache_inst = Redis.from_url(REDIS_URL)
+    retry = Retry(ExponentialBackoff(), 3)
+    cache_inst = Redis.from_url(REDIS_URL, retry=retry, retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError])
     ctags = CTags(sha=sha, redis_instance=cache_inst)
     all_names = []
     for file in snippet_paths:

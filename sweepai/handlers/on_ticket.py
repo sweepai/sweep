@@ -13,6 +13,7 @@ from tabulate import tabulate
 
 from sweepai.core.entities import Snippet, NoFilesException
 from sweepai.core.external_searcher import ExternalSearcher
+from sweepai.core.issue_rewrite import IssueRewriter
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
@@ -48,7 +49,7 @@ collapsible_template = '''
 </details>
 '''
 
-chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Chunking.chunk")
+chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "chunk")
 
 num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
@@ -200,7 +201,7 @@ def on_ticket(
     # Find the first comment made by the bot
     issue_comment = None
     is_paying_user = chat_logger.is_paying_user()
-    tickets_allocated = 60 if is_paying_user else 5
+    tickets_allocated = 120 if is_paying_user else 5
     ticket_count = max(tickets_allocated - chat_logger.get_ticket_count(), 0)
     use_faster_model = chat_logger.use_faster_model()
 
@@ -210,7 +211,7 @@ def on_ticket(
     payment_link = "https://buy.stripe.com/9AQ8zB26letOgzC5kp"
     user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
     payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
-    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name} with slow mode set to {slow_mode}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
+    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name} with slow mode set to {slow_mode}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link}) " if not is_paying_user else " ")
 
     def get_comment_header(index, errored=False, pr_message=""):
         config_pr_message = (
@@ -327,6 +328,18 @@ def on_ticket(
     external_results = ExternalSearcher.extract_summaries(message_summary)
     if external_results:
         message_summary += "\n\n" + external_results
+
+    # perform rewrite
+    if message_summary:
+        logger.info(f"Performing rewrite for {title} {message_summary}")
+        issue_rewriter = IssueRewriter(chat_logger=chat_logger)
+        title, message_summary = issue_rewriter.issue_rewrite(
+            title=title,
+            description=message_summary,
+            has_comments=comment_id == None
+        )
+        logger.info(f"Rewrite complete for new title/summary: {title} {message_summary}")
+
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
@@ -444,7 +457,7 @@ def on_ticket(
         # WRITE PULL REQUEST
         logger.info("Making PR...")
         response = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
-        if not response or not response["success"]: raise Exception("Failed to create PR")
+        if not response or not response["success"]: raise Exception(f"Failed to create PR: {response['error']}")
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
@@ -549,7 +562,7 @@ def on_ticket(
         logger.error(traceback.format_exc())
         logger.error(e)
         edit_sweep_comment(
-            "I'm sorry, but it looks like an error has occurred. Try removing and re-adding the sweep label. If this error persists contact team@sweep.dev.",
+            "I'm sorry, but it looks like an error has occurred. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev.",
             -1
         )
         log_error("Workflow", str(e) + "\n" + traceback.format_exc())

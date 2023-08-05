@@ -50,17 +50,16 @@ In order to address this issue, what required information do you need about the 
 "{thoughts}"
 
 <contextual_thoughts>
-* ...
+* Thought_1
+* Thought_2
 ...
 </contextual_thoughts>
 
-<partial_snippet file="...">
-[insert relevant segments from thoughts here]
-</partial_snippet>
-
-<relevant_paths>
-[insert relevant paths from file tree]
-</relevant_paths>
+<relevant_snippets>
+folder_1/file_1.py:0-50
+folder_2/file_2.py:51-100
+...
+</relevant_snippets>
 """
 
 diff_section_prompt = """
@@ -327,12 +326,16 @@ Lines to change in the file: (include multiple small changes as opposed to one l
 
 Code Generation:
 ```
-Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Do not remove comments.
+Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Always add lines before and after if possible.
 
 <<<< ORIGINAL
+line_before
 old_code
+line_after
 ====
+line_before
 new_code
+line_after
 >>>> UPDATED
 ```
 
@@ -603,4 +606,67 @@ The user is attempting to solve the following problem:
 \'\'\'
 
 Provide a summary of the page relevant to the problem, including all code snippets.
+"""
+
+issue_description_rewrite_system_prompt = """\
+You are a brilliant support engineer assigned to the following Github issue. It is very important that you get this right.
+"""
+
+issue_description_rewrite_prompt = """\
+<original_title>
+{original_title}
+</original_title>
+<original_description>
+{original_description}
+</original_description>
+The above is a GitHub issue title and description. Assume that the writer of the issue wants a code change to be made.
+1. Rewrite the issue while maintaining the original purpose and retaining any valuable elements as you convert the text into a confident and commanding tone.
+2. You should rewrite the issue as if you are assigning this issue to someone else.
+3. Do not repeat yourself in the new issue description. 
+4. If file names are mentioned, keep the entire path as it's critical for handling the issue.
+5. Sometimes issue templates will be left empty. In this case it will say _No response_ or _No description provided_. Remove these and the associated headers.
+
+You MUST follow the following format delimited with XML tags:
+
+Step-by-step thoughts with explanations: 
+* Thought 1 - Explanation 1
+* Thought 2 - Explanation 2
+...
+<issue_title>
+A clear issue title.
+</issue_title>
+<issue_description>
+A detailed issue description.
+More details ...
+</issue_description>
+"""
+
+issue_description_rewrite_comments_prompt = """\
+<original_title>
+{original_title}
+</original_title>
+<original_description>
+{original_description}
+</original_description>
+The above is a GitHub issue title and description. Assume that the writer of the issue wants a code change to be made.
+1. Rewrite the issue while maintaining the original purpose and retaining any valuable elements as you convert the text into a confident and commanding tone.
+2. You should rewrite the issue as if you are assigning this issue to someone else.
+3. Do not repeat yourself in the new issue description. 
+4. If file names are mentioned, keep the entire path as it's critical for handling the issue.
+5. There may be discussion between different users prefaced with "Comment: ". If those are irrelevant please remove them entirely.
+6. Sometimes issue templates will be left empty. In this case it will say _No response_ or _No description provided_. Remove these and the associated headers.
+
+You MUST follow the following format delimited with XML tags:
+
+Step-by-step thoughts with explanations: 
+* Thought 1 - Explanation 1
+* Thought 2 - Explanation 2
+...
+<issue_title>
+A clear issue title.
+</issue_title>
+<issue_description>
+A detailed issue description.
+More details ...
+</issue_description>
 """
