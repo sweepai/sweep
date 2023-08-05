@@ -79,6 +79,21 @@ class FilesToChange(RegexMatchableBaseModel):
             files_to_create=create_match.groupdict()["files_to_create"].strip() if create_match else "* None",
             files_to_modify=modify_match.groupdict()["files_to_modify"].strip() if modify_match else "* None",
         )
+    
+class RewrittenTitleAndDescription(RegexMatchableBaseModel):
+    new_title: str
+    new_description: str
+
+    @classmethod
+    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
+        title_pattern = r"""<issue_title>(?P<new_title>.*)</issue_title>"""
+        title_match = re.search(title_pattern, string, re.DOTALL)
+        description_pattern = r"""<issue_description>(?P<new_description>.*)</issue_description>"""
+        description_match = re.search(description_pattern, string, re.DOTALL)
+        return cls(
+            new_title=title_match.groupdict()["new_title"].strip() if title_match else None,
+            new_description=description_match.groupdict()["new_description"].strip() if description_match else None,
+        )
 
 class ExpandedPlan(RegexMatchableBaseModel):
     queries: str
