@@ -44,12 +44,20 @@ CACHE_VERSION = "v1.0.9"
 MAX_FILES = 500
 CPU = 0.5
 
+def download_models():
+    from sentence_transformers import SentenceTransformer # pylint: disable=import-error
+
+    model = SentenceTransformer(
+        SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
+    )
+
 image = (
     modal.Image.debian_slim()
     .apt_install("git")
     .pip_install("deeplake==3.6.3", "sentence-transformers")
     .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "anthropic",
                  "posthog", "redis", "pyyaml")
+    .run_function(download_models)
 )
 secrets = [
     modal.Secret.from_name(BOT_TOKEN_NAME),
@@ -89,6 +97,7 @@ def parse_collection_name(name: str) -> str:
     timeout=timeout,
 )
 class Embedding:
+
     def __enter__(self):
         from sentence_transformers import SentenceTransformer # pylint: disable=import-error
 
@@ -286,7 +295,7 @@ def get_deeplake_vs_from_repo(
     scores = get_scores(score_factors) # take percentiles + sum the scores
 
     logger.info(f"Finished getting list of files, chunking...")
-    def chunk_into_sublists(lst, sublist_size=20) -> list[list]:
+    def chunk_into_sublists(lst, sublist_size=50) -> list[list]:
         return [lst[i:i + sublist_size] for i in range(0, len(lst), sublist_size)]
 
     file_contents_batches = chunk_into_sublists(file_contents)
