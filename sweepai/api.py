@@ -69,7 +69,7 @@ FUNCTION_SETTINGS = {
     "keep_warm": 1,
 }
 
-handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket, secrets)
+handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
 handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr_changes)
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
