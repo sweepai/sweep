@@ -72,7 +72,6 @@ def clean_logs(logs_str: str):
         "npm WARN deprecated ",
         "prettier/prettier"
     ]
-    ]
     cleaned_lines = [log.strip() for log in truncated_logs if not any(log.startswith(pattern) for pattern in patterns)]
     return "\n".join(cleaned_lines[:min(MAX_LINES, len(cleaned_lines))])
 
