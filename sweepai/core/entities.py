@@ -236,7 +236,7 @@ class Snippet(BaseModel):
 
     @property
     def xml(self):
-        return f"""<snippet filepath="{self.file_path}" start="{self.start}" end="{self.end}">\n{self.get_snippet()}\n</snippet>"""
+        return f"""<snippet filepath="{self.file_path}:{self.start}-{self.end}">\n{self.get_snippet()}\n</snippet>"""
 
     def get_url(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
