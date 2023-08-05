@@ -190,6 +190,8 @@ def get_snippet_with_padding(original, index, search):
         spaces = ' ' * (len(snippet[0]) - len(snippet[0].lstrip()))
         strip = False
     else:  # Do diff between snippet and search
+        # Todo(lukejagg): This might need to be more robust.
+        # Check multiple lines for their whitespace 
         spaces = ' ' * (len(snippet[0]) - len(snippet[0].lstrip()))
         strip = True
 
