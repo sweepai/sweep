@@ -7,16 +7,15 @@ import traceback
 def download_parsers():
     from tree_sitter import Language
 
-    LANGUAGE_NAMES = ["python", "java", "cpp", "go", "rust", "ruby", "php"]
     logger.debug("Downloading tree-sitter parsers")
-    for language in LANGUAGE_NAMES:
+    for language in ["python", "java", "cpp", "go", "rust", "ruby", "php"]:
         subprocess.run(
             f"git clone https://github.com/tree-sitter/tree-sitter-{language} cache/tree-sitter-{language}",
             shell=True)
-    for language in LANGUAGE_NAMES:
+    for language in ["python", "java", "cpp", "go", "rust", "ruby", "php"]:
         Language.build_library(f'cache/build/{language}.so', [f"cache/tree-sitter-{language}"])
         subprocess.run(f"cp cache/build/{language}.so /tmp/{language}.so", shell=True)  # copying for executability
-    languages = {language: Language(f"/tmp/{language}.so", language) for language in LANGUAGE_NAMES}
+    languages = {language: Language(f"/tmp/{language}.so", language) for language in ["python", "java", "cpp", "go", "rust", "ruby", "php"]}
 
     subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-c-sharp cache/tree-sitter-c-sharp",
                    shell=True)
@@ -217,8 +216,10 @@ extension_to_language = {
     timeout=10,
 )
 class Chunking:
+    languages = None
+
     def __enter__(self):
-        LANGUAGE_NAMES = ["python", "java", "cpp", "go", "rust", "ruby", "php"]
+        self.languages = download_parsers()
     
 
     @method()
