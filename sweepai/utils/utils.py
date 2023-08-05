@@ -4,6 +4,13 @@ import subprocess
 from dataclasses import dataclass
 import traceback
 
+def download_parsers():
+    LANGUAGE_NAMES = ["python", "java", "cpp", "go", "rust", "ruby", "php"]
+    for language in LANGUAGE_NAMES:
+        subprocess.run(
+            f"git clone https://github.com/tree-sitter/tree-sitter-{language} cache/tree-sitter-{language}",
+            shell=True)
+
 import modal
 from loguru import logger
 from modal import method
@@ -36,9 +43,12 @@ class Tiktoken:
         return len(self.openai_models[model].encode(text, disallowed_special=()))
 
 
-chunking_image = modal.Image.debian_slim() \
-    .apt_install("git") \
+chunking_image = (
+    modal.Image.debian_slim()
+    .apt_install("git")
     .pip_install("tree-sitter", "loguru", "pyyaml", "PyGithub")
+    .run_function(download_parsers)
+)
 
 CHUNKING_CACHE_DIR = "/root/cache/"
 # chunking_volume = modal.SharedVolume().persist("chunking-parsers")
