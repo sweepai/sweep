@@ -90,20 +90,31 @@ def handle_pr_change_request(
         while queue:
             # popping
             call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
+            stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, [])
             pr_change_request: PRChangeRequest
-            *queue, pr_change_request = queue
-            logger.info(f"Currently handling PR change request: {pr_change_request}")
-            logger.info(f"PR queues: {queue}")
+            for pr_change_request in queue:
+                if pr_change_request.type == "comment":
+                    handle_comment.call(**pr_change_request.params)
+                elif pr_change_request.type == "gha":
+                    handle_check_suite.call(**pr_change_request.params)
+                else:
+                    raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
+                time.sleep(1)
+            call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
+            # *queue, pr_change_request = queue
+            # logger.info(f"Currently handling PR change request: {pr_change_request}")
+            # logger.info(f"PR queues: {queue}")
 
-            if pr_change_request.type == "comment":
-                handle_comment.call(**pr_change_request.params)
-            elif pr_change_request.type == "gha":
-                handle_check_suite.call(**pr_change_request.params)
-            else:
-                raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
+            # if pr_change_request.type == "comment":
+            #     handle_comment.call(**pr_change_request.params)
+            # elif pr_change_request.type == "gha":
+            #     handle_check_suite.call(**pr_change_request.params)
+            # else:
+            #     raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
             stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
     finally:
-        del stub.app.pr_queues[(repo_full_name, pr_id)]
+        if (repo_full_name, pr_id) in stub.app.pr_queues:
+            del stub.app.pr_queues[(repo_full_name, pr_id)]
 
 
 def function_call_is_completed(call_id: str):
