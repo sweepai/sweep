@@ -1,6 +1,7 @@
 '''
 On Github ticket, get ChatGPT to deal with it
 '''
+import os
 
 # TODO: Add file validation
 
@@ -93,11 +94,11 @@ def on_ticket(
         repo_full_name: str,
         repo_description: str,
         installation_id: int,
-        comment_id: int = None,
-        secrets: list = None
+        comment_id: int = None
 ):
     # Check if the user is in the hold list
-    if secrets and 'USER_HOLDS' in secrets and username in secrets['USER_HOLDS']:
+    user_holds = os.environ.get('USER_HOLDS', '').split(',')
+    if username in user_holds:
         # Update the initial comment to inform the user about the unusual activity
         first_comment = f"Your account has detected unusual activity. Please join our [Discord](https://discord.com/invite/sweep-ai) for further assistance."
         issue_comment = current_issue.create_comment(first_comment)
