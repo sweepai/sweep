@@ -57,7 +57,12 @@ class CodeGenBot(ChatGPT):
         for raw_snippet in relevant_snippets.split("\n"):
             file_path, lines = raw_snippet.split(":", 1)
             start, end = lines.split("-", 1)
-            snippets.append(Snippet(file_path=file_path, start=int(start), end=int(end), content=""))
+            start = int(start)
+            end = int(end)
+            end = min(end, start + 200)
+            snippet = Snippet(file_path=file_path, start=start, end=end, content="")
+            snippet.expand(15)
+            snippets.append(snippet)
         
         try:
             self.populate_snippets(snippets)
@@ -65,7 +70,7 @@ class CodeGenBot(ChatGPT):
             logger.error(f"Error in populate_snippets: {e}")
         print(snippets)
 
-        self.messages[-1].content = "Contextual thoughts: \n" + contextual_thought + "\n\nRelevant snippets\n\n" + "\n".join([snippet.xml for snippet in snippets])
+        msg_content = "Contextual thoughts: \n" + contextual_thought + "\n\nRelevant snippets:\n\n" + "\n".join([snippet.xml for snippet in snippets]) + "\n\n"
 
         # Delete excessive tokens
         self.delete_messages_from_chat("relevant_snippets")
@@ -78,7 +83,7 @@ class CodeGenBot(ChatGPT):
         # Delete summarization instructions
         self.delete_messages_from_chat("snippet_summarization")
 
-        msg = Message(content=snippet_summarization, role="assistant", key="bot_analysis_summary")
+        msg = Message(content=msg_content, role="assistant", key="bot_analysis_summary")
         self.messages.insert(-2, msg)
 
     def get_files_to_change(self, retries=1):
