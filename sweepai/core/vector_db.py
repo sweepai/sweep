@@ -292,6 +292,8 @@ def calculate_score_factor(repo_name, file_path, contents, cache_inst, cache_suc
     file_paths_batches = chunk_into_sublists(file_paths)
     scores_batches = chunk_into_sublists(scores)
 
+    logger.info(f"Batched into {len(file_contents_batches)} batches...")
+
     chunked_results = []
     for batch in chunker.starmap(zip(file_contents_batches, file_paths_batches, scores_batches), kwargs={"additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}}):
 
