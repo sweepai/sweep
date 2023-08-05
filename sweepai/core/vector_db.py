@@ -164,7 +164,7 @@ def get_deeplake_vs_from_repo(
         sweep_config: SweepConfig = SweepConfig(),
 ):
 
-    def compute_score_factor(repo_name, file_path, contents, repo, branch_name, cache_inst, cache_success)
+    def compute_score_factor(repo_name, file_path, contents, repo, branch_name, cache_inst, cache_success):
         cache_key = f"{repo_name}-{file_path}-{CACHE_VERSION}"
         if cache_inst and cache_success:
             cached_value = cache_inst.get(cache_key)
