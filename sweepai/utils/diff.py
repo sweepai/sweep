@@ -186,11 +186,15 @@ def get_snippet_with_padding(original, index, search):
     snippet = original[index:index + len(search)]
 
     # Fix whitespace
-    spaces = ''
     if len(search[0]) - len(search[0].lstrip()) == 0:
         spaces = ' ' * (len(snippet[0]) - len(snippet[0].lstrip()))
+        strip = False
+    else:  # Do diff between snippet and search
+        spaces = ' ' * (len(snippet[0]) - len(snippet[0].lstrip()))
+        strip = True
 
-    return snippet, spaces
+
+    return snippet, spaces, strip
 
 def sliding_window_replacement(original, search, replace, search_context_before=None):
     status, replace_index = None, None
@@ -236,7 +240,7 @@ def sliding_window_replacement(original, search, replace, search_context_before=
         success = False
         if search_context_before:
             old_index, _, current_hits = match_string(original, search_context_before)
-            _, old_spaces = get_snippet_with_padding(original, old_index, search_context_before)
+            _, old_spaces, _ = get_snippet_with_padding(original, old_index, search_context_before)
 
             if current_hits == 1:
                 index, max_similarity, current_hits = match_string(original, [old_spaces + s for s in search], start_index=old_index + 1)
@@ -249,11 +253,11 @@ def sliding_window_replacement(original, search, replace, search_context_before=
     if index == -1:
         return original, None, NOT_FOUND
 
-    snippet, spaces = get_snippet_with_padding(original, index, search)
+    snippet, spaces, strip = get_snippet_with_padding(original, index, search)
     # Todo: What if whitespace in search is incorrect
 
 
-    modified = [spaces + line for line in replace]
+    modified = [spaces + (line.lstrip() if strip else line) for line in replace]
 
     # replaced original with modified
     original = original[:index] + modified + original[index + len(search):]
