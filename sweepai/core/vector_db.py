@@ -42,6 +42,7 @@ SENTENCE_TRANSFORMERS_MODEL = "thenlper/gte-base"
 timeout = 60 * 60  # 30 minutes
 CACHE_VERSION = "v1.0.9"
 MAX_FILES = 500
+CPU = 0.5
 
 image = (
     modal.Image.debian_slim()
@@ -112,7 +113,7 @@ class Embedding:
     network_file_systems={MODEL_DIR: model_volume},
     keep_warm=1,
     retries=modal.Retries(max_retries=5, backoff_coefficient=2, initial_delay=5),
-    cpu=1, # this can change later
+    cpu=2, # this can change later
     timeout=timeout,
 )
 class CPUEmbedding:
@@ -285,7 +286,7 @@ def get_deeplake_vs_from_repo(
     scores = get_scores(score_factors) # take percentiles + sum the scores
 
     logger.info(f"Finished getting list of files, chunking...")
-    def chunk_into_sublists(lst, sublist_size=300) -> list[list]:
+    def chunk_into_sublists(lst, sublist_size=20) -> list[list]:
         return [lst[i:i + sublist_size] for i in range(0, len(lst), sublist_size)]
 
     file_contents_batches = chunk_into_sublists(file_contents)
@@ -296,7 +297,6 @@ def get_deeplake_vs_from_repo(
 
     chunked_results = []
     for batch in chunker.starmap(zip(file_contents_batches, file_paths_batches, scores_batches), kwargs={"additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}}):
-
         chunked_results.extend(batch)
 
     documents, metadatas, ids = zip(*chunked_results)
@@ -369,18 +369,17 @@ def compute_deeplake_vs(collection_name,
         return deeplake_vs
 
 
-@stub.function(image=image, secrets=secrets, network_file_systems={DISKCACHE_DIR: model_volume}, timeout=timeout)
+@stub.function(image=image, secrets=secrets, network_file_systems={DISKCACHE_DIR: model_volume}, timeout=timeout, keep_warm=2, cpu=CPU)
 def update_index(
         repo_name,
         installation_id: int,
         sweep_config: SweepConfig = SweepConfig(),
 ) -> int:
     get_deeplake_vs_from_repo(repo_name, installation_id, branch_name=None, sweep_config=sweep_config)
-    # todo: ?
     return 0
 
 
-@stub.function(image=image, secrets=secrets, network_file_systems={DEEPLAKE_DIR: model_volume}, timeout=timeout, keep_warm=1)
+@stub.function(image=image, secrets=secrets, network_file_systems={DEEPLAKE_DIR: model_volume}, timeout=timeout, keep_warm=1, cpu=CPU)
 def get_relevant_snippets(
         repo_name: str,
         query: str,
