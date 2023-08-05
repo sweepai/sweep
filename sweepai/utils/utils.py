@@ -313,7 +313,7 @@ class Chunking:
 @stub.function(
     image=chunking_image,
     network_file_systems={CHUNKING_CACHE_DIR: chunking_volume},
-    timeout=300,
+    timeout=15 * 60,
 )
 def chunk(
     file_content: str | list[str],
