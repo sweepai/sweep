@@ -54,27 +54,27 @@ class CodeGenBot(ChatGPT):
         relevant_snippets: str = relevant_snippets_match.group("snippets").strip() if relevant_snippets_match else ""
 
         try:
-            snippets: Snippet = []
-            for raw_snippet in relevant_snippets.split("\n"):
-                if ":" not in raw_snippet:
-                    logger.warning(f"Error in summarize_snippets: {raw_snippet}. Likely failed to parse")
-                file_path, lines = raw_snippet.split(":", 1)
-                if "-" not in lines:
-                    logger.warning(f"Error in summarize_snippets: {raw_snippet}. Likely failed to parse")
-                start, end = lines.split("-", 1)
-                start = int(start)
-                end = int(end)
-                end = min(end, start + 200)
-
-                snippet = Snippet(file_path=file_path, start=start, end=end, content="")
-                snippet.expand(15)
-                snippets.append(snippet)
-            
-            self.populate_snippets(snippets)
-            snippets_text = "\n".join([snippet.xml for snippet in snippets])
+        snippets: Snippet = []
+        for raw_snippet in relevant_snippets.split("\n"):
+        if ":" not in raw_snippet:
+        logger.warning(f"Error in summarize_snippets: {raw_snippet}. Likely failed to parse")
+        file_path, lines = raw_snippet.split(":", 1)
+        if "-" not in lines:
+        logger.warning(f"Error in summarize_snippets: {raw_snippet}. Likely failed to parse")
+        start, end = lines.split("-", 1)
+        start = int(start)
+        end = int(end)
+        end = min(end, start + 200)
+        
+        snippet = Snippet(file_path=file_path, start=start, end=end, content="")
+        snippet.expand(15)
+        snippets.append(snippet)
+        
+        self.populate_snippets(snippets)
+        snippets_text = "\n".join([f"{i + 1}:{snippet.xml}" for i, snippet in enumerate(snippets)])
         except Exception as e:
-            logger.warning(f"Error in summarize_snippets: {e}. Likely failed to parse")
-            snippets_text = self.get_message_content_from_message_key(("relevant_snippets"))
+        logger.warning(f"Error in summarize_snippets: {e}. Likely failed to parse")
+        snippets_text = self.get_message_content_from_message_key(("relevant_snippets"))
 
         msg_content = "Contextual thoughts: \n" + contextual_thought + "\n\nRelevant snippets:\n\n" + snippets_text + "\n\n"
 
