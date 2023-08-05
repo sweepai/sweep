@@ -96,32 +96,6 @@ def on_ticket(
         installation_id: int,
         comment_id: int = None
 ):
-    # Check if the user is in the hold list
-    user_holds = os.environ.get('USER_HOLDS', '').split(',')
-    if username in user_holds:
-        # Update the initial comment to inform the user about the unusual activity
-        first_comment = f"Your account has detected unusual activity. Please join our [Discord](https://discord.com/invite/sweep-ai) for further assistance."
-        issue_comment = current_issue.create_comment(first_comment)
-        return {"success": False, "reason": "User is on hold"}
-    # Check if the title starts with "sweep" or "sweep: " and remove it
-    slow_mode = False
-    if title.lower().startswith("sweep: "):
-        title = title[7:]
-    elif title.lower().startswith("sweep "):
-        title = title[6:]
-    elif title.lower().startswith("sweep(slow): "):
-        title = title[13:]
-        slow_mode = True
-    elif title.lower().startswith("sweep(slow) "):
-        title = title[12:]
-        slow_mode = True
-    elif title.lower().startswith("sweep (slow): "):
-        title = title[14:]
-        slow_mode = True
-    elif title.lower().startswith("sweep (slow) "):
-        title = title[13:]
-        slow_mode = True
-
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -150,6 +124,32 @@ def on_ticket(
         logger.warning(f"Issue {issue_number} is closed")
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
+
+    # Check if the user is in the hold list
+    user_holds = os.environ.get('USER_HOLDS', '').split(',')
+    if username in user_holds:
+        # Update the initial comment to inform the user about the unusual activity
+        first_comment = f"Your account has detected unusual activity. Please join our [Discord](https://discord.com/invite/sweep-ai) for further assistance."
+        issue_comment = current_issue.create_comment(first_comment)
+        return {"success": False, "reason": "User is on hold"}
+    # Check if the title starts with "sweep" or "sweep: " and remove it
+    slow_mode = False
+    if title.lower().startswith("sweep: "):
+        title = title[7:]
+    elif title.lower().startswith("sweep "):
+        title = title[6:]
+    elif title.lower().startswith("sweep(slow): "):
+        title = title[13:]
+        slow_mode = True
+    elif title.lower().startswith("sweep(slow) "):
+        title = title[12:]
+        slow_mode = True
+    elif title.lower().startswith("sweep (slow): "):
+        title = title[14:]
+        slow_mode = True
+    elif title.lower().startswith("sweep (slow) "):
+        title = title[13:]
+        slow_mode = True
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
     replies_text = ""
     comments = list(current_issue.get_comments())
