@@ -98,16 +98,6 @@ def parse_collection_name(name: str) -> str:
     timeout=timeout,
 )
 class Embedding:
-    def __init__(self):
-        download_models()
-
-    def download_models(self):
-        from sentence_transformers import SentenceTransformer # pylint: disable=import-error
-
-        self.model = SentenceTransformer(
-            SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-        )
-        self.model.save_pretrained(MODEL_DIR)
 
     def __enter__(self):
         from sentence_transformers import SentenceTransformer # pylint: disable=import-error
