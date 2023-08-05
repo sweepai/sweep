@@ -7,6 +7,7 @@ import traceback
 def download_parsers():
     from tree_sitter import Language
 
+    LANGUAGE_NAMES = ["python", "java", "cpp", "go", "rust", "ruby", "php"]
     logger.debug("Downloading tree-sitter parsers")
     for language in LANGUAGE_NAMES:
         subprocess.run(
