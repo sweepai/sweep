@@ -50,6 +50,7 @@ image = (
     .pip_install("deeplake==3.6.3", "sentence-transformers")
     .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "anthropic",
                  "posthog", "redis", "pyyaml")
+    .run_function(download_models)
 )
 secrets = [
     modal.Secret.from_name(BOT_TOKEN_NAME),
