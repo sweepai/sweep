@@ -296,7 +296,6 @@ def get_deeplake_vs_from_repo(
 
     chunked_results = []
     for batch in chunker.starmap(zip(file_contents_batches, file_paths_batches, scores_batches), kwargs={"additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}}):
-
         chunked_results.extend(batch)
 
     documents, metadatas, ids = zip(*chunked_results)

@@ -49,8 +49,6 @@ def download_parsers():
 
     logger.debug("Finished downloading tree-sitter parsers")
 
-    return languages
-
 import modal
 from loguru import logger
 from modal import method
@@ -67,7 +65,8 @@ tiktoken_volume = modal.NetworkFileSystem.persisted("tiktoken-models")
 @stub.cls(
     image=tiktoken_image,
     network_file_systems={TIKTOKEN_CACHE_DIR: tiktoken_volume},
-    secret=modal.Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR})
+    secret=modal.Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR}),
+    cpu=0.2,
 )
 class Tiktoken:
     openai_models = ["gpt-3.5-turbo", "gpt-4", "gpt-4-32k", "gpt-4-32k-0613"]
@@ -219,9 +218,17 @@ class Chunking:
     languages = None
 
     def __enter__(self):
-        self.languages = download_parsers()
+        from tree_sitter import Language
+        LANGUAGE_NAMES = ["python", "java", "cpp", "go", "rust", "ruby", "php"]
+        self.languages = dict()
+        for language_name in LANGUAGE_NAMES:
+            self.languages[language_name] = Language(f"/tmp/{language_name}.so", language_name)
+        self.languages["c-sharp"] = Language("/tmp/c-sharp.so", "c_sharp")
+        self.languages["embedded-template"] = Language("/tmp/embedded-template.so", "embedded_template")
+        self.languages["markdown"] = Language("/tmp/markdown.so", "markdown")
+        self.languages["vue"] = Language("/tmp/vue.so", "vue")
+        self.languages["tsx"] = Language("/tmp/typescript.so", "tsx")
     
-
     @method()
     def chunk_core(
         self,
