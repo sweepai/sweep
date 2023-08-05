@@ -66,10 +66,7 @@ class CodeGenBot(ChatGPT):
                 snippet.expand(15)
                 snippets.append(snippet)
             
-            try:
-                self.populate_snippets(snippets)
-            except Exception as e:
-                logger.error(f"Error in populate_snippets: {e}")
+            self.populate_snippets(snippets)
             snippets_text = "\n".join([snippet.xml for snippet in snippets])
         except Exception as e:
             logger.warning(f"Error in summarize_snippets: {e}. Likely failed to parse")
