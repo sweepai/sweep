@@ -1,4 +1,5 @@
 import glob
+import gzip
 import json
 import math
 import os
@@ -191,7 +192,8 @@ def get_deeplake_vs_from_repo(
             github_cache_key = f"github-{commit_hash}{CACHE_VERSION}"
             cache_hit = cache_inst.get(github_cache_key)
             if cache_hit:
-                deeplake_items = json.loads(cache_hit)
+                decompressed_data = gzip.decompress(cache_hit)
+                deeplake_items = json.loads(decompressed_data)
                 logger.info(f"Cache hit for {repo_name}")
             else:
                 deeplake_items = None
@@ -354,8 +356,9 @@ def compute_deeplake_vs(collection_name,
         )
         logger.info("Added embeddings to deeplake vector store")
         if cache_inst and cache_success and len(documents) < 500:
-            cache_inst.set(f"github-{sha}{CACHE_VERSION}", json.dumps(
-                {"metadatas": metadatas, "ids": ids, "embeddings": embeddings}))
+            compressed_data = gzip.compress(json.dumps(
+                {"metadatas": metadatas, "ids": ids, "embeddings": embeddings}).encode())
+            cache_inst.set(f"github-{sha}{CACHE_VERSION}", compressed_data)
         if cache_inst and cache_success and len(documents_to_compute) > 0:
             logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
             cache_keys = [hash_sha256(
