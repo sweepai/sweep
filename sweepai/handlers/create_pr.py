@@ -92,13 +92,13 @@ def create_pr_changes(
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
 
-        # pr = sweep_bot.repo.create_pull(
-        #     title="[DRAFT] " + pr_title,
-        #     body=pr_description,
-        #     head=pull_request.branch_name,
-        #     base=SweepConfig.get_branch(sweep_bot.repo),
-        # )
-        # pr.add_to_labels(GITHUB_LABEL_NAME)
+        pr = sweep_bot.repo.create_pull(
+            title="[DRAFT] " + pr_title,
+            body=pr_description,
+            head=pull_request.branch_name,
+            base=SweepConfig.get_branch(sweep_bot.repo),
+        )
+        pr.add_to_labels(GITHUB_LABEL_NAME)
     except MaxTokensExceeded as e:
         logger.error(e)
         posthog.capture(
@@ -140,7 +140,8 @@ def create_pr_changes(
     logger.info("create_pr success")
     return {"success": True, "pull_request": MockPR(file_count=completed_count, title=pr_title, body=pr_description, pr_head=pull_request.branch_name,
                                                     base=sweep_bot.repo.get_branch(SweepConfig.get_branch(sweep_bot.repo)).commit,
-                                                    head=sweep_bot.repo.get_branch(pull_request.branch_name).commit)}
+                                                    head=sweep_bot.repo.get_branch(pull_request.branch_name).commit),
+            "pr": pr}
 
 
 def safe_delete_sweep_branch(
