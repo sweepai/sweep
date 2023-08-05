@@ -50,7 +50,6 @@ image = (
     .pip_install("deeplake==3.6.3", "sentence-transformers")
     .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "anthropic",
                  "posthog", "redis", "pyyaml")
-    .run_function(Embedding.download_models, secrets=[modal.Secret.from_name("huggingface")])
 )
 secrets = [
     modal.Secret.from_name(BOT_TOKEN_NAME),
@@ -90,6 +89,9 @@ def parse_collection_name(name: str) -> str:
     timeout=timeout,
 )
 class Embedding:
+    def __init__(self):
+        self.download_models()
+
     def download_models(self):
         from sentence_transformers import SentenceTransformer # pylint: disable=import-error
 
