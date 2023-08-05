@@ -4,6 +4,51 @@ import subprocess
 from dataclasses import dataclass
 import traceback
 
+def download_parsers():
+    from tree_sitter import Language
+
+    logger.debug("Downloading tree-sitter parsers")
+    for language in ["python", "java", "cpp", "go", "rust", "ruby", "php"]:
+        subprocess.run(
+            f"git clone https://github.com/tree-sitter/tree-sitter-{language} cache/tree-sitter-{language}",
+            shell=True)
+    for language in ["python", "java", "cpp", "go", "rust", "ruby", "php"]:
+        Language.build_library(f'cache/build/{language}.so', [f"cache/tree-sitter-{language}"])
+        subprocess.run(f"cp cache/build/{language}.so /tmp/{language}.so", shell=True)  # copying for executability
+    languages = {language: Language(f"/tmp/{language}.so", language) for language in ["python", "java", "cpp", "go", "rust", "ruby", "php"]}
+
+    subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-c-sharp cache/tree-sitter-c-sharp",
+                   shell=True)
+    Language.build_library(f'cache/build/c-sharp.so', [f"cache/tree-sitter-c-sharp"])
+    subprocess.run(f"cp cache/build/c-sharp.so /tmp/c-sharp.so", shell=True)
+    languages["c-sharp"] = Language("/tmp/c-sharp.so", "c_sharp")
+
+    subprocess.run(
+        f"git clone https://github.com/tree-sitter/tree-sitter-embedded-template cache/tree-sitter-embedded-template",
+        shell=True)
+    Language.build_library(f'cache/build/embedded-template.so', [f"cache/tree-sitter-embedded-template"])
+    subprocess.run(f"cp cache/build/embedded-template.so /tmp/embedded-template.so", shell=True)
+    languages["embedded-template"] = Language("/tmp/embedded-template.so", "embedded_template")
+
+    subprocess.run(f"git clone https://github.com/MDeiml/tree-sitter-markdown cache/tree-sitter-markdown",
+                   shell=True)
+    Language.build_library(f'cache/build/markdown.so', [f"cache/tree-sitter-markdown/tree-sitter-markdown"])
+    subprocess.run(f"cp cache/build/markdown.so /tmp/markdown.so", shell=True)
+    languages["markdown"] = Language("/tmp/markdown.so", "markdown")
+
+    subprocess.run(f"git clone https://github.com/ikatyang/tree-sitter-vue cache/tree-sitter-vue", shell=True)
+    Language.build_library(f'cache/build/vue.so', [f"cache/tree-sitter-vue"])
+    subprocess.run(f"cp cache/build/vue.so /tmp/vue.so", shell=True)
+    languages["vue"] = Language("/tmp/vue.so", "vue")
+
+    subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-typescript cache/tree-sitter-typescript",
+                   shell=True)
+    Language.build_library(f'cache/build/typescript.so', [f"cache/tree-sitter-typescript/tsx"])
+    subprocess.run(f"cp cache/build/typescript.so /tmp/typescript.so", shell=True)
+    languages["tsx"] = Language("/tmp/typescript.so", "tsx")
+
+    logger.debug("Finished downloading tree-sitter parsers")
+
 import modal
 from loguru import logger
 from modal import method
@@ -20,7 +65,8 @@ tiktoken_volume = modal.NetworkFileSystem.persisted("tiktoken-models")
 @stub.cls(
     image=tiktoken_image,
     network_file_systems={TIKTOKEN_CACHE_DIR: tiktoken_volume},
-    secret=modal.Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR})
+    secret=modal.Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR}),
+    cpu=0.5,
 )
 class Tiktoken:
     openai_models = ["gpt-3.5-turbo", "gpt-4", "gpt-4-32k", "gpt-4-32k-0613"]
@@ -36,9 +82,12 @@ class Tiktoken:
         return len(self.openai_models[model].encode(text, disallowed_special=()))
 
 
-chunking_image = modal.Image.debian_slim() \
-    .apt_install("git") \
+chunking_image = (
+    modal.Image.debian_slim()
+    .apt_install("git")
     .pip_install("tree-sitter", "loguru", "pyyaml", "PyGithub")
+    .run_function(download_parsers)
+)
 
 CHUNKING_CACHE_DIR = "/root/cache/"
 # chunking_volume = modal.SharedVolume().persist("chunking-parsers")
@@ -166,55 +215,20 @@ extension_to_language = {
     timeout=10,
 )
 class Chunking:
+    languages = None
 
     def __enter__(self):
         from tree_sitter import Language
-
-        logger.debug("Downloading tree-sitter parsers")
-
         LANGUAGE_NAMES = ["python", "java", "cpp", "go", "rust", "ruby", "php"]
-        for language in LANGUAGE_NAMES:
-            subprocess.run(
-                f"git clone https://github.com/tree-sitter/tree-sitter-{language} cache/tree-sitter-{language}",
-                shell=True)
-        for language in LANGUAGE_NAMES:
-            Language.build_library(f'cache/build/{language}.so', [f"cache/tree-sitter-{language}"])
-            subprocess.run(f"cp cache/build/{language}.so /tmp/{language}.so", shell=True)  # copying for executability
-        self.languages = {language: Language(f"/tmp/{language}.so", language) for language in LANGUAGE_NAMES}
-
-        subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-c-sharp cache/tree-sitter-c-sharp",
-                       shell=True)
-        Language.build_library(f'cache/build/c-sharp.so', [f"cache/tree-sitter-c-sharp"])
-        subprocess.run(f"cp cache/build/c-sharp.so /tmp/c-sharp.so", shell=True)
+        self.languages = dict()
+        for language_name in LANGUAGE_NAMES:
+            self.languages[language_name] = Language(f"/tmp/{language_name}.so", language_name)
         self.languages["c-sharp"] = Language("/tmp/c-sharp.so", "c_sharp")
-
-        subprocess.run(
-            f"git clone https://github.com/tree-sitter/tree-sitter-embedded-template cache/tree-sitter-embedded-template",
-            shell=True)
-        Language.build_library(f'cache/build/embedded-template.so', [f"cache/tree-sitter-embedded-template"])
-        subprocess.run(f"cp cache/build/embedded-template.so /tmp/embedded-template.so", shell=True)
         self.languages["embedded-template"] = Language("/tmp/embedded-template.so", "embedded_template")
-
-        subprocess.run(f"git clone https://github.com/MDeiml/tree-sitter-markdown cache/tree-sitter-markdown",
-                       shell=True)
-        Language.build_library(f'cache/build/markdown.so', [f"cache/tree-sitter-markdown/tree-sitter-markdown"])
-        subprocess.run(f"cp cache/build/markdown.so /tmp/markdown.so", shell=True)
         self.languages["markdown"] = Language("/tmp/markdown.so", "markdown")
-
-        subprocess.run(f"git clone https://github.com/ikatyang/tree-sitter-vue cache/tree-sitter-vue", shell=True)
-        Language.build_library(f'cache/build/vue.so', [f"cache/tree-sitter-vue"])
-        subprocess.run(f"cp cache/build/vue.so /tmp/vue.so", shell=True)
         self.languages["vue"] = Language("/tmp/vue.so", "vue")
-
-        subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-typescript cache/tree-sitter-typescript",
-                       shell=True)
-        Language.build_library(f'cache/build/typescript.so', [f"cache/tree-sitter-typescript/tsx"])
-        subprocess.run(f"cp cache/build/typescript.so /tmp/typescript.so", shell=True)
         self.languages["tsx"] = Language("/tmp/typescript.so", "tsx")
-
-        logger.debug("Finished downloading tree-sitter parsers")
     
-
     @method()
     def chunk_core(
         self,
