@@ -13,6 +13,7 @@ from tabulate import tabulate
 
 from sweepai.core.entities import Snippet, NoFilesException
 from sweepai.core.external_searcher import ExternalSearcher
+from sweepai.core.issue_rewrite import IssueRewriter
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
@@ -210,7 +211,7 @@ def on_ticket(
     payment_link = "https://buy.stripe.com/9AQ8zB26letOgzC5kp"
     user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
     payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
-    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name} with slow mode set to {slow_mode}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
+    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name} with slow mode set to {slow_mode}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link}) " if not is_paying_user else " ")
 
     def get_comment_header(index, errored=False, pr_message=""):
         config_pr_message = (
@@ -327,13 +328,25 @@ def on_ticket(
     external_results = ExternalSearcher.extract_summaries(message_summary)
     if external_results:
         message_summary += "\n\n" + external_results
+
+    # perform rewrite
+    if message_summary:
+        logger.info(f"Performing rewrite for {title} {message_summary}")
+        issue_rewriter = IssueRewriter(chat_logger=chat_logger)
+        new_title, new_summary = issue_rewriter.issue_rewrite(
+            title=title,
+            description=message_summary,
+            has_comments=comment_id == None
+        )
+        logger.info(f"Rewrite complete for new title/summary: {new_title} {new_summary}")
+
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
         username=username,
         repo_description=repo_description,
-        title=title,
-        summary=message_summary,
+        title=new_title,
+        summary=new_summary,
         snippets=snippets,
         tree=tree,
     )
