@@ -66,7 +66,7 @@ tiktoken_volume = modal.NetworkFileSystem.persisted("tiktoken-models")
     image=tiktoken_image,
     network_file_systems={TIKTOKEN_CACHE_DIR: tiktoken_volume},
     secret=modal.Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR}),
-    cpu=0.2,
+    cpu=0.5,
 )
 class Tiktoken:
     openai_models = ["gpt-3.5-turbo", "gpt-4", "gpt-4-32k", "gpt-4-32k-0613"]
