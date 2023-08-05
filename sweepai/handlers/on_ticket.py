@@ -513,7 +513,11 @@ def on_ticket(
             check_runs = commit.get_check_runs()
 
             for check_run in check_runs:
-                check_run.rerequest()
+                # Add logic to correctly interpret Docker operation logs
+                if "docker pull" in check_run.output:
+                    logger.info("Docker operation detected, treating as non-error")
+                else:
+                    check_run.rerequest()
         except Exception as e:
             logger.error(e)
 
