@@ -59,6 +59,7 @@ secrets = [
     modal.Secret.from_name("mongodb"),
     modal.Secret.from_name("discord"),
     modal.Secret.from_name("redis_url"),
+    modal.Secret.from_name("USER_HOLDS"),
 ]
 
 FUNCTION_SETTINGS = {
@@ -68,7 +69,7 @@ FUNCTION_SETTINGS = {
     "keep_warm": 1,
 }
 
-handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
+handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket, secrets)
 handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr_changes)
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
