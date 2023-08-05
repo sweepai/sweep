@@ -42,6 +42,7 @@ SENTENCE_TRANSFORMERS_MODEL = "thenlper/gte-base"
 timeout = 60 * 60  # 30 minutes
 CACHE_VERSION = "v1.0.9"
 MAX_FILES = 500
+CPU = 0.5
 
 image = (
     modal.Image.debian_slim()
@@ -368,18 +369,17 @@ def compute_deeplake_vs(collection_name,
         return deeplake_vs
 
 
-@stub.function(image=image, secrets=secrets, network_file_systems={DISKCACHE_DIR: model_volume}, timeout=timeout)
+@stub.function(image=image, secrets=secrets, network_file_systems={DISKCACHE_DIR: model_volume}, timeout=timeout, keep_warm=2, cpu=CPU)
 def update_index(
         repo_name,
         installation_id: int,
         sweep_config: SweepConfig = SweepConfig(),
 ) -> int:
     get_deeplake_vs_from_repo(repo_name, installation_id, branch_name=None, sweep_config=sweep_config)
-    # todo: ?
     return 0
 
 
-@stub.function(image=image, secrets=secrets, network_file_systems={DEEPLAKE_DIR: model_volume}, timeout=timeout, keep_warm=1)
+@stub.function(image=image, secrets=secrets, network_file_systems={DEEPLAKE_DIR: model_volume}, timeout=timeout, keep_warm=1, cpu=CPU)
 def get_relevant_snippets(
         repo_name: str,
         query: str,
