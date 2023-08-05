@@ -50,17 +50,16 @@ In order to address this issue, what required information do you need about the 
 "{thoughts}"
 
 <contextual_thoughts>
-* ...
+* Thought_1
+* Thought_2
 ...
 </contextual_thoughts>
 
-<partial_snippet file="...">
-relevant snippet
-</partial_snippet>
-
-<relevant_paths>
-file relevant path
-</relevant_paths>
+<relevant_snippets>
+folder_1/file_1.py:0-50
+folder_2/file_2.py:51-100
+...
+</relevant_snippets>
 """
 
 diff_section_prompt = """
