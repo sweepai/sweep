@@ -104,10 +104,14 @@ def on_comment(
 
     # Fetch all comments in the current issue thread
     issue_comments = repo.get_issue(pr_number).get_comments()
+    # Create a dictionary to store the comment ID and the corresponding code update status
+    comment_status = {}
     # Iterate through the comments and delete any that match "sweep: retry" (case-insensitive)
     for issue_comment in issue_comments:
         if issue_comment.body.strip().lower() == "sweep: retry":
             issue_comment.delete()
+        # Add the comment ID and the corresponding code update status to the dictionary
+        comment_status[issue_comment.id] = False
 
     item_to_react_to = None
     reaction = None
@@ -241,6 +245,10 @@ def on_comment(
                 # Update the PR title to remove the "[DRAFT]" prefix
                 pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
 
+        # After the code update is completed, post a "Done." response
+        for comment_id, status in comment_status.items():
+            if status:
+                pr.create_issue_comment("Done.")
         logger.info("Done!")
     except NoFilesException:
         capture_posthog_event(username, "failed", properties={
@@ -250,6 +258,10 @@ def on_comment(
         })
         return {"success": True, "message": "No files to change."}
     except Exception as e:
+        # Add a check to confirm the status of the code update before posting the "Done." response
+        for comment_id, status in comment_status.items():
+            if not status:
+                pr.create_issue_comment("Failed to update code.")
         logger.error(traceback.format_exc())
         capture_posthog_event(username, "failed", properties={
             "error": str(e),
