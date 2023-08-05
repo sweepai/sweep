@@ -474,7 +474,7 @@ def on_ticket(
                                installation_id=installation_id,
                                pr_path=None,
                                pr_line_position=None,
-                               pr_number=None,
+                               pr_number=pr_changes.number,
                                pr=pr_changes)
                 else:
                     break
