@@ -54,6 +54,7 @@ def clean_logs(logs_str: str):
         "Download complete",
         "Verifying Checksum",
         "Pull complete",
+        "Pulling image",  # New pattern for Docker pull output
         # For github
         "remote: Counting objects",
         "remote: Compressing objects:",
@@ -70,7 +71,7 @@ def clean_logs(logs_str: str):
         "npm WARN EBADENGINE ",
         "npm WARN deprecated ",
         "prettier/prettier"
-
+    ]
     ]
     cleaned_lines = [log.strip() for log in truncated_logs if not any(log.startswith(pattern) for pattern in patterns)]
     return "\n".join(cleaned_lines[:min(MAX_LINES, len(cleaned_lines))])
@@ -129,4 +130,3 @@ def on_check_suite(request: CheckRunCompleted):
         repo=repo,
     )
     return {"success": True}
-
