@@ -13,6 +13,7 @@ from tabulate import tabulate
 
 from sweepai.core.entities import Snippet, NoFilesException
 from sweepai.core.external_searcher import ExternalSearcher
+from sweepai.core.issue_rewrite import IssueRewriter
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
@@ -327,13 +328,24 @@ def on_ticket(
     external_results = ExternalSearcher.extract_summaries(message_summary)
     if external_results:
         message_summary += "\n\n" + external_results
+
+    # perform rewrite
+    logger.info(f"Performing rewrite for {title} {message_summary}")
+    issue_rewriter = IssueRewriter()
+    new_title, new_summary = issue_rewriter.issue_rewrite(
+        title=title,
+        description=message_summary,
+        has_comments=comment_id == None
+    )
+    logger.info(f"Rewrite complete for {title} {summary}")
+
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
         username=username,
         repo_description=repo_description,
-        title=title,
-        summary=message_summary,
+        title=new_title,
+        summary=new_summary,
         snippets=snippets,
         tree=tree,
     )
