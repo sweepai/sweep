@@ -13,7 +13,7 @@
     <img alt="Docs" src="https://img.shields.io/badge/Docs-docs.sweep.dev-blue?link=https%3A%2F%2Fdocs.sweep.dev">
 </a> 
 <a href="https://discord.gg/sweep-ai">
-    <img src="https://dcbadge.vercel.app/api/server/sweep-ai?style=flat" />
+    <img alt="Discord" src="https://dcbadge.vercel.app/api/server/sweep-ai?style=flat" />
 </a>
 <a href="https://github.com/sweepai/sweep">
     <img src="https://img.shields.io/github/stars/sweepai/sweep" />
