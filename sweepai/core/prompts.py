@@ -3,7 +3,7 @@ List of common prompts used across the codebase.
 """
 
 # Following two should be fused
-system_message_prompt = "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try and is formatted perfectly. You have the utmost care for the code that you write, so you do not make mistakes. Take into account the current repository's language, frameworks, and dependencies."
+system_message_prompt = "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right."
 
 repo_description_prefix_prompt = "This is the repository description provided by the user. Keep this in mind:"
 
@@ -317,16 +317,11 @@ Detailed plan of modifications:
 * Modification 1
 * Modification 2
 ...
-
-Lines to change in the file: (include multiple small changes as opposed to one large change)
-* lines a-b: Do x
-* lines c: Change to y
-...
 </code_planning>
 
 Code Generation:
 ```
-Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Always add lines before and after if possible.
+Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Prefer many small edits over few large edits. Always add lines before and after if possible.
 
 <<<< ORIGINAL
 line_before
