@@ -297,7 +297,7 @@ def get_deeplake_vs_from_repo(
     scores = get_scores(score_factors) # take percentiles + sum the scores
 
     logger.info(f"Finished getting list of files, chunking...")
-    def chunk_into_sublists(lst, sublist_size=50) -> list[list]:
+    def chunk_into_sublists(lst, sublist_size=200) -> list[list]:
         return [lst[i:i + sublist_size] for i in range(0, len(lst), sublist_size)]
 
     file_contents_batches = chunk_into_sublists(file_contents)
