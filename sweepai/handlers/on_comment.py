@@ -102,13 +102,6 @@ def on_comment(
     repo = g.get_repo(repo_full_name) if not repo else repo
     pr = repo.get_pull(pr_number) if not pr else pr
 
-    # Fetch all comments in the current issue thread
-    issue_comments = repo.get_issue(pr_number).get_comments()
-    # Iterate through the comments and delete any that match "sweep: retry" (case-insensitive)
-    for issue_comment in issue_comments:
-        if issue_comment.body.strip().lower() == "sweep: retry":
-            issue_comment.delete()
-
     item_to_react_to = None
     reaction = None
 
@@ -134,7 +127,7 @@ def on_comment(
                     if r.content == "rocket" and r.user.login == GITHUB_BOT_USERNAME:
                         item_to_react_to.delete_reaction(r.id)
 
-        branch_name = pr.head.ref
+        branch_name = pr.head.ref if pr_number else pr.pr_head # pylint: disable=no-member
         pr_title = pr.title
         pr_body = pr.body or ""
         diffs = get_pr_diffs(repo, pr)
