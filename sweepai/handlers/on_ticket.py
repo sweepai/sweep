@@ -220,7 +220,7 @@ def on_ticket(
     user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
     payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
     slow_mode_status = "using slow mode" if slow_mode else ""
-    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name} {slow_mode_status}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link}) " if not is_paying_user else " ")
+    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name} {slow_mode_status}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
     def get_comment_header(index, errored=False, pr_message=""):
         config_pr_message = (
             "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})" if config_pr_url is not None else ""
