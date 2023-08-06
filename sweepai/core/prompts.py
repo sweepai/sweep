@@ -81,7 +81,7 @@ The code was written by an inexperienced programmer and may contain
 * Other issues. 
 
 Ensure that the code actually reflects the pull request description and title and is complete.
-Think step-by-step logically and thoroughly analyze to summarize the diffs per file in the format:
+Think step-by-step logically and critically analyze to summarize the diffs and indicate potential errors per file in the format:
 
 Step-by-step thoughts:
 * Lines x1-x2: Summary of the changes and errors if any (added, deleted, modified, errors, issues) 
@@ -97,10 +97,10 @@ Step-by-step thoughts:
 
 review_follow_up_prompt = """\
 Here is the next file diff.
-Think step-by-step logically and accurately to summarize the diffs per file in the format:
+Think step-by-step critically and accurately to summarize the diffs and indicate potential errors per file in the format:
 Step-by-step thoughts:
-* Lines x1-x2: Summary of the changes (added, deleted, modified, errors, issues) 
-* Lines y1-y2: Summary of the changes (added, deleted, modified, errors, issues)
+* Lines x1-x2: Summary of the changes and errors if any (added, deleted, modified, errors, issues) 
+* Lines y1-y2: Summary of the changes and errors if any (added, deleted, modified, errors, issues)
 ...
 <file_summarization>
 * file_1 - changes in file_1
@@ -114,7 +114,7 @@ This were the file summaries you provided:
 <file_summaries>
 {file_summaries}
 </file_summaries>
-Given these summaries write a direct and concise GitHub review comment. If there are no changes required, simply say "No changes required."
+Given these summaries write a direct and concise GitHub review comment. Be extra careful with unimplemented sections and do not nit pick on formatting. If there are no changes required, simply say "No changes required."
 In case changes are required, keep in mind the author is an inexperienced programmer and may need a pointer to the files and specific changes.
 Follow this format:
 <changes_required>

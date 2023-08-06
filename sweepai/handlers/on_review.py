@@ -88,4 +88,5 @@ def review_pr(repo, pr, issue_url, username, repo_description, title, summary, r
     review_comment = PullRequestComment.from_string(reply)
     pr.create_review(body=review_comment.content, event="COMMENT", comments=[])
     changes_required = 'yes' in review_comment.changes_required.lower()
+    logger.info(f"Changes required: {changes_required}")
     return changes_required, review_comment.content
