@@ -43,17 +43,28 @@ def get_jwt():
     return encode(payload, signing_key, algorithm="RS256")
 
 def get_token(installation_id: int):
-    jwt = get_jwt()
-    headers = {
-        "Accept": "application/vnd.github+json",
-        "Authorization": "Bearer " + jwt,
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-    response = requests.post(
-        f"https://api.github.com/app/installations/{int(installation_id)}/access_tokens",
-        headers=headers,
-    )
-    return response.json()["token"]
+    for timeout in [5.5, 5.5, 10.5]:
+        try:
+            jwt = get_jwt()
+            headers = {
+                "Accept": "application/vnd.github+json",
+                "Authorization": "Bearer " + jwt,
+                "X-GitHub-Api-Version": "2022-11-28",
+            }
+            response = requests.post(
+                f"https://api.github.com/app/installations/{int(installation_id)}/access_tokens",
+                headers=headers,
+            )
+            obj = response.json()
+            if "token" not in obj:
+                logger.error(obj)
+                raise Exception("Could not get token")
+            return obj["token"]
+        except Exception as e:
+            logger.error(e)
+            time.sleep(timeout)
+    raise Exception("Could not get token")
+
 
 def get_github_client(installation_id: int):
     token = get_token(installation_id)
