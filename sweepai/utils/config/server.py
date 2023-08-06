@@ -1,6 +1,6 @@
 import os
 
-PREFIX = 'prod'
+PREFIX = 'dev'
 print(f"Using prefix: {PREFIX}")
 ENV = PREFIX
 
@@ -61,6 +61,7 @@ description: ''
 
 # Default Values: https://github.com/sweepai/sweep/blob/main/sweep.yaml
 """)
+
 
 # goes under Modal 'openai-secret' secret name
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')

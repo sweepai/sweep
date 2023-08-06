@@ -60,6 +60,7 @@ class CommentCreatedRequest(BaseModel):
     installation: Installation
 
 
+
 class IssueRequest(BaseModel):
     class Issue(BaseModel):
         class User(BaseModel):

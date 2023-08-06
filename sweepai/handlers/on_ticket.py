@@ -155,8 +155,7 @@ def on_ticket(
                 ) for comment in comments if comment.user.type == "User"
             ]
         )
-
-    summary = summary or ""
+    summary = summary if summary else ""
     chat_logger = ChatLogger({
         'repo_name': repo_name,
         'title': title,
