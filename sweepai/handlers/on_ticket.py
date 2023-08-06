@@ -455,6 +455,8 @@ def on_ticket(
             4
         )
 
+        review_message = "Here is my review for my PR:\n\n"
+
         try:
             current_issue.delete_reaction(eyes_reaction.id)
         except:
@@ -466,6 +468,8 @@ def on_ticket(
                 changes_required, review_comment = review_pr(repo=repo, pr=pr_changes, issue_url=issue_url, username=username,
                                                              repo_description=repo_description, title=title,
                                                              summary=summary, replies_text=replies_text, tree=tree)
+                review_message += review_comment.replace("\n", "\n> ") + "\n\n"
+                edit_sweep_comment(review_message, 4)
                 logger.info(f"Addressing review comment {review_comment}")
                 if changes_required:
                     on_comment(repo_full_name=repo_full_name,
