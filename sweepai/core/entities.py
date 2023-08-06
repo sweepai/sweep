@@ -136,6 +136,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
         instructions = string[colon_idx + 1:]
         file_name = clean_filename(file_name)
         instructions = clean_instructions(instructions)
+        file_name = file_name.lstrip('/')
         res = FileChangeRequest(filename=file_name,
                                 instructions=instructions,
                                 change_type="modify")
@@ -290,7 +291,15 @@ class Snippet(BaseModel):
 
 class DiffSummarization(RegexMatchableBaseModel):
     content: str
-    _regex = r"""<file_summarization>(?P<content>.*)<\/file_summarization>"""
+    _regex = r"""<file_summarization>(?P<content>.*)$"""
+
+    @classmethod
+    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
+        result = super().from_string(string, **kwargs)
+        result.content = result.content.replace("</file_summarization>", "", 1).strip()
+        return cls(
+            content=result.content,
+        )
 
 
 class PullRequestComment(RegexMatchableBaseModel):
@@ -316,6 +325,7 @@ class MockPR(BaseModel):
     base: Any
     head: Any
 
+    state: str = "open"
     html_url: str = ""
 
     def create_review(self, *args, **kwargs):
