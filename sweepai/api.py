@@ -18,6 +18,7 @@ from sweepai.handlers.create_pr import create_pr_changes, create_gha_pr  # type:
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.config.server import DB_MODAL_INST_NAME, API_MODAL_INST_NAME, GITHUB_BOT_USERNAME, \
     GITHUB_LABEL_NAME, GITHUB_LABEL_COLOR, GITHUB_LABEL_DESCRIPTION, BOT_TOKEN_NAME
 from sweepai.utils.event_logger import posthog
@@ -88,20 +89,31 @@ def handle_pr_change_request(
         while queue:
             # popping
             call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
+            stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, [])
             pr_change_request: PRChangeRequest
-            *queue, pr_change_request = queue
-            logger.info(f"Currently handling PR change request: {pr_change_request}")
-            logger.info(f"PR queues: {queue}")
+            for pr_change_request in queue:
+                if pr_change_request.type == "comment":
+                    handle_comment.call(**pr_change_request.params)
+                elif pr_change_request.type == "gha":
+                    handle_check_suite.call(**pr_change_request.params)
+                else:
+                    raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
+                time.sleep(1)
+            call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
+            # *queue, pr_change_request = queue
+            # logger.info(f"Currently handling PR change request: {pr_change_request}")
+            # logger.info(f"PR queues: {queue}")
 
-            if pr_change_request.type == "comment":
-                handle_comment.call(**pr_change_request.params)
-            elif pr_change_request.type == "gha":
-                handle_check_suite.call(**pr_change_request.params)
-            else:
-                raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
+            # if pr_change_request.type == "comment":
+            #     handle_comment.call(**pr_change_request.params)
+            # elif pr_change_request.type == "gha":
+            #     handle_check_suite.call(**pr_change_request.params)
+            # else:
+            #     raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
             stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
     finally:
-        del stub.app.pr_queues[(repo_full_name, pr_id)]
+        if (repo_full_name, pr_id) in stub.app.pr_queues:
+            del stub.app.pr_queues[(repo_full_name, pr_id)]
 
 
 def function_call_is_completed(call_id: str):
@@ -427,8 +439,8 @@ async def webhook(raw_request: Request):
                 pr_request = PRRequest(**request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")
                 commit_author = pr_request.pull_request.user.login
-                merged_by = pr_request.pull_request.merged_by.login if pr_request.pull_request.merged_by else pr_request.pull_request.user.login
-                if GITHUB_BOT_USERNAME == commit_author:
+                merged_by = pr_request.pull_request.merged_by.login if pr_request.pull_request.merged_by else None
+                if GITHUB_BOT_USERNAME == commit_author and merged_by is not None:
                     event_name = "merged_sweep_pr"
                     if pr_request.pull_request.title.startswith("[config]"):
                         event_name = "config_pr_merged"
@@ -444,16 +456,23 @@ async def webhook(raw_request: Request):
                             "deletions": pr_request.pull_request.deletions,
                             "total_changes": pr_request.pull_request.additions + pr_request.pull_request.deletions,
                         })
-                update_index.spawn(
-                    request_dict["repository"]["full_name"],
-                    installation_id=request_dict["installation"]["id"],
-                )
-            case "push", None:
-                if event != "pull_request" or request_dict["base"]["merged"] == True:
+                chat_logger = ChatLogger({"username": merged_by})
+                # this makes it faster for everyone because the queue doesn't get backed up
+                # active users also should not see a delay
+                if chat_logger.is_paying_user():
                     update_index.spawn(
                         request_dict["repository"]["full_name"],
                         installation_id=request_dict["installation"]["id"],
                     )
+            case "push", None:
+                if event != "pull_request" or request_dict["base"]["merged"] == True:
+                    chat_logger = ChatLogger({"username": request_dict["pusher"]["name"]})
+                    # this makes it faster for everyone because the queue doesn't get backed up
+                    if chat_logger.is_paying_user():
+                        update_index.spawn(
+                            request_dict["repository"]["full_name"],
+                            installation_id=request_dict["installation"]["id"],
+                        )
                     update_sweep_prs.spawn(
                         request_dict["repository"]["full_name"],
                         installation_id=request_dict["installation"]["id"],
