@@ -20,34 +20,45 @@ log_message = """GitHub actions yielded the following error.
 
 This is likely a linting or type-checking issue with the source code."""
 
+def get_dirs(zipfile: zipfile.ZipFile):
+    return [file for file in zipfile.namelist() if file.endswith("/") and "/" in file]
+
+def get_files_in_dir(zipfile: zipfile.ZipFile, dir: str):
+    return [file for file in zipfile.namelist() if file.startswith(dir) and not file.endswith("/")]
+
+
 def download_logs(repo_full_name: str, run_id: int, installation_id: int):
+    token = get_token(installation_id)
     headers = {
         "Accept": "application/vnd.github+json",
-        "Authorization": f"Bearer {get_token(installation_id)}",
+        "Authorization": f"Bearer {token}",
         "X-GitHub-Api-Version": "2022-11-28"
     }
-    response = requests.get(f"https://api.github.com/repos/{repo_full_name}/actions/runs/{run_id}/logs",
-                            headers=headers)
+    response = requests.get(f"https://api.github.com/repos/{repo_full_name}/actions/runs/{run_id}/logs", headers=headers)
 
     logs_str = ""
     if response.status_code == 200:
         # this is the worst code I've ever written. I'm sorry.
-        zip_file = zipfile.ZipFile(io.BytesIO(response.content))
-        files = [file[file.find("/") + 1:] for file in zip_file.namelist() if "/" in file and not file.endswith("/")]
-        numbers = [int(file[:file.find("_")]) for file in files]
-        for i in range(1, 100):
-            if i not in numbers:
-                break
-        i -= 1
-        target_file = ""
-        for file in zip_file.namelist():
-            if "/" in file and file[file.find("/") + 1: file.rfind("_")] == str(i):
-                target_file = file
-                break
-        else:
-            raise ValueError("No file found")
-        with zip_file.open(target_file) as f:
-            logs_str += f.read().decode("utf-8")
+        content = response.content
+        zip_file = zipfile.ZipFile(io.BytesIO(content))
+        dirs = get_dirs(zip_file)
+        
+        for directory in dirs:
+            files = get_files_in_dir(zip_file, directory)
+            numbers = [int(file[len(directory):file.find("_")]) for file in files]
+            for i in range(1, 100):
+                if i not in numbers:
+                    break
+            i -= 1
+            target_file = ""
+            for file in files:
+                if file[len(directory): file.find("_")] == str(i):
+                    target_file = file
+                    break
+            else:
+                raise ValueError("No file found")
+            with zip_file.open(target_file) as f:
+                logs_str += f.read().decode("utf-8")
     else:
         logger.info(response.text)
         logger.warning(f"Failed to download logs for run id: {run_id}")
