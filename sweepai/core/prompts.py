@@ -74,37 +74,39 @@ diff_section_prompt = """
 
 review_prompt = """\
 I need you to carefully review the code diffs in this pull request.
+
 The code was written by an inexperienced programmer and may contain
-* Accidental deletions
-* Logic errors
+* Logic errors (missing imports)
+* Syntax errors (wrong indents)
 * Unimplemented sections (such as "pass", "...", "# rest of code here")
 * Other issues. 
 
-Ensure that the code actually reflects the pull request description and title and is complete.
-Think step-by-step logically and critically analyze to summarize the diffs and indicate potential errors per file in the format:
+Be sure to indicate any of these errors. Do not include formatting errors like missing ending newlines. Ensure that the code actually reflects the pull request summary and every function and class is fully implemented. 
+
+Think step-by-step to summarize and indicate potential errors. Respond in the following format:
 
 Step-by-step thoughts:
-* Lines x1-x2: Summary of the changes and errors if any (added, deleted, modified, errors, issues) 
-* Lines y1-y2: Summary of the changes and errors if any (added, deleted, modified, errors, issues)
+* Lines x1-x2: Brief summary of changes, potential errors and unimplemented sections
+* Lines y1-y2: Brief summary of changes, potential errors and unimplemented sections
 ...
 
 <file_summarization>
-* file_1 - changes in file_1
-* file_1 - more changes in file_1
+* file_1 - changes and errors in file_1
+* file_1 - more changes and errors in file_1
 ...
 </file_summarization>
 """
 
 review_follow_up_prompt = """\
-Here is the next file diff.
-Think step-by-step critically and accurately to summarize the diffs and indicate potential errors per file in the format:
+Here is the next file diff. Think step-by-step to summarize and indicate potential errors. Respond in the following format:
+
 Step-by-step thoughts:
-* Lines x1-x2: Summary of the changes and errors if any (added, deleted, modified, errors, issues) 
-* Lines y1-y2: Summary of the changes and errors if any (added, deleted, modified, errors, issues)
+* Lines x1-x2: Brief summary of changes, potential errors and unimplemented sections
+* Lines y1-y2: Brief summary of changes, potential errors and unimplemented sections
 ...
 <file_summarization>
-* file_1 - changes in file_1
-* file_1 - more changes in file_1
+* file_1 - changes and errors in file_1
+* file_1 - more changes and errors in file_1
 ...
 </file_summarization>
 """

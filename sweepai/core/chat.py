@@ -216,6 +216,12 @@ class ChatGPT(BaseModel):
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
         logger.info(f"Input to call openai:\n{messages_raw}")
 
+        messages_dicts = [self.messages_dicts[0]]
+        for message_dict in self.messages_dicts[:1]:
+            if message_dict["role"] == messages_dicts[-1]["role"]:
+                messages_dicts[-1]["content"] += "\n" + message_dict["content"]
+            messages_dicts.append(message_dict)
+
         gpt_4_buffer = 800
         if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
             model = "gpt-4-0613"
@@ -243,7 +249,7 @@ class ChatGPT(BaseModel):
                         output = (
                             openai.ChatCompletion.create(
                                 model=model,
-                                messages=self.messages_dicts,
+                                messages=messages_dicts,
                                 max_tokens=max_tokens - token_sub,
                                 temperature=temperature,
                                 functions=[json.loads(function.json()) for function in functions],
@@ -255,7 +261,7 @@ class ChatGPT(BaseModel):
                         output = (
                             openai.ChatCompletion.create(
                                 model=model,
-                                messages=self.messages_dicts,
+                                messages=messages_dicts,
                                 max_tokens=max_tokens - token_sub,
                                 temperature=temperature,
                                 functions=[json.loads(function.json()) for function in functions],
