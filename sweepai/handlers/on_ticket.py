@@ -461,7 +461,7 @@ def on_ticket(
                 commit_sha = changed_file.commit.sha
                 commit_url = f"https://github.com/{organization}/{repo_name}/commit/{commit_sha}"
                 # message += f":heavy_check_mark: Edited {file_change_request.filename}\n"
-                files_progress = [(file, instructions + f" ([Commit]({commit_url}))", "✅") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
+                files_progress = [(file, instructions, f"✅ [Commit]({commit_url})") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
             else:
                 # message += f"❌ Did not edit {file_change_request.filename}\n"
                 files_progress = [(file, instructions, "❌") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
