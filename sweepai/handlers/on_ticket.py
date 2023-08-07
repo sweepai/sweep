@@ -458,10 +458,10 @@ def on_ticket(
                 break
             file_change_request, changed_file = item
             if changed_file:
-                # message += f":heavy_check_mark: Edited {file_change_request.filename}\n"
-                files_progress = [(file, instructions, "✅") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
+                commit_hash = repo.get_branch(pull_request.branch_name).commit.sha
+                commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
+                files_progress = [(file, instructions, f"✅ Done with commit [`{commit_hash[:7]}`]({commit_url})") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
             else:
-                # message += f"❌ Did not edit {file_change_request.filename}\n"
                 files_progress = [(file, instructions, "❌") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
             logger.info(files_progress)
             logger.info(f"Edited {file_change_request.filename}")
