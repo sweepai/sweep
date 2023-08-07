@@ -6,10 +6,10 @@ from typing import Type, TypeVar
 
 Self = TypeVar("Self", bound="Sandbox")
 
-GIT_PASS = r'echo \'#!/bin/sh\\necho "{token}"\' > git-askpass.sh && chmod +x git-askpass.sh'
-GIT_CLONE = r"export GIT_ASKPASS=./git-askpass.sh;" \
-            r"git config --global credential.helper 'cache --timeout=3600';" \
-            r"git clone https://{username}@github.com/sweepai-dev/test"
+GIT_PASS = 'echo \'#!/bin/sh\\necho "{token}"\' > git-askpass.sh && chmod +x git-askpass.sh'
+GIT_CLONE = "export GIT_ASKPASS=./git-askpass.sh;" \
+            "git config --global credential.helper 'cache --timeout=3600';" \
+            "git clone https://{username}@github.com/sweepai-dev/test"
 
 
 # Class for ShellMessage
@@ -40,6 +40,7 @@ class Sandbox(BaseModel):
         )
 
     async def run_command(self, command: str):
+        print("Running command", command)
         outputs = []
         proc = await self.session.process.start(
             cmd=command,
@@ -55,4 +56,5 @@ class Sandbox(BaseModel):
         return outputs
 
     async def clone_repo(self):
-        raise NotImplementedError
+        await self.run_command(GIT_PASS.format(token=self.token))
+        await self.run_command(GIT_CLONE.format(username=self.username))
