@@ -16,7 +16,7 @@ Homepage = "https://sweep.dev"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-PyGithub = "1.58.2"
+PyGithub = "1.58.2"  # Updated version
 loguru = "^0.6.0"
 requests = "^2.28.2"
 urllib3 = "<2.0.0"

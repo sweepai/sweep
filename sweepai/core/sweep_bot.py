@@ -353,31 +353,33 @@ class SweepBot(CodeGenBot, GithubBot):
         return
 
     def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
-        file_change: FileCreation | None = None
-        for count in range(5):
-            key = f"file_change_created_{file_change_request.filename}"
-            create_file_response = self.chat(
-                create_file_prompt.format(
-                    filename=file_change_request.filename,
-                    instructions=file_change_request.instructions,
-                    commit_message=f"Create {file_change_request.filename}"
-                ),
-                message_key=key,
-            )
-            # Add file to list of changed_files
-            self.file_change_paths.append(file_change_request.filename)
-            # self.delete_file_from_system_message(file_path=file_change_request.filename)
-            try:
-                file_change = FileCreation.from_string(create_file_response)
-                assert file_change is not None
-                file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
-                return file_change
-            except Exception:
-                # Todo: should we undo appending to file_change_paths?
-                logger.warning(f"Failed to parse. Retrying for the {count}th time...")
-                self.delete_messages_from_chat(key)
-                continue
-        raise Exception("Failed to parse response after 5 attempts.")
+            file_change: FileCreation | None = None
+            for count in range(5):
+                key = f"file_change_created_{file_change_request.filename}"
+                create_file_response = self.chat(
+                    create_file_prompt.format(
+                        filename=file_change_request.filename,
+                        instructions=file_change_request.instructions,
+                        commit_message=f"Create {file_change_request.filename}"
+                    ),
+                    message_key=key,
+                )
+                # Add file to list of changed_files
+                self.file_change_paths.append(file_change_request.filename)
+                # self.delete_file_from_system_message(file_path=file_change_request.filename)
+                try:
+                    file_change = FileCreation.from_string(create_file_response)
+                    assert file_change is not None
+                    file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
+                    if file_markdown and not file_change.code.endswith('\n'):
+                        file_change.code += '\n'
+                    return file_change
+                except Exception:
+                    # Todo: should we undo appending to file_change_paths?
+                    logger.warning(f"Failed to parse. Retrying for the {count}th time...")
+                    self.delete_messages_from_chat(key)
+                    continue
+            raise Exception("Failed to parse response after 5 attempts.")
 
     def modify_file(
             self, 
@@ -506,6 +508,8 @@ class SweepBot(CodeGenBot, GithubBot):
             file_change = self.create_file(file_change_request)
             file_markdown = is_markdown(file_change_request.filename)
             file_change.code = format_contents(file_change.code, file_markdown)
+            if file_markdown and not file_change.code.endswith('\n'):
+                file_change.code += '\n'
             logger.debug(
                 f"{file_change_request.filename}, {f'Create {file_change_request.filename}'}, {file_change.code}, {branch}"
             )
@@ -562,41 +566,45 @@ class SweepBot(CodeGenBot, GithubBot):
                             if i + CHUNK_SIZE < len(lines):
                                 new_file_contents += new_chunk + "\n"
                             else:
+                new_file_contents += new_chunk
+                            else:
                                 new_file_contents += new_chunk
-                    break  # If the chunking was successful, break the loop
-                except Exception:
-                    continue  # If the chunking was not successful, continue to the next chunk size
-            # If the original file content is identical to the new file content, log a warning and return
-            if file_contents == new_file_contents:
-                logger.warning(f"No changes made to {file_change_request.filename}. Skipping file update.")
-                return False
-            logger.debug(
-                f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
-            )
-            # Update the file with the new contents after all chunks have been processed
-            try:
-                self.repo.update_file(
-                    file_name,
-                    f'Update {file_name}',
-                    new_file_contents,
-                    file.sha,
-                    branch=branch,
-                )
-                return True
-            except Exception as e:
-                logger.info(f"Error in updating file, repulling and trying again {e}")
-                file = self.get_file(file_change_request.filename, branch=branch)
-                self.repo.update_file(
-                    file_name,
-                    f'Update {file_name}',
-                    new_file_contents,
-                    file.sha,
-                    branch=branch,
-                )
-                return True
-        except MaxTokensExceeded as e:
-            raise e
-        except Exception as e:
-            tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")
-            return False
+                            if file_markdown and not new_file_contents.endswith('\n'):
+                                new_file_contents += '\n'
+                            break  # If the chunking was successful, break the loop
+                        except Exception:
+                            continue  # If the chunking was not successful, continue to the next chunk size
+                    # If the original file content is identical to the new file content, log a warning and return
+                    if file_contents == new_file_contents:
+                        logger.warning(f"No changes made to {file_change_request.filename}. Skipping file update.")
+                        return False
+                    logger.debug(
+                        f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
+                    )
+                    # Update the file with the new contents after all chunks have been processed
+                    try:
+                        self.repo.update_file(
+                            file_name,
+                            f'Update {file_name}',
+                            new_file_contents,
+                            file.sha,
+                            branch=branch,
+                        )
+                        return True
+                    except Exception as e:
+                        logger.info(f"Error in updating file, repulling and trying again {e}")
+                        file = self.get_file(file_change_request.filename, branch=branch)
+                        self.repo.update_file(
+                            file_name,
+                            f'Update {file_name}',
+                            new_file_contents,
+                            file.sha,
+                            branch=branch,
+                        )
+                        return True
+                except MaxTokensExceeded as e:
+                    raise e
+                except Exception as e:
+                    tb = traceback.format_exc()
+                    logger.info(f"Error in handle_modify_file: {tb}")
+                    return False
