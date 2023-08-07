@@ -240,50 +240,50 @@ if functions:
         max_tries=ith_value,
         jitter=backoff.random_jitter,
     )
-            def fetch():
-                global retry_counter
-                global ith_value
-                retry_counter += 1
-                ith_value += 1
-                token_sub = retry_counter * 200
-                try:
-                    output = None
-                    if function_name:
-                        output = (
-                            openai.ChatCompletion.create(
-                                model=model,
-                                messages=messages_dicts,
-                                max_tokens=max_tokens - token_sub,
-                                temperature=temperature,
-                                functions=[json.loads(function.json()) for function in functions],
-                                function_call=function_name,
-                            )
-                            .choices[0].message
-                        )
-                    else:
-                        output = (
-                            openai.ChatCompletion.create(
-                                model=model,
-                                messages=messages_dicts,
-                                max_tokens=max_tokens - token_sub,
-                                temperature=temperature,
-                                functions=[json.loads(function.json()) for function in functions],
-                            )
-                            .choices[0].message
-                        )
-                    if self.chat_logger is not None: self.chat_logger.add_chat({
-                        'model': model,
-                        'messages': self.messages_dicts,
-                        'max_tokens': max_tokens - token_sub,
-                        'temperature': temperature,
-                        'functions': [json.loads(function.json()) for function in functions],
-                        'function_call': function_name,
-                        'output': output,
-                    })
-                    return output
-                except Exception as e:
-                    logger.warning(e)
-                    raise e
+    def fetch():
+        global retry_counter
+        global ith_value
+        retry_counter += 1
+        ith_value += 1
+        token_sub = retry_counter * 200
+        try:
+            output = None
+            if function_name:
+                output = (
+                    openai.ChatCompletion.create(
+                        model=model,
+                        messages=messages_dicts,
+                        max_tokens=max_tokens - token_sub,
+                        temperature=temperature,
+                        functions=[json.loads(function.json()) for function in functions],
+                        function_call=function_name,
+                    )
+                    .choices[0].message
+                )
+            else:
+                output = (
+                    openai.ChatCompletion.create(
+                        model=model,
+                        messages=messages_dicts,
+                        max_tokens=max_tokens - token_sub,
+                        temperature=temperature,
+                        functions=[json.loads(function.json()) for function in functions],
+                    )
+                    .choices[0].message
+                )
+            if self.chat_logger is not None: self.chat_logger.add_chat({
+                'model': model,
+                'messages': self.messages_dicts,
+                'max_tokens': max_tokens - token_sub,
+                'temperature': temperature,
+                'functions': [json.loads(function.json()) for function in functions],
+                'function_call': function_name,
+                'output': output,
+            })
+            return output
+        except Exception as e:
+            logger.warning(e)
+            raise e
 
             result = fetch()
             if "function_call" in result:
