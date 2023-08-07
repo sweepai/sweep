@@ -234,7 +234,7 @@ class GithubBot(BaseModel):
             logger.error(f"Error: {e}, trying with other branch names...")
             logger.warning(f'{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}')
             if retry:
-                for i in range(1, 6):
+                for i in range(1, 11):
                     try:
                         logger.warning(f"Retrying {branch}_{i}...")
                         self.repo.create_git_ref(
@@ -457,6 +457,43 @@ class SweepBot(CodeGenBot, GithubBot):
                             self.messages.append(Message(**message))
 
                     changed_file = self.handle_modify_file(file_change_request, branch)
+            except MaxTokensExceeded as e:
+                raise e
+            except Exception as e:
+                logger.error(f"Error in change_files_in_github {e}")
+
+            if changed_file:
+                completed += 1
+        return completed, num_fcr
+    
+    def change_files_in_github_iterator(
+            self,
+            file_change_requests: list[FileChangeRequest],
+            branch: str,
+    ):
+        # should check if branch exists, if not, create it
+        logger.debug(file_change_requests)
+        num_fcr = len(file_change_requests)
+        completed = 0
+
+        added_modify_hallucination = False
+
+        for file_change_request in file_change_requests:
+            changed_file = False
+            try:
+                if file_change_request.change_type == "create":
+                    changed_file = self.handle_create_file(file_change_request, branch)
+                elif file_change_request.change_type == "modify":
+                    if not added_modify_hallucination:
+                        added_modify_hallucination = True
+                        # Add hallucinated example for better parsing
+                        for message in modify_file_hallucination_prompt:
+                            self.messages.append(Message(**message))
+
+                    changed_file = self.handle_modify_file(file_change_request, branch)
+                else:
+                    raise Exception(f"Invalid change type: {file_change_request.change_type}")
+                yield file_change_request, changed_file
             except MaxTokensExceeded as e:
                 raise e
             except Exception as e:
