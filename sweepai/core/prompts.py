@@ -286,7 +286,6 @@ def func():
 ---
 
 Code Planning:
-<code_planning>
 Step-by-step thoughts with explanations: 
 * Thought 1
 * Thought 2
@@ -296,7 +295,6 @@ Detailed plan of modifications:
 * Modification 1
 * Modification 2
 ...
-</code_planning>
 
 Code Generation:
 ```
@@ -318,7 +316,6 @@ Instructions:
 1. Complete the Code Planning step
 2. Complete the Code Generation step""", 'role': 'user', 'key': 'modify_file_hallucination'},
 {'content': """Code Planning:
-<code_planning>
 Step-by-step thoughts with explanations:
 * We need to print "goodbye" instead of "hello".
 * We need to update the value of the variable a from 3 to 4.
@@ -326,7 +323,6 @@ Step-by-step thoughts with explanations:
 Detailed plan of modifications:
 * Change the output of the print statement from "hello" to "goodbye" as an example modification.
 * I will update the value of a from 3 to 4.
-</code_planning>
 
 Code Generation:
 ```
