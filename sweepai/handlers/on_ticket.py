@@ -445,12 +445,25 @@ def on_ticket(
 
         # WRITE PULL REQUEST
         logger.info("Making PR...")
-        response = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
-        if not response or not response["success"]: raise Exception(f"Failed to create PR: {response['error']}")
+        generator = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
+        message = ""
+        response = None
+        for item in generator:
+            if isinstance(item, dict):
+                response = item
+            file_change_request, changed_file = item
+            if changed_file:
+                message += f"✔️ Edited {file_change_request.filename}\n"
+            else:
+                message += f"❌ Did not edit {file_change_request.filename}\n"
+            logger.info(f"Edited {file_change_request.filename}")
+            edit_sweep_comment(message, 4)
+        if not response or not response["success"]:
+            raise Exception(f"Failed to create PR: {response['error']}")
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
-            "I have finished coding the issue. I am now reviewing it for completeness.",
+            message + "I have finished coding the issue. I am now reviewing it for completeness.",
             4
         )
 
