@@ -187,6 +187,7 @@ class ChatGPT(BaseModel):
             functions: list[Function] = [],
             function_name: dict | None = None,
     ):
+        ith_value = 5
         if self.chat_logger:
             tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
             tickets_count = self.chat_logger.get_ticket_count()
@@ -231,8 +232,7 @@ class ChatGPT(BaseModel):
             max_tokens = min(max_tokens, 5000)
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
 global retry_counter
-retry_counter = 0
-ith_value = 1
+retry_counter = ith_value
 if functions:
     @backoff.on_exception(
         backoff.expo,
