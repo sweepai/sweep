@@ -19,14 +19,6 @@ from sweepai.events import (
 from sweepai.handlers.create_pr import create_pr_changes, create_gha_pr  # type: ignore
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 
-def shutdown_computer():
-    system_type = platform.system()
-    if system_type == 'Windows':
-        os.system('shutdown.exe /s /t 1')
-    elif system_type in ['Linux', 'Darwin']:
-        os.system('shutdown -h now')
-    else:
-        print(f'Unsupported system type: {system_type}')
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.utils.chat_logger import ChatLogger
@@ -164,7 +156,6 @@ def push_to_queue(
 @modal.web_endpoint(method="POST")
 async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
-    shutdown_computer()
     try:
         request_dict = await raw_request.json()
         logger.info(f"Received request: {request_dict.keys()}")
