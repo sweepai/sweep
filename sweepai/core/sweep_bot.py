@@ -9,7 +9,6 @@ from loguru import logger
 from pydantic import BaseModel
 
 from sweepai.core.chat import ChatGPT
-from sweepai.core.code_repair import CodeRepairer
 from sweepai.core.edit_chunk import EditBot
 from sweepai.core.entities import (
     FileCreation,
@@ -17,22 +16,21 @@ from sweepai.core.entities import (
     FilesToChange,
     PullRequest,
     RegexMatchError,
-    Function,
     Snippet, NoFilesException, Message
 )
 from sweepai.core.prompts import (
     files_to_change_prompt,
     pull_request_prompt,
     create_file_prompt,
-    files_to_change_abstract_prompt,
     modify_file_hallucination_prompt,
     modify_file_prompt_3,
+    code_repair_modify_prompt,
     snippet_replacement,
     chunking_prompt,
 )
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
-from sweepai.utils.diff import diff_contains_dups_or_removals, format_contents, generate_diff, generate_new_file, generate_new_file_from_patch, is_markdown
+from sweepai.utils.diff import format_contents, generate_new_file_from_patch, is_markdown
 
 USING_DIFF = True
 
@@ -289,69 +287,6 @@ class GithubBot(BaseModel):
 
 
 class SweepBot(CodeGenBot, GithubBot):
-    def cot_retrieval(self):
-        # TODO(sweep): add semantic search using vector db
-        # TODO(sweep): add search using webpilot + github
-        functions = [
-            Function(
-                name="cat",
-                description="Cat files. Max 3 files per request.",
-                parameters={
-                    "properties": {
-                        "filepath": {
-                            "type": "string",
-                            "description": "Paths to files. One per line."
-                        },
-                    }
-                }  # manage file too large
-            ),
-            Function(
-                name="finish",
-                description="Indicate you have sufficient data to proceed.",
-                parameters={"properties": {}}
-            ),
-        ]
-
-        # self.chat(
-        #     cot_retrieval_prompt,
-        #     message_key="cot_retrieval",
-        #     functions=functions,
-        # )
-        # is_function_call = self.messages[-1].function_call is not None
-        # for _retry in range(3):
-        #     logger.info("Got response.")
-        #     if not is_function_call:
-        #         break
-
-        #     response = self.messages[-1].function_call
-        #     # response = json.loads(response)
-        #     function_name = response["name"]
-        #     arguments = response["arguments"]
-        #     logger.info(f"Fetching file {function_name} with arguments {arguments}.")
-        #     arguments = json.loads(arguments)
-        #     if function_name == "finish":
-        #         return
-        #     elif function_name == "cat":
-        #         path = arguments["filepath"]
-        #         try:
-        #             logger.info("Retrieving file...")
-        #             content = self.get_file(path).decoded_content.decode("utf-8")
-        #             logger.info("Received file")
-        #         except github.GithubException:
-        #             response = self.chat(
-        #                 f"File not found: {path}",
-        #                 message_key=path,
-        #                 functions=functions,
-        #             )
-        #         else:
-        #             response = self.chat(
-        #                 f"Here is the file: <file path=\"{path}\">\n\n{content[:10000]}</file>. Fetch more content or call finish.", 
-        #                 message_key=path,
-        #                 functions=functions
-        #             ) # update this constant
-        #             return response
-        return
-
     def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
         file_change: FileCreation | None = None
         for count in range(5):
@@ -422,6 +357,24 @@ class SweepBot(CodeGenBot, GithubBot):
                     f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}")
                 new_file = generate_new_file_from_patch(modify_file_response, contents, chunk_offset=chunk_offset)
                 new_file = format_contents(new_file, file_markdown)
+
+                self.delete_messages_from_chat(key)
+
+                # validation step
+                logger.info("Validating file change request...")
+                new_diffs = self.chat(
+                    code_repair_modify_prompt.format(
+                        filename=file_change_request.filename,
+                        instructions=file_change_request.instructions,
+                        code=new_file,
+                    ),
+                    message_key=key + "validation",
+                )
+
+                final_file = generate_new_file_from_patch(new_diffs, new_file, chunk_offset=chunk_offset)
+                final_file = format_contents(final_file, file_markdown)
+                logger.info("Done validating file change request")
+
                 return new_file
             except Exception as e:
                 tb = traceback.format_exc()
