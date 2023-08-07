@@ -448,7 +448,7 @@ def on_ticket(
         files_progress = [(file_change_request.filename, file_change_request.instructions, "⏳") for file_change_request in file_change_requests]
 
         generator = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
-        message = tabulate([(f"`{filename}`", instructions, progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
+        message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
         logger.info(files_progress)
         edit_sweep_comment(message, 4)
         response = None
@@ -465,7 +465,7 @@ def on_ticket(
                 files_progress = [(file, instructions, "❌") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
             logger.info(files_progress)
             logger.info(f"Edited {file_change_request.filename}")
-            message = tabulate([(f"`{filename}`", instructions, progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
+            message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
             edit_sweep_comment(message, 4)
         if not response or not response["success"]:
             raise Exception(f"Failed to create PR: {response['error']}")
