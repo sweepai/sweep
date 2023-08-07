@@ -263,14 +263,14 @@ def sliding_window_replacement(original, search, replace, search_context_before=
     if index == -1:
         return original, None, NOT_FOUND
 
-    if max_similarity != len(search):
-        snippet, spaces, strip = get_snippet_with_padding(original, index, search)
+    # if max_similarity != len(search):
+    snippet, spaces, strip = get_snippet_with_padding(original, index, search)
+    if strip:
         # Todo: What if whitespace in search is incorrect
         first_line_spaces = len(search[0]) - len(search[0].lstrip())
         modified = [spaces + (lstrip_max(line, [' '], first_line_spaces) if strip else line) for line in replace]
     else:
-        # I'm sorry luke i have no idea what your code does
-        modified = replace
+        modified = [spaces + line for line in replace]
 
     # replaced original with modified
     original = original[:index] + modified + original[index + len(search):]
