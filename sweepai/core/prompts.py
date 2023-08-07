@@ -195,8 +195,8 @@ Then, provide a list of files you would like to modify, abiding by the following
 You MUST follow the following format delimited with XML tags:
 
 Step-by-step thoughts with explanations: 
-* Thought 1 - Explanation 1
-* Thought 2 - Explanation 2
+* Thought 1
+* Thought 2
 ...
 
 <modify_file>
@@ -235,8 +235,8 @@ file_name = "{filename}"
 instructions = "{instructions}"
 
 Step-by-step thoughts with explanations: 
-* Thought 1 - Explanation 1
-* Thought 2 - Explanation 2
+* Thought 1
+* Thought 2
 ...
 
 Detailed plan of additions:
@@ -348,10 +348,6 @@ Step-by-step thoughts with explanations:
 Detailed plan of modifications:
 * Modification 1 - Change the output of the print statement from "hello" to "goodbye" as an example modification.
 * Modification 2 - I will update the value of a from 3 to 4.
-
-Lines to change in the file:
-* lines 4: update print statement
-* lines 8: update value of a
 </code_planning>
 
 Code Generation:
