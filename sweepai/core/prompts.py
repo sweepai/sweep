@@ -195,7 +195,7 @@ Then, provide a list of files you would like to modify, abiding by the following
 
 You MUST follow the following format with final output in XML tags:
 
-Abstract plan:
+Root cause:
 Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph.
 
 Step-by-step thoughts with explanations: 
