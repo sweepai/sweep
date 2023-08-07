@@ -467,8 +467,17 @@ def on_ticket(
                 changes_required, review_comment = review_pr(repo=repo, pr=pr_changes, issue_url=issue_url, username=username,
                     repo_description=repo_description, title=title,
                     summary=summary, replies_text=replies_text, tree=tree)
-ordinal = lambda n: "%d%s" % (n,"tsnrhtdd"[((n//10%10!=1)*(n%10<4)*n%10)::4])
-review_message += f"Here is the {ordinal(i + 1)} review\n> " + review_comment.replace("\n", "\n> ") + "\n\n"
+def get_ordinal(n):
+    suffixes = ["th", "st", "nd", "rd"]
+    if 10 <= n <= 20:
+        suffix_index = 0
+    else:
+        suffix_index = n % 10
+        if suffix_index > 3:
+            suffix_index = 0
+    return str(n) + suffixes[suffix_index]
+
+review_message += f"Here is the {get_ordinal(i + 1)} review\n> " + review_comment.replace("\n", "\n> ") + "\n\n"
                 edit_sweep_comment(review_message, 4)
                 logger.info(f"Addressing review comment {review_comment}")
                 if changes_required:
