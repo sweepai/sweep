@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import time
+import multiprocessing
 
 import modal
 from git.repo import Repo
@@ -105,10 +106,17 @@ class Embedding:
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
         )
 
+    def compute_chunk(self, texts: list[str]):
+        return self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
+
     @method()
     def compute(self, texts: list[str]):
         logger.info(f"Computing embeddings for {len(texts)} texts")
-        vector = self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
+        chunk_size = len(texts) // multiprocessing.cpu_count()
+        chunks = [texts[i:i + chunk_size] for i in range(0, len(texts), chunk_size)]
+        with multiprocessing.Pool() as pool:
+            vector = pool.map(self.compute_chunk, chunks)
+        vector = [item for sublist in vector for item in sublist]  # flatten the list
         try:
             logger.info(f'{len(vector)}\n{len(vector[0])}')
         except Exception as e:
@@ -133,10 +141,17 @@ class CPUEmbedding:
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
         )
 
+    def compute_chunk(self, texts: list[str]):
+        return self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
+
     @method()
     def compute(self, texts: list[str]) -> list[list[float]]:
         logger.info(f"Computing embeddings for {len(texts)} texts")
-        vector = self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
+        chunk_size = len(texts) // multiprocessing.cpu_count()
+        chunks = [texts[i:i + chunk_size] for i in range(0, len(texts), chunk_size)]
+        with multiprocessing.Pool() as pool:
+            vector = pool.map(self.compute_chunk, chunks)
+        vector = [item for sublist in vector for item in sublist]  # flatten the list
         try:
             logger.info(f'{len(vector)}\n{len(vector[0])}')
         except Exception as e:
