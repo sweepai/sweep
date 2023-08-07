@@ -212,15 +212,15 @@ class Snippet(BaseModel):
     def __hash__(self):
         return hash((self.file_path, self.start, self.end))
 
-def get_snippet(self):
-    snippet_lines = self.content.splitlines()[self.start:self.end]
-    snippet_lines_with_numbers = [f'{i+1}: {line}' for i, line in enumerate(snippet_lines)]
-    snippet = "\n".join(snippet_lines_with_numbers)
-    if self.start > 1:
-        snippet = '...\n' + snippet
-    if self.end < self.content.count('\n') + 1:
-        snippet = snippet + '\n...'
-    return snippet
+    def get_snippet(self):
+        snippet_lines = self.content.splitlines()[self.start:self.end]
+        snippet_lines_with_numbers = [f'{i+1}: {line}' for i, line in enumerate(snippet_lines)]
+        snippet = "\n".join(snippet_lines_with_numbers)
+        if self.start > 1:
+            snippet = '...\n' + snippet
+        if self.end < self.content.count('\n') + 1:
+            snippet = snippet + '\n...'
+        return snippet
 
     def __add__(self, other):
         assert self.content == other.content
