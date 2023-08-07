@@ -113,7 +113,7 @@ def extract_logs_from_comment(comment: str) -> str:
 
 def on_check_suite(request: CheckRunCompleted):
     logger.info(f"Received check run completed event for {request.repository.full_name}")
-    g = get_github_client(request.installation.id)
+    _, g = get_github_client(request.installation.id)
     repo = g.get_repo(request.repository.full_name)
     if not get_gha_enabled(repo):
         logger.info(f"Skipping github action for {request.repository.full_name} because it is not enabled")
