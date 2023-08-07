@@ -449,6 +449,7 @@ def on_ticket(
 
         generator = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
         message = tabulate([(f"`{filename}`", instructions, progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
+        logger.info(files_progress)
         edit_sweep_comment(message, 4)
         response = None
         for item in generator:
@@ -462,6 +463,7 @@ def on_ticket(
             else:
                 # message += f"❌ Did not edit {file_change_request.filename}\n"
                 files_progress = [(file, instructions, "❌") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
+            logger.info(files_progress)
             logger.info(f"Edited {file_change_request.filename}")
             message = tabulate([(f"`{filename}`", instructions, progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
             edit_sweep_comment(message, 4)
@@ -474,7 +476,7 @@ def on_ticket(
             4
         )
 
-        review_message = f"Here are the my self-reviews of my changes at [`{pr_changes.pr_head}`](https://github.com/kevinlu1248/pyepsilla/commits/{pr_changes.pr_head}).\n\n"
+        review_message = f"Here are the my self-reviews of my changes at [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
 
         try:
             current_issue.delete_reaction(eyes_reaction.id)
