@@ -19,16 +19,21 @@ class ShellMessage(BaseModel):
 
 
 class Sandbox(BaseModel):
+    username: str
     token: str
     image: str = "Python3"
     session: Session
 
+    class Config:
+        arbitrary_types_allowed = True
+
     @classmethod
-    async def from_token(cls: Type[Self], token: str, **kwargs) -> Self:
+    async def from_token(cls: Type[Self], username: str, token: str, **kwargs) -> Self:
         image = kwargs.get("image", "Python3")
         session = Session(image)
         await session.open()
         return cls(
+            username=username,
             token=token,
             image=image,
             session=session
