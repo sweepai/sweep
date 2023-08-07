@@ -457,6 +457,9 @@ def on_ticket(
                 response = item
                 break
             file_change_request, changed_file = item
+            if not response or not response["success"]:
+                raise Exception(f"Failed to create PR: {response['error']}")
+            pr_changes = response["pull_request"]
             if changed_file:
                 commit = repo.get_commits(path=file_change_request.filename, sha=pr_changes.pr_head)[0]
                 commit_sha = commit.sha
@@ -470,9 +473,6 @@ def on_ticket(
             logger.info(f"Edited {file_change_request.filename}")
             message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
             edit_sweep_comment(message, 4)
-        if not response or not response["success"]:
-            raise Exception(f"Failed to create PR: {response['error']}")
-        pr_changes = response["pull_request"]
 
         edit_sweep_comment(
             message + "I have finished coding the issue. I am now reviewing it for completeness.",
