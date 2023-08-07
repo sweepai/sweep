@@ -138,6 +138,12 @@ class ChatGPT(BaseModel):
             message_key, message_role=message_role
         ).content = new_content
 
+    def validate_command(self, command: str) -> bool:
+        # Check if the command involves deleting files or making network requests
+        if "rm" in command or "curl" in command or "wget" in command:
+            return False
+        return True
+    
     def chat(
             self,
             content: str,
@@ -146,6 +152,10 @@ class ChatGPT(BaseModel):
             functions: list[Function] = [],
             function_name: dict | None = None,
     ):
+        # Validate the command before executing it
+        if not self.validate_command(content):
+            logger.warning(f"Skipping potentially harmful command: {content}")
+            return
         if self.messages[-1].function_call is None:
             self.messages.append(Message(role="user", content=content, key=message_key))
         else:
@@ -154,6 +164,10 @@ class ChatGPT(BaseModel):
         model = model or self.model
         is_function_call = False
         if model in [args.__args__[0] for args in OpenAIModel.__args__]:
+            # Validate the command before executing it
+            if not self.validate_command(content):
+                logger.warning(f"Skipping potentially harmful command: {content}")
+                return
             # might be a bug here in all of this
             if len(functions) > 0:
                 response = self.call_openai(model=model, functions=functions, function_name=function_name)
