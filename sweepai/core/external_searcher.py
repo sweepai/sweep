@@ -30,10 +30,11 @@ class ExternalSearcher(ChatGPT):
     @staticmethod
     def extract_summaries(content: str):
         logger.info("Extracting summaries from content")
-        if not content:
+        links = ExternalSearcher.extract_links(content)
+        if not links:
             return ""
-        result = "\n\n### Summaries of links found in the content:\n\n"
-        for link in ExternalSearcher.extract_links(content):
+        result = "\n\n**Summaries of links found in the content:**\n\n"
+        for link in links:
             logger.info(f"Extracting summary from {link}")
             try:
                 external_searcher = ExternalSearcher()
