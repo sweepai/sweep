@@ -34,6 +34,16 @@ openai.api_key = OPENAI_API_KEY
 
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
+def get_ordinal(n):
+    suffixes = ["th", "st", "nd", "rd"]
+    if 10 <= n <= 20:
+        suffix_index = 0
+    else:
+        suffix_index = n % 10
+        if suffix_index > 3:
+            suffix_index = 0
+    return str(n) + suffixes[suffix_index]
+
 sep = "\n---\n"
 bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
 bot_suffix = f"\n{sep} To recreate the pull request, leave a comment prefixed with \"sweep:\" or edit the issue."
@@ -467,16 +477,6 @@ def on_ticket(
                 changes_required, review_comment = review_pr(repo=repo, pr=pr_changes, issue_url=issue_url, username=username,
                     repo_description=repo_description, title=title,
                     summary=summary, replies_text=replies_text, tree=tree)
-def get_ordinal(n):
-    suffixes = ["th", "st", "nd", "rd"]
-    if 10 <= n <= 20:
-        suffix_index = 0
-    else:
-        suffix_index = n % 10
-        if suffix_index > 3:
-            suffix_index = 0
-    return str(n) + suffixes[suffix_index]
-
 review_message += f"Here is the {get_ordinal(i + 1)} review\n> " + review_comment.replace("\n", "\n> ") + "\n\n"
                 edit_sweep_comment(review_message, 4)
                 logger.info(f"Addressing review comment {review_comment}")
