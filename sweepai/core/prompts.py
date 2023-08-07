@@ -3,7 +3,7 @@ List of common prompts used across the codebase.
 """
 
 # Following two should be fused
-system_message_prompt = "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try and is formatted perfectly. You have the utmost care for the code that you write, so you do not make mistakes. Take into account the current repository's language, frameworks, and dependencies."
+system_message_prompt = "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right."
 
 repo_description_prefix_prompt = "This is the repository description provided by the user. Keep this in mind:"
 
@@ -74,37 +74,39 @@ diff_section_prompt = """
 
 review_prompt = """\
 I need you to carefully review the code diffs in this pull request.
+
 The code was written by an inexperienced programmer and may contain
-* Accidental deletions
-* Logic errors
+* Logic errors (missing imports)
+* Syntax errors (wrong indents)
 * Unimplemented sections (such as "pass", "...", "# rest of code here")
 * Other issues. 
 
-Ensure that the code actually reflects the pull request description and title and is complete.
-Think step-by-step logically and critically analyze to summarize the diffs and indicate potential errors per file in the format:
+Be sure to indicate any of these errors. Do not include formatting errors like missing ending newlines. Ensure that the code actually reflects the pull request summary and every function and class is fully implemented. 
+
+Think step-by-step to summarize and indicate potential errors. Respond in the following format:
 
 Step-by-step thoughts:
-* Lines x1-x2: Summary of the changes and errors if any (added, deleted, modified, errors, issues) 
-* Lines y1-y2: Summary of the changes and errors if any (added, deleted, modified, errors, issues)
+* Lines x1-x2: Brief summary of changes, potential errors and unimplemented sections
+* Lines y1-y2: Brief summary of changes, potential errors and unimplemented sections
 ...
 
 <file_summarization>
-* file_1 - changes in file_1
-* file_1 - more changes in file_1
+* file_1 - changes and errors in file_1
+* file_1 - more changes and errors in file_1
 ...
 </file_summarization>
 """
 
 review_follow_up_prompt = """\
-Here is the next file diff.
-Think step-by-step critically and accurately to summarize the diffs and indicate potential errors per file in the format:
+Here is the next file diff. Think step-by-step to summarize and indicate potential errors. Respond in the following format:
+
 Step-by-step thoughts:
-* Lines x1-x2: Summary of the changes and errors if any (added, deleted, modified, errors, issues) 
-* Lines y1-y2: Summary of the changes and errors if any (added, deleted, modified, errors, issues)
+* Lines x1-x2: Brief summary of changes, potential errors and unimplemented sections
+* Lines y1-y2: Brief summary of changes, potential errors and unimplemented sections
 ...
 <file_summarization>
-* file_1 - changes in file_1
-* file_1 - more changes in file_1
+* file_1 - changes and errors in file_1
+* file_1 - more changes and errors in file_1
 ...
 </file_summarization>
 """
@@ -317,16 +319,11 @@ Detailed plan of modifications:
 * Modification 1
 * Modification 2
 ...
-
-Lines to change in the file: (include multiple small changes as opposed to one large change)
-* lines a-b: Do x
-* lines c: Change to y
-...
 </code_planning>
 
 Code Generation:
 ```
-Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Always add lines before and after if possible.
+Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Prefer many small edits over few large edits. Always add lines before and after if possible.
 
 <<<< ORIGINAL
 line_before
