@@ -458,8 +458,14 @@ def on_ticket(
                 break
             file_change_request, changed_file = item
             if changed_file:
-                # message += f":heavy_check_mark: Edited {file_change_request.filename}\n"
-                files_progress = [(file, instructions, "✅") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
+                try:
+                    commit_sha = repo.get_commits()[0].sha
+                    commit_url = f"https://github.com/{username}/{repo_name}/commit/{commit_sha}"
+                    # message += f":heavy_check_mark: Edited {file_change_request.filename}\n"
+                    files_progress = [(file, instructions + f" [Commit Link]({commit_url})", "✅") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
+                except Exception as e:
+                    logger.error(f"Failed to fetch commit SHA: {e}")
+                    files_progress = [(file, instructions, "❌") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
             else:
                 # message += f"❌ Did not edit {file_change_request.filename}\n"
                 files_progress = [(file, instructions, "❌") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
