@@ -6,6 +6,8 @@ On Github ticket, get ChatGPT to deal with it
 
 import traceback
 
+ordinal = lambda n: str(n) + ("th" if 4 <= n <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th"))
+
 import modal
 import openai
 from loguru import logger
@@ -467,7 +469,7 @@ def on_ticket(
                 changes_required, review_comment = review_pr(repo=repo, pr=pr_changes, issue_url=issue_url, username=username,
                     repo_description=repo_description, title=title,
                     summary=summary, replies_text=replies_text, tree=tree)
-                review_message += f"Here is the {i + 1}th review\n> " + review_comment.replace("\n", "\n> ") + "\n\n"
+                review_message += f"Here is the {ordinal(i + 1)} review\n> " + review_comment.replace("\n", "\n> ") + "\n\n"
                 edit_sweep_comment(review_message, 4)
                 logger.info(f"Addressing review comment {review_comment}")
                 if changes_required:
