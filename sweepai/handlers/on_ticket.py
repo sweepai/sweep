@@ -133,7 +133,7 @@ def on_ticket(
     }
     posthog.capture(username, "started", properties=metadata)
 
-    g = get_github_client(installation_id)
+    _, g = get_github_client(installation_id)
 
     logger.info(f"Getting repo {repo_full_name}")
     repo = g.get_repo(repo_full_name)
