@@ -5,7 +5,6 @@ On Github ticket, get ChatGPT to deal with it
 # TODO: Add file validation
 
 import traceback
-
 import modal
 import openai
 from loguru import logger
@@ -55,6 +54,7 @@ num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 
+ordinal = lambda n: str(n) + ("th" if 4 <= n <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th"))
 
 def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5):
     snippets = [snippet for snippet in snippets if not any(snippet.file_path.endswith(ext) for ext in SweepConfig().exclude_exts)]
@@ -487,7 +487,7 @@ def on_ticket(
                 changes_required, review_comment = review_pr(repo=repo, pr=pr_changes, issue_url=issue_url, username=username,
                     repo_description=repo_description, title=title,
                     summary=summary, replies_text=replies_text, tree=tree)
-                review_message += f"Here is the {i + 1}th review:\n> " + review_comment.replace("\n", "\n> ") + "\n\n"
+                review_message += f"Here is the {ordinal(i + 1)} review\n> " + review_comment.replace("\n", "\n> ") + "\n\n"
                 edit_sweep_comment(review_message + "\n\nI'm currently addressing these suggestions.", 5)
                 logger.info(f"Addressing review comment {review_comment}")
                 if changes_required:
