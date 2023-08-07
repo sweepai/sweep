@@ -59,7 +59,7 @@ Sweep will mess up sometimes. Comment on it's PR. (ex: "use PyTorch instead of T
 ## Pricing
 We offer unlimited GPT3.5 tickets to every user. You also start with 5 GPT4 credits which are used when a PR is created.
 
-For professionals who want more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month. In addition, we're also offering 15 PRs for $60(one time) for anyone interested in eventually purchasing Sweep Pro. Unfortunately, we're not offering this as a recurring subscription.
+For professionals who want more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month. In addition, we're also offering 15 PRs for $60 as a one-time purchase for anyone interested in eventually purchasing Sweep Pro. You can avail this offer [here](https://buy.stripe.com/7sI4jlaCR3PaabebIP).
 
 ---
 
