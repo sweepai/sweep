@@ -91,7 +91,7 @@ Examine pull requests created by Sweep [here](https://docs.sweep.dev/examples).
 ## Pricing
 We offer unlimited GPT3.5 tickets to every user. You also start with 5 GPT4 credits which are used when a PR is created.
 
-For professionals who want more tickets and priority support/feature requests, check out Sweep Pro
+For professionals who want more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month. In addition, we're also offering 15 PRs for $60(one time) for anyone interested in eventually purchasing Sweep Pro. Unfortunately, we're not offering this as a recurring subscription.
 
 ## Roadmap 🗺
 See [🗺️ Roadmap](https://docs.sweep.dev/roadmap)
