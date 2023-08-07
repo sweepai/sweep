@@ -35,14 +35,7 @@ openai.api_key = OPENAI_API_KEY
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 def get_ordinal(n):
-    suffixes = ["th", "st", "nd", "rd"]
-    if 10 <= n <= 20:
-        suffix_index = 0
-    else:
-        suffix_index = n % 10
-        if suffix_index > 3:
-            suffix_index = 0
-    return str(n) + suffixes[suffix_index]
+    return str(n) + {1: 'st', 2: 'nd', 3: 'rd', 4: 'th', 5: 'th'}.get(n, '')
 
 sep = "\n---\n"
 bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
