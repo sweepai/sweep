@@ -11,6 +11,9 @@ import openai
 from loguru import logger
 from tabulate import tabulate
 
+from modal import Secret
+USER_HOLDS = Secret.from_name("USER_HOLDS")
+
 from sweepai.core.entities import Snippet, NoFilesException
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.issue_rewrite import IssueRewriter
@@ -95,6 +98,12 @@ def on_ticket(
         installation_id: int,
         comment_id: int = None
 ):
+    if username in USER_HOLDS:
+        g = get_github_client(installation_id)
+        repo = g.get_repo(repo_full_name)
+        current_issue = repo.get_issue(number=issue_number)
+        current_issue.create_comment("Your account has detected unusual activity. Please join our Discord server for more information.")
+        return {"success": False, "reason": "User is on hold"}
     # Check if the title starts with "sweep" or "sweep: " and remove it
     slow_mode = False
     if title.lower().startswith("sweep: "):
