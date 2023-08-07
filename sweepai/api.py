@@ -49,6 +49,7 @@ image = (
         "redis",
         "llama_index",
         "bs4",
+        "e2b",
     )
 )
 secrets = [
