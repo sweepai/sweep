@@ -458,7 +458,8 @@ def on_ticket(
                 break
             file_change_request, changed_file = item
             if changed_file:
-                commit_sha = changed_file.commit.sha
+                commit = repo.get_commits(path=file_change_request.filename, sha=pr_changes.pr_head)[0]
+                commit_sha = commit.sha
                 commit_url = f"https://github.com/{organization}/{repo_name}/commit/{commit_sha}"
                 # message += f":heavy_check_mark: Edited {file_change_request.filename}\n"
                 files_progress = [(file, instructions, f"✅ ([Commit]({commit_url}))") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
