@@ -81,6 +81,16 @@ def get_description(repo: Repository) -> str:
     except Exception as e:
         return ""
 
+@staticmethod
+@lru_cache(maxsize=None)
+def get_sandbox_enabled(repo: Repository) -> bool:
+    try:
+        contents = repo.get_contents("sweep.yaml")
+        description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("sandbox_enabled", False)
+        return description
+    except Exception as e:
+        return False
+
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get('GITHUB_APP_CLIENT_ID', 'Iv1.91fd31586a926a9f')
 SWEEP_API_ENDPOINT = os.environ.get('SWEEP_API_ENDPOINT', f"https://sweepai--{PREFIX}-ui.modal.run")
