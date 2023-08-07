@@ -60,6 +60,7 @@ secrets = [
     modal.Secret.from_name("mongodb"),
     modal.Secret.from_name("discord"),
     modal.Secret.from_name("redis_url"),
+    modal.Secret.from_name("USER_HOLDS"),
 ]
 
 FUNCTION_SETTINGS = {
