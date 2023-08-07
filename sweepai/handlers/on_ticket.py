@@ -82,7 +82,7 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5)
         total_length += len(snippet_content_with_line_numbers)
         if total_length > total_number_of_snippet_tokens * 5:
             break
-        result_snippets.append(snippet)
+        result_snippets.append(snippet_content_with_line_numbers)
     return result_snippets[:max_num_of_snippets]
 
 
