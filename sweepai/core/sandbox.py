@@ -6,6 +6,7 @@ from typing import Type, TypeVar
 
 Self = TypeVar("Self", bound="Sandbox")
 
+REPO_PATH = "/code/repo"
 GIT_PASS = 'echo \'#!/bin/sh\\necho "{token}"\' > git-askpass.sh && chmod +x git-askpass.sh'
 GIT_CLONE = "export GIT_ASKPASS=./git-askpass.sh;" \
             "git config --global credential.helper 'cache --timeout=3600';" \
@@ -23,6 +24,7 @@ class Sandbox(BaseModel):
     token: str
     image: str = "Python3"
     session: Session
+    path: str = "/code"
 
     class Config:
         arbitrary_types_allowed = True
@@ -39,7 +41,7 @@ class Sandbox(BaseModel):
             session=session
         )
 
-    async def run_command(self, command: str):
+    async def run_command(self, command: str, path: str = None):
         print("Running command", command)
         outputs = []
         proc = await self.session.process.start(
@@ -47,7 +49,7 @@ class Sandbox(BaseModel):
             on_stdout=lambda m: outputs.append(ShellMessage(message=m['line'])),
             on_stderr=lambda e: outputs.append(ShellMessage(message=e['line'], error=True)),
             on_exit=lambda: print("Exit"),
-            rootdir="/code",
+            rootdir=path or self.path,
         )
         # await proc.send_stdin("token\n")
         # await proc.kill()
@@ -56,5 +58,6 @@ class Sandbox(BaseModel):
         return outputs
 
     async def clone_repo(self):
-        await self.run_command(GIT_PASS.format(token=self.token))
-        await self.run_command(GIT_CLONE.format(username=self.username))
+        await self.run_command(GIT_PASS.format(token=self.token), path="/code")
+        await self.run_command(GIT_CLONE.format(username=self.username), path="/code")
+        self.path = REPO_PATH
