@@ -213,7 +213,8 @@ class Snippet(BaseModel):
         return hash((self.file_path, self.start, self.end))
 
     def get_snippet(self):
-        snippet = "\n".join(self.content.splitlines()[self.start:self.end])
+        lines = self.content.splitlines()
+        snippet = "\n".join(f"{i+1}: {line}" for i, line in enumerate(lines[self.start:self.end]))
         if self.start > 1:
             snippet = '...\n' + snippet
         if self.end < self.content.count('\n') + 1:
@@ -252,7 +253,7 @@ class Snippet(BaseModel):
 
     @property
     def xml(self):
-        return f"""<snippet filepath="{self.file_path}:{self.start}-{self.end}">\n{self.get_snippet()}\n</snippet>"""
+        return f"""<snippet source="{self.file_path}:{self.start}-{self.end}">\n{self.get_snippet()}\n</snippet>"""
 
     def get_url(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
