@@ -1,6 +1,7 @@
 import glob
 import json
 import math
+import multiprocessing
 import os
 import re
 import shutil
@@ -100,12 +101,10 @@ class Embedding:
 
     def __enter__(self):
         from sentence_transformers import SentenceTransformer # pylint: disable=import-error
-
+    
         self.model = SentenceTransformer(
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
         )
-
-    import multiprocessing
     
     @method()
     def compute(self, texts: list[str]):
