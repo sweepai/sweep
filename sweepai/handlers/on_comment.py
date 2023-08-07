@@ -229,11 +229,14 @@ def on_comment(
             file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
         sweep_bot.change_files_in_github(file_change_requests, branch_name)
+        # Get the latest commit and generate its URL
+        latest_commit = repo.get_commits()[0]
+        commit_url = f"https://github.com/{repo_full_name}/commit/{latest_commit.sha}"
         if type(pr) != MockPR:
             if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
                 # Update the PR title to remove the "[DRAFT]" prefix
                 pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
-
+        
         logger.info("Done!")
     except NoFilesException:
         capture_posthog_event(username, "failed", properties={
@@ -267,7 +270,8 @@ def on_comment(
 
     capture_posthog_event(username, "success", properties={**metadata})
     logger.info("on_comment success")
-    return {"success": True}
+    # Add the commit URL to the response
+    return {"success": True, "commit_url": commit_url}
 
 
 def capture_posthog_event(username, event, properties):
