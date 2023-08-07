@@ -200,8 +200,10 @@ def get_snippet_with_padding(original, index, search):
         strip = False
     else:  # Do diff between snippet and search
         # Todo(lukejagg): This might need to be more robust.
+
         # Check multiple lines for their whitespace
-        spaces = ' ' * (len(snippet[0]) - len(snippet[0].lstrip()))
+        min_whitespace = min([len(s) - len(s.lstrip()) for s in search])
+        spaces = ' ' * min_whitespace
         strip = True
 
     return snippet, spaces, strip
@@ -267,7 +269,7 @@ def sliding_window_replacement(original, search, replace, search_context_before=
     snippet, spaces, strip = get_snippet_with_padding(original, index, search)
     if strip:
         # Todo: What if whitespace in search is incorrect
-        first_line_spaces = len(search[0]) - len(search[0].lstrip())
+        first_line_spaces = min([len(s) - len(s.lstrip()) for s in search])
         modified = [spaces + (lstrip_max(line, [' '], first_line_spaces) if strip else line) for line in replace]
     else:
         modified = [spaces + line for line in replace]
