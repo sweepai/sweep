@@ -105,14 +105,29 @@ class Embedding:
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
         )
 
+    import multiprocessing
+    
     @method()
     def compute(self, texts: list[str]):
         logger.info(f"Computing embeddings for {len(texts)} texts")
-        vector = self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
+        
+        def process_chunk(chunk):
+            try:
+                return self.model.encode(chunk, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
+            except Exception as e:
+                logger.error(f'Error while computing embeddings: {e}')
+                return []
+    
+        with multiprocessing.Pool() as pool:
+            chunks = [(i, texts[i:i + BATCH_SIZE]) for i in range(0, len(texts), BATCH_SIZE)]
+            results = pool.starmap(process_chunk, chunks)
+            results.sort(key=lambda x: x[0])  # sort by index
+            vector = [result[1] for result in results]  # get embeddings
+    
         try:
             logger.info(f'{len(vector)}\n{len(vector[0])}')
         except Exception as e:
-            print(f'oops {e}')
+            logger.error(f'Error while logging embeddings: {e}')
             pass
         return vector
 
