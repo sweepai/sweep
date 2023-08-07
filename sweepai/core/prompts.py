@@ -104,6 +104,7 @@ Step-by-step thoughts:
 * Lines x1-x2: Brief summary of changes, potential errors and unimplemented sections
 * Lines y1-y2: Brief summary of changes, potential errors and unimplemented sections
 ...
+
 <file_summarization>
 * file_1 - changes and errors in file_1
 * file_1 - more changes and errors in file_1
@@ -192,7 +193,10 @@ Then, provide a list of files you would like to modify, abiding by the following
 * Create/modify up to 5 FILES
 * Do not modify non-text files such as images, svgs, binary, etc
 
-You MUST follow the following format delimited with XML tags:
+You MUST follow the following format with final output in XML tags:
+
+Abstract plan:
+Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph.
 
 Step-by-step thoughts with explanations: 
 * Thought 1 - Explanation 1
