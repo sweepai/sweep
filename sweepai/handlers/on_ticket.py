@@ -10,9 +10,9 @@ import openai
 from loguru import logger
 from tabulate import tabulate
 
-ordinal = lambda n: str(n) + ("th" if 4 <= n <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th"))
-
 from sweepai.core.entities import Snippet, NoFilesException
+
+ordinal = lambda n: str(n) + ("th" if 4 <= n <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th"))
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.issue_rewrite import IssueRewriter
 from sweepai.core.slow_mode_expand import SlowModeBot
