@@ -11,6 +11,7 @@ GIT_PASS = 'echo \'#!/bin/sh\\necho "{token}"\' > git-askpass.sh && chmod +x git
 GIT_CLONE = "export GIT_ASKPASS=./git-askpass.sh;" \
             "git config --global credential.helper 'cache --timeout=3600';" \
             "git clone https://{username}@github.com/sweepai-dev/test /code/repo"
+PYTHON_CREATE_VENV = "python3 -m venv venv && source venv/bin/activate && poetry install"
 
 
 # Class for ShellMessage
@@ -61,3 +62,6 @@ class Sandbox(BaseModel):
         await self.run_command(GIT_PASS.format(token=self.token), path="/code")
         await self.run_command(GIT_CLONE.format(username=self.username), path="/code")
         self.path = REPO_PATH
+
+    async def create_python_venv(self):
+        await self.run_command(GIT_PASS.format(token=self.token), path="/code")
