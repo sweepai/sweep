@@ -210,7 +210,7 @@ def on_ticket(
     slow_mode = slow_mode and not use_faster_model
 
     model_name = "GPT-3.5" if use_faster_model else "GPT-4"
-    payment_link = "https://buy.stripe.com/9AQ8zB26letOgzC5kp"
+    payment_link = "https://buy.stripe.com/6oE5npbGVbhC97afZ4"
     user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
     payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
     slow_mode_status = "using slow mode" if slow_mode else ""
