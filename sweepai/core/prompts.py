@@ -311,7 +311,8 @@ line_after
 >>>> UPDATED
 ```
 
-Context: "Change hello to goodbye and change 3 to 4". Limit your changes to the context.
+Request: "Change hello to goodbye and change 3 to 4". Limit your changes to the request.
+
 Instructions:
 1. Complete the Code Planning step
 2. Complete the Code Generation step""", 'role': 'user', 'key': 'modify_file_hallucination'},
@@ -356,7 +357,8 @@ File Name: {filename}
 
 ---
 
-Context: "{instructions}". Limit your changes to the context.
+Request: "{instructions}". Limit your changes to the request.
+
 Instructions:
 1. Complete the Code Planning step
 2. Complete the Code Generation step
