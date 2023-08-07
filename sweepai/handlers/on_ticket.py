@@ -95,6 +95,7 @@ def on_ticket(
         installation_id: int,
         comment_id: int = None
 ):
+    max_retries = 3
     # Check if the title starts with "sweep" or "sweep: " and remove it
     slow_mode = False
     if title.lower().startswith("sweep: "):
@@ -285,7 +286,7 @@ def on_ticket(
     def fetch_file_contents_with_retry():
         retries = 1
         error = None
-        for i in range(retries):
+    for i in range(max_retries):
             try:
                 logger.info(f"Fetching relevant files for the {i}th time...")
                 return search_snippets(
