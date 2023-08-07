@@ -289,8 +289,17 @@ class GithubBot(BaseModel):
 
 
 class SweepBot(CodeGenBot, GithubBot):
+    def calculate_minimum_apple_cost(self, n, m, supermarkets):
+        INF = 1e9
+        dp = [INF] * (m + 1)
+        dp[0] = 0
+        for a, b in supermarkets:
+            for i in range(b, m + 1):
+                dp[i] = min(dp[i], dp[i - b] + a)
+        return dp[m] if dp[m] != INF else -1
+
     def cot_retrieval(self):
-        # TODO(sweep): add semantic search using vector db
+        ...
         # TODO(sweep): add search using webpilot + github
         functions = [
             Function(
