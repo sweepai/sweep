@@ -7,6 +7,7 @@ On Github ticket, get ChatGPT to deal with it
 import traceback
 import modal
 import openai
+import asyncio
 from loguru import logger
 from tabulate import tabulate
 
@@ -16,11 +17,12 @@ from sweepai.core.issue_rewrite import IssueRewriter
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
+from sweepai.core.sandbox import Sandbox
 from sweepai.handlers.create_pr import create_pr_changes, create_config_pr, safe_delete_sweep_branch
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
-from sweepai.utils.config.client import SweepConfig
+from sweepai.utils.config.client import SweepConfig, get_sandbox_enabled
 from sweepai.utils.config.server import PREFIX, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, OPENAI_API_KEY, \
     GITHUB_BOT_TOKEN, \
     GITHUB_BOT_USERNAME, GITHUB_LABEL_NAME
@@ -133,7 +135,7 @@ def on_ticket(
     }
     posthog.capture(username, "started", properties=metadata)
 
-    g = get_github_client(installation_id)
+    user_token, g = get_github_client(installation_id)
 
     logger.info(f"Getting repo {repo_full_name}")
     repo = g.get_repo(repo_full_name)
@@ -510,6 +512,28 @@ def on_ticket(
                 break
 
         edit_sweep_comment(review_message + "\n\nI finished incorporating these changes.", 5)
+
+        # Clone repo and perform local tests (linters, formatters, GHA)
+        sandbox = None
+        try:
+            if not get_sandbox_enabled(repo):
+                raise Exception("Sandbox is disabled")
+
+            async def run_sandbox():
+                nonlocal sandbox
+                sandbox = await asyncio.wait_for(Sandbox.from_token(username, user_token), timeout=15)
+                await asyncio.wait_for(sandbox.clone_repo(), timeout=60)
+                # Currently only works with Python3 venvs
+                await asyncio.wait_for(sandbox.create_python_venv(), timeout=60)
+
+            logger.info("Running sandbox...")
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(run_sandbox())
+            # Todo(lukejagg): formatter, linter, etc
+            # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
 
         pr = repo.create_pull(
             title=pr_changes.title,

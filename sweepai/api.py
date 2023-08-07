@@ -49,6 +49,7 @@ image = (
         "redis",
         "llama_index",
         "bs4",
+        "e2b",
     )
 )
 secrets = [
@@ -165,7 +166,7 @@ async def webhook(raw_request: Request):
                 request = IssueRequest(**request_dict)
                 issue_title_lower = request.issue.title.lower()
                 if issue_title_lower.startswith("sweep") or "sweep:" in issue_title_lower:
-                    g = get_github_client(request.installation.id)
+                    _, g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
 
                     labels = repo.get_labels()
@@ -222,7 +223,7 @@ async def webhook(raw_request: Request):
                     )
                 elif request.issue.pull_request and request.comment.user.type == "User":  # TODO(sweep): set a limit
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
-                    g = get_github_client(request.installation.id)
+                    _, g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
                     pr = repo.get_pull(request.issue.number)
                     labels = pr.get_labels()
@@ -318,7 +319,7 @@ async def webhook(raw_request: Request):
                     )
                 elif request.issue.pull_request and request.comment.user.type == "User":  # TODO(sweep): set a limit
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
-                    g = get_github_client(request.installation.id)
+                    _, g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
                     pr = repo.get_pull(request.issue.number)
                     labels = pr.get_labels()
@@ -350,7 +351,7 @@ async def webhook(raw_request: Request):
                 # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
                 logger.info(f"Handling comment on PR: {request.pull_request.number}")
-                g = get_github_client(request.installation.id)
+                _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pr = repo.get_pull(request.pull_request.number)
                 labels = pr.get_labels()
@@ -385,7 +386,7 @@ async def webhook(raw_request: Request):
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
                 logger.info(f"Handling check suite for {request.repository.full_name}")
-                g = get_github_client(request.installation.id)
+                _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pull_request = repo.get_pull(request.check_run.pull_requests[0].number)
                 if len(request.check_run.pull_requests) > 0 and pull_request.user.login.lower().startswith("sweep") and request.check_run.conclusion == "failure" and not pull_request.title.startswith("[DRAFT]"):
@@ -494,7 +495,7 @@ def update_sweep_prs(
     installation_id: int
 ):
     # Get a Github client
-    g = get_github_client(installation_id)
+    _, g = get_github_client(installation_id)
     
     # Get the repository
     repo = g.get_repo(repo_full_name)

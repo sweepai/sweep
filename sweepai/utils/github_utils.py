@@ -39,7 +39,6 @@ def get_jwt():
     signing_key = GITHUB_APP_PEM
     app_id = GITHUB_APP_ID
     payload = {"iat": int(time.time()), "exp": int(time.time()) + 600, "iss": app_id}
-
     return encode(payload, signing_key, algorithm="RS256")
 
 def get_token(installation_id: int):
@@ -68,7 +67,7 @@ def get_token(installation_id: int):
 
 def get_github_client(installation_id: int):
     token = get_token(installation_id)
-    return Github(token)
+    return token, Github(token)
 
 def get_installation_id(username: str):
     jwt = get_jwt()
@@ -312,7 +311,7 @@ def index_full_repository(
         sweep_config=sweep_config,
     )
     try:
-        repo = get_github_client(installation_id).get_repo(repo_name)
+        repo = (get_github_client(installation_id)[1]).get_repo(repo_name)
         labels = repo.get_labels()
         label_names = [label.name for label in labels]
 
