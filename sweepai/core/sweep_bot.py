@@ -424,9 +424,6 @@ class SweepBot(CodeGenBot, GithubBot):
                     f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}")
                 new_file = generate_new_file_from_patch(modify_file_response, contents, chunk_offset=chunk_offset)
                 new_file = format_contents(new_file, file_markdown)
-                new_file = new_file.rstrip()
-                if contents.endswith("\n"):
-                    new_file += "\n"
                 return new_file
             except Exception as e:
                 tb = traceback.format_exc()
