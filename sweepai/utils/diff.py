@@ -182,6 +182,15 @@ def match_string(original, search, start_index=None):
             current_hits += 1
     return index, max_similarity, current_hits
 
+def lstrip_max(s, chars, max_count):
+    count = 0
+    for char in s:
+        if char in chars and count < max_count:
+            count += 1
+        else:
+            break
+    return s[count:]
+
 def get_snippet_with_padding(original, index, search):
     snippet = original[index:index + len(search)]
 
@@ -257,7 +266,8 @@ def sliding_window_replacement(original, search, replace, search_context_before=
     if max_similarity != len(search):
         snippet, spaces, strip = get_snippet_with_padding(original, index, search)
         # Todo: What if whitespace in search is incorrect
-        modified = [spaces + (line.lstrip() if strip else line) for line in replace]
+        first_line_spaces = len(search[0]) - len(search[0].lstrip())
+        modified = [spaces + (lstrip_max(line, [' '], first_line_spaces) if strip else line) for line in replace]
     else:
         # I'm sorry luke i have no idea what your code does
         modified = replace
