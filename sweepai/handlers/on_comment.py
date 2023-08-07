@@ -98,7 +98,7 @@ def on_comment(
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = bool(pr_path) and bool(pr_line_position)
 
-    g = get_github_client(installation_id) if not g else g
+    g = (get_github_client(installation_id))[1] if not g else g
     repo = g.get_repo(repo_full_name) if not repo else repo
     pr = repo.get_pull(pr_number) if not pr else pr
 
@@ -276,7 +276,7 @@ def capture_posthog_event(username, event, properties):
 
 
 def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
-    g = get_github_client(installation_id)
+    _, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
     pr = repo.get_pull(pr_number)
     branch_name = pr.head.ref
