@@ -87,17 +87,7 @@ def parse_collection_name(name: str) -> str:
     return name
 
 
-@stub.cls(
-    image=image,
-    secrets=secrets,
-    network_file_systems={MODEL_DIR: model_volume},
-    keep_warm=1 if ENV == "prod" else 0,
-    gpu="T4",
-    retries=modal.Retries(
-        max_retries=5, backoff_coefficient=2, initial_delay=5),
-    timeout=timeout,
-)
-class Embedding:
+class BaseEmbedding:
 
     def __enter__(self):
         from sentence_transformers import SentenceTransformer # pylint: disable=import-error
@@ -109,7 +99,6 @@ class Embedding:
     def compute_chunk(self, texts: list[str]):
         return self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
 
-    @method()
     def compute(self, texts: list[str]):
         logger.info(f"Computing embeddings for {len(texts)} texts")
         chunk_size = len(texts) // multiprocessing.cpu_count()
@@ -128,36 +117,26 @@ class Embedding:
     image=image,
     secrets=secrets,
     network_file_systems={MODEL_DIR: model_volume},
+    keep_warm=1 if ENV == "prod" else 0,
+    gpu="T4",
+    retries=modal.Retries(
+        max_retries=5, backoff_coefficient=2, initial_delay=5),
+    timeout=timeout,
+)
+class Embedding(BaseEmbedding):
+    pass
+
+@stub.cls(
+    image=image,
+    secrets=secrets,
+    network_file_systems={MODEL_DIR: model_volume},
     keep_warm=1,
     retries=modal.Retries(max_retries=5, backoff_coefficient=2, initial_delay=5),
     cpu=2, # this can change later
     timeout=timeout,
 )
-class CPUEmbedding:
-    def __enter__(self):
-        from sentence_transformers import SentenceTransformer # pylint: disable=import-error
-
-        self.model = SentenceTransformer(
-            SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-        )
-
-    def compute_chunk(self, texts: list[str]):
-        return self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE).tolist()
-
-    @method()
-    def compute(self, texts: list[str]) -> list[list[float]]:
-        logger.info(f"Computing embeddings for {len(texts)} texts")
-        chunk_size = len(texts) // multiprocessing.cpu_count()
-        chunks = [texts[i:i + chunk_size] for i in range(0, len(texts), chunk_size)]
-        with multiprocessing.Pool() as pool:
-            vector = pool.map(self.compute_chunk, chunks)
-        vector = [item for sublist in vector for item in sublist]  # flatten the list
-        try:
-            logger.info(f'{len(vector)}\n{len(vector[0])}')
-        except Exception as e:
-            logger.info(f'oops {e}')
-            pass
-        return vector
+class CPUEmbedding(BaseEmbedding):
+    pass
 
 
 class ModalEmbeddingFunction:
