@@ -232,16 +232,19 @@ class ChatGPT(BaseModel):
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
 global retry_counter
 retry_counter = 0
+ith_value = 1
 if functions:
     @backoff.on_exception(
         backoff.expo,
         Exception,
-        max_tries=5,
+        max_tries=ith_value,
         jitter=backoff.random_jitter,
     )
             def fetch():
                 global retry_counter
+                global ith_value
                 retry_counter += 1
+                ith_value += 1
                 token_sub = retry_counter * 200
                 try:
                     output = None
