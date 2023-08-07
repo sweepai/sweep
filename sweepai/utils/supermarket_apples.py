@@ -12,7 +12,7 @@ def minimum_apple_cost(num_supermarkets, num_apples, supermarkets):
         apples_needed = num_apples
         for j in range(i, num_supermarkets):
             can_buy = min(apples_needed, supermarkets[j][1])
-            cost += can_buy * (supermarkets[j][0] / supermarkets[j][1])
+            cost += can_buy * supermarkets[j][0]
             apples_needed -= can_buy
             if apples_needed == 0:
                 break
