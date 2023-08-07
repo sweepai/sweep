@@ -199,8 +199,8 @@ Abstract plan:
 Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph.
 
 Step-by-step thoughts with explanations: 
-* Thought 1 - Explanation 1
-* Thought 2 - Explanation 2
+* Thought 1
+* Thought 2
 ...
 
 <modify_file>
@@ -239,8 +239,8 @@ file_name = "{filename}"
 instructions = "{instructions}"
 
 Step-by-step thoughts with explanations: 
-* Thought 1 - Explanation 1
-* Thought 2 - Explanation 2
+* Thought 1
+* Thought 2
 ...
 
 Detailed plan of additions:
@@ -264,33 +264,6 @@ Reply in the format below.
 * Format:
 """
 
-modify_file_plan_prompt = """
-Think step-by-step regarding the instructions and how that can be applied to the current file to improve the current codebase.
-Then create a plan of parts of the code to modify with detailed references to functions to modify.
-
-File Name: {filename}
-<old_file>
-{code}
-</old_file>
-
-Your instructions to modify the file are: "{instructions}". Limit your changes to the instructions.
-
-Step-by-step thoughts with explanations: 
-* Thought 1 - Explanation 1
-* Thought 2 - Explanation 2
-...
-
-Detailed plan of modifications:
-* Modification 1
-* Modification 2
-...
-
-Lines to change in the file:
-* lines a-b
-...
-
-Only include the line numbers."""
-
 chunking_prompt = """
 We are handling this file in chunks. You have been provided a section of the code.
 Any lines that you do not see will be handled, so trust that the imports are managed and any other issues are taken care of.
@@ -313,17 +286,15 @@ def func():
 ---
 
 Code Planning:
-<code_planning>
 Step-by-step thoughts with explanations: 
-* Thought 1 - Explanation 1
-* Thought 2 - Explanation 2
+* Thought 1
+* Thought 2
 ...
 
 Detailed plan of modifications:
 * Modification 1
 * Modification 2
 ...
-</code_planning>
 
 Code Generation:
 ```
@@ -340,23 +311,19 @@ line_after
 >>>> UPDATED
 ```
 
-Context: "Change hello to goodbye and change 3 to 4". Limit your changes to the context.
+Request: "Change hello to goodbye and change 3 to 4". Limit your changes to the request.
+
 Instructions:
 1. Complete the Code Planning step
 2. Complete the Code Generation step""", 'role': 'user', 'key': 'modify_file_hallucination'},
 {'content': """Code Planning:
-<code_planning>
 Step-by-step thoughts with explanations:
-* Thought 1 - This script is an example script not in the repo. To show that I fully understand git diff format, I must write the diffs.
+* We need to print "goodbye" instead of "hello".
+* We need to update the value of the variable a from 3 to 4.
 
 Detailed plan of modifications:
-* Modification 1 - Change the output of the print statement from "hello" to "goodbye" as an example modification.
-* Modification 2 - I will update the value of a from 3 to 4.
-
-Lines to change in the file:
-* lines 4: update print statement
-* lines 8: update value of a
-</code_planning>
+* Change the output of the print statement from "hello" to "goodbye" as an example modification.
+* I will update the value of a from 3 to 4.
 
 Code Generation:
 ```
@@ -390,7 +357,8 @@ File Name: {filename}
 
 ---
 
-Context: "{instructions}". Limit your changes to the context.
+Request: "{instructions}". Limit your changes to the request.
+
 Instructions:
 1. Complete the Code Planning step
 2. Complete the Code Generation step
