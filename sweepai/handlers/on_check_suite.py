@@ -18,7 +18,7 @@ log_message = """GitHub actions yielded the following error.
 
 {error_logs}
 
-This is likely a linting or type-checking issue with the source code."""
+This is likely a linting or type-checking issue with the source code. Update the code the changes and avoid modifying the existing tests."""
 
 def get_dirs(zipfile: zipfile.ZipFile):
     return [file for file in zipfile.namelist() if file.endswith("/") and "/" in file]
@@ -43,22 +43,29 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
         zip_file = zipfile.ZipFile(io.BytesIO(content))
         dirs = get_dirs(zip_file)
         
-        for directory in dirs:
-            files = get_files_in_dir(zip_file, directory)
-            numbers = [int(file[len(directory):file.find("_")]) for file in files]
-            for i in range(1, 100):
-                if i not in numbers:
-                    break
-            i -= 1
-            target_file = ""
-            for file in files:
-                if file[len(directory): file.find("_")] == str(i):
-                    target_file = file
-                    break
-            else:
-                raise ValueError("No file found")
-            with zip_file.open(target_file) as f:
-                logs_str += f.read().decode("utf-8")
+        # for directory in dirs:
+        #     files = get_files_in_dir(zip_file, directory)
+        #     numbers = [int(file[len(directory):file.find("_")]) for file in files]
+        #     for i in range(1, 100):
+        #         if i not in numbers:
+        #             break
+        #     i -= 1
+        #     target_file = ""
+        #     for file in files:
+        #         if file[len(directory): file.find("_")] == str(i):
+        #             target_file = file
+        #             break
+        #     else:
+        #         raise ValueError("No file found")
+        #     with zip_file.open(target_file) as f:
+        #         logs_str += f.read().decode("utf-8")
+        for file in zip_file.namelist():
+            if file.endswith(".txt"):
+                with zip_file.open(file) as f:
+                    logs = f.read().decode("utf-8")
+                    last_line = logs.splitlines()[-1]
+                    if "##[error]" in last_line:
+                        logs_str += logs
     else:
         logger.info(response.text)
         logger.warning(f"Failed to download logs for run id: {run_id}")
