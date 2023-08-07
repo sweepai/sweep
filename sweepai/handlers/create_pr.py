@@ -60,7 +60,11 @@ def create_pr_changes(
     try:
         logger.info("Making PR...")
         pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
-        completed_count, fcr_count = sweep_bot.change_files_in_github(file_change_requests, pull_request.branch_name)
+        completed_count, fcr_count = 0, len(file_change_requests)
+        for file_change_request, changed_file in sweep_bot.change_files_in_github_iterator(file_change_requests, pull_request.branch_name):
+            completed_count += changed_file
+            logger.info("Completed {}/{} files".format(completed_count, fcr_count))
+            yield file_change_request, changed_file
         if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")
             posthog.capture(
@@ -130,7 +134,9 @@ def create_pr_changes(
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("create_pr success")
-    return {"success": True, "pull_request": MockPR(file_count=completed_count, title=pr_title, body=pr_description, pr_head=pull_request.branch_name, base=sweep_bot.repo.get_branch(SweepConfig.get_branch(sweep_bot.repo)).commit, head=sweep_bot.repo.get_branch(pull_request.branch_name).commit)}
+    result = {"success": True, "pull_request": MockPR(file_count=completed_count, title=pr_title, body=pr_description, pr_head=pull_request.branch_name, base=sweep_bot.repo.get_branch(SweepConfig.get_branch(sweep_bot.repo)).commit, head=sweep_bot.repo.get_branch(pull_request.branch_name).commit)}
+    yield result # Doing this because sometiems using StopIteration doesn't work, kinda jank tho tbh
+    return result
 
 
 def safe_delete_sweep_branch(
