@@ -84,6 +84,12 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5)
     return result_snippets[:max_num_of_snippets]
 
 
+def ordinal_suffix(i):
+    if 4 <= i <= 20 or 24 <= i <= 30:
+        return str(i) + "th"
+    else:
+        return  str(i) + {1: 'st', 2: 'nd', 3: 'rd'}.get(i % 10, "th")
+
 def on_ticket(
         title: str,
         summary: str,
@@ -461,31 +467,31 @@ def on_ticket(
         except:
             pass
 
-        for i in range(3):
-            try:
-                # CODE REVIEW
-                changes_required, review_comment = review_pr(repo=repo, pr=pr_changes, issue_url=issue_url, username=username,
-                    repo_description=repo_description, title=title,
-                    summary=summary, replies_text=replies_text, tree=tree)
-                review_message += f"Here is the {i + 1}th review\n> " + review_comment.replace("\n", "\n> ") + "\n\n"
-                edit_sweep_comment(review_message, 4)
-                logger.info(f"Addressing review comment {review_comment}")
-                if changes_required:
-                    on_comment(repo_full_name=repo_full_name,
-                               repo_description=repo_description,
-                               comment=review_comment,
-                               username=username,
-                               installation_id=installation_id,
-                               pr_path=None,
-                               pr_line_position=None,
-                               pr_number=None,
-                               pr=pr_changes)
-                else:
-                    break
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
-                break
+for i in range(3):
+    try:
+        # CODE REVIEW
+        changes_required, review_comment = review_pr(repo=repo, pr=pr_changes, issue_url=issue_url, username=username,
+            repo_description=repo_description, title=title,
+            summary=summary, replies_text=replies_text, tree=tree)
+        review_message += f"Here is the {ordinal_suffix(i + 1)} review\n> " + review_comment.replace("\n", "\n> ") + "\n\n"
+        edit_sweep_comment(review_message, 4)
+        logger.info(f"Addressing review comment {review_comment}")
+        if changes_required:
+            on_comment(repo_full_name=repo_full_name,
+                       repo_description=repo_description,
+                       comment=review_comment,
+                       username=username,
+                       installation_id=installation_id,
+                       pr_path=None,
+                       pr_line_position=None,
+                       pr_number=None,
+                       pr=pr_changes)
+        else:
+            break
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        logger.error(e)
+        break
 
         pr = repo.create_pull(
             title=pr_changes.title,
