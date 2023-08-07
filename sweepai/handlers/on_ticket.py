@@ -103,7 +103,7 @@ def on_ticket(
         repo = g.get_repo(repo_full_name)
         current_issue = repo.get_issue(number=issue_number)
         current_issue.create_comment("Your account has detected unusual activity. Please join our Discord server for more information.")
-        return {"success": False, "reason": "User is on hold"}
+        return {"success": True, "reason": "User is on hold"}
     # Check if the title starts with "sweep" or "sweep: " and remove it
     slow_mode = False
     if title.lower().startswith("sweep: "):
