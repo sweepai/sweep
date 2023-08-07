@@ -10,7 +10,7 @@ REPO_PATH = "/code/repo"
 GIT_PASS = 'echo \'#!/bin/sh\\necho "{token}"\' > git-askpass.sh && chmod +x git-askpass.sh'
 GIT_CLONE = "export GIT_ASKPASS=./git-askpass.sh;" \
             "git config --global credential.helper 'cache --timeout=3600';" \
-            "git clone https://{username}@github.com/sweepai-dev/test"
+            "git clone https://{username}@github.com/sweepai-dev/test /code/repo"
 
 
 # Class for ShellMessage
