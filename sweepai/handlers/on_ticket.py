@@ -219,7 +219,7 @@ def on_ticket(
         )
         config_pr_message = "To get Sweep to recreate this ticket, leave a comment prefixed with \"sweep:\" or edit the issue.\n" + config_pr_message
         if index < 0: index = 0
-        if index == 5:
+        if index == 6:
             return pr_message + config_pr_message
         index *= 20
         index = min(100, index)
@@ -443,20 +443,27 @@ def on_ticket(
             3
         )
 
-        # WRITE PULL REQUEST
         logger.info("Making PR...")
+
+        files_progress = [(file_change_request.filename, file_change_request.instructions, "⏳") for file_change_request in file_change_requests]
+
         generator = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
-        message = ""
+        message = tabulate([(f"`{filename}`", instructions, progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
+        edit_sweep_comment(message, 4)
         response = None
         for item in generator:
             if isinstance(item, dict):
                 response = item
+                break
             file_change_request, changed_file = item
             if changed_file:
-                message += f"✔️ Edited {file_change_request.filename}\n"
+                # message += f":heavy_check_mark: Edited {file_change_request.filename}\n"
+                files_progress = [(file, instructions, "✅") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
             else:
-                message += f"❌ Did not edit {file_change_request.filename}\n"
+                # message += f"❌ Did not edit {file_change_request.filename}\n"
+                files_progress = [(file, instructions, "❌") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
             logger.info(f"Edited {file_change_request.filename}")
+            message = tabulate([(f"`{filename}`", instructions, progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
             edit_sweep_comment(message, 4)
         if not response or not response["success"]:
             raise Exception(f"Failed to create PR: {response['error']}")
@@ -467,21 +474,21 @@ def on_ticket(
             4
         )
 
-        review_message = "Here are the my self-reviews of my PR.\n\n"
+        review_message = f"Here are the my self-reviews of my changes at [`{pr_changes.pr_head}`](https://github.com/kevinlu1248/pyepsilla/commits/{pr_changes.pr_head}).\n\n"
 
         try:
             current_issue.delete_reaction(eyes_reaction.id)
         except:
             pass
 
-        for i in range(3):
+        for i in range(1 if not slow_mode else 3):
             try:
                 # CODE REVIEW
                 changes_required, review_comment = review_pr(repo=repo, pr=pr_changes, issue_url=issue_url, username=username,
                     repo_description=repo_description, title=title,
                     summary=summary, replies_text=replies_text, tree=tree)
-                review_message += f"Here is the {i + 1}th review\n> " + review_comment.replace("\n", "\n> ") + "\n\n"
-                edit_sweep_comment(review_message, 5)
+                review_message += f"Here is the {i + 1}th review:\n> " + review_comment.replace("\n", "\n> ") + "\n\n"
+                edit_sweep_comment(review_message + "\n\nI'm currently addressing these suggestions.", 5)
                 logger.info(f"Addressing review comment {review_comment}")
                 if changes_required:
                     on_comment(repo_full_name=repo_full_name,
@@ -499,6 +506,8 @@ def on_ticket(
                 logger.error(traceback.format_exc())
                 logger.error(e)
                 break
+
+        edit_sweep_comment(review_message + "\n\nI finished incorporating these changes.", 5)
 
         pr = repo.create_pull(
             title=pr_changes.title,
@@ -525,10 +534,9 @@ def on_ticket(
 
         # Completed code review
         edit_sweep_comment(
-            "Success! 🚀",
-            5,
+            review_message + "\n\nSuccess! 🚀",
+            6,
             pr_message=f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}",
-            # pr_message=f"## Here's the PR! [https://github.com/{repo_full_name}/pull/{pr.number}](https://github.com/{repo_full_name}/pull/{pr.number}).\n{payment_message}",
         )
 
         logger.info("Add successful ticket to counter")
