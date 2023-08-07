@@ -517,6 +517,9 @@ def on_ticket(
             head=pr_changes.pr_head,
             base=SweepConfig.get_branch(repo)
         )
+        # Get the latest commit and generate its URL
+        latest_commit = repo.get_commits()[0]
+        commit_url = f"https://github.com/{repo_full_name}/commit/{latest_commit.sha}"
         # Get the branch (SweepConfig.get_branch(repo))'s sha
         sha = repo.get_branch(SweepConfig.get_branch(repo)).commit.sha
 
@@ -597,4 +600,5 @@ def on_ticket(
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
-    return {"success": True}
+    # Add the commit URL to the response
+    return {"success": True, "commit_url": commit_url}
