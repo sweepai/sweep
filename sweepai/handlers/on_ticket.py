@@ -514,19 +514,23 @@ def on_ticket(
         edit_sweep_comment(review_message + "\n\nI finished incorporating these changes.", 5)
 
         # Clone repo and perform local tests (linters, formatters, GHA)
+        sandbox = None
         try:
             if not get_sandbox_enabled(repo):
                 raise Exception("Sandbox is disabled")
 
-            logger.info("Running sandbox...")
-            sandbox = await asyncio.wait_for(Sandbox.from_token(username, user_token), timeout=15)
-            await asyncio.wait_for(sandbox.clone_repo(), timeout=60)
+            async def run_sandbox():
+                nonlocal sandbox
+                sandbox = await asyncio.wait_for(Sandbox.from_token(username, user_token), timeout=15)
+                await asyncio.wait_for(sandbox.clone_repo(), timeout=60)
+                # Currently only works with Python3 venvs
+                await asyncio.wait_for(sandbox.create_python_venv(), timeout=60)
 
+            logger.info("Running sandbox...")
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(run_sandbox())
             # Todo(lukejagg): formatter, linter, etc
             # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc)
-
-            # Currently only works with Python3 venvs
-            await asyncio.wait_for(sandbox.clone_repo(), timeout=60)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
