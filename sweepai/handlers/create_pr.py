@@ -91,14 +91,6 @@ def create_pr_changes(
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
-
-        # pr = sweep_bot.repo.create_pull(
-        #     title="[DRAFT] " + pr_title,
-        #     body=pr_description,
-        #     head=pull_request.branch_name,
-        #     base=SweepConfig.get_branch(sweep_bot.repo),
-        # )
-        # pr.add_to_labels(GITHUB_LABEL_NAME)
     except MaxTokensExceeded as e:
         logger.error(e)
         posthog.capture(
