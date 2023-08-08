@@ -601,9 +601,9 @@ def test_excel_controller_methods():
     # This is a placeholder and should be replaced with actual tests
     assert excel_controller.export() == True
 
-    # Test the import_file method
+    # Test the import_excel method
     # This is a placeholder and should be replaced with actual tests
-    assert excel_controller.import_file() == True
+    assert excel_controller.import_excel() == True
 
     # Test the give_unique_name method
     # This is a placeholder and should be replaced with actual tests
