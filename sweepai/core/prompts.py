@@ -56,8 +56,8 @@ In order to address this issue, what required information do you need about the 
 </contextual_thoughts>
 
 <relevant_snippets>
-folder_1/file_1.py:0-50
-folder_2/file_2.py:51-100
+folder_1/file_1.py:1-13
+folder_2/file_2.py:42-75
 ...
 </relevant_snippets>
 """
