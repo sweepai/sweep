@@ -1,0 +1,19 @@
+{
+  "name": "task_manager_frontend",
+  "version": "1.0.0",
+  "description": "Frontend for the Task Manager Application",
+  "main": "App.js",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "keywords": ["react", "task", "manager"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
+  }
+}
