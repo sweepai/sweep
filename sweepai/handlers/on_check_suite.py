@@ -111,7 +111,13 @@ def extract_logs_from_comment(comment: str) -> str:
         return ""
     return comment[comment.find("```") + 3:comment.rfind("```")]
 
+# Create a queue to hold the logs
+from collections import deque
+logs_queue = deque()
+
 def on_check_suite(request: CheckRunCompleted):
+    # Enqueue the logs when they are received
+    logs_queue.append(request)
     logger.info(f"Received check run completed event for {request.repository.full_name}")
     _, g = get_github_client(request.installation.id)
     repo = g.get_repo(request.repository.full_name)
@@ -124,17 +130,20 @@ def on_check_suite(request: CheckRunCompleted):
         logger.info(f"Skipping github action for PR with {num_pr_commits} commits")
         return None
     logger.info(f"Running github action for PR with {num_pr_commits} commits")
-    logs = download_logs(
-        request.repository.full_name,
-        request.check_run.run_id,
-        request.installation.id
-    )
-    if not logs:
-        return None
-    logs = clean_logs(logs)
-    extractor = GHAExtractor()
-    logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
-    problematic_logs = extractor.gha_extract(logs)
+    # Process the logs in the order they were received
+    while logs_queue:
+        request = logs_queue.popleft()
+        logs = download_logs(
+            request.repository.full_name,
+            request.check_run.run_id,
+            request.installation.id
+        )
+        if not logs:
+            continue
+        logs = clean_logs(logs)
+        extractor = GHAExtractor()
+        logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
+        problematic_logs = extractor.gha_extract(logs)
     if problematic_logs.count("\n") > 15:
         problematic_logs += "\n\nThere are a lot of errors. This is likely a larger issue with the PR and not a small linting/type-checking issue."
     comments = list(pr.get_issue_comments())
@@ -160,4 +169,3 @@ def on_check_suite(request: CheckRunCompleted):
         repo=repo,
     )
     return {"success": True}
-
