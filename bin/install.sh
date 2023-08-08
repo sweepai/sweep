@@ -15,4 +15,6 @@ echo "Installing deeplake with pip..."
 pip install deeplake
 echo "Installing robotexclusionrulesparser with pip..."
 pip install robotexclusionrulesparser
+echo "Installing e2b with pip..."
+pip install e2b
 echo "Installation complete!"
