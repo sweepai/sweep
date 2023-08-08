@@ -30,7 +30,7 @@ from sweepai.core.prompts import (
 )
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
-from sweepai.utils.diff import format_contents, generate_new_file_from_patch, is_markdown
+from sweepai.utils.diff import format_contents, generate_new_file_from_patch, get_all_diffs, is_markdown
 
 USING_DIFF = True
 
@@ -306,6 +306,26 @@ class SweepBot(CodeGenBot, GithubBot):
                 file_change = FileCreation.from_string(create_file_response)
                 assert file_change is not None
                 file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
+
+                self.delete_messages_from_chat(key_to_delete=key)
+
+                new_diffs = self.chat(
+                    code_repair_modify_prompt.format(
+                        filename=file_change_request.filename,
+                        instructions=file_change_request.instructions,
+                        code=file_change.code,
+                        diff="",
+                    ),
+                    message_key=key + "-validation",
+                )
+                final_file = generate_new_file_from_patch(
+                    new_diffs, 
+                    file_change.code, 
+                )
+                final_file = format_contents(final_file, is_markdown(file_change_request.filename))
+                file_change.code = final_file
+                logger.info("Done validating file change request")
+
                 return file_change
             except Exception:
                 # Todo: should we undo appending to file_change_paths?
@@ -360,6 +380,9 @@ class SweepBot(CodeGenBot, GithubBot):
 
                 self.delete_messages_from_chat(key)
 
+                proposed_diffs = get_all_diffs(modify_file_response)
+                proposed_diffs = f"<proposed_diffs>\n{proposed_diffs}\n</proposed_diffs>\n\n" if proposed_diffs else ""
+
                 # validation step
                 logger.info("Validating file change request...")
                 new_diffs = self.chat(
@@ -367,14 +390,19 @@ class SweepBot(CodeGenBot, GithubBot):
                         filename=file_change_request.filename,
                         instructions=file_change_request.instructions,
                         code=new_file,
+                        diff=proposed_diffs,
                     ),
-                    message_key=key + "validation",
+                    message_key=key + "-validation",
                 )
 
                 final_file = generate_new_file_from_patch(new_diffs, new_file, chunk_offset=chunk_offset)
                 final_file = format_contents(final_file, file_markdown)
                 logger.info("Done validating file change request")
 
+                final_file = final_file.rstrip()
+                if contents.endswith("\n"):
+                    final_file += "\n"
+                
                 return new_file
             except Exception as e:
                 tb = traceback.format_exc()
