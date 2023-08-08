@@ -1,0 +1,9 @@
+<div class="my-creative-work">
+    <div class="row">
+        <!-- Content for first row here -->
+    </div>
+    <div class="row">
+        <!-- Content for second row here -->
+    </div>
+    <!-- Pagination here if more than two rows -->
+</div>
