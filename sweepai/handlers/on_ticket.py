@@ -331,7 +331,7 @@ def on_ticket(
     external_results = ExternalSearcher.extract_summaries(message_summary)
     if external_results:
         message_summary += "\n\n" + external_results
-    docs_results = DocumentationSearcher.extract_relevant_docs(message_summary)
+    docs_results = DocumentationSearcher.extract_relevant_docs(title + message_summary)
     if docs_results:
         message_summary += "\n\n" + docs_results
 
@@ -412,7 +412,7 @@ def on_ticket(
                 ),
             )
             + (f"I also found the following external resources that might be helpful:\n\n{external_results}\n\n" if external_results else "")
-            + (f"I also found the following docs that might be helpful:\n\n{docs_results}\n\n" if docs_results else ""),
+            + (f"\n\n{docs_results}\n\n" if docs_results else ""),
             1
         )
 

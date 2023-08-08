@@ -15,11 +15,10 @@ class DocumentationSearcher(ChatGPT):
     @staticmethod
     def extract_docs_links(content: str) -> list[str]:
         urls = []
+        logger.info(DOCS_ENDPOINTS)
+        logger.info(content)
         for framework, url in DOCS_ENDPOINTS.items():
             if framework.lower() in content.lower() or framework.lower().replace(" ", "") in content.lower():
-                print("here!")
-                print(framework, url)
-                print(content)
                 urls.append(url)
         return urls
 
@@ -46,15 +45,13 @@ class DocumentationSearcher(ChatGPT):
             ),
         ]
         answer = self.chat(
-            Message(
-                role="user",
-                content=docs_qa_user_prompt.format(
-                    sinppets="\n\n".join([f"**{metadata['url']}:**\n\n{doc}" for metadata, doc in zip(new_metadatas, new_docs)]),
-                    problem=problem
-                ),
-            )
+            docs_qa_user_prompt.format(
+                snippets="\n\n".join([f"**{metadata['url']}:**\n\n{doc}" for metadata, doc in zip(new_metadatas, new_docs)]),
+                problem=problem
+            ),
         )
-        return f"**Summary of related docs found in the content:**\n\n{answer.content}\n\nSources:\n\n" + "\n\n".join([f"**{metadata['url']}:**\n\n{doc}" for metadata, doc in zip(new_metadatas, new_docs)])
+        return f"**Summary of related docs from {url}:**\n\n{answer}\n\nSources:\n" + "\n\n".join([f"* {metadata['url']}" for metadata in new_metadatas])
+
 
     @staticmethod
     def extract_relevant_docs(content: str):
@@ -62,14 +59,14 @@ class DocumentationSearcher(ChatGPT):
         links = DocumentationSearcher.extract_docs_links(content)
         if not links:
             return ""
-        result = "\n\n#### Summary of related docs found in the content:\n\n"
+        result = "\n\n### I also found some related docs:\n\n"
         logger.info("Extracting docs from links")
         for link in links:
             logger.info(f"Fetching docs summary from {link}")
             try:
                 external_searcher = DocumentationSearcher()
                 summary = external_searcher.extract_resources(link, content)
-                result += f'**Summary of relevant docs from {link}:**\n\n{summary}\n\n'
+                result += "> " + summary.replace("\n", "\n> ") + "\n\n"
             except Exception as e:
                 logger.error(f"Docs search error: {e}")
         return result

@@ -184,7 +184,7 @@ def write_documentation(doc_url):
 @stub.function(
     image=image,
     secrets=secrets,
-    schedule=modal.Cron("0 9 * * *"),
+    schedule=modal.Cron("0 9 * * *") if ENV == "prod" else None,
 )
 def daily_update():
     for doc_url in DOCS_ENDPOINTS.values():
