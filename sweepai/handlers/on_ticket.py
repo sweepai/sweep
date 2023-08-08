@@ -18,7 +18,7 @@ from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.core.prompts import issue_comment_prompt
 from sweepai.core.sandbox import Sandbox
-from sweepai.handlers.create_pr import create_pr_changes, create_config_pr, safe_delete_sweep_branch
+from sweepai.handlers.create_pr import create_pr_changes, create_config_pr, safe_delete_sweep_branch, index_docs
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
@@ -537,6 +537,8 @@ def on_ticket(
             head=pr_changes.pr_head,
             base=SweepConfig.get_branch(repo)
         )
+        if "sweep.yaml" in pr.get_files():
+            index_docs()
         # Get the branch (SweepConfig.get_branch(repo))'s sha
         sha = repo.get_branch(SweepConfig.get_branch(repo)).commit.sha
 
