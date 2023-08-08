@@ -1,6 +1,11 @@
 import asyncio
 import re
-from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+try:
+    from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+except ImportError:
+    import pip
+    pip.main(['install', 'deeplake'])
+    from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from loguru import logger
 import modal
 from modal import method
