@@ -25,4 +25,13 @@ except ImportError:
 # Install robotexclusionrulesparser with pip
 echo "Installing robotexclusionrulesparser with pip..."
 pip install robotexclusionrulesparser
+# Verify robotexclusionrulesparser is installed
+echo "Verifying robotexclusionrulesparser is installed..."
+python -c "
+try:
+    import robotexclusionrulesparser
+    print('robotexclusionrulesparser is installed successfully.')
+except ImportError:
+    print('Error: robotexclusionrulesparser is not installed.')
+"
 echo "Installation complete!"
