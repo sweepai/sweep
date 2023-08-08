@@ -392,11 +392,7 @@ def on_ticket(
 
     try:
         # ANALYZE SNIPPETS
-        if sweep_bot.model == "gpt-4-32k-0613":
-            logger.info("CoT retrieval...")
-            sweep_bot.cot_retrieval()
-        else:
-            logger.info("Did not execute CoT retrieval...")
+        logger.info("Did not execute CoT retrieval...")
 
         newline = '\n'
         edit_sweep_comment(

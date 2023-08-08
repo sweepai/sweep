@@ -364,6 +364,54 @@ Instructions:
 2. Complete the Code Generation step
 """
 
+code_repair_modify_prompt = """
+File Name: {filename}
+
+{diff}
+
+<suggested_new_file>
+{code}
+</suggested_new_file>
+
+---
+
+Request: "{instructions}". 
+
+This file was edited previously by an inexperienced programmer to complete the users request. First, identify if the request has been completed and there are no any unimplemented or missing classes or functions. Then, identify any errors, other issues. Finally address them by suggesting changes.
+
+Code Planning:
+Step-by-step thoughts with explanations: 
+* Thought 1
+* Thought 2
+...
+
+Detailed plan of modifications:
+* Modification 1
+* Modification 2
+...
+
+Code Generation:
+Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Prefer many small edits over few large edits. Always add lines before and after if possible.
+
+```
+<<<< ORIGINAL
+line_before
+old_code
+line_after
+====
+line_before
+new_code
+line_after
+>>>> UPDATED
+```
+
+Again the request was "{instructions}".
+
+Instructions:
+1. Complete the Code Planning step
+2. Complete the Code Generation step
+"""
+
 pr_code_prompt = ""  # TODO: deprecate this
 
 pull_request_prompt = """Now, create a PR for your changes. Be concise but cover all of the changes that were made. 
@@ -447,6 +495,7 @@ You are a genius trained for code stitching.
 You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product. The intention was to implement a change described as {feature}. 
 Our goal is to return a working version of user_code that follows {feature}. We should follow the instructions and make as few edits as possible.
 """
+
 code_repair_prompt = """\
 This is the diff that was applied to create user_code. Only make changes to code in user_code if the code was affected by the diff.
 <diff>
