@@ -14,7 +14,7 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
 )
-from sweepai.handlers.create_pr import create_pr_changes, create_gha_pr  # type: ignore
+from sweepai.handlers.create_pr import create_pr_changes, create_gha_pr, parse_docs_field  # type: ignore
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
