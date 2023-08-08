@@ -12,6 +12,7 @@ e2b = "^0.1.0"
 markdownify = "^0.11.6"
 playwright = "^1.30.0"
 robotexclusionrulesparser = "^1.7.1"
+deeplake = "^3.6.17"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"
