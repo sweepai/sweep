@@ -69,6 +69,7 @@ class ChatGPT(BaseModel):
     human_message: HumanMessagePrompt | None = None
     file_change_paths = []
     chat_logger: ChatLogger | None
+    gha_logs_queue = [] # queue for handling GHA logs
 
     @classmethod
     def from_system_message_content(
@@ -342,12 +343,11 @@ class ChatGPT(BaseModel):
         client = anthropic.Client(api_key=ANTHROPIC_API_KEY)
     
         # Enqueue GHA logs and process them in a FIFO manner
-        gha_logs_queue = []
         for message in self.messages:
             if message.role == "gha":
-                gha_logs_queue.append(message.content)
-        while gha_logs_queue:
-            gha_log = gha_logs_queue.pop(0)
+                self.gha_logs_queue.append(message.content)
+        while self.gha_logs_queue:
+            gha_log = self.gha_logs_queue.pop(0)
             @backoff.on_exception(
                 backoff.expo,
                 Exception,
@@ -395,12 +395,11 @@ class ChatGPT(BaseModel):
         is_function_call = False
     
         # Enqueue GHA logs and process them in a FIFO manner
-        gha_logs_queue = []
         for message in self.messages:
             if message.role == "gha":
-                gha_logs_queue.append(message.content)
-        while gha_logs_queue:
-            gha_log = gha_logs_queue.pop(0)
+                self.gha_logs_queue.append(message.content)
+        while self.gha_logs_queue:
+            gha_log = self.gha_logs_queue.pop(0)
             self.messages.append(Message(role="assistant", content=gha_log, key=message_key))
     
         # might be a bug here in all of this
