@@ -1,4 +1,5 @@
 import requests
+# Ensure that the `robotexclusionrulesparser` module is installed in the project's environment. If it's not, add it to the project's `pyproject.toml` file.
 from robotexclusionrulesparser import RobotExclusionRulesParser
 
 def is_url_allowed(url, user_agent='*'):
