@@ -1,4 +1,5 @@
 import time
+import yaml
 import modal
 from fastapi import HTTPException, Request
 from loguru import logger
@@ -455,13 +456,12 @@ async def webhook(raw_request: Request):
                     files = pr.get_files()
                     for file in files:
                         if file.filename == 'sweep.yaml':
-                            # Parse the `gha_enabled` field from the `sweep.yaml` file
-                            import yaml
-                            sweep_yaml_content = repo.get_contents(file.path).decoded_content
-                            sweep_yaml_dict = yaml.safe_load(sweep_yaml_content)
-                            gha_enabled = sweep_yaml_dict.get('gha_enabled', False)
-                            if gha_enabled:
-                                logger.info("The `gha_enabled` field is set to `True` in the `sweep.yaml` file.")
+                    # Parse the `gha_enabled` field from the `sweep.yaml` file
+                    sweep_yaml_content = repo.get_contents(file.path).decoded_content
+                    sweep_yaml_dict = yaml.safe_load(sweep_yaml_content)
+                    gha_enabled = sweep_yaml_dict.get('gha_enabled', False)
+                    if gha_enabled:
+                        logger.info("The `gha_enabled` field is set to `True` in the `sweep.yaml` file.")
                     event_name = "merged_sweep_pr"
                     if pr_request.pull_request.title.startswith("[config]"):
                         event_name = "config_pr_merged"
