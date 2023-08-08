@@ -84,12 +84,13 @@ def get_description(repo: Repository) -> str:
 @staticmethod
 @lru_cache(maxsize=None)
 def get_sandbox_enabled(repo: Repository) -> bool:
-    try:
-        contents = repo.get_contents("sweep.yaml")
-        description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("sandbox_enabled", False)
-        return description
-    except Exception as e:
-        return False
+    # try:
+    #     contents = repo.get_contents("sweep.yaml")
+    #     description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("sandbox_enabled", False)
+    #     return description
+    # except Exception as e:
+    #     return False
+    return False
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get('GITHUB_APP_CLIENT_ID', 'Iv1.91fd31586a926a9f')
