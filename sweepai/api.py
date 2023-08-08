@@ -136,6 +136,18 @@ def function_call_is_completed(call_id: str):
 
     return True
 
+@stub.function(**FUNCTION_SETTINGS)
+@modal.web_endpoint(method="POST")
+async def handle_excel_file(raw_request: Request):
+    """Handle an Excel file."""
+    try:
+        # TODO: Implement the logic for handling Excel files
+        pass
+    except ValidationError as e:
+        logger.warning(f"Failed to parse request: {e}")
+        raise HTTPException(status_code=422, detail="Failed to parse request")
+    return {"success": True}
+
 def push_to_queue(
     repo_full_name: str,
     pr_id: int,
