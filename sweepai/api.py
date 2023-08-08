@@ -26,6 +26,7 @@ from sweepai.utils.github_utils import get_github_client, index_full_repository
 
 stub = modal.Stub(API_MODAL_INST_NAME)
 stub.pr_queues = modal.Dict.new() # maps (repo_full_name, pull_request_ids) -> queues
+stub.gha_logs_queue = [] # queue for handling GHA logs
 image = (
     modal.Image.debian_slim()
     .apt_install("git", "universal-ctags")
@@ -102,10 +103,9 @@ def handle_pr_change_request(
                     handle_comment.call(**pr_change_request.params)
                 elif pr_change_request.type == "gha":
                     # Enqueue GHA logs and process them in a FIFO manner
-                    gha_logs_queue = []
-                    gha_logs_queue.append(pr_change_request.params)
-                    while gha_logs_queue:
-                        gha_log = gha_logs_queue.pop(0)
+                    stub.gha_logs_queue.append(pr_change_request.params)
+                    while stub.gha_logs_queue:
+                        gha_log = stub.gha_logs_queue.pop(0)
                         handle_check_suite.call(**gha_log)
                 else:
                     raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
