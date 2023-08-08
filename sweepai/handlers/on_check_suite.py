@@ -27,7 +27,7 @@ def get_files_in_dir(zipfile: zipfile.ZipFile, dir: str):
     return [file for file in zipfile.namelist() if file.startswith(dir) and not file.endswith("/")]
 
 
-def download_logs(repo_full_name: str, run_id: int, installation_id: int):
+def download_logs(repo_full_name: str, run_id: int, installation_id: int) -> GHALog:
     token = get_token(installation_id)
     headers = {
         "Accept": "application/vnd.github+json",
@@ -69,13 +69,13 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
     else:
         logger.info(response.text)
         logger.warning(f"Failed to download logs for run id: {run_id}")
-    return logs_str
+    return GHALog(logs_str)
 
 
-def clean_logs(logs_str: str):
+def clean_logs(gha_log: GHALog):
     # Extraction process could be better
     MAX_LINES = 300
-    log_list = logs_str.split("\n")
+    log_list = gha_log.logs.split("\n")
     truncated_logs = [log[log.find(" ") + 1:] for log in log_list]
     patterns = [
         # for docker
@@ -111,7 +111,7 @@ def extract_logs_from_comment(comment: str) -> str:
         return ""
     return comment[comment.find("```") + 3:comment.rfind("```")]
 
-def on_check_suite(request: CheckRunCompleted):
+def on_check_suite(request: CheckRunCompleted, gha_log: GHALog = None):
     logger.info(f"Received check run completed event for {request.repository.full_name}")
     _, g = get_github_client(request.installation.id)
     repo = g.get_repo(request.repository.full_name)
@@ -124,14 +124,15 @@ def on_check_suite(request: CheckRunCompleted):
         logger.info(f"Skipping github action for PR with {num_pr_commits} commits")
         return None
     logger.info(f"Running github action for PR with {num_pr_commits} commits")
-    logs = download_logs(
-        request.repository.full_name,
-        request.check_run.run_id,
-        request.installation.id
-    )
+    if gha_log is None:
+        gha_log = download_logs(
+            request.repository.full_name,
+            request.check_run.run_id,
+            request.installation.id
+        )
     if not logs:
         return None
-    logs = clean_logs(logs)
+    logs = clean_logs(gha_log)
     extractor = GHAExtractor()
     logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
     problematic_logs = extractor.gha_extract(logs)
@@ -160,4 +161,3 @@ def on_check_suite(request: CheckRunCompleted):
         repo=repo,
     )
     return {"success": True}
-
