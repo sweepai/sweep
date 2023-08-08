@@ -4,6 +4,7 @@ On Github ticket, get ChatGPT to deal with it
 
 # TODO: Add file validation
 
+import math
 import traceback
 import modal
 import openai
@@ -28,7 +29,7 @@ from sweepai.utils.config.server import PREFIX, DB_MODAL_INST_NAME, UTILS_MODAL_
     GITHUB_BOT_TOKEN, \
     GITHUB_BOT_USERNAME, GITHUB_LABEL_NAME
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import get_github_client, search_snippets
+from sweepai.utils.github_utils import get_github_client, get_num_files_from_repo, search_snippets
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 github_access_token = GITHUB_BOT_TOKEN
@@ -230,7 +231,12 @@ def on_ticket(
             return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
         return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + (
             "\n" + stars_suffix if index != -1 else "") + "\n" + payment_message_start + config_pr_message
-    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\nWorking on it...{bot_suffix}{discord_suffix}"
+    
+    num_of_files = get_num_files_from_repo(repo, installation_id)
+    time_estimate = math.ceil(5 + 5 * num_of_files / 1000) # idk how accurate this is
+
+    indexing_message = f"I'm searching for relevant snippets in your repository. If this is your first time using Sweep, I'm indexing your repository. This may take {time_estimate} minutes. I'll let you know when I'm done."
+    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
     for comment in comments:
         if comment.user.login == GITHUB_BOT_USERNAME:
             issue_comment = comment
