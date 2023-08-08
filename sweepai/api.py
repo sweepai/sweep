@@ -85,14 +85,12 @@ def handle_pr_change_request(
     # TODO: put process ID here and check if it's still running
     # TODO: GHA should have lower precedence than comments
     try:
-        call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
+        call_id, queue = stub.app.pr_queues.get((repo_full_name, pr_id), ("0", []))
         logger.info(f"Current queue: {queue}")
         while queue:
             # popping
-            call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
-            stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, [])
-            pr_change_request: PRChangeRequest
-            for pr_change_request in queue:
+            pr_change_request = queue.pop(0)
+            try:
                 if pr_change_request.type == "comment":
                     handle_comment.call(**pr_change_request.params)
                 elif pr_change_request.type == "gha":
@@ -100,20 +98,11 @@ def handle_pr_change_request(
                 else:
                     raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
                 time.sleep(1)
-            call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
-            # *queue, pr_change_request = queue
-            # logger.info(f"Currently handling PR change request: {pr_change_request}")
-            # logger.info(f"PR queues: {queue}")
-
-            # if pr_change_request.type == "comment":
-            #     handle_comment.call(**pr_change_request.params)
-            # elif pr_change_request.type == "gha":
-            #     handle_check_suite.call(**pr_change_request.params)
-            # else:
-            #     raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
+            except Exception as e:
+                logger.error(f"Error processing PR change request: {e}")
             stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
     finally:
-        if (repo_full_name, pr_id) in stub.app.pr_queues:
+        if (repo_full_name, pr_id) in stub.app.pr_queues and not stub.app.pr_queues[(repo_full_name, pr_id)][1]:
             del stub.app.pr_queues[(repo_full_name, pr_id)]
 
 
