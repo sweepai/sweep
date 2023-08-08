@@ -212,9 +212,9 @@ def on_ticket(
     model_name = "GPT-3.5" if use_faster_model else "GPT-4"
     payment_link = "https://buy.stripe.com/6oE5npbGVbhC97afZ4"
     user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
-    payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
+    payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "") + " In addition, we're also offering 15 PRs for $60 as a one-time purchase for anyone interested in eventually purchasing Sweep Pro [here](https://buy.stripe.com/7sI4jlaCR3PaabebIP)."
     slow_mode_status = "using slow mode" if slow_mode else ""
-    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name} {slow_mode_status}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
+    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name} {slow_mode_status}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "") + " In addition, we're also offering 15 PRs for $60 as a one-time purchase for anyone interested in eventually purchasing Sweep Pro [here](https://buy.stripe.com/7sI4jlaCR3PaabebIP)."
     def get_comment_header(index, errored=False, pr_message=""):
         config_pr_message = (
             "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})" if config_pr_url is not None else ""
