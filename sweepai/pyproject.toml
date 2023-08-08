@@ -6,7 +6,7 @@ authors = ["Sweep AI <info@sweep.ai>"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-opencv-python = "*"
+opencv-python = "^4.5.3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
