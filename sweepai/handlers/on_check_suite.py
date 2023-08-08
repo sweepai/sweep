@@ -27,6 +27,11 @@ def get_files_in_dir(zipfile: zipfile.ZipFile, dir: str):
     return [file for file in zipfile.namelist() if file.startswith(dir) and not file.endswith("/")]
 
 
+from queue import Queue
+
+# Create a queue to hold tasks
+task_queue = Queue()
+
 def download_logs(repo_full_name: str, run_id: int, installation_id: int):
     token = get_token(installation_id)
     headers = {
@@ -69,7 +74,9 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
     else:
         logger.info(response.text)
         logger.warning(f"Failed to download logs for run id: {run_id}")
-    return logs_str
+    # Add tasks to the queue instead of processing them immediately
+    task_queue.put(logs_str)
+    return None
 
 
 def clean_logs(logs_str: str):
@@ -159,5 +166,6 @@ def on_check_suite(request: CheckRunCompleted):
         comment_id=comment.id,
         repo=repo,
     )
+    # Add tasks to the queue instead of processing them immediately
+    task_queue.put(request)
     return {"success": True}
-
