@@ -10,7 +10,10 @@ fi
 echo "Installing packages with poetry..."
 poetry install
 poetry shell
-# Install deeplake with pip
-echo "Installing deeplake with pip..."
-pip install deeplake
+# Install deeplake with poetry
+echo "Installing deeplake with poetry..."
+poetry add deeplake
+# Run pylint within the poetry environment
+echo "Running pylint check..."
+poetry run pylint sweepai --errors-only
 echo "Installation complete!"
