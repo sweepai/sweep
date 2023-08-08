@@ -5,7 +5,7 @@ from loguru import logger
 from pydantic import ValidationError
 from sweepai.core.entities import PRChangeRequest
 from sweepai.moh_controller import MohController
-from .<filename> import app
+from .moh_controller import app
 
 from sweepai.events import (
     CheckRunCompleted,
