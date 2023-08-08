@@ -503,7 +503,8 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.info(f"Error in handle_create_file: {e}")
             return False
 
-    def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str):
+    def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str,
+                           commit_message: str = "Updated {file_name}"):
         CHUNK_SIZE = 800  # Number of lines to process at a time
         try:
             file = self.get_file(file_change_request.filename, branch=branch)
@@ -515,7 +516,7 @@ class SweepBot(CodeGenBot, GithubBot):
             chunk_sizes = [800, 600, 400]  # Define the chunk sizes for the backoff mechanism
             for CHUNK_SIZE in chunk_sizes:
                 try:
-                    chunking = len(lines) > CHUNK_SIZE * 1.5 # Only chunk if the file is large enough
+                    chunking = len(lines) > CHUNK_SIZE * 1.5  # Only chunk if the file is large enough
                     file_name = file_change_request.filename
                     if not chunking:
                         new_file_contents = self.modify_file(
@@ -553,13 +554,13 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.warning(f"No changes made to {file_change_request.filename}. Skipping file update.")
                 return False
             logger.debug(
-                f"{file_name}, {f'Update {file_name}'}, {new_file_contents}, {branch}"
+                f"{file_name}, {commit_message.format(file_name=file_name)}, {new_file_contents}, {branch}"
             )
             # Update the file with the new contents after all chunks have been processed
             try:
                 self.repo.update_file(
                     file_name,
-                    f'Update {file_name}',
+                    commit_message.format(file_name=file_name),
                     new_file_contents,
                     file.sha,
                     branch=branch,
@@ -570,7 +571,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 file = self.get_file(file_change_request.filename, branch=branch)
                 self.repo.update_file(
                     file_name,
-                    f'Update {file_name}',
+                    commit_message.format(file_name=file_name),
                     new_file_contents,
                     file.sha,
                     branch=branch,
