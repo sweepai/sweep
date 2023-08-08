@@ -15,14 +15,14 @@ stub = modal.Stub(DOCS_MODAL_INST_NAME)
 image = (
     modal.Image.debian_slim()
     .pip_install("deeplake==3.6.17", "sentence-transformers")
-    .pip_install("loguru", "tqdm", "bs4", "markdownify", "lxml").run_commands(
-    "apt-get install -y software-properties-common",
-    "apt-add-repository non-free",
-    "apt-add-repository contrib",
-    "apt-get update",
-    "pip install playwright==1.30.0",
-    "playwright install-deps chromium",
-    "playwright install chromium",
+    .pip_install("loguru", "tqdm", "bs4", "markdownify", "lxml", "robotexclusionrulesparser").run_commands(
+        "apt-get install -y software-properties-common",
+        "apt-add-repository non-free",
+        "apt-add-repository contrib",
+        "apt-get update",
+        "pip install playwright==1.30.0",
+        "playwright install-deps chromium",
+        "playwright install chromium",
     )
 )
 secrets = [
@@ -34,6 +34,18 @@ BATCH_SIZE = 128
 SENTENCE_TRANSFORMERS_MODEL = "thenlper/gte-base"
 model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
 timeout = 60 * 60  # 30 minutes
+
+DOCS_ENDPOINTS = {
+    "https://modal.com/docs/guide",
+    "https://gpt-index.readthedocs.io/en/latest/",
+    "https://ts.llamaindex.ai/"
+    # Langchain	https://python.langchain.com/docs/
+    # Langchain JS	https://js.langchain.com/docs/
+    # React JS	https://react.dev/
+    # Docusaurus	https://docusaurus.io/docs
+    # OpenAI	https://platform.openai.com/docs/
+    # Anthropic	https://docs.anthropic.com/claude/docs
+}
 
 @stub.cls(
     image=image,
@@ -60,7 +72,6 @@ class Embedding:
         try:
             logger.info(f'{len(vector)}\n{len(vector[0])}')
         except Exception as e:
-            print(f'oops {e}')
             pass
         return vector
 
