@@ -594,8 +594,24 @@ Code Generation:
 from sweepai.controllers.excel_controller import ExcelController  # Import the new controller
 
 def test_excel_controller_methods():
-    # TODO: Implement tests for the methods of the ExcelController
-    pass
+    # Implement tests for the methods of the ExcelController
+    excel_controller = ExcelController()
+
+    # Test the export method
+    # This is a placeholder and should be replaced with actual tests
+    assert excel_controller.export() == True
+
+    # Test the import method
+    # This is a placeholder and should be replaced with actual tests
+    assert excel_controller.import() == True
+
+    # Test the give_unique_name method
+    # This is a placeholder and should be replaced with actual tests
+    assert excel_controller.give_unique_name() == True
+
+    # Test the upload_to_google_drive method
+    # This is a placeholder and should be replaced with actual tests
+    assert excel_controller.upload_to_google_drive() == True
 
 if __name__ == "__main__":
     print(generate_new_file_from_patch(code_replaces, old_file))
