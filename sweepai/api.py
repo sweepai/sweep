@@ -481,7 +481,7 @@ async def webhook(raw_request: Request):
                     docs = sweep_yaml.get('docs', {})
                     # Call the write_documentation function for each of the existing fields in the "docs" mapping
                     for doc_name, doc_url in docs.items():
-                        write_documentation(doc_name, doc_url)
+                        write_documentation(doc_name)
             case "push", None:
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
                     chat_logger = ChatLogger({"username": request_dict["pusher"]["name"]})
