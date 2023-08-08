@@ -7,6 +7,7 @@ from modal import method
 from tqdm import tqdm
 from sweepai.core.robots import is_url_allowed
 from sweepai.core.webscrape import webscrape
+from sweepai.pre_indexed_docs import DOCS_ENDPOINTS
 
 from sweepai.utils.config.server import DOCS_MODAL_INST_NAME, ENV, ORG_ID
 
@@ -33,18 +34,6 @@ BATCH_SIZE = 128
 SENTENCE_TRANSFORMERS_MODEL = "thenlper/gte-base"
 model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
 timeout = 60 * 60  # 30 minutes
-
-DOCS_ENDPOINTS = {
-    "Modal Labs": "https://modal.com/docs/guide",
-    "Llama Index": "https://gpt-index.readthedocs.io/en/latest/",
-    "Llama Index TS": "https://ts.llamaindex.ai/",
-    "Langchain": "https://python.langchain.com/docs/",
-    "Langchain JS": "https://js.langchain.com/docs/",
-    "React JS": "https://react.dev/",
-    "Docusaurus": "https://docusaurus.io/docs",
-    "OpenAI": "https://platform.openai.com/docs/",
-    "Anthropic": "https://docs.anthropic.com/claude/docs",
-}
 
 @stub.cls(
     image=image,
