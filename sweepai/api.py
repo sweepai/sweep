@@ -1,5 +1,6 @@
 import time
 import modal
+from modal import Queue
 from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
@@ -25,7 +26,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
 
 stub = modal.Stub(API_MODAL_INST_NAME)
-stub.pr_queues = modal.Dict.new() # maps (repo_full_name, pull_request_ids) -> queues
+stub.pr_queues = Queue.new() # maps (repo_full_name, pull_request_ids) -> queues
 image = (
     modal.Image.debian_slim()
     .apt_install("git", "universal-ctags")
@@ -92,31 +93,16 @@ def handle_pr_change_request(
     try:
         call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
         logger.info(f"Current queue: {queue}")
-        while queue:
+        while not queue.empty():
             # popping
-            call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
-            stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, [])
-            pr_change_request: PRChangeRequest
-            for pr_change_request in queue:
-                if pr_change_request.type == "comment":
-                    handle_comment.call(**pr_change_request.params)
-                elif pr_change_request.type == "gha":
-                    handle_check_suite.call(**pr_change_request.params)
-                else:
-                    raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
-                time.sleep(1)
-            call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
-            # *queue, pr_change_request = queue
-            # logger.info(f"Currently handling PR change request: {pr_change_request}")
-            # logger.info(f"PR queues: {queue}")
-
-            # if pr_change_request.type == "comment":
-            #     handle_comment.call(**pr_change_request.params)
-            # elif pr_change_request.type == "gha":
-            #     handle_check_suite.call(**pr_change_request.params)
-            # else:
-            #     raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
-            stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
+            pr_change_request: PRChangeRequest = queue.get()
+            if pr_change_request.type == "comment":
+                handle_comment.call(**pr_change_request.params)
+            elif pr_change_request.type == "gha":
+                handle_check_suite.call(**pr_change_request.params)
+            else:
+                raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
+            time.sleep(1)
     finally:
         if (repo_full_name, pr_id) in stub.app.pr_queues:
             del stub.app.pr_queues[(repo_full_name, pr_id)]
@@ -143,10 +129,10 @@ def push_to_queue(
 ):
     logger.info(f"Pushing to queue: {repo_full_name}, {pr_id}, {pr_change_request}")
     key = (repo_full_name, pr_id)
-    call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
+    call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", Queue())
     function_is_completed = function_call_is_completed(call_id)
     if pr_change_request.type == "comment" or function_is_completed:
-        queue = [pr_change_request] + queue
+        queue.put(pr_change_request)
         if function_is_completed:
             stub.app.pr_queues[key] = ("0", queue)
             call_id = handle_pr_change_request.spawn(
