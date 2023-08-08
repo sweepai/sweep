@@ -41,7 +41,7 @@ model_to_max_tokens = {
     "gpt-4-32k": 32000,
 
 }
-temperature = 0.05  # May need to be adjusted lower
+temperature = 0.025  # May need to be adjusted lower
 
 def format_for_anthropic(messages: list[Message]) -> str:
     if len(messages) > 1:
