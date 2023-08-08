@@ -1,10 +1,12 @@
 import os
 
-PREFIX = 'prod'
+PREFIX = 'dev'
+
 print(f"Using prefix: {PREFIX}")
 ENV = PREFIX
 
 DB_MODAL_INST_NAME = PREFIX + "-db"
+DOCS_MODAL_INST_NAME = PREFIX + "-docs"
 API_MODAL_INST_NAME = PREFIX + "-api"
 UTILS_MODAL_INST_NAME = PREFIX + "-utils"
 SLACK_MODAL_INST_NAME = PREFIX + "-slack"
@@ -84,6 +86,8 @@ REDIS_URL = os.environ.get('REDIS_URL')
 # deprecated: old logic transfer so upstream can use this
 if not REDIS_URL:
     REDIS_URL = os.environ.get('redis_url')
+
+ORG_ID = os.environ.get('ORG_ID')
 
 # goes under Modal 'posthog' secret name (optional, can leave env var blank)
 POSTHOG_API_KEY = os.environ.get('POSTHOG_API_KEY')
