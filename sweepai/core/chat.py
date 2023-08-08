@@ -9,6 +9,8 @@ import openai
 from loguru import logger
 from pydantic import BaseModel
 
+from sweepai.api import gha_logs_queue, gha_logs_queue_lock
+
 from sweepai.core.entities import Message, Function
 from sweepai.core.prompts import (
     system_message_prompt,
