@@ -1,5 +1,10 @@
 import requests
-from robotexclusionrulesparser import RobotExclusionRulesParser
+try:
+    from robotexclusionrulesparser import RobotExclusionRulesParser
+except ImportError:
+    import pip
+    pip.main(['install', 'robotexclusionrulesparser'])
+    from robotexclusionrulesparser import RobotExclusionRulesParser
 
 def is_url_allowed(url, user_agent='*'):
     robots_url = '/'.join(url.split('/')[:3]) + '/robots.txt'
