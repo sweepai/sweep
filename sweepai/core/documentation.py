@@ -1,6 +1,6 @@
 import asyncio
 import re
-from deeplake.vectorstore import VectorStore
+from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from loguru import logger
 import modal
 from modal import method
