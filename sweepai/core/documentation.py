@@ -1,6 +1,5 @@
 import asyncio
 import re
-from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from loguru import logger
 import modal
 from modal import method
@@ -156,11 +155,11 @@ def write_documentation(doc_url):
         document_chunks.extend(chunk_string(document))
         urls.extend([url] * len(chunk_string(document)))
     computed_embeddings = embedding_function(document_chunks)
-    vector_store = VectorStore(
-        path = f'hub://{ORG_ID}/{idx_name}',
-        runtime = {"tensor_db": True},
-        overwrite=True,
-    )
+    # vector_store = VectorStore(
+    #     path = f'hub://{ORG_ID}/{idx_name}',
+    #     runtime = {"tensor_db": True},
+    #     overwrite=True,
+    # )
     vector_store.add(
         text = document_chunks, 
         embedding = computed_embeddings,
@@ -175,9 +174,9 @@ def write_documentation(doc_url):
 )
 def search_vector_store(doc_url, query):
     idx_name = remove_non_alphanumeric(doc_url)
-    vector_store = VectorStore(
-        path = f'hub://{ORG_ID}/{idx_name}',
-        runtime = {"tensor_db": True},
-    )
+    # vector_store = VectorStore(
+    #     path = f'hub://{ORG_ID}/{idx_name}',
+    #     runtime = {"tensor_db": True},
+    # )
     query_embedding = embedding_function(query)
     return vector_store.search(embedding = query_embedding, k = 3)['text']
