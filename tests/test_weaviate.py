@@ -1,7 +1,4 @@
-import asyncio
 import modal
-from sweepai.core.documentation import ModalEmbeddingFunction
-from sweepai.core.webscrape import webscrape
 from sweepai.utils.config.server import DOCS_MODAL_INST_NAME
 
 
