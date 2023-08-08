@@ -144,6 +144,7 @@ def on_ticket(
     # Fetch the total number of files in the repository
     total_files = sum(1 for _ in repo.get_contents(""))
     # Calculate the estimated indexing time
+    # This is a rough estimation and it could vary depending on the file sizes and the server's processing power
     estimated_time = total_files // 1000  # 1000 files ~ 1 minute of indexing
 
     logger.info(f"Estimated indexing time: {estimated_time} minutes")
@@ -237,7 +238,10 @@ def on_ticket(
             return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
         return f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)" + (
             "\n" + stars_suffix if index != -1 else "") + "\n" + payment_message_start + config_pr_message
-    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets. Please note that indexing the codebase may take approximately {estimated_time} minutes.\n{sep}## {progress_headers[1]}\nWorking on it...{bot_suffix}{discord_suffix}"
+    if estimated_time is not None:
+        first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets. Please note that indexing the codebase may take approximately {estimated_time} minutes.\n{sep}## {progress_headers[1]}\nWorking on it...{bot_suffix}{discord_suffix}"
+    else:
+        first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\nWorking on it...{bot_suffix}{discord_suffix}"
     for comment in comments:
         if comment.user.login == GITHUB_BOT_USERNAME:
             issue_comment = comment
