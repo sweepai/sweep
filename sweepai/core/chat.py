@@ -337,37 +337,44 @@ class ChatGPT(BaseModel):
         logger.info(f"Number of tokens: {max_tokens}")
         messages_raw = format_for_anthropic(self.messages)
         logger.info(f"Input to call anthropic:\n{messages_raw}")
-
+    
         assert ANTHROPIC_API_KEY is not None
         client = anthropic.Client(api_key=ANTHROPIC_API_KEY)
-
-        @backoff.on_exception(
-            backoff.expo,
-            Exception,
-            max_tries=5,
-            jitter=backoff.random_jitter,
-        )
-        def fetch() -> tuple[str, str]:
-            logger.warning(f"Calling anthropic...")
-            results = client.completion(
-                prompt=messages_raw,
-                stop_sequences=[anthropic.HUMAN_PROMPT],
-                model=model,
-                max_tokens_to_sample=max_tokens,
-                disable_checks=True,
-                temperature=temperature,
+    
+        # Enqueue GHA logs and process them in a FIFO manner
+        gha_logs_queue = []
+        for message in self.messages:
+            if message.role == "gha":
+                gha_logs_queue.append(message.content)
+        while gha_logs_queue:
+            gha_log = gha_logs_queue.pop(0)
+            @backoff.on_exception(
+                backoff.expo,
+                Exception,
+                max_tries=5,
+                jitter=backoff.random_jitter,
             )
-            return results["completion"], results["stop_reason"]
-
-        result, stop_reason = fetch()
-        logger.warning(f"Stop reasons: {stop_reason}")
-        if stop_reason == "max_tokens":
-            logger.warning("Hit max tokens, running for more tokens.")
-            _self = deepcopy(self)
-            _self.messages.append(Message(role="assistant", content=result, key=""))
-            extension = _self.call_anthropic(model=model)
-            print(len(result), len(extension), len(result + extension))
-            return result + extension
+            def fetch() -> tuple[str, str]:
+                logger.warning(f"Calling anthropic...")
+                results = client.completion(
+                    prompt=gha_log,
+                    stop_sequences=[anthropic.HUMAN_PROMPT],
+                    model=model,
+                    max_tokens_to_sample=max_tokens,
+                    disable_checks=True,
+                    temperature=temperature,
+                )
+                return results["completion"], results["stop_reason"]
+    
+            result, stop_reason = fetch()
+            logger.warning(f"Stop reasons: {stop_reason}")
+            if stop_reason == "max_tokens":
+                logger.warning("Hit max tokens, running for more tokens.")
+                _self = deepcopy(self)
+                _self.messages.append(Message(role="assistant", content=result, key=""))
+                extension = _self.call_anthropic(model=model)
+                print(len(result), len(extension), len(result + extension))
+                return result + extension
         logger.info(f"Output to call anthropic:\n{result}")
         return result
 
@@ -386,6 +393,16 @@ class ChatGPT(BaseModel):
             self.messages.append(Message(role="function", content=content, key=message_key, name=name))
         model = model or self.model
         is_function_call = False
+    
+        # Enqueue GHA logs and process them in a FIFO manner
+        gha_logs_queue = []
+        for message in self.messages:
+            if message.role == "gha":
+                gha_logs_queue.append(message.content)
+        while gha_logs_queue:
+            gha_log = gha_logs_queue.pop(0)
+            self.messages.append(Message(role="assistant", content=gha_log, key=message_key))
+    
         # might be a bug here in all of this
         # return self.stream_openai(model=model, functions=functions, function_name=function_name)
         return self.stream_openai(model=model, functions=functions, function_call=function_call)
