@@ -117,6 +117,9 @@ def handle_pr_change_request(
             # else:
             #     raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
             stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
+    except Exception as e:
+        logger.error(f"Failed to process PR change request: {e}")
+        raise e
     finally:
         if (repo_full_name, pr_id) in stub.app.pr_queues:
             del stub.app.pr_queues[(repo_full_name, pr_id)]
@@ -145,7 +148,7 @@ def push_to_queue(
     key = (repo_full_name, pr_id)
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
     function_is_completed = function_call_is_completed(call_id)
-    if pr_change_request.type == "comment" or function_is_completed:
+    if pr_change_request.type == "comment" or pr_change_request.type == "gha" or function_is_completed:
         queue = [pr_change_request] + queue
         if function_is_completed:
             stub.app.pr_queues[key] = ("0", queue)
