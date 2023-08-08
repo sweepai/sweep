@@ -31,6 +31,7 @@ from sweepai.core.prompts import (
 from sweepai.utils.config.client import SweepConfig
 from sweepai.utils.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
 from sweepai.utils.diff import format_contents, generate_new_file_from_patch, get_all_diffs, is_markdown
+from sweepai.controllers.excel_controller import ExcelController  # Import the new controller
 
 USING_DIFF = True
 
