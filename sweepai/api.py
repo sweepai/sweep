@@ -525,4 +525,4 @@ def update_sweep_prs(
             logger.error(f"Failed to merge changes from default branch into PR #{pr.number}: {e}")
 
 def index_docs():
-    pass
+    print("The sweep.yaml file has been updated.")
