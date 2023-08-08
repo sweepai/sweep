@@ -10,7 +10,6 @@ from sweepai.core.webscrape import webscrape
 
 from sweepai.utils.config.server import DOCS_MODAL_INST_NAME, ENV, ORG_ID
 
-
 stub = modal.Stub(DOCS_MODAL_INST_NAME)
 image = (
     modal.Image.debian_slim()
@@ -36,15 +35,15 @@ model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
 timeout = 60 * 60  # 30 minutes
 
 DOCS_ENDPOINTS = {
-    "https://modal.com/docs/guide",
-    "https://gpt-index.readthedocs.io/en/latest/",
-    "https://ts.llamaindex.ai/"
-    # Langchain	https://python.langchain.com/docs/
-    # Langchain JS	https://js.langchain.com/docs/
-    # React JS	https://react.dev/
-    # Docusaurus	https://docusaurus.io/docs
-    # OpenAI	https://platform.openai.com/docs/
-    # Anthropic	https://docs.anthropic.com/claude/docs
+    "Modal Labs": "https://modal.com/docs/guide",
+    "Llama Index": "https://gpt-index.readthedocs.io/en/latest/",
+    "Llama Index TS": "https://ts.llamaindex.ai/",
+    "Langchain": "https://python.langchain.com/docs/",
+    "Langchain JS": "https://js.langchain.com/docs/",
+    "React JS": "https://react.dev/",
+    "Docusaurus": "https://docusaurus.io/docs",
+    "OpenAI": "https://platform.openai.com/docs/",
+    "Anthropic": "https://docs.anthropic.com/claude/docs",
 }
 
 @stub.cls(
@@ -128,6 +127,8 @@ class CPUEmbedding:
 
 
 def chunk_string(s):
+    # Chunker's terrible, can be improved later
+
     # Split the string into sentences
     sentences = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s', s)
     
@@ -152,6 +153,7 @@ def remove_non_alphanumeric(url):
 @stub.function(
     image=image,
     secrets=secrets,
+    timeout=timeout,
 )
 def write_documentation(doc_url):
     url_allowed = is_url_allowed(doc_url, user_agent='*')
@@ -182,13 +184,27 @@ def write_documentation(doc_url):
 @stub.function(
     image=image,
     secrets=secrets,
-    # keep_warm=2,
+    schedule=modal.Cron("0 9 * * *"),
 )
-def search_vector_store(doc_url, query):
+def daily_update():
+    for doc_url in DOCS_ENDPOINTS.values():
+        write_documentation.spawn(doc_url)
+
+@stub.function(
+    image=image,
+    secrets=secrets,
+    keep_warm=1,
+)
+def search_vector_store(doc_url, query, k=10):
+    logger.info(f'Searching for "{query}" in {doc_url}')
     idx_name = remove_non_alphanumeric(doc_url)
     vector_store = VectorStore(
         path = f'hub://{ORG_ID}/{idx_name}',
         runtime = {"tensor_db": True},
     )
-    query_embedding = embedding_function(query)
-    return vector_store.search(embedding = query_embedding, k = 3)['text']
+    logger.info("Embedding query...")
+    query_embedding = embedding_function(query, cpu=True)
+    logger.info("Searching vector store...")
+    results = vector_store.search(embedding=query_embedding, k=k)
+    logger.info("Done searching vector store")
+    return results

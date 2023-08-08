@@ -688,3 +688,11 @@ A detailed issue description.
 More details ...
 </issue_description>
 """
+
+docs_qa_system_prompt = """You are an expert at summarizing documentation for programming-related to help the user solve the problem. You will be given a question and relevant snippets of documentation, and be asked to provide a summary of relevant snippets for solving the problem."""
+docs_qa_user_prompt = """Here are the relevant documentation snippets:
+{snippets}
+
+The user is attempting to solve the following problem:
+{problem}
+"""

@@ -50,6 +50,11 @@ image = (
         "llama_index",
         "bs4",
         "e2b",
+        # for docs search
+        "deeplake",
+        "robotexclusionrulesparser",
+        "playwright",
+        "markdownify",
     )
 )
 secrets = [
