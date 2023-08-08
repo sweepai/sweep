@@ -141,11 +141,16 @@ def function_call_is_completed(call_id: str):
 async def handle_excel_file(raw_request: Request):
     """Handle an Excel file."""
     try:
-        # TODO: Implement the logic for handling Excel files
-        pass
+        # Implement the logic for handling Excel files
+        # This is a placeholder and should be replaced with actual logic
+        excel_file = raw_request.file
+        # Process the Excel file...
     except ValidationError as e:
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
+    except Exception as e:
+        logger.error(f"An error occurred while processing the Excel file: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred while processing the Excel file")
     return {"success": True}
 
 def push_to_queue(
