@@ -1,6 +1,8 @@
 import asyncio
 import os
 import re
+import time
+from loguru import logger
 
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
@@ -88,7 +90,6 @@ async def webscrape(BASE_URL_PREFIX):
     async def scrape_page(page, url):
         if url in visited_urls:
             return
-
         visited_urls.add(url)
         await page.goto(url)
         content = await page.content()
@@ -115,10 +116,16 @@ async def webscrape(BASE_URL_PREFIX):
         pbar.total += len(links)
 
         for link in links:
-            await scrape_page(page, link)
+            try:
+                await scrape_page(page, link)
+            except:
+                logger.warning(f"Failed to scrape {link}")
+                pass
     async with async_playwright() as p:
-        browser = await p.chromium.launch()
+        browser = await p.chromium.launch(timeout=0)
         page = await browser.new_page()
         await scrape_page(page, BASE_URL_PREFIX)
         await browser.close()
     return all_files
+
+print(asyncio.run(webscrape("https://docs.anthropic.com/claude")))
