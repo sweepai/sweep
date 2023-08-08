@@ -553,9 +553,14 @@ def on_ticket(
         try:
             commit = pr.get_commits().reversed[0]
             check_runs = commit.get_check_runs()
-
+        
+            # Enqueue GHA logs and process them in a FIFO manner
+            gha_logs_queue = []
             for check_run in check_runs:
-                check_run.rerequest()
+                gha_logs_queue.append(check_run)
+            while gha_logs_queue:
+                gha_log = gha_logs_queue.pop(0)
+                gha_log.rerequest()
         except Exception as e:
             logger.error(e)
 
