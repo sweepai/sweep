@@ -523,6 +523,12 @@ def update_sweep_prs(
             
             # Check if the merged PR is the config PR
             if pr.title == "Configure Sweep" and pr.merged:
+                # Check if the PR contains the sweep.yaml file
+                files = pr.get_files()
+                for file in files:
+                    if file.filename == "sweep.yaml":
+                        # Call the parse_docs_field function with the sweep.yaml file
+                        parse_docs_field(file)
                 # Create a new PR to add "gha_enabled: True" to sweep.yaml
                 create_gha_pr(g, repo)
         except Exception as e:
