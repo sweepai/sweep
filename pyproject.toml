@@ -31,6 +31,7 @@ llama-index = "^0.7.15"
 greenlet = "2.0.1"
 modal-client = "^0.50.2846"
 e2b = "^0.1.0"
+orjson = "^3.6.1"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"
