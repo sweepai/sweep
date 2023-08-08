@@ -1,81 +1,209 @@
-# Welcome to Sweep - GitHub App installed successfully! 🎉
+<!-- this script got from https://saqrstudio.com/ - Coded by: Krishna Eydat -->
 
-Be sure to follow these instructions in your own repository.
-If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?v=fr5V5EWVcyM&lc=UgxM_ZzFiFYfjo1ADU54AaABAg)
+<style>
 
-## Create an issue on your own repository
-The issue title should start with `Sweep: ` For issues and PRs, call Sweep using the Sweep label or by prefixing your text with `Sweep: `
-- **Sweep works best with real repositories and real issues.**
+*,
 
+::after,
 
-<table>
-  <tr>
-    <td style="border: 2px solid black;">
-      <img src="https://github.com/sweepai/sweep/assets/44910023/68b345eb-0ae5-455e-a1a3-c388b1f032f6" alt="Image description">
-    </td>
-  </tr>
-</table>
+::before {
 
-Note: The initial startup time typically takes around 3-5 minutes depending on your codebase.
+    -webkit-box-sizing: border-box;
 
-## Fix Sweep's PRs
+    box-sizing: border-box;
 
-Sweep will mess up sometimes. Comment on it's PR. (ex: "use PyTorch instead of Tensorflow".)
-- You can also comment in the issue and code. See [Commenting](https://docs.sweep.dev/commenting).
-- To have Sweep automatically improve it's PRs, use Github Actions. [GHA Tech Blog](https://docs.sweep.dev/blogs/giving-dev-tools)
-- To disable Sweep on a PR/issue, remove the Sweep label.
+    margin: 0;
+
+    padding: 0;
+
+}
 
 
-<table>
-  <tr>
-    <td style="border: 2px solid black;">
-      <img src="https://github.com/sweepai/sweep/assets/44910023/9323aa0c-0f32-4da1-89bc-418e44372d8b" alt="Image description">
-    </td>
-  </tr>
-</table>
+
+html {
+
+    -webkit-box-sizing: border-box;
+
+    box-sizing: border-box;
+
+    font-size: 20px;
+
+    line-height: 1.5;
+
+    -webkit-tap-highlight-color: transparent;
+
+}
 
 
-## Sweep Prompting Tricks 📝
 
-* Mention filenames or function names.
-* Describe the changes or fixes you want.
-* Provide any additional context that might be helpful.
-* For more guidance, visit [Sweep Recipes](https://docs.sweep.dev/recipes).
+body {
 
-## Limitations of Sweep (for now) ⚠️
+    background: #fff;
 
-* 🏗️ **Large-scale refactors**: >3 files or >150 lines of code changes (we're working on this!)
-    * We can't do this - "Refactor entire codebase from Tensorflow to PyTorch"
+    color: #111;
 
-* ⏲️ **Using the latest APIs** that have changed past 2022
-    * We can't do this - "Set up a vector store using LlamaIndex Typescript"
-    * 🎩 However if you provide the relevant docs as links/text, then Sweep will read them and make the changes.
+    font-size: 0.8rem;
 
-* 🖼️ **Editing images** and other non-text assets
-    * We can't do this - "Use the logo to create favicons for our landing page"
+    overflow-x: hidden;
 
-* ⤵️ **Accessing external APIs**, including fetching API tokens
-    * We can't do this - "Set up sign-in using Ethereum"
+    text-rendering: optimizeLegibility;
 
-## Pricing
-We offer unlimited GPT3.5 tickets to every user. You also start with 5 GPT4 credits which are used when a PR is created.
+    font-family: Gilroy-Medium;
 
-For professionals who want more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month. In addition, we're also offering 15 PRs for $60 as a one-time purchase for anyone interested in eventually purchasing Sweep Pro. You can avail this offer [here](https://buy.stripe.com/7sI4jlaCR3PaabebIP).
-
----
-
-### Documentation 📚
-
-[Check out our docs](https://docs.sweep.dev/).
-
-### Contact Us 👥
-- [Discord](https://discord.com/invite/sweep-ai)
-- team@sweep.dev
-- [Star us on GitHub! ⭐](https://github.com/sweepai/sweep)
+}
 
 
-Note - you need to have Sweep installed and [Issues enabled in Repo](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/disabling-issues)
 
-# Bug Reports
+.aks-video-player {
 
-If Sweep fails to solve your issue that is within the scope of Sweep (see Limitations) and you submit a high-quality bug report at our [Discord](https://discord.gg/sweep-ai), we will reset your ticket count, giving your GPT-4 tickets back. This is only for GPT4 PRs.
+    width: 100% !important;
+
+    height: auto !important;
+
+    margin-top:0 !important;
+
+}
+
+
+
+</style>
+
+<link rel='stylesheet' href='http://htmlfreecode.com/files/aksVideoPlayer.min.css'>
+
+
+
+<div id="video"></div>
+
+
+
+<script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js'></script>
+
+<script src='http://htmlfreecode.com/files/aksVideoPlayer.min.js'></script>
+
+<script>
+
+$("#video").aksVideoPlayer({
+
+file: [
+
+    {
+
+    file: "https://e.top4top.io/m_2251q8rgs1.mp4",
+
+    label: "1080p"
+
+    },
+
+    {
+
+    file: "https://e.top4top.io/m_2251q8rgs1.mp4",
+
+    label: "720p"
+
+    },
+
+    {
+
+    file: "https://e.top4top.io/m_2251q8rgs1.mp4",
+
+    label: "540p"
+
+    },
+
+    {
+
+    file: "https://e.top4top.io/m_2251q8rgs1.mp4",
+
+    label: "360p"
+
+    },
+
+    {
+
+    file: "https://e.top4top.io/m_2251q8rgs1.mp4",
+
+    label: "240p"
+
+    }
+
+],
+
+    
+
+    poster: "https://morb3.com/wp-content/uploads/2020/04/319-hd%D8%B5%D9%88%D8%B1-%D8%AE%D9%84%D9%81%D9%8A%D8%A7%D8%AA-%D8%A7%D8%B3%D9%84%D8%A7%D9%85%D9%8A%D8%A9-%D8%AF%D9%8A%D9%86%D9%8A%D8%A9-%D8%A7%D8%AF%D8%B9%D9%8A%D8%A9-%D9%84%D9%84%D9%85%D9%88%D8%A8%D8%A7%D9%8A%D9%84-%D8%A7%D9%8A%D9%81%D9%88%D9%86-%D9%85%D9%83%D8%AA%D9%88%D8%A8-%D8%B9%D9%84%D9%8A%D9%87%D8%A7-%D8%B9%D8%A8%D8%A7%D8%B1%D8%A7%D8%AA-%D8%A7%D9%84%D9%81%D8%B1%D8%AC-%D8%AF%D8%B9%D8%A7%D8%A1-%D8%A7%D9%84%D9%88%D8%A8%D8%A7%D8%A1-%D9%84%D9%84%D9%88%D8%A7%D8%AA%D8%B3-%D9%84%D9%84%D9%81%D9%8A%D8%B3-%D9%85%D8%B5%D9%88%D8%B1%D8%A9-%D8%A7%D9%84%D8%AF%D8%B9%D8%A7%D8%A1-724x1024.jpg",
+
+    forward: true,
+
+    contextMenu: [
+
+{
+
+    type: "urlCopy",
+
+    label: "Copy Video Url",
+
+    url: "https://saqrstudio.com/"
+
+},
+
+{
+
+type: "socialmedia",
+
+label: "Share on Social Media",
+
+socials: [
+
+{
+
+    label: "Facebook",
+
+    url: "",
+
+    colorBg: "#0066ff",
+
+    color: "white",
+
+    icon:
+
+    '<svg xmlns="" viewBox="0 0 10 20"><defs></defs><path d="M8.174 3.32H10V.14A23.66 23.66 0 007.34 0C4.709 0 2.906 1.656 2.906 4.7v2.8H0v3.555h2.905V20h3.56v-8.945h2.789L9.697 7.5H6.466V5.05c0-1.027.276-1.73 1.708-1.73z" fill-rule="evenodd"></path></svg>'
+
+},
+
+{
+
+    label: "Twitter",
+
+    url: "",
+
+    colorBg: "#0089ff",
+
+    color: "white",
+
+    icon:
+
+        '<svg xmlns="" viewBox="0 0 20 16"><defs></defs><path d="M17.944 3.987c.013.175.013.35.013.526C17.957 9.85 13.833 16 6.294 16c-2.322 0-4.48-.662-6.294-1.813.33.038.647.05.99.05 1.916 0 3.68-.637 5.089-1.725-1.802-.037-3.313-1.2-3.833-2.8.254.038.508.063.774.063.368 0 .736-.05 1.079-.137-1.878-.376-3.287-2-3.287-3.963v-.05c.546.3 1.18.488 1.853.512A4.02 4.02 0 01.838 2.775c0-.75.203-1.438.558-2.038a11.71 11.71 0 008.452 4.225 4.493 4.493 0 01-.102-.924c0-2.226 1.828-4.038 4.1-4.038 1.18 0 2.245.487 2.994 1.275A8.145 8.145 0 0019.442.3a4.038 4.038 0 01-1.802 2.225A8.316 8.316 0 0020 1.9a8.74 8.74 0 01-2.056 2.087z" fill-rule="evenodd"></path></svg>'
+
+}
+
+]
+
+},
+
+{
+
+    type: "iframe",
+
+    label: "Copy Iframe Code",
+
+    iframe: "<iframe></iframe>"
+
+}
+
+    ],
+
+});
+
+</script>
+
+<a target="_blank" href="https://saqrstudio.com/" style="font-size: 8pt; text-decoration: none;font-family:Tahoma">SAQR STUDIO</a>
