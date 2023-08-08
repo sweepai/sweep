@@ -10,6 +10,7 @@ import openai
 import asyncio
 from loguru import logger
 from tabulate import tabulate
+from sweepai.core.documentation_searcher import DocumentationSearcher
 
 from sweepai.core.entities import Snippet, NoFilesException
 from sweepai.core.external_searcher import ExternalSearcher
@@ -330,6 +331,9 @@ def on_ticket(
     external_results = ExternalSearcher.extract_summaries(message_summary)
     if external_results:
         message_summary += "\n\n" + external_results
+    docs_results = DocumentationSearcher.extract_relevant_docs(message_summary)
+    if docs_results:
+        message_summary += "\n\n" + docs_results
 
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
@@ -407,7 +411,8 @@ def on_ticket(
                     ]
                 ),
             )
-            + (f"I also found the following external resources that might be helpful:\n\n{external_results}\n\n" if external_results else ""),
+            + (f"I also found the following external resources that might be helpful:\n\n{external_results}\n\n" if external_results else "")
+            + (f"I also found the following docs that might be helpful:\n\n{docs_results}\n\n" if docs_results else ""),
             1
         )
 
