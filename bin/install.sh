@@ -13,4 +13,7 @@ poetry shell
 # Install deeplake with pip
 echo "Installing deeplake with pip..."
 pip install deeplake
+# Install robotexclusionrulesparser with pip
+echo "Installing robotexclusionrulesparser with pip..."
+pip install robotexclusionrulesparser
 echo "Installation complete!"
