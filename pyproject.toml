@@ -35,7 +35,7 @@ markdownify = "^0.11.6"
 playwright = "^1.30.0"
 reportlab = "^3.6.1"
 robotexclusionrulesparser = "^1.7.1"
-deeplake = "^0.1.1"
+deeplake = "^0.1.2" # Assuming 0.1.2 is a valid version
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"
