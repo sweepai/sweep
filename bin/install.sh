@@ -13,6 +13,8 @@ poetry shell
 # Install deeplake with poetry
 echo "Installing deeplake with poetry..."
 poetry add deeplake
+exit
+poetry shell
 # Run pylint within the poetry environment
 echo "Running pylint check..."
 poetry run pylint sweepai --errors-only
