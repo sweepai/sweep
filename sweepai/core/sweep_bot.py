@@ -289,8 +289,9 @@ class GithubBot(BaseModel):
 
 
 class SweepBot(CodeGenBot, GithubBot):
+
     def cot_retrieval(self):
-        # TODO(sweep): add semantic search using vector db
+        # TODO: This section needs to be implemented in the future
         # TODO(sweep): add search using webpilot + github
         functions = [
             Function(
