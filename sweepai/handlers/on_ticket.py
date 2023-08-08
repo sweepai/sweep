@@ -86,17 +86,9 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5)
     return result_snippets[:max_num_of_snippets]
 
 
-def on_ticket(
-        title: str,
-        summary: str,
-        issue_number: int,
-        issue_url: str,
-        username: str,
-        repo_full_name: str,
-        repo_description: str,
-        installation_id: int,
-        comment_id: int = None
-):
+def on_ticket(*args, **kwargs):
+    with gha_logs_queue_lock:
+        gha_logs_queue.append((args, kwargs))
     # Check if the title starts with "sweep" or "sweep: " and remove it
     slow_mode = False
     if title.lower().startswith("sweep: "):
