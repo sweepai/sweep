@@ -278,6 +278,11 @@ def sliding_window_replacement(original, search, replace, search_context_before=
     original = original[:index] + modified + original[index + len(search):]
     return original, index, None
 
+def get_all_diffs(modify_file_response: str) -> str:
+    matches = re.findall(r'(<<<<.*?\n(.*?)\n====[^\n=]*\n(.*?)\n?>>>>)', modify_file_response, re.DOTALL)
+    result = "\n\n".join([_match for _match, *_ in matches])
+    return result
+
 def generate_new_file_from_patch(modify_file_response: str, old_file_content: str, chunk_offset: int=0) -> str:
     old_file_lines = old_file_content.splitlines()
     

@@ -4,7 +4,9 @@ from e2b import Session
 from pydantic import BaseModel
 from typing import Type, TypeVar
 
+
 Self = TypeVar("Self", bound="Sandbox")
+
 
 REPO_PATH = "/code/repo"
 GIT_PASS = 'echo \'#!/bin/sh\\necho "{token}"\' > git-askpass.sh && chmod +x git-askpass.sh'
