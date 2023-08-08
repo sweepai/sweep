@@ -105,6 +105,7 @@ def create_pr_changes(
             import random
             return random.choice(jokes)
 
+        say_joke()
         pr_description += f"\n\nJoke of the day: {say_joke()}"
 
         pr_title = pull_request.title
