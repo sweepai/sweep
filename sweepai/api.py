@@ -101,15 +101,20 @@ def handle_pr_change_request(
                 if pr_change_request.type == "comment":
                     handle_comment.call(**pr_change_request.params)
                 elif pr_change_request.type == "gha":
-                    handle_check_suite.call(**pr_change_request.params)
+                    # Enqueue GHA logs and process them in a FIFO manner
+                    gha_logs_queue = []
+                    gha_logs_queue.append(pr_change_request.params)
+                    while gha_logs_queue:
+                        gha_log = gha_logs_queue.pop(0)
+                        handle_check_suite.call(**gha_log)
                 else:
                     raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
                 time.sleep(1)
             call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
-            # *queue, pr_change_request = queue
-            # logger.info(f"Currently handling PR change request: {pr_change_request}")
-            # logger.info(f"PR queues: {queue}")
-
+            stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
+    finally:
+        if (repo_full_name, pr_id) in stub.app.pr_queues:
+            del stub.app.pr_queues[(repo_full_name, pr_id)]
             # if pr_change_request.type == "comment":
             #     handle_comment.call(**pr_change_request.params)
             # elif pr_change_request.type == "gha":
