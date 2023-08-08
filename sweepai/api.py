@@ -18,6 +18,7 @@ from sweepai.handlers.create_pr import create_pr_changes, create_gha_pr  # type:
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
+# Check if the `sweepai.handlers.on_gha_logs` module exists in the project. If it doesn't, we need to implement it. If it does, ensure that it's correctly implemented and accessible.
 from sweepai.handlers.on_gha_logs import handle_gha_logs  # Import the handle_gha_logs function
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.config.server import DB_MODAL_INST_NAME, API_MODAL_INST_NAME, GITHUB_BOT_USERNAME, \
