@@ -127,5 +127,3 @@ async def webscrape(BASE_URL_PREFIX):
         await scrape_page(page, BASE_URL_PREFIX)
         await browser.close()
     return all_files
-
-print(asyncio.run(webscrape("https://docs.anthropic.com/claude")))
