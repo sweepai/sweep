@@ -1,0 +1,11 @@
+import swiper
+
+def initialize_swiper():
+    # Initialize the swiper slider with the necessary parameters
+    swiper_instance = swiper.Swiper()
+    return swiper_instance
+
+def format_data_for_swiper(data):
+    # Format the data for the 'My Creative Work' section for use with the swiper slider
+    formatted_data = [format_item(item) for item in data]
+    return formatted_data
