@@ -20,6 +20,9 @@ jobs:
     - name: Install dependencies
       run: |
         poetry install
+    - name: Install deeplake
+      run: |
+        poetry add deeplake
     - name: Run pylint
       run: |
         poetry run pylint sweepai --errors-only
