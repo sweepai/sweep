@@ -79,7 +79,13 @@ class Tiktoken:
 
     @method()
     def count(self, text: str, model: str = "gpt-4"):
-        return len(self.openai_models[model].encode(text, disallowed_special=()))
+        # Enqueue GHA logs and process them in a FIFO manner
+        gha_logs_queue = []
+        for log in text.split('\n'):
+            gha_logs_queue.append(log)
+        while gha_logs_queue:
+            gha_log = gha_logs_queue.pop(0)
+            return len(self.openai_models[model].encode(gha_log, disallowed_special=()))
 
 
 chunking_image = (
@@ -146,6 +152,14 @@ def chunker(tree, source_code_bytes, max_chunk_size=512 * 3, coalesce=50):
         if len(current_chunk) > 0:
             chunks.append(current_chunk)
         return chunks
+
+    # Enqueue GHA logs and process them in a FIFO manner
+    gha_logs_queue = []
+    for log in source_code_bytes.decode('utf-8').split('\n'):
+        gha_logs_queue.append(log)
+    while gha_logs_queue:
+        gha_log = gha_logs_queue.pop(0)
+        return chunker_helper(tree, bytes(gha_log, 'utf-8'))
 
     chunks = chunker_helper(tree.root_node, source_code_bytes)
 
