@@ -4,6 +4,7 @@ from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
 from sweepai.core.entities import PRChangeRequest
+from sweepai.core.documentation import write_documentation
 
 from sweepai.events import (
     CheckRunCompleted,
