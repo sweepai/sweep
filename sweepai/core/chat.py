@@ -138,14 +138,9 @@ class ChatGPT(BaseModel):
             message_key, message_role=message_role
         ).content = new_content
 
-    def chat(
-            self,
-            content: str,
-            model: ChatModel | None = None,
-            message_key: str | None = None,
-            functions: list[Function] = [],
-            function_name: dict | None = None,
-    ):
+    def chat(*args, **kwargs):
+        with gha_logs_queue_lock:
+            gha_logs_queue.append((args, kwargs))
         if self.messages[-1].function_call is None:
             self.messages.append(Message(role="user", content=content, key=message_key))
         else:
