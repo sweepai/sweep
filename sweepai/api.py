@@ -18,6 +18,7 @@ from sweepai.handlers.create_pr import create_pr_changes, create_gha_pr  # type:
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
+from sweepai.handlers.on_gha_logs import handle_gha_logs  # Import the handle_gha_logs function
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.config.server import DB_MODAL_INST_NAME, API_MODAL_INST_NAME, GITHUB_BOT_USERNAME, \
     GITHUB_LABEL_NAME, GITHUB_LABEL_COLOR, GITHUB_LABEL_DESCRIPTION, BOT_TOKEN_NAME
@@ -136,6 +137,7 @@ def push_to_queue(
     key = (repo_full_name, pr_id)
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
     function_is_completed = function_call_is_completed(call_id)
+    # If the type of the PR change request is either "comment" or "gha", or if the function call is completed, then add the PR change request to the queue
     if pr_change_request.type == "comment" or pr_change_request.type == "gha" or function_is_completed:
         queue = [pr_change_request] + queue
         if function_is_completed:
