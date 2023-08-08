@@ -15,7 +15,7 @@ from sweepai.events import (
     ReposAddedRequest,
 )
 from sweepai.handlers.create_pr import create_pr_changes, create_gha_pr  # type: ignore
-from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
+from sweepai.handlers.on_check_suite import on_check_suite, handle_gha_logs  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.utils.chat_logger import ChatLogger
@@ -101,21 +101,12 @@ def handle_pr_change_request(
                 if pr_change_request.type == "comment":
                     handle_comment.call(**pr_change_request.params)
                 elif pr_change_request.type == "gha":
-                    handle_check_suite.call(**pr_change_request.params)
+                    # Handle GHA logs
+                    handle_gha_logs.call(**pr_change_request.params)
                 else:
                     raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
                 time.sleep(1)
             call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
-            # *queue, pr_change_request = queue
-            # logger.info(f"Currently handling PR change request: {pr_change_request}")
-            # logger.info(f"PR queues: {queue}")
-
-            # if pr_change_request.type == "comment":
-            #     handle_comment.call(**pr_change_request.params)
-            # elif pr_change_request.type == "gha":
-            #     handle_check_suite.call(**pr_change_request.params)
-            # else:
-            #     raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
             stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
     finally:
         if (repo_full_name, pr_id) in stub.app.pr_queues:
@@ -145,7 +136,8 @@ def push_to_queue(
     key = (repo_full_name, pr_id)
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
     function_is_completed = function_call_is_completed(call_id)
-    if pr_change_request.type == "comment" or function_is_completed:
+    # If the type of the PR change request is either "comment" or "gha", or if the function call is completed, then add the PR change request to the queue
+    if pr_change_request.type == "comment" or pr_change_request.type == "gha" or function_is_completed:
         queue = [pr_change_request] + queue
         if function_is_completed:
             stub.app.pr_queues[key] = ("0", queue)
