@@ -101,21 +101,12 @@ def handle_pr_change_request(
                 if pr_change_request.type == "comment":
                     handle_comment.call(**pr_change_request.params)
                 elif pr_change_request.type == "gha":
-                    handle_check_suite.call(**pr_change_request.params)
+                    # Handle GHA logs
+                    handle_gha_logs.call(**pr_change_request.params)
                 else:
                     raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
                 time.sleep(1)
             call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
-            # *queue, pr_change_request = queue
-            # logger.info(f"Currently handling PR change request: {pr_change_request}")
-            # logger.info(f"PR queues: {queue}")
-
-            # if pr_change_request.type == "comment":
-            #     handle_comment.call(**pr_change_request.params)
-            # elif pr_change_request.type == "gha":
-            #     handle_check_suite.call(**pr_change_request.params)
-            # else:
-            #     raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
             stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
     finally:
         if (repo_full_name, pr_id) in stub.app.pr_queues:
@@ -145,7 +136,7 @@ def push_to_queue(
     key = (repo_full_name, pr_id)
     call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
     function_is_completed = function_call_is_completed(call_id)
-    if pr_change_request.type == "comment" or function_is_completed:
+    if pr_change_request.type == "comment" or pr_change_request.type == "gha" or function_is_completed:
         queue = [pr_change_request] + queue
         if function_is_completed:
             stub.app.pr_queues[key] = ("0", queue)
