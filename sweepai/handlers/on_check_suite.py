@@ -160,4 +160,3 @@ def on_check_suite(request: CheckRunCompleted):
         repo=repo,
     )
     return {"success": True}
-
