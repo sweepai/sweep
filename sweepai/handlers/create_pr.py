@@ -281,4 +281,7 @@ body:
       placeholder: The new endpoint should use the ... class from ... file because it contains ... logic"""
 
 def index_docs():
-    pass
+    # Iterate over the documents in the repository
+    for document in repository.documents:
+        # Add the document to the index
+        index.add(document)
