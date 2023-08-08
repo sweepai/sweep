@@ -471,6 +471,16 @@ async def webhook(raw_request: Request):
                         request_dict["repository"]["full_name"],
                         installation_id=request_dict["installation"]["id"],
                     )
+                # Check if the pull request is merged and contains the sweep.yaml file
+                if pr_request.pull_request.merged and 'sweep.yaml' in [file.filename for file in pr_request.pull_request.get_files()]:
+                    # Parse the "docs" field from the sweep.yaml file
+                    import yaml
+                    sweep_yaml_content = [file.decoded_content for file in pr_request.pull_request.get_files() if file.filename == 'sweep.yaml'][0]
+                    sweep_yaml = yaml.safe_load(sweep_yaml_content)
+                    docs = sweep_yaml.get('docs', {})
+                    # Call the write_documentation function for each of the existing fields in the "docs" mapping
+                    for doc_name, doc_url in docs.items():
+                        write_documentation(doc_name, doc_url)
             case "push", None:
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
                     chat_logger = ChatLogger({"username": request_dict["pusher"]["name"]})
