@@ -1,13 +1,12 @@
 import asyncio
 import re
-from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
+# from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from loguru import logger
 import modal
 from modal import method
 from tqdm import tqdm
 from sweepai.core.robots import is_url_allowed
 from sweepai.core.webscrape import webscrape
-
 from sweepai.utils.config.server import DOCS_MODAL_INST_NAME, ENV, ORG_ID
 
 stub = modal.Stub(DOCS_MODAL_INST_NAME)
