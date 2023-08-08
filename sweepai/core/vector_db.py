@@ -175,6 +175,18 @@ def get_deeplake_vs_from_repo(
         branch_name: str | None = None,
         sweep_config: SweepConfig = SweepConfig(),
 ):
+
+    def compute_score_factor(repo_name, file_path, contents, repo, branch_name, cache_inst, cache_success):
+    cache_key = f"{repo_name}-{file_path}-{CACHE_VERSION}"
+    if cache_inst and cache_success:
+    cached_value = cache_inst.get(cache_key)
+    if cached_value:
+    return json.loads(cached_value)
+    commits = git_repo.iter_commits(paths=file_path, max_count=30)
+    score_factor = get_factors(contents, commits)
+    if cache_inst and cache_success:
+    cache_inst.set(cache_key, json.dumps(score_factor), ex=60 * 60 * 2)
+    return score_factor
     token = get_token(installation_id)
     g = Github(token)
     repo = g.get_repo(repo_name)
@@ -247,80 +259,76 @@ def get_deeplake_vs_from_repo(
     file_contents = []
     score_factors = []
 
+    def process_files(file_list, repo_name, repo, branch_name, cache_inst, cache_success, sweep_config):
+    file_paths = []
+    file_contents = []
+    score_factors = []
     for file in tqdm(file_list):
-        with open(file, "rb") as f:
-            is_binary = False
-            for block in iter(lambda: f.read(1024), b''):
-                if b'\0' in block:
-                    is_binary = True
-                    break
-            if is_binary:
-                logger.debug("Skipping binary file...")
-                continue
-
-        with open(file, "rb") as f:
-            if len(f.read()) > sweep_config.max_file_limit:
-                logger.debug("Skipping large file...")
-                continue
-
-        with open(file, "r") as f:
-            # Can parallelize this
-            try:
-                contents = f.read()
-                contents = file + contents
-            except UnicodeDecodeError as e:
-                logger.warning(f"Received warning {e}, skipping...")
-                continue
-            file_path = file[len("repo/"):]
-            file_paths.append(file_path)
-            file_contents.append(contents)
-            if len(file_list) > MAX_FILES:
-                score_factors.append((1, 2, 5)) # This is a low score
-                continue
-            try:
-                cache_key = f"{repo_name}-{file_path}-{CACHE_VERSION}"
-                if cache_inst and cache_success:
-                    cached_value = cache_inst.get(cache_key)
-                    if cached_value:
-                        score_factor = json.loads(cached_value)
-                        score_factors.append(score_factor)
-                        continue
-                commits = list(repo.get_commits(path=file_path, sha=branch_name))
-                score_factor = get_factors(contents, commits)
-                if cache_inst and cache_success:
-                    cache_inst.set(cache_key, json.dumps(score_factor), ex=60 * 60 * 2)
-                score_factors.append(score_factor)
-            except Exception as e:
-                logger.warning(f"Received warning during scoring {e}, skipping...")
-                score_factors.append((1, 2, 5))
-                continue
+    with open(file, "rb") as f:
+    is_binary = False
+    for block in iter(lambda: f.read(1024), b''):
+    if b'\0' in block:
+    is_binary = True
+    break
+    if is_binary:
+    logger.debug("Skipping binary file...")
+    continue
+    
+    with open(file, "rb") as f:
+    if len(f.read()) > sweep_config.max_file_limit:
+    logger.debug("Skipping large file...")
+    continue
+    
+    with open(file, "r") as f:
+    # Can parallelize this
+    try:
+    contents = f.read()
+    contents = file + contents
+    except UnicodeDecodeError as e:
+    logger.warning(f"Received warning {e}, skipping...")
+    continue
+    file_path = file[len("repo/"):]
+    file_paths.append(file_path)
+    file_contents.append(contents)
+    if len(file_list) > MAX_FILES:
+    score_factors.append((1, 2, 5)) # This is a low score
+    continue
+    try:
+    score_factor = compute_score_factor(repo_name, file_path, contents, repo, branch_name, cache_inst, cache_success)
+    score_factors.append(score_factor)
+    except Exception as e:
+    logger.warning(f"Received warning during scoring {e}, skipping...")
+    score_factors.append((1, 2, 5))
+    continue
+    return file_paths, file_contents, score_factors
+    
+    file_paths, file_contents, score_factors = process_files(file_list, repo_name, repo, branch_name, cache_inst, cache_success, sweep_config)
     scores = get_scores(score_factors) # take percentiles + sum the scores
-
+    
     logger.info(f"Finished getting list of files, chunking...")
     def chunk_into_sublists(lst, sublist_size=200) -> list[list]:
         return [lst[i:i + sublist_size] for i in range(0, len(lst), sublist_size)]
-
     file_contents_batches = chunk_into_sublists(file_contents)
     file_paths_batches = chunk_into_sublists(file_paths)
     scores_batches = chunk_into_sublists(scores)
-
+    
     logger.info(f"Batched into {len(file_contents_batches)} batches...")
-
+    
     chunked_results = []
     for batch in chunker.starmap(zip(file_contents_batches, file_paths_batches, scores_batches), kwargs={"additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}}):
-        chunked_results.extend(batch)
-
+    chunked_results.extend(batch)
+    
     documents, metadatas, ids = zip(*chunked_results)
     documents = [item for sublist in documents for item in sublist]
     metadatas = [item for sublist in metadatas for item in sublist]
     ids = [item for sublist in ids for item in sublist]
-
+    
     logger.info(f"Used {len(file_paths)} files...")
-
+    
     shutil.rmtree("repo", ignore_errors=True)
     logger.info(f"Getting list of all files took {time.time() - start}")
     logger.info(
-        f"Received {len(documents)} documents from repository {repo_name}")
+    f"Received {len(documents)} documents from repository {repo_name}")
     collection_name = parse_collection_name(repo_name)
     return compute_deeplake_vs(collection_name, documents, cache_success, cache_inst, ids, metadatas, commit_hash)
 
