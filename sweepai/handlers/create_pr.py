@@ -92,6 +92,21 @@ def create_pr_changes(
             pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\n---\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```\n To get Sweep to edit this pull request, leave a comment below or in the code. Leaving a comment in the code will only modify the file but commenting below can change the entire PR."
         else:
             pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
+
+        # Add code to generate and include a random joke in the PR description
+        def say_joke():
+            jokes = [
+                "Why don't scientists trust atoms? Because they make up everything!",
+                "Did you hear about the mathematician who's afraid of negative numbers? He'll stop at nothing to avoid them!",
+                "Why don't skeletons fight each other? They don't have the guts!",
+                "I'm reading a book about anti-gravity. It's impossible to put down!",
+                "Why did the scarecrow win an award? Because he was outstanding in his field!",
+            ]
+            import random
+            return random.choice(jokes)
+
+        pr_description += f"\n\nJoke of the day: {say_joke()}"
+
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
