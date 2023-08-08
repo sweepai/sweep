@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "sweepai"
+version = "0.1.0"
+description = "SweepAI"
+authors = ["SweepAI <info@sweep.ai>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+modal-client = "^0.50.2932"
+e2b = "^0.1.0"
+markdownify = "^0.11.6"
+playwright = "^1.30.0"
+robotexclusionrulesparser = "^1.7.1"
+deeplake = "^0.1.0"
+
+[tool.poetry.dev-dependencies]
+black = "^23.1.0"

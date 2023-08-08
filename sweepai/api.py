@@ -470,6 +470,8 @@ async def webhook(raw_request: Request):
                         request_dict["repository"]["full_name"],
                         installation_id=request_dict["installation"]["id"],
                     )
+                if pr_request.pull_request.merged and 'sweep.yaml' in [file.filename for file in pr_request.pull_request.get_files()]:
+                    index_docs()
             case "push", None:
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
                     chat_logger = ChatLogger({"username": request_dict["pusher"]["name"]})
@@ -526,3 +528,6 @@ def update_sweep_prs(
                 create_gha_pr(g, repo)
         except Exception as e:
             logger.error(f"Failed to merge changes from default branch into PR #{pr.number}: {e}")
+
+def index_docs():
+    print("The sweep.yaml file has been updated.")
