@@ -54,7 +54,7 @@ def download_models():
 image = (
     modal.Image.debian_slim()
     .apt_install("git")
-    .pip_install("deeplake==3.6.3", "sentence-transformers")
+    .pip_install("deeplake==3.6.17", "sentence-transformers")
     .pip_install("openai", "PyGithub", "loguru", "docarray", "GitPython", "tqdm", "anthropic",
                  "posthog", "redis", "pyyaml")
     .run_function(download_models)
