@@ -1,9 +1,10 @@
 import time
 import modal
-from fastapi import HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
 from sweepai.core.entities import PRChangeRequest
+from sweepai.moh_controller import MohController
 
 from sweepai.events import (
     CheckRunCompleted,
@@ -154,6 +155,10 @@ def push_to_queue(
 @modal.web_endpoint(method="POST")
 async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
+    # Add a new API route that uses the MOH controller
+    @app.route("/moh", methods=["GET"])
+    def moh():
+        return MohController().handle_request()
     try:
         request_dict = await raw_request.json()
         logger.info(f"Received request: {request_dict.keys()}")
