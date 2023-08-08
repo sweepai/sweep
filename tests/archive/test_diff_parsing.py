@@ -591,5 +591,12 @@ Code Generation:
 ```
 """
 
+from sweepai.controllers.excel_controller import ExcelController  # Import the new controller
+
+def test_excel_controller_methods():
+    # TODO: Implement tests for the methods of the ExcelController
+    pass
+
 if __name__ == "__main__":
     print(generate_new_file_from_patch(code_replaces, old_file))
+    test_excel_controller_methods()
