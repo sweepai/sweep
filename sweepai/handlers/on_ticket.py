@@ -538,7 +538,12 @@ def on_ticket(
             base=SweepConfig.get_branch(repo)
         )
         if "sweep.yaml" in pr.get_files():
-            index_docs()
+            # Ensure that index_docs() is being called correctly
+            try:
+                index_docs()
+                logger.info("index_docs() function called successfully.")
+            except Exception as e:
+                logger.error(f"Failed to call index_docs() function: {e}")
         # Get the branch (SweepConfig.get_branch(repo))'s sha
         sha = repo.get_branch(SweepConfig.get_branch(repo)).commit.sha
 
