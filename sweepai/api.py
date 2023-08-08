@@ -24,8 +24,12 @@ from sweepai.utils.config.server import DB_MODAL_INST_NAME, API_MODAL_INST_NAME,
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
 
+import threading
+
 stub = modal.Stub(API_MODAL_INST_NAME)
 stub.pr_queues = modal.Dict.new() # maps (repo_full_name, pull_request_ids) -> queues
+gha_logs_queue = []
+gha_logs_queue_lock = threading.Lock()
 image = (
     modal.Image.debian_slim()
     .apt_install("git", "universal-ctags")
@@ -74,7 +78,10 @@ handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
 handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr_changes)
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
-handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
+def handle_check_suite(*args, **kwargs):
+    with gha_logs_queue_lock:
+        gha_logs_queue.append((args, kwargs))
+handle_check_suite = stub.function(**FUNCTION_SETTINGS)(handle_check_suite)
 
 
 @stub.function(**FUNCTION_SETTINGS)
@@ -487,6 +494,17 @@ async def webhook(raw_request: Request):
     except ValidationError as e:
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
+    def process_gha_logs_queue():
+        while True:
+            with gha_logs_queue_lock:
+                if gha_logs_queue:
+                    args, kwargs = gha_logs_queue.pop(0)
+                    on_check_suite(*args, **kwargs)
+            time.sleep(1)
+    
+    process_gha_logs_queue_thread = threading.Thread(target=process_gha_logs_queue)
+    process_gha_logs_queue_thread.start()
+    
     return {"success": True}
 
 @stub.function(**FUNCTION_SETTINGS)
