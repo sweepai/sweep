@@ -3,6 +3,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 import traceback
+from sweepai.utils.config.server import ENV
 
 def download_parsers():
     from tree_sitter import Language
@@ -66,6 +67,7 @@ tiktoken_volume = modal.NetworkFileSystem.persisted("tiktoken-models")
     image=tiktoken_image,
     network_file_systems={TIKTOKEN_CACHE_DIR: tiktoken_volume},
     secret=modal.Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR}),
+    keep_warm=5 if ENV == "prod" else 0,
     cpu=0.5,
 )
 class Tiktoken:
@@ -213,6 +215,8 @@ extension_to_language = {
     image=chunking_image,
     network_file_systems={CHUNKING_CACHE_DIR: chunking_volume},
     timeout=60,
+    keep_warm=10 if ENV == "prod" else 0,
+    cpu=0.5,
 )
 class Chunking:
     languages = None
@@ -327,7 +331,7 @@ class Chunking:
 @stub.function(
     image=chunking_image,
     network_file_systems={CHUNKING_CACHE_DIR: chunking_volume},
-    keep_warm=30
+    keep_warm=10 if ENV == "prod" else 0,
 )
 def chunk(
     file_content: str | list[str],

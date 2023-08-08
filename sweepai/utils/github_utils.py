@@ -204,6 +204,16 @@ def get_file_names_from_query(query: str) -> list[str]:
     query_file_names = re.findall(r'\b[\w\-\.\/]*\w+\.\w{1,6}\b', query)
     return [query_file_name for query_file_name in query_file_names if len(query_file_name) > 3]
 
+def get_num_files_from_repo(repo: Repository, installation_id: str):
+    from git import Repo
+    token = get_token(installation_id)
+    shutil.rmtree("repo", ignore_errors=True)
+    repo_url = f"https://x-access-token:{token}@github.com/{repo.full_name}.git"
+    git_repo = Repo.clone_from(repo_url, "repo")
+    git_repo.git.checkout(SweepConfig.get_branch(repo))
+    file_list = get_file_list("repo")
+    return len(file_list)
+
 def search_snippets(
     repo: Repository,
     query: str,
