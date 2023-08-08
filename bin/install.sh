@@ -10,7 +10,7 @@ fi
 echo "Installing packages with poetry..."
 poetry install
 poetry shell
-# Install deeplake with pip
-echo "Installing deeplake with pip..."
-pip install deeplake
+# Install deeplake with poetry
+echo "Installing deeplake with poetry..."
+poetry add deeplake
 echo "Installation complete!"
