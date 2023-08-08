@@ -1,0 +1,17 @@
+from swiper import Swiper
+
+class CreativeWorkSection:
+    def __init__(self, creative_work_items):
+        self.creative_work_items = creative_work_items
+        self.swiper = Swiper()
+
+    def display(self):
+        self.swiper.initialize()
+        for item in self.creative_work_items:
+            self.swiper.add_slide(item)
+
+    def handle_interaction(self, event):
+        if event == 'next':
+            self.swiper.next_slide()
+        elif event == 'previous':
+            self.swiper.previous_slide()
