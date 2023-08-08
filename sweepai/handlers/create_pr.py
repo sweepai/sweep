@@ -279,3 +279,6 @@ body:
       label: Details
       description: More details for Sweep
       placeholder: The new endpoint should use the ... class from ... file because it contains ... logic"""
+
+def index_docs():
+    pass
