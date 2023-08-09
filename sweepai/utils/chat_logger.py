@@ -100,6 +100,10 @@ class ChatLogger(BaseModel):
             return True
         if self.is_paying_user():
             return self.get_ticket_count() >= 120
+        if self.is_trial_user():
+            return self.get_ticket_count() >= 15
+
+        # Non-trial users can only create 2 GPT-4 tickets per day
         return self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) >= 2
 
 
