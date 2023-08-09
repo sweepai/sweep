@@ -503,18 +503,25 @@ async def webhook(raw_request: Request):
             case _:
                 logger.info(
                     f"Unhandled event: {event} {request_dict.get('action', None)}"
-                )
-    except ValidationError as e:
-        logger.warning(f"Failed to parse request: {e}")
-        raise HTTPException(status_code=422, detail="Failed to parse request")
-    return {"success": True}
-
-@stub.function(**FUNCTION_SETTINGS)
-def update_sweep_prs(
-    repo_full_name: str,
-    installation_id: int
-):
-    # Get a Github client
+                @stub.function(**FUNCTION_SETTINGS)
+                @modal.web_endpoint(method="POST")
+                async def webhook(raw_request: Request):
+                    """Handle a webhook request from GitHub."""
+                    # Existing code
+                
+                @stub.function(**FUNCTION_SETTINGS)
+                def update_sweep_prs(
+                    repo_full_name: str,
+                    installation_id: int
+                ):
+                    # Existing code
+                
+                @stub.function(**FUNCTION_SETTINGS)
+                @modal.web_endpoint(method="POST")
+                async def create_django_project(request: Request, project_name: str):
+                    """Create a Django project."""
+                    # Call the create_pr_changes function with the necessary parameters to create the Django project
+                    create_pr_changes(request, project_name)
     _, g = get_github_client(installation_id)
     
     # Get the repository
