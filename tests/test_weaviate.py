@@ -5,12 +5,12 @@ from sweepai.utils.config.server import DOCS_MODAL_INST_NAME
 import modal 
 stub = modal.Stub(DOCS_MODAL_INST_NAME)
 # doc_url = "https://docs.anthropic.com/claude"
-doc_url = "https://docs.deeplake.ai/en/latest"
+doc_url = "https://pytorch.org/docs/stable/dynamo"
 update = modal.Function.lookup(DOCS_MODAL_INST_NAME, "daily_update")
 search = modal.Function.lookup(DOCS_MODAL_INST_NAME, "search_vector_store")
 write = modal.Function.lookup(DOCS_MODAL_INST_NAME, "write_documentation")
 # print(write.call(doc_url))
-results = search.call(doc_url, "how can I filter when querying a vector store?")
+results = search.call(doc_url, "torch.compile")
 metadatas = results["metadata"]
 docs = results["text"]
 print(docs[0])

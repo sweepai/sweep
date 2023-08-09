@@ -19,6 +19,7 @@ from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.config.client import get_documentation_dict
 from sweepai.utils.config.server import DB_MODAL_INST_NAME, API_MODAL_INST_NAME, DOCS_MODAL_INST_NAME, GITHUB_BOT_USERNAME, \
     GITHUB_LABEL_NAME, GITHUB_LABEL_COLOR, GITHUB_LABEL_DESCRIPTION, BOT_TOKEN_NAME
 from sweepai.utils.event_logger import posthog
@@ -480,9 +481,7 @@ async def webhook(raw_request: Request):
                         import yaml
                         _, g = get_github_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
-                        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode("utf-8")
-                        sweep_yaml = yaml.safe_load(sweep_yaml_content)
-                        docs = sweep_yaml.get('docs', {})
+                        docs = get_documentation_dict(repo)
                         logger.info(f"Sweep.yaml docs: {docs}")
                         # Call the write_documentation function for each of the existing fields in the "docs" mapping
                         for _, doc_url in docs.items():
