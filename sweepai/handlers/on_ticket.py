@@ -125,6 +125,15 @@ def on_ticket(
     # 4. Get file changes
     # 5. Create PR
 
+    organization, repo_name = repo_full_name.split("/")
+    replies_text = "\nComments:\n" + "\n".join(
+        [
+            issue_comment_prompt.format(
+                username=comment.user.login,
+                reply=comment.body,
+            ) for comment in comments if comment.user.type == "User"
+        ]
+    )
     chat_logger = ChatLogger({
         'repo_name': repo_name,
         'title': title,
@@ -165,8 +174,8 @@ def on_ticket(
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
-    replies_text = ""
     comments = list(current_issue.get_comments())
+    replies_text = ""
     if comment_id:
         logger.info(f"Replying to comment {comment_id}...")
         replies_text = "\nComments:\n" + "\n".join(
