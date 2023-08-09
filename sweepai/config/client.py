@@ -7,7 +7,7 @@ import yaml
 from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
-from sweepai.utils.config.server import PREFIX
+from sweepai.config.server import PREFIX
 
 
 class SweepConfig(BaseModel):
