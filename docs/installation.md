@@ -58,7 +58,7 @@ Sweep will mess up sometimes. Comment on it's PR. (ex: "use PyTorch instead of T
     * We can't do this - "Set up sign-in using Ethereum"
 
 ## Pricing
-We offer unlimited GPT3.5 tickets to every user. You also start with 5 GPT4 credits which are used when a PR is created.
+We offer unlimited GPT3.5 tickets to every user. Every user also starts with 5 GPT4 issues a month, and you'll be able to use 2 GPT4 issues a day.
 
 For professionals who want more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month. In addition, we're also offering 15 PRs for $60 as a one-time purchase for anyone interested in eventually purchasing Sweep Pro. You can avail this offer [here](https://buy.stripe.com/7sI4jlaCR3PaabebIP).
 
