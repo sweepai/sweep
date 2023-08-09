@@ -1,3 +1,4 @@
+from fastapi.responses import FileResponse
 import time
 import modal
 from fastapi import HTTPException, Request
