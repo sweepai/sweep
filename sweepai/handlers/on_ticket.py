@@ -9,6 +9,7 @@ import traceback
 import modal
 import openai
 import asyncio
+import yaml
 from loguru import logger
 from tabulate import tabulate
 from sweepai.core.documentation_searcher import DocumentationSearcher
@@ -389,11 +390,26 @@ def on_ticket(
         human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger
     )
 
+    def fetch_and_check_sweep_yaml():
+        try:
+            sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode("utf-8")
+            logger.info(f"Sweep.yaml content: {sweep_yaml_content}")
+            sweep_yaml = yaml.safe_load(sweep_yaml_content)
+            docs = sweep_yaml.get('docs', {})
+            logger.info(f"Sweep.yaml docs: {docs}")
+            # Check if any of the values in 'docs' are in the user's message
+            for value in docs.values():
+                if value in summary:
+                    logger.info(f"Value '{value}' from docs is in the user's message.")
+        except Exception as e:
+            logger.error(f"Failed to fetch and check sweep.yaml: {e}")
+    
     # Check repository for sweep.yml file.
     sweep_yml_exists = False
     for content_file in repo.get_contents(""):
         if content_file.name == "sweep.yaml":
             sweep_yml_exists = True
+            fetch_and_check_sweep_yaml()
             break
 
     # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
