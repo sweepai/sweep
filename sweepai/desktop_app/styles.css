@@ -1,7 +1,9 @@
+/* Styles for the body element */
 body {
     font-family: Arial, sans-serif;
 }
 
+/* Styles for the form element */
 form {
     margin: 0 auto;
     width: 300px;
@@ -10,6 +12,7 @@ form {
     border-radius: 1em;
 }
 
+/* Styles for input elements within the form */
 form input {
     margin-bottom: 1em;
     padding: .25em;
@@ -17,6 +20,7 @@ form input {
     border-radius: .25em;
 }
 
+/* Styles for the submit input within the form */
 form input[type="submit"] {
     padding: 1em;
     border: none;
@@ -25,10 +29,12 @@ form input[type="submit"] {
     border-radius: .25em;
 }
 
+/* Styles for the hover state of the submit input within the form */
 form input[type="submit"]:hover {
     background-color: #0056b3;
 }
 
+/* Styles for h1 elements */
 h1 {
     text-align: center;
     font-size: 2em;
