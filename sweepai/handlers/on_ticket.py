@@ -88,6 +88,20 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5)
     return result_snippets[:max_num_of_snippets]
 
 
+import yaml
+
+def fetch_docs_from_sweep_yaml(request_dict, installation_id):
+    if "sweep.yaml" in request_dict["head_commit"]["added"] or \
+        "sweep.yaml" in request_dict["head_commit"]["modified"]:
+        _, g = get_github_client(installation_id)
+        repo = g.get_repo(request_dict["repository"]["full_name"])
+        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode("utf-8")
+        sweep_yaml = yaml.safe_load(sweep_yaml_content)
+        docs = sweep_yaml.get('docs', {})
+        logger.info(f"Sweep.yaml docs: {docs}")
+        return docs
+    return {}
+
 def on_ticket(
     title: str,
     summary: str,
@@ -97,8 +111,10 @@ def on_ticket(
     repo_full_name: str,
     repo_description: str,
     installation_id: int,
-    comment_id: int = None
+    comment_id: int = None,
+    request_dict: dict
 ):
+    docs = fetch_docs_from_sweep_yaml(request_dict, installation_id)
     # Check if the title starts with "sweep" or "sweep: " and remove it
     slow_mode = False
     if title.lower().startswith("sweep: "):
@@ -345,7 +361,7 @@ def on_ticket(
     external_results = ExternalSearcher.extract_summaries(message_summary)
     if external_results:
         message_summary += "\n\n" + external_results
-    docs_results = DocumentationSearcher.extract_relevant_docs(title + message_summary)
+    docs_results = DocumentationSearcher.extract_relevant_docs(title + message_summary, docs)
     if docs_results:
         message_summary += "\n\n" + docs_results
 
