@@ -101,6 +101,6 @@ def apply_code_edits(file_contents, code_edits):
     return '\n'.join(lines)
     
     def refactor_cpp_code(original_code):
-    # TODO: Implement the refactoring logic here
-    refactored_code = original_code
-    return refactored_code
+        # TODO: Implement the refactoring logic here
+        refactored_code = original_code
+        return refactored_code
