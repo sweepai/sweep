@@ -3,7 +3,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 import traceback
-from sweepai.utils.config.server import ENV
+from sweepai.config.server import ENV
 
 def download_parsers():
     from tree_sitter import Language
@@ -54,7 +54,7 @@ import modal
 from loguru import logger
 from modal import method
 
-from sweepai.utils.config.server import UTILS_MODAL_INST_NAME
+from sweepai.config.server import UTILS_MODAL_INST_NAME
 
 stub = modal.Stub(UTILS_MODAL_INST_NAME)
 tiktoken_image = modal.Image.debian_slim().pip_install("tiktoken", "loguru", "anthropic", "pyyaml", "PyGithub")
