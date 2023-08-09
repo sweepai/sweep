@@ -174,8 +174,8 @@ def on_ticket(
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
+    comments = list(current_issue.get_comments())
     replies_text = ""
-    # comments variable moved to before its first use
     if comment_id:
         logger.info(f"Replying to comment {comment_id}...")
         replies_text = "\nComments:\n" + "\n".join(
