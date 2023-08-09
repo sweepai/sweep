@@ -6,6 +6,4 @@ class RegisterForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         fields = UserCreationForm.Meta.fields + ('email',)
 
-class LoginForm(AuthenticationForm):
-    pass
 """
