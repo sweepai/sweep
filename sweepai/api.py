@@ -1,7 +1,6 @@
-from fastapi.responses import FileResponse
+from fastapi import HTTPException, Request, FileResponse
 import time
 import modal
-from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
 from sweepai.core.entities import PRChangeRequest
