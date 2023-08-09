@@ -180,6 +180,10 @@ def on_ticket(
             ]
         )
     summary = summary if summary else ""
+    if len(title + summary) < 60:
+        agg_message = "Be sure to create a more detailed issue so I can better address it."
+        edit_sweep_comment(agg_message, -1)
+        return {"success": False, "reason": "Issue is too short"}
 
     # Check if branch was already created for this issue
     preexisting_branch = None
