@@ -264,6 +264,31 @@ def on_ticket(
     # Random variables to save in case of errors
     table = None  # Show plan so user can finetune prompt
 
+    def log_error(error_type, exception):
+        content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
+        discord_log_error(content)
+
+    def fetch_file_contents_with_retry():
+        retries = 1
+        error = None
+        for i in range(retries):
+            try:
+                logger.info(f"Fetching relevant files for the {i}th time...")
+                return search_snippets(
+                    repo,
+                    f"{title}\n{summary}\n{replies_text}",
+                    num_files=num_of_snippets_to_query,
+                    branch=None,
+                    installation_id=installation_id,
+                )
+            except Exception as e:
+                error = e
+                continue
+        posthog.capture(
+            username, "fetching_failed", properties={"error": error, **metadata}
+        )
+        raise error
+
     def edit_sweep_comment(message: str, index: int, pr_message=""):
         nonlocal current_index
         # -1 = error, -2 = retry
@@ -298,31 +323,6 @@ def on_ticket(
 
         # Update the issue comment
         issue_comment.edit(f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{suffix}")
-
-    def log_error(error_type, exception):
-        content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
-        discord_log_error(content)
-
-    def fetch_file_contents_with_retry():
-        retries = 1
-        error = None
-        for i in range(retries):
-            try:
-                logger.info(f"Fetching relevant files for the {i}th time...")
-                return search_snippets(
-                    repo,
-                    f"{title}\n{summary}\n{replies_text}",
-                    num_files=num_of_snippets_to_query,
-                    branch=None,
-                    installation_id=installation_id,
-                )
-            except Exception as e:
-                error = e
-                continue
-        posthog.capture(
-            username, "fetching_failed", properties={"error": error, **metadata}
-        )
-        raise error
 
     logger.info("Fetching relevant files...")
     try:
