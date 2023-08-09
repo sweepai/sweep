@@ -1,3 +1,4 @@
+from .snake_game import SnakeGame
 import traceback
 import re
 
