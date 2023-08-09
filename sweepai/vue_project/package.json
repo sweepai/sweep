@@ -2,14 +2,14 @@
   "name": "vue_project",
   "version": "1.0.0",
   "description": "A Vue.js project",
-  "main": "index.js",
+  "main": "src/main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run test"
   },
   "keywords": [
     "vue"
   ],
-  "author": "",
+  "author": "Your Name or Organization",
   "license": "ISC",
   "dependencies": {
     "vue": "^2.6.11"
