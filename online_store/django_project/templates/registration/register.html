@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register</title>
+    <!-- Include Vue.js -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+</head>
+<body>
+    <div id="app">
+        <form @submit.prevent="submitForm">
+            <label for="username">Username:</label>
+            <input id="username" v-model="username" type="text" required>
+
+            <label for="email">Email:</label>
+            <input id="email" v-model="email" type="email" required>
+
+            <label for="password">Password:</label>
+            <input id="password" v-model="password" type="password" required>
+
+            <button type="submit">Register</button>
+        </form>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                username: '',
+                email: '',
+                password: ''
+            },
+            methods: {
+                submitForm() {
+                    // Handle form submission
+                }
+            }
+        });
+    </script>
+</body>
+</html>
