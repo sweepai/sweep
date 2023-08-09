@@ -10,7 +10,7 @@ author: Lucas Jaggernauth
 
 When performing code search, vector databases allow us to quickly compare a query to several embeddings of chunked code. However, these embeddings must be generated for every chunk in the code base. For code bases with thousands of files and tens of thousands of lines, generating these embeddings becomes an expensive and time-consuming operation.
 
-Take for example, Airbyte (https://github.com/airbytehq/airbyte). Airbyte provides hundreds of API connectors, containing 15,740 files total. When generating embeddings for these files, we first have to [split the file up into chunks](chunking article). Then, we have to convert each of the chunks into embeddings. With 15k+ files and multiple chunks per embedding, we are left with hundreds of thousands of snippets that we need to generate embeddings for.
+Take for example, Airbyte (https://github.com/airbytehq/airbyte). Airbyte provides hundreds of API connectors, containing 15,740 files total. When generating embeddings for these files, we first have to [split the file up into chunks](https://docs.sweep.dev/blogs/chunking-2m-files). Then, we have to convert each of the chunks into embeddings. With 15k+ files and multiple chunks per embedding, we are left with hundreds of thousands of snippets that we need to generate embeddings for.
 
 So, how can we optimize the process of generating embeddings, especially when dealing with such a large number of chunks in codebases like Airbyte?
 
