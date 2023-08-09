@@ -1,3 +1,4 @@
+from typing import List, Tuple, Dict
 import time
 import modal
 from fastapi import HTTPException, Request
