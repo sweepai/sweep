@@ -5,11 +5,10 @@ from loguru import logger
 
 from sweepai.core.entities import FileChangeRequest, PullRequest, MockPR
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.config.client import SweepConfig
-from sweepai.utils.config.server import GITHUB_DEFAULT_CONFIG, GITHUB_LABEL_NAME, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
+from sweepai.config.client import SweepConfig
+from sweepai.config.server import GITHUB_DEFAULT_CONFIG, GITHUB_LABEL_NAME, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
     GITHUB_BOT_USERNAME, \
     GITHUB_CONFIG_BRANCH
-from sweepai.utils.github_utils import get_github_client
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.utils.event_logger import posthog
 

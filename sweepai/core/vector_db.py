@@ -1,6 +1,5 @@
 import glob
 import json
-import math
 import os
 import re
 import shutil
@@ -25,8 +24,8 @@ from sweepai.core.entities import Snippet
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.scorer import get_factors, get_scores
-from ..utils.config.client import SweepConfig
-from ..utils.config.server import ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, REDIS_URL, BOT_TOKEN_NAME
+from sweepai.config.client import SweepConfig
+from sweepai.config.server import ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, REDIS_URL, BOT_TOKEN_NAME
 from ..utils.github_utils import get_token
 
 

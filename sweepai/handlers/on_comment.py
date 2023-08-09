@@ -22,7 +22,7 @@ from sweepai.core.entities import FileChangeRequest, NoFilesException, Snippet, 
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.config.server import GITHUB_BOT_USERNAME, PREFIX, OPENAI_API_KEY, GITHUB_BOT_TOKEN
+from sweepai.config.server import GITHUB_BOT_USERNAME, PREFIX, OPENAI_API_KEY, GITHUB_BOT_TOKEN
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     get_github_client,
