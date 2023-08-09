@@ -1,5 +1,6 @@
 from fastapi import Request, HTTPException
 from sweepai.core.entities import User
+from sweepai.utils.session_management import create_session
 
 async def authenticate_user(request: Request):
     """Handle a user authentication request."""
