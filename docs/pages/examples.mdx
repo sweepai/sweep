@@ -1,47 +1,301 @@
-# 🎫 Example Issues Solved by Sweep
+import { useState, useEffect, useRef } from "react"
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import parse from "parse-diff";
+import { BiGitMerge } from "react-icons/bi";
+import { FiCornerDownRight } from "react-icons/fi";
+import { useData } from 'nextra/data'
+
+export function ShowMore({ children }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [showButton, setShowButton] = useState(true);
+    const contentRef = useRef(null);
+
+    // sort this out later
+
+    // useEffect(() => {
+    //     console.log("contentRef", contentRef.current.scrollHeight)
+    //     if (contentRef.current.scrollHeight < 200) {
+    //         setShowButton(false);
+    //     }
+    // }, [contentRef]);
+
+    const contentStyle = {
+        overflow: 'hidden',
+        transition: 'max-height 0.4s ease-in-out',
+        maxHeight: (isExpanded || !showButton) ? '2000px' : '300px' // 1000px should be larger than the content's potential maximum height
+    };
+
+    return (
+        <div>
+            <div 
+                style={contentStyle} 
+                ref={contentRef}
+            >
+                {children}
+            </div>
+            {showButton && (
+                <div style={{width: "100%", padding: 10, display: "flex", justifyContent: "center"}}>
+                    <button onClick={() => setIsExpanded(!isExpanded)}>
+                        {isExpanded ? 'Show Less' : 'Show More'}
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
+export function PRReview({ repoName, prId }) {
+    const [prData, setPrData] = useState(null)
+    const [issueData, setIssueData] = useState(null)
+    const [diffData, setDiffData] = useState(null)
+    const herokuAnywhere = "https://mighty-brook-06697-04a41eb75af8.herokuapp.com/"
+    const headers = {}
+
+    useEffect(() => {
+        const fetchPRData = async () => {
+            try {
+                const url = `https://api.github.com/repos/${repoName}/pulls/${prId}`;
+                console.log(url)
+                const response = await fetch(url, {headers});
+                console.log(response)
+                const data = await response.json();
+                console.log("pr data", data)
+                setPrData(data);
+                
+                if (!data.diff_url) {
+                    return;
+                }
+
+                const diffResponse = await fetch(herokuAnywhere + data.diff_url); // need better cors solution
+                const diffText = await diffResponse.text();
+                setDiffData(diffText);
+
+                if (!data.body) {
+                    return;
+                }
+
+                const content = data.body
+                const issueId = data.body.match(/Fixes #(\d+)/)[1]
+
+                if (!issueId) {
+                    return;
+                }
+
+                const issuesUrl = `https://api.github.com/repos/${repoName}/issues/${issueId}`
+                const issueResponse = await fetch(issuesUrl, {headers});
+                const issueData = await issueResponse.json();
+                setIssueData(issueData);
+                console.log("issueData", issueData)
+            } catch (error) {
+                console.error("Error fetching PR data:", error);
+            }
+        };
+
+        fetchPRData();
+    }, [repoName, prId]);
+
+    if (!prData) {
+        return <div>Loading...</div>;
+    }
+
+    const numberDaysAgoMerged = Math.round((new Date() - new Date(prData.merged_at)) / (1000 * 60 * 60 * 24))
+    const parsedDiff = parse(diffData)
+    var issueTitle = issueData ? issueData.title.replace("Sweep: ", "") : ""
+    issueTitle = issueTitle.charAt(0).toUpperCase() + issueTitle.slice(1);
+    console.log("parsedDiff", parsedDiff)
+
+    return (
+        <>
+            <style>
+                {`
+                    .hoverEffect:hover {
+                        // background-color: #222;
+                    }
+                    h5 ::after {
+                        display: none;
+                    }
+                    .clickable {
+                        cursor: pointer;
+                    }
+                    .clickable:hover {
+                        text-decoration: underline;
+                    }
+                `}
+            </style>
+            <div 
+                className="hoverEffect"
+                style={{
+                    border: "1px solid darkgrey", 
+                    borderRadius: 5, 
+                    marginTop: 32,
+                    padding: 10,
+                }}
+            >
+                <div style={{display: "flex"}}>
+                    <h5 
+                        className="clickable" style={{marginTop: 0, fontWeight: "bold", fontSize: 18}} 
+                        onClick={() => window.open(prData.html_url, "_blank")}
+                    >
+                        {prData.title}
+                    </h5>
+                    <span style={{color: "#815b9e", marginTop: 2, display: "flex"}}>
+                        &nbsp;&nbsp;
+                        <BiGitMerge style={{marginTop: 3}}/>
+                        &nbsp;Merged
+                    </span>
+                </div>
+                {
+                    prData && <div style={{display: "flex", color: "#666"}}>
+                        #{prId} •&nbsp;<span className="clickable" onClick={() => window.open("https://github.com/apps/sweep-ai")}>{prData.user.login}</span>&nbsp;•&nbsp;<BiGitMerge style={{marginTop: 3}}/>&nbsp;Merged {numberDaysAgoMerged} days ago by&nbsp;<span className="clickable" onClick={() => window.open(`https://github.com/${prData.merged_by.login}`, "_blank")}>{prData.merged_by.login}</span>
+                    </div>
+                }
+                <div style={{display: "flex", marginTop: 15, color: "darkgrey"}}>
+                    <FiCornerDownRight style={{marginTop: 3 }} />&nbsp;{issueData && <p className="clickable">Fixes #{issueData.number} • {issueTitle}</p>}
+                </div>
+                <hr style={{borderColor: "darkgrey", margin: 20}}/>
+                <ShowMore>
+                    <div
+                        className="codeBlocks"
+                        style={{
+                            borderRadius: 5, 
+                            padding: 10,
+                            transition: "background-color 0.2s linear",
+                        }}
+                    >
+                        {parsedDiff.map(({chunks, from, oldStart}) => (
+                            from !== "/dev/null" && from !== "sweep.yaml" &&
+                            <>
+                                <p style={{
+                                    marginTop: 0, 
+                                    marginBottom: 0, 
+                                    fontFamily: "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace"
+                                }}>{from}</p>
+                                {chunks.map(({changes}) => 
+                                    <pre style={{
+                                        backgroundColor: "#161717", 
+                                        borderRadius: 10,
+                                        whiteSpace: "pre-wrap",
+                                    }}>
+                                        {changes.map(({content, type}) => 
+                                            <>
+                                                {type === "add" && content && <div style={{backgroundColor: "#12261e", width: "100%", padding: 4}}>{content}</div>}
+                                                {type === "del" && content && <div style={{backgroundColor: "#25171c", width: "100%", padding: 4}}>{content}</div>}
+                                                {type === "normal" && content && <div style={{padding: 4}}>{content}</div>}
+                                            </>
+                                        )}
+                                    </pre>
+                                )}
+                            </>
+                        ))}
+                    </div>
+                </ShowMore>
+            </div>
+        </>
+    )
+}
+
+export function RepoPreview({ repoName, displayName=null }) {
+    const [repoData, setRepoData] = useState(null)
+
+    if (!displayName) {
+        displayName = repoName.split("/")[1]
+        displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+    }
+
+    useEffect(() => {
+        (async () => {
+            const url = `https://api.github.com/repos/${repoName}`
+            const response = await fetch(url, {headers})
+            const data = await response.json()
+            console.log("repo data", data)
+            setRepoData(data)
+        })()
+    }, [repoName])
+
+    if (!repoData) {
+        return <div>Loading...</div>
+    }
+
+    const star_count = repoData.stargazers_count
+    const star_display = star_count > 1000 ? `${Math.round(star_count / 100) / 10}k` : star_count
+
+    return (
+        <>
+            <style>
+                {`
+                    .clickable {
+                        cursor: pointer;
+                    }
+                    .clickable:hover {
+                        text-decoration: underline;
+                    }
+                `}
+            </style>
+            <div className="clickable" onClick={() => window.open(`https://github.com/${repoName}`)}>
+                <h3 id={repoName}>
+                    {displayName}
+                </h3>
+                <span style={{color: "darkgrey"}}>
+                    {repoData.full_name} • {star_display} stars
+                </span>
+            </div>
+            <h6 style={{color: "darkgrey", marginTop: 8}}>
+                {repoData.description}
+            </h6>
+        </>
+    )
+}
+
+# 🎨 Example Issues Solved by Sweep
 
 For Sweep's resume, see [here](/resume.pdf).
 
-## [Gradio](https://github.com/gradio-app/gradio)
-![Stars](https://img.shields.io/github/stars/gradio-app/gradio?style=for-the-badge)
-- [Stripping leading and trailing spaces from usernames](https://github.com/gradio-app/gradio/pull/5104) in the Gradio repository.
+<RepoPreview repoName="gradio-app/gradio" />
 
-## [PyTorch Ignite](https://github.com/pytorch/ignite)
-![Stars](https://img.shields.io/github/stars/pytorch/ignite?style=for-the-badge)
+<PRReview repoName="gradio-app/gradio" prId={5104}/>
+
+{/* ## [PyTorch Ignite](https://github.com/pytorch/ignite)
+![Stars](https://img.shields.io/github/stars/pytorch/ignite?style=for-the-badge) */}
+<RepoPreview repoName="pytorch/ignite" displayName="PyTorch Ignite" />
 
 PyTorch Ignite uses Sweep for documentation fixes.
 
-- [Fix warning in fast_neural_style example](https://github.com/pytorch/ignite/issues/2983) → [Fix warning in fast_neural_style example](https://github.com/pytorch/ignite/pull/2984)
-- [Docs test issue with roc_auc](https://github.com/pytorch/ignite/issues/2985) → [Update ROC_AUC Test Case in Documentation](https://github.com/pytorch/ignite/pull/2989)
+<PRReview repoName="pytorch/ignite" prId={2984}/>
+<PRReview repoName="pytorch/ignite" prId={2989}/>
 
-## [Medplum](https://github.com/medplum/medplum)
-![Stars](https://img.shields.io/github/stars/medplum/medplum?style=for-the-badge)
+{/* ## [Medplum](https://github.com/medplum/medplum)
+![Stars](https://img.shields.io/github/stars/medplum/medplum?style=for-the-badge) */}
+<RepoPreview repoName="medplum/medplum" />
 
 Medplum uses Sweep for small refactors and bug fixes.
 
-- [Sweep: fix missing key prop in FormPage.tsx](https://github.com/medplum/medplum/issues/2409) → [Add missing key prop in FormPage.tsx](https://github.com/medplum/medplum/pull/2411)
-- [Sweep: prefer nullish coalescing operator in packages/app/src/HomePage.tsx](https://github.com/medplum/medplum/issues/2410) → [Use nullish coalescing operator in HomePage.tsx](https://github.com/medplum/medplum/pull/2412)
-- [Sweep: Add support for env var config settings in packages/server/src/config.ts](https://github.com/medplum/medplum/issues/2377) → [Add Environment Variable Config Support](https://github.com/medplum/medplum/pull/2378)
-- [Sweep: Add missing sort functions](https://github.com/medplum/medplum/issues/2364) → [Implement Alphabetical Sorting Using localeCompare](https://github.com/medplum/medplum/pull/2365)
+<PRReview repoName="medplum/medplum" prId={2411}/>
+<PRReview repoName="medplum/medplum" prId={2412}/>
+<PRReview repoName="medplum/medplum" prId={2378}/>
+<PRReview repoName="medplum/medplum" prId={2365}/>
 
-## [Sweep](https://github.com/sweepai/sweep) 
-![Stars](https://img.shields.io/github/stars/sweepai/sweep?style=for-the-badge)
+{/* ## [Sweep](https://github.com/sweepai/sweep) 
+![Stars](https://img.shields.io/github/stars/sweepai/sweep?style=for-the-badge) */}
+<RepoPreview repoName="sweepai/sweep" />
 
 We use Sweep internally to fix small issues such as fixing a path to support windows and bug fixes like Python’s calling of git pull failing. We also have been doing setup things like GitHub Actions and ticket templates.
 
-- [Sweep: Use os agnostic temp directory for windows](https://github.com/sweepai/sweep/issues/367) → [Use OS Agnostic Temporary Directory](https://github.com/sweepai/sweep/pull/368)
-- [Handle git pull failure in sweepai/app/ui.py](https://github.com/sweepai/sweep/pull/366) → [Sweep: In sweepai/app/ui.py try except the git pull, if it crashes delete the cache and reclone it](https://github.com/sweepai/sweep/issues/365)
-- [Sweep: In on_comment.py it's possible that the comment is on a closed PR. If this is the case then we should not fire an event. Add logic to on_comment to address this. Use pr state](https://github.com/sweepai/sweep/issues/140) → [Prevent Event Firing on Closed PRs](https://github.com/sweepai/sweep/pull/143)
+<PRReview repoName="sweepai/sweep" prId={368}/>
+<PRReview repoName="sweepai/sweep" prId={366}/>
+<PRReview repoName="sweepai/sweep" prId={143}/>
 
-## [Sweep.dev](https://github.com/sweepai/landing-page)
-![Stars](https://img.shields.io/github/stars/sweepai/landing-page?style=for-the-badge)
+{/* ## [Sweep.dev](https://github.com/sweepai/landing-page)
+![Stars](https://img.shields.io/github/stars/sweepai/landing-page?style=for-the-badge) */}
+
+<RepoPreview repoName="sweepai/landing-page" displayName="Sweep Landing Page" />
 
 We also use Sweep for our landing page. We use Netlify to check for build completion and previews of our landing page and do iterations against the Netlify previews. This makes modifying the landing page possible with non-frontend devs like Will.
 
-- [Sweep: All of the testimonials say JE, can we change them to the correct initials](https://github.com/sweepai/landing-page/issues/16) → [Correct Testimonial Initials](https://github.com/sweepai/landing-page/pull/18)
-- [Sweep: Change the last testimonial (the one by Kunal) to a new message](https://github.com/sweepai/landing-page/issues/136) → [Update Testimonial Content](https://github.com/sweepai/landing-page/pull/138)
+<PRReview repoName="sweepai/landing-page" prId={18}/>
+<PRReview repoName="sweepai/landing-page" prId={138}/>
 
-## [Plug ‘n Plai](https://github.com/edreisMD/plugnplai)
+{/* ## [Plug ‘n Plai](https://github.com/edreisMD/plugnplai)
 ![Stars](https://img.shields.io/github/stars/edreisMD/plugnplai?style=for-the-badge)
 
 Eduardo (AI @ Stanford) is building Plug ‘n Plai, a marketplace for OpenAI plugins. He’s mainly using Sweep for single-file refactors like moving a chunk of code out of the script and small features like capping the max number of plugins.
@@ -49,13 +303,8 @@ Eduardo (AI @ Stanford) is building Plug ‘n Plai, a marketplace for OpenAI plu
 - [make .prompt a method and add verbosity and colors #140](https://github.com/edreisMD/plugnplai/issues/140) → [Make .prompt a method and add verbosity and colors #141](https://github.com/edreisMD/plugnplai/pull/141)
 - [Create an auxiliary function in Plugins to parse a \<API\>\</API\> message and call plugin #122](https://github.com/edreisMD/plugnplai/issues/122) → [Add auxiliary function to parse API calls from LLM and call plugins #124](https://github.com/edreisMD/plugnplai/pull/124)
 - [Only allow activating a maximum of 3 plugins #65](https://github.com/edreisMD/plugnplai/issues/65) → [Only allow activating a maximum of 3 plugins #75](https://github.com/edreisMD/plugnplai/pull/75)
-- [Cleanup the documentation in embeddings. The formatting is incorrect #89](https://github.com/edreisMD/plugnplai/issues/89) → [Cleanup documentation in embeddings.py #91](https://github.com/edreisMD/plugnplai/pull/91)
-
-## [ChangePack](https://github.com/changepack/changepack)
-![Stars](https://img.shields.io/github/stars/changepack/changepack?style=for-the-badge)
-
-- [Sweep: Redesign OmniAuth links in the registration form #145](https://github.com/changepack/changepack/issues/145) → [Redesign OmniAuth Links in Registration Form #146](https://github.com/changepack/changepack/pull/146)
+- [Cleanup the documentation in embeddings. The formatting is incorrect #89](https://github.com/edreisMD/plugnplai/issues/89) → [Cleanup documentation in embeddings.py #91](https://github.com/edreisMD/plugnplai/pull/91) */}
 
 ---
 
-To contribute more, feel free to ping Kevin and Will ****on Discord.
+To contribute more, feel free to ping Kevin and Will on Discord.
