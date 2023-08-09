@@ -64,15 +64,16 @@ class ChatLogger(BaseModel):
             logger.error('Ticket Collection Does Not Exist')
             return 0
         username = self.data['username']
+        tracking_date = self.current_date if use_date else self.current_month
         result = self.ticket_collection.aggregate([
             {'$match': {'username': username}},
             {'$project': {
-                (self.current_date if use_date else self.current_month): 1, 
+                tracking_date: 1, 
                 '_id': 0
             }}
         ])
         result_list = list(result)
-        ticket_count = result_list[0].get(self.current_month, 0) if len(result_list) > 0 else 0
+        ticket_count = result_list[0].get(tracking_date, 0) if len(result_list) > 0 else 0
         logger.info(f'Ticket Count for {username} {ticket_count}')
         return ticket_count
 
