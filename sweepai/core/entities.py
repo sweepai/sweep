@@ -336,5 +336,5 @@ class MockPR(BaseModel):
 class User(BaseModel):
     """Represent a registered user in the system."""
     username: str
-    password: str
+    password: str  # TODO: Hash the password before storing
     # TODO: Add any other necessary fields here
