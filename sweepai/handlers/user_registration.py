@@ -13,10 +13,11 @@ async def register_user(request: Request):
         raise HTTPException(status_code=400, detail="Invalid input")
 
     # Create a new User entity
-    # TODO: Hash the password before storing
-    user = User(username=username, password=password)
+    # Hash the password before storing
+    hashed_password = hash_password(password)
+    user = User(username=username, password=hashed_password)
 
-    # TODO: Save the user entity in the database
-    # TODO: Implement database saving functionality
+    # Save the user entity in the database
+    user.save()
 
     return {"success": True, "message": "User registration successful"}
