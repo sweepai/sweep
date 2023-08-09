@@ -3,7 +3,7 @@ import modal
 from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
-from sweepai.core.entities import PRChangeRequest
+from sweepai.core.entities import PRChangeRequest, User
 # Django is not a dependency, so the import statement is removed
 
 from sweepai.events import (
