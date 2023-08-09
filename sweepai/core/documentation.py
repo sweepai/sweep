@@ -22,7 +22,7 @@ image = (
         "apt-get update",
         "pip install playwright==1.30.0",
         "playwright install-deps chromium",
-        "playwright install chromium",
+        "playwright install",
     )
 )
 secrets = [
@@ -190,6 +190,7 @@ def search_vector_store(doc_url, query, k=10):
     vector_store = VectorStore(
         path = f'hub://{ORG_ID}/{idx_name}',
         runtime = {"tensor_db": True},
+        read_only=True,
     )
     logger.info("Embedding query...")
     query_embedding = embedding_function(query, cpu=True)
