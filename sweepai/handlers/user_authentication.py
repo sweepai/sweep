@@ -12,9 +12,12 @@ async def authenticate_user(request: Request):
     if not username or not password:
         raise HTTPException(status_code=400, detail="Invalid input")
 
-    # TODO: Check the User entities for a match
-    # TODO: If a match is found, create a new session
-    # TODO: If no match is found, return an error message
-    # TODO: Implement user authentication functionality
+    # Check the User entities for a match
+    user = User.get(username=username)
+    if user is None or not user.check_password(password):
+        raise HTTPException(status_code=400, detail="Invalid username or password")
 
-    return {"success": True, "message": "User authentication is not yet implemented"}
+    # If a match is found, create a new session
+    session_id = create_session(user.id)
+
+    return {"success": True, "session_id": session_id}
