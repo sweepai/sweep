@@ -180,6 +180,15 @@ def on_ticket(
                 ) for comment in comments if comment.user.type == "User"
             ]
         )
+    else:
+        replies_text = "\nComments:\n" + "\n".join(
+            [
+                issue_comment_prompt.format(
+                    username=comment.user.login,
+                    reply=comment.body,
+                ) for comment in comments if comment.user.type == "User"
+            ]
+        )
     summary = summary if summary else ""
 
     # Check if branch was already created for this issue
