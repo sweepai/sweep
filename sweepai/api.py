@@ -19,8 +19,8 @@ from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.config.client import get_documentation_dict
-from sweepai.utils.config.server import DB_MODAL_INST_NAME, API_MODAL_INST_NAME, DOCS_MODAL_INST_NAME, GITHUB_BOT_USERNAME, \
+from sweepai.config.client import get_documentation_dict
+from sweepai.config.server import DB_MODAL_INST_NAME, API_MODAL_INST_NAME, DOCS_MODAL_INST_NAME, GITHUB_BOT_USERNAME, \
     GITHUB_LABEL_NAME, GITHUB_LABEL_COLOR, GITHUB_LABEL_DESCRIPTION, BOT_TOKEN_NAME
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository

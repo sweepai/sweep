@@ -9,7 +9,7 @@ from sweepai.core.robots import is_url_allowed
 from sweepai.core.webscrape import webscrape
 from sweepai.pre_indexed_docs import DOCS_ENDPOINTS
 
-from sweepai.utils.config.server import DOCS_MODAL_INST_NAME, ENV, ORG_ID
+from sweepai.config.server import DOCS_MODAL_INST_NAME, ENV, ORG_ID
 
 stub = modal.Stub(DOCS_MODAL_INST_NAME)
 image = (

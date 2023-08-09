@@ -15,8 +15,8 @@ from sweepai.core.prompts import (
     repo_description_prefix_prompt
 )
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.config.client import get_description
-from sweepai.utils.config.server import UTILS_MODAL_INST_NAME, ANTHROPIC_API_KEY, OPENAI_DO_HAVE_32K_MODEL_ACCESS
+from sweepai.config.client import get_description
+from sweepai.config.server import UTILS_MODAL_INST_NAME, ANTHROPIC_API_KEY, OPENAI_DO_HAVE_32K_MODEL_ACCESS
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 # TODO: combine anthropic and openai
