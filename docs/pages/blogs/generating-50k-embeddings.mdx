@@ -1,0 +1,85 @@
+---
+author: Lucas Jaggernauth
+---
+
+# Generating 50k+ embeddings in 25 seconds using GTE and MapReduce
+
+**Lucas Jaggernauth** - August 9th, 2023
+
+---
+
+When performing code search, vector databases allow us to quickly compare a query to several embeddings of chunked code. However, these embeddings must be generated for every chunk in the code base. For code bases with thousands of files and tens of thousands of lines, generating these embeddings becomes an expensive and time-consuming operation.
+
+Take for example, Airbyte (https://github.com/airbytehq/airbyte). Airbyte provides hundreds of API connectors, containing 15,740 files total. When generating embeddings for these files, we first have to [split the file up into chunks](chunking article). Then, we have to convert each of the chunks into embeddings. With 15k+ files and multiple chunks per embedding, we are left with hundreds of thousands of snippets that we need to generate embeddings for.
+
+So, how can we optimize the process of generating embeddings, especially when dealing with such a large number of chunks in codebases like Airbyte?
+
+## Redundant Files
+
+Repositories do not entirely consist of just code. Although repositories contain scripts, they also contain images, videos, and even binary files. Chunking these files provides us very little value, so we can ignore several formats.
+
+```python
+ignore_formats = ['.min.js', '.min.js.map', '.min.css', '.min.css.map', '.tfstate', '.tfstate.backup',
+                   '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.ico', '.mp3', '.wav', '.wma', '.ogg',
+                   '.flac', '.mp4', '.avi', '.mkv', '.mov', '.wmv', '.m4a', '.m4v', '.3gp', '.3g2', '.rm',
+                   '.swf', '.flv', '.iso', '.bin', '.tar', '.zip', '.7z', '.gz', '.rar', '.pdf', '.doc',
+                   '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.svg', '.parquet', '.pyc', '.pub', '.pem']
+```
+
+In this example, filtering out redundant files is a minor but crucial step. By ignoring certain formats that don’t contain valuable info, like media files, the amount of data to generate embeddings for is drastically reduces.
+
+## MapReduce
+
+The challenge of chunking and embedding a large codebase can be further optimized through the use of parallel processing, such as MapReduce. In this instance, we decided to scale the process from a single GPU to 12 GPUs, resulting in a much higher throughput.
+
+```python
+results = []
+for batch in tqdm(Embedding.compute.map(batches)): # pylint: disable=no-member
+    results.extend(batch)
+```
+
+In the case of Airbyte, with thousands of files and hundreds of thousands of snippets, this approach resulted in substantial time savings. In the end, mapping the embeddings across multiple CPUs/GPUs is a robust way to increase the speed of embedding numerous documents
+
+## Newer Model
+
+GTE, a newly released state-of-the-art model, is a great model for code search and analysis. In fact, its performance is so great that it is currently ranked first on the Hugging Face MTEB Leaderboard (at the time of writing) despite its relatively small size. In fact, GTE-small offers the same performance as E5-base, even though it is 19x smaller. GTE-base and GTE-large both outcompete almost every other model, including all of the pre-trained models offered by the SentenceTransformer library.
+
+Additionally, upgrading the model used by SentenceTransformer is as easy as changing this:
+```python
+model = SentenceTransformer("all-mpnet-base-v2")
+```
+to this:
+```python
+model = SentenceTransformer("thenlper/gte-base")
+```
+
+In the end, GTE-base offers much higher performance with around the same number of parameters, making it an obvious choice for code search. Even GTE-small offers competitive performance, but we decided to use GTE-base as code retrieval is a critical part of our product.
+
+## Redis Cache
+
+Generating the embeddings for thousands of chunks is an expensive operation, which is why we would like to generate these embeddings only once. In order to prevent embedding recalculations, we decided to use a Redis Cache to save the model’s outputs for each chunk.
+
+However, this only works if the file stays the same. Once the file changes, the code may be chunked separately, rendering old embeddings useless. So, we key the embeddings based on the latest commit changing the file.
+
+```python
+github_cache_key = f"github-{commit_hash}{CACHE_VERSION}"
+cache_hit = cache_inst.get(github_cache_key)
+```
+
+With this, we no longer need to recalculate the embeddings for every file. Even better, once the repository is updated with new code changes, we only need to regenerate the chunks on changed files, greatly increasing the speed of calculating embeddings over time. Overall, this significantly speeds up the code search process, taking seconds to load the embeddings on warm starts instead of minutes.
+
+## Result
+
+When it came to Airbyte’s 15,000+ files, the transformation was truly remarkable. The entire process of generating embeddings took significantly less time, going from 20 minutes to 3 minutes. Further, embeddings are no longer needlessly generated each time with the help of the Redis Cache, allowing for the embeddings to become available in mere seconds.
+
+<img src="https://github.com/sweepai/sweep/blob/2b85aebb87199f19c5a1e6b6c6ac5ec0cc36b8b8/.assets/airbyte_embedding_speed.png">
+
+## Pitfalls
+
+Although we were able to greatly improve the performance of our embedding generation, we still encountered numerous challenges along the way. Ignoring redundant files required careful selection to ensure we didn’t exclude anything valuable. For example, Jupyter Notebooks may contain essential code snippets, but we decided to ignore them for now until we find a more practical way to parse them. Additionally, our Redis Cache introduced more complexity into our workflow. When accessing thousands of files per minute, we found that our Redis Cache oftentimes could not keep up with the scale, requiring more caching optimizations.
+
+## Future
+
+Looking ahead, there are many areas for further exploration and improvement. We’ll continue to refine our file filtering process to include or exclude formats as needed. As for parallel processing, we’re considering the shift to CPU inference for computing the embeddings, which could provide alternative scaling, lower startup times, and cost-saving opportunities.
+
+The constantly evolving field of machine learning offers many new models and techniques that could further enhance our embedding process. We would also like to explore strategies for evaluating retrieval models on code search, as well as finetuning a model on code.
