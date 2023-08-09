@@ -31,7 +31,25 @@
             },
             methods: {
                 submitForm() {
-                    // Handle form submission
+                    // Create an instance of FormData
+                    let formData = new FormData();
+                    // Append the username, email, and password to formData
+                    formData.append('username', this.username);
+                    formData.append('email', this.email);
+                    formData.append('password', this.password);
+                    // Send a POST request to the server with formData
+                    fetch('/register/', {
+                        method: 'POST',
+                        body: formData
+                    }).then(response => {
+                        if (response.ok) {
+                            // Redirect to the home page if the registration is successful
+                            window.location.href = '/';
+                        } else {
+                            // Display an error message if the registration is unsuccessful
+                            alert('Registration failed');
+                        }
+                    });
                 }
             }
         });
