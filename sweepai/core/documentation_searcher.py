@@ -54,9 +54,9 @@ class DocumentationSearcher(ChatGPT):
 
 
     @staticmethod
-    def extract_relevant_docs(content: str):
+    def extract_relevant_docs(content: str, docs: dict):
         logger.info("Fetching related APIs from content")
-        links = DocumentationSearcher.extract_docs_links(content)
+        links = list(docs.keys())
         if not links:
             return ""
         result = "\n\n### I also found some related docs:\n\n"
