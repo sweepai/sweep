@@ -91,13 +91,27 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5)
 import yaml
 
 def fetch_docs_from_sweep_yaml(request_dict, installation_id):
+    """
+    Fetches the 'docs' mapping from the user's sweep.yaml file if it has been added or modified in the commit.
+
+    Args:
+        request_dict (dict): The request dictionary.
+        installation_id (int): The installation ID.
+
+    Returns:
+        dict: The 'docs' mapping from the user's sweep.yaml file, or an empty dictionary if the file is not valid YAML or the 'docs' key is not a dictionary.
+    """
     if "sweep.yaml" in request_dict["head_commit"]["added"] or \
         "sweep.yaml" in request_dict["head_commit"]["modified"]:
         _, g = get_github_client(installation_id)
         repo = g.get_repo(request_dict["repository"]["full_name"])
         sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode("utf-8")
-        sweep_yaml = yaml.safe_load(sweep_yaml_content)
-        docs = sweep_yaml.get('docs', {})
+        try:
+            sweep_yaml = yaml.safe_load(sweep_yaml_content)
+        except yaml.YAMLError as e:
+            logger.error(f"Invalid YAML file: {e}")
+            return {}
+        docs = sweep_yaml.get('docs', {}) if isinstance(sweep_yaml.get('docs', {}), dict) else {}
         logger.info(f"Sweep.yaml docs: {docs}")
         return docs
     return {}
@@ -114,6 +128,21 @@ def on_ticket(
     comment_id: int = None,
     request_dict: dict
 ):
+    """
+    Handles a ticket.
+
+    Args:
+        title (str): The title of the ticket.
+        summary (str): The summary of the ticket.
+        issue_number (int): The issue number.
+        issue_url (str): The URL of the issue.
+        username (str): The username of the user who created the ticket.
+        repo_full_name (str): The full name of the repository.
+        repo_description (str): The description of the repository.
+        installation_id (int): The installation ID.
+        comment_id (int, optional): The ID of the comment. Defaults to None.
+        request_dict (dict): The request dictionary.
+    """
     docs = fetch_docs_from_sweep_yaml(request_dict, installation_id)
     # Check if the title starts with "sweep" or "sweep: " and remove it
     slow_mode = False
