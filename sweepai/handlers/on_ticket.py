@@ -24,7 +24,7 @@ from sweepai.handlers.create_pr import create_pr_changes, create_config_pr, safe
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
-from sweepai.utils.config.client import SweepConfig, get_sandbox_enabled
+from sweepai.utils.config.client import SweepConfig, get_documentation_dict, get_sandbox_enabled
 from sweepai.utils.config.server import PREFIX, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, OPENAI_API_KEY, \
     GITHUB_BOT_TOKEN, \
     GITHUB_BOT_USERNAME, GITHUB_LABEL_NAME
@@ -345,7 +345,8 @@ def on_ticket(
     external_results = ExternalSearcher.extract_summaries(message_summary)
     if external_results:
         message_summary += "\n\n" + external_results
-    docs_results = DocumentationSearcher.extract_relevant_docs(title + message_summary)
+    user_dict = get_documentation_dict(repo)
+    docs_results = DocumentationSearcher.extract_relevant_docs(title + message_summary, user_dict)
     if docs_results:
         message_summary += "\n\n" + docs_results
 
