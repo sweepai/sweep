@@ -17,4 +17,6 @@ echo "Installing robotexclusionrulesparser with pip..."
 pip install robotexclusionrulesparser
 echo "Installing e2b with pip..."
 pip install e2b
+echo "Installing flet with pip..."
+pip install flet
 echo "Installation complete!"
