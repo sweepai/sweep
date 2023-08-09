@@ -126,6 +126,9 @@ def on_ticket(
     # 5. Create PR
 
     repo_name = repo_full_name.split('/')[1]
+    user_token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    current_issue = repo.get_issue(number=issue_number)
     comments = list(current_issue.get_comments())
     replies_text = "\nComments:\n" + "\n".join(
         [
@@ -165,11 +168,7 @@ def on_ticket(
     }
     posthog.capture(username, "started", properties=metadata)
 
-    user_token, g = get_github_client(installation_id)
-
     logger.info(f"Getting repo {repo_full_name}")
-    repo = g.get_repo(repo_full_name)
-    current_issue = repo.get_issue(number=issue_number)
     if current_issue.state == 'closed':
         logger.warning(f"Issue {issue_number} is closed")
         posthog.capture(username, "issue_closed", properties=metadata)
