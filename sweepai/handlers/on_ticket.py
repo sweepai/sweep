@@ -125,8 +125,8 @@ def on_ticket(
     repo_full_name: str,
     repo_description: str,
     installation_id: int,
-    comment_id: int = None,
-    request_dict: dict = None
+    request_dict: dict,
+    comment_id: int = None
 ):
     """
     Handles a ticket.
