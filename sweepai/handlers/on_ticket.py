@@ -126,6 +126,7 @@ def on_ticket(
     # 5. Create PR
 
     repo_name = repo_full_name.split('/')[1]
+    comments = list(current_issue.get_comments())
     replies_text = "\n".join([comment.body for comment in comments if comment.user.type == "User"])
     chat_logger = ChatLogger({
         'repo_name': repo_name,
