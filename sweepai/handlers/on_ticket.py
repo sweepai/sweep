@@ -141,6 +141,7 @@ def on_ticket(
     })
 
     is_paying_user = chat_logger.is_paying_user()
+    is_trial_user = chat_logger.is_trial_user()
     use_faster_model = chat_logger.use_faster_model()
 
     organization, repo_name = repo_full_name.split("/")
@@ -212,14 +213,18 @@ def on_ticket(
 
     # Find the first comment made by the bot
     issue_comment = None
-    tickets_allocated = 120 if is_paying_user else 5
+    tickets_allocated = 5
+    if is_trial_user:
+        tickets_allocated = 15
+    if is_paying_user:
+        tickets_allocated = 120
     ticket_count = max(tickets_allocated - chat_logger.get_ticket_count(), 0)
 
     slow_mode = slow_mode and not use_faster_model
 
     model_name = "GPT-3.5" if use_faster_model else "GPT-4"
     payment_link = "https://buy.stripe.com/6oE5npbGVbhC97afZ4"
-    daily_message = f" and {chat_logger.get_ticket_count(use_date=True)} for the day" if not is_paying_user else ""
+    daily_message = f" and {chat_logger.get_ticket_count(use_date=True)} for the day" if not is_paying_user and not is_trial_user else ""
     user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
     payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left for the month{daily_message}." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
     slow_mode_status = " using slow mode" if slow_mode else " "
