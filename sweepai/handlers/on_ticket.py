@@ -127,6 +127,19 @@ def on_ticket(
 
     organization, repo_name = repo_full_name.split("/")
     
+    replies_text = ""
+    comments = list(current_issue.get_comments())
+    if comment_id:
+        logger.info(f"Replying to comment {comment_id}...")
+        replies_text = "\nComments:\n" + "\n".join(
+            [
+                issue_comment_prompt.format(
+                    username=comment.user.login,
+                    reply=comment.body,
+                ) for comment in comments if comment.user.type == "User"
+            ]
+        )
+    summary = summary if summary else ""
     chat_logger = ChatLogger({
         'repo_name': repo_name,
         'title': title,
@@ -158,6 +171,7 @@ def on_ticket(
             ]
         )
     summary = summary if summary else ""
+    use_faster_model = chat_logger.use_faster_model()
     metadata = {
         "issue_url": issue_url,
         "repo_name": repo_name,
