@@ -1,7 +1,8 @@
 import uuid
 
-# Store the session data in a dictionary for simplicity
+# Store the session data in a persistent storage
 # In a real-world application, this data would likely be stored in a database or some other persistent storage
+# TODO: Replace this with a persistent storage solution
 session_data = {}
 
 def create_session(user_id):
