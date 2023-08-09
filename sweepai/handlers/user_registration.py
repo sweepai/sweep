@@ -1,5 +1,11 @@
+import bcrypt
 from fastapi import Request, HTTPException
 from sweepai.core.entities import User
+
+def hash_password(password):
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password.encode(), salt)
+    return hashed_password.decode()
 
 async def register_user(request: Request):
     """Handle a user registration request."""
