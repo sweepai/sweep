@@ -1,7 +1,9 @@
+import yaml
 import modal
 import openai
 from github.Repository import Repository
 from loguru import logger
+from sweepai.core.documentation import write_documentation
 
 from sweepai.core.entities import FileChangeRequest, PullRequest, MockPR
 from sweepai.utils.chat_logger import ChatLogger
@@ -240,6 +242,14 @@ def create_gha_pr(g, repo):
     # Create a PR from this branch to the main branch
     pr = repo.create_pull(title="Enable GitHub Actions", body="This PR enables GitHub Actions for this repository.", head=branch_name, base=repo.default_branch)
     return pr
+
+def parse_docs_field(file):
+    # Parse the "docs" field from the sweep.yaml file
+    docs = yaml.safe_load(file)["docs"]
+
+    # Call the write_documentation function for each of the existing fields in "docs"
+    for doc in docs:
+        write_documentation(doc)
 
 REFACTOR_TEMPLATE = """\
 name: Refactor
