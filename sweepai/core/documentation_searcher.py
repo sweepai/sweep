@@ -54,9 +54,21 @@ class DocumentationSearcher(ChatGPT):
 
 
     @staticmethod
-    def extract_relevant_docs(content: str):
+    def extract_relevant_docs(content: str, docs: dict):
+        """
+        Extracts relevant documentation from the provided content and docs.
+    
+        Args:
+            content (str): The content to extract documentation from.
+            docs (dict): A dictionary mapping documentation names to their URLs.
+    
+        Returns:
+            str: A string containing the extracted documentation.
+        """
+        if not docs:
+            return ""
         logger.info("Fetching related APIs from content")
-        links = DocumentationSearcher.extract_docs_links(content)
+        links = list(docs.keys())
         if not links:
             return ""
         result = "\n\n### I also found some related docs:\n\n"
