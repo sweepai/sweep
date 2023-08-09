@@ -95,10 +95,14 @@ def get_sandbox_enabled(repo: Repository) -> bool:
 @staticmethod
 @lru_cache(maxsize=None)
 def get_documentation_dict(repo: Repository):
-    sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode("utf-8")
-    sweep_yaml = yaml.safe_load(sweep_yaml_content)
-    docs = sweep_yaml.get('docs', {})
-    return docs
+    try:
+        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode("utf-8")
+        sweep_yaml = yaml.safe_load(sweep_yaml_content)
+        docs = sweep_yaml.get('docs', {})
+        return docs
+    except Exception as e:
+        logger.warning(f"Error when getting docs: {e}, returning empty dict")
+        return {}
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get('GITHUB_APP_CLIENT_ID', 'Iv1.91fd31586a926a9f')
