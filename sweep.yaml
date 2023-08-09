@@ -2,3 +2,4 @@ gha_enabled: True
 branch: main
 description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. Write code that adheres to PEP8."
 docs: {"modal": "modal.com/docs", "github": "https://pygithub.readthedocs.io/en/stable", "deeplake": "https://docs.deeplake.ai/en/latest"}
+
