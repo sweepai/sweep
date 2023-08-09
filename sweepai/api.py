@@ -4,6 +4,7 @@ from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
 from sweepai.core.entities import PRChangeRequest
+from sweepai.ecommerce_api import ecommerce_api
 
 from sweepai.events import (
     CheckRunCompleted,
@@ -127,6 +128,8 @@ def handle_pr_change_request(
 def function_call_is_completed(call_id: str):
     if call_id == "0":
         return True
+
+app.include_router(ecommerce_api)
 
     from modal.functions import FunctionCall
 
