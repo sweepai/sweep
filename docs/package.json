@@ -19,11 +19,15 @@
   "homepage": "https://github.com/shuding/nextra-docs-template#readme",
   "dependencies": {
     "@vercel/analytics": "^1.0.1",
+    "diff-parser": "^0.0.1",
     "next": "^13.0.6",
     "nextra": "latest",
     "nextra-theme-docs": "latest",
+    "parse-diff": "^0.11.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-icons": "^4.10.1",
+    "react-markdown": "^8.0.7",
     "react-youtube": "^10.1.0"
   },
   "devDependencies": {
