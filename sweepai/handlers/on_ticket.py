@@ -99,6 +99,8 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None
 ):
+    organization, repo_name = repo_full_name.split("/")
+    replies_text = ""
     # Check if the total length of the title and summary is less than 60
     if len(title) + len(summary) < 60:
         return {"success": False, "reason": "Be sure to create a more detailed issue so I can better address it."}
