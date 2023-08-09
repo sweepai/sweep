@@ -246,7 +246,8 @@ def on_ticket(
         if index < 0: index = 0
         if index == 6:
             return pr_message + config_pr_message
-        index *= 20
+        index *= 100 / len(progress_headers)
+        index = int(index)
         index = min(100, index)
         if errored:
             return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
