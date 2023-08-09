@@ -72,11 +72,18 @@ With this, we no longer need to recalculate the embeddings for every file. Even 
 
 When it came to Airbyte’s 15,000+ files, the transformation was truly remarkable. The entire process of generating embeddings took significantly less time, going from 20 minutes to 3 minutes. Further, embeddings are no longer needlessly generated each time with the help of the Redis Cache, allowing for the embeddings to become available in mere seconds.
 
-<img src="https://github.com/sweepai/sweep/blob/2b85aebb87199f19c5a1e6b6c6ac5ec0cc36b8b8/.assets/airbyte_embedding_speed.png?raw=true"></img>
+<img src="https://github.com/sweepai/sweep/blob/b388389de056b62eae2c93879d95f9e5633abb9b/.assets/airbyte_embedding_time.png?raw=true"></img>
+- Old Strategy: 20 minutes
+- New Strategy (cold start): 3 minutes
+- New Strategy (warm start): 30 seconds
 
 ## Pitfalls
 
 Although we were able to greatly improve the performance of our embedding generation, we still encountered numerous challenges along the way. Ignoring redundant files required careful selection to ensure we didn’t exclude anything valuable. For example, Jupyter Notebooks may contain essential code snippets, but we decided to ignore them for now until we find a more practical way to parse them. Additionally, our Redis Cache introduced more complexity into our workflow. When accessing thousands of files per minute, we found that our Redis Cache oftentimes could not keep up with the scale, requiring more caching optimizations.
+
+Specifically, we tried to store the embeddings in a single Redis key, but this resulted in a single key being too large to store. We believed that storing the serialized vector database would prove valuable as it would allow us to quickly load the embeddings. However, we quickly found out that this solution is not scalable to large codebases.
+
+The reason? Because Redis's max payload size is **512 MB**. Since we use JSON to serialize the embeddings, Airbyte's large codebase quickly exceeded this limit. In the end, we decided to store the embeddings in a separate key for each file, which allowed us to bypass the payload limit. Additionally, the vector database is of little value to codebases that are constantly changing, so we decided to remove it from large codebases altogether.
 
 ## Future
 
