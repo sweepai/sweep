@@ -85,6 +85,15 @@ class ChatLogger(BaseModel):
         result = self.ticket_collection.find_one({'username': username})
         return result.get('is_paying_user', False) if result else False
 
+    def is_trial_user(self):
+        if self.ticket_collection is None:
+            logger.error('Ticket Collection Does Not Exist')
+            return False
+        username = self.data['username']
+        result = self.ticket_collection.find_one({'username': username})
+        return result.get('is_trial_user', False) if result else False
+
+
     def use_faster_model(self):
         if self.ticket_collection is None:
             logger.error('Ticket Collection Does Not Exist')
