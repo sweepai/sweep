@@ -2,15 +2,15 @@
     <img src="https://github.com/sweepai/sweep/assets/26889185/39d500fc-9276-402c-9ec7-3e61f57ad233">
 </p>
 <p align="center">
-    <i>Bug Reports & Feature Requests ⟶&nbsp; Code Changes</i>
+    <i>Bug Reports & Feature Requests ⟶ Code Changes</i>
 </p>
 
 <p align="center">
 <a href="https://sweep.dev">
-    <img alt="Install" src="https://img.shields.io/badge/Install-sweep.dev-blue?link=https%3A%2F%2Fsweep.dev">
+    <img alt="Install" src="https://img.shields.io/badge/Install - sweep.dev-blue?link=https%3A%2F%2Fsweep.dev">
 </a>
 <a href="https://docs.sweep.dev/">
-    <img alt="Docs" src="https://img.shields.io/badge/Docs-docs.sweep.dev-blue?link=https%3A%2F%2Fdocs.sweep.dev">
+    <img alt="Docs" src="https://img.shields.io/badge/Docs - docs.sweep.dev-blue?link=https%3A%2F%2Fdocs.sweep.dev">
 </a> 
 <a href="https://discord.gg/sweep-ai">
     <img src="https://dcbadge.vercel.app/api/server/sweep-ai?style=flat" />
@@ -23,7 +23,7 @@
 </a>
 </p>
 
-<b>Sweep</b> is an AI junior developer that transforms bug reports & feature requests into code changes.
+<b>Sweep</b> is an AI junior developer that transforms bug reports and feature requests into code changes.
 
 Describe bugs, small features, and refactors like you would to a junior developer, and Sweep:
 1. 🔍 reads your codebase
@@ -32,9 +32,9 @@ Describe bugs, small features, and refactors like you would to a junior develope
 
 ### Features 🌠
 
-* 🌠 Turns issues directly into pull requests (without an IDE)
-* 👀 Addresses developer replies & comments on its PRs
-* 🔎 Uses embedding-based code search
+* 🌠 Turns issues directly into pull requests without using an IDE
+* 👀 Addresses developer replies and comments on its pull requests
+* 🔎 Utilizes embedding-based code search
 
 
 
