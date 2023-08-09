@@ -81,6 +81,10 @@ When it came to Airbyte’s 15,000+ files, the transformation was truly remarkab
 
 Although we were able to greatly improve the performance of our embedding generation, we still encountered numerous challenges along the way. Ignoring redundant files required careful selection to ensure we didn’t exclude anything valuable. For example, Jupyter Notebooks may contain essential code snippets, but we decided to ignore them for now until we find a more practical way to parse them. Additionally, our Redis Cache introduced more complexity into our workflow. When accessing thousands of files per minute, we found that our Redis Cache oftentimes could not keep up with the scale, requiring more caching optimizations.
 
+Specifically, we tried to store the embeddings in a single Redis key, but this resulted in a single key being too large to store. We believed that storing the serialized vector database would prove valuable as it would allow us to quickly load the embeddings. However, we quickly found out that this solution is not scalable to large codebases.
+
+The reason? Because Redis's max payload size is **512 MB**. Since we use JSON to serialize the embeddings, Airbyte's large codebase quickly exceeded this limit. In the end, we decided to store the embeddings in a separate key for each file, which allowed us to bypass the payload limit. Additionally, the vector database is of little value to codebases that are constantly changing, so we decided to remove it from large codebases altogether.
+
 ## Future
 
 Looking ahead, there are many areas for further exploration and improvement.
