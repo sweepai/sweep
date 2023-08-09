@@ -133,13 +133,13 @@ from modal.functions import FunctionCall
 
 app.include_router(ecommerce_api)
 
-    function_call = FunctionCall.from_id(call_id)
-    try:
-        function_call.get(timeout=0)
-    except TimeoutError:
-        return False
+function_call = FunctionCall.from_id(call_id)
+try:
+    function_call.get(timeout=0)
+except TimeoutError:
+    return False
 
-    return True
+return True
 
 def push_to_queue(
     repo_full_name: str,
