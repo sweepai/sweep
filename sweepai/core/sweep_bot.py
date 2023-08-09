@@ -499,7 +499,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def handle_create_file(self, file_change_request: FileChangeRequest, branch: str):
         try:
-            file_change = self.create_file(file_change_request)
+            file_change = self.create_file(file_change_request, branch)
             file_markdown = is_markdown(file_change_request.filename)
             file_change.code = format_contents(file_change.code, file_markdown)
             logger.debug(
