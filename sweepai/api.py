@@ -126,20 +126,16 @@ def handle_pr_change_request(
 
 
 def function_call_is_completed(call_id: str):
+    from modal.functions import FunctionCall
     if call_id == "0":
         return True
 
-from modal.functions import FunctionCall
-
-app.include_router(ecommerce_api)
-
-function_call = FunctionCall.from_id(call_id)
-try:
-    function_call.get(timeout=0)
-except TimeoutError:
-    return False
-
-return True
+    function_call = FunctionCall.from_id(call_id)
+    try:
+        function_call.get(timeout=0)
+        return True
+    except TimeoutError:
+        return False
 
 def push_to_queue(
     repo_full_name: str,
