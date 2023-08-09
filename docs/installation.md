@@ -1,6 +1,7 @@
 # Welcome to Sweep - GitHub App installed successfully! 🎉
 
-Be sure to follow these instructions in your own repository.
+⚠️ Be sure to follow these instructions in your own repository.
+
 If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?v=fr5V5EWVcyM&lc=UgxM_ZzFiFYfjo1ADU54AaABAg)
 
 ## Create an issue on your own repository
