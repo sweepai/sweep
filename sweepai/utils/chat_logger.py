@@ -16,7 +16,8 @@ class ChatLogger(BaseModel):
     ticket_collection: Any = None
     expiration: datetime = None
     index: int = 0
-    current_month: str = datetime.utcnow().strftime('%m/%Y')
+    current_date: str = Field(default_factory=lambda: datetime.utcnow().strftime('%m/%Y/%d'))
+    current_month: str = Field(default_factory=lambda: datetime.utcnow().strftime('%m/%Y'))
 
     def __init__(self, data: dict = Field(default_factory=dict)):
         super().__init__(data=data)  # Call the BaseModel's __init__ method
@@ -53,19 +54,22 @@ class ChatLogger(BaseModel):
         username = self.data['username']
         self.ticket_collection.update_one(
             {'username': username},
-            {'$inc': {self.current_month: 1}},
+            {'$inc': {self.current_month: 1, self.current_date: 1}},
             upsert=True
         )
         logger.info(f'Added Successful Ticket for {username}')
 
-    def get_ticket_count(self):
+    def get_ticket_count(self, use_date=False):
         if self.ticket_collection is None:
             logger.error('Ticket Collection Does Not Exist')
             return 0
         username = self.data['username']
         result = self.ticket_collection.aggregate([
             {'$match': {'username': username}},
-            {'$project': {self.current_month: 1, '_id': 0}}
+            {'$project': {
+                (self.current_date if use_date else self.current_month): 1, 
+                '_id': 0
+            }}
         ])
         result_list = list(result)
         ticket_count = result_list[0].get(self.current_month, 0) if len(result_list) > 0 else 0
@@ -86,7 +90,7 @@ class ChatLogger(BaseModel):
             return True
         if self.is_paying_user():
             return self.get_ticket_count() >= 120
-        return self.get_ticket_count() >= 5
+        return self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) >= 2
 
 
 def discord_log_error(content):
