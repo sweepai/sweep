@@ -2,8 +2,17 @@
 <html>
 <head>
     <title>Main Application</title>
+    <script>
+        function personalizeMessage() {
+            var name = prompt("Please enter your name");
+            if (name != null) {
+                document.getElementById("welcome").innerHTML = "Welcome to the Main Application, " + name + "!";
+            }
+        }
+    </script>
 </head>
 <body>
-    <h1>Welcome to the Main Application!</h1>
+    <h1 id="welcome">Welcome to the Main Application!</h1>
+    <button onclick="personalizeMessage()">Personalize Message</button>
 </body>
 </html>
