@@ -1,6 +1,6 @@
 import modal
 from loguru import logger
-from sweepai.utils.config.server import DOCS_MODAL_INST_NAME
+from sweepai.config.server import DOCS_MODAL_INST_NAME
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.documentation import DOCS_ENDPOINTS
