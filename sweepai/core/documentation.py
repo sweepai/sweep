@@ -184,7 +184,7 @@ def daily_update():
     secrets=secrets,
     keep_warm=1,
 )
-def search_vector_store(doc_url, query, k=10):
+def search_vector_store(doc_url, query, k=5):
     logger.info(f'Searching for "{query}" in {doc_url}')
     idx_name = remove_non_alphanumeric(doc_url)
     vector_store = VectorStore(
