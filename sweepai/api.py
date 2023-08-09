@@ -495,6 +495,11 @@ async def webhook(raw_request: Request):
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
 
+@modal.web_endpoint(method="GET")
+async def navbar():
+    """Endpoint to serve the navbar HTML file."""
+    return FileResponse("quiz_app/templates/navbar.html")
+
 @stub.function(**FUNCTION_SETTINGS)
 def update_sweep_prs(
     repo_full_name: str,
