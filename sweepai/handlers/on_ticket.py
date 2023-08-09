@@ -125,6 +125,8 @@ def on_ticket(
     # 4. Get file changes
     # 5. Create PR
 
+    organization, repo_name = repo_full_name.split("/")
+    
     chat_logger = ChatLogger({
         'repo_name': repo_name,
         'title': title,
@@ -139,9 +141,10 @@ def on_ticket(
     })
 
     is_paying_user = chat_logger.is_paying_user()
-    use_faster_model = chat_logger.use_faster_model()
-
-    organization, repo_name = repo_full_name.split("/")
+    logger.info(f"Getting repo {repo_full_name}")
+    repo = g.get_repo(repo_full_name)
+    current_issue = repo.get_issue(number=issue_number)
+    item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
     replies_text = ""
     comments = list(current_issue.get_comments())
     if comment_id:
