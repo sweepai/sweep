@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.Razor.Design" Version="0.0.3.2" PrivateAssets="All" />
+    <!-- Added packages for handling Excel files and Google Drive API -->
+    <PackageReference Include="EPPlus" Version="5.7.5" />
+    <PackageReference Include="Google.Apis.Drive.v3" Version="1.55.0.2353" />
+  </ItemGroup>
+
+</Project>
