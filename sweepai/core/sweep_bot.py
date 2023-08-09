@@ -288,11 +288,18 @@ class GithubBot(BaseModel):
 
 class SweepBot(CodeGenBot, GithubBot):
     def handle_snake_game(self, game_state):
-        # TODO: Implement the game logic here
-        # Move the snake
-        # Reduce the user's contributions each time the snake 'eats' a contribution
+        # Instantiate the SnakeGame class with the current game state
+        snake_game = SnakeGame(game_state)
+        # Get the direction of the next move from the game state
+        direction = game_state.get('direction', 'up')
+        # Make the move
+        new_game_state = snake_game.make_move(direction)
+        # Check if the snake 'eats' a contribution
+        if snake_game.check_eaten():
+            # Reduce the user's contributions in the new game state
+            new_game_state['remaining_contributions'][snake_game.snake_position[-1]] -= 1
         # Return the new game state
-        pass
+        return new_game_state
 
     def create_file(self, file_change_request: FileChangeRequest, branch: str):
         file_change: FileCreation | None = None
