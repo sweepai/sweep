@@ -498,7 +498,10 @@ async def webhook(raw_request: Request):
 @modal.web_endpoint(method="GET")
 async def navbar():
     """Endpoint to serve the navbar HTML file."""
-    return FileResponse("quiz_app/templates/navbar.html")
+    try:
+        return FileResponse("quiz_app/templates/navbar.html")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Navbar file not found")
 
 @stub.function(**FUNCTION_SETTINGS)
 def update_sweep_prs(
