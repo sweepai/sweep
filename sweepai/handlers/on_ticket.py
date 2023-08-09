@@ -142,6 +142,19 @@ def on_ticket(
     use_faster_model = chat_logger.use_faster_model()
 
     organization, repo_name = repo_full_name.split("/")
+    replies_text = ""
+    comments = list(current_issue.get_comments())
+    if comment_id:
+        logger.info(f"Replying to comment {comment_id}...")
+        replies_text = "\nComments:\n" + "\n".join(
+            [
+                issue_comment_prompt.format(
+                    username=comment.user.login,
+                    reply=comment.body,
+                ) for comment in comments if comment.user.type == "User"
+            ]
+        )
+    summary = summary if summary else ""
     metadata = {
         "issue_url": issue_url,
         "repo_name": repo_name,
@@ -165,19 +178,6 @@ def on_ticket(
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
-    replies_text = ""
-    comments = list(current_issue.get_comments())
-    if comment_id:
-        logger.info(f"Replying to comment {comment_id}...")
-        replies_text = "\nComments:\n" + "\n".join(
-            [
-                issue_comment_prompt.format(
-                    username=comment.user.login,
-                    reply=comment.body,
-                ) for comment in comments if comment.user.type == "User"
-            ]
-        )
-    summary = summary if summary else ""
 
     # Check if branch was already created for this issue
     preexisting_branch = None
