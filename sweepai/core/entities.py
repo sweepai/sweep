@@ -332,3 +332,9 @@ class MockPR(BaseModel):
     def create_review(self, *args, **kwargs):
         # Todo: used to prevent erroring in on_review.py file
         pass
+
+class User(BaseModel):
+    """Represent a registered user in the system."""
+    username: str
+    password: str
+    # TODO: Add any other necessary fields here
