@@ -138,6 +138,9 @@ def on_ticket(
         "comment_id": comment_id,
     })
 
+    is_paying_user = chat_logger.is_paying_user()
+    use_faster_model = chat_logger.use_faster_model()
+
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
@@ -146,7 +149,8 @@ def on_ticket(
         "username": username,
         "installation_id": installation_id,
         "function": "on_ticket",
-        "tier": "",
+        "model": "gpt-3.5" if use_faster_model else "gpt-4",
+        "tier": "pro" if is_paying_user else "free",
         "mode": PREFIX,
     }
     posthog.capture(username, "started", properties=metadata)
@@ -206,7 +210,6 @@ def on_ticket(
 
     # Find the first comment made by the bot
     issue_comment = None
-    is_paying_user = chat_logger.is_paying_user()
     tickets_allocated = 120 if is_paying_user else 5
     ticket_count = max(tickets_allocated - chat_logger.get_ticket_count(), 0)
     use_faster_model = chat_logger.use_faster_model()
