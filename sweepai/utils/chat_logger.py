@@ -74,6 +74,8 @@ class ChatLogger(BaseModel):
         ])
         result_list = list(result)
         ticket_count = result_list[0].get(tracking_date, 0) if len(result_list) > 0 else 0
+        if ticket_count < 0:
+            ticket_count = 0
         logger.info(f'Ticket Count for {username} {ticket_count}')
         return ticket_count
 
