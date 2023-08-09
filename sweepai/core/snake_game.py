@@ -1,6 +1,7 @@
 class SnakeGame:
     def __init__(self, initial_state):
         self.game_state = initial_state
+        self.snake_position = self.game_state.get('snake_position', [])
 
     def initialize(self):
         # Initialize the game state
