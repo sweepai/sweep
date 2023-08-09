@@ -212,6 +212,7 @@ def get_num_files_from_repo(repo: Repository, installation_id: str):
     git_repo = Repo.clone_from(repo_url, "repo")
     git_repo.git.checkout(SweepConfig.get_branch(repo))
     file_list = get_file_list("repo")
+    shutil.rmtree("repo", ignore_errors=True)
     return len(file_list)
 
 def search_snippets(
