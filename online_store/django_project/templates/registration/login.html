@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+    <!-- Include Vue.js -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+</head>
+<body>
+    <div id="app">
+        <form @submit.prevent="submitForm">
+            <label for="username">Username:</label>
+            <input id="username" v-model="username" type="text" required>
+
+            <label for="password">Password:</label>
+            <input id="password" v-model="password" type="password" required>
+
+            <button type="submit">Login</button>
+        </form>
+    </div>
+
+    <script>
+        new Vue({
+            el: '#app',
+            data: {
+                username: '',
+                password: ''
+            },
+            methods: {
+                submitForm() {
+                    // Handle form submission
+                }
+            }
+        });
+    </script>
+</body>
+</html>
