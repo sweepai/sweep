@@ -4,6 +4,7 @@ from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
 from sweepai.core.entities import PRChangeRequest
+from django.contrib.auth.views import LoginView, LogoutView, PasswordChangeView, PasswordChangeDoneView
 
 from sweepai.events import (
     CheckRunCompleted,
@@ -508,6 +509,20 @@ async def webhook(raw_request: Request):
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
+    
+    @stub.function(**FUNCTION_SETTINGS)
+    @modal.web_endpoint(method="POST")
+    async def register(request: Request):
+        """Handle a user registration request."""
+        # TODO: Implement user registration logic here
+        return {"success": True}
+    
+    @stub.function(**FUNCTION_SETTINGS)
+    @modal.web_endpoint(method="POST")
+    async def login(request: Request):
+        """Handle a user login request."""
+        # TODO: Implement user login logic here
+        return {"success": True}
 
 @stub.function(**FUNCTION_SETTINGS)
 def update_sweep_prs(
