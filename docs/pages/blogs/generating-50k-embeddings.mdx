@@ -4,7 +4,7 @@ author: Lucas Jaggernauth
 
 # **Generating 50k+ embeddings in 25 seconds using GTE 🧠 and MapReduce 💻**
 
-**Lucas Jaggernauth** - August 9th, 2023
+**Lucas Jaggernauth** - August 6th, 2023
 
 ---
 
@@ -42,7 +42,7 @@ In the case of Airbyte, with thousands of files and hundreds of thousands of sni
 
 ## Newer Model
 
-GTE, a newly released state-of-the-art model, is a great model for code search and analysis. In fact, its performance is so great that it is currently ranked first on the Hugging Face MTEB Leaderboard (at the time of writing) despite its relatively small size. In fact, GTE-small offers the same performance as E5-base, even though it is 19x smaller. GTE-base and GTE-large both outcompete almost every other model, including all of the pre-trained models offered by the SentenceTransformer library.
+[GTE](https://huggingface.co/thenlper/gte-base), a newly released state-of-the-art model, is a great model for code search and analysis. In fact, its performance is so great that it is currently ranked first on the [Hugging Face MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) (at the time of writing) despite its relatively small size. In fact, GTE-small offers the same performance as E5-base, even though it is 19x smaller. GTE-base and GTE-large both outcompete almost every other model, including all of the pre-trained models offered by the [SentenceTransformer library](https://www.sbert.net/).
 
 Additionally, upgrading the model used by SentenceTransformer is as easy as changing this:
 ```python
@@ -72,7 +72,7 @@ With this, we no longer need to recalculate the embeddings for every file. Even 
 
 When it came to Airbyte’s 15,000+ files, the transformation was truly remarkable. The entire process of generating embeddings took significantly less time, going from 20 minutes to 3 minutes. Further, embeddings are no longer needlessly generated each time with the help of the Redis Cache, allowing for the embeddings to become available in mere seconds.
 
-<img src="https://github.com/sweepai/sweep/blob/2b85aebb87199f19c5a1e6b6c6ac5ec0cc36b8b8/.assets/airbyte_embedding_speed.png"></img>
+<img src="https://github.com/sweepai/sweep/blob/2b85aebb87199f19c5a1e6b6c6ac5ec0cc36b8b8/.assets/airbyte_embedding_speed.png?raw=true"></img>
 
 ## Pitfalls
 
