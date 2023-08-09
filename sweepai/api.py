@@ -4,7 +4,6 @@ from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
 from sweepai.core.entities import PRChangeRequest
-from sweepai.core.documentation import write_documentation
 
 from sweepai.events import (
     CheckRunCompleted,
@@ -20,7 +19,7 @@ from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.config.server import DB_MODAL_INST_NAME, API_MODAL_INST_NAME, GITHUB_BOT_USERNAME, \
+from sweepai.utils.config.server import DB_MODAL_INST_NAME, API_MODAL_INST_NAME, DOCS_MODAL_INST_NAME, GITHUB_BOT_USERNAME, \
     GITHUB_LABEL_NAME, GITHUB_LABEL_COLOR, GITHUB_LABEL_DESCRIPTION, BOT_TOKEN_NAME
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
@@ -82,6 +81,7 @@ handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
 handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr_changes)
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
+write_documentation = modal.Function.lookup(DOCS_MODAL_INST_NAME, "write_documentation")
 
 
 @stub.function(**FUNCTION_SETTINGS)
@@ -472,19 +472,22 @@ async def webhook(raw_request: Request):
                         request_dict["repository"]["full_name"],
                         installation_id=request_dict["installation"]["id"],
                     )
-                # Check if the pull request is merged and contains the sweep.yaml file
-                if pr_request.pull_request.merged and 'sweep.yaml' in [file.filename for file in pr_request.pull_request.get_files()]:
-                    # Parse the "docs" field from the sweep.yaml file
-                    import yaml
-                    sweep_yaml_content = [file.decoded_content for file in pr_request.pull_request.get_files() if file.filename == 'sweep.yaml'][0]
-                    sweep_yaml = yaml.safe_load(sweep_yaml_content)
-                    docs = sweep_yaml.get('docs', {})
-                    # Call the write_documentation function for each of the existing fields in the "docs" mapping
-                    for doc_name, doc_url in docs.items():
-                        write_documentation(doc_name)
             case "push", None:
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
                     chat_logger = ChatLogger({"username": request_dict["pusher"]["name"]})
+                    if "sweep.yaml" in request_dict["head_commit"]["added"] or \
+                        "sweep.yaml" in request_dict["head_commit"]["modified"]:
+                        import yaml
+                        _, g = get_github_client(request_dict["installation"]["id"])
+                        repo = g.get_repo(request_dict["repository"]["full_name"])
+                        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode("utf-8")
+                        sweep_yaml = yaml.safe_load(sweep_yaml_content)
+                        docs = sweep_yaml.get('docs', {})
+                        logger.info(f"Sweep.yaml docs: {docs}")
+                        # Call the write_documentation function for each of the existing fields in the "docs" mapping
+                        for _, doc_url in docs.items():
+                            logger.info(f"Writing documentation for {doc_url}")
+                            write_documentation.spawn(doc_url)
                     # this makes it faster for everyone because the queue doesn't get backed up
                     if chat_logger.is_paying_user():
                         update_index.spawn(
