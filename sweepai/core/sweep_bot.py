@@ -287,7 +287,14 @@ class GithubBot(BaseModel):
 
 
 class SweepBot(CodeGenBot, GithubBot):
-    def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
+    def handle_snake_game(self, game_state):
+        # TODO: Implement the game logic here
+        # Move the snake
+        # Reduce the user's contributions each time the snake 'eats' a contribution
+        # Return the new game state
+        pass
+
+    def create_file(self, file_change_request: FileChangeRequest, branch: str):
         file_change: FileCreation | None = None
         for count in range(5):
             key = f"file_change_created_{file_change_request.filename}"
