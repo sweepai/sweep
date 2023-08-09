@@ -7,7 +7,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
-from sweepai.utils.config.server import MONGODB_URI, DISCORD_WEBHOOK_URL
+from sweepai.config.server import MONGODB_URI, DISCORD_WEBHOOK_URL
 
 
 class ChatLogger(BaseModel):
