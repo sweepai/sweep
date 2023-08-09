@@ -89,15 +89,15 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5)
 
 
 def on_ticket(
-        title: str,
-        summary: str,
-        issue_number: int,
-        issue_url: str,
-        username: str,
-        repo_full_name: str,
-        repo_description: str,
-        installation_id: int,
-        comment_id: int = None
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int = None
 ):
     # Check if the title starts with "sweep" or "sweep: " and remove it
     slow_mode = False
@@ -125,6 +125,19 @@ def on_ticket(
     # 4. Get file changes
     # 5. Create PR
 
+    chat_logger = ChatLogger({
+        'repo_name': repo_name,
+        'title': title,
+        'summary': summary + replies_text,
+        "issue_number": issue_number,
+        "issue_url": issue_url,
+        "username": username,
+        "repo_full_name": repo_full_name,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "comment_id": comment_id,
+    })
+
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
@@ -133,6 +146,7 @@ def on_ticket(
         "username": username,
         "installation_id": installation_id,
         "function": "on_ticket",
+        "tier": "",
         "mode": PREFIX,
     }
     posthog.capture(username, "started", properties=metadata)
@@ -160,18 +174,6 @@ def on_ticket(
             ]
         )
     summary = summary if summary else ""
-    chat_logger = ChatLogger({
-        'repo_name': repo_name,
-        'title': title,
-        'summary': summary + replies_text,
-        "issue_number": issue_number,
-        "issue_url": issue_url,
-        "username": username,
-        "repo_full_name": repo_full_name,
-        "repo_description": repo_description,
-        "installation_id": installation_id,
-        "comment_id": comment_id,
-    })
 
     # Check if branch was already created for this issue
     preexisting_branch = None
