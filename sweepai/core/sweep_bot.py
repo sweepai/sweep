@@ -291,6 +291,9 @@ class SweepBot(CodeGenBot, GithubBot):
     def handle_snake_game(self, game_state):
         # Instantiate the SnakeGame class with the current game state
         snake_game = SnakeGame(game_state)
+        # Check if snake_position is initialized
+        if snake_game.snake_position is None:
+            raise Exception("snake_position is not initialized.")
         # Get the direction of the next move from the game state
         direction = game_state.get('direction', 'up')
         # Make the move
