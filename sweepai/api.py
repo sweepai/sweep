@@ -129,9 +129,9 @@ def function_call_is_completed(call_id: str):
     if call_id == "0":
         return True
 
-app.include_router(ecommerce_api)
+from modal.functions import FunctionCall
 
-    from modal.functions import FunctionCall
+app.include_router(ecommerce_api)
 
     function_call = FunctionCall.from_id(call_id)
     try:
