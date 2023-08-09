@@ -96,7 +96,7 @@ export function PRReview({ repoName, prId }) {
     }, [repoName, prId]);
 
     if (!prData) {
-        return <div>Loading...</div>;
+        return <div>{`https://github.com/${repoName}/pulls/${prId}`}</div>;
     }
 
     const numberDaysAgoMerged = Math.round((new Date() - new Date(prData.merged_at)) / (1000 * 60 * 60 * 24))
@@ -197,6 +197,7 @@ export function PRReview({ repoName, prId }) {
 
 export function RepoPreview({ repoName, displayName=null }) {
     const [repoData, setRepoData] = useState(null)
+    const headers = {}
 
     if (!displayName) {
         displayName = repoName.split("/")[1]
@@ -214,7 +215,7 @@ export function RepoPreview({ repoName, displayName=null }) {
     }, [repoName])
 
     if (!repoData) {
-        return <div>Loading...</div>
+        return <div>{repoName}</div>
     }
 
     const star_count = repoData.stargazers_count
