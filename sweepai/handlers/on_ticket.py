@@ -89,15 +89,15 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5)
 
 
 def on_ticket(
-        title: str,
-        summary: str,
-        issue_number: int,
-        issue_url: str,
-        username: str,
-        repo_full_name: str,
-        repo_description: str,
-        installation_id: int,
-        comment_id: int = None
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int = None
 ):
     # Check if the title starts with "sweep" or "sweep: " and remove it
     slow_mode = False
@@ -125,6 +125,24 @@ def on_ticket(
     # 4. Get file changes
     # 5. Create PR
 
+    repo_name = repo_full_name
+
+    chat_logger = ChatLogger({
+        'repo_name': repo_name,
+        'title': title,
+        'summary': summary,
+        "issue_number": issue_number,
+        "issue_url": issue_url,
+        "username": username,
+        "repo_full_name": repo_full_name,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "comment_id": comment_id,
+    })
+
+    is_paying_user = chat_logger.is_paying_user()
+    use_faster_model = chat_logger.use_faster_model()
+
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
@@ -133,6 +151,8 @@ def on_ticket(
         "username": username,
         "installation_id": installation_id,
         "function": "on_ticket",
+        "model": "gpt-3.5" if use_faster_model else "gpt-4",
+        "tier": "pro" if is_paying_user else "free",
         "mode": PREFIX,
     }
     posthog.capture(username, "started", properties=metadata)
@@ -160,18 +180,6 @@ def on_ticket(
             ]
         )
     summary = summary if summary else ""
-    chat_logger = ChatLogger({
-        'repo_name': repo_name,
-        'title': title,
-        'summary': summary + replies_text,
-        "issue_number": issue_number,
-        "issue_url": issue_url,
-        "username": username,
-        "repo_full_name": repo_full_name,
-        "repo_description": repo_description,
-        "installation_id": installation_id,
-        "comment_id": comment_id,
-    })
 
     # Check if branch was already created for this issue
     preexisting_branch = None
@@ -204,19 +212,18 @@ def on_ticket(
 
     # Find the first comment made by the bot
     issue_comment = None
-    is_paying_user = chat_logger.is_paying_user()
     tickets_allocated = 120 if is_paying_user else 5
     ticket_count = max(tickets_allocated - chat_logger.get_ticket_count(), 0)
-    use_faster_model = chat_logger.use_faster_model()
 
     slow_mode = slow_mode and not use_faster_model
 
     model_name = "GPT-3.5" if use_faster_model else "GPT-4"
     payment_link = "https://buy.stripe.com/6oE5npbGVbhC97afZ4"
+    daily_message = f" and {chat_logger.get_ticket_count(use_date=True)} for the day" if not is_paying_user else ""
     user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
-    payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
-    slow_mode_status = "using slow mode" if slow_mode else ""
-    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name} {slow_mode_status}. You have {ticket_count} GPT-4 tickets left." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
+    payment_message = f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left for the month{daily_message}." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
+    slow_mode_status = " using slow mode" if slow_mode else " "
+    payment_message_start = f"{user_type}: I'm creating this ticket using {model_name}{slow_mode_status}. You have {ticket_count} GPT-4 tickets left{daily_message}." + (f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})" if not is_paying_user else "")
     def get_comment_header(index, errored=False, pr_message=""):
         config_pr_message = (
             "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})" if config_pr_url is not None else ""
@@ -225,7 +232,8 @@ def on_ticket(
         if index < 0: index = 0
         if index == 6:
             return pr_message + config_pr_message
-        index *= 20
+        index *= 100 / len(progress_headers)
+        index = int(index)
         index = min(100, index)
         if errored:
             return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
