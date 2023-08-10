@@ -456,11 +456,19 @@ class SweepBot(CodeGenBot, GithubBot):
             if changed_file:
                 completed += 1
         return completed, num_fcr
-    
+
+    @staticmethod
+    def is_blocked(file_path: str, blocked_dirs: list[str]):
+        for blocked_dir in blocked_dirs:
+            if file_path.startswith(blocked_dir) and len(blocked_dir) > 0:
+                return True
+        return False
+
     def change_files_in_github_iterator(
             self,
             file_change_requests: list[FileChangeRequest],
             branch: str,
+            blocked_dirs: list[str],
     ):
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
@@ -472,6 +480,10 @@ class SweepBot(CodeGenBot, GithubBot):
         for file_change_request in file_change_requests:
             changed_file = False
             try:
+                if self.is_blocked(file_change_request.filename, blocked_dirs):
+                    logger.info(f"Skipping {file_change_request.filename} because it is blocked.")
+                    continue
+
                 if file_change_request.change_type == "create":
                     changed_file = self.handle_create_file(file_change_request, branch)
                 elif file_change_request.change_type == "modify":

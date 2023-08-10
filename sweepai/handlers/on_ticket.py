@@ -384,7 +384,6 @@ def on_ticket(
         human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger
     )
 
-    blocked_dirs = get_excluded_dirs(repo)
     # Check repository for sweep.yml file.
     sweep_yml_exists = False
     for content_file in repo.get_contents(""):
