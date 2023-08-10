@@ -5,6 +5,7 @@ from typing import ClassVar, Literal, Type, TypeVar, Any
 from github.Branch import Branch
 from loguru import logger
 from pydantic import BaseModel
+from sweepai.utils.file_change_functions import identify_dart_files, run_dart_analyzer, parse_dart_analyzer_output
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
@@ -128,18 +129,27 @@ class FileChangeRequest(RegexMatchableBaseModel):
     filename: str
     instructions: str
     change_type: Literal["modify"] | Literal["create"]
+    dart_files: list[str] = []
+    changes: dict[str, str] = {}
 
     @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
+    def from_string(cls: Type[Self], string: str, repo_path: str, **kwargs) -> Self:
         colon_idx = string.find(':')
         file_name = string[:colon_idx]
         instructions = string[colon_idx + 1:]
         file_name = clean_filename(file_name)
         instructions = clean_instructions(instructions)
         file_name = file_name.lstrip('/')
+        dart_files = identify_dart_files(repo_path)
+        changes = {}
+        for dart_file in dart_files:
+            output = run_dart_analyzer(dart_file)
+            changes[dart_file] = parse_dart_analyzer_output(output)
         res = FileChangeRequest(filename=file_name,
                                 instructions=instructions,
-                                change_type="modify")
+                                change_type="modify",
+                                dart_files=dart_files,
+                                changes=changes)
         return res
 
 

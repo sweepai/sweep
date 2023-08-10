@@ -1,3 +1,7 @@
+import os
+import subprocess
+import re
+
 from loguru import logger
 
 from sweepai.core.chat import Function
@@ -44,6 +48,23 @@ modify_file_function = Function(
     }
 )
 
+
+def identify_dart_files(repo_path):
+    dart_files = []
+    for root, dirs, files in os.walk(repo_path):
+        for file in files:
+            if file.endswith('.dart'):
+                dart_files.append(os.path.join(root, file))
+    return dart_files
+
+def run_dart_analyzer(dart_file):
+    result = subprocess.run(['dart', 'analyze', dart_file], stdout=subprocess.PIPE)
+    return result.stdout.decode()
+
+def parse_dart_analyzer_output(output):
+    pattern = r'info \• Add const modifier \• (.*) \• \(prefer_const_constructors\)'
+    matches = re.findall(pattern, output)
+    return matches
 
 def apply_code_edits(file_contents, code_edits):
     modifications = []
@@ -98,4 +119,4 @@ def apply_code_edits(file_contents, code_edits):
             end_line = len(lines) - 1
         new_code = [indents + line for line in new_code]
         lines[start_line:end_line + 1] = new_code  # Start and end are inclusive
-    return '\n'.join(lines)
+    return '\n'.join(lines) + '\n'

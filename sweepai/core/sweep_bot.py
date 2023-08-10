@@ -116,7 +116,7 @@ class CodeGenBot(ChatGPT):
                     logger.debug(change_type)
                     file_change_requests.append(
                         FileChangeRequest.from_string(
-                            file_change_request, change_type=change_type
+                            file_change_request, repo_path=self.repo.path, change_type=change_type
                         )
                     )
                 # Create a dictionary to hold file names and their corresponding instructions
