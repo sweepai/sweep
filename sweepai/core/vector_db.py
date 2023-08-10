@@ -38,7 +38,7 @@ DISKCACHE_DIR = "/root/cache/diskcache/"
 DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 128
 SENTENCE_TRANSFORMERS_MODEL = "thenlper/gte-base"
-timeout = 60 * 60  # 30 minutes
+timeout = 60 * 60
 CACHE_VERSION = "v1.0.9"
 MAX_FILES = 500
 CPU = 0.5
@@ -121,7 +121,7 @@ class Embedding:
     network_file_systems={MODEL_DIR: model_volume},
     keep_warm=1,
     retries=modal.Retries(max_retries=5, backoff_coefficient=2, initial_delay=5),
-    cpu=2, # this can change later
+    cpu=2,
     timeout=timeout,
 )
 class CPUEmbedding:
@@ -145,7 +145,7 @@ class CPUEmbedding:
 
 
 class ModalEmbeddingFunction:
-    batch_size: int = 4096 # can pick a better constant later
+    batch_size: int = 4096
 
     def __init__(self):
         pass
@@ -154,13 +154,13 @@ class ModalEmbeddingFunction:
         if len(texts) == 0:
             return []
         if cpu or len(texts) < 10: 
-            return CPUEmbedding.compute.call(texts) # pylint: disable=no-member
+            return CPUEmbedding.compute.call(texts)
         else:
             batches = [texts[i:i + ModalEmbeddingFunction.batch_size] for i in range(0, len(texts), ModalEmbeddingFunction.batch_size)]
             batches = [batch for batch in batches if len(batch) > 0]
             logger.info([len(batch) for batch in batches])
             results = []
-            for batch in tqdm(Embedding.compute.map(batches)): # pylint: disable=no-member
+            for batch in tqdm(Embedding.compute.map(batches)):
                 results.extend(batch)
 
             return results
@@ -185,7 +185,6 @@ def get_deeplake_vs_from_repo(
 
     if REDIS_URL is not None:
         try:
-            # todo: initialize once
             retry = Retry(ExponentialBackoff(), 3)
             cache_inst = Redis.from_url(REDIS_URL, retry=retry, retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError])
             logger.info(f"Successfully connected to redis cache")
@@ -263,7 +262,6 @@ def get_deeplake_vs_from_repo(
                 continue
 
         with open(file, "r") as f:
-            # Can parallelize this
             try:
                 contents = f.read()
                 contents = file + contents
@@ -309,7 +307,6 @@ def get_deeplake_vs_from_repo(
     for batch in chunker.starmap(zip(file_contents_batches, file_paths_batches, scores_batches), kwargs={"additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}}):
         chunked_results.extend(batch)
 
-    # Todo(lukejagg): Should we default return ([], [], []) on empty list?
     documents, metadatas, ids = zip(*chunked_results) if len(chunked_results) > 0 else ([], [], [])
     documents = [item for sublist in documents for item in sublist]
     metadatas = [item for sublist in metadatas for item in sublist]
@@ -335,7 +332,6 @@ def compute_deeplake_vs(collection_name,
     deeplake_vs = init_deeplake_vs(collection_name)
     if len(documents) > 0:
         logger.info("Computing embeddings...")
-        # Check cache here for all documents
         embeddings = [None] * len(documents)
         if cache_inst and cache_success:
             cache_keys = [hash_sha256(
