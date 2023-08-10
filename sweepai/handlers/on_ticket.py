@@ -5,6 +5,7 @@ On Github ticket, get ChatGPT to deal with it
 # TODO: Add file validation
 
 import math
+import re
 import traceback
 import modal
 import openai
@@ -86,6 +87,12 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5)
         result_snippets.append(snippet)
     return result_snippets[:max_num_of_snippets]
 
+def strip_sweep(text: str):
+    return (
+        re.sub(r"^[Ss]weep\s?(\(slow\))?(\(migrate\))?\s?:", "", text).lstrip(), 
+        re.search(r"^[Ss]weep\s?\(slow\)", text) is not None, 
+        re.search(r"^[Ss]weep\s?\(migrate\)", text) is not None
+    )
 
 def on_ticket(
     title: str,
@@ -98,24 +105,7 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None
 ):
-    # Check if the title starts with "sweep" or "sweep: " and remove it
-    slow_mode = False
-    if title.lower().startswith("sweep: "):
-        title = title[7:]
-    elif title.lower().startswith("sweep "):
-        title = title[6:]
-    elif title.lower().startswith("sweep(slow): "):
-        title = title[13:]
-        slow_mode = True
-    elif title.lower().startswith("sweep(slow) "):
-        title = title[12:]
-        slow_mode = True
-    elif title.lower().startswith("sweep (slow): "):
-        title = title[14:]
-        slow_mode = True
-    elif title.lower().startswith("sweep (slow) "):
-        title = title[13:]
-        slow_mode = True
+    title, slow_mode, migrate = strip_sweep(title)
 
     # Flow:
     # 1. Get relevant files
