@@ -52,7 +52,6 @@ class SweepConfig(BaseModel):
             return default_branch
 
 
-@staticmethod
 @lru_cache(maxsize=None)
 def get_gha_enabled(repo: Repository) -> bool:
     try:
@@ -71,7 +70,6 @@ def get_gha_enabled(repo: Repository) -> bool:
         gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("gha_enabled", True)
         return gha_enabled
 
-@staticmethod
 @lru_cache(maxsize=None)
 def get_description(repo: Repository) -> str:
     try:
@@ -81,7 +79,6 @@ def get_description(repo: Repository) -> str:
     except Exception as e:
         return ""
 
-@staticmethod
 @lru_cache(maxsize=None)
 def get_sandbox_enabled(repo: Repository) -> bool:
     # try:
@@ -92,7 +89,6 @@ def get_sandbox_enabled(repo: Repository) -> bool:
     #     return False
     return False
 
-@staticmethod
 @lru_cache(maxsize=None)
 def get_documentation_dict(repo: Repository):
     try:
@@ -103,6 +99,17 @@ def get_documentation_dict(repo: Repository):
     except Exception as e:
         logger.warning(f"Error when getting docs: {e}, returning empty dict")
         return {}
+
+@lru_cache(maxsize=None)
+def get_excluded_dirs(repo: Repository):
+    try:
+        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode("utf-8")
+        sweep_yaml = yaml.safe_load(sweep_yaml_content)
+        dirs = sweep_yaml.get('excluded_dirs', [])
+        return dirs
+    except Exception as e:
+        logger.warning(f"Error when getting docs: {e}, returning empty dict")
+        return []
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get('GITHUB_APP_CLIENT_ID', 'Iv1.91fd31586a926a9f')

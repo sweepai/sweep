@@ -67,3 +67,6 @@ class Sandbox(BaseModel):
 
     async def create_python_venv(self):
         await self.run_command(GIT_PASS.format(token=self.token), path="/code")
+
+    async def close(self):
+        await self.session.close()
