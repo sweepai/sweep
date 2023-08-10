@@ -295,7 +295,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 create_file_prompt.format(
                     filename=file_change_request.filename,
                     instructions=file_change_request.instructions,
-                    commit_message=f"Create {file_change_request.filename}"
+                    # commit_message=f"Create {file_change_request.filename}"
                 ),
                 message_key=key,
             )
@@ -304,8 +304,13 @@ class SweepBot(CodeGenBot, GithubBot):
             # self.delete_file_from_system_message(file_path=file_change_request.filename)
             try:
                 file_change = FileCreation.from_string(create_file_response)
+                commit_message_match = re.search("Commit message: \"(?P<commit_message>.*)\"", create_file_response)
+                if commit_message_match:
+                    file_change.commit_message = commit_message_match.group("commit_message")
+                else:
+                    file_change.commit_message = f"Create {file_change_request.filename}"
                 assert file_change is not None
-                file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
+                # file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
 
                 self.delete_messages_from_chat(key_to_delete=key)
 
@@ -378,6 +383,12 @@ class SweepBot(CodeGenBot, GithubBot):
                 new_file = generate_new_file_from_patch(modify_file_response, contents, chunk_offset=chunk_offset)
                 new_file = format_contents(new_file, file_markdown)
 
+                commit_message_match = re.search("Commit message: \"(?P<commit_message>.*)\"", modify_file_response)
+                if commit_message_match:
+                    commit_message = commit_message_match.group("commit_message")
+                else:
+                    commit_message = f"Updated {file_change_request.filename}"
+
                 self.delete_messages_from_chat(key)
 
                 proposed_diffs = get_all_diffs(modify_file_response)
@@ -403,7 +414,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 if contents.endswith("\n"):
                     final_file += "\n"
                 
-                return new_file
+                return new_file, commit_message
             except Exception as e:
                 tb = traceback.format_exc()
                 logger.warning(f"Failed to parse. Retrying for the {count}th time. Recieved error {e}\n{tb}")
@@ -503,7 +514,7 @@ class SweepBot(CodeGenBot, GithubBot):
             return False
 
     def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str,
-                           commit_message: str = "Updated {file_name}"):
+                           commit_message: str = None):
         CHUNK_SIZE = 800  # Number of lines to process at a time
         try:
             file = self.get_file(file_change_request.filename, branch=branch)
@@ -518,7 +529,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     chunking = len(lines) > CHUNK_SIZE * 1.5  # Only chunk if the file is large enough
                     file_name = file_change_request.filename
                     if not chunking:
-                        new_file_contents = self.modify_file(
+                        new_file_contents, suggested_commit_message = self.modify_file(
                                 file_change_request, 
                                 contents="\n".join(lines), 
                                 branch=branch, 
@@ -526,6 +537,8 @@ class SweepBot(CodeGenBot, GithubBot):
                                 chunking=chunking,
                                 chunk_offset=0
                             )
+                        commit_message = suggested_commit_message
+                        # commit_message = commit_message or suggested_commit_message
                     else:
                         for i in range(0, len(lines), CHUNK_SIZE):
                             chunk_contents = "\n".join(lines[i:i + CHUNK_SIZE])
@@ -533,7 +546,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             if not EditBot().should_edit(issue=file_change_request.instructions, snippet=chunk_contents):
                                 new_chunk = chunk_contents
                             else:
-                                new_chunk = self.modify_file(
+                                new_chunk, suggested_commit_message = self.modify_file(
                                     file_change_request, 
                                     contents=chunk_contents, 
                                     branch=branch, 
@@ -541,6 +554,8 @@ class SweepBot(CodeGenBot, GithubBot):
                                     chunking=chunking,
                                     chunk_offset=i
                                 )
+                                # commit_message = commit_message or suggested_commit_message
+                                commit_message = suggested_commit_message
                             if i + CHUNK_SIZE < len(lines):
                                 new_file_contents += new_chunk + "\n"
                             else:
@@ -553,13 +568,14 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.warning(f"No changes made to {file_change_request.filename}. Skipping file update.")
                 return False
             logger.debug(
-                f"{file_name}, {commit_message.format(file_name=file_name)}, {new_file_contents}, {branch}"
+                f"{file_name}, {commit_message}, {new_file_contents}, {branch}"
             )
             # Update the file with the new contents after all chunks have been processed
             try:
                 self.repo.update_file(
                     file_name,
-                    commit_message.format(file_name=file_name),
+                    # commit_message.format(file_name=file_name),
+                    commit_message,
                     new_file_contents,
                     file.sha,
                     branch=branch,
@@ -570,7 +586,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 file = self.get_file(file_change_request.filename, branch=branch)
                 self.repo.update_file(
                     file_name,
-                    commit_message.format(file_name=file_name),
+                    # commit_message.format(file_name=file_name),
+                    commit_message,
                     new_file_contents,
                     file.sha,
                     branch=branch,
