@@ -490,7 +490,7 @@ def on_ticket(
             message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
             edit_sweep_comment(message, 4)
         if not response or not response["success"]:
-            raise Exception(f"Failed to create PR: {response['error']}")
+            raise Exception(f"Failed to create PR: {response.get('error')}")
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
