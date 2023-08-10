@@ -1,4 +1,4 @@
-name: Bugfix
+name: Bugfix (Don't use this unless you want to change our repository. Sweep runs in your own repository)
 title: 'Sweep: '
 description: Write something like "We notice ... behavior when ... happens instead of ...""
 labels: sweep
