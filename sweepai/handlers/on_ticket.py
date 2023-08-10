@@ -473,7 +473,7 @@ def on_ticket(
         message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
         logger.info(files_progress)
         edit_sweep_comment(message, 4)
-        response = None
+        response = {"error": NoFilesException()}
         for item in generator:
             if isinstance(item, dict):
                 response = item
@@ -489,7 +489,7 @@ def on_ticket(
             logger.info(f"Edited {file_change_request.filename}")
             message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
             edit_sweep_comment(message, 4)
-        if not response or not response["success"]:
+        if not response.get("success"):
             raise Exception(f"Failed to create PR: {response.get('error')}")
         pr_changes = response["pull_request"]
 
