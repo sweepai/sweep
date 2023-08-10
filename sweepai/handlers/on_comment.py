@@ -121,7 +121,7 @@ def on_comment(
     })
 
     is_paying_user = chat_logger.is_paying_user()
-    use_faster_model = chat_logger.use_faster_model()
+    use_faster_model = chat_logger.use_faster_model(g)
     
     metadata = construct_metadata(
         repo_full_name, 
