@@ -146,15 +146,22 @@ class FileChangeRequest(RegexMatchableBaseModel):
 class FileCreation(RegexMatchableBaseModel):
     commit_message: str
     code: str
-    _regex = r'''commit_message\s?=\s?"?(?P<commit_message>.*?)"?\n(?P<code>.*)'''
+    _regex = r'''<new_file>(?P<code>.*)</new_file>'''
     # Regex updated to support ``` outside of <new_file> tags
-
-    # _regex = r"""Commit Message:(?P<commit_message>.*)<new_file>(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)$"""
-    # _regex = r"""Commit Message:(?P<commit_message>.*)(<new_file>|```)(python|javascript|typescript|csharp|tsx|jsx)?(?P<code>.*)($|```)"""
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        result = super().from_string(string, **kwargs)
+        # result = super().from_string(string, **kwargs)
+        re_match = re.search(cls._regex, string, re.DOTALL)
+
+        if re_match is None:
+            print(f"Did not match {string} with pattern {cls._regex}")
+            raise ValueError("No <new_file> tags or ``` found in code block")
+        
+        result = cls(
+            code=re_match.groupdict()["code"].strip(),
+            commit_message="Created file",
+        )
 
         first_index = result.code.find("<new_file>")
         if first_index >= 0:
@@ -165,8 +172,6 @@ class FileCreation(RegexMatchableBaseModel):
             if first_index >= 0:
                 last_index = result.code.rfind("```")
                 result.code = result.code[first_index:last_index]
-            else:
-                raise ValueError("No <new_file> tags or ``` found in code block")
 
         result.code = result.code.strip()
         if result.code.endswith("</new_file>"):
@@ -183,6 +188,7 @@ class FileCreation(RegexMatchableBaseModel):
             last_newline = result.code.rfind("\n")
             result.code = result.code[first_newline + 1:]
             result.code = result.code[: last_newline]
+
         result.code += "\n"
         return result
 
