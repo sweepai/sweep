@@ -174,6 +174,23 @@ def get_deeplake_vs_from_repo(
         branch_name: str | None = None,
         sweep_config: SweepConfig = SweepConfig(),
 ):
+    def calculate_score(file_list, file_path, contents, repo_name, branch_name, cache_inst, cache_success):
+        if len(file_list) > MAX_FILES:
+            return (1, 2, 5) # This is a low score
+        try:
+            cache_key = f"{repo_name}-{file_path}-{CACHE_VERSION}"
+            if cache_inst and cache_success:
+                cached_value = cache_inst.get(cache_key)
+                if cached_value:
+                    return json.loads(cached_value)
+            commits = git_repo.iter_commits(paths=file_path, max_count=30)
+            score_factor = get_factors(contents, commits)
+            if cache_inst and cache_success:
+                cache_inst.set(cache_key, json.dumps(score_factor), ex=60 * 60 * 2)
+            return score_factor
+        except Exception as e:
+            logger.warning(f"Received warning during scoring {e}, skipping...")
+            return (1, 2, 5)
     token = get_token(installation_id)
     g = Github(token)
     repo = g.get_repo(repo_name)
@@ -273,26 +290,7 @@ def get_deeplake_vs_from_repo(
             file_path = file[len("repo/"):]
             file_paths.append(file_path)
             file_contents.append(contents)
-            if len(file_list) > MAX_FILES:
-                score_factors.append((1, 2, 5)) # This is a low score
-                continue
-            try:
-                cache_key = f"{repo_name}-{file_path}-{CACHE_VERSION}"
-                if cache_inst and cache_success:
-                    cached_value = cache_inst.get(cache_key)
-                    if cached_value:
-                        score_factor = json.loads(cached_value)
-                        score_factors.append(score_factor)
-                        continue
-                commits = list(repo.get_commits(path=file_path, sha=branch_name))
-                score_factor = get_factors(contents, commits)
-                if cache_inst and cache_success:
-                    cache_inst.set(cache_key, json.dumps(score_factor), ex=60 * 60 * 2)
-                score_factors.append(score_factor)
-            except Exception as e:
-                logger.warning(f"Received warning during scoring {e}, skipping...")
-                score_factors.append((1, 2, 5))
-                continue
+            score_factors.append(calculate_score(file_list, file_path, contents, repo_name, branch_name, cache_inst, cache_success))
     scores = get_scores(score_factors) # take percentiles + sum the scores
 
     logger.info(f"Finished getting list of files, chunking...")
