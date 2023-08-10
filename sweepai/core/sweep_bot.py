@@ -328,6 +328,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_change.code, 
                 )
                 final_file = format_contents(final_file, is_markdown(file_change_request.filename))
+                final_file += "\n"
                 file_change.code = final_file
                 logger.info("Done validating file change request")
 
@@ -411,7 +412,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 final_file = format_contents(final_file, file_markdown)
                 logger.info("Done validating file change request")
 
-                final_file = final_file.rstrip()
                 if contents.endswith("\n"):
                     final_file += "\n"
                 
