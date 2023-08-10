@@ -182,7 +182,7 @@ def on_ticket(
     summary = summary if summary else ""
     total_length = len(title) + len(summary)
     if total_length < 60:
-        raise Exception("The total number of characters in the title and description is less than 60. Please provide more details in the issue.")
+        raise Exception("Please ensure that the combined length of the title and description is at least 60 characters.")
 
     # Check if branch was already created for this issue
     preexisting_branch = None
