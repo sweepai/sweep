@@ -548,7 +548,7 @@ def on_ticket(
 
             logger.info("Running sandbox...")
             loop = asyncio.get_event_loop()
-            loop.run_until_complete(run_sandbox())
+            loop.run_until_complete(run_sandbox(title, summary))
             # Todo(lukejagg): formatter, linter, etc
             # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc)
         except Exception as e:
