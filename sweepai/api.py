@@ -204,11 +204,12 @@ async def webhook(raw_request: Request):
                 if request.issue is not None \
                         and GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels] \
                         and request.comment.user.type == "User" \
+                        and not request.comment.user.login.startswith("sweep") \
                         and not (
                             request.issue.pull_request
                             and request.issue.pull_request.url
                         ):
-                    logger.info("New issue comment created")
+                    logger.info("New issue comment edited")
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
                             request.repository.description or ""
@@ -263,7 +264,10 @@ async def webhook(raw_request: Request):
                         )
             case "issues", "edited":
                 request = IssueRequest(**request_dict)
-                if GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels]:
+                if GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels]\
+                    and request.sender.type == "User"\
+                    and not request.sender.login.startswith("sweep"):
+                    logger.info("New issue edited")
                     handle_ticket.spawn(
                         request.issue.title,
                         request.issue.body,
