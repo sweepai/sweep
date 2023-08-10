@@ -24,7 +24,7 @@ from sweepai.handlers.create_pr import create_pr_changes, create_config_pr, safe
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
-from sweepai.config.client import SweepConfig, get_documentation_dict, get_sandbox_enabled
+from sweepai.config.client import SweepConfig, get_documentation_dict, get_sandbox_enabled, get_excluded_dirs
 from sweepai.config.server import PREFIX, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, OPENAI_API_KEY, \
     GITHUB_BOT_TOKEN, \
     GITHUB_BOT_USERNAME, GITHUB_LABEL_NAME
@@ -129,9 +129,11 @@ def on_ticket(
         "comment_id": comment_id,
     })
 
+    user_token, g = get_github_client(installation_id)
+
     is_paying_user = chat_logger.is_paying_user()
     is_trial_user = chat_logger.is_trial_user()
-    use_faster_model = chat_logger.use_faster_model()
+    use_faster_model = chat_logger.use_faster_model(g)
 
     organization, repo_name = repo_full_name.split("/")
     metadata = {
@@ -146,8 +148,6 @@ def on_ticket(
         "mode": PREFIX,
     }
     posthog.capture(username, "started", properties=metadata)
-
-    user_token, g = get_github_client(installation_id)
 
     logger.info(f"Getting repo {repo_full_name}")
     repo = g.get_repo(repo_full_name)
@@ -384,6 +384,7 @@ def on_ticket(
         human_message=human_message, repo=repo, is_reply=bool(comments), chat_logger=chat_logger
     )
 
+    blocked_dirs = get_excluded_dirs(repo)
     # Check repository for sweep.yml file.
     sweep_yml_exists = False
     for content_file in repo.get_contents(""):
@@ -535,6 +536,7 @@ def on_ticket(
                 await asyncio.wait_for(sandbox.clone_repo(), timeout=60)
                 # Currently only works with Python3 venvs
                 await asyncio.wait_for(sandbox.create_python_venv(), timeout=60)
+                await asyncio.wait_for(sandbox.close(), timeout=15)
 
             logger.info("Running sandbox...")
             loop = asyncio.get_event_loop()
