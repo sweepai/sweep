@@ -539,7 +539,7 @@ def on_ticket(
             if not get_sandbox_enabled(repo):
                 raise Exception("Sandbox is disabled")
 
-            async def run_sandbox():
+            async def run_sandbox(title: str, summary: str):
                 nonlocal sandbox
                 sandbox = await asyncio.wait_for(Sandbox.from_token(username, user_token), timeout=15)
                 await asyncio.wait_for(sandbox.clone_repo(), timeout=60)
@@ -548,7 +548,7 @@ def on_ticket(
 
             logger.info("Running sandbox...")
             loop = asyncio.get_event_loop()
-            loop.run_until_complete(run_sandbox())
+            loop.run_until_complete(run_sandbox(title, summary))
             # Todo(lukejagg): formatter, linter, etc
             # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc)
         except Exception as e:
@@ -621,10 +621,17 @@ def on_ticket(
     except Exception as e:
         logger.error(traceback.format_exc())
         logger.error(e)
-        edit_sweep_comment(
-            "I'm sorry, but it looks like an error has occurred. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev.",
-            -1
-        )
+        # title and summary are defined elsewhere
+        if len(title + summary) < 60:
+            edit_sweep_comment(
+                "I'm sorry, but it looks like an error has occurred due to insufficient information. Be sure to create a more detailed issue so I can better address it. If this error persists contact team@sweep.dev.",
+                -1
+            )
+        else:
+            edit_sweep_comment(
+                "I'm sorry, but it looks like an error has occurred. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev.",
+                -1
+            )
         log_error("Workflow", str(e) + "\n" + traceback.format_exc())
         posthog.capture(
             username,
