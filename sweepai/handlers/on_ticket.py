@@ -52,6 +52,8 @@ collapsible_template = '''
 </details>
 '''
 
+checkbox_template = "- [{check}] `{filename}`\n> {instructions}\n"
+
 chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "chunk")
 
 num_of_snippets_to_query = 30
@@ -459,10 +461,17 @@ def on_ticket(
 
         files_progress = [(file_change_request.filename, file_change_request.instructions, "⏳") for file_change_request in file_change_requests]
 
+        summary = re.sub("Checklist:\n\n- \[[ X]\].*", "", summary)
+
+        checkboxes_progress = [(file_change_request.filename, file_change_request.instructions, " ") for file_change_request in file_change_requests]
+        checkboxes_message = "Checklist:\n\n" + "\n".join([checkbox_template.format(check=check, filename=filename, instructions=instructions.replace("\n", "\n> ")) for filename, instructions, check in checkboxes_progress])
+        issue = repo.get_issue(number=issue_number)
+        issue.edit(body=summary + "\n\n" + checkboxes_message)
+
         generator = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
-        message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
+        table_message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
         logger.info(files_progress)
-        edit_sweep_comment(message, 4)
+        edit_sweep_comment(table_message, 4)
         response = {"error": NoFilesException()}
         for item in generator:
             if isinstance(item, dict):
@@ -473,18 +482,23 @@ def on_ticket(
                 commit_hash = repo.get_branch(pull_request.branch_name).commit.sha
                 commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
                 files_progress = [(file, instructions, f"✅ Commit [`{commit_hash[:7]}`]({commit_url})") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
+
+                checkboxes_progress = [(file, instructions, "X") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in checkboxes_progress]
+                checkboxes_message = "Checklist:\n\n" + "\n".join([checkbox_template.format(check=check, filename=filename, instructions=instructions.replace("\n", "\n> ")) for filename, instructions, check in checkboxes_progress])
+                issue = repo.get_issue(number=issue_number)
+                issue.edit(body=summary + "\n\n" + checkboxes_message)
             else:
                 files_progress = [(file, instructions, "❌") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
             logger.info(files_progress)
             logger.info(f"Edited {file_change_request.filename}")
-            message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
-            edit_sweep_comment(message, 4)
+            table_message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
+            edit_sweep_comment(table_message, 4)
         if not response.get("success"):
             raise Exception(f"Failed to create PR: {response.get('error')}")
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
-            message + "I have finished coding the issue. I am now reviewing it for completeness.",
+            table_message + "I have finished coding the issue. I am now reviewing it for completeness.",
             4
         )
 
