@@ -56,6 +56,7 @@ image = (
         "robotexclusionrulesparser",
         "playwright",
         "markdownify",
+        "geopy"
     )
 )
 secrets = [
@@ -68,6 +69,7 @@ secrets = [
     modal.Secret.from_name("discord"),
     modal.Secret.from_name("redis_url"),
     modal.Secret.from_name("e2b"),
+    modal.Secret.from_name("gdrp"),
 ]
 
 FUNCTION_SETTINGS = {

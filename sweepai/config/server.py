@@ -96,4 +96,6 @@ HIGHLIGHT_API_KEY = os.environ.get('HIGHLIGHT_API_KEY')
 
 E2B_API_KEY = os.environ.get('E2B_API_KEY')
 
+SUPPORT_COUNTRY = os.environ.get('GDRP_LIST', '').split(',')
+
 SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
