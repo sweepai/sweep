@@ -621,10 +621,16 @@ def on_ticket(
     except Exception as e:
         logger.error(traceback.format_exc())
         logger.error(e)
-        edit_sweep_comment(
-            "I'm sorry, but it looks like an error has occurred. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev.",
-            -1
-        )
+        if len(title + summary) < 60:
+            edit_sweep_comment(
+                "I'm sorry, but it looks like an error has occurred due to insufficient information. Be sure to create a more detailed issue so I can better address it. If this error persists contact team@sweep.dev.",
+                -1
+            )
+        else:
+            edit_sweep_comment(
+                "I'm sorry, but it looks like an error has occurred. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev.",
+                -1
+            )
         log_error("Workflow", str(e) + "\n" + traceback.format_exc())
         posthog.capture(
             username,
