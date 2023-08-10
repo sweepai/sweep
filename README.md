@@ -51,6 +51,13 @@ We're not a toy project or a proof-of-concept. We're a **production devtool** us
 
 <details>
     <summary>
+        Sweep vs. Cody and Bloop
+    </summary>
+    We do more than just chat-with-your-code by actually writing code changes.
+</details>
+
+<details>
+    <summary>
         Sweep vs. AutoPR
     </summary>
     We're shipping new features at Sweep everyday and unfortunately it looks like AutoPR hasn't received any updates in months.
