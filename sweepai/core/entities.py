@@ -5,6 +5,7 @@ from typing import ClassVar, Literal, Type, TypeVar, Any
 from github.Branch import Branch
 from loguru import logger
 from pydantic import BaseModel
+from sweepai.utils.file_change_functions import identify_dart_files, run_dart_analyzer, parse_dart_analyzer_output
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
