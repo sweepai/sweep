@@ -119,4 +119,4 @@ def apply_code_edits(file_contents, code_edits):
             end_line = len(lines) - 1
         new_code = [indents + line for line in new_code]
         lines[start_line:end_line + 1] = new_code  # Start and end are inclusive
-    return '\n'.join(lines)
+    return '\n'.join(lines) + '\n'
