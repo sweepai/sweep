@@ -133,7 +133,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
     changes: dict[str, str] = {}
 
     @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
+    def from_string(cls: Type[Self], string: str, repo_path: str, **kwargs) -> Self:
         colon_idx = string.find(':')
         file_name = string[:colon_idx]
         instructions = string[colon_idx + 1:]
