@@ -154,13 +154,13 @@ class ModalEmbeddingFunction:
         if len(texts) == 0:
             return []
         if cpu or len(texts) < 10: 
-            return CPUEmbedding.compute.call(texts)
+            return CPUEmbedding().compute(texts)
         else:
             batches = [texts[i:i + ModalEmbeddingFunction.batch_size] for i in range(0, len(texts), ModalEmbeddingFunction.batch_size)]
             batches = [batch for batch in batches if len(batch) > 0]
             logger.info([len(batch) for batch in batches])
             results = []
-            for batch in tqdm(Embedding.compute.map(batches)):
+            for batch in tqdm([Embedding().compute(batch) for batch in batches]):
                 results.extend(batch)
 
             return results
