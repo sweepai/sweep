@@ -136,7 +136,7 @@ def on_check_suite(request: CheckRunCompleted):
     logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
     problematic_logs = extractor.gha_extract(logs)
     if problematic_logs.count("\n") > 15:
-        problematic_logs += "\n\nThere are a lot of errors. This is likely a larger issue with the PR and not a small linting/type-checking issue."
+        problematic_logs += "\n\nThere are a lot of errors. This is likely due to a small parsing issue or a missing import with the files changed in the PR."
     comments = list(pr.get_issue_comments())
 
     # logs_list = [extract_logs_from_comment(comment.body) for comment in comments]

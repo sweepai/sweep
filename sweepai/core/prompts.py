@@ -233,10 +233,10 @@ Last, create the following file using the following instructions:
 
 DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags, and all text inside these tags will be placed in the newly created file.
 
-Reply in the following format:
-Commit planning:
 file_name = "{filename}"
 instructions = "{instructions}"
+
+Reply in the following format:
 
 Step-by-step thoughts with explanations: 
 * Thought 1
@@ -248,11 +248,11 @@ Detailed plan of additions:
 * Addition 2
 ...
 
-commit_message = "{commit_message}"
-
 <new_file>
 {{complete_new_file_contents}}
 </new_file>
+
+Commit message: "the commit message"
 """
 
 """
@@ -297,6 +297,7 @@ Detailed plan of modifications:
 ...
 
 Code Generation:
+
 ```
 Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Prefer many small edits over few large edits. Always add lines before and after if possible.
 
@@ -310,6 +311,8 @@ new_code
 line_after
 >>>> UPDATED
 ```
+
+Commit message: "the commit message"
 
 Request: "Change hello to goodbye and change 3 to 4". Limit your changes to the request.
 
@@ -346,7 +349,10 @@ def func():
     a = 4
     
 >>>> UPDATED
-```""", 'role': 'assistant', 'key': 'modify_file_hallucination'}]
+```
+
+Commit message: "Changed goodbye to hello and 3 to 4"\
+""", 'role': 'assistant', 'key': 'modify_file_hallucination'}]
 
 # TODO: IMPORTANT: THIS DEPENDS ON THE ABOVE PROMPT, modify_file_hallucination_prompt
 modify_file_prompt_3 = """
