@@ -1,4 +1,5 @@
 import time
+import yaml
 import modal
 from fastapi import HTTPException, Request
 from loguru import logger
@@ -452,6 +453,19 @@ async def webhook(raw_request: Request):
                 commit_author = pr_request.pull_request.user.login
                 merged_by = pr_request.pull_request.merged_by.login if pr_request.pull_request.merged_by else None
                 if GITHUB_BOT_USERNAME == commit_author and merged_by is not None:
+                    # Check if the pull request contains the `sweep.yaml` file
+                    _, g = get_github_client(request_dict["installation"]["id"])
+                    repo = g.get_repo(request_dict["repository"]["full_name"])
+                    pr = repo.get_pull(request_dict["number"])
+                    files = pr.get_files()
+                    for file in files:
+                        # Parse the `gha_enabled` field from the `sweep.yaml` file
+                        sweep_yaml_content = repo.get_contents(file.path).decoded_content
+                        if file.filename == 'sweep.yaml':
+                            sweep_yaml_dict = yaml.safe_load(sweep_yaml_content)
+                            gha_enabled = sweep_yaml_dict.get('gha_enabled', False)
+                            if gha_enabled:
+                                logger.info("The `gha_enabled` field is set to `True` in the `sweep.yaml` file.")
                     event_name = "merged_sweep_pr"
                     if pr_request.pull_request.title.startswith("[config]"):
                         event_name = "config_pr_merged"
