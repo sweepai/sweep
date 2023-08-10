@@ -309,7 +309,8 @@ def get_deeplake_vs_from_repo(
     for batch in chunker.starmap(zip(file_contents_batches, file_paths_batches, scores_batches), kwargs={"additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}}):
         chunked_results.extend(batch)
 
-    documents, metadatas, ids = zip(*chunked_results)
+    # Todo(lukejagg): Should we default return ([], [], []) on empty list?
+    documents, metadatas, ids = zip(*chunked_results) if len(chunked_results) > 0 else ([], [], [])
     documents = [item for sublist in documents for item in sublist]
     metadatas = [item for sublist in metadatas for item in sublist]
     ids = [item for sublist in ids for item in sublist]
