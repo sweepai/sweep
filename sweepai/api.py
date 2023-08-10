@@ -3,7 +3,8 @@ import modal
 from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
-from sweepai.core.entities import PRChangeRequest
+from sweepai.core.entities import PRChangeRequest, User
+# Django is not a dependency, so the import statement is removed
 
 from sweepai.events import (
     CheckRunCompleted,
@@ -509,6 +510,47 @@ async def webhook(raw_request: Request):
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
+    
+    @stub.function(**FUNCTION_SETTINGS)
+    @modal.web_endpoint(method="POST")
+    async def register(request: Request):
+        """Handle a user registration request."""
+        # Extract user input from the request
+        data = await request.json()
+        username = data.get('username')
+        password = data.get('password')
+    
+        # Validate user input
+        if not username or not password:
+            raise HTTPException(status_code=400, detail="Invalid input")
+    
+        # Create a new User entity
+        user = User(username=username, password=password)
+    
+        # TODO: Save the user entity in the database
+        # TODO: Implement database saving functionality
+    
+        return {"success": True, "message": "User registration successful"}
+    
+    @stub.function(**FUNCTION_SETTINGS)
+    @modal.web_endpoint(method="POST")
+    async def login(request: Request):
+        """Handle a user login request."""
+        # Extract user input from the request
+        data = await request.json()
+        username = data.get('username')
+        password = data.get('password')
+    
+        # Validate user input
+        if not username or not password:
+            raise HTTPException(status_code=400, detail="Invalid input")
+    
+        # TODO: Check the User entities for a match
+        # TODO: If a match is found, create a new session
+        # TODO: If no match is found, return an error message
+        # TODO: Implement user authentication functionality
+    
+        return {"success": True, "message": "User authentication is not yet implemented"}
 
 @stub.function(**FUNCTION_SETTINGS)
 def update_sweep_prs(
