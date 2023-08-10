@@ -43,6 +43,9 @@ class ChatLogger(BaseModel):
             .limit(2000)
 
     def add_chat(self, additional_data):
+        if self.chat_collection is None:
+            logger.error('Chat collection is not initialized')
+            return
         document = {**self.data, **additional_data, 'expiration': self.expiration, 'index': self.index}
         self.index += 1
         self.chat_collection.insert_one(document)
