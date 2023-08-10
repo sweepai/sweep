@@ -232,7 +232,7 @@ class GithubBot(BaseModel):
             logger.error(f"Error: {e}, trying with other branch names...")
             logger.warning(f'{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}')
             if retry:
-                for i in range(1, 11):
+                for i in range(1, 16):
                     try:
                         logger.warning(f"Retrying {branch}_{i}...")
                         self.repo.create_git_ref(
@@ -289,7 +289,7 @@ class GithubBot(BaseModel):
 class SweepBot(CodeGenBot, GithubBot):
     def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
         file_change: FileCreation | None = None
-        for count in range(5):
+        for count in range(3):
             key = f"file_change_created_{file_change_request.filename}"
             create_file_response = self.chat(
                 create_file_prompt.format(
@@ -332,8 +332,9 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.info("Done validating file change request")
 
                 return file_change
-            except Exception:
+            except Exception as e:
                 # Todo: should we undo appending to file_change_paths?
+                logger.warning(e)
                 logger.warning(f"Failed to parse. Retrying for the {count}th time...")
                 self.delete_messages_from_chat(key)
                 continue
