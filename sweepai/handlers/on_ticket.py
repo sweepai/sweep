@@ -333,7 +333,7 @@ def on_ticket(
         logger.error(e)
         logger.error(trace)
         edit_sweep_comment(
-            "It looks like an issue has occurred around fetching the files. Perhaps the repo has not been initialized: try removing this repo and adding it back. I'll try again in a minute. If this error persists contact team@sweep.dev.",
+            f"It looks like an issue has occurred around fetching the files. Perhaps the repo has not been initialized. If this error persists contact team@sweep.dev.\n\n> @{username}, please edit the issue description to include more details and I will automatically relaunch.",
             -1
         )
         log_error("File Fetch", str(e) + "\n" + traceback.format_exc())
@@ -473,7 +473,7 @@ def on_ticket(
         message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
         logger.info(files_progress)
         edit_sweep_comment(message, 4)
-        response = None
+        response = {"error": NoFilesException()}
         for item in generator:
             if isinstance(item, dict):
                 response = item
@@ -489,8 +489,8 @@ def on_ticket(
             logger.info(f"Edited {file_change_request.filename}")
             message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
             edit_sweep_comment(message, 4)
-        if not response or not response["success"]:
-            raise Exception(f"Failed to create PR: {response['error']}")
+        if not response.get("success"):
+            raise Exception(f"Failed to create PR: {response.get('error')}")
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
@@ -598,7 +598,7 @@ def on_ticket(
     except NoFilesException as e:
         logger.info("Sweep could not find files to modify")
         log_error("Sweep could not find files to modify", str(e) + "\n" + traceback.format_exc())
-        edit_sweep_comment("Sorry, Sweep could not find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!", -1)
+        edit_sweep_comment(f"Sorry, Sweep could not find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!\n\n> @{username}, please edit the issue description to include more details about this issue.", -1)
         raise e
     except openai.error.InvalidRequestError as e:
         logger.error(traceback.format_exc())
