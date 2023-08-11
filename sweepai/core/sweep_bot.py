@@ -412,9 +412,12 @@ class SweepBot(CodeGenBot, GithubBot):
                 final_file = format_contents(final_file, file_markdown)
                 logger.info("Done validating file change request")
 
+                # Todo(lukejagg): No longer need to fix EOF whitespace
+                """
                 if contents.endswith("\n"):
                     final_file += "\n"
-                
+                """
+
                 return new_file, commit_message
             except Exception as e:
                 tb = traceback.format_exc()
