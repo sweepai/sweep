@@ -24,7 +24,8 @@ const PRPreview: React.FC<PRPreviewProps> = ({ pr }) => {
 
   return (
     <div className="pr-preview">
-      {/* Rest of the component */}
+      <h2>{pr.title}</h2>
+      <p>Last updated: {lastUpdated}</p>
     </div>
   );
 };
