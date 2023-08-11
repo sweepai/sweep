@@ -51,17 +51,18 @@ export function PRPreview({ repoName, prId }) {
             }
         };
 
-
-        if (localStorage && localStorage.getItem(`prData-${repoName}-${prId}`)) {
+        if (localStorage) {
             const cacheHit = localStorage.getItem(`prData-${repoName}-${prId}`)
-            const { prData, diffData, issueData, timestamp } = JSON.parse(cacheHit)
-            if (prData && diffData && issueData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60) {
-                console.log("cache hit")
-                setPrData(prData)
-                setDiffData(diffData)
-                setIssueData(issueData)
-                return
-            }
+            if (cacheHit) {
+                const { prData, diffData, issueData, timestamp } = JSON.parse(cacheHit)
+                if (prData && diffData && issueData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60) {
+                    console.log("cache hit")
+                    setPrData(prData)
+                    setDiffData(diffData)
+                    setIssueData(issueData)
+                    return
+                }
+            } 
         } else {
             console.log("cache miss")
             fetchPRData();
