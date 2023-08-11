@@ -141,12 +141,12 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    def generate_pull_request(self, retries=3) -> PullRequest:
+    def generate_pull_request(self, retries=2) -> PullRequest:
         for count in range(retries):
             too_long = False
             try:
                 logger.info(f"Generating for the {count}th time...")
-                if too_long or count >= retries - 2:  # if on last try, use gpt4-32k (improved context window)
+                if too_long or count >= retries - 1:  # if on last try, use gpt4-32k (improved context window)
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
                 else:
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)
@@ -289,56 +289,54 @@ class GithubBot(BaseModel):
 class SweepBot(CodeGenBot, GithubBot):
     def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
         file_change: FileCreation | None = None
-        for count in range(3):
-            key = f"file_change_created_{file_change_request.filename}"
-            create_file_response = self.chat(
-                create_file_prompt.format(
+        key = f"file_change_created_{file_change_request.filename}"
+        create_file_response = self.chat(
+            create_file_prompt.format(
+                filename=file_change_request.filename,
+                instructions=file_change_request.instructions,
+                # commit_message=f"Create {file_change_request.filename}"
+            ),
+            message_key=key,
+        )
+        # Add file to list of changed_files
+        self.file_change_paths.append(file_change_request.filename)
+        # self.delete_file_from_system_message(file_path=file_change_request.filename)
+        try:
+            file_change = FileCreation.from_string(create_file_response)
+            commit_message_match = re.search("Commit message: \"(?P<commit_message>.*)\"", create_file_response)
+            if commit_message_match:
+                file_change.commit_message = commit_message_match.group("commit_message")
+            else:
+                file_change.commit_message = f"Create {file_change_request.filename}"
+            assert file_change is not None
+            # file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
+
+            self.delete_messages_from_chat(key_to_delete=key)
+
+            new_diffs = self.chat(
+                code_repair_modify_prompt.format(
                     filename=file_change_request.filename,
                     instructions=file_change_request.instructions,
-                    # commit_message=f"Create {file_change_request.filename}"
+                    code=file_change.code,
+                    diff="",
                 ),
-                message_key=key,
+                message_key=key + "-validation",
             )
-            # Add file to list of changed_files
-            self.file_change_paths.append(file_change_request.filename)
-            # self.delete_file_from_system_message(file_path=file_change_request.filename)
-            try:
-                file_change = FileCreation.from_string(create_file_response)
-                commit_message_match = re.search("Commit message: \"(?P<commit_message>.*)\"", create_file_response)
-                if commit_message_match:
-                    file_change.commit_message = commit_message_match.group("commit_message")
-                else:
-                    file_change.commit_message = f"Create {file_change_request.filename}"
-                assert file_change is not None
-                # file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
+            final_file = generate_new_file_from_patch(
+                new_diffs,
+                file_change.code,
+            )
+            final_file = format_contents(final_file, is_markdown(file_change_request.filename))
+            final_file += "\n"
+            file_change.code = final_file
+            logger.info("Done validating file change request")
 
-                self.delete_messages_from_chat(key_to_delete=key)
-
-                new_diffs = self.chat(
-                    code_repair_modify_prompt.format(
-                        filename=file_change_request.filename,
-                        instructions=file_change_request.instructions,
-                        code=file_change.code,
-                        diff="",
-                    ),
-                    message_key=key + "-validation",
-                )
-                final_file = generate_new_file_from_patch(
-                    new_diffs, 
-                    file_change.code, 
-                )
-                final_file = format_contents(final_file, is_markdown(file_change_request.filename))
-                final_file += "\n"
-                file_change.code = final_file
-                logger.info("Done validating file change request")
-
-                return file_change
-            except Exception as e:
-                # Todo: should we undo appending to file_change_paths?
-                logger.warning(e)
-                logger.warning(f"Failed to parse. Retrying for the {count}th time...")
-                self.delete_messages_from_chat(key)
-                continue
+            return file_change
+        except Exception as e:
+            # Todo: should we undo appending to file_change_paths?
+            logger.warning(e)
+            logger.warning(f"Failed to parse. Retrying for the 1st time...")
+            self.delete_messages_from_chat(key)
         raise Exception("Failed to parse response after 5 attempts.")
 
     def modify_file(
