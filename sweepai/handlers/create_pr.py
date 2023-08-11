@@ -166,10 +166,8 @@ def safe_delete_sweep_branch(
         return False
 
 
-def create_config_pr(
-        sweep_bot: SweepBot,
-):
-    title = "Configure Sweep"
+def create_sweep_yaml_pr(sweep_bot: SweepBot):
+    title = "Create sweep.yaml"
     branch_name = GITHUB_CONFIG_BRANCH
     branch_name = sweep_bot.create_branch(branch_name, retry=False)
     try:
@@ -179,6 +177,14 @@ def create_config_pr(
             GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
             branch=branch_name
         )
+    except Exception as e:
+        logger.error(e)
+
+def create_issue_templates_pr(sweep_bot: SweepBot):
+    title = "Create issue templates"
+    branch_name = GITHUB_CONFIG_BRANCH
+    branch_name = sweep_bot.create_branch(branch_name, retry=False)
+    try:
         sweep_bot.repo.create_file(
             '.github/ISSUE_TEMPLATE/sweep-bugfix.yml',
             'Create bugfix template',
