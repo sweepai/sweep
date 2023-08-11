@@ -9,6 +9,7 @@ from loguru import logger
 from pydantic import BaseModel
 
 from sweepai.core.chat import ChatGPT
+from sweepai.core.hotel_chatbot import HotelChatbot
 from sweepai.core.edit_chunk import EditBot
 from sweepai.core.entities import (
     FileCreation,
