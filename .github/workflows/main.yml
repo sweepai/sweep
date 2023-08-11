@@ -20,5 +20,3 @@ jobs:
         python -m unittest
     - name: Print Hello World
       run: echo "Hello, world!"
-    - name: Print Hello World
-      r
