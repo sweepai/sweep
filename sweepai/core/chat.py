@@ -63,6 +63,7 @@ class ChatGPT(BaseModel):
         # Process user input for hotel booking
         # This includes room selection, date selection, and confirmation of booking
         # TODO: Implement the logic for hotel booking
+        pass
 
     def handle_arabic_input(self, user_input):
         pass
