@@ -53,8 +53,7 @@ export function PRPreview({ repoName, prId }) {
         };
 
 
-        const cacheHit = localStorage.getItem(`prData-${repoName}-${prId}`)
-        if (cacheHit) {
+        if (localStorage && localStorage.getItem(`prData-${repoName}-${prId}`)) {
             const { prData, diffData, issueData, timestamp } = JSON.parse(cacheHit)
             if (prData && diffData && issueData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60) {
                 console.log("cache hit")
@@ -71,7 +70,7 @@ export function PRPreview({ repoName, prId }) {
     }, [repoName, prId]);
     
     useEffect(() => {
-        if (prData && diffData && issueData) {
+        if (localStorage && prData && diffData && issueData) {
             const data = {
                 prData,
                 diffData,
