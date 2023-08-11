@@ -65,17 +65,7 @@ class ChatGPT(BaseModel):
         # TODO: Implement the logic for hotel booking
 
     def handle_arabic_input(self, user_input):
-        # Translate user input from Arabic to English
-        translator = Translator(from_lang='ar', to_lang='en')
-        translated_input = translator.translate(user_input)
-
-        # Process translated input
-        response = self.chat(translated_input)
-
-        # Translate response from English to Arabic before sending it to the user
-        translator = Translator(from_lang='en', to_lang='ar')
-        translated_response = translator.translate(response)
-        return translated_response
+        pass
     messages: list[Message] = [
         Message(
             role="system",
