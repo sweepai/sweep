@@ -1,0 +1,64 @@
+---
+author: William Zeng
+---
+
+# 🎓 How our AI junior dev reads all of your documentation
+
+**William Zeng** - August 10th, 2023
+---
+
+Outdated documentation is one of the most common concerns with using GPT4 to generate code. When we use rapidly changing/new packages like OpenAI, a new interface(like function calling) might be introduced. Of course, ChatGPT won’t know about the new api, and there’s no way it could use it without the docs.
+
+## Finetuning doesn’t work 🔧
+
+Finetuning the model when a new version comes out is not going to work. Any framework which suffers the above problem is going to continuously change, and you’ll have to finetune your model again. Also as we’ll cover later, why do we (as a single user) want a code assistant to know every single version of a framework? At best, you have two use cases:
+
+1. You want to migrate from version `x.y` to version `x.y+1`.
+2. You want to know the best version of package x for your use case so you need a language model that knows all of the versions.
+
+For a code assistant you generally only need the first one. The second use case may be important in the future, but not at the moment.
+
+## Paste the docs? **or** retrieval augmented generation 🔍+🧠
+
+The lowest effort solution is to paste the docs into ChatGPT/Sweep. 
+
+But then you’ll have to find the right docs, copy the right sections, and tell the LLM what you want it to do with the docs. You’ll also have to spend this time every time you want to generate code, which makes it unusable for a large percentage of codebases/problems.
+
+The solution for this is retrieval augmented generation (RAG). RAG involves:
+
+1. indexing all of the documents you want.
+2. taking a search model (text or vector-based) and searching over these documents
+3. passing the top results to a language model to augment its results
+
+It’s been well researched and is a hot topic, but there’s some nuance in the case of Sweep. RAG is a subdomain of question answering, which can be broken down into two groups.
+
+1. open domain - “Answer any question about anything”
+2. closed domain - “Answer any question within a specified domain”
+
+## Key-value pairs might be enough 🔑
+
+When we first thought about the problem one solution was to build an AI agent to perform research and answer programming questions on any task. As you can imagine, this was way over-engineered. 
+
+The way we think about repository-level code generation is that we don’t have to handle arbitrary queries. For each repository Sweep works in, we(meaning that specific user + Sweep) know the exact packages that are being used. For example, in https://github.com/sweepai/sweep/blob/main/pyproject.toml, we use `PyGithub = "1.58.2”`. Why would we index other pygithub documentation versions besides https://pygithub.readthedocs.io/en/v1.58.2/?
+
+We always have two preconditions met:
+
+1. We know that the user wants something
+2. The user knows the result will be in a relatively small set of documents.
+
+Users are willing to wait 5-30 minutes for a fully written, linted, and tested pull request. The alternatives for outsourcing code generation are much worse (and slower). Because Sweep provides much greater value than a code search engine/IDE assistant, spending 10 more seconds to craft a better prompt is an easy ask. That’s why we allow users to directly specify the documentation they want, and when exactly to use this documentation.
+
+## False positives and false negatives ➕
+
+This is a plague for search engines. We don’t want to retrieve documentation when users don’t want it, and we don’t want to not retrieve documentation when users do want it. By allowing the user to write a documentation key-value pair, we can avoid this. When you mention the key in your prompt, we index all of the value's subpages.
+
+If you want the docs for something common like “react”, you can use a more specific term pair like `“react js”: “https://react.dev/reference/react”`.
+
+If you want your docs to get even more specific, you can use a deeper path like `“react components”: 
+”https://react.dev/reference/react-dom"` and we’ll only index the sub-pages like `https://react.dev/reference/react-dom/hydrate`.
+
+## Future 🌠
+
+Overall, we’re incredibly excited about this feature. We’ve allowed the team of Sweep + a senior developer to work around ChatGPT’s training data cutoff. In the near future we’ll continue improving the documentation search, and even have Sweep generate the documentation set automatically!
+
+Check out the(<150 line) implementation of our webscraper here: https://github.com/sweepai/sweep/blob/main/sweepai/core/webscrape.py
