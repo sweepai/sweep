@@ -502,7 +502,7 @@ def on_ticket(
             4
         )
 
-        review_message = f"Here are the my self-reviews of my changes at [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
+        review_message = f"Here are my self-reviews of my changes at [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
 
         try:
             current_issue.delete_reaction(eyes_reaction.id)
