@@ -8,11 +8,12 @@ from typing import Type, TypeVar
 Self = TypeVar("Self", bound="Sandbox")
 
 
-REPO_PATH = "/code/repo"
+REPO_PATH = "/home/user/repo"
+HOME_DIR_PERM = "sudo chown $USER:$USER ."
 GIT_PASS = 'echo \'#!/bin/sh\\necho "{token}"\' > git-askpass.sh && chmod +x git-askpass.sh'
 GIT_CLONE = "export GIT_ASKPASS=./git-askpass.sh;" \
             "git config --global credential.helper 'cache --timeout=3600';" \
-            "git clone https://{username}@github.com/sweepai-dev/test /code/repo"
+            "git clone https://{username}@github.com/sweepai-dev/test /home/user/repo"
 PYTHON_CREATE_VENV = "cd repo && python3 -m venv venv && source venv/bin/activate && poetry install"
 
 
@@ -37,12 +38,15 @@ class Sandbox(BaseModel):
         image = kwargs.get("image", "Python3")
         session = Session(image)
         await session.open()
-        return cls(
+
+        sandbox = cls(
             username=username,
             token=token,
             image=image,
             session=session
         )
+        #await sandbox.run_command(HOME_DIR_PERM)
+        return sandbox
 
     async def run_command(self, command: str, path: str = None):
         print("Running command", command)
