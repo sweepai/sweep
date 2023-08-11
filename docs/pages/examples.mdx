@@ -233,7 +233,7 @@ export function RepoPreview({ repoName, displayName=null }) {
                     }
                 `}
             </style>
-            <div className="clickable" onClick={() => window.open(`https://github.com/${repoName}`)}>
+            <div id={repoName} className="clickable" onClick={() => window.open(`https://github.com/${repoName}`)}>
                 <h3 id={repoName}>
                     {displayName}
                 </h3>
