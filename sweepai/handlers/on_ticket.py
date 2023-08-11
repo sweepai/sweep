@@ -585,7 +585,6 @@ def on_ticket(
         sha = repo.get_branch(SweepConfig.get_branch(repo)).commit.sha
 
         pr.add_to_labels(GITHUB_LABEL_NAME)
-        chat_logger.add_successful_ticket()
         current_issue.create_reaction("rocket")
 
         logger.info("Running github actions...")
