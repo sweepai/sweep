@@ -9,7 +9,7 @@ const Dropdown = ({ question, answer }) => {
 
   return (
     <div className="dropdown">
-      <h2 onClick={toggleDropdown}>{question}</h2>
+      <button onClick={toggleDropdown}>{question}</button>
       {isOpen && <p>{answer}</p>}
     </div>
   );
