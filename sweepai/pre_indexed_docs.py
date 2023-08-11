@@ -18,5 +18,6 @@ DOCS_ENDPOINTS = {
 "Docusaurus": "https://docusaurus.io/docs",
 "OpenAI": "https://platform.openai.com/docs/",
 "Anthropic": "https://docs.anthropic.com/claude/docs",
-"PyGitHub": "https://pygithub.readthedocs.io/en/stable/"
+"PyGitHub": "https://pygithub.readthedocs.io/en/stable/",
+"Laravel": "https://laravel.com/docs"
 }
