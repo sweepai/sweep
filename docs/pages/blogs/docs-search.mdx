@@ -1,10 +1,7 @@
----
-author: William Zeng
----
-
 # 🎓 How our AI junior dev reads all of your documentation
 
 **William Zeng** - August 10th, 2023
+
 ---
 
 Outdated documentation is one of the most common concerns with using GPT4 to generate code. When we use rapidly changing/new packages like OpenAI, a new interface(like function calling) might be introduced. Of course, ChatGPT won’t know about the new api, and there’s no way it could use it without the docs.
@@ -18,7 +15,7 @@ Finetuning the model when a new version comes out is not going to work. Any fram
 
 For a code assistant you generally only need the first one. The second use case may be important in the future, but not at the moment.
 
-## Paste the docs? **or** retrieval augmented generation 🔍+🧠
+## Paste the docs? **or** retrieval augmented generation 🔍 + 🧠
 
 The lowest effort solution is to paste the docs into ChatGPT/Sweep. 
 
@@ -61,4 +58,4 @@ If you want your docs to get even more specific, you can use a deeper path like 
 
 Overall, we’re incredibly excited about this feature. We’ve allowed the team of Sweep + a senior developer to work around ChatGPT’s training data cutoff. In the near future we’ll continue improving the documentation search, and even have Sweep generate the documentation set automatically!
 
-Check out the(<150 line) implementation of our webscraper here: https://github.com/sweepai/sweep/blob/main/sweepai/core/webscrape.py
+Check out the (\<150 line) implementation of our webscraper here: https://github.com/sweepai/sweep/blob/main/sweepai/core/webscrape.py
