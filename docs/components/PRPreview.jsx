@@ -52,23 +52,23 @@ export function PRPreview({ repoName, prId }) {
         };
 
         console.log(localStorage);
-        if (localStorage) {
-            try {
-                const cacheHit = localStorage.getItem(`prData-${repoName}-${prId}`)
-                if (cacheHit) {
-                    const { prData, diffData, issueData, timestamp } = JSON.parse(cacheHit)
-                    if (prData && diffData && issueData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60) {
-                        console.log("cache hit")
-                        setPrData(prData)
-                        setDiffData(diffData)
-                        setIssueData(issueData)
-                        return
-                    }
-                } 
-            } catch (error) {
-                console.error("Error parsing cache hit:", error);
-            }
-        }
+        // if (localStorage) {
+        //     try {
+        //         const cacheHit = localStorage.getItem(`prData-${repoName}-${prId}`)
+        //         if (cacheHit) {
+        //             const { prData, diffData, issueData, timestamp } = JSON.parse(cacheHit)
+        //             if (prData && diffData && issueData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60) {
+        //                 console.log("cache hit")
+        //                 setPrData(prData)
+        //                 setDiffData(diffData)
+        //                 setIssueData(issueData)
+        //                 return
+        //             }
+        //         } 
+        //     } catch (error) {
+        //         console.error("Error parsing cache hit:", error);
+        //     }
+        // }
         console.log("cache miss")
         fetchPRData();
     }, [repoName, prId]);
