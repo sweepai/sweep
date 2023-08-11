@@ -34,6 +34,8 @@ from sweepai.utils.diff import format_contents, generate_new_file_from_patch, ge
 
 USING_DIFF = True
 
+BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
+
 class MaxTokensExceeded(Exception):
     def __init__(self, filename):
         self.filename = filename
@@ -74,6 +76,9 @@ class CodeGenBot(ChatGPT):
             logger.warning(f"Error in summarize_snippets: {e}. Likely failed to parse")
             snippets_text = self.get_message_content_from_message_key(("relevant_snippets"))
 
+        # Remove line numbers (1:line) from snippets
+        snippets_text = re.sub(r'^\d+?:', '', snippets_text, flags=re.MULTILINE)
+
         msg_content = "Contextual thoughts: \n" + contextual_thought + "\n\nRelevant snippets:\n\n" + snippets_text + "\n\n"
 
         self.delete_messages_from_chat("relevant_snippets")
@@ -82,7 +87,7 @@ class CodeGenBot(ChatGPT):
         self.delete_messages_from_chat("files_to_change", delete_assistant=False)
         self.delete_messages_from_chat("snippet_summarization")
 
-        msg = Message(content=msg_content, role="assistant", key="bot_analysis_summary")
+        msg = Message(content=msg_content, role="assistant", key=BOT_ANALYSIS_SUMMARY)
         self.messages.insert(-2, msg)
 
     def get_files_to_change(self, retries=1):
