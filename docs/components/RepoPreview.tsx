@@ -24,9 +24,10 @@ const RepoPreview: React.FC<RepoPreviewProps> = ({ repo }) => {
 
   return (
     <div className="repo-preview">
-      {/* Rest of the component */}
+      <h2>{repo.name}</h2>
+      <p>Last updated: {lastUpdated}</p>
     </div>
   );
 };
 
-export
+export default RepoPreview;
