@@ -3,7 +3,7 @@ import re
 
 import modal
 from github.ContentFile import ContentFile
-from github.GithubException import GithubException
+from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
@@ -28,11 +28,13 @@ from sweepai.core.prompts import (
     snippet_replacement,
     chunking_prompt,
 )
-from sweepai.config.client import SweepConfig
+from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
 from sweepai.utils.diff import format_contents, generate_new_file_from_patch, get_all_diffs, is_markdown
 
 USING_DIFF = True
+
+BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 
 class MaxTokensExceeded(Exception):
     def __init__(self, filename):
@@ -74,6 +76,9 @@ class CodeGenBot(ChatGPT):
             logger.warning(f"Error in summarize_snippets: {e}. Likely failed to parse")
             snippets_text = self.get_message_content_from_message_key(("relevant_snippets"))
 
+        # Remove line numbers (1:line) from snippets
+        snippets_text = re.sub(r'^\d+?:', '', snippets_text, flags=re.MULTILINE)
+
         msg_content = "Contextual thoughts: \n" + contextual_thought + "\n\nRelevant snippets:\n\n" + snippets_text + "\n\n"
 
         self.delete_messages_from_chat("relevant_snippets")
@@ -82,7 +87,7 @@ class CodeGenBot(ChatGPT):
         self.delete_messages_from_chat("files_to_change", delete_assistant=False)
         self.delete_messages_from_chat("snippet_summarization")
 
-        msg = Message(content=msg_content, role="assistant", key="bot_analysis_summary")
+        msg = Message(content=msg_content, role="assistant", key=BOT_ANALYSIS_SUMMARY)
         self.messages.insert(-2, msg)
 
     def get_files_to_change(self, retries=1):
@@ -272,17 +277,37 @@ class GithubBot(BaseModel):
         self.populate_snippets(snippets)
         return snippets
 
+    @staticmethod
+    def is_blocked(file_path: str, blocked_dirs: list[str]):
+        for blocked_dir in blocked_dirs:
+            if file_path.startswith(blocked_dir) and len(blocked_dir) > 0:
+                return {"success": True, "path": blocked_dir}
+        return {"success": False}
+
     def validate_file_change_requests(self, file_change_requests: list[FileChangeRequest], branch: str = ""):
+        blocked_dirs = get_blocked_dirs(self.repo)
         for file_change_request in file_change_requests:
             try:
-                contents = self.repo.get_contents(file_change_request.filename,
+                exists = False
+                try:
+                    exists = self.repo.get_contents(file_change_request.filename,
                                                   branch or SweepConfig.get_branch(self.repo))
-                if contents:
+                except UnknownObjectException:
+                    exists = False
+                except Exception as e:
+                    logger.error(f"FileChange Validation Error: {e}")
+
+                if exists:
                     file_change_request.change_type = "modify"
                 else:
                     file_change_request.change_type = "create"
-            except:
-                file_change_request.change_type = "create"
+
+                block_status = self.is_blocked(file_change_request.filename, blocked_dirs)
+                if block_status["success"]:
+                    # red X emoji
+                    file_change_request.instructions = f'❌ Unable to modify files in `{block_status["path"]}`\nEdit `sweep.yaml` to configure.'
+            except Exception as e:
+                logger.info(traceback.format_exc())
         return file_change_requests
 
 
@@ -458,13 +483,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 completed += 1
         return completed, num_fcr
 
-    @staticmethod
-    def is_blocked(file_path: str, blocked_dirs: list[str]):
-        for blocked_dir in blocked_dirs:
-            if file_path.startswith(blocked_dir) and len(blocked_dir) > 0:
-                return True
-        return False
-
     def change_files_in_github_iterator(
             self,
             file_change_requests: list[FileChangeRequest],
@@ -481,7 +499,7 @@ class SweepBot(CodeGenBot, GithubBot):
         for file_change_request in file_change_requests:
             changed_file = False
             try:
-                if self.is_blocked(file_change_request.filename, blocked_dirs):
+                if self.is_blocked(file_change_request.filename, blocked_dirs)["success"]:
                     logger.info(f"Skipping {file_change_request.filename} because it is blocked.")
                     continue
 
