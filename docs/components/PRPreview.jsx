@@ -53,6 +53,7 @@ export function PRPreview({ repoName, prId }) {
 
 
         if (localStorage && localStorage.getItem(`prData-${repoName}-${prId}`)) {
+            const cacheHit = localStorage.getItem(`prData-${repoName}-${prId}`)
             const { prData, diffData, issueData, timestamp } = JSON.parse(cacheHit)
             if (prData && diffData && issueData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60) {
                 console.log("cache hit")
