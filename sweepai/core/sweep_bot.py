@@ -506,11 +506,27 @@ class SweepBot(CodeGenBot, GithubBot):
                 if file_change_request.change_type == "create":
                     changed_file = self.handle_create_file(file_change_request, branch)
                 elif file_change_request.change_type == "modify":
+                    # Add example for more consistent generation
                     if not added_modify_hallucination:
                         added_modify_hallucination = True
                         # Add hallucinated example for better parsing
                         for message in modify_file_hallucination_prompt:
                             self.messages.append(Message(**message))
+
+                    # Remove snippets from this file if they exist
+                    snippet_msgs = [m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY]
+                    if len(snippet_msgs) > 0:  # Should always be true
+                        snippet_msg = snippet_msgs[0]
+                        # Use regex to remove this snippet from the message
+                        file = re.escape(file_change_request.filename)
+                        regex = fr'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
+                        snippet_msg.content = re.sub(
+                            regex,
+                            "",
+                            snippet_msg.content,
+                            flags=re.DOTALL,
+                        )
+
 
                     changed_file = self.handle_modify_file(file_change_request, branch)
                 else:
