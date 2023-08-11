@@ -1,5 +1,25 @@
 import os
 
+# Add django-cors-headers to the list of installed apps
+INSTALLED_APPS = [
+    ...
+    'corsheaders',
+    ...
+]
+
+# Add django-cors-headers.middleware.CorsMiddleware to the list of middleware
+MIDDLEWARE = [
+    ...
+    'corsheaders.middleware.CorsMiddleware',
+    ...
+]
+
+# Allow all origins
+CORS_ORIGIN_ALLOW_ALL = True
+
+# Or specify the allowed origins
+# CORS_ORIGIN_WHITELIST = ['http://localhost:8000', 'http://127.0.0.1:9000']
+
 PREFIX = 'dev2'
 
 print(f"Using prefix: {PREFIX}")
