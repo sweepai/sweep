@@ -11,7 +11,6 @@ export function PRPreview({ repoName, prId }) {
     const herokuAnywhere = "https://mighty-brook-06697-04a41eb75af8.herokuapp.com/"
     const headers = {}
 
-
     useEffect(() => {
         const fetchPRData = async () => {
             try {
@@ -52,17 +51,18 @@ export function PRPreview({ repoName, prId }) {
             }
         };
 
-
-        const cacheHit = localStorage.getItem(`prData-${repoName}-${prId}`)
-        if (cacheHit) {
-            const { prData, diffData, issueData, timestamp } = JSON.parse(cacheHit)
-            if (prData && diffData && issueData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60) {
-                console.log("cache hit")
-                setPrData(prData)
-                setDiffData(diffData)
-                setIssueData(issueData)
-                return
-            }
+        if (localStorage) {
+            const cacheHit = localStorage.getItem(`prData-${repoName}-${prId}`)
+            if (cacheHit) {
+                const { prData, diffData, issueData, timestamp } = JSON.parse(cacheHit)
+                if (prData && diffData && issueData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60) {
+                    console.log("cache hit")
+                    setPrData(prData)
+                    setDiffData(diffData)
+                    setIssueData(issueData)
+                    return
+                }
+            } 
         } else {
             console.log("cache miss")
             fetchPRData();
@@ -71,7 +71,7 @@ export function PRPreview({ repoName, prId }) {
     }, [repoName, prId]);
     
     useEffect(() => {
-        if (prData && diffData && issueData) {
+        if (localStorage && prData && diffData && issueData) {
             const data = {
                 prData,
                 diffData,
