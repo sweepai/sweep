@@ -27,9 +27,8 @@ export function RepoPreview({ repoName, displayName=null }) {
                     return
                 }
             }
-        } else {
-            fetchRepoData()
-        }
+        } 
+        fetchRepoData()
     }, [repoName])
 
     useEffect(() => {
@@ -39,7 +38,7 @@ export function RepoPreview({ repoName, displayName=null }) {
     }, [repoData])
 
     if (!repoData) {
-        return <div>{repoName}</div>
+        return <div>{repoName}. Loading...</div>
     }
 
     const star_count = repoData.stargazers_count
