@@ -9,6 +9,7 @@
   "blogs": "📝 Blogs",
   "videos": "📺 Videos",
   "privacy": "🔒 Privacy Policy", 
+  "faq": "❓ FAQ",
   "about": {
     "title": "🏠 Home",
     "type": "page",
@@ -25,5 +26,5 @@
     "type": "page",
     "href": "https://buy.stripe.com/9AQ8zB26letOgzC5kp",
     "newWindow": true
-  }
+  },
 }
