@@ -171,7 +171,7 @@ def create_sweep_yaml_pr(sweep_bot: SweepBot):
     branch_name = GITHUB_CONFIG_BRANCH
     branch_name = sweep_bot.create_branch(branch_name, retry=False)
     try:
-        sweep_bot.repo.create_file(
+        pr = sweep_bot.repo.create_file(
             'sweep.yaml',
             'Create sweep.yaml config file',
             GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
@@ -179,13 +179,14 @@ def create_sweep_yaml_pr(sweep_bot: SweepBot):
         )
     except Exception as e:
         logger.error(e)
+    return pr
 
 def create_issue_templates_pr(sweep_bot: SweepBot):
     title = "Create issue templates"
     branch_name = GITHUB_CONFIG_BRANCH
     branch_name = sweep_bot.create_branch(branch_name, retry=False)
     try:
-        sweep_bot.repo.create_file(
+        pr = sweep_bot.repo.create_file(
             '.github/ISSUE_TEMPLATE/sweep-bugfix.yml',
             'Create bugfix template',
             BUGFIX_TEMPLATE,
@@ -205,6 +206,7 @@ def create_issue_templates_pr(sweep_bot: SweepBot):
         )
     except Exception as e:
         logger.error(e)
+    return pr
 
     # Check if the pull request from this branch to main already exists.
     # If it does, then we don't need to create a new one.
