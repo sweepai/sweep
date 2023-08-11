@@ -8,6 +8,7 @@ import modal
 import openai
 from loguru import logger
 from pydantic import BaseModel
+from googletrans import Translator
 
 from sweepai.core.entities import Message, Function
 from sweepai.core.prompts import (
@@ -58,6 +59,22 @@ def format_for_anthropic(messages: list[Message]) -> str:
 
 
 class ChatGPT(BaseModel):
+    def handle_hotel_booking(self, user_input):
+        # Process user input for hotel booking
+        # This includes room selection, date selection, and confirmation of booking
+        pass
+
+    def handle_arabic_input(self, user_input):
+        # Translate user input from Arabic to English
+        translator = Translator()
+        translated_input = translator.translate(user_input, src='ar', dest='en').text
+
+        # Process translated input
+        response = self.chat(translated_input)
+
+        # Translate response from English to Arabic before sending it to the user
+        translated_response = translator.translate(response, src='en', dest='ar').text
+        return translated_response
     messages: list[Message] = [
         Message(
             role="system",
