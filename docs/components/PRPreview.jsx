@@ -51,6 +51,7 @@ export function PRPreview({ repoName, prId }) {
             }
         };
 
+        console.log(localStorage);
         if (localStorage) {
             const cacheHit = localStorage.getItem(`prData-${repoName}-${prId}`)
             if (cacheHit) {
@@ -63,14 +64,13 @@ export function PRPreview({ repoName, prId }) {
                     return
                 }
             } 
-        } else {
-            console.log("cache miss")
-            fetchPRData();
         }
-
+        console.log("cache miss")
+        fetchPRData();
     }, [repoName, prId]);
     
     useEffect(() => {
+        console.log(localStorage);
         if (localStorage && prData && diffData && issueData) {
             const data = {
                 prData,
@@ -83,7 +83,7 @@ export function PRPreview({ repoName, prId }) {
     }, [prData, diffData, issueData]);
 
     if (!prData) {
-        return <div>{`https://github.com/${repoName}/pulls/${prId}`}</div>;
+        return <div>{`https://github.com/${repoName}/pulls/${prId}`}. Loading...</div>;
     }
 
     const numberDaysAgoMerged = Math.round((new Date() - new Date(prData.merged_at)) / (1000 * 60 * 60 * 24))
