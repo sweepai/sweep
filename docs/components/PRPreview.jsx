@@ -11,7 +11,6 @@ export function PRPreview({ repoName, prId }) {
     const herokuAnywhere = "https://mighty-brook-06697-04a41eb75af8.herokuapp.com/"
     const headers = {}
 
-
     useEffect(() => {
         const fetchPRData = async () => {
             try {
