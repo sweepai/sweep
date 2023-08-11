@@ -531,11 +531,15 @@ def on_ticket(
 
             async def run_sandbox(title: str, summary: str):
                 nonlocal sandbox
-                sandbox = await asyncio.wait_for(Sandbox.from_token(username, user_token), timeout=15)
-                await asyncio.wait_for(sandbox.clone_repo(), timeout=60)
-                # Currently only works with Python3 venvs
-                await asyncio.wait_for(sandbox.create_python_venv(), timeout=60)
-                await asyncio.wait_for(sandbox.close(), timeout=15)
+                try:
+                    sandbox = await asyncio.wait_for(Sandbox.from_token(username, user_token), timeout=15)
+                    await asyncio.wait_for(sandbox.clone_repo(), timeout=60)
+                    # Currently only works with Python3 venvs
+                    await asyncio.wait_for(sandbox.create_python_venv(), timeout=60)
+                except Exception as e:
+                    pass
+                finally:
+                    await asyncio.wait_for(sandbox.close(), timeout=15)
 
             logger.info("Running sandbox...")
             loop = asyncio.get_event_loop()
