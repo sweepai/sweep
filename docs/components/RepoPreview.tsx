@@ -1,0 +1,128 @@
+import React, { useEffect, useState } from 'react';
+import parse from 'parse-diff';
+import { ShowMore } from './ShowMore';
+import { BiGitMerge } from 'react-icons/bi';
+import { FiCornerDownRight } from 'react-icons/fi';
+
+export function RepoPreview({ repoName, prId }) {
+    const [prData, setPrData] = useState(null)
+    const [issueData, setIssueData] = useState(null)
+    const [diffData, setDiffData] = useState(null)
+    const herokuAnywhere = "https://mighty-brook-06697-04a41eb75af8.herokuapp.com/"
+    const headers = {}
+
+    useEffect(() => {
+        const fetchPRData = async () => {
+            try {
+                const url = `https://api.github.com/repos/${repoName}/pulls/${prId}`;
+                const response = await fetch(url, {headers});
+                const data = await response.json();
+                setPrData(data);
+
+                if (!data.diff_url) {
+                    return;
+                }
+
+                const diffResponse = await fetch(herokuAnywhere + data.diff_url);
+                const diffText = await diffResponse.text();
+                setDiffData(diffText);
+
+                if (!data.body) {
+                    return;
+                }
+
+                const content = data.body
+                const issueId = data.body.match(/Fixes #(\d+)/)[1]
+
+                if (!issueId) {
+                    return;
+                }
+
+                const issuesUrl = `https://api.github.com/repos/${repoName}/issues/${issueId}`
+                const issueResponse = await fetch(issuesUrl, {headers});
+                const issueData = await issueResponse.json();
+                setIssueData(issueData);
+            } catch (error) {
+                console.error("Error fetching PR data:", error);
+            }
+        };
+
+        if (localStorage) {
+            const cacheHit = localStorage.getItem(`prData-${repoName}-${prId}`)
+            if (cacheHit) {
+                const { prData, diffData, issueData, timestamp } = JSON.parse(cacheHit)
+                if (prData && diffData && issueData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60 * 24) {
+                    setPrData(prData)
+                    setDiffData(diffData)
+                    setIssueData(issueData)
+                    return
+                }
+            } 
+        } else {
+            fetchPRData();
+        }
+
+    }, [repoName, prId]);
+
+    useEffect(() => {
+        if (localStorage && prData && diffData && issueData) {
+            const data = {
+                prData,
+                diffData,
+                issueData,
+                timestamp: new Date(),
+            }
+            localStorage.setItem(`prData-${repoName}-${prId}`, JSON.stringify(data))
+        }
+    }, [prData, diffData, issueData]);
+
+    if (!prData) {
+        return <div>{`https://github.com/${repoName}/pulls/${prId}`}</div>;
+    }
+
+    const numberDaysAgoMerged = Math.round((new Date() - new Date(prData.merged_at)) / (1000 * 60 * 60 * 24))
+    const parsedDiff = parse(diffData)
+    var issueTitle = issueData ? issueData.title.replace("Sweep: ", "") : ""
+    issueTitle = issueTitle.charAt(0).toUpperCase() + issueTitle.slice(1);
+
+    return (
+        <>
+            <style>
+                {`
+                    .hoverEffect:hover {
+                        // background-color: #222;
+                    }
+                    h5 ::after {
+                        display: none;
+                    }
+                    .clickable {
+                        cursor: pointer;
+                    }
+                    .clickable:hover {
+                        text-decoration: underline;
+                    }
+                `}
+            </style>
+            <div 
+                className="hoverEffect"
+                style={{
+                    border: "1px solid darkgrey", 
+                    borderRadius: 5, 
+                    marginTop: 32,
+                    padding: 10,
+                }}
+            >
+                <div style={{display: "flex"}}>
+                    <h5 
+                        className="clickable" style={{marginTop: 0, fontWeight: "bold", fontSize: 18}} 
+                        onClick={() => window.open(prData.html_url, "_blank")}
+                    >
+                        {prData.title}
+                    </h5>
+                    <span style={{color: "#815b9e", marginTop: 2, display: "flex"}}>
+                    ...
+                </div>
+            </div>
+        </>
+    );
+}
