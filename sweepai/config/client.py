@@ -101,7 +101,7 @@ def get_documentation_dict(repo: Repository):
         return {}
 
 @lru_cache(maxsize=None)
-def get_excluded_dirs(repo: Repository):
+def get_blocked_dirs(repo: Repository):
     try:
         sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode("utf-8")
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
