@@ -56,13 +56,6 @@ Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the 
     We do more than just chat-with-your-code by actually writing code changes.
 </details>
 
-<details>
-    <summary>
-        Sweep vs. AutoPR
-    </summary>
-    We're shipping new features at Sweep everyday and unfortunately it looks like AutoPR hasn't received any updates in months.
-</details>
-
 [Demo](https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47)
 
 ---
