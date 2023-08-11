@@ -243,6 +243,9 @@ def create_gha_pr(g, repo):
     pr = repo.create_pull(title="Enable GitHub Actions", body="This PR enables GitHub Actions for this repository.", head=branch_name, base=repo.default_branch)
     return pr
 
+def create_dependencies_pr(g, repo):
+    pass
+
 REFACTOR_TEMPLATE = """\
 name: Refactor
 title: 'Sweep: '
