@@ -398,12 +398,15 @@ def on_ticket(
         try:
             logger.info("Creating sweep.yaml file...")
             sweep_yaml_pr = create_sweep_yaml_pr(sweep_bot)
+            config_pr_url = sweep_yaml_pr.html_url
+        except Exception as e:
+            logger.error("Failed to create new branch for sweep.yaml file.\n", e, traceback.format_exc())
+        try:
             logger.info("Creating issue templates...")
             issue_templates_pr = create_issue_templates_pr(sweep_bot)
-            config_pr_url = sweep_yaml_pr.html_url
             edit_sweep_comment(message="", index=-2)
         except Exception as e:
-            logger.error("Failed to create new branch for sweep.yaml file or issue templates.\n", e, traceback.format_exc())
+            logger.error("Failed to create new branch for issue templates.\n", e, traceback.format_exc())
     else:
         logger.info("sweep.yaml file already exists.")
 
