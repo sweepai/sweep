@@ -1,12 +1,12 @@
 # Frequently Asked Questions
 
-<details>
-<summary><h2>Does Sweep write tests?</h2></summary>
+import Dropdown from '../components/Dropdown';
 
-Yep! The easiest way to have Sweep write tests is by modifying the `description` parameter in your `sweep.yaml`. You can add something like:
-“In [your repository], the tests are written in [your format]. If you modify business logic, modify the tests as well using this format.” You can add anything you’d like to the description parameter, including formatting rules (like PEP8), code style, etc!
-
-</details>
+<Dropdown 
+  question="Does Sweep write tests?" 
+  answer="Yep! The easiest way to have Sweep write tests is by modifying the `description` parameter in your `sweep.yaml`. You can add something like:
+“In [your repository], the tests are written in [your format]. If you modify business logic, modify the tests as well using this format.” You can add anything you’d like to the description parameter, including formatting rules (like PEP8), code style, etc!"
+/>
 
 <details>
 <summary><h2>Can we trust the code written by Sweep?</h2></summary>
