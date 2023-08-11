@@ -2,7 +2,7 @@
 
 ## Does Sweep write tests?
 <details>
-<summary>View details</summary>
+<summary></summary>
 
 Yep! The easiest way to have Sweep write tests is by modifying the `description` parameter in your `sweep.yaml`. You can add something like:
 “In <your repository>, the tests are written in <your format>. If you modify business logic, modify the tests as well using this format.” You can add anything you’d like to the description parameter, including formatting rules (like PEP8), code style, etc!
@@ -11,7 +11,7 @@ Yep! The easiest way to have Sweep write tests is by modifying the `description`
 
 ## Can we trust the code written by Sweep?
 <details>
-<summary>View details</summary>
+<summary></summary>
 
 You should always review the PR. However, we also perform testing to make sure the PR works using your existing GitHub actions. 
 To get the best performance, add GitHub actions that lint, test, and validate your code.
@@ -20,7 +20,7 @@ To get the best performance, add GitHub actions that lint, test, and validate yo
 
 ## Can I have Sweep work off of another branch besides main?
 <details>
-<summary>View details</summary>
+<summary></summary>
 
 Yes! In the `sweep.yaml`, you can set the `branch` parameter to something besides your default branch, and Sweep will use that as a reference.
 
@@ -28,7 +28,7 @@ Yes! In the `sweep.yaml`, you can set the `branch` parameter to something beside
 
 ## Can I give documentation to Sweep?
 <details>
-<summary>View details</summary>
+<summary></summary>
 
 Yes! In the `sweep.yaml`, you can specify docs. Be sure to pick the prefix of the site, which will allow us to only fetch the docs you need.
 Check out the example here: https://github.com/sweepai/sweep/blob/main/sweep.yaml.
@@ -37,7 +37,7 @@ Check out the example here: https://github.com/sweepai/sweep/blob/main/sweep.yam
 
 ## Can I comment on Sweep’s PRs?
 <details>
-<summary>View details</summary>
+<summary></summary>
 
 Yep! You have three options depending on the degree of the change:
 
@@ -49,7 +49,7 @@ Yep! You have three options depending on the degree of the change:
 
 ## Why are you open source?
 <details>
-<summary>View details</summary>
+<summary></summary>
 
 We’re open source so that our users can see exactly how their data is processed, as well as learn from how Sweep works! We’re really excited about building a community of Sweep users(like you!).
 
@@ -57,7 +57,7 @@ We’re open source so that our users can see exactly how their data is processe
 
 ## What’s the difference from CoPilot?
 <details>
-<summary>View details</summary>
+<summary></summary>
 
 Copilot lives in your IDE and writes small chunks of code at a time. This takes ~3-5 seconds, and you need to watch it the entire time. Sweep runs completely asynchronously, and handles the task end to end. This might take 10-15 minutes, but you’re able to walk away and come back to a finished pull request. Copilot also doesn’t have access to the latest documentation.
 
@@ -65,7 +65,7 @@ Copilot lives in your IDE and writes small chunks of code at a time. This takes 
 
 ## What’s the difference from ChatGPT?
 <details>
-<summary>View details</summary>
+<summary></summary>
 
 ChatGPT can’t write the actual PR, and you’d have to paste the generated code into your codebase and create a PR yourself. ChatGPT doesn’t have access to your codebase and the latest documentation, so it’s limited with large software projects.
 
@@ -73,7 +73,7 @@ ChatGPT can’t write the actual PR, and you’d have to paste the generated cod
 
 ## What’s the difference from AutoGPT?
 <details>
-<summary>View details</summary>
+<summary></summary>
 
 AutoGPT(and similar tools) doesn’t work, and Sweep works. We don’t allow the language model to perform open domain tool execution (which doesn’t work well). We perform a fixed flow of search → plan → write code → validate code, repeating the last two steps. This lets us reliably generate PRs corresponding to the user description.
 
@@ -81,7 +81,7 @@ AutoGPT(and similar tools) doesn’t work, and Sweep works. We don’t allow the
 
 ## Do you store our code?
 <details>
-<summary>View details</summary>
+<summary></summary>
 
 We access your GitHub repository at runtime. At the end of execution, your code is deleted from the server. To perform search over your codebase, we use the hashed contents along with the embeddings. This allows us to avoid storing any code as plaintext. Read more about it here: [https://docs.sweep.dev/blogs/search-infra](https://docs.sweep.dev/blogs/search-infra).
 
@@ -89,7 +89,7 @@ We access your GitHub repository at runtime. At the end of execution, your code 
 
 ## Do you have example Sweep PRs?
 <details>
-<summary>View details</summary>
+<summary></summary>
 
 Yes! Check out [https://docs.sweep.dev/examples](https://docs.sweep.dev/examples).
 
@@ -97,7 +97,7 @@ Yes! Check out [https://docs.sweep.dev/examples](https://docs.sweep.dev/examples
 
 ## Can I host Sweep myself?
 <details>
-<summary>View details</summary>
+<summary></summary>
 
 Not at the moment, we want to work closely with all of our users and respond to their feedback. Self hosting doesn’t allow us to do this at the moment. Please reach out at team@sweep.dev if you have more questions.
 
