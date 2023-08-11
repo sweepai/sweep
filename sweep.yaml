@@ -1,5 +1,6 @@
 gha_enabled: True
 branch: main
+blocked_dirs: [".github/"]
 description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. Write code that adheres to PEP8."
 # These are the docs that we index for Sweep.
 # We scrape these docs once a day and store them in our database.
@@ -11,4 +12,3 @@ description: "sweepai/sweep is a python 3.10 project. The main api endpoints are
 # The url should be the root of the docs, not a specific page. We will scrape all pages under this root.
 # "https://react.dev/" is good, "https://react.dev/docs/getting-started" is not.
 docs: {"modal": "https://modal.com/docs/reference", "github": "https://pygithub.readthedocs.io/en/stable", "deeplake": "https://docs.deeplake.ai/en/latest"}
-blocked_dirs: [".github/"]
