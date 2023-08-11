@@ -461,7 +461,7 @@ def on_ticket(
 
         files_progress = [(file_change_request.filename, file_change_request.instructions, "⏳") for file_change_request in file_change_requests]
 
-        summary = re.sub("Checklist:\n\n- \[[ X]\].*", "", summary)
+        summary = re.sub("Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL)
 
         checkboxes_progress = [(file_change_request.filename, file_change_request.instructions, " ") for file_change_request in file_change_requests]
         checkboxes_message = "Checklist:\n\n" + "\n".join([checkbox_template.format(check=check, filename=filename, instructions=instructions.replace("\n", "\n> ")) for filename, instructions, check in checkboxes_progress])
