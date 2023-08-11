@@ -515,6 +515,37 @@ async def webhook(raw_request: Request):
     return {"success": True}
 
 @stub.function(**FUNCTION_SETTINGS)
+def book_room(
+    room_type: str,
+    check_in_date: str,
+    check_out_date: str
+):
+    # Call the book_room method of the HotelChatbot class
+    # This is just a placeholder and the actual implementation may vary
+    hotel_chatbot = HotelChatbot()
+    hotel_chatbot.book_room(room_type, check_in_date, check_out_date)
+
+@stub.function(**FUNCTION_SETTINGS)
+def check_availability(
+    room_type: str,
+    check_in_date: str,
+    check_out_date: str
+):
+    # Call the check_availability method of the HotelChatbot class
+    # This is just a placeholder and the actual implementation may vary
+    hotel_chatbot = HotelChatbot()
+    hotel_chatbot.check_availability(room_type, check_in_date, check_out_date)
+
+@stub.function(**FUNCTION_SETTINGS)
+def answer_query(
+    query: str
+):
+    # Call the answer_query method of the HotelChatbot class
+    # This is just a placeholder and the actual implementation may vary
+    hotel_chatbot = HotelChatbot()
+    hotel_chatbot.answer_query(query)
+
+@stub.function(**FUNCTION_SETTINGS)
 def update_sweep_prs(
     repo_full_name: str,
     installation_id: int
