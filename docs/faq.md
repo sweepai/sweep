@@ -1,5 +1,39 @@
-
 # Frequently Asked Questions
+
+## Does Sweep write tests?
+<details>
+<summary>View details</summary>
+
+Yep! The easiest way to have Sweep write tests is by modifying the `description` parameter in your `sweep.yaml`. You can add something like:
+“In <your repository>, the tests are written in <your format>. If you modify business logic, modify the tests as well using this format.” You can add anything you’d like to the description parameter, including formatting rules (like PEP8), code style, etc!
+
+</details>
+
+## Can we trust the code written by Sweep?
+<details>
+<summary>View details</summary>
+
+You should always review the PR. However, we also perform testing to make sure the PR works using your existing GitHub actions. 
+To get the best performance, add GitHub actions that lint, test, and validate your code.
+
+</details>
+
+## Can I have Sweep work off of another branch besides main?
+<details>
+<summary>View details</summary>
+
+Yes! In the `sweep.yaml`, you can set the `branch` parameter to something besides your default branch, and Sweep will use that as a reference.
+
+</details>
+
+## Can I give documentation to Sweep?
+<details>
+<summary>View details</summary>
+
+Yes! In the `sweep.yaml`, you can specify docs. Be sure to pick the prefix of the site, which will allow us to only fetch the docs you need.
+Check out the example here: https://github.com/sweepai/sweep/blob/main/sweep.yaml.
+
+</details>
 
 ## Can I comment on Sweep’s PRs?
 <details>
@@ -17,7 +51,7 @@ Yep! You have three options depending on the degree of the change:
 <details>
 <summary>View details</summary>
 
-We’re open source so that our users can see exactly how their data is processed, as well as learn from how Sweep works! We’re really excited about building a community of Sweep users. We also have a non-commercial license, so it’s not possible to self host/sell Sweep without working with us.
+We’re open source so that our users can see exactly how their data is processed, as well as learn from how Sweep works! We’re really excited about building a community of Sweep users(like you!).
 
 </details>
 
@@ -25,7 +59,7 @@ We’re open source so that our users can see exactly how their data is processe
 <details>
 <summary>View details</summary>
 
-CoPilot lives in your IDE and writes small chunks of code at a time. This takes ~3-5 seconds, and you need to watch it the entire time. Sweep runs completely asynchronously, and handles the task end to end. This might take 10-15 minutes, but you’re able to walk away and come back to a finished pull request. Copilot also doesn’t have access to the latest documentation.
+Copilot lives in your IDE and writes small chunks of code at a time. This takes ~3-5 seconds, and you need to watch it the entire time. Sweep runs completely asynchronously, and handles the task end to end. This might take 10-15 minutes, but you’re able to walk away and come back to a finished pull request. Copilot also doesn’t have access to the latest documentation.
 
 </details>
 
@@ -45,44 +79,11 @@ AutoGPT(and similar tools) doesn’t work, and Sweep works. We don’t allow the
 
 </details>
 
-## Does Sweep write tests?
-<details>
-<summary>View details</summary>
-
-Yep! The easiest way to have Sweep write tests is by modifying the description parameter in your sweep.yaml. You can add something like:
-“In <your repository>, the tests are written in <your format>. If you modify business logic, modify the tests as well using this format.” You can add anything you’d like to the 
-
-</details>
-
-## Can we trust the code written by Sweep?
-<details>
-<summary>View details</summary>
-
-You should always review the PR. However, we also perform testing to make sure the PR works.
-
-</details>
-
 ## Do you store our code?
 <details>
 <summary>View details</summary>
 
 We access your GitHub repository at runtime. At the end of execution, your code is deleted from the server. To perform search over your codebase, we use the hashed contents along with the embeddings. This allows us to avoid storing any code as plaintext. Read more about it here: [https://docs.sweep.dev/blogs/search-infra](https://docs.sweep.dev/blogs/search-infra).
-
-</details>
-
-## Can I have Sweep work off of another branch besides main?
-<details>
-<summary>View details</summary>
-
-Yes! In the sweep.yaml, you can set the branch parameter to something besides your default branch, and Sweep will use that as a reference.
-
-</details>
-
-## Can I give documentation to Sweep?
-<details>
-<summary>View details</summary>
-
-Yes! In the sweep.yaml, you can 
 
 </details>
 
