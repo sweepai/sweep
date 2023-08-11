@@ -13,6 +13,7 @@ import asyncio
 from loguru import logger
 from tabulate import tabulate
 from sweepai.core.documentation_searcher import DocumentationSearcher
+from sweepai.handlers.create_pr import create_sweep_yaml_pr, create_issue_templates_pr
 
 from sweepai.core.entities import Snippet, NoFilesException
 from sweepai.core.external_searcher import ExternalSearcher
