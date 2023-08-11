@@ -4,7 +4,7 @@
 <summary><h2>Does Sweep write tests?</h2></summary>
 
 Yep! The easiest way to have Sweep write tests is by modifying the `description` parameter in your `sweep.yaml`. You can add something like:
-“In <your repository>, the tests are written in <your format>. If you modify business logic, modify the tests as well using this format.” You can add anything you’d like to the description parameter, including formatting rules (like PEP8), code style, etc!
+“In [your repository], the tests are written in [your format]. If you modify business logic, modify the tests as well using this format.” You can add anything you’d like to the description parameter, including formatting rules (like PEP8), code style, etc!
 
 </details>
 
