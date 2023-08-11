@@ -17,21 +17,21 @@ export function RepoPreview({ repoName, displayName=null }) {
             console.log("repo data", data)
             setRepoData(data)
         }
-        // if (localStorage) {
-        //     try {
-        //         const cacheHit = localStorage.getItem(`repoData-${repoName}`)
-        //         if (cacheHit) {
-        //             const { repoData, timestamp } = JSON.parse(cacheHit)
-        //             if (repoData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60) {
-        //                 console.log("cache hit")
-        //                 setRepoData(repoData)
-        //                 return
-        //             }
-        //         }
-        //     } catch (error) {
-        //         console.error("Error parsing cache hit:", error);
-        //     }
-        // } 
+        if (localStorage) {
+            try {
+                const cacheHit = localStorage.getItem(`repoData-${repoName}`)
+                if (cacheHit) {
+                    const { repoData, timestamp } = JSON.parse(cacheHit)
+                    if (repoData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60) {
+                        console.log("cache hit")
+                        setRepoData(repoData)
+                        return
+                    }
+                }
+            } catch (error) {
+                console.error("Error parsing cache hit:", error);
+            }
+        } 
         fetchRepoData()
     }, [repoName])
 
