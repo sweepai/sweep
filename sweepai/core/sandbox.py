@@ -8,13 +8,12 @@ from typing import Type, TypeVar
 Self = TypeVar("Self", bound="Sandbox")
 
 
-REPO_PATH = "/home/user/repo"
-HOME_DIR_PERM = "sudo chown $USER:$USER ."
-GIT_PASS = 'echo \'#!/bin/sh\\necho "{token}"\' > git-askpass.sh && chmod +x git-askpass.sh'
-GIT_CLONE = "export GIT_ASKPASS=./git-askpass.sh;" \
+REPO_PATH = "~/repo"
+GIT_PASS = 'cd ~; echo \'#!/bin/sh\\necho "{token}"\' > git-askpass.sh && chmod +x git-askpass.sh'
+GIT_CLONE = "cd ~; export GIT_ASKPASS=./git-askpass.sh;" \
             "git config --global credential.helper 'cache --timeout=3600';" \
-            "git clone https://{username}@github.com/sweepai-dev/test /home/user/repo"
-PYTHON_CREATE_VENV = "cd repo && python3 -m venv venv && source venv/bin/activate && poetry install"
+            "git clone https://{username}@github.com/sweepai-dev/test " + REPO_PATH
+PYTHON_CREATE_VENV = f"cd {REPO_PATH} && python3 -m venv venv && source venv/bin/activate && poetry install"
 
 
 # Class for ShellMessage
@@ -28,7 +27,6 @@ class Sandbox(BaseModel):
     token: str
     image: str = "Python3"
     session: Session
-    path: str = "~"
 
     class Config:
         arbitrary_types_allowed = True
@@ -48,7 +46,7 @@ class Sandbox(BaseModel):
         #await sandbox.run_command(HOME_DIR_PERM)
         return sandbox
 
-    async def run_command(self, command: str, path: str = None):
+    async def run_command(self, command: str):
         print("Running command", command)
         outputs = []
         def on_stdout(m):
@@ -60,7 +58,6 @@ class Sandbox(BaseModel):
             on_stdout=on_stdout,
             on_stderr=on_stdout,
             on_exit=lambda: print("Exit"),
-            rootdir=path or self.path,
         )
         # await proc.send_stdin("token\n")
         # await proc.kill()
@@ -69,12 +66,11 @@ class Sandbox(BaseModel):
         return outputs
 
     async def clone_repo(self):
-        await self.run_command(GIT_PASS.format(token=self.token), path="~")
-        await self.run_command(GIT_CLONE.format(username=self.username), path="~")
-        self.path = REPO_PATH
+        await self.run_command(GIT_PASS.format(token=self.token))
+        await self.run_command(GIT_CLONE.format(username=self.username))
 
     async def create_python_venv(self):
-        await self.run_command(PYTHON_CREATE_VENV, path="~")
+        await self.run_command(PYTHON_CREATE_VENV)
 
     async def close(self):
         await self.session.close()
