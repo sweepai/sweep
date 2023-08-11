@@ -1,10 +1,9 @@
 # Frequently Asked Questions
 
-## Can I comment on Sweep’s PRs?
 <details>
-<summary>View details</summary>
+<summary>## Can I comment on Sweep’s PRs?</summary>
 
-Yep! You have three options depending on the degree of the change:
+<p style="font-size:small;">Yep! You have three options depending on the degree of the change:</p>
 
 1. You can comment on the issue, and Sweep will rewrite the entire pull request. This will use one of your GPT4 credits.
 2. You can comment on the pull request (not a file) and Sweep can make substantial changes to the pull request. Sweep will search the codebase, and is able to modify and create files.
@@ -12,11 +11,10 @@ Yep! You have three options depending on the degree of the change:
 
 </details>
 
-## Why are you open source?
 <details>
-<summary>View details</summary>
+<summary>## Why are you open source?</summary>
 
-We’re open source so that our users can see exactly how their data is processed, as well as learn from how Sweep works! We’re really excited about building a community of Sweep users. We also have a non-commercial license, so it’s not possible to self host/sell Sweep without working with us.
+<p style="font-size:small;">We’re open source so that our users can see exactly how their data is processed, as well as learn from how Sweep works! We’re really excited about building a community of Sweep users. We also have a non-commercial license, so it’s not possible to self host/sell Sweep without working with us.</p>
 
 </details>
 
