@@ -2,9 +2,9 @@ import os
 
 # Add django-cors-headers to the list of installed apps
 INSTALLED_APPS = [
-    ...
+    # other installed apps
     'corsheaders',
-    ...
+    # other installed apps
 ]
 
 # Add django-cors-headers.middleware.CorsMiddleware to the list of middleware
