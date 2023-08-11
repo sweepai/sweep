@@ -17,13 +17,15 @@ export function RepoPreview({ repoName, displayName=null }) {
             console.log("repo data", data)
             setRepoData(data)
         }
-        const cacheHit = localStorage.getItem(`repoData-${repoName}`)
-        if (cacheHit) {
-            const { repoData, timestamp } = JSON.parse(cacheHit)
-            if (repoData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60) {
-                console.log("cache hit")
-                setRepoData(repoData)
-                return
+        if (localStorage) {
+            const cacheHit = localStorage.getItem(`repoData-${repoName}`)
+            if (cacheHit) {
+                const { repoData, timestamp } = JSON.parse(cacheHit)
+                if (repoData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60) {
+                    console.log("cache hit")
+                    setRepoData(repoData)
+                    return
+                }
             }
         } else {
             fetchRepoData()
@@ -31,7 +33,7 @@ export function RepoPreview({ repoName, displayName=null }) {
     }, [repoName])
 
     useEffect(() => {
-        if (repoData) {
+        if (localStorage && repoData) {
             localStorage.setItem(`repoData-${repoName}`, JSON.stringify({repoData, timestamp: new Date()}))
         }
     }, [repoData])
