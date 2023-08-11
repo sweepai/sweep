@@ -1,6 +1,6 @@
+from fastapi import HTTPException, Request, FileResponse
 import time
 import modal
-from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
 from sweepai.core.entities import PRChangeRequest
@@ -513,6 +513,14 @@ async def webhook(raw_request: Request):
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
+
+@modal.web_endpoint(method="GET")
+async def navbar():
+    """Endpoint to serve the navbar HTML file."""
+    try:
+        return FileResponse("quiz_app/templates/navbar.html")
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Navbar file not found")
 
 @stub.function(**FUNCTION_SETTINGS)
 def update_sweep_prs(
