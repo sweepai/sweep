@@ -51,6 +51,16 @@ class SweepConfig(BaseModel):
             logger.warning(f"Error when getting branch: {e}, falling back to default branch")
             return default_branch
 
+    @staticmethod
+    def get_config(repo: Repository):
+        try:
+            contents = repo.get_contents("sweep.yaml")
+            config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
+            return config
+        except Exception as e:
+            logger.warning(f"Error when getting config: {e}, returning empty dict")
+            return {}
+
 
 @lru_cache(maxsize=None)
 def get_gha_enabled(repo: Repository) -> bool:
