@@ -1,0 +1,61 @@
+# Sweep Config 
+
+In this article, we will explore ways to configure Sweep. Mainly, we will focus on the `sweep.yaml` file, which is the main configuration file for Sweep. 
+
+## Config Table
+| Key | Type | Description |
+| --- | --- | --- |
+| `gha_enabled` | `bool` | Whether or not to enable GitHub Actions |
+| `branch` | `str` | The branch to run on |
+| `blocked_dirs` | `list` | A list of directories to ignore |
+| `description` | `str` | The description of the repository |
+| `docs` | `dict` | A dictionary of documentation links |
+
+---
+
+## gha_enabled
+```yaml
+gha_enabled: True
+```
+Possible Values: True, False
+
+This setting determines whether or not to enable GitHub Actions. If this is set to `False`, then Sweep will not read the results of GitHub Actions.
+
+# branch
+```yaml
+branch: main
+```
+This setting determines which branch Sweep will develop from and make pull requests to.
+
+# blocked_dirs
+```yaml
+blocked_dirs: [".github/", "other_dir"]
+```
+This setting lists all of the directories that Sweep will not be able to edit. In our example, Sweep is unable to modify the `.github` folder as we do not want Sweep to modify our GitHub Actions.
+
+# description
+```yaml
+description: "project description and standards to follow"
+```
+This setting is the description of the repository that will be passed to Sweep. Please include details that Sweep may need to understand the repository. You may also include details about standards to follow here.
+
+# docs
+```yaml
+docs: {"modal": "https://modal.com/docs/reference"}
+```
+This setting contains documentation links that Sweep is able to search through. This is helpful for packages with syntax that has changed or newer packages.
+
+**Important**: Please contact us if you would like to add a documentation link so we can add it to our database.
+
+---
+
+## Our Configuration File
+This file is available [here](https://github.com/sweepai/sweep/blob/main/sweep.yaml). We have pasted this file below for your convenience. 
+
+```yaml
+gha_enabled: True
+branch: main
+blocked_dirs: [".github/"]
+description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. Write code that adheres to PEP8."
+docs: {"modal": "https://modal.com/docs/reference", "github": "https://pygithub.readthedocs.io/en/stable", "deeplake": "https://docs.deeplake.ai/en/latest"}
+```
