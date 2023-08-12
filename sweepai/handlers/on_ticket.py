@@ -94,7 +94,7 @@ def strip_sweep(text: str):
         re.search(r"^[Ss]weep\s?\(migrate\)", text) is not None
     )
 
-def on_ticket(
+async def on_ticket(
     title: str,
     summary: str,
     issue_number: int,
@@ -314,6 +314,35 @@ def on_ticket(
         )
         raise error
 
+
+
+
+    # Clone repo and perform local tests (linters, formatters, GHA)
+    sandbox = None
+    try:
+        logger.info("Initializing sandbox...")
+
+        # Todo(lukejagg): run this in the background
+        sandbox = await asyncio.wait_for(Sandbox.from_token(username, user_token, repo), timeout=30)
+
+
+
+        await asyncio.wait_for(sandbox.clone_repo(), timeout=60)
+        await asyncio.wait_for(sandbox.update_branch(), timeout=60)
+        # Currently only works with Python3 venvs
+        await asyncio.wait_for(sandbox.create_python_venv(), timeout=60)
+
+        await asyncio.wait_for(sandbox.close(), timeout=15)
+
+        # Todo(lukejagg): formatter, linter, etc
+        # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc)
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        logger.error(e)
+
+
+
+
     logger.info("Fetching relevant files...")
     try:
         snippets, tree = fetch_file_contents_with_retry()
@@ -522,34 +551,6 @@ def on_ticket(
                 break
 
         edit_sweep_comment(review_message + "\n\nI finished incorporating these changes.", 5)
-
-        # Clone repo and perform local tests (linters, formatters, GHA)
-        sandbox = None
-        try:
-            if not get_sandbox_enabled(repo):
-                raise Exception("Sandbox is disabled")
-
-            async def run_sandbox(title: str, summary: str):
-                nonlocal sandbox
-                try:
-                    sandbox = await asyncio.wait_for(Sandbox.from_token(username, user_token), timeout=15)
-                    await asyncio.wait_for(sandbox.clone_repo(), timeout=60)
-                    await asyncio.wait_for(sandbox.update_branch(), timeout=60)
-                    # Currently only works with Python3 venvs
-                    await asyncio.wait_for(sandbox.create_python_venv(), timeout=60)
-                except Exception as e:
-                    pass
-                finally:
-                    await asyncio.wait_for(sandbox.close(), timeout=15)
-
-            logger.info("Running sandbox...")
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(run_sandbox(title, summary))
-            # Todo(lukejagg): formatter, linter, etc
-            # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc)
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
 
         pr = repo.create_pull(
             title=pr_changes.title,
