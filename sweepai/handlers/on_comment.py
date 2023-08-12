@@ -4,7 +4,7 @@ import openai
 from loguru import logger
 from typing import Any
 
-def construct_metadata(repo_full_name, repo_name, organization, repo_description, installation_id, username, function, mode):
+def construct_metadata(repo_full_name, repo_name, organization, repo_description, installation_id, username, function, model, tier, mode):
     return {
         "repo_full_name": repo_full_name,
         "repo_name": repo_name,
@@ -13,6 +13,8 @@ def construct_metadata(repo_full_name, repo_name, organization, repo_description
         "installation_id": installation_id,
         "username": username,
         "function": function,
+        "model": model,
+        "tier": tier,
         "mode": mode,
     }
 
@@ -20,7 +22,7 @@ from sweepai.core.entities import FileChangeRequest, NoFilesException, Snippet, 
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.config.server import GITHUB_BOT_USERNAME, PREFIX, OPENAI_API_KEY, GITHUB_BOT_TOKEN
+from sweepai.config.server import GITHUB_BOT_USERNAME, PREFIX, OPENAI_API_KEY, GITHUB_BOT_TOKEN
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     get_github_client,
@@ -92,15 +94,51 @@ def on_comment(
     logger.info(
         f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}")
     organization, repo_name = repo_full_name.split("/")
-    metadata = construct_metadata(repo_full_name, repo_name, organization, repo_description, installation_id, username, "on_comment", PREFIX)
-
-    capture_posthog_event(username, "started", properties=metadata)
-    logger.info(f"Getting repo {repo_full_name}")
-    file_comment = bool(pr_path) and bool(pr_line_position)
 
     g = (get_github_client(installation_id))[1] if not g else g
     repo = g.get_repo(repo_full_name) if not repo else repo
     pr = repo.get_pull(pr_number) if not pr else pr
+    pr_title = pr.title
+    pr_body = pr.body or ""
+    pr_file_path = None
+    diffs = get_pr_diffs(repo, pr)
+    pr_line = None
+    chat_logger = ChatLogger({
+        'repo_name': repo_name,
+        'title': '(Comment) ' + pr_title,
+        "issue_url": pr.html_url,
+        "pr_file_path": pr_file_path,  # may be None
+        "pr_line": pr_line,  # may be None
+        "repo_full_name": repo_full_name,
+        "repo_description": repo_description,
+        "comment": comment,
+        "pr_path": pr_path,
+        "pr_line_position": pr_line_position,
+        "username": username,
+        "installation_id": installation_id,
+        "pr_number": pr_number,
+        "type": "comment",
+    })
+
+    is_paying_user = chat_logger.is_paying_user()
+    use_faster_model = chat_logger.use_faster_model(g)
+    
+    metadata = construct_metadata(
+        repo_full_name, 
+        repo_name, 
+        organization, 
+        repo_description, 
+        installation_id, 
+        username, 
+        "on_comment", 
+        "gpt-3.5" if use_faster_model else "gpt-4",
+        "pro" if is_paying_user else "free",
+        PREFIX
+    )
+
+    capture_posthog_event(username, "started", properties=metadata)
+    logger.info(f"Getting repo {repo_full_name}")
+    file_comment = bool(pr_path) and bool(pr_line_position)
 
     item_to_react_to = None
     reaction = None
@@ -128,11 +166,6 @@ def on_comment(
                         item_to_react_to.delete_reaction(r.id)
 
         branch_name = pr.head.ref if pr_number else pr.pr_head # pylint: disable=no-member
-        pr_title = pr.title
-        pr_body = pr.body or ""
-        diffs = get_pr_diffs(repo, pr)
-        pr_line = None
-        pr_file_path = None
         # This means it's a comment on a file
         if file_comment:
             pr_file = repo.get_contents(pr_path, ref=branch_name).decoded_content.decode("utf-8")
@@ -172,22 +205,7 @@ def on_comment(
             except Exception as e:
                 logger.error(traceback.format_exc())
                 raise e
-        chat_logger = ChatLogger({
-            'repo_name': repo_name,
-            'title': '(Comment) ' + pr_title,
-            "issue_url": pr.html_url,
-            "pr_file_path": pr_file_path,  # may be None
-            "pr_line": pr_line,  # may be None
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "comment": comment,
-            "pr_path": pr_path,
-            "pr_line_position": pr_line_position,
-            "username": username,
-            "installation_id": installation_id,
-            "pr_number": pr_number,
-            "type": "comment",
-        })
+
         snippets = post_process_snippets(snippets, max_num_of_snippets=0 if file_comment else 2)
 
         logger.info("Getting response from ChatGPT...")

@@ -27,7 +27,7 @@ class Sandbox(BaseModel):
     token: str
     image: str = "Python3"
     session: Session
-    path: str = "/code"
+    path: str = "~"
 
     class Config:
         arbitrary_types_allowed = True
@@ -45,18 +45,22 @@ class Sandbox(BaseModel):
         )
 
     async def run_command(self, command: str, path: str = None):
-        print("Running command", command)
+        print("Running command", command, flush=True)
         outputs = []
+        def on_stdout(m):
+            outputs.append(m)
+            print(m)
+
         proc = await self.session.process.start(
             cmd=command,
-            on_stdout=lambda m: outputs.append(ShellMessage(message=m['line'])),
-            on_stderr=lambda e: outputs.append(ShellMessage(message=e['line'], error=True)),
+            on_stdout=on_stdout,
+            on_stderr=on_stdout,
             on_exit=lambda: print("Exit"),
             rootdir=path or self.path,
         )
         # await proc.send_stdin("token\n")
         # await proc.kill()
-        await proc.finished
+        _ = await proc.finished
         await asyncio.sleep(0.05)  # Small delay to allow the process to finish
         return outputs
 
@@ -67,3 +71,6 @@ class Sandbox(BaseModel):
 
     async def create_python_venv(self):
         await self.run_command(GIT_PASS.format(token=self.token), path="/code")
+
+    async def close(self):
+        await self.session.close()

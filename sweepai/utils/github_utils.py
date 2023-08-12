@@ -2,7 +2,6 @@ import os
 import re
 import shutil
 import time
-from datetime import datetime
 
 import github
 import modal
@@ -22,8 +21,8 @@ from loguru import logger
 from tqdm import tqdm
 
 from sweepai.core.entities import Snippet
-from sweepai.utils.config.client import SweepConfig
-from sweepai.utils.config.server import DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHUB_APP_PEM, REDIS_URL
+from sweepai.config.client import SweepConfig
+from sweepai.config.server import DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHUB_APP_PEM, REDIS_URL
 from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
@@ -212,6 +211,7 @@ def get_num_files_from_repo(repo: Repository, installation_id: str):
     git_repo = Repo.clone_from(repo_url, "repo")
     git_repo.git.checkout(SweepConfig.get_branch(repo))
     file_list = get_file_list("repo")
+    shutil.rmtree("repo", ignore_errors=True)
     return len(file_list)
 
 def search_snippets(

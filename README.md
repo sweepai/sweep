@@ -36,12 +36,25 @@ Describe bugs, small features, and refactors like you would to a junior develope
 * 👀 Addresses developer replies & comments on its PRs
 * 🔎 Uses embedding-based code search
 
-
-
 ### Why Sweep is Unique 🦄
 
-Unlike Copilot, which only provides IDE based autocompletion, Sweep handles the entire flow end-to-end. Unlike ChatGPT, Sweep does not require pasting files.
+We're not a toy project or a proof-of-concept. We're a **production devtool** used by startups including ourselves to ship features everyday, with example features [here](https://docs.sweep.dev/examples).
 
+Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the entire **flow end-to-end**. Unlike ChatGPT, Sweep does not require copy-pasting files.
+
+<details>
+    <summary>
+        Sweep vs. GPT-Engineer, Smol Developer and AutoGPT
+    </summary>
+    Sweep is built to improve on an existing codebase, which is a more frequent and higher need, than generating boilerplate, which is mostly a solved problem since you can just fork existing boilerplates.
+</details>
+
+<details>
+    <summary>
+        Sweep vs. Cody and Bloop
+    </summary>
+    We do more than just chat-with-your-code by actually writing code changes.
+</details>
 
 [Demo](https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47)
 
@@ -60,11 +73,7 @@ Install Sweep by adding the [**Sweep GitHub app**](https://github.com/apps/sweep
 ## Limitations of Sweep ⚠️
 
 * 🏗️ **Large-scale refactors**: >3 files or >150 lines of code changes (we're working on this!)
-    * e.g. Refactor entire codebase from Tensorflow to PyTorch
-
-* ⏲️ **Using the latest APIs** that have changed past 2022
-    * e.g. Set up a vector store using LlamaIndex Typescript    
-    * 🎩 If you provide the relevant docs however, then Sweep can do this
+    * e.g. Refactor the entire codebase from Tensorflow to PyTorch
 
 * 🖼️ **Editing images** and other non-text assets
     * e.g. Use the logo to create favicons for our landing page
@@ -89,7 +98,7 @@ Unlike existing AI solutions, this can solve entire tickets and can be paralleli
 Examine pull requests created by Sweep [here](https://docs.sweep.dev/examples).
 
 ## Pricing
-We offer unlimited GPT3.5 tickets to every user. You also start with 5 GPT4 credits which are used when a PR is created.
+We offer unlimited GPT-3.5 tickets to every user. Every user also starts with 5 GPT-4 issues a month, and you'll be able to use 2 GPT-4 issues a day.
 
 For professionals who want more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month. In addition, we're also offering 15 PRs for $60 as a one-time purchase for anyone interested in eventually purchasing Sweep Pro. You can purchase this [here](https://buy.stripe.com/7sI4jlaCR3PaabebIP).
 

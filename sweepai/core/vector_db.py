@@ -1,6 +1,5 @@
 import glob
 import json
-import math
 import os
 import re
 import shutil
@@ -25,8 +24,8 @@ from sweepai.core.entities import Snippet
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.scorer import get_factors, get_scores
-from ..utils.config.client import SweepConfig
-from ..utils.config.server import ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, REDIS_URL, BOT_TOKEN_NAME
+from sweepai.config.client import SweepConfig
+from sweepai.config.server import ENV, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, REDIS_URL, BOT_TOKEN_NAME
 from ..utils.github_utils import get_token
 
 
@@ -310,7 +309,8 @@ def get_deeplake_vs_from_repo(
     for batch in chunker.starmap(zip(file_contents_batches, file_paths_batches, scores_batches), kwargs={"additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}}):
         chunked_results.extend(batch)
 
-    documents, metadatas, ids = zip(*chunked_results)
+    # Todo(lukejagg): Should we default return ([], [], []) on empty list?
+    documents, metadatas, ids = zip(*chunked_results) if len(chunked_results) > 0 else ([], [], [])
     documents = [item for sublist in documents for item in sublist]
     metadatas = [item for sublist in metadatas for item in sublist]
     ids = [item for sublist in ids for item in sublist]

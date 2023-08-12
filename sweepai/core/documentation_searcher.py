@@ -1,6 +1,6 @@
 import modal
 from loguru import logger
-from sweepai.utils.config.server import DOCS_MODAL_INST_NAME
+from sweepai.config.server import DOCS_MODAL_INST_NAME
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.documentation import DOCS_ENDPOINTS
@@ -13,10 +13,11 @@ class DocumentationSearcher(ChatGPT):
     # no but seriously, refactor this
 
     @staticmethod
-    def extract_docs_links(content: str) -> list[str]:
+    def extract_docs_links(content: str, user_dict: str) -> list[str]:
         urls = []
-        logger.info(DOCS_ENDPOINTS)
         logger.info(content)
+        # add the user_dict to DOC_ENDPOINTS
+        DOCS_ENDPOINTS.update(user_dict)
         for framework, url in DOCS_ENDPOINTS.items():
             if framework.lower() in content.lower() or framework.lower().replace(" ", "") in content.lower():
                 urls.append(url)
@@ -54,9 +55,9 @@ class DocumentationSearcher(ChatGPT):
 
 
     @staticmethod
-    def extract_relevant_docs(content: str):
+    def extract_relevant_docs(content: str, user_dict: dict):
         logger.info("Fetching related APIs from content")
-        links = DocumentationSearcher.extract_docs_links(content)
+        links = DocumentationSearcher.extract_docs_links(content, user_dict)
         if not links:
             return ""
         result = "\n\n### I also found some related docs:\n\n"
