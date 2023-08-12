@@ -157,6 +157,8 @@ def on_ticket(
 
     logger.info(f"Getting repo {repo_full_name}")
     repo = g.get_repo(repo_full_name)
+    config = SweepConfig.get_config(repo)
+
     current_issue = repo.get_issue(number=issue_number)
     if current_issue.state == 'closed':
         logger.warning(f"Issue {issue_number} is closed")
@@ -569,11 +571,13 @@ def on_ticket(
             logger.error(traceback.format_exc())
             logger.error(e)
 
+        is_draft = config.get("draft", False)
         pr = repo.create_pull(
             title=pr_changes.title,
             body=pr_changes.body,
             head=pr_changes.pr_head,
-            base=SweepConfig.get_branch(repo)
+            base=SweepConfig.get_branch(repo),
+            draft=is_draft,
         )
         # Get the branch (SweepConfig.get_branch(repo))'s sha
         sha = repo.get_branch(SweepConfig.get_branch(repo)).commit.sha
