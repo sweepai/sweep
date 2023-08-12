@@ -179,6 +179,7 @@ class CodeGenBot(ChatGPT):
         raise Exception("Could not generate PR text")
 
 
+# Add Azure DevOps code here
 class GithubBot(BaseModel):
     class Config:
         arbitrary_types_allowed = True  # for repo: Repository
@@ -311,6 +312,7 @@ class GithubBot(BaseModel):
         return file_change_requests
 
 
+# Add Azure DevOps code here
 class SweepBot(CodeGenBot, GithubBot):
     def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
         file_change: FileCreation | None = None
