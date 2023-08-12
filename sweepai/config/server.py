@@ -1,5 +1,25 @@
 import os
 
+# Add django-cors-headers to the list of installed apps
+INSTALLED_APPS = [
+    # other installed apps
+    'corsheaders',
+    # other installed apps
+]
+
+# Add django-cors-headers.middleware.CorsMiddleware to the list of middleware
+MIDDLEWARE = [
+    ...
+    'corsheaders.middleware.CorsMiddleware',
+    ...
+]
+
+# Allow all origins
+CORS_ORIGIN_ALLOW_ALL = True
+
+# Or specify the allowed origins
+# CORS_ORIGIN_WHITELIST = ['http://localhost:8000', 'http://127.0.0.1:9000']
+
 PREFIX = 'dev2'
 
 print(f"Using prefix: {PREFIX}")
@@ -100,3 +120,4 @@ E2B_API_KEY = os.environ.get('E2B_API_KEY')
 SUPPORT_COUNTRY = os.environ.get('GDRP_LIST', '').split(',')
 
 SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
+# Added a newline at the end of the file

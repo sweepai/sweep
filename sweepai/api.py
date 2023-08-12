@@ -164,6 +164,7 @@ def push_to_queue(
 @modal.web_endpoint(method="POST")
 async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
+    # Add your new or updated views here
     try:
         request_dict = await raw_request.json()
         logger.info(f"Received request: {request_dict.keys()}")
