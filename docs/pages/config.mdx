@@ -8,6 +8,7 @@ In this article, we will explore ways to configure Sweep. Mainly, we will focus 
 | `gha_enabled` | `bool` | Whether or not to enable GitHub Actions |
 | `branch` | `str` | The branch to run on |
 | `blocked_dirs` | `list` | A list of directories to ignore |
+| `draft` | `bool` | Whether or not to create PRs as drafts |
 | `description` | `str` | The description of the repository |
 | `docs` | `dict` | A dictionary of documentation links |
 
@@ -32,6 +33,14 @@ This setting determines which branch Sweep will develop from and make pull reque
 blocked_dirs: [".github/", "other_dir"]
 ```
 This setting lists all of the directories that Sweep will not be able to edit. In our example, Sweep is unable to modify the `.github` folder as we do not want Sweep to modify our GitHub Actions.
+
+# draft
+```yaml
+draft: False
+```
+Possible Values: True, False
+
+This setting determines whether or not to create pull requests as drafts. If this is set to `True`, then all pull requests will be created as drafts and **GitHub Actions will not be triggered**.
 
 # description
 ```yaml
