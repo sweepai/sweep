@@ -10,14 +10,14 @@ from sweepai.config.client import get_sandbox_config, SweepConfig
 Self = TypeVar("Self", bound="Sandbox")
 
 
-REPO_PATH = "~/repo"
-GIT_PASS = 'cd ~; echo \'#!/bin/sh\\necho "{token}"\' > git-askpass.sh && chmod +x git-askpass.sh'
+REPO_PATH = "/home/user/repo"
+GIT_PASS = 'cd ~; echo \'#!/bin/sh\\necho "{token}"\' > git-askpass.sh && chmod ugo+x git-askpass.sh'
 GIT_CLONE = "cd ~; export GIT_ASKPASS=./git-askpass.sh;" \
             "git config --global credential.helper 'cache --timeout=3600';" \
             "git clone https://{username}@github.com/{repo} " + REPO_PATH
-GIT_BRANCH = f"cd {REPO_PATH}; " + "checkout -B {branch}"
+GIT_BRANCH = f"cd {REPO_PATH}; " + "git checkout -B {branch}"
 IMAGE_INSTALLATION = {
-    "Nodejs": f"cd {REPO_PATH}; npm install",
+    "Nodejs": f"npm install",
 }
 PYTHON_CREATE_VENV = f"cd {REPO_PATH} && python3 -m venv venv && source venv/bin/activate && poetry install"
 
@@ -34,14 +34,14 @@ class Sandbox(BaseModel):
         arbitrary_types_allowed = True
 
     @classmethod
-    async def from_token(cls: Type[Self], username: str, token: str, repo) -> Self | None:
-        config = get_sandbox_config(repo)
+    async def from_token(cls: Type[Self], username: str, token: str, repo, config=None) -> Self | None:
+        config = config or get_sandbox_config(repo)
         enabled = config.get("enabled", False)
         image = config.get("image", None)
         formatter = config.get("formatter", None)
         linter = config.get("linter", None)
         install_command = config.get("install", IMAGE_INSTALLATION.get(image))
-        main_branch = SweepConfig.get_branch(repo)
+        main_branch = config.get("branch", None) or SweepConfig.get_branch(repo)
 
         if not enabled:  # Sandbox is not enabled
             logger.info("Sandbox is not enabled")
@@ -58,17 +58,17 @@ class Sandbox(BaseModel):
             token=token,
             image=image,
             session=session,
-            format_command=f'cd {REPO_PATH}; formatter',
-            linter_command=f'cd {REPO_PATH}; linter',
+            format_command=f'cd {REPO_PATH}; {formatter}',
+            linter_command=f'cd {REPO_PATH}; {linter}',
         )
 
-        await sandbox.clone_repo()
+        await sandbox.clone_repo(repo.full_name)
         await sandbox.update_branch(main_branch)
-        await sandbox.run_command(install_command)
+        await sandbox.run_command(f"cd {REPO_PATH}; {install_command}")
         return sandbox
 
     async def run_command(self, command: str):
-        print("Running command", command)
+        print("Running command:", command)
         outputs = []
         def on_stdout(m):
             outputs.append(m)
@@ -106,7 +106,7 @@ class Sandbox(BaseModel):
 
     async def run_formatter(self, file_path, content):
         await self.write_repo_file(file_path, content)
-        await self.run_command(self.format_command)
+        await self.run_command(self.format_command.format(file=file_path))
         return await self.read_repo_file(file_path)
 
     async def run_linter(self):
