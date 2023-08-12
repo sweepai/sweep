@@ -587,11 +587,14 @@ def on_ticket(
 
         logger.info("Running github actions...")
         try:
-            commit = pr.get_commits().reversed[0]
-            check_runs = commit.get_check_runs()
+            if is_draft:
+                logger.info("Skipping github actions because PR is a draft")
+            else:
+                commit = pr.get_commits().reversed[0]
+                check_runs = commit.get_check_runs()
 
-            for check_run in check_runs:
-                check_run.rerequest()
+                for check_run in check_runs:
+                    check_run.rerequest()
         except Exception as e:
             logger.error(e)
 
