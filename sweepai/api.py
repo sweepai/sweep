@@ -171,7 +171,6 @@ async def webhook(raw_request: Request):
         assert event is not None, "Event is required"
         action = request_dict.get("action", None)
         logger.info(f"Received event: {event}, {action}")
-        # Add Azure DevOps events here
         match event, action:
             case "issues", "opened":
                 request = IssueRequest(**request_dict)
@@ -513,7 +512,6 @@ async def webhook(raw_request: Request):
     except ValidationError as e:
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
-    # Add Azure DevOps response here
     return {"success": True}
 
 @stub.function(**FUNCTION_SETTINGS)
