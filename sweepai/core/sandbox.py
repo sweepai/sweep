@@ -22,12 +22,6 @@ IMAGE_INSTALLATION = {
 PYTHON_CREATE_VENV = f"cd {REPO_PATH} && python3 -m venv venv && source venv/bin/activate && poetry install"
 
 
-# Class for ShellMessage
-class ShellMessage(BaseModel):
-    message: str
-    error: bool = False
-
-
 class Sandbox(BaseModel):
     username: str
     token: str
@@ -62,7 +56,9 @@ class Sandbox(BaseModel):
             username=username,
             token=token,
             image=image,
-            session=session
+            session=session,
+            format_command=f'cd {REPO_PATH}; formatter',
+            linter_command=f'cd {REPO_PATH}; linter',
         )
 
         await sandbox.clone_repo()
@@ -106,6 +102,16 @@ class Sandbox(BaseModel):
 
     async def read_repo_file(self, file_path):
         return await self.session.filesystem.read(f'{REPO_PATH}/{file_path}')
+
+    async def run_formatter(self, file_path, content):
+        await self.write_repo_file(file_path, content)
+        await self.run_command(self.format_command)
+        return await self.read_repo_file(file_path)
+
+    async def run_linter(self):
+        if self.linter_command is None:
+            return None
+        await self.run_command(self.linter_command)
 
     async def close(self):
         await self.session.close()
