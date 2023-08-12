@@ -103,11 +103,11 @@ def get_documentation_dict(repo: Repository):
         return {}
 
 @lru_cache(maxsize=None)
-def get_excluded_dirs(repo: Repository):
+def get_blocked_dirs(repo: Repository):
     try:
         sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode("utf-8")
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
-        dirs = sweep_yaml.get('excluded_dirs', [])
+        dirs = sweep_yaml.get('blocked_dirs', [])
         return dirs
     except Exception as e:
         logger.warning(f"Error when getting docs: {e}, returning empty dict")

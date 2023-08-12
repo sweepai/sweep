@@ -68,9 +68,6 @@ def format_contents(file_contents, is_markdown=False):
     """
     lines = file_contents.split('\n')
 
-    if is_markdown:
-        return '\n'.join(lines)
-
     # Handle small files
     if len(lines) <= 5:
         start_idx = 0

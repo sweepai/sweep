@@ -39,18 +39,20 @@ update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 sep = "\n---\n"
 bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
-bot_suffix = f"\n{sep} To recreate the pull request, leave a comment prefixed with \"sweep:\" or edit the issue."
+bot_suffix = f"\n{sep} To recreate the pull request, or edit the issue title or description."
 discord_suffix = f'\n<sup>[Join Our Discord](https://discord.com/invite/sweep-ai)'
 
 stars_suffix = "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
 
 collapsible_template = '''
 <details>
-  <summary>{summary}</summary>
+<summary>{summary}</summary>
 
-  {body}
+{body}
 </details>
 '''
+
+checkbox_template = "- [{check}] `{filename}`\n> {instructions}\n"
 
 chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "chunk")
 
@@ -114,6 +116,10 @@ async def on_ticket(
     # 4. Get file changes
     # 5. Create PR
 
+    summary = summary or ""
+    summary = re.sub("<details>\n<summary>Checklist</summary>.*", "", summary, flags=re.DOTALL)
+    summary = re.sub("Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL)
+
     repo_name = repo_full_name
 
     chat_logger = ChatLogger({
@@ -156,6 +162,7 @@ async def on_ticket(
         logger.warning(f"Issue {issue_number} is closed")
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
+    current_issue.edit(body=summary)
     item_to_react_to = current_issue.get_comment(comment_id) if comment_id else current_issue
     replies_text = ""
     comments = list(current_issue.get_comments())
@@ -479,10 +486,18 @@ async def on_ticket(
 
         files_progress = [(file_change_request.filename, file_change_request.instructions, "⏳") for file_change_request in file_change_requests]
 
+        checkboxes_progress = [(file_change_request.filename, file_change_request.instructions, " ") for file_change_request in file_change_requests]
+        checkboxes_message = collapsible_template.format(
+            summary="Checklist",
+            body="\n".join([checkbox_template.format(check=check, filename=filename, instructions=instructions.replace("\n", "\n> ")) for filename, instructions, check in checkboxes_progress])
+        )
+        issue = repo.get_issue(number=issue_number)
+        issue.edit(body=summary + "\n\n" + checkboxes_message)
+
         generator = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number, sandbox=sandbox)
-        message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
+        table_message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
         logger.info(files_progress)
-        edit_sweep_comment(message, 4)
+        edit_sweep_comment(table_message, 4)
         response = {"error": NoFilesException()}
         for item in generator:
             if isinstance(item, dict):
@@ -493,22 +508,30 @@ async def on_ticket(
                 commit_hash = repo.get_branch(pull_request.branch_name).commit.sha
                 commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
                 files_progress = [(file, instructions, f"✅ Commit [`{commit_hash[:7]}`]({commit_url})") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
+
+                checkboxes_progress = [(file, instructions, "X") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in checkboxes_progress]
+                checkboxes_message = collapsible_template.format(
+                    summary="Checklist",
+                    body="\n".join([checkbox_template.format(check=check, filename=filename, instructions=instructions.replace("\n", "\n> ")) for filename, instructions, check in checkboxes_progress])
+                )
+                issue = repo.get_issue(number=issue_number)
+                issue.edit(body=summary + "\n\n" + checkboxes_message)
             else:
                 files_progress = [(file, instructions, "❌") if file_change_request.filename == file else (file, instructions, progress) for file, instructions, progress in files_progress]
             logger.info(files_progress)
             logger.info(f"Edited {file_change_request.filename}")
-            message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
-            edit_sweep_comment(message, 4)
+            table_message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
+            edit_sweep_comment(table_message, 4)
         if not response.get("success"):
             raise Exception(f"Failed to create PR: {response.get('error')}")
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
-            message + "I have finished coding the issue. I am now reviewing it for completeness.",
+            table_message + "I have finished coding the issue. I am now reviewing it for completeness.",
             4
         )
 
-        review_message = f"Here are the my self-reviews of my changes at [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
+        review_message = f"Here are my self-reviews of my changes at [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
 
         try:
             current_issue.delete_reaction(eyes_reaction.id)
@@ -554,7 +577,6 @@ async def on_ticket(
         sha = repo.get_branch(SweepConfig.get_branch(repo)).commit.sha
 
         pr.add_to_labels(GITHUB_LABEL_NAME)
-        chat_logger.add_successful_ticket()
         current_issue.create_reaction("rocket")
 
         logger.info("Running github actions...")
