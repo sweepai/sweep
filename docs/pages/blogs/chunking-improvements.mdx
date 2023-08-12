@@ -12,7 +12,7 @@ Follow along in our Jupyter notebook at https://github.com/sweepai/sweep/blob/ma
 
 ## Meet the Span
 
-As a brief helper data structure, we first implemented the following dataclass:
+As a brief helper data structure, we first implemented the following dataclass for representing a slice of a string:
 
 ```python
 from __future__ import annotations
@@ -20,22 +20,12 @@ from dataclasses import dataclass
 
 @dataclass
 class Span:
-    # Represents a slice of a string
-    start: int = 0
-    end: int = 0
-
-    def __post_init__(self):
-        # If end is None, set it to start
-        if self.end is None:
-            self.end = self.start
+    start: int
+    end: int
 
     def extract(self, s: str) -> str:
         # Grab the corresponding substring of string s by bytes
         return s[self.start: self.end]
-
-    def extract_lines(self, s: str) -> str:
-        # Grab the corresponding substring of string s by lines
-        return "\n".join(s.splitlines()[self.start:self.end])
 
     def __add__(self, other: Span | int) -> Span:
         # e.g. Span(1, 2) + Span(2, 4) = Span(1, 4) (concatenation)
@@ -78,17 +68,21 @@ headers = {
 
 As you can see there’s missing whitespace between keywords and delimiters. Due to the noisiness of tree-sitter CST-parsers, as they’re mostly community-maintained, we have cases where the end byte of one node does not correspond with the start byte of the next starting node, like so:
 
-```python
-def char_len(s: str) -> int: # old len function
-	return len(s)
-
-def non_whitespace_len(s: str) -> int: # new len function
-    return len(re.sub("\s", "", s))
+```python {1,4}
+expression_statement:431-695
+  assignment:431-695
+    string:445-695
+function_definition:697-1501
+  block:776-1501
+    expression_statement:776-952
+      assignment:776-952
+        dictionary:786-952
+...
 ```
 
-Notice that the “expression_statement” ends on byte 696 and “function_definition” starts on byte 698, skipping the byte corresponding to a new line. A partial solution is to instead of using `node.start_byte` and `node.end_byte`, we replace the `end_byte` with the `start_byte` of the next node, like so:
+Notice that the “expression_statement” ends on byte 695 and “function_definition” starts on byte 697, skipping the byte corresponding to a new line. A partial solution is to instead of using `node.start_byte` and `node.end_byte`, we replace the `end_byte` with the `start_byte` of the next node, like so:
 
-```python
+```python {19,26,28}
 from tree_sitter import Node
 from dataclasses import field
 
@@ -104,7 +98,7 @@ def chunk_node(
     MAX_CHARS: int = 600
 ) -> list[str]:
     chunks = []
-    current_chunk = ""
+    current_chunk: list[str] = ""
     node_children = node.children + [MockNode(node.end_byte, node.end_byte)]
 
     for child, next_child in zip(node_children[:-1], node_children[1:]):
@@ -124,15 +118,14 @@ def chunk_node(
 
 We can clean up the implementation by using Spans, taking advantage of how concatenation works, as follows.
 
-```python
+```python {6, 10, 14, 16}
 def chunk_node(
     node: Node, 
     MAX_CHARS: int = 600,
 ) -> list[Span]:
     new_chunks: list[Span] = []
     current_chunk: Span = Span(node.start_byte, node.start_byte)
-    node_children = node.children
-    for child in node_children:
+    for child in node.children:
         if child.end_byte - child.start_byte > MAX_CHARS:
             new_chunks.append(current_chunk)
             current_chunk = Span(child.end_byte, child.end_byte)
@@ -148,7 +141,7 @@ def chunk_node(
 
 Which yields significantly better results but still has an issue, consecutive spans still has gaps.
 
-```python
+```python /430/ /432/
 Span(start=1, end=430)
 Span(start=432, end=696)
 Span(start=698, end=772)
@@ -163,7 +156,7 @@ We can also eliminate the case where consecutive chunks are disconnected by addi
 def connect_chunks(chunks: list[Span]):
     for prev, curr in zip(chunks[:-1], chunks[1:]):
         prev.end = curr.start
-	  return chunks
+	return chunks
 ```
 
 ## Coalescing
@@ -175,7 +168,7 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
 
 ====================
 
-		headers = {
+	headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {get_token(installation_id)}",
         "X-GitHub-Api-Version": "2022-11-28"
@@ -202,7 +195,7 @@ def coalesce_chunks(chunks: list[Span], source_code: str, coalesce: int = 50) ->
     return new_chunks
 ```
 
-There is a small edge case to this though, for curly-bracket-based languages like Typescript and C++, the closing pare
+There is a small edge case to this though, for curly-bracket-based languages like Typescript and C++ we get something like the following
 
 ```cpp
 int main() {
@@ -220,12 +213,12 @@ The closing parentheses would end up being fused with the next block. Fortunatel
 
 Another problem we realized was that at higher levels of indents, because each indent counts as a space, we sometimes get really small chunks which are not helpful to our language model. We have a simple solution where to count the number of lines, we skip the starting whitespace, like so:
 
-```python
-def old_measure(s: str) -> int:
+```python {5}
+def char_len(s: str) -> int: # old len function
 	return len(s)
 
-def new_measure(s: str) -> int:
-	return sum([len(line.lstrip()) for line in s.splitlines()])
+def non_whitespace_len(s: str) -> int: # new len function
+    return len(re.sub("\s", "", s))
 ```
 
 ## Fixing to Lines
@@ -246,14 +239,28 @@ def get_line_number(index: int, source_code: str) -> int:
 
 We can also add a line to our Span class to finally extract the right lines of code using this. Fortunately, Span’s are unit agnostic so we can just determine when we extract it what units (bytes or lines) we want.
 
-```python
+```python {13,14}
+@dataclass
 class Span:
-	...
-
-	def extract_lines(self, s: str) -> str:
-        # Grab the corresponding substring of string s by lines
+    start: int
+    end: int
+ 
+    def extract(self, s: str) -> str:
+        return s[self.start: self.end]
+ 
+    def extract_lines(self, s: str) -> str:
         return "\n".join(s.splitlines()[self.start:self.end])
-	...
+ 
+    def __add__(self, other: Span | int) -> Span:
+        if isinstance(other, int):
+            return Span(self.start + other, self.end + other)
+        elif isinstance(other, Span):
+            return Span(self.start, other.end)
+        else:
+            raise NotImplementedError()
+ 
+    def __len__(self) -> int:
+        return self.end - self.start
 ```
 
 ## Final New Algorithm
@@ -321,12 +328,9 @@ def chunker(
     line_chunks = [chunk for chunk in line_chunks if len(chunk) > 0]
 
     return line_chunks
-
-for chunk in chunker(tree, python_code):
-    print(chunk.extract_lines(python_code) + "\n\n====================\n\n")
 ```
 
-Yielding the final chunked file you see at https://gist.github.com/kevinlu1248/49a72a1978868775109c5627677dc512#file-on_check_suite-py-md (uses max character count of 600).
+Yielding the final chunked file you see at https://gist.github.com/kevinlu1248/49a72a1978868775109c5627677dc512#file-on_check_suite-py-md (uses max character count of 1500 instead of 600).
 
 ## Bonus: Modal Rate Limits
 
