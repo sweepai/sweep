@@ -132,6 +132,3 @@ Contributions are welcome and greatly appreciated! For detailed guidelines on ho
 <p align="center">
     and, of course, Sweep!
 </p>
-
-# Test
-This is a test
