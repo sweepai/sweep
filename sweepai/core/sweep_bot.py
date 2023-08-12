@@ -444,7 +444,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 return new_file, commit_message
             except Exception as e:
                 tb = traceback.format_exc()
-                logger.warning(f"Failed to parse. Retrying for the {count}th time. Recieved error {e}\n{tb}")
+                logger.warning(f"Failed to parse. Retrying for the {count}th time. Received error {e}\n{tb}")
                 self.delete_messages_from_chat(key)
                 continue
         raise Exception(f"Failed to parse response after {retries} attempts.")
