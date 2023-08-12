@@ -479,7 +479,7 @@ async def on_ticket(
 
         files_progress = [(file_change_request.filename, file_change_request.instructions, "⏳") for file_change_request in file_change_requests]
 
-        generator = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number)
+        generator = create_pr_changes(file_change_requests, pull_request, sweep_bot, username, installation_id, issue_number, sandbox=sandbox)
         message = tabulate([(f"`{filename}`", instructions.replace("\n", "<br/>"), progress) for filename, instructions, progress in files_progress], headers=["File", "Instructions", "Progress"], tablefmt="pipe")
         logger.info(files_progress)
         edit_sweep_comment(message, 4)
@@ -517,6 +517,7 @@ async def on_ticket(
 
         for i in range(1 if not slow_mode else 3):
             try:
+                # Todo(lukejagg): Pass sandbox linter results to review_pr
                 # CODE REVIEW
                 changes_required, review_comment = review_pr(repo=repo, pr=pr_changes, issue_url=issue_url, username=username,
                     repo_description=repo_description, title=title,

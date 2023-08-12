@@ -1,3 +1,4 @@
+import asyncio
 import traceback
 import re
 
@@ -469,6 +470,7 @@ class SweepBot(CodeGenBot, GithubBot):
             file_change_requests: list[FileChangeRequest],
             branch: str,
             blocked_dirs: list[str],
+            sandbox
     ):
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
@@ -485,7 +487,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     continue
 
                 if file_change_request.change_type == "create":
-                    changed_file = self.handle_create_file(file_change_request, branch)
+                    changed_file = self.handle_create_file(file_change_request, branch, sandbox=sandbox)
                 elif file_change_request.change_type == "modify":
                     if not added_modify_hallucination:
                         added_modify_hallucination = True
@@ -493,7 +495,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         for message in modify_file_hallucination_prompt:
                             self.messages.append(Message(**message))
 
-                    changed_file = self.handle_modify_file(file_change_request, branch)
+                    changed_file = self.handle_modify_file(file_change_request, branch, sandbox=sandbox)
                 else:
                     raise Exception(f"Invalid change type: {file_change_request.change_type}")
                 yield file_change_request, changed_file
@@ -506,7 +508,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 completed += 1
         return completed, num_fcr
 
-    def handle_create_file(self, file_change_request: FileChangeRequest, branch: str):
+    def handle_create_file(self, file_change_request: FileChangeRequest, branch: str, sandbox=None):
         try:
             file_change = self.create_file(file_change_request)
             file_markdown = is_markdown(file_change_request.filename)
@@ -514,6 +516,11 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.debug(
                 f"{file_change_request.filename}, {f'Create {file_change_request.filename}'}, {file_change.code}, {branch}"
             )
+
+            if sandbox is not None:
+                loop = asyncio.get_event_loop()
+                file_change.code = loop.run_until_complete(sandbox.run_formatter(file_change_request.filename, file_change.code))
+
             self.repo.create_file(
                 file_change_request.filename,
                 file_change.commit_message,
@@ -527,7 +534,7 @@ class SweepBot(CodeGenBot, GithubBot):
             return False
 
     def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str,
-                           commit_message: str = None):
+                           commit_message: str = None, sandbox=None):
         CHUNK_SIZE = 800  # Number of lines to process at a time
         try:
             file = self.get_file(file_change_request.filename, branch=branch)
@@ -583,6 +590,13 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.debug(
                 f"{file_name}, {commit_message}, {new_file_contents}, {branch}"
             )
+
+            # Format the contents
+            if sandbox is not None:
+                loop = asyncio.get_event_loop()
+                new_file_contents = loop.run_until_complete(sandbox.run_formatter(file_name, new_file_contents))
+
+
             # Update the file with the new contents after all chunks have been processed
             try:
                 self.repo.update_file(

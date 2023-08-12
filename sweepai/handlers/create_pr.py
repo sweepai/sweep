@@ -27,7 +27,8 @@ def create_pr_changes(
         sweep_bot: SweepBot,
         username: str,
         installation_id: int,
-        issue_number: int | None = None
+        issue_number: int | None = None,
+        sandbox=None
 ):
     # Flow:
     # 1. Get relevant files
@@ -63,7 +64,7 @@ def create_pr_changes(
 
         blocked_dirs = get_excluded_dirs(sweep_bot.repo)
 
-        for file_change_request, changed_file in sweep_bot.change_files_in_github_iterator(file_change_requests, pull_request.branch_name, blocked_dirs):
+        for file_change_request, changed_file in sweep_bot.change_files_in_github_iterator(file_change_requests, pull_request.branch_name, blocked_dirs, sandbox):
             completed_count += changed_file
             logger.info("Completed {}/{} files".format(completed_count, fcr_count))
             yield file_change_request, changed_file
