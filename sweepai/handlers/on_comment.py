@@ -66,7 +66,6 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     return result_snippets[:max_num_of_snippets]
 
 
-# Add Azure DevOps code here
 def on_comment(
         repo_full_name: str,
         repo_description: str,
@@ -293,7 +292,6 @@ def capture_posthog_event(username, event, properties):
     posthog.capture(username, event, properties=properties)
 
 
-# Add Azure DevOps code here
 def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
     _, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
