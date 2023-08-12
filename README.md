@@ -36,12 +36,25 @@ Describe bugs, small features, and refactors like you would to a junior develope
 * 👀 Addresses developer replies & comments on its PRs
 * 🔎 Uses embedding-based code search
 
-
-
 ### Why Sweep is Unique 🦄
 
-Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the entire flow end-to-end. Unlike ChatGPT, Sweep does not require copy-pasting files.
+We're not a toy project or a proof-of-concept. We're a **production devtool** used by startups including ourselves to ship features everyday, with example features [here](https://docs.sweep.dev/examples).
 
+Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the entire **flow end-to-end**. Unlike ChatGPT, Sweep does not require copy-pasting files.
+
+<details>
+    <summary>
+        Sweep vs. GPT-Engineer, Smol Developer and AutoGPT
+    </summary>
+    Sweep is built to improve on an existing codebase, which is a more frequent and higher need, than generating boilerplate, which is mostly a solved problem since you can just fork existing boilerplates.
+</details>
+
+<details>
+    <summary>
+        Sweep vs. Cody and Bloop
+    </summary>
+    We do more than just chat-with-your-code by actually writing code changes.
+</details>
 
 [Demo](https://github.com/sweepai/sweep/assets/44910023/365ec29f-7317-40a7-9b5e-0af02f2b0e47)
 

@@ -5,7 +5,7 @@ from loguru import logger
 
 from sweepai.core.entities import FileChangeRequest, PullRequest, MockPR
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.client import SweepConfig, get_excluded_dirs
+from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import GITHUB_DEFAULT_CONFIG, GITHUB_LABEL_NAME, OPENAI_API_KEY, PREFIX, DB_MODAL_INST_NAME, GITHUB_BOT_TOKEN, \
     GITHUB_BOT_USERNAME, \
     GITHUB_CONFIG_BRANCH
@@ -62,7 +62,7 @@ def create_pr_changes(
         pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
         completed_count, fcr_count = 0, len(file_change_requests)
 
-        blocked_dirs = get_excluded_dirs(sweep_bot.repo)
+        blocked_dirs = get_blocked_dirs(sweep_bot.repo)
 
         for file_change_request, changed_file in sweep_bot.change_files_in_github_iterator(file_change_requests, pull_request.branch_name, blocked_dirs, sandbox):
             completed_count += changed_file
