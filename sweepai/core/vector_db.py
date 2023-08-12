@@ -322,7 +322,10 @@ def get_deeplake_vs_from_repo(
     logger.info(
         f"Received {len(documents)} documents from repository {repo_name}")
     collection_name = parse_collection_name(repo_name)
-    return compute_deeplake_vs(collection_name, documents, cache_success, cache_inst, ids, metadatas, commit_hash)
+    result = compute_deeplake_vs(collection_name, documents, cache_success, cache_inst, ids, metadatas, commit_hash)
+    if len(result) != 3:
+        raise ValueError("Function compute_deeplake_vs did not return the expected number of values.")
+    return result
 
 
 def compute_deeplake_vs(collection_name,
