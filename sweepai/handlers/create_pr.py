@@ -21,6 +21,7 @@ num_of_snippets_to_query = 10
 max_num_of_snippets = 5
 
 
+# Add Azure DevOps code here
 def create_pr_changes(
         file_change_requests: list[FileChangeRequest],
         pull_request: PullRequest,
@@ -141,6 +142,7 @@ def create_pr_changes(
     return result
 
 
+# Add Azure DevOps code here
 def safe_delete_sweep_branch(
         pr,  # Github PullRequest
         repo: Repository,
