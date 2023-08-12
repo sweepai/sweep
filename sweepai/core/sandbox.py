@@ -12,7 +12,7 @@ REPO_PATH = "~/repo"
 GIT_PASS = 'cd ~; echo \'#!/bin/sh\\necho "{token}"\' > git-askpass.sh && chmod +x git-askpass.sh'
 GIT_CLONE = "cd ~; export GIT_ASKPASS=./git-askpass.sh;" \
             "git config --global credential.helper 'cache --timeout=3600';" \
-            "git clone https://{username}@github.com/sweepai-dev/test " + REPO_PATH
+            "git clone https://{username}@github.com/{repo} " + REPO_PATH
 PYTHON_CREATE_VENV = f"cd {REPO_PATH} && python3 -m venv venv && source venv/bin/activate && poetry install"
 
 
@@ -33,7 +33,7 @@ class Sandbox(BaseModel):
 
     @classmethod
     async def from_token(cls: Type[Self], username: str, token: str, **kwargs) -> Self:
-        image = kwargs.get("image", "Python3")
+        image = kwargs.get("image", "Nodejs")
         session = Session(image)
         await session.open()
 
@@ -65,9 +65,9 @@ class Sandbox(BaseModel):
         await asyncio.sleep(0.05)  # Small delay to allow the process to finish
         return outputs
 
-    async def clone_repo(self):
+    async def clone_repo(self, repo="sweepai/test"):
         await self.run_command(GIT_PASS.format(token=self.token))
-        await self.run_command(GIT_CLONE.format(username=self.username))
+        await self.run_command(GIT_CLONE.format(username=self.username, repo=repo))
 
     async def create_python_venv(self):
         await self.run_command(PYTHON_CREATE_VENV)
