@@ -40,12 +40,13 @@ class Sandbox(BaseModel):
         image = config.get("image", None)
         formatter = config.get("formatter", None)
         linter = config.get("linter", None)
+        install_command = config.get("install", IMAGE_INSTALLATION.get(image))
         main_branch = SweepConfig.get_branch(repo)
 
         if not enabled:  # Sandbox is not enabled
             logger.info("Sandbox is not enabled")
             return None
-        if image is None or IMAGE_INSTALLATION.get(image) is None:  # No image specified
+        if image is None or install_command is None:  # No image specified
             return None
         if formatter is None and linter is None:  # No need to create a sandbox if there is no formatter or linter
             return None
@@ -63,7 +64,7 @@ class Sandbox(BaseModel):
 
         await sandbox.clone_repo()
         await sandbox.update_branch(main_branch)
-        await sandbox.run_command(IMAGE_INSTALLATION[image])
+        await sandbox.run_command(install_command)
         return sandbox
 
     async def run_command(self, command: str):

@@ -24,7 +24,7 @@ from sweepai.handlers.create_pr import create_pr_changes, create_config_pr, safe
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.chat_logger import ChatLogger, discord_log_error
-from sweepai.config.client import SweepConfig, get_documentation_dict, get_sandbox_enabled, get_excluded_dirs
+from sweepai.config.client import SweepConfig, get_documentation_dict
 from sweepai.config.server import PREFIX, DB_MODAL_INST_NAME, UTILS_MODAL_INST_NAME, OPENAI_API_KEY, \
     GITHUB_BOT_TOKEN, \
     GITHUB_BOT_USERNAME, GITHUB_LABEL_NAME
@@ -325,15 +325,6 @@ async def on_ticket(
         # Todo(lukejagg): run this in the background
         sandbox = await asyncio.wait_for(Sandbox.from_token(username, user_token, repo), timeout=30)
 
-
-
-        await asyncio.wait_for(sandbox.clone_repo(), timeout=60)
-        await asyncio.wait_for(sandbox.update_branch(), timeout=60)
-        # Currently only works with Python3 venvs
-        await asyncio.wait_for(sandbox.create_python_venv(), timeout=60)
-
-        await asyncio.wait_for(sandbox.close(), timeout=15)
-
         # Todo(lukejagg): formatter, linter, etc
         # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc)
     except Exception as e:
@@ -572,6 +563,13 @@ async def on_ticket(
 
             for check_run in check_runs:
                 check_run.rerequest()
+        except Exception as e:
+            logger.error(e)
+
+        # Close sandbox
+        try:
+            if sandbox is not None:
+                await asyncio.wait_for(sandbox.close(), timeout=10)
         except Exception as e:
             logger.error(e)
 
