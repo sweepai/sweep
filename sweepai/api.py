@@ -521,6 +521,8 @@ def update_sweep_prs(
     repo_full_name: str,
     installation_id: int
 ):
+    # Get a Github client
+    _, g = get_github_client(installation_id)
 
 def create_description_issue(repo_full_name: str, installation_id: int):
     _, g = get_github_client(installation_id)
@@ -529,8 +531,6 @@ def create_description_issue(repo_full_name: str, installation_id: int):
     issue_title = "Add repo description to sweep.yaml"
     issue_body = f"Please add the following repository description to the sweep.yaml file:\n\n{repo_description}"
     repo.create_issue(title=issue_title, body=issue_body)
-    # Get a Github client
-    _, g = get_github_client(installation_id)
     
     # Get the repository
     repo = g.get_repo(repo_full_name)
