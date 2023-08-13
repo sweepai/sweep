@@ -128,7 +128,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
     filename: str
     instructions: str
     change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal["rename"]
-    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>.*)\">(?P<instructions>.*)<\/\1>"""
+    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)]*)\">(?P<instructions>.*)<\/\1>"""
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
