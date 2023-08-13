@@ -95,12 +95,12 @@ def handle_pr_change_request(
     # TODO: put process ID here and check if it's still running
     # TODO: GHA should have lower precedence than comments
     try:
-        call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
+        call_id, queue = stub.pr_queues[(repo_full_name, pr_id)]
         logger.info(f"Current queue: {queue}")
         while queue:
             # popping
-            call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
-            stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, [])
+            call_id, queue = stub.pr_queues[(repo_full_name, pr_id)]
+            stub.pr_queues[(repo_full_name, pr_id)] = (call_id, [])
             pr_change_request: PRChangeRequest
             for pr_change_request in queue:
                 if pr_change_request.type == "comment":
@@ -110,7 +110,7 @@ def handle_pr_change_request(
                 else:
                     raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
                 time.sleep(1)
-            call_id, queue = stub.app.pr_queues[(repo_full_name, pr_id)]
+            call_id, queue = stub.pr_queues[(repo_full_name, pr_id)]
             # *queue, pr_change_request = queue
             # logger.info(f"Currently handling PR change request: {pr_change_request}")
             # logger.info(f"PR queues: {queue}")
@@ -121,10 +121,10 @@ def handle_pr_change_request(
             #     handle_check_suite.call(**pr_change_request.params)
             # else:
             #     raise Exception(f"Unknown PR change request type: {pr_change_request.type}")
-            stub.app.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
+            stub.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
     finally:
-        if (repo_full_name, pr_id) in stub.app.pr_queues:
-            del stub.app.pr_queues[(repo_full_name, pr_id)]
+        if (repo_full_name, pr_id) in stub.pr_queues:
+            del stub.pr_queues[(repo_full_name, pr_id)]
 
 
 def function_call_is_completed(call_id: str):
@@ -148,17 +148,17 @@ def push_to_queue(
 ):
     logger.info(f"Pushing to queue: {repo_full_name}, {pr_id}, {pr_change_request}")
     key = (repo_full_name, pr_id)
-    call_id, queue = stub.app.pr_queues[key] if key in stub.app.pr_queues else ("0", [])
+    call_id, queue = stub.pr_queues[key] if key in stub.pr_queues else ("0", [])
     function_is_completed = function_call_is_completed(call_id)
     if pr_change_request.type == "comment" or function_is_completed:
         queue = [pr_change_request] + queue
         if function_is_completed:
-            stub.app.pr_queues[key] = ("0", queue)
+            stub.pr_queues[key] = ("0", queue)
             call_id = handle_pr_change_request.spawn(
                 repo_full_name=repo_full_name, 
                 pr_id=pr_id
             ).object_id
-        stub.app.pr_queues[key] = (call_id, queue)
+        stub.pr_queues[key] = (call_id, queue)
 
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
