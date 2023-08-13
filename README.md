@@ -34,7 +34,8 @@ Describe bugs, small features, and refactors like you would to a junior develope
 
 * 🌠 Turns issues directly into pull requests (without an IDE)
 * 👀 Addresses developer replies & comments on its PRs
-* 🔎 Uses embedding-based code search
+* 🔎 Uses embedding-based code search & external docs
+* ☑️ Validates its changes with GitHub Actions and self-review
 
 ### Why Sweep is Unique 🦄
 
@@ -78,7 +79,7 @@ Install Sweep by adding the [**Sweep GitHub app**](https://github.com/apps/sweep
 * 🖼️ **Editing images** and other non-text assets
     * e.g. Use the logo to create favicons for our landing page
 
-* ⤵️ **Accessing external APIs**, including fetching API tokens
+* ⤵️ **Performing actions involving a dashboard**, including fetching API tokens
     * e.g. Set up sign-in using Ethereum
 
 ---
