@@ -18,7 +18,7 @@ log_message = """GitHub actions yielded the following error.
 
 {error_logs}
 
-This is likely a linting or type-checking issue with the source code. Update the code the changes and avoid modifying the existing tests."""
+This is likely a linting or type-checking issue with the source code. Update the code and avoid modifying the existing tests."""
 
 def get_dirs(zipfile: zipfile.ZipFile):
     return [file for file in zipfile.namelist() if file.endswith("/") and "/" in file]
