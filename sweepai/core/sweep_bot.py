@@ -116,7 +116,8 @@ class CodeGenBot(ChatGPT):
             too_long = False
             try:
                 logger.info(f"Generating for the {count}th time...")
-                if too_long or count >= retries - 1:  # if on last try, use gpt4-32k (improved context window)
+                is_pro_user = self.chat_logger.is_paying_user() or self.chat_logger.is_trial_user()
+                if too_long or count >= retries - 1 or is_pro_user:  # if on last try, use gpt4-32k (improved context window)
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request")
                 else:
                     pr_text_response = self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)

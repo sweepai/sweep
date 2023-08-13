@@ -34,7 +34,7 @@ human_message_review_prompt = [
 {'role': 'user', 'content': """<relevant_paths_in_repo>
 {relevant_directories}
 </relevant_paths_in_repo>"""},
-{'role': 'user', 'content': """"<repo_tree>
+{'role': 'user', 'content': """<repo_tree>
 {tree}
 </repo_tree>"""},
 {'role': 'user', 'content':
@@ -143,10 +143,10 @@ human_message_prompt_comment = [
 {'role': 'user', 'content':
 """<relevant_snippets_in_repo>
 {relevant_snippets}
-</relevant_snippets_in_repo>"""},
+</relevant_snippets_in_repo>""", 'key': 'relevant_snippets_in_repo'},
 {'role': 'user', 'content': """<relevant_paths_in_repo>
 {relevant_directories}
-</relevant_paths_in_repo>"""},
+</relevant_paths_in_repo>""", 'key': 'relevant_paths_in_repo'},
 {'role': 'user', 'content': """<repo_tree>
 {tree}
 </repo_tree>"""},
@@ -475,23 +475,6 @@ Code Changes:
 """
 
 slack_system_message_prompt = "Your name is Sweep bot. You are an engineer assigned to assisting the following Slack user. You will be helpful and friendly, but informal and concise: get to the point. You will use Slack-style markdown when needed to structure your responses."
-
-slack_slash_command_prompt = """
-Relevant snippets provided by search engine (decreasing relevance):
-<relevant_snippets_in_repo>
-{relevant_snippets}
-</relevant_snippets_in_repo>
-
-<relevant_paths_in_repo>
-{relevant_directories}
-</relevant_paths_in_repo>
-
-Repo: {repo_name}: {repo_description}
-Username: {username}
-Query: {query}
-
-Gather information (i.e. fetch more snippets) to solve the problem. Use "create_pr" if the user asks for changes or you think code changes are needed.
-"""
 
 code_repair_check_system_prompt = """\
 You are a genius trained for validating code.

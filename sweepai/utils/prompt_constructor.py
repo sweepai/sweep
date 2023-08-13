@@ -40,17 +40,25 @@ class HumanMessagePrompt(BaseModel):
         return "\n".join([snippet.xml for snippet in self.snippets])
 
     def construct_prompt(self):
-        human_messages = [{'role': msg['role'], 'content': msg['content'].format(
-            repo_name=self.repo_name,
-            issue_url=self.issue_url,
-            username=self.username,
-            repo_description=self.repo_description,
-            tree=self.tree,
-            title=self.title,
-            description=self.summary if self.summary else "No description provided.",
-            relevant_snippets=self.render_snippets(),
-            relevant_directories=self.get_relevant_directories(),
-        ), 'key': msg.get('key')} for msg in human_message_prompt]
+        human_messages = []
+        for msg in human_message_prompt:
+            if 'key' in msg and msg['key'] == 'relevant_paths_in_repo':
+                if len(self.render_snippets().strip()):
+                    continue
+            if 'key' in msg and msg['key'] == 'relevant_snippets_in_repo':
+                if len(self.render_snippets().strip()):
+                    continue
+            human_messages.append({'role': msg['role'], 'content': msg['content'].format(
+                repo_name=self.repo_name,
+                issue_url=self.issue_url,
+                username=self.username,
+                repo_description=self.repo_description,
+                tree=self.tree,
+                title=self.title,
+                description=self.summary if self.summary else "No description provided.",
+                relevant_snippets=self.render_snippets(),
+                relevant_directories=self.get_relevant_directories(),
+            )})
         return human_messages
 
 
@@ -117,19 +125,27 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
         return "\n".join(formatted_diffs)
 
     def construct_prompt(self):
-        human_messages = [{'role': msg['role'], 'content': msg['content'].format(
-            comment=(self.comment[len("sweep:"):].strip() if self.comment.startswith("sweep:") else self.comment),
-            repo_name=self.repo_name,
-            repo_description=self.repo_description if self.repo_description else "",
-            diff=self.format_diffs(),
-            issue_url=self.issue_url,
-            username=self.username,
-            title=self.title,
-            tree=self.tree,
-            description=self.summary if self.summary else "No description provided.",
-            relevant_directories=self.get_relevant_directories(),
-            relevant_snippets=self.render_snippets()
-        )} for msg in human_message_prompt_comment]
+        human_messages = []
+        for msg in human_message_prompt_comment:
+            if 'key' in msg and msg['key'] == 'relevant_paths_in_repo':
+                if not self.render_snippets().strip():
+                    continue
+            if 'key' in msg and msg['key'] == 'relevant_snippets_in_repo':
+                if not self.render_snippets().strip():
+                    continue
+            human_messages.append({'role': msg['role'], 'content': msg['content'].format(
+                comment=(self.comment[len("sweep:"):].strip() if self.comment.startswith("sweep:") else self.comment),
+                repo_name=self.repo_name,
+                repo_description=self.repo_description if self.repo_description else "",
+                diff=self.format_diffs(),
+                issue_url=self.issue_url,
+                username=self.username,
+                title=self.title,
+                tree=self.tree,
+                description=self.summary if self.summary else "No description provided.",
+                relevant_directories=self.get_relevant_directories(),
+                relevant_snippets=self.render_snippets()
+            )})
 
         if self.pr_file_path and self.pr_line:
             logger.info(f"Review Comment {self.comment}")

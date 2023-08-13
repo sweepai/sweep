@@ -1,3 +1,4 @@
+from functools import lru_cache
 import json
 from datetime import datetime, timedelta
 from typing import Any
@@ -80,8 +81,9 @@ class ChatLogger(BaseModel):
         ticket_count = result_list[0].get(tracking_date, 0) if len(result_list) > 0 else 0
         logger.info(f'Ticket Count for {username} {ticket_count}')
         return ticket_count
-
-    def is_paying_user(self):
+    
+    @lru_cache(maxsize=None) # type: ignore
+    def is_paying_user(self) -> bool:
         if self.ticket_collection is None:
             logger.error('Ticket Collection Does Not Exist')
             return False
@@ -89,7 +91,9 @@ class ChatLogger(BaseModel):
         result = self.ticket_collection.find_one({'username': username})
         return result.get('is_paying_user', False) if result else False
 
-    def is_trial_user(self):
+
+    @lru_cache(maxsize=None) # type: ignore
+    def is_trial_user(self) -> bool:
         if self.ticket_collection is None:
             logger.error('Ticket Collection Does Not Exist')
             return False
