@@ -4,6 +4,7 @@ from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
 from sweepai.core.entities import PRChangeRequest
+from sweepai.core.hotel_chatbot import HotelChatbot
 
 from sweepai.events import (
     CheckRunCompleted,
@@ -513,6 +514,37 @@ async def webhook(raw_request: Request):
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
+
+@stub.function(**FUNCTION_SETTINGS)
+def book_room(
+    room_type: str,
+    check_in_date: str,
+    check_out_date: str
+):
+    # Call the book_room method of the HotelChatbot class
+    # This is just a placeholder and the actual implementation may vary
+    hotel_chatbot = HotelChatbot()
+    hotel_chatbot.book_room(room_type, check_in_date, check_out_date)
+
+@stub.function(**FUNCTION_SETTINGS)
+def check_availability(
+    room_type: str,
+    check_in_date: str,
+    check_out_date: str
+):
+    # Call the check_availability method of the HotelChatbot class
+    # This is just a placeholder and the actual implementation may vary
+    hotel_chatbot = HotelChatbot()
+    hotel_chatbot.check_availability(room_type, check_in_date, check_out_date)
+
+@stub.function(**FUNCTION_SETTINGS)
+def answer_query(
+    query: str
+):
+    # Call the answer_query method of the HotelChatbot class
+    # This is just a placeholder and the actual implementation may vary
+    hotel_chatbot = HotelChatbot()
+    hotel_chatbot.answer_query(query)
 
 @stub.function(**FUNCTION_SETTINGS)
 def update_sweep_prs(
