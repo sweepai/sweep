@@ -13,7 +13,6 @@ from sweepai.core.edit_chunk import EditBot
 from sweepai.core.entities import (
     FileCreation,
     FileChangeRequest,
-    FilesToChange,
     PullRequest,
     RegexMatchError,
     Snippet, NoFilesException, Message
