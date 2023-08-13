@@ -127,20 +127,26 @@ def clean_instructions(instructions: str):
 class FileChangeRequest(RegexMatchableBaseModel):
     filename: str
     instructions: str
-    change_type: Literal["modify"] | Literal["create"]
+    change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal["rename"]
+    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>.*)\">(?P<instructions>.*)<\/\1>"""
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        colon_idx = string.find(':')
-        file_name = string[:colon_idx]
-        instructions = string[colon_idx + 1:]
-        file_name = clean_filename(file_name)
-        instructions = clean_instructions(instructions)
-        file_name = file_name.lstrip('/')
-        res = FileChangeRequest(filename=file_name,
-                                instructions=instructions,
-                                change_type="modify")
-        return res
+        result = super().from_string(string, **kwargs)
+        result.filename = result.filename.strip('/')
+        result.instructions = result.instructions.replace("\n*", "\n•")
+        return result
+    
+    @property
+    def instructions_display(self):
+        if self.change_type == "rename":
+            return f"Rename {self.filename} to {self.instructions}"
+        elif self.change_type == "delete":
+            return f"Delete {self.filename}"
+        elif self.change_type == "create":
+            return f"Create {self.filename} with contents:\n{self.instructions}"
+        elif self.change_type == "modify":
+            return f"Modify {self.filename} with contents:\n{self.instructions}"
 
 
 class FileCreation(RegexMatchableBaseModel):
