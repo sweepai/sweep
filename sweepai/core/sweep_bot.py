@@ -41,10 +41,10 @@ class MaxTokensExceeded(Exception):
         self.filename = filename
 
 class CodeGenBot(ChatGPT):
-    def summarize_snippets(self, create_thoughts, modify_thoughts):
+    def summarize_snippets(self, content: str = ""):
         snippet_summarization = self.chat(
             snippet_replacement.format(
-                thoughts=create_thoughts + "\n" + modify_thoughts
+                thoughts=content
             ),
             message_key="snippet_summarization",
         ) # maybe add relevant info
@@ -98,48 +98,13 @@ class CodeGenBot(ChatGPT):
         for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                # abstract_plan = self.chat(files_to_change_abstract_prompt, message_key="files_to_change")
-
                 files_to_change_response = self.chat(files_to_change_prompt,
                                                      message_key="files_to_change")  # Dedup files to change here
-                files_to_change = FilesToChange.from_string(files_to_change_response)
-                create_thoughts = files_to_change.files_to_create.strip()
-                modify_thoughts = files_to_change.files_to_modify.strip()
-
-                files_to_create: list[str] = files_to_change.files_to_create.split("\n*")
-                files_to_modify: list[str] = files_to_change.files_to_modify.split("\n*")
-
-                for file_change_request, change_type in zip(
-                        files_to_modify + files_to_create,
-                        ["modify"] * len(files_to_modify)
-                        + ["create"] * len(files_to_create),
-                ):
-                    file_change_request = file_change_request.strip()
-                    if not file_change_request or file_change_request == "* None":
-                        continue
-                    logger.debug(file_change_request)
-                    logger.debug(change_type)
-                    file_change_requests.append(
-                        FileChangeRequest.from_string(
-                            file_change_request, change_type=change_type
-                        )
-                    )
-                # Create a dictionary to hold file names and their corresponding instructions
-                file_instructions_dict = {}
-                for file_change_request in file_change_requests:
-                    # If the file name is already in the dictionary, append the new instructions
-                    if file_change_request.filename in file_instructions_dict:
-                        instructions, change_type = file_instructions_dict[file_change_request.filename]
-                        file_instructions_dict[file_change_request.filename] = (
-                            instructions + " " + file_change_request.instructions, change_type)
-                    else:
-                        file_instructions_dict[file_change_request.filename] = (
-                            file_change_request.instructions, file_change_request.change_type)
-                file_change_requests = [
-                    FileChangeRequest(filename=file_name, instructions=instructions, change_type=change_type) for
-                    file_name, (instructions, change_type) in file_instructions_dict.items()]
+                file_change_requests = []
+                for re_match in re.finditer(FileChangeRequest._regex, files_to_change_response, re.DOTALL):
+                    file_change_requests.append(FileChangeRequest.from_string(re_match.group(0)))
                 if file_change_requests:
-                    return file_change_requests, create_thoughts, modify_thoughts
+                    return file_change_requests, files_to_change_response
             except RegexMatchError:
                 logger.warning("Failed to parse! Retrying...")
                 self.delete_messages_from_chat("files_to_change")
@@ -297,9 +262,9 @@ class GithubBot(BaseModel):
                 except Exception as e:
                     logger.error(f"FileChange Validation Error: {e}")
 
-                if exists:
+                if exists and file_change_request.change_type == "create":
                     file_change_request.change_type = "modify"
-                else:
+                elif not exists and file_change_request.change_type == "modify":
                     file_change_request.change_type = "create"
 
                 block_status = self.is_blocked(file_change_request.filename, blocked_dirs)
@@ -453,32 +418,14 @@ class SweepBot(CodeGenBot, GithubBot):
             self,
             file_change_requests: list[FileChangeRequest],
             branch: str,
+            blocked_dirs: list[str] = [],
     ):
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
         num_fcr = len(file_change_requests)
         completed = 0
 
-        added_modify_hallucination = False
-
-        for file_change_request in file_change_requests:
-            changed_file = False
-            try:
-                if file_change_request.change_type == "create":
-                    changed_file = self.handle_create_file(file_change_request, branch)
-                elif file_change_request.change_type == "modify":
-                    if not added_modify_hallucination:
-                        added_modify_hallucination = True
-                        # Add hallucinated example for better parsing
-                        for message in modify_file_hallucination_prompt:
-                            self.messages.append(Message(**message))
-
-                    changed_file = self.handle_modify_file(file_change_request, branch)
-            except MaxTokensExceeded as e:
-                raise e
-            except Exception as e:
-                logger.error(f"Error in change_files_in_github {e}")
-
+        for _, changed_file in self.change_files_in_github_iterator(file_change_requests, branch, blocked_dirs):
             if changed_file:
                 completed += 1
         return completed, num_fcr
@@ -487,7 +434,7 @@ class SweepBot(CodeGenBot, GithubBot):
             self,
             file_change_requests: list[FileChangeRequest],
             branch: str,
-            blocked_dirs: list[str],
+            blocked_dirs: list[str] = [],
     ):
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
@@ -503,34 +450,60 @@ class SweepBot(CodeGenBot, GithubBot):
                     logger.info(f"Skipping {file_change_request.filename} because it is blocked.")
                     continue
 
-                if file_change_request.change_type == "create":
-                    changed_file = self.handle_create_file(file_change_request, branch)
-                elif file_change_request.change_type == "modify":
-                    # Add example for more consistent generation
-                    if not added_modify_hallucination:
-                        added_modify_hallucination = True
-                        # Add hallucinated example for better parsing
-                        for message in modify_file_hallucination_prompt:
-                            self.messages.append(Message(**message))
+                print(f"Processing {file_change_request.filename} for change type {file_change_request.change_type}...")
+                match file_change_request.change_type:
+                    case "create":
+                        changed_file = self.handle_create_file(file_change_request, branch)
+                    case "modify":
+                        # Add example for more consistent generation
+                        if not added_modify_hallucination:
+                            added_modify_hallucination = True
+                            # Add hallucinated example for better parsing
+                            for message in modify_file_hallucination_prompt:
+                                self.messages.append(Message(**message))
 
-                    # Remove snippets from this file if they exist
-                    snippet_msgs = [m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY]
-                    if len(snippet_msgs) > 0:  # Should always be true
-                        snippet_msg = snippet_msgs[0]
-                        # Use regex to remove this snippet from the message
-                        file = re.escape(file_change_request.filename)
-                        regex = fr'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
-                        snippet_msg.content = re.sub(
-                            regex,
-                            "",
-                            snippet_msg.content,
-                            flags=re.DOTALL,
+                        # Remove snippets from this file if they exist
+                        snippet_msgs = [m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY]
+                        if len(snippet_msgs) > 0:  # Should always be true
+                            snippet_msg = snippet_msgs[0]
+                            # Use regex to remove this snippet from the message
+                            file = re.escape(file_change_request.filename)
+                            regex = fr'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
+                            snippet_msg.content = re.sub(
+                                regex,
+                                "",
+                                snippet_msg.content,
+                                flags=re.DOTALL,
+                            )
+
+                        changed_file = self.handle_modify_file(file_change_request, branch)
+                    case "delete":
+                        contents = self.repo.get_contents(file_change_request.filename, ref=branch)
+                        self.repo.delete_file(
+                            file_change_request.filename,
+                            f"Deleted {file_change_request.filename}",
+                            sha=contents.sha,
+                            branch=branch,
                         )
-
-
-                    changed_file = self.handle_modify_file(file_change_request, branch)
-                else:
-                    raise Exception(f"Invalid change type: {file_change_request.change_type}")
+                        changed_file = True
+                    case "rename":
+                        contents = self.repo.get_contents(file_change_request.filename, ref=branch)
+                        self.repo.create_file(
+                            file_change_request.instructions,
+                            f"Renamed {file_change_request.filename} to {file_change_request.instructions}",
+                            contents.decoded_content,
+                            branch=branch,
+                        )
+                        self.repo.delete_file(
+                            file_change_request.filename,
+                            f"Deleted {file_change_request.filename}",
+                            sha=contents.sha,
+                            branch=branch,
+                        )
+                        changed_file = True
+                    case _:
+                        raise Exception(f"Unknown change type {file_change_request.change_type}")
+                print(f"Done processing {file_change_request.filename}.")
                 yield file_change_request, changed_file
             except MaxTokensExceeded as e:
                 raise e

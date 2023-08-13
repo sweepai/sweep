@@ -243,10 +243,10 @@ def on_comment(
         if file_comment:
             file_change_requests = [FileChangeRequest(filename=pr_file_path, instructions=f"{comment}\n\nCommented on this line: {pr_line}", change_type="modify")]
         else:
-            file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change(retries=3)
+            file_change_requests, _ = sweep_bot.get_files_to_change(retries=3)
             file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch=branch_name)
         logger.info("Making Code Changes...")
-        sweep_bot.change_files_in_github(file_change_requests, branch_name)
+        list(sweep_bot.change_files_in_github_iterator(file_change_requests, branch_name))
         if type(pr) != MockPR:
             if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
                 # Update the PR title to remove the "[DRAFT]" prefix
