@@ -68,9 +68,6 @@ def format_contents(file_contents, is_markdown=False):
     """
     lines = file_contents.split('\n')
 
-    if is_markdown:
-        return '\n'.join(lines)
-
     # Handle small files
     if len(lines) <= 5:
         start_idx = 0
@@ -277,6 +274,11 @@ def sliding_window_replacement(original, search, replace, search_context_before=
     # replaced original with modified
     original = original[:index] + modified + original[index + len(search):]
     return original, index, None
+
+def get_all_diffs(modify_file_response: str) -> str:
+    matches = re.findall(r'(<<<<.*?\n(.*?)\n====[^\n=]*\n(.*?)\n?>>>>)', modify_file_response, re.DOTALL)
+    result = "\n\n".join([_match for _match, *_ in matches])
+    return result
 
 def generate_new_file_from_patch(modify_file_response: str, old_file_content: str, chunk_offset: int=0) -> str:
     old_file_lines = old_file_content.splitlines()

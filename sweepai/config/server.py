@@ -1,10 +1,12 @@
 import os
 
 PREFIX = 'prod'
+
 print(f"Using prefix: {PREFIX}")
 ENV = PREFIX
 
 DB_MODAL_INST_NAME = PREFIX + "-db"
+DOCS_MODAL_INST_NAME = PREFIX + "-docs"
 API_MODAL_INST_NAME = PREFIX + "-api"
 UTILS_MODAL_INST_NAME = PREFIX + "-utils"
 SLACK_MODAL_INST_NAME = PREFIX + "-slack"
@@ -85,10 +87,16 @@ REDIS_URL = os.environ.get('REDIS_URL')
 if not REDIS_URL:
     REDIS_URL = os.environ.get('redis_url')
 
+ORG_ID = os.environ.get('ORG_ID')
+
 # goes under Modal 'posthog' secret name (optional, can leave env var blank)
 POSTHOG_API_KEY = os.environ.get('POSTHOG_API_KEY')
 
 # goes under Modal 'highlight' secret name (optional, can leave env var blank)
 HIGHLIGHT_API_KEY = os.environ.get('HIGHLIGHT_API_KEY')
+
+E2B_API_KEY = os.environ.get('E2B_API_KEY')
+
+SUPPORT_COUNTRY = os.environ.get('GDRP_LIST', '').split(',')
 
 SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"

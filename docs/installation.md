@@ -1,8 +1,10 @@
 # Welcome to Sweep - GitHub App installed successfully! 🎉
 
+⚠️ Be sure to follow these instructions in your own repository.
+
 If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?v=fr5V5EWVcyM&lc=UgxM_ZzFiFYfjo1ADU54AaABAg)
 
-## Go to your repository and create an issue
+## Create an issue on your own repository
 The issue title should start with `Sweep: ` For issues and PRs, call Sweep using the Sweep label or by prefixing your text with `Sweep: `
 - **Sweep works best with real repositories and real issues.**
 
@@ -57,7 +59,7 @@ Sweep will mess up sometimes. Comment on it's PR. (ex: "use PyTorch instead of T
     * We can't do this - "Set up sign-in using Ethereum"
 
 ## Pricing
-We offer unlimited GPT3.5 tickets to every user. You also start with 5 GPT4 credits which are used when a PR is created.
+We offer unlimited GPT3.5 tickets to every user. Every user also starts with 5 GPT4 issues a month, and you'll be able to use 2 GPT4 issues a day.
 
 For professionals who want more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month. In addition, we're also offering 15 PRs for $60 as a one-time purchase for anyone interested in eventually purchasing Sweep Pro. You can avail this offer [here](https://buy.stripe.com/7sI4jlaCR3PaabebIP).
 
@@ -77,4 +79,4 @@ Note - you need to have Sweep installed and [Issues enabled in Repo](https://doc
 
 # Bug Reports
 
-If Sweep fails to solve your issue that is within the scope of Sweep (see Limitations) and you submit a high-quality bug report at our [Discord](https://discord.gg/sweep-ai), we will reset your ticket count, giving your GPT-4 tickets back.
+If Sweep fails to solve your issue that is within the scope of Sweep (see Limitations) and you submit a high-quality bug report at our [Discord](https://discord.gg/sweep-ai), we will reset your ticket count, giving your GPT-4 tickets back. This is only for GPT4 PRs.

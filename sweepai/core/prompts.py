@@ -56,8 +56,8 @@ In order to address this issue, what required information do you need about the 
 </contextual_thoughts>
 
 <relevant_snippets>
-folder_1/file_1.py:0-50
-folder_2/file_2.py:51-100
+folder_1/file_1.py:1-13
+folder_2/file_2.py:42-75
 ...
 </relevant_snippets>
 """
@@ -233,10 +233,10 @@ Last, create the following file using the following instructions:
 
 DO NOT write "pass" or "Rest of code". Do not literally write "{{new_file}}". You must use the new_file XML tags, and all text inside these tags will be placed in the newly created file.
 
-Reply in the following format:
-Commit planning:
 file_name = "{filename}"
 instructions = "{instructions}"
+
+Reply in the following format:
 
 Step-by-step thoughts with explanations: 
 * Thought 1
@@ -248,11 +248,11 @@ Detailed plan of additions:
 * Addition 2
 ...
 
-commit_message = "{commit_message}"
-
 <new_file>
 {{complete_new_file_contents}}
 </new_file>
+
+Commit message: "the commit message"
 """
 
 """
@@ -297,6 +297,7 @@ Detailed plan of modifications:
 ...
 
 Code Generation:
+
 ```
 Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Prefer many small edits over few large edits. Always add lines before and after if possible.
 
@@ -310,6 +311,8 @@ new_code
 line_after
 >>>> UPDATED
 ```
+
+Commit message: "the commit message"
 
 Request: "Change hello to goodbye and change 3 to 4". Limit your changes to the request.
 
@@ -346,7 +349,10 @@ def func():
     a = 4
     
 >>>> UPDATED
-```""", 'role': 'assistant', 'key': 'modify_file_hallucination'}]
+```
+
+Commit message: "Changed goodbye to hello and 3 to 4"\
+""", 'role': 'assistant', 'key': 'modify_file_hallucination'}]
 
 # TODO: IMPORTANT: THIS DEPENDS ON THE ABOVE PROMPT, modify_file_hallucination_prompt
 modify_file_prompt_3 = """
@@ -358,6 +364,54 @@ File Name: {filename}
 ---
 
 Request: "{instructions}". Limit your changes to the request.
+
+Instructions:
+1. Complete the Code Planning step
+2. Complete the Code Generation step
+"""
+
+code_repair_modify_prompt = """
+File Name: {filename}
+
+{diff}
+
+<suggested_new_file>
+{code}
+</suggested_new_file>
+
+---
+
+Request: "{instructions}". 
+
+This file was edited previously by an inexperienced programmer to complete the users request. First, identify if the request has been completed and there are no any unimplemented or missing classes or functions. Then, identify any errors, other issues. Finally address them by suggesting changes.
+
+Code Planning:
+Step-by-step thoughts with explanations: 
+* Thought 1
+* Thought 2
+...
+
+Detailed plan of modifications:
+* Modification 1
+* Modification 2
+...
+
+Code Generation:
+Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Prefer many small edits over few large edits. Always add lines before and after if possible.
+
+```
+<<<< ORIGINAL
+line_before
+old_code
+line_after
+====
+line_before
+new_code
+line_after
+>>>> UPDATED
+```
+
+Again the request was "{instructions}".
 
 Instructions:
 1. Complete the Code Planning step
@@ -447,6 +501,7 @@ You are a genius trained for code stitching.
 You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product. The intention was to implement a change described as {feature}. 
 Our goal is to return a working version of user_code that follows {feature}. We should follow the instructions and make as few edits as possible.
 """
+
 code_repair_prompt = """\
 This is the diff that was applied to create user_code. Only make changes to code in user_code if the code was affected by the diff.
 <diff>
@@ -638,4 +693,12 @@ A clear issue title.
 A detailed issue description.
 More details ...
 </issue_description>
+"""
+
+docs_qa_system_prompt = """You are an expert at summarizing documentation for programming-related to help the user solve the problem. You will be given a question and relevant snippets of documentation, and be asked to provide a summary of relevant snippets for solving the problem."""
+docs_qa_user_prompt = """Here are the relevant documentation snippets:
+{snippets}
+
+The user is attempting to solve the following problem:
+{problem}
 """

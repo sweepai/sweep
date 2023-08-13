@@ -2,7 +2,6 @@ import os
 import re
 import shutil
 import time
-from datetime import datetime
 
 import github
 import modal
@@ -22,8 +21,8 @@ from loguru import logger
 from tqdm import tqdm
 
 from sweepai.core.entities import Snippet
-from sweepai.utils.config.client import SweepConfig
-from sweepai.utils.config.server import DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHUB_APP_PEM, REDIS_URL
+from sweepai.config.client import SweepConfig
+from sweepai.config.server import DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHUB_APP_PEM, REDIS_URL
 from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
@@ -39,7 +38,6 @@ def get_jwt():
     signing_key = GITHUB_APP_PEM
     app_id = GITHUB_APP_ID
     payload = {"iat": int(time.time()), "exp": int(time.time()) + 600, "iss": app_id}
-
     return encode(payload, signing_key, algorithm="RS256")
 
 def get_token(installation_id: int):
@@ -68,7 +66,7 @@ def get_token(installation_id: int):
 
 def get_github_client(installation_id: int):
     token = get_token(installation_id)
-    return Github(token)
+    return token, Github(token)
 
 def get_installation_id(username: str):
     jwt = get_jwt()
@@ -209,6 +207,17 @@ def get_file_names_from_query(query: str) -> list[str]:
     query_file_names = re.findall(r'\b[\w\-\.\/]*\w+\.\w{1,6}\b', query)
     return [query_file_name for query_file_name in query_file_names if len(query_file_name) > 3]
 
+def get_num_files_from_repo(repo: Repository, installation_id: str):
+    from git import Repo
+    token = get_token(installation_id)
+    shutil.rmtree("repo", ignore_errors=True)
+    repo_url = f"https://x-access-token:{token}@github.com/{repo.full_name}.git"
+    git_repo = Repo.clone_from(repo_url, "repo")
+    git_repo.git.checkout(SweepConfig.get_branch(repo))
+    file_list = get_file_list("repo")
+    shutil.rmtree("repo", ignore_errors=True)
+    return len(file_list)
+
 def search_snippets(
     repo: Repository,
     query: str,
@@ -316,7 +325,7 @@ def index_full_repository(
         sweep_config=sweep_config,
     )
     try:
-        repo = get_github_client(installation_id).get_repo(repo_name)
+        repo = (get_github_client(installation_id)[1]).get_repo(repo_name)
         labels = repo.get_labels()
         label_names = [label.name for label in labels]
 

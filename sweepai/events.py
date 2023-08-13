@@ -95,6 +95,7 @@ class IssueRequest(BaseModel):
     repository: Issue.Repository
     assignee: Issue.Assignee | None
     installation: Installation
+    sender: Issue.User
 
 
 class IssueCommentRequest(IssueRequest):

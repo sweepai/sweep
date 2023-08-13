@@ -3,11 +3,12 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import requests
+from geopy import Nominatim
 from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
-from sweepai.utils.config.server import MONGODB_URI, DISCORD_WEBHOOK_URL
+from sweepai.config.server import MONGODB_URI, DISCORD_WEBHOOK_URL, SUPPORT_COUNTRY
 
 
 class ChatLogger(BaseModel):
@@ -16,7 +17,8 @@ class ChatLogger(BaseModel):
     ticket_collection: Any = None
     expiration: datetime = None
     index: int = 0
-    current_month: str = datetime.utcnow().strftime('%m/%Y')
+    current_date: str = Field(default_factory=lambda: datetime.utcnow().strftime('%m/%Y/%d'))
+    current_month: str = Field(default_factory=lambda: datetime.utcnow().strftime('%m/%Y'))
 
     def __init__(self, data: dict = Field(default_factory=dict)):
         super().__init__(data=data)  # Call the BaseModel's __init__ method
@@ -42,6 +44,9 @@ class ChatLogger(BaseModel):
             .limit(2000)
 
     def add_chat(self, additional_data):
+        if self.chat_collection is None:
+            logger.error('Chat collection is not initialized')
+            return
         document = {**self.data, **additional_data, 'expiration': self.expiration, 'index': self.index}
         self.index += 1
         self.chat_collection.insert_one(document)
@@ -53,22 +58,26 @@ class ChatLogger(BaseModel):
         username = self.data['username']
         self.ticket_collection.update_one(
             {'username': username},
-            {'$inc': {self.current_month: 1}},
+            {'$inc': {self.current_month: 1, self.current_date: 1}},
             upsert=True
         )
         logger.info(f'Added Successful Ticket for {username}')
 
-    def get_ticket_count(self):
+    def get_ticket_count(self, use_date=False):
         if self.ticket_collection is None:
             logger.error('Ticket Collection Does Not Exist')
             return 0
         username = self.data['username']
+        tracking_date = self.current_date if use_date else self.current_month
         result = self.ticket_collection.aggregate([
             {'$match': {'username': username}},
-            {'$project': {self.current_month: 1, '_id': 0}}
+            {'$project': {
+                tracking_date: 1, 
+                '_id': 0
+            }}
         ])
         result_list = list(result)
-        ticket_count = result_list[0].get(self.current_month, 0) if len(result_list) > 0 else 0
+        ticket_count = result_list[0].get(tracking_date, 0) if len(result_list) > 0 else 0
         logger.info(f'Ticket Count for {username} {ticket_count}')
         return ticket_count
 
@@ -80,13 +89,40 @@ class ChatLogger(BaseModel):
         result = self.ticket_collection.find_one({'username': username})
         return result.get('is_paying_user', False) if result else False
 
-    def use_faster_model(self):
+    def is_trial_user(self):
+        if self.ticket_collection is None:
+            logger.error('Ticket Collection Does Not Exist')
+            return False
+        username = self.data['username']
+        result = self.ticket_collection.find_one({'username': username})
+        return result.get('is_trial_user', False) if result else False
+
+
+    def use_faster_model(self, g):
         if self.ticket_collection is None:
             logger.error('Ticket Collection Does Not Exist')
             return True
         if self.is_paying_user():
             return self.get_ticket_count() >= 120
-        return self.get_ticket_count() >= 5
+        if self.is_trial_user():
+            return self.get_ticket_count() >= 15
+
+        try:
+            loc_user = g.get_user(self.data['username']).location
+            loc = Nominatim(user_agent="location_checker").geocode(loc_user, exactly_one=True)
+            g = False
+            for c in SUPPORT_COUNTRY:
+                if c.lower() in loc.raw.get("display_name").lower():
+                    g = True
+                    break
+            if not g:
+                print("G EXCEPTION", loc_user)
+                return self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) >= 1
+        except:
+            pass
+
+        # Non-trial users can only create 2 GPT-4 tickets per day
+        return self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) >= 2
 
 
 def discord_log_error(content):

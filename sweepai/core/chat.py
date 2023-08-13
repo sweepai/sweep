@@ -15,8 +15,8 @@ from sweepai.core.prompts import (
     repo_description_prefix_prompt
 )
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.config.client import get_description
-from sweepai.utils.config.server import UTILS_MODAL_INST_NAME, ANTHROPIC_API_KEY, OPENAI_DO_HAVE_32K_MODEL_ACCESS
+from sweepai.config.client import get_description
+from sweepai.config.server import UTILS_MODAL_INST_NAME, ANTHROPIC_API_KEY, OPENAI_DO_HAVE_32K_MODEL_ACCESS
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 # TODO: combine anthropic and openai
@@ -41,7 +41,7 @@ model_to_max_tokens = {
     "gpt-4-32k": 32000,
 
 }
-temperature = 0.05  # May need to be adjusted lower
+temperature = 0.0  # Lowered to 0 for mostly deterministic results for reproducibility
 
 def format_for_anthropic(messages: list[Message]) -> str:
     if len(messages) > 1:

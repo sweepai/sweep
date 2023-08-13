@@ -9,7 +9,7 @@ from loguru import logger
 from sweepai.core.gha_extraction import GHAExtractor
 from sweepai.events import CheckRunCompleted
 from sweepai.handlers.on_comment import on_comment
-from sweepai.utils.config.client import SweepConfig, get_gha_enabled
+from sweepai.config.client import get_gha_enabled
 from sweepai.utils.github_utils import get_github_client, get_token
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -18,7 +18,7 @@ log_message = """GitHub actions yielded the following error.
 
 {error_logs}
 
-This is likely a linting or type-checking issue with the source code."""
+This is likely a linting or type-checking issue with the source code. Update the code the changes and avoid modifying the existing tests."""
 
 def get_dirs(zipfile: zipfile.ZipFile):
     return [file for file in zipfile.namelist() if file.endswith("/") and "/" in file]
@@ -43,22 +43,29 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
         zip_file = zipfile.ZipFile(io.BytesIO(content))
         dirs = get_dirs(zip_file)
         
-        for directory in dirs:
-            files = get_files_in_dir(zip_file, directory)
-            numbers = [int(file[len(directory):file.find("_")]) for file in files]
-            for i in range(1, 100):
-                if i not in numbers:
-                    break
-            i -= 1
-            target_file = ""
-            for file in files:
-                if file[len(directory): file.find("_")] == str(i):
-                    target_file = file
-                    break
-            else:
-                raise ValueError("No file found")
-            with zip_file.open(target_file) as f:
-                logs_str += f.read().decode("utf-8")
+        # for directory in dirs:
+        #     files = get_files_in_dir(zip_file, directory)
+        #     numbers = [int(file[len(directory):file.find("_")]) for file in files]
+        #     for i in range(1, 100):
+        #         if i not in numbers:
+        #             break
+        #     i -= 1
+        #     target_file = ""
+        #     for file in files:
+        #         if file[len(directory): file.find("_")] == str(i):
+        #             target_file = file
+        #             break
+        #     else:
+        #         raise ValueError("No file found")
+        #     with zip_file.open(target_file) as f:
+        #         logs_str += f.read().decode("utf-8")
+        for file in zip_file.namelist():
+            if file.endswith(".txt"):
+                with zip_file.open(file) as f:
+                    logs = f.read().decode("utf-8")
+                    last_line = logs.splitlines()[-1]
+                    if "##[error]" in last_line:
+                        logs_str += logs
     else:
         logger.info(response.text)
         logger.warning(f"Failed to download logs for run id: {run_id}")
@@ -106,7 +113,7 @@ def extract_logs_from_comment(comment: str) -> str:
 
 def on_check_suite(request: CheckRunCompleted):
     logger.info(f"Received check run completed event for {request.repository.full_name}")
-    g = get_github_client(request.installation.id)
+    _, g = get_github_client(request.installation.id)
     repo = g.get_repo(request.repository.full_name)
     if not get_gha_enabled(repo):
         logger.info(f"Skipping github action for {request.repository.full_name} because it is not enabled")
@@ -129,7 +136,7 @@ def on_check_suite(request: CheckRunCompleted):
     logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
     problematic_logs = extractor.gha_extract(logs)
     if problematic_logs.count("\n") > 15:
-        problematic_logs += "\n\nThere are a lot of errors. This is likely a larger issue with the PR and not a small linting/type-checking issue."
+        problematic_logs += "\n\nThere are a lot of errors. This is likely due to a small parsing issue or a missing import with the files changed in the PR."
     comments = list(pr.get_issue_comments())
 
     # logs_list = [extract_logs_from_comment(comment.body) for comment in comments]
