@@ -64,22 +64,6 @@ class RegexMatchableBaseModel(BaseModel):
             **kwargs,
         )
 
-
-class FilesToChange(RegexMatchableBaseModel):
-    files_to_modify: str
-    files_to_create: str
-
-    @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        create_pattern = r"""<create_file>(?P<files_to_create>.*)</create_file>"""
-        create_match = re.search(create_pattern, string, re.DOTALL)
-        modify_pattern = r"""<modify_file>(?P<files_to_modify>.*)</modify_file>"""
-        modify_match = re.search(modify_pattern, string, re.DOTALL)
-        return cls(
-            files_to_create=create_match.groupdict()["files_to_create"].strip() if create_match else "* None",
-            files_to_modify=modify_match.groupdict()["files_to_modify"].strip() if modify_match else "* None",
-        )
-    
 class RewrittenTitleAndDescription(RegexMatchableBaseModel):
     new_title: str
     new_description: str
@@ -128,7 +112,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
     filename: str
     instructions: str
     change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal["rename"]
-    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\-]*)\">(?P<instructions>.*?)<\/\1>"""
+    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\-]*)\">(?P<instructions>.*?)<\/\1>"""
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
