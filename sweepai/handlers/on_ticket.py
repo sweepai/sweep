@@ -40,7 +40,7 @@ update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 sep = "\n---\n"
 bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
 bot_suffix = f"\n{sep} To recreate the pull request, or edit the issue title or description."
-discord_suffix = f'\n<sup>[Join Our Discord](https://discord.com/invite/sweep-ai)'
+discord_suffix = f'\n<sup>[Join Our Discord](https://discord.gg/sweep)'
 
 stars_suffix = "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
 
@@ -290,7 +290,7 @@ def on_ticket(
 
         suffix = bot_suffix + discord_suffix
         if errored:
-            agg_message = "## ❌ Unable to Complete PR" + '\n' + message + "\n\nFor bonus GPT-4 tickets, please report this bug on **[Discord](https://discord.com/invite/sweep-ai)**."
+            agg_message = "## ❌ Unable to Complete PR" + '\n' + message + "\n\nFor bonus GPT-4 tickets, please report this bug on **[Discord](https://discord.gg/sweep)**."
             if table is not None:
                 agg_message = agg_message + f'\n{sep}Please look at the generated plan. If something looks wrong, please add more details to your issue.\n\n{table}'
             suffix = bot_suffix # don't include discord suffix for error messages
