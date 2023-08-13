@@ -444,11 +444,10 @@ def get_relevant_snippets(
     sorted_metadatas = [metadata for _, metadata in sorted_list]
     relevant_paths = [metadata["file_path"] for metadata in sorted_metadatas]
     logger.info("Relevant paths: {}".format(relevant_paths))
-    return [
-        Snippet(
+    return [Snippet(
             content="",
             start=metadata["start"],
             end=metadata["end"],
             file_path=file_path
-        ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)
-    ]
+    ) for metadata, file_path in zip(sorted_metadatas, relevant_paths)]
+    
