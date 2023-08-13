@@ -478,9 +478,11 @@ class SweepBot(CodeGenBot, GithubBot):
 
                         changed_file = self.handle_modify_file(file_change_request, branch)
                     case "delete":
+                        contents = self.repo.get_contents(file_change_request.filename, ref=branch)
                         self.repo.delete_file(
                             file_change_request.filename,
                             f"Deleted {file_change_request.filename}",
+                            sha=contents.sha,
                             branch=branch,
                         )
                         changed_file = True
@@ -495,8 +497,8 @@ class SweepBot(CodeGenBot, GithubBot):
                         self.repo.delete_file(
                             file_change_request.filename,
                             f"Deleted {file_change_request.filename}",
-                            branch=branch,
                             sha=contents.sha,
+                            branch=branch,
                         )
                         changed_file = True
                     case _:
