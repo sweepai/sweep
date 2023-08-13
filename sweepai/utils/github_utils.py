@@ -201,7 +201,7 @@ def get_file_contents(repo: Repository, file_path, ref=None):
     except AssertionError:
         logger.error(f"Unsupported encoding: {file.encoding}")
         contents = None
-    return contents\n
+    return contents
 
 def get_file_names_from_query(query: str) -> list[str]:
     query_file_names = re.findall(r'\b[\w\-\.\/]*\w+\.\w{1,6}\b', query)
