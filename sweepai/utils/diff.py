@@ -105,7 +105,7 @@ def format_contents(file_contents, is_markdown=False):
 
 def generate_new_file(modify_file_response: str, old_file_content: str, chunk_offset: int=0) -> str:
     result_file = ""
-    old_file_lines = old_file_content.splitlines(keepends=True)
+    old_file_lines = old_file_content.splitlines()
 
     # Extract content between <new_file> tags
     new_file = re.search(r".*?<new_file>\n?(.*)\n<\/new_file>", modify_file_response, re.DOTALL).group(1)
@@ -281,7 +281,7 @@ def get_all_diffs(modify_file_response: str) -> str:
     return result
 
 def generate_new_file_from_patch(modify_file_response: str, old_file_content: str, chunk_offset: int=0) -> str:
-    old_file_lines = old_file_content.splitlines(keepends=True)
+    old_file_lines = old_file_content.splitlines()
     
     # Extract content between <new_file> tags
     matches = re.findall(r'<<<<.*?\n(.*?)\n====[^\n=]*\n(.*?)\n?>>>>', modify_file_response, re.DOTALL)
@@ -302,9 +302,7 @@ def generate_new_file_from_patch(modify_file_response: str, old_file_content: st
             search = search.rstrip()[:-len('</old_file>')]
             replace = replace.rstrip()[:-len('</old_file>')]
 
-        old_file_lines, replace_index, status = sliding_window_replacement(old_file_lines,
-                                                                           search.splitlines(keepends=True),
-                                                                           replace.splitlines(keepends=True))
+        old_file_lines, replace_index, status = sliding_window_replacement(old_file_lines, search.splitlines(), replace.splitlines())
 
     result = '\n'.join(old_file_lines)
     return result
@@ -314,8 +312,8 @@ def join_contents_k(first, second, k):
     """
     Join contents together removing k duplicate lines
     """
-    first_lines = first.splitlines(keepends=True)
-    second_lines = second.splitlines(keepends=True)
+    first_lines = first.splitlines()
+    second_lines = second.splitlines()
     for i in range(k, 0, -1):
         if len(first_lines) < k or len(second_lines) < k:
             continue
