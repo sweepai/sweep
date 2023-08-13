@@ -13,6 +13,7 @@ import asyncio
 from loguru import logger
 from tabulate import tabulate
 from sweepai.core.documentation_searcher import DocumentationSearcher
+from sweepai.handlers.create_pr import create_sweep_yaml_pr, create_issue_templates_pr
 
 from sweepai.core.entities import Snippet, NoFilesException
 from sweepai.core.external_searcher import ExternalSearcher
@@ -404,11 +405,16 @@ def on_ticket(
     if not sweep_yml_exists:
         try:
             logger.info("Creating sweep.yaml file...")
-            config_pr = create_config_pr(sweep_bot)
-            config_pr_url = config_pr.html_url
-            edit_sweep_comment(message="", index=-2)
+            sweep_yaml_pr = create_sweep_yaml_pr(sweep_bot)
+            config_pr_url = sweep_yaml_pr.html_url
         except Exception as e:
             logger.error("Failed to create new branch for sweep.yaml file.\n", e, traceback.format_exc())
+        try:
+            logger.info("Creating issue templates...")
+            issue_templates_pr = create_issue_templates_pr(sweep_bot)
+            edit_sweep_comment(message="", index=-2)
+        except Exception as e:
+            logger.error("Failed to create new branch for issue templates.\n", e, traceback.format_exc())
     else:
         logger.info("sweep.yaml file already exists.")
 
