@@ -41,8 +41,8 @@ def generate_diff(old_code, new_code):
     return diff_text
 
 def revert_whitespace_changes(original_file_str, modified_file_str):
-    original_lines = original_file_str.splitlines()
-    modified_lines = modified_file_str.splitlines()
+    original_lines = original_file_str.split('\n')
+    modified_lines = modified_file_str.split('\n')
 
     diff = difflib.SequenceMatcher(None, original_lines, modified_lines)
 
@@ -105,7 +105,7 @@ def format_contents(file_contents, is_markdown=False):
 
 def generate_new_file(modify_file_response: str, old_file_content: str, chunk_offset: int=0) -> str:
     result_file = ""
-    old_file_lines = old_file_content.splitlines()
+    old_file_lines = old_file_content.split('\n')
 
     # Extract content between <new_file> tags
     new_file = re.search(r".*?<new_file>\n?(.*)\n<\/new_file>", modify_file_response, re.DOTALL).group(1)
@@ -281,7 +281,7 @@ def get_all_diffs(modify_file_response: str) -> str:
     return result
 
 def generate_new_file_from_patch(modify_file_response: str, old_file_content: str, chunk_offset: int=0) -> str:
-    old_file_lines = old_file_content.splitlines()
+    old_file_lines = old_file_content.split('\n')
     
     # Extract content between <new_file> tags
     matches = re.findall(r'<<<<.*?\n(.*?)\n====[^\n=]*\n(.*?)\n?>>>>', modify_file_response, re.DOTALL)
@@ -302,7 +302,7 @@ def generate_new_file_from_patch(modify_file_response: str, old_file_content: st
             search = search.rstrip()[:-len('</old_file>')]
             replace = replace.rstrip()[:-len('</old_file>')]
 
-        old_file_lines, replace_index, status = sliding_window_replacement(old_file_lines, search.splitlines(), replace.splitlines())
+        old_file_lines, replace_index, status = sliding_window_replacement(old_file_lines, search.split('\n'), replace.split('\n'))
 
     result = '\n'.join(old_file_lines)
     return result
@@ -312,8 +312,8 @@ def join_contents_k(first, second, k):
     """
     Join contents together removing k duplicate lines
     """
-    first_lines = first.splitlines()
-    second_lines = second.splitlines()
+    first_lines = first.split('\n')
+    second_lines = second.split('\n')
     for i in range(k, 0, -1):
         if len(first_lines) < k or len(second_lines) < k:
             continue

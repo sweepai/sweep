@@ -26,7 +26,7 @@ const config: DocsThemeConfig = {
     link: 'https://github.com/sweepai/sweep',
   },
   chat: {
-    link: 'https://discord.gg/sweep-ai',
+    link: 'https://discord.gg/sweep',
   },
   docsRepositoryBase: 'https://github.com/sweepai/sweep-docs',
   darkMode: false,
