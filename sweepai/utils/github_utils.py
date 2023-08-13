@@ -340,4 +340,4 @@ def index_full_repository(
         logger.warning(
             "Adding label failed, probably because label already."
         )  # warn that the repo may already be indexed
-    return num_indexed_docs
+    
