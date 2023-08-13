@@ -405,7 +405,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     final_file += "\n"
                 """
 
-                return new_file, commit_message
+                return final_file, commit_message
             except Exception as e:
                 tb = traceback.format_exc()
                 logger.warning(f"Failed to parse. Retrying for the {count}th time. Received error {e}\n{tb}")
