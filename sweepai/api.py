@@ -459,10 +459,13 @@ async def webhook(raw_request: Request):
                     event_name = "merged_sweep_pr"
                     if pr_request.pull_request.title.startswith("[config]"):
                         event_name = "config_pr_merged"
-                        if pr_request.pull_request.merged:
-                            issue_title = "Add repo description to sweep.yaml"
-                            issue_body = "Please add the following repository description to the sweep.yaml file: " + pr_request.repository.description
-                            repo.create_issue(title=issue_title, body=issue_body)
+                        try:
+                            if pr_request.pull_request.merged:
+                                issue_title = "Add repo description to sweep.yaml"
+                                issue_body = "Please add the following repository description to the sweep.yaml file: " + pr_request.repository.description
+                                repo.create_issue(title=issue_title, body=issue_body)
+                        except AttributeError as e:
+                            logger.error(f"Failed to create issue: {e}")
                     posthog.capture(
                         merged_by,
                         event_name,
