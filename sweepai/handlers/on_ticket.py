@@ -443,13 +443,13 @@ def on_ticket(
         # COMMENT ON ISSUE
         # TODO: removed issue commenting here
         logger.info("Fetching files to modify/create...")
-        file_change_requests, create_thoughts, modify_thoughts = sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change()
 
-        sweep_bot.summarize_snippets(create_thoughts, modify_thoughts)
+        sweep_bot.summarize_snippets(plan)
 
         file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
         table = tabulate(
-            [[f"`{file_change_request.filename}`", file_change_request.instructions.replace('\n', '<br/>').replace('```', '\\```')] for file_change_request in
+            [[f"`{file_change_request.filename}`", file_change_request.instructions_display.replace('\n', '<br/>').replace('```', '\\```')] for file_change_request in
              file_change_requests],
             headers=["File Path", "Proposed Changes"],
             tablefmt="pipe"
@@ -472,7 +472,7 @@ def on_ticket(
 
         logger.info("Making PR...")
 
-        files_progress = [(file_change_request.filename, file_change_request.instructions, "⏳") for file_change_request in file_change_requests]
+        files_progress = [(file_change_request.filename, file_change_request.instructions_display, "⏳") for file_change_request in file_change_requests]
 
         checkboxes_progress = [(file_change_request.filename, file_change_request.instructions, " ") for file_change_request in file_change_requests]
         checkboxes_message = collapsible_template.format(
