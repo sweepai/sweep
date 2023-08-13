@@ -459,18 +459,20 @@ async def webhook(raw_request: Request):
                     event_name = "merged_sweep_pr"
                     if pr_request.pull_request.title.startswith("[config]"):
                         event_name = "config_pr_merged"
-                    posthog.capture(
-                        merged_by,
-                        event_name,
-                        properties={
-                            "repo_name": repo_name,
-                            "organization": organization,
-                            "repo_full_name": pr_request.repository.full_name,
-                            "username": merged_by,
-                            "additions": pr_request.pull_request.additions,
-                            "deletions": pr_request.pull_request.deletions,
-                            "total_changes": pr_request.pull_request.additions + pr_request.pull_request.deletions,
-                        })
+                        posthog.capture(
+                            merged_by,
+                            event_name,
+                            properties={
+                                "repo_name": repo_name,
+                                "organization": organization,
+                                "repo_full_name": pr_request.repository.full_name,
+                                "username": merged_by,
+                                "additions": pr_request.pull_request.additions,
+                                "deletions": pr_request.pull_request.deletions,
+                                "total_changes": pr_request.pull_request.additions + pr_request.pull_request.deletions,
+                            })
+                        if pr_request.pull_request.title == "Configure Sweep" and pr_request.pull_request.merged:
+                            create_description_issue(repo_name, pr_request.installation.id)
                 chat_logger = ChatLogger({"username": merged_by})
                 # this makes it faster for everyone because the queue doesn't get backed up
                 # active users also should not see a delay
@@ -519,6 +521,14 @@ def update_sweep_prs(
     repo_full_name: str,
     installation_id: int
 ):
+
+def create_description_issue(repo_full_name: str, installation_id: int):
+    _, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    repo_description = repo.description
+    issue_title = "Add repo description to sweep.yaml"
+    issue_body = f"Please add the following repository description to the sweep.yaml file:\n\n{repo_description}"
+    repo.create_issue(title=issue_title, body=issue_body)
     # Get a Github client
     _, g = get_github_client(installation_id)
     
