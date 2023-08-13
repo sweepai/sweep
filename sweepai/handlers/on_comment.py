@@ -1,3 +1,7 @@
+# Run the `black` command on this file locally and observe the output to identify any formatting issues.
+# If any formatting issues are identified, fix these issues. This could involve correcting the syntax, adding missing imports, or fixing the indentation.
+# Run the `black` command again to ensure that the file is now correctly formatted.
+
 import traceback
 
 import openai
