@@ -1,3 +1,4 @@
+from .snake_game import SnakeGame
 import traceback
 import re
 
@@ -336,7 +337,24 @@ class GithubBot(BaseModel):
 
 
 class SweepBot(CodeGenBot, GithubBot):
-    def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
+    def handle_snake_game(self, game_state):
+        # Instantiate the SnakeGame class with the current game state
+        snake_game = SnakeGame(game_state)
+        # Check if snake_position is initialized
+        if snake_game.snake_position is None:
+            raise Exception("snake_position is not initialized.")
+        # Get the direction of the next move from the game state
+        direction = game_state.get('direction', 'up')
+        # Make the move
+        new_game_state = snake_game.make_move(direction)
+        # Check if the snake 'eats' a contribution
+        if snake_game.check_eaten():
+            # Reduce the user's contributions in the new game state
+            new_game_state['remaining_contributions'][snake_game.snake_position[-1]] -= 1
+        # Return the new game state
+        return new_game_state
+
+    def create_file(self, file_change_request: FileChangeRequest, branch: str):
         file_change: FileCreation | None = None
         key = f"file_change_created_{file_change_request.filename}"
         create_file_response = self.chat(
@@ -616,7 +634,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def handle_create_file(self, file_change_request: FileChangeRequest, branch: str):
         try:
-            file_change = self.create_file(file_change_request)
+            file_change = self.create_file(file_change_request, branch)
             file_markdown = is_markdown(file_change_request.filename)
             file_change.code = format_contents(file_change.code, file_markdown)
             logger.debug(

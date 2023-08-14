@@ -1,3 +1,4 @@
+from typing import List, Tuple, Dict
 import time
 import modal
 from fastapi import HTTPException, Request
@@ -32,6 +33,8 @@ from sweepai.config.server import (
 )
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
+from sweepai.core.sweep_bot import handle_snake_game
+from pydantic import BaseModel
 
 stub = modal.Stub(API_MODAL_INST_NAME)
 stub.pr_queues = modal.Dict.new()  # maps (repo_full_name, pull_request_ids) -> queues
@@ -77,6 +80,10 @@ secrets = [
     modal.Secret.from_name("e2b"),
     modal.Secret.from_name("gdrp"),
 ]
+
+class GameState(BaseModel):
+    snake_position: List[Tuple[int, int]]
+    remaining_contributions: Dict[Tuple[int, int], int]
 
 FUNCTION_SETTINGS = {
     "image": image,
@@ -131,6 +138,17 @@ def handle_pr_change_request(repo_full_name: str, pr_id: int):
         if (repo_full_name, pr_id) in stub.pr_queues:
             del stub.pr_queues[(repo_full_name, pr_id)]
 
+
+@stub.function(**FUNCTION_SETTINGS)
+@modal.web_endpoint(method="POST")
+async def snake_game(game_state: GameState):
+    """Handle a snake game move."""
+    try:
+        new_game_state = handle_snake_game(game_state)
+        return {"success": True, "game_state": new_game_state}
+    except Exception as e:
+        logger.warning(f"Failed to make snake game move: {e}")
+        raise HTTPException(status_code=500, detail="Failed to make snake game move")
 
 def function_call_is_completed(call_id: str):
     if call_id == "0":
