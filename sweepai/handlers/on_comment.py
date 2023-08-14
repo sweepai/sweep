@@ -190,8 +190,8 @@ def on_comment(
                         item_to_react_to.delete_reaction(r.id)
 
         branch_name = (
-            pr.head.ref if pr_number else pr.pr_head  # pylint: disable=no-member
-        )
+            pr.head.ref if pr_number else pr.pr_head
+        )  # pylint: disable=no-member
         # This means it's a comment on a file
         if file_comment:
             pr_file = repo.get_contents(
