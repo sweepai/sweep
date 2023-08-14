@@ -20,6 +20,43 @@ const nonUglyCSS = {
   },
 };
 
+const PoorMansModal = ({ children, onClose }) => {
+  return (
+    <Box
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "#222a",
+        zIndex: 999,
+      }}
+      onClick={onClose}
+    >
+      <Box
+        color="secondary"
+        style={{
+          backgroundColor: "#151215",
+          borderColor: "0.5px solid #333",
+          boxShadow: "0px 0px 20px 0 black",
+          position: "absolute",
+          top: "10%",
+          left: "50%",
+          transform: "translate(-50%, 0)",
+          padding: 32,
+          borderRadius: 10,
+          minWidth: 1000,
+          zIndex: 9999,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </Box>
+    </Box>
+  );
+};
+
 export default function App() {
   const [open, setOpen] = useState(false);
   const titleRef = useRef(null);
@@ -78,80 +115,51 @@ export default function App() {
         Make Sweep issue
       </Button>
       {open && (
-        <Box
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "#222a",
-            zIndex: 999,
-          }}
-          onClick={handleClose}
-        >
-          <Box
-            color="secondary"
+        <PoorMansModal onClose={handleClose}>
+          {/* MUI kinda monkey library tbh */}
+          <input
+            placeholder='Write an api endpoint that does ... in the ... file ("Sweep:" prefix unneeded)'
             style={{
-              backgroundColor: "#151215",
-              borderColor: "0.5px solid #333",
-              boxShadow: "0px 0px 20px 0 black",
-              position: "absolute",
-              top: "10%",
-              left: "50%",
-              transform: "translate(-50%, 0)",
-              padding: 32,
-              borderRadius: 10,
-              minWidth: 1000,
-              zIndex: 9999,
+              ...nonUglyCSS,
+              marginBottom: 12,
             }}
-            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" && e.ctrlKey) || e.key === "Escape") {
+                return;
+              }
+              e.stopPropagation();
+            }}
+            ref={titleRef}
+            autoFocus
+          />
+          <textarea
+            placeholder="The new endpoint should use the ... class from ... file because it contains ... logic."
+            style={{
+              ...nonUglyCSS,
+              fontSize: 16,
+              height: 300,
+              resize: "none",
+            }}
+            ref={descriptionRef}
+            onKeyDown={(e) => {
+              if ((e.key === "Enter" && e.ctrlKey) || e.key === "Escape") {
+                return;
+              }
+              e.stopPropagation();
+            }}
+          />
+          <Box
+            style={{
+              width: "100%",
+              display: "flex",
+              justifyContent: "right",
+            }}
           >
-            {/* MUI kinda monkey library tbh */}
-            <input
-              placeholder='Write an api endpoint that does ... in the ... file ("Sweep:" prefix unneeded)'
-              style={{
-                ...nonUglyCSS,
-                marginBottom: 12,
-              }}
-              onKeyDown={(e) => {
-                if ((e.key === "Enter" && e.ctrlKey) || e.key === "Escape") {
-                  return;
-                }
-                e.stopPropagation();
-              }}
-              ref={titleRef}
-              autoFocus
-            />
-            <textarea
-              placeholder="The new endpoint should use the ... class from ... file because it contains ... logic."
-              style={{
-                ...nonUglyCSS,
-                fontSize: 16,
-                height: 300,
-                resize: "none",
-              }}
-              ref={descriptionRef}
-              onKeyDown={(e) => {
-                if ((e.key === "Enter" && e.ctrlKey) || e.key === "Escape") {
-                  return;
-                }
-                e.stopPropagation();
-              }}
-            />
-            <Box
-              style={{
-                width: "100%",
-                display: "flex",
-                justifyContent: "right",
-              }}
-            >
-              <Button onClick={handleSubmit} ref={submitRef}>
-                Submit
-              </Button>
-            </Box>
+            <Button onClick={handleSubmit} ref={submitRef}>
+              Submit
+            </Button>
           </Box>
-        </Box>
+        </PoorMansModal>
       )}
     </ShadowDomContainer>
   );
