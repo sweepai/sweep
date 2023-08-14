@@ -15,4 +15,6 @@ Step-by-step thoughts with explanations:
 * None"""
 
 ftc = FilesToChange.from_string(fcr)
-import pdb; pdb.set_trace()
+import pdb
+
+pdb.set_trace()

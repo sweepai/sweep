@@ -5,16 +5,16 @@ old_file = """
       this is bad2
       this is very bad2
     end
-        
+
     defmodule Test do
       print("hey")
       print("not worth")
-      
+
       if this breaks then
         i'm sad
       end
     end
-        
+
     defmodule incorrect do
       this is bad
       this is very bad
