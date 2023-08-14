@@ -111,7 +111,7 @@ embedding_function = ModalEmbeddingFunction()
 )
 class CPUEmbedding:
     def __enter__(self):
-        from sentence_transformers import (  # pylint: disable=no-member
+        from sentence_transformers import (  # pylint: disable=import-error
             SentenceTransformer,
         )
 
