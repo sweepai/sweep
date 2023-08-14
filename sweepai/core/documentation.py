@@ -49,9 +49,9 @@ timeout = 60 * 60  # 30 minutes
 )
 class Embedding:
     def __enter__(self):
-        from sentence_transformers import (  # pylint: disable=import-error
+        from sentence_transformers import (
             SentenceTransformer,
-        )
+        )  # pylint: disable=import-error
 
         self.model = SentenceTransformer(
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
@@ -90,8 +90,8 @@ class ModalEmbeddingFunction:
             logger.info([len(batch) for batch in batches])
             results = []
             for batch in tqdm(
-                Embedding.compute.map(batches)  # pylint: disable=no-member
-            ):
+                Embedding.compute.map(batches)
+            ):  # pylint: disable=no-member
                 results.extend(batch)
 
             return results
@@ -111,9 +111,9 @@ embedding_function = ModalEmbeddingFunction()
 )
 class CPUEmbedding:
     def __enter__(self):
-        from sentence_transformers import (  # pylint: disable=import-error
+        from sentence_transformers import (
             SentenceTransformer,
-        )
+        )  # pylint: disable=import-error
 
         self.model = SentenceTransformer(
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
