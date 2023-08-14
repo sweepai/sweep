@@ -26,7 +26,7 @@ Username: kevinlu1248
 Query: Sweep: Use os agnostic temp directory for windows
 ```
 
-The next step is to use the codebase, but codebases can have up to thousands of files! Thus, we only search for relevant files. 
+The next step is to use the codebase, but codebases can have up to thousands of files! Thus, we only search for relevant files.
 
 ## Search
 
@@ -37,7 +37,7 @@ Sweep starts searching for relevant snippets by:
 1. **Query** the title and description against the code snippets as the context and retrieves the top 100 snippets using [MPNet](https://huggingface.co/sentence-transformers/all-mpnet-base-v2) embeddings and a [DeepLake](https://github.com/activeloopai/deeplake) vector store. We chunk the files ahead of time using a custom [CST-based chunker](https://docs.sweep.dev/blogs/chunking-2m-files). We have a more details tour of our search infrastructure at https://docs.sweep.dev/blogs/search-infra and https://docs.sweep.dev/blogs/building-code-search.
 2. **Re-rank** the snippets using a heuristic based on the commit count and time of the latest commit and pick the top 4. The assumption is that the files with the latest commit and highest commit counts are more likely to be edited again. We also at this point add any files mentioned directly.
 3. **De-duplicate and fuse snippets**. For example, if the snippet `main.py:0-50` and `main.py:51-100` gets fetched, they get fused into `main.py:0-100`. We then extend each snippet by 25 lines in each direction, so `main.py:25-75` becomes `main.py:0-100`.
-4. **Generate a summary** of the repository using [ctag summaries](https://docs.sweep.dev/blogs/understanding-codebase-with-ctags) of the top 10 files from the re-ranking, which is a summary of the variable names and functions declared in the file. This is presented as a directory tree: starting from the root directory all the way to the files and the classes, methods and variables of the files. Only files that are siblings of the top 10 files will be 
+4. **Generate a summary** of the repository using [ctag summaries](https://docs.sweep.dev/blogs/understanding-codebase-with-ctags) of the top 10 files from the re-ranking, which is a summary of the variable names and functions declared in the file. This is presented as a directory tree: starting from the root directory all the way to the files and the classes, methods and variables of the files. Only files that are siblings of the top 10 files will be
 
 The final context at this point looks something like the following:
 
@@ -139,7 +139,7 @@ If changes are needed, we re-run the pipeline on the pull request from the begin
 
 ### Self-Review
 
-Sweep checks the code diffs and the pull request summary using GPT-4 and verifies that nothing is clearly broken. If something is broken, Sweep makes a comment on its own pull request with a summary of things to change. 
+Sweep checks the code diffs and the pull request summary using GPT-4 and verifies that nothing is clearly broken. If something is broken, Sweep makes a comment on its own pull request with a summary of things to change.
 
 If it fails again, we do another self-review. We iterate for a maximum of three times.
 

@@ -8,7 +8,7 @@ from typing import Callable
 from pydantic import BaseModel
 
 REACT_INITIAL_PROMPT = """
-Gather information to solve the above problem using the tools below. 
+Gather information to solve the above problem using the tools below.
 * You should use the tools about 2-3 times
 * Only use Finish when you are CERTAIN you have enough information to solve the problem. More information is usually better.
 * The examples are provided ONLY as examples: the example inputs probably will not work
@@ -21,7 +21,7 @@ Thoughts:
 1. thought_1
 2. thought_2
 ...
-Plan: 
+Plan:
 1. plan_1
 2. plan_2
 ...
@@ -43,7 +43,7 @@ What would you like to do next? Use the same format as above.
 
 
 def dedent(text: str) -> str:
-    return re.sub(r'(\n)[ \t]+', r'\n', text.strip())
+    return re.sub(r"(\n)[ \t]+", r"\n", text.strip())
 
 
 class Tool(BaseModel):
@@ -58,14 +58,16 @@ class Tool(BaseModel):
 
     @property
     def summary(self):
-        return dedent(f"""
+        return dedent(
+            f"""
         {self._name}: {self.description}
         Example usage:
         <tool>{self._name}</tool>
         <inputs>
         {self.example_inputs}
         </inputs>
-        """.strip())
+        """.strip()
+        )
 
     def __call__(self, *args, **kwargs):
         return self.function(*args, **kwargs)
@@ -104,7 +106,9 @@ class Toolbox(BaseModel):
 
     @property
     def prompt(self):
-        return REACT_INITIAL_PROMPT.format(tools="\n\n".join([tool.summary for tool in self.tools]))
+        return REACT_INITIAL_PROMPT.format(
+            tools="\n\n".join([tool.summary for tool in self.tools])
+        )
 
     class ParsedResults(BaseModel):
         tool_name: str
@@ -114,9 +118,15 @@ class Toolbox(BaseModel):
         @classmethod
         def parse(cls, results) -> "Toolbox.ParsedResults":
             match = re.search(cls._regex, results, flags=re.DOTALL)
-            return cls(tool_name=match.group("tool").strip(), inputs=match.group("inputs").strip())
+            return cls(
+                tool_name=match.group("tool").strip(),
+                inputs=match.group("inputs").strip(),
+            )
 
     def process_results(self, parsed_results: "Toolbox.ParsedResults") -> str:
         # parsed_results = Toolbox.ParsedResults.parse(raw_output)
-        tool = next((tool for tool in self.tools if tool._name == parsed_results.tool_name), None)
+        tool = next(
+            (tool for tool in self.tools if tool._name == parsed_results.tool_name),
+            None,
+        )
         return tool(parsed_results.inputs)
