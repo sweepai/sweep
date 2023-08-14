@@ -830,17 +830,14 @@ def on_ticket(
                 draft=is_draft,
             )
         except GithubException as e:
-            if "Draft pull requests are not supported" in e.headers["message"]:
-                is_draft = False
-                pr = repo.create_pull(
-                    title=pr_changes.title,
-                    body=pr_changes.body,
-                    head=pr_changes.pr_head,
-                    base=SweepConfig.get_branch(repo),
-                    draft=is_draft,
-                )
-            else:
-                raise e
+            is_draft = False
+            pr = repo.create_pull(
+                title=pr_changes.title,
+                body=pr_changes.body,
+                head=pr_changes.pr_head,
+                base=SweepConfig.get_branch(repo),
+                draft=is_draft,
+            )
 
         # Get the branch (SweepConfig.get_branch(repo))'s sha
         sha = repo.get_branch(SweepConfig.get_branch(repo)).commit.sha
