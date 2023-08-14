@@ -97,6 +97,7 @@ class Sandbox(BaseModel):
         await self.run_command(PYTHON_CREATE_VENV)
 
     async def write_repo_file(self, file_path, content):
+        await self.run_command(f"sudo chmod 777 {REPO_PATH}/{file_path}")
         await self.session.filesystem.write(f'{REPO_PATH}/{file_path}', content)
         # Fix permissions
         await self.run_command(f"sudo chmod 777 {REPO_PATH}/{file_path}")
@@ -105,9 +106,13 @@ class Sandbox(BaseModel):
         return await self.session.filesystem.read(f'{REPO_PATH}/{file_path}')
 
     async def run_formatter(self, file_path, content):
-        await self.write_repo_file(file_path, content)
-        await self.run_command(self.format_command.format(file=file_path))
-        return await self.read_repo_file(file_path)
+        try:
+            await self.write_repo_file(file_path, content)
+            await self.run_command(self.format_command.format(file=file_path))
+            return await self.read_repo_file(file_path)
+        except Exception as e:
+            print("Error running formatter", e)
+            return content
 
     async def run_linter(self):
         if self.linter_command is None:
