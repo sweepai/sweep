@@ -93,7 +93,7 @@ def get_installation_id(username: str):
 def list_directory_tree(
     root_directory,
     included_directories=None,
-    excluded_directories=None,
+    excluded_directories: list[str] = None,
     included_files=None,
     ctags: CTags = None,
 ):
@@ -110,6 +110,8 @@ def list_directory_tree(
         included_directories = []
     if excluded_directories is None:
         excluded_directories = [".git"]
+    else:
+        excluded_directories.append(".git")
 
     def list_directory_contents(
         current_directory,
@@ -124,9 +126,7 @@ def list_directory_tree(
         directory_tree_string = ""
 
         for name in file_and_folder_names[:MAX_FILE_COUNT]:
-            relative_path = os.path.join(current_directory, name)[
-                len(root_directory) + 1 :
-            ]
+            relative_path = os.path.join(current_directory, name)[len(root_directory) + 1:]
             if name in excluded_directories:
                 continue
             complete_path = os.path.join(current_directory, name)
@@ -173,7 +173,10 @@ def get_file_list(root_directory: str) -> str:
 
 
 def get_tree_and_file_list(
-    repo: Repository, installation_id: int, snippet_paths: list[str]
+    repo: Repository,
+    installation_id: int,
+    snippet_paths: list[str],
+    excluded_directories: list[str] = None,
 ) -> str:
     prefixes = []
     for snippet_path in snippet_paths:
@@ -200,6 +203,7 @@ def get_tree_and_file_list(
         "repo",
         included_directories=prefixes,
         included_files=snippet_paths,
+        excluded_directories=excluded_directories,
         ctags=ctags,
     )
     return tree
@@ -244,6 +248,7 @@ def search_snippets(
     branch: str = None,
     sweep_config: SweepConfig = SweepConfig(),
     multi_query: list[str] = None,
+    excluded_directories: list[str] = None,
 ) -> tuple[list[Snippet], str]:
     # Initialize the relevant directories string
     get_relevant_snippets = modal.Function.lookup(
@@ -308,7 +313,12 @@ def search_snippets(
             :10
         ]
     snippet_paths = list(set(snippet_paths))
-    tree = get_tree_and_file_list(repo, installation_id, snippet_paths=snippet_paths)
+    tree = get_tree_and_file_list(
+        repo,
+        installation_id,
+        snippet_paths=snippet_paths,
+        excluded_directories=excluded_directories,
+    )
     shutil.rmtree("repo")
     for file_path in query_match_files:
         try:
