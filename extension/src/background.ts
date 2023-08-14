@@ -1,22 +1,24 @@
 // I'm going back to webpack if parcel continues to not want to cooperate
 
-const DEVICE_CODE_ENDPOINT = "https://github.com/login/device/code"
-const USER_LOGIN_ENDPOINT = "https://github.com/login/device"
-const OAUTH_ACCESS_TOKEN_ENDPOINT = "https://github.com/login/oauth/access_token"
+const DEVICE_CODE_ENDPOINT = "https://github.com/login/device/code";
+const USER_LOGIN_ENDPOINT = "https://github.com/login/device";
+const OAUTH_ACCESS_TOKEN_ENDPOINT =
+  "https://github.com/login/oauth/access_token";
 const GITHUB_APP_CLIENT_ID = "Iv1.91fd31586a926a9f";
 
-const sleep = (ms: number, jitter: number = 300) => new Promise((resolve) => setTimeout(resolve, ms + Math.random() * jitter));
+const sleep = (ms: number, jitter: number = 300) =>
+  new Promise((resolve) => setTimeout(resolve, ms + Math.random() * jitter));
 
 var github_pat = null;
 var github_username = null;
 
 chrome.runtime.onInstalled.addListener((details) => {
-  console.log("Updated due to ", details.reason)
+  console.log("Updated due to ", details.reason);
   chrome.storage.local.get("config", async (result) => {
     if (result.config) {
       github_pat = result.config.github_pat;
       github_username = result.config.github_username;
-      console.log("Found github_pat and username in storage")
+      console.log("Found github_pat and username in storage");
     } else {
       console.log("No github_pat found... Generating...");
       const device_code_response = await fetch(DEVICE_CODE_ENDPOINT, {
@@ -25,74 +27,92 @@ chrome.runtime.onInstalled.addListener((details) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ client_id: GITHUB_APP_CLIENT_ID }),
-      })
-      const parsedDeviceCodeResponse = new URLSearchParams(decodeURIComponent(await device_code_response.text()));
+      });
+      const parsedDeviceCodeResponse = new URLSearchParams(
+        decodeURIComponent(await device_code_response.text()),
+      );
       const parsed_device_code = parsedDeviceCodeResponse.get("user_code");
       console.log("Device code: ", parsed_device_code);
       const tab = await chrome.tabs.create({ url: USER_LOGIN_ENDPOINT });
-      const entering_code_execution_results = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: async (device_code: string) => {
-          console.log("Executing script from background.ts")
-          console.log(device_code)
-          await navigator.clipboard.writeText(device_code);
-          device_code.split("").forEach((char, index) => {
-            if (char != "-") {
-              (document.querySelector(`#user-code-${index}`) as HTMLInputElement).value = char;
-            }
-          });
-          const submit_button = document.querySelector("input[type='submit']") as HTMLButtonElement;
-          console.log(submit_button)
-          submit_button.click();
-        },
-        args: [parsed_device_code],
-      })
-      console.log(entering_code_execution_results)
-      await sleep(1500)
+      const entering_code_execution_results =
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: async (device_code: string) => {
+            console.log("Executing script from background.ts");
+            console.log(device_code);
+            await navigator.clipboard.writeText(device_code);
+            device_code.split("").forEach((char, index) => {
+              if (char != "-") {
+                (
+                  document.querySelector(
+                    `#user-code-${index}`,
+                  ) as HTMLInputElement
+                ).value = char;
+              }
+            });
+            const submit_button = document.querySelector(
+              "input[type='submit']",
+            ) as HTMLButtonElement;
+            console.log(submit_button);
+            submit_button.click();
+          },
+          args: [parsed_device_code],
+        });
+      console.log(entering_code_execution_results);
+      await sleep(1500);
       console.log("Done entering code");
       const authorize_execution_results = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
-          const authorize_button = document.querySelector("button#js-oauth-authorize-btn") as HTMLButtonElement;
-          console.log(authorize_button)
+          const authorize_button = document.querySelector(
+            "button#js-oauth-authorize-btn",
+          ) as HTMLButtonElement;
+          console.log(authorize_button);
           authorize_button.click();
-        }
+        },
       });
-      console.log(authorize_execution_results)
+      console.log(authorize_execution_results);
       console.log("Done authorizing");
-      await sleep(1000)
+      await sleep(1000);
       await chrome.tabs.remove(tab.id);
       console.log("Closed tab");
-      await sleep(1000)
-      console.log(parsed_device_code)
-      const oauth_access_token_response = await fetch(OAUTH_ACCESS_TOKEN_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      await sleep(1000);
+      console.log(parsed_device_code);
+      const oauth_access_token_response = await fetch(
+        OAUTH_ACCESS_TOKEN_ENDPOINT,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            client_id: GITHUB_APP_CLIENT_ID,
+            device_code: parsedDeviceCodeResponse.get("device_code"),
+            grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+          }),
         },
-        body: JSON.stringify({
-          client_id: GITHUB_APP_CLIENT_ID,
-          device_code: parsedDeviceCodeResponse.get("device_code"),
-          grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-        })
-      })
-      const oauth_access_token_raw_response = await oauth_access_token_response.text()
-      console.log("Raw response: ", oauth_access_token_raw_response)
-      const parsedOauthAccessTokenResponse = new URLSearchParams(decodeURIComponent(oauth_access_token_raw_response)); 
+      );
+      const oauth_access_token_raw_response =
+        await oauth_access_token_response.text();
+      console.log("Raw response: ", oauth_access_token_raw_response);
+      const parsedOauthAccessTokenResponse = new URLSearchParams(
+        decodeURIComponent(oauth_access_token_raw_response),
+      );
       const access_token = parsedOauthAccessTokenResponse.get("access_token");
       console.log("Access token: ", access_token);
       const username_response = await fetch("https://api.github.com/user", {
         headers: {
-          "Accept": "application/vnd.github+json",
-          "Authorization": `Bearer ${access_token}`,
-        }
-      })
+          Accept: "application/vnd.github+json",
+          Authorization: `Bearer ${access_token}`,
+        },
+      });
       const github_username = (await username_response.json()).login;
       console.log("Username: ", github_username);
       github_pat = access_token;
-      await chrome.storage.local.set({ config: { github_pat, github_username } });
-      console.log("Saved GitHub access token and username to storage")
+      await chrome.storage.local.set({
+        config: { github_pat, github_username },
+      });
+      console.log("Saved GitHub access token and username to storage");
     }
   });
 });
-
