@@ -1,3 +1,4 @@
+from sentence_transformers import SentenceTransformer
 import glob
 import json
 import os
@@ -185,6 +186,7 @@ class ModalEmbeddingFunction:
                 for i in range(0, len(texts), ModalEmbeddingFunction.batch_size)
             ]
             batches = [batch for batch in batches if len(batch) > 0]
+            results = []
             for batch in tqdm(batches):
                 results.extend(Embedding.compute(batch))
 
