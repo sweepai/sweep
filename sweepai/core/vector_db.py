@@ -47,9 +47,9 @@ CPU = 0.5
 
 
 def download_models():
-    from sentence_transformers import (
+    from sentence_transformers import (  # pylint: disable=import-error
         SentenceTransformer,
-    )  # pylint: disable=import-error
+    )
 
     model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
 
@@ -113,9 +113,9 @@ def parse_collection_name(name: str) -> str:
 )
 class Embedding:
     def __enter__(self):
-        from sentence_transformers import (
+        from sentence_transformers import (  # pylint: disable=import-error
             SentenceTransformer,
-        )  # pylint: disable=import-error
+        )
 
         self.model = SentenceTransformer(
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
@@ -146,9 +146,9 @@ class Embedding:
 )
 class CPUEmbedding:
     def __enter__(self):
-        from sentence_transformers import (
+        from sentence_transformers import (  # pylint: disable=import-error
             SentenceTransformer,
-        )  # pylint: disable=import-error
+        )
 
         self.model = SentenceTransformer(
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
@@ -188,8 +188,8 @@ class ModalEmbeddingFunction:
             logger.info([len(batch) for batch in batches])
             results = []
             for batch in tqdm(
-                Embedding.compute.map(batches)
-            ):  # pylint: disable=no-member
+                Embedding.compute.map(batches)  # pylint: disable=no-member
+            ):
                 results.extend(batch)
 
             return results
