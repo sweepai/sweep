@@ -91,8 +91,8 @@ Unlike existing AI solutions, this can solve entire tickets and can be paralleli
 
 ## The Stack
 - **GPT-4 32k** & GPT-3.5 16k
-- ActiveLoop DeepLake Vector DB
 - GTE-base embedding model
+- ActiveLoop DeepLake Vector DB
 - Modal Labs for infra + deployment
 
 ## Highlights 🌟
