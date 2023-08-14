@@ -8,7 +8,7 @@ description: "sweepai/sweep is a python 3.10 project. The main api endpoints are
 # You can use it by adding the key to your GitHub issue.
 # Example: Use PyGitHub to get the number of files in a repo.
 
-# The title should be restrictive so it only shows up when the user wants it.
+# The title should be restrictive so it only shows up when the user wants it. 
 # "React JS" is good, "React" is not.
 # The url should be the root of the docs, not a specific page. We will scrape all pages under this root.
 # "https://react.dev/" is good, "https://react.dev/docs/getting-started" is not.

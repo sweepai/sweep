@@ -307,7 +307,7 @@ class SweepBot(CodeGenBot, GithubBot):
         #             )
         #         else:
         #             response = self.chat(
-        #                 f"Here is the file: <file path=\"{path}\">\n\n{content[:10000]}</file>. Fetch more content or call finish.",
+        #                 f"Here is the file: <file path=\"{path}\">\n\n{content[:10000]}</file>. Fetch more content or call finish.", 
         #                 message_key=path,
         #                 functions=functions
         #             ) # update this constant
@@ -342,11 +342,11 @@ class SweepBot(CodeGenBot, GithubBot):
         raise Exception("Failed to parse response after 5 attempts.")
 
     def modify_file(
-            self,
-            file_change_request: FileChangeRequest,
-            contents: str = "",
-            contents_line_numbers: str = "",
-            branch=None,
+            self, 
+            file_change_request: FileChangeRequest, 
+            contents: str = "", 
+            contents_line_numbers: str = "", 
+            branch=None, 
             chunking: bool = False,
             chunk_offset: int = 0,
     ) -> tuple[str, str]:
@@ -444,16 +444,16 @@ class SweepBot(CodeGenBot, GithubBot):
             file = self.get_file(file_change_request.filename, branch=branch)
             file_contents = file.decoded_content.decode("utf-8")
             lines = file_contents.split("\n")
-
+            
             new_file_contents = ""  # Initialize an empty string to hold the new file contents
             all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
             chunking = len(lines) > CHUNK_SIZE * 1.5 # Only chunk if the file is large enough
             file_name = file_change_request.filename
             if not chunking:
                 new_file_contents = self.modify_file(
-                        file_change_request,
-                        contents="\n".join(lines),
-                        branch=branch,
+                        file_change_request, 
+                        contents="\n".join(lines), 
+                        branch=branch, 
                         contents_line_numbers=file_contents if USING_DIFF else "\n".join(all_lines_numbered),
                         chunking=chunking,
                         chunk_offset=0
@@ -466,10 +466,10 @@ class SweepBot(CodeGenBot, GithubBot):
                         new_chunk = chunk_contents
                     else:
                         new_chunk = self.modify_file(
-                            file_change_request,
-                            contents=chunk_contents,
-                            branch=branch,
-                            contents_line_numbers=file_contents if USING_DIFF else "\n".join(contents_line_numbers),
+                            file_change_request, 
+                            contents=chunk_contents, 
+                            branch=branch, 
+                            contents_line_numbers=file_contents if USING_DIFF else "\n".join(contents_line_numbers), 
                             chunking=chunking,
                             chunk_offset=i
                         )
@@ -503,7 +503,7 @@ class SweepBot(CodeGenBot, GithubBot):
             raise e
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")
+            logger.info(f"Error in handle_modify_file: {tb}")    
 """
 
 code_replaces = """
@@ -516,7 +516,7 @@ Code Generation:
             try:
                 logger.info(f"Generating for the {count}th time...")
                 files_to_change_response = self.chat(files_to_change_prompt,
-                                                     message_key="files_to_change")
+                                                     message_key="files_to_change")  
                 files_to_change = FilesToChange.from_string(files_to_change_response)
                 create_thoughts = files_to_change.files_to_create.strip()
                 modify_thoughts = files_to_change.files_to_modify.strip()
@@ -551,7 +551,7 @@ Code Generation:
             try:
                 logger.info(f"Generating for the {count}th time...")
                 files_to_change_response = self.chat(files_to_change_prompt,
-                                                     message_key="files_to_change")
+                                                     message_key="files_to_change")  
                 return files_to_change_response
             except RegexMatchError:
                 logger.warning("Failed to parse! Retrying...")

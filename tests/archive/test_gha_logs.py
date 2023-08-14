@@ -4,17 +4,11 @@ import zipfile
 import requests
 from loguru import logger
 
-
 def get_dirs(zipfile: zipfile.ZipFile):
     return [file for file in zipfile.namelist() if file.endswith("/") and "/" in file]
 
-
 def get_files_in_dir(zipfile: zipfile.ZipFile, dir: str):
-    return [
-        file
-        for file in zipfile.namelist()
-        if file.startswith(dir) and not file.endswith("/")
-    ]
+    return [file for file in zipfile.namelist() if file.startswith(dir) and not file.endswith("/")]
 
 
 def download_logs(repo_full_name: str, run_id: int):
@@ -34,7 +28,7 @@ def download_logs(repo_full_name: str, run_id: int):
         content = open("/home/kevin/Downloads/logs_2464.zip", "rb").read()
         zip_file = zipfile.ZipFile(io.BytesIO(content))
         dirs = get_dirs(zip_file)
-
+        
         # for directory in dirs:
         #     files = get_files_in_dir(zip_file, directory)
         #     numbers = [int(file[len(directory):file.find("_")]) for file in files]
@@ -69,7 +63,7 @@ def clean_logs(logs_str: str):
     # Extraction process could be better
     MAX_LINES = 300
     log_list = logs_str.split("\n")
-    truncated_logs = [log[log.find(" ") + 1 :] for log in log_list]
+    truncated_logs = [log[log.find(" ") + 1:] for log in log_list]
     patterns = [
         # for docker
         "Already exists",
@@ -93,15 +87,11 @@ def clean_logs(logs_str: str):
         # For prettier
         "npm WARN EBADENGINE ",
         "npm WARN deprecated ",
-        "prettier/prettier",
-    ]
-    cleaned_lines = [
-        log.strip()
-        for log in truncated_logs
-        if not any(log.strip().startswith(pattern) for pattern in patterns)
-    ]
-    return "\n".join(cleaned_lines[: min(MAX_LINES, len(cleaned_lines))])
+        "prettier/prettier"
 
+    ]
+    cleaned_lines = [log.strip() for log in truncated_logs if not any(log.strip().startswith(pattern) for pattern in patterns)]
+    return "\n".join(cleaned_lines[:min(MAX_LINES, len(cleaned_lines))])
 
 if __name__ == "__main__":
     run_id = 5753755655

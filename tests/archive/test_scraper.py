@@ -14,6 +14,4 @@ document = documents[0]
 
 index = GPTVectorStoreIndex.from_documents(documents)
 query_engine = index.as_query_engine(streaming=True)
-query_engine.query(
-    "Extract the entire example yaml from the html."
-).print_response_stream()
+query_engine.query("Extract the entire example yaml from the html.").print_response_stream()

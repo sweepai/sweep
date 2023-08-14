@@ -1,5 +1,5 @@
 ### 🍲 Recipes
-#### To get the best performance from Sweep, we recommend the following approach to writing github issues/chats.
+#### To get the best performance from Sweep, we recommend the following approach to writing github issues/chats. 
 For harder problems, try to provide the same information a human would need. For simpler problems, providing a single line and a file name should suffice.
 
 A good issue might include:

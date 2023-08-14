@@ -47,11 +47,11 @@ class Span:
 
 If you’re unfamiliar with dataclasses they’re basically like structs in C/C++ and automatically define methods like `__init__`, `__repr__` and `__str__` for you based on the class variables (`start` and `end`) in this case to minimize boilerplate.
 
-Note that we don’t check for Span additions because sometimes consecutive spans have a small gap: e.g. Node from 1-5 followed by Node from 6-10, which we’ll handle next.
+Note that we don’t check for Span additions because sometimes consecutive spans have a small gap: e.g. Node from 1-5 followed by Node from 6-10, which we’ll handle next. 
 
 ## Filling in the Gaps
 
-Aside: For the earlier examples, I’m going to use a max character count of 600 to show smaller breaks and switch it back to 1500 at the end for the final chunking.
+Aside: For the earlier examples, I’m going to use a max character count of 600 to show smaller breaks and switch it back to 1500 at the end for the final chunking. 
 
 The original implementation actually has bugs, yielding something like this:
 
@@ -95,8 +95,8 @@ class MockNode:
     children: list[MockNode] = field(default_factory=list)
 
 def chunk_node(
-    node: Node,
-    text: str,
+    node: Node, 
+    text: str, 
     MAX_CHARS: int = 600
 ) -> list[str]:
     chunks = []
@@ -122,7 +122,7 @@ We can clean up the implementation by using Spans, taking advantage of how conca
 
 ```python {6, 10, 14, 16}
 def chunk_node(
-    node: Node,
+    node: Node, 
     MAX_CHARS: int = 600,
 ) -> list[Span]:
     new_chunks: list[Span] = []
@@ -134,7 +134,7 @@ def chunk_node(
             new_chunks.extend(chunk_node(child, MAX_CHARS))
         elif child.end_byte - child.start_byte + len(current_chunk) > MAX_CHARS:
             new_chunks.append(current_chunk)
-            current_chunk = Span(child.start_byte, child.end_byte)
+            current_chunk = Span(child.start_byte, child.end_byte) 
         else:
             current_chunk += Span(child.start_byte, child.end_byte)
     new_chunks.append(current_chunk)
@@ -246,13 +246,13 @@ We can also add a line to our Span class to finally extract the right lines of c
 class Span:
     start: int
     end: int
-
+ 
     def extract(self, s: str) -> str:
         return s[self.start: self.end]
-
+ 
     def extract_lines(self, s: str) -> str:
         return "\n".join(s.splitlines()[self.start:self.end])
-
+ 
     def __add__(self, other: Span | int) -> Span:
         if isinstance(other, int):
             return Span(self.start + other, self.end + other)
@@ -260,7 +260,7 @@ class Span:
             return Span(self.start, other.end)
         else:
             raise NotImplementedError()
-
+ 
     def __len__(self) -> int:
         return self.end - self.start
 ```
@@ -298,7 +298,7 @@ def chunker(
                 chunks.extend(chunk_node(child))
             elif child.end_byte - child.start_byte + len(current_chunk) > MAX_CHARS:
                 chunks.append(current_chunk)
-                current_chunk = Span(child.start_byte, child.end_byte)
+                current_chunk = Span(child.start_byte, child.end_byte) 
             else:
                 current_chunk += Span(child.start_byte, child.end_byte)
         chunks.append(current_chunk)

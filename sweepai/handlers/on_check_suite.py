@@ -14,23 +14,17 @@ from sweepai.utils.github_utils import get_github_client, get_token
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
-log_message = """GitHub actions yielded the following error.
+log_message = """GitHub actions yielded the following error. 
 
 {error_logs}
 
 This is likely a linting or type-checking issue with the source code. Update the code and avoid modifying the existing tests."""
 
-
 def get_dirs(zipfile: zipfile.ZipFile):
     return [file for file in zipfile.namelist() if file.endswith("/") and "/" in file]
 
-
 def get_files_in_dir(zipfile: zipfile.ZipFile, dir: str):
-    return [
-        file
-        for file in zipfile.namelist()
-        if file.startswith(dir) and not file.endswith("/")
-    ]
+    return [file for file in zipfile.namelist() if file.startswith(dir) and not file.endswith("/")]
 
 
 def download_logs(repo_full_name: str, run_id: int, installation_id: int):
@@ -38,12 +32,9 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
     headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {token}",
-        "X-GitHub-Api-Version": "2022-11-28",
+        "X-GitHub-Api-Version": "2022-11-28"
     }
-    response = requests.get(
-        f"https://api.github.com/repos/{repo_full_name}/actions/runs/{run_id}/logs",
-        headers=headers,
-    )
+    response = requests.get(f"https://api.github.com/repos/{repo_full_name}/actions/runs/{run_id}/logs", headers=headers)
 
     logs_str = ""
     if response.status_code == 200:
@@ -51,7 +42,7 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
         content = response.content
         zip_file = zipfile.ZipFile(io.BytesIO(content))
         dirs = get_dirs(zip_file)
-
+        
         # for directory in dirs:
         #     files = get_files_in_dir(zip_file, directory)
         #     numbers = [int(file[len(directory):file.find("_")]) for file in files]
@@ -85,7 +76,7 @@ def clean_logs(logs_str: str):
     # Extraction process could be better
     MAX_LINES = 300
     log_list = logs_str.split("\n")
-    truncated_logs = [log[log.find(" ") + 1 :] for log in log_list]
+    truncated_logs = [log[log.find(" ") + 1:] for log in log_list]
     patterns = [
         # for docker
         "Already exists",
@@ -109,32 +100,23 @@ def clean_logs(logs_str: str):
         # For prettier
         "npm WARN EBADENGINE ",
         "npm WARN deprecated ",
-        "prettier/prettier",
-    ]
-    cleaned_lines = [
-        log.strip()
-        for log in truncated_logs
-        if not any(log.strip().startswith(pattern) for pattern in patterns)
-    ]
-    return "\n".join(cleaned_lines[: min(MAX_LINES, len(cleaned_lines))])
+        "prettier/prettier"
 
+    ]
+    cleaned_lines = [log.strip() for log in truncated_logs if not any(log.strip().startswith(pattern) for pattern in patterns)]
+    return "\n".join(cleaned_lines[:min(MAX_LINES, len(cleaned_lines))])
 
 def extract_logs_from_comment(comment: str) -> str:
     if comment.count("```") < 2:
         return ""
-    return comment[comment.find("```") + 3 : comment.rfind("```")]
-
+    return comment[comment.find("```") + 3:comment.rfind("```")]
 
 def on_check_suite(request: CheckRunCompleted):
-    logger.info(
-        f"Received check run completed event for {request.repository.full_name}"
-    )
+    logger.info(f"Received check run completed event for {request.repository.full_name}")
     _, g = get_github_client(request.installation.id)
     repo = g.get_repo(request.repository.full_name)
     if not get_gha_enabled(repo):
-        logger.info(
-            f"Skipping github action for {request.repository.full_name} because it is not enabled"
-        )
+        logger.info(f"Skipping github action for {request.repository.full_name} because it is not enabled")
         return None
     pr = repo.get_pull(request.check_run.pull_requests[0].number)
     num_pr_commits = len(list(pr.get_commits()))
@@ -143,7 +125,9 @@ def on_check_suite(request: CheckRunCompleted):
         return None
     logger.info(f"Running github action for PR with {num_pr_commits} commits")
     logs = download_logs(
-        request.repository.full_name, request.check_run.run_id, request.installation.id
+        request.repository.full_name,
+        request.check_run.run_id,
+        request.installation.id
     )
     if not logs:
         return None
@@ -158,21 +142,11 @@ def on_check_suite(request: CheckRunCompleted):
     # logs_list = [extract_logs_from_comment(comment.body) for comment in comments]
     # current_logs = extract_logs_from_comment(problematic_logs)
 
-    if all(
-        [
-            comment.body.startswith("GitHub actions yielded the following error.")
-            for comment in comments[-3:]
-        ]
-    ):
-        comment = pr.as_issue().create_comment(
-            log_message.format(error_logs=problematic_logs)
-            + "\n\nI'm getting the same errors 3 times in a row, so I will stop working on fixing this PR."
-        )
+    if all([comment.body.startswith("GitHub actions yielded the following error.") for comment in comments[-3:]]):
+        comment = pr.as_issue().create_comment(log_message.format(error_logs=problematic_logs) + "\n\nI'm getting the same errors 3 times in a row, so I will stop working on fixing this PR.")
         logger.warning("Skipping logs because it is duplicated")
         raise Exception("Duplicate error logs")
-    comment = pr.as_issue().create_comment(
-        log_message.format(error_logs=problematic_logs)
-    )
+    comment = pr.as_issue().create_comment(log_message.format(error_logs=problematic_logs))
     on_comment(
         repo_full_name=request.repository.full_name,
         repo_description=request.repository.description,
@@ -186,3 +160,4 @@ def on_check_suite(request: CheckRunCompleted):
         repo=repo,
     )
     return {"success": True}
+

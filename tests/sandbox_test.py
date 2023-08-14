@@ -1,7 +1,5 @@
 from sweepai.core.sandbox import Sandbox
 import traceback
-
-
 async def main():
     try:
         s = await Sandbox.from_token("", "")
@@ -10,8 +8,6 @@ async def main():
         print(traceback.format_exc())
         print(e)
 
-
 # Run the async function
 import asyncio
-
 asyncio.run(main())
