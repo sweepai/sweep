@@ -120,6 +120,7 @@ def strip_sweep(text: str):
         re.sub(r"^[Ss]weep\s?(\(slow\))?(\(migrate\))?\s?:", "", text).lstrip(),
         re.search(r"^[Ss]weep\s?\(slow\)", text) is not None,
         re.search(r"^[Ss]weep\s?\(migrate\)", text) is not None,
+        re.search(r"^[Ss]weep\s?\(low\)", text) is not None,
     )
 
 
@@ -134,7 +135,7 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None,
 ):
-    title, slow_mode, migrate = strip_sweep(title)
+    title, slow_mode, migrate low_model, = strip_sweep(title)
 
     # Flow:
     # 1. Get relevant files
@@ -172,6 +173,9 @@ def on_ticket(
     is_trial_user = chat_logger.is_trial_user()
     use_faster_model = chat_logger.use_faster_model(g)
 
+    if low_model:
+        use_faster_model = False
+    
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
