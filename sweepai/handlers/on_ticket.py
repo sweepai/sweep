@@ -650,7 +650,7 @@ def on_ticket(
             edit_sweep_comment(
                 "I'm sorry, but it looks like an error has occurred due to insufficient information. Be sure to create a more detailed issue so I can better address it. If this error persists contact team@sweep.dev.",
                 -1
-            )
+    else:
         error_message = f"I'm sorry, but it looks like an error has occurred. AI Type: {ai_type}, Run ID: {run_id}. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev."
         edit_sweep_comment(error_message, -1)
         log_error("Workflow", str(e) + "\n" + traceback.format_exc())
