@@ -1,3 +1,4 @@
+from sentence_transformers import SentenceTransformer
 import asyncio
 import re
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
