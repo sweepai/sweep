@@ -109,8 +109,8 @@ def on_ticket(
     comment_id: int = None
 ):
     run_id = uuid.uuid4()
+    use_faster_model = chat_logger.use_faster_model(g)
     title, slow_mode, migrate = strip_sweep(title)
-    ai_type = "GPT-4" if use_faster_model else "GPT-3.5"
     ai_type = "GPT-4" if use_faster_model else "GPT-3.5"
 
     # Flow:
@@ -143,8 +143,6 @@ def on_ticket(
 
     is_paying_user = chat_logger.is_paying_user()
     is_trial_user = chat_logger.is_trial_user()
-    use_faster_model = chat_logger.use_faster_model(g)
-
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
