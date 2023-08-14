@@ -1,12 +1,12 @@
 {
-    "chunking-improvements": "📈 Improving LlamaIndex’s Code Chunker by Cleaning Tree-Sitter CSTs",
-    "reading-docs": "🎓 How our AI junior dev reads all of your documentation",
-    "sweeps-core-algo": "🧹 Sweep's Core Algorithm",
-    "generating-50k-embeddings-with-gte": "⚙\uFE0F Generating 50k+ embeddings in 25 seconds using GTE 🧠 and MapReduce 💻",
-    "chunking-2m-files": "🍪 Chunking 2M+ files a day for Code Search using Syntax Trees",
-    "giving-dev-tools": "🤖 Letting an AI Junior Dev run GitHub Actions",
-    "search-infra": "🔍 Code Search Infra for an AI junior developer - that doesn't store code",
-    "understanding-codebase-with-ctags": "📚 Understanding your codebase with ctags",
-    "building-code-search": "🏗️ Building a code search engine in one day",
-    "gpt-32k-open-source": "🌐 GPT 32k, 💻 Open-source, DeepLake 🏞️, GPT Functions Search 🔍 and more!"
+    "chunking-improvements": "Improving LlamaIndex’s Code Chunker by Cleaning Tree-Sitter CSTs",
+    "reading-docs": "How our AI junior dev reads all of your documentation",
+    "sweeps-core-algo": "Sweep's Core Algorithm",
+    "generating-50k-embeddings-with-gte": "Generating 50k+ embeddings in 25 seconds using GTE and MapReduce",
+    "chunking-2m-files": "Chunking 2M+ files a day for Code Search using Syntax Trees",
+    "giving-dev-tools": "Letting an AI Junior Dev run GitHub Actions",
+    "search-infra": "Code Search Infra for an AI junior developer - that doesn't store code",
+    "understanding-codebase-with-ctags": "Understanding your codebase with ctags",
+    "building-code-search": "Building a code search engine in one day",
+    "gpt-32k-open-source": "GPT 32k, Open-source, DeepLake, GPT Functions Search and more!"
 }
