@@ -8,45 +8,72 @@ system_message_prompt = "Your name is Sweep bot. You are a brilliant and meticul
 repo_description_prefix_prompt = " This is a description of the repository:"
 
 human_message_prompt = [
-{'role': 'assistant', 'content': 'Examining repo...'},
-{'role': 'user', 'content': """<relevant_snippets_in_repo>
+    {"role": "assistant", "content": "Examining repo..."},
+    {
+        "role": "user",
+        "content": """<relevant_snippets_in_repo>
 {relevant_snippets}
-</relevant_snippets_in_repo>""", 'key': 'relevant_snippets'},
-{'role': 'user', 'content': """<relevant_paths_in_repo>
+</relevant_snippets_in_repo>""",
+        "key": "relevant_snippets",
+    },
+    {
+        "role": "user",
+        "content": """<relevant_paths_in_repo>
 {relevant_directories}
-</relevant_paths_in_repo>""", 'key': 'relevant_directories'},
-{'role': 'user', 'content': """<repo_tree>
+</relevant_paths_in_repo>""",
+        "key": "relevant_directories",
+    },
+    {
+        "role": "user",
+        "content": """<repo_tree>
 {tree}
-</repo_tree>""", 'key': 'relevant_tree'},
-{'role': 'user', 'content':
-"""# Repo & Issue Metadata
+</repo_tree>""",
+        "key": "relevant_tree",
+    },
+    {
+        "role": "user",
+        "content": """# Repo & Issue Metadata
 Repo: {repo_name}: {repo_description}
 Issue Url: {issue_url}
 Username: {username}
 Issue Title: {title}
-Issue Description: {description}"""}]
+Issue Description: {description}""",
+    },
+]
 
 human_message_review_prompt = [
-{'role': 'assistant', 'content': 'Reviewing my pull request...'},
-{'role': 'user', 'content': """<relevant_snippets_in_repo>
+    {"role": "assistant", "content": "Reviewing my pull request..."},
+    {
+        "role": "user",
+        "content": """<relevant_snippets_in_repo>
 {relevant_snippets}
-</relevant_snippets_in_repo>"""},
-{'role': 'user', 'content': """<relevant_paths_in_repo>
+</relevant_snippets_in_repo>""",
+    },
+    {
+        "role": "user",
+        "content": """<relevant_paths_in_repo>
 {relevant_directories}
-</relevant_paths_in_repo>"""},
-{'role': 'user', 'content': """"<repo_tree>
+</relevant_paths_in_repo>""",
+    },
+    {
+        "role": "user",
+        "content": """"<repo_tree>
 {tree}
-</repo_tree>"""},
-{'role': 'user', 'content':
-"""These are the file changes.
+</repo_tree>""",
+    },
+    {
+        "role": "user",
+        "content": """These are the file changes.
 We have the file_path, and the diffs.
 The file_path is the name of the file.
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
-{diffs}"""}]
+{diffs}""",
+    },
+]
 
 snippet_replacement = """
-In order to address this issue, what required information do you need about the snippets? Only include relevant code that provides you enough detail about the snippets for the problems: 
+In order to address this issue, what required information do you need about the snippets? Only include relevant code that provides you enough detail about the snippets for the problems:
 "{thoughts}"
 
 <contextual_thoughts>
@@ -79,9 +106,9 @@ The code was written by an inexperienced programmer and may contain
 * Logic errors (missing imports)
 * Syntax errors (wrong indents)
 * Unimplemented sections (such as "pass", "...", "# rest of code here")
-* Other issues. 
+* Other issues.
 
-Be sure to indicate any of these errors. Do not include formatting errors like missing ending newlines. Ensure that the code actually reflects the pull request summary and every function and class is fully implemented. 
+Be sure to indicate any of these errors. Do not include formatting errors like missing ending newlines. Ensure that the code actually reflects the pull request summary and every function and class is fully implemented.
 
 Think step-by-step to summarize and indicate potential errors. Respond in the following format:
 
@@ -139,35 +166,50 @@ issue_comment_prompt = """
 
 # Prompt for comments
 human_message_prompt_comment = [
-{'role': 'assistant', 'content': 'Reviewing my pull request...'},
-{'role': 'user', 'content':
-"""<relevant_snippets_in_repo>
+    {"role": "assistant", "content": "Reviewing my pull request..."},
+    {
+        "role": "user",
+        "content": """<relevant_snippets_in_repo>
 {relevant_snippets}
-</relevant_snippets_in_repo>"""},
-{'role': 'user', 'content': """<relevant_paths_in_repo>
+</relevant_snippets_in_repo>""",
+    },
+    {
+        "role": "user",
+        "content": """<relevant_paths_in_repo>
 {relevant_directories}
-</relevant_paths_in_repo>"""},
-{'role': 'user', 'content': """<repo_tree>
+</relevant_paths_in_repo>""",
+    },
+    {
+        "role": "user",
+        "content": """<repo_tree>
 {tree}
-</repo_tree>"""},
-{'role': 'user', 'content':
-"""# Repo, Issue, & PR Metadata
+</repo_tree>""",
+    },
+    {
+        "role": "user",
+        "content": """# Repo, Issue, & PR Metadata
 Repo: {repo_name}: {repo_description}
 Issue Url: {issue_url}
 Username: {username}
 Pull Request Title: {title}
-Pull Request Description: {description}"""},
-{'role': 'user', 'content':
-"""These are the file changes.
+Pull Request Description: {description}""",
+    },
+    {
+        "role": "user",
+        "content": """These are the file changes.
 We have the file_path and the diffs.
 The file_path is the name of the file.
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
-{diff}"""},
-{'role': 'user', 'content':
-"""Please handle the user review comment, taking into account the snippets, paths, tree, pull request title, pull request description, and the file changes.
+{diff}""",
+    },
+    {
+        "role": "user",
+        "content": """Please handle the user review comment, taking into account the snippets, paths, tree, pull request title, pull request description, and the file changes.
 Sometimes the user may not request changes, don't change anything in that case.
-User pull request review: "{comment}" """}]
+User pull request review: "{comment}" """,
+    },
+]
 
 comment_line_prompt = """\
 The user made the review in this file: {pr_file_path}
@@ -197,7 +239,7 @@ You MUST follow the following format with the final output in XML tags:
 Root cause:
 Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph.
 
-Step-by-step thoughts with explanations: 
+Step-by-step thoughts with explanations:
 * Thought 1
 * Thought 2
 ...
@@ -243,7 +285,7 @@ Step-by-step thoughts with explanations:
 
 reply_prompt = """
 Write a 1-paragraph response to this user:
-* Tell them you have started working on this PR and a rough summary of your plan. 
+* Tell them you have started working on this PR and a rough summary of your plan.
 * Do not start with "Here is a draft", just write the response.
 * Use github markdown to format the response.
 """
@@ -263,7 +305,7 @@ instructions = "{instructions}"
 
 Reply in the following format:
 
-Step-by-step thoughts with explanations: 
+Step-by-step thoughts with explanations:
 * Thought 1
 * Thought 2
 ...
@@ -281,7 +323,7 @@ Commit message: "the commit message"
 """
 
 """
-Reply in the format below. 
+Reply in the format below.
 * You MUST use the new_file XML tags
 * DO NOT write ``` anywhere, unless it's markdown
 * DO NOT write "pass" or "Rest of code"
@@ -295,7 +337,9 @@ Any lines that you do not see will be handled, so trust that the imports are man
 If you see code that should be modified, please modify it. The changes may not need to be in this chunk, in that case just copy and return the code as is.
 """
 
-modify_file_hallucination_prompt = [{'content': """File Name: (non-existent example)
+modify_file_hallucination_prompt = [
+    {
+        "content": """File Name: (non-existent example)
 <old_file>
 example = True
 if example:
@@ -305,13 +349,13 @@ if example:
 
 def func():
     a = 3
-    
+
 </old_file>
 
 ---
 
 Code Planning:
-Step-by-step thoughts with explanations: 
+Step-by-step thoughts with explanations:
 * Thought 1
 * Thought 2
 ...
@@ -343,8 +387,12 @@ Request: "Change hello to goodbye and change 3 to 4". Limit your changes to the 
 
 Instructions:
 1. Complete the Code Planning step
-2. Complete the Code Generation step""", 'role': 'user', 'key': 'modify_file_hallucination'},
-{'content': """Code Planning:
+2. Complete the Code Generation step""",
+        "role": "user",
+        "key": "modify_file_hallucination",
+    },
+    {
+        "content": """Code Planning:
 Step-by-step thoughts with explanations:
 * We need to print "goodbye" instead of "hello".
 * We need to update the value of the variable a from 3 to 4.
@@ -368,16 +416,20 @@ Code Generation:
 <<<< ORIGINAL
 def func():
     a = 3
-    
+
 ====
 def func():
     a = 4
-    
+
 >>>> UPDATED
 ```
 
 Commit message: "Changed goodbye to hello and 3 to 4"\
-""", 'role': 'assistant', 'key': 'modify_file_hallucination'}]
+""",
+        "role": "assistant",
+        "key": "modify_file_hallucination",
+    },
+]
 
 # TODO: IMPORTANT: THIS DEPENDS ON THE ABOVE PROMPT, modify_file_hallucination_prompt
 modify_file_prompt_3 = """
@@ -406,12 +458,12 @@ File Name: {filename}
 
 ---
 
-Request: "{instructions}". 
+Request: "{instructions}".
 
 This file was edited previously by an inexperienced programmer to complete the users request. First, identify if the request has been completed and there are no any unimplemented or missing classes or functions. Then, identify any errors, other issues. Finally address them by suggesting changes.
 
 Code Planning:
-Step-by-step thoughts with explanations: 
+Step-by-step thoughts with explanations:
 * Thought 1
 * Thought 2
 ...
@@ -445,8 +497,8 @@ Instructions:
 
 pr_code_prompt = ""  # TODO: deprecate this
 
-pull_request_prompt = """Now, create a PR for your changes. Be concise but cover all of the changes that were made. 
-For the pr_content, add two sections, description and summary. 
+pull_request_prompt = """Now, create a PR for your changes. Be concise but cover all of the changes that were made.
+For the pr_content, add two sections, description and summary.
 Use GitHub markdown in the following format:
 
 pr_title = "..."
@@ -467,8 +519,8 @@ Code Instructions:
 """
 
 assistant_file_change_summarize_prompt = """
-Please summarize the following file using the file stubs. 
-Be sure to repeat each method signature and docstring. You may also add additional comments to the docstring. 
+Please summarize the following file using the file stubs.
+Be sure to repeat each method signature and docstring. You may also add additional comments to the docstring.
 Do not repeat the code in the file stubs.
 Code Changes:
 {message_content}
@@ -495,7 +547,7 @@ Gather information (i.e. fetch more snippets) to solve the problem. Use "create_
 
 code_repair_check_system_prompt = """\
 You are a genius trained for validating code.
-You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product. 
+You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product.
 Our goal is to validate if the final code is valid. This means there's undefined variables, no syntax errors, has no unimplemented functions (e.g. pass's, comments saying "rest of code") and the code runs.
 """
 
@@ -523,7 +575,7 @@ Step-by-step thoughts with explanations:
 
 code_repair_system_prompt = """\
 You are a genius trained for code stitching.
-You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product. The intention was to implement a change described as {feature}. 
+You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product. The intention was to implement a change described as {feature}.
 Our goal is to return a working version of user_code that follows {feature}. We should follow the instructions and make as few edits as possible.
 """
 
@@ -601,7 +653,7 @@ Here is the code snippet from the file:
 {code_snippet}
 
 To determine whether the instructions are referring to this section of the file, respond in the following format:
-1. Step-by-step thoughts with explanations: 
+1. Step-by-step thoughts with explanations:
 * Thought 1 - Explanation 1
 * Thought 2 - Explanation 2
 ...
@@ -625,7 +677,7 @@ Then add more instructions that build on the user's instructions. These instruct
 
 You MUST follow the following format delimited with XML tags:
 
-Step-by-step thoughts with explanations: 
+Step-by-step thoughts with explanations:
 * Thought 1 - Explanation 1
 * Thought 2 - Explanation 2
 ...
