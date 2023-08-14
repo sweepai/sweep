@@ -9,11 +9,17 @@ Self = TypeVar("Self", bound="Sandbox")
 
 
 REPO_PATH = "/code/repo"
-GIT_PASS = 'echo \'#!/bin/sh\\necho "{token}"\' > git-askpass.sh && chmod +x git-askpass.sh'
-GIT_CLONE = "export GIT_ASKPASS=./git-askpass.sh;" \
-            "git config --global credential.helper 'cache --timeout=3600';" \
-            "git clone https://{username}@github.com/sweepai-dev/test /code/repo"
-PYTHON_CREATE_VENV = "python3 -m venv venv && source venv/bin/activate && poetry install"
+GIT_PASS = (
+    "echo '#!/bin/sh\\necho \"{token}\"' > git-askpass.sh && chmod +x git-askpass.sh"
+)
+GIT_CLONE = (
+    "export GIT_ASKPASS=./git-askpass.sh;"
+    "git config --global credential.helper 'cache --timeout=3600';"
+    "git clone https://{username}@github.com/sweepai-dev/test /code/repo"
+)
+PYTHON_CREATE_VENV = (
+    "python3 -m venv venv && source venv/bin/activate && poetry install"
+)
 
 
 # Class for ShellMessage
@@ -37,16 +43,12 @@ class Sandbox(BaseModel):
         image = kwargs.get("image", "Python3")
         session = Session(image)
         await session.open()
-        return cls(
-            username=username,
-            token=token,
-            image=image,
-            session=session
-        )
+        return cls(username=username, token=token, image=image, session=session)
 
     async def run_command(self, command: str, path: str = None):
         print("Running command", command, flush=True)
         outputs = []
+
         def on_stdout(m):
             outputs.append(m)
             print(m)
