@@ -18,7 +18,7 @@ from sweepai.utils.github_utils import get_github_client, get_token
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
-log_message = """GitHub actions yielded the following error. 
+log_message = """GitHub actions yielded the following error.
 
 {error_logs}
 

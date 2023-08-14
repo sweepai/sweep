@@ -17,7 +17,7 @@ For a code assistant you generally only need the first one. The second use case 
 
 ## Paste the docs? **or** retrieval augmented generation 🔍 + 🧠
 
-The lowest effort solution is to paste the docs into ChatGPT/Sweep. 
+The lowest effort solution is to paste the docs into ChatGPT/Sweep.
 
 But then you’ll have to find the right docs, copy the right sections, and tell the LLM what you want it to do with the docs. You’ll also have to spend this time every time you want to generate code, which makes it unusable for a large percentage of codebases/problems.
 
@@ -34,7 +34,7 @@ It’s been well researched and is a hot topic, but there’s some nuance in the
 
 ## Key-value pairs might be enough 🔑
 
-When we first thought about the problem one solution was to build an AI agent to perform research and answer programming questions on any task. As you can imagine, this was way over-engineered. 
+When we first thought about the problem one solution was to build an AI agent to perform research and answer programming questions on any task. As you can imagine, this was way over-engineered.
 
 The way we think about repository-level code generation is that we don’t have to handle arbitrary queries. For each repository Sweep works in, we(meaning that specific user + Sweep) know the exact packages that are being used. For example, in https://github.com/sweepai/sweep/blob/main/pyproject.toml, we use `PyGithub = "1.58.2”`. Why would we index other pygithub documentation versions besides https://pygithub.readthedocs.io/en/v1.58.2/?
 
@@ -51,7 +51,7 @@ This is a plague for search engines. We don’t want to retrieve documentation w
 
 If you want the docs for something common like “react”, you can use a more specific term pair like `“react js”: “https://react.dev/reference/react”`.
 
-If you want your docs to get even more specific, you can use a deeper path like `“react components”: 
+If you want your docs to get even more specific, you can use a deeper path like `“react components”:
 ”https://react.dev/reference/react-dom"` and we’ll only index the sub-pages like `https://react.dev/reference/react-dom/hydrate`.
 
 ## Future 🌠
