@@ -15,5 +15,8 @@
       "js": ["installation.ts"]
     }
   ],
-  "permissions": ["storage", "activeTab", "scripting"]
-}
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "https://github.com/login/device", 
+    "https://github.com/login/device/confirmation"
+  ]}
