@@ -117,10 +117,10 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5,
 
 def strip_sweep(text: str):
     return (
-        re.sub(r"^[Ss]weep\s?(\(slow\))?(\(migrate\))?(\(low\))?\s?:", "", text).lstrip(),
+        re.sub(r"^[Ss]weep\s?(\(slow\))?(\(migrate\))?(\(fast\))?\s?:", "", text).lstrip(),
         re.search(r"^[Ss]weep\s?\(slow\)", text) is not None,
         re.search(r"^[Ss]weep\s?\(migrate\)", text) is not None,
-        re.search(r"^[Ss]weep\s?\(low\)", text) is not None,
+        re.search(r"^[Ss]weep\s?\(fast\)", text) is not None,
     )
 
 
@@ -135,7 +135,7 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None,
 ):
-    title, slow_mode, migrate low_model, = strip_sweep(title)
+    title, slow_mode, migrate fast_mode, = strip_sweep(title)
 
     # Flow:
     # 1. Get relevant files
@@ -173,7 +173,7 @@ def on_ticket(
     is_trial_user = chat_logger.is_trial_user()
     use_faster_model = chat_logger.use_faster_model(g)
 
-    if low_model:
+    if fast_mode:
         use_faster_model = False
     
     organization, repo_name = repo_full_name.split("/")
