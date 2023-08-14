@@ -14,18 +14,18 @@ def parse_html(html):
     soup = BeautifulSoup(html, "lxml")
 
     meta_properties = [
-        'og:description',
-        'og:site_name',
-        'og:title',
-        'og:type',
-        'og:url',
+        "og:description",
+        "og:site_name",
+        "og:title",
+        "og:type",
+        "og:url",
     ]
 
     meta = {}
     links = []
 
-    for a in soup.find_all('a', href=True):
-        links.append({'title': a.text.strip(), 'link': a['href']})
+    for a in soup.find_all("a", href=True):
+        links.append({"title": a.text.strip(), "link": a["href"]})
     meta["links"] = links
 
     for property_name in meta_properties:
@@ -40,28 +40,25 @@ def parse_html(html):
         ignore_tag.decompose()
 
     selectors_to_skip = [
-        'div[aria-hidden]',
-        'nav',
-        'header',
-
+        "div[aria-hidden]",
+        "nav",
+        "header",
         # based on Docusaurus
         'div[aria-label="Skip to main content"]',
-        'div.hidden',
+        "div.hidden",
         # 'nav[aria-label="Main"].navbar.navbar--fixed-top',
         'button[aria-label="Scroll back to top"]',
-        'aside.theme-doc-sidebar-container',
-        'div.theme-doc-toc-mobile',
+        "aside.theme-doc-sidebar-container",
+        "div.theme-doc-toc-mobile",
         # 'nav[aria-label="Breadcrumbs"].theme-doc-breadcrumbs',
         # 'nav[aria-label="Docs pages navigation"].pagination-nav',
         # 'nav[aria-label="navigation"]',
-        'div.thin-scrollbar.theme-doc-toc-desktop',
-        'footer.footer',
-
+        "div.thin-scrollbar.theme-doc-toc-desktop",
+        "footer.footer",
         # for OpenAI
         "div.docs-nav",
         "div.pheader",
         "div.notice",
-
         # for Anthropic
         "div#ssr-top",
     ]
@@ -75,9 +72,9 @@ def parse_html(html):
     # print(soup.body)
     # quit()
     markdown_content = md(content, heading_style="ATX")
-    markdown_content = re.sub(r'\n{3,}', '\n\n', markdown_content)
+    markdown_content = re.sub(r"\n{3,}", "\n\n", markdown_content)
 
-    return {'meta': meta, 'title': title, 'content': markdown_content}
+    return {"meta": meta, "title": title, "content": markdown_content}
 
 
 async def webscrape(BASE_URL_PREFIX):
@@ -102,13 +99,19 @@ async def webscrape(BASE_URL_PREFIX):
 
         all_files[url] = content
 
-        all_links = await page.eval_on_selector_all("a", "els => els.map(el => el.href)")
+        all_links = await page.eval_on_selector_all(
+            "a", "els => els.map(el => el.href)"
+        )
         links = []
         for link in all_links:
             if "#" in link:
-                link = link[:link.rfind("#")]
+                link = link[: link.rfind("#")]
             link.rstrip("/")
-            if link.startswith(BASE_URL_PREFIX) and link not in visited_urls and link not in queued_urls:
+            if (
+                link.startswith(BASE_URL_PREFIX)
+                and link not in visited_urls
+                and link not in queued_urls
+            ):
                 queued_urls.add(link)
                 links.append(link)
         links = list(set(links))
@@ -121,6 +124,7 @@ async def webscrape(BASE_URL_PREFIX):
             except:
                 logger.warning(f"Failed to scrape {link}")
                 pass
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(timeout=0)
         page = await browser.new_page()

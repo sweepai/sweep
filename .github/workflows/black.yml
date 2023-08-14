@@ -12,5 +12,3 @@ jobs:
       run: |
         pip install black
         black .
-
-

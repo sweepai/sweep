@@ -1,8 +1,10 @@
 import re
 
+
 def extract_links(text):
-    pattern = r'\b(?:(?:https?|ftp)://|www\.)\S+\b'
+    pattern = r"\b(?:(?:https?|ftp)://|www\.)\S+\b"
     return list(set(re.findall(pattern, text)))
+
 
 # Example usage:
 text = """
