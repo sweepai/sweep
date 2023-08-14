@@ -78,7 +78,7 @@ chrome.runtime.onInstalled.addListener((details) => {
       })
       const oauth_access_token_raw_response = await oauth_access_token_response.text()
       console.log("Raw response: ", oauth_access_token_raw_response)
-      const parsedOauthAccessTokenResponse = new URLSearchParams(decodeURIComponent(oauth_access_token_raw_response))); 
+      const parsedOauthAccessTokenResponse = new URLSearchParams(decodeURIComponent(oauth_access_token_raw_response)); 
       const access_token = parsedOauthAccessTokenResponse.get("access_token");
       console.log("Access token: ", access_token);
       const username_response = await fetch("https://api.github.com/user", {
