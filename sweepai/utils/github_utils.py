@@ -8,11 +8,7 @@ import modal
 from redis import Redis
 from redis.backoff import ExponentialBackoff
 from redis.retry import Retry
-from redis.exceptions import (
-   BusyLoadingError,
-   ConnectionError,
-   TimeoutError
-)
+from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 import requests
 from github import Github
 from github.Repository import Repository
@@ -22,7 +18,12 @@ from tqdm import tqdm
 
 from sweepai.core.entities import Snippet
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import DB_MODAL_INST_NAME, GITHUB_APP_ID, GITHUB_APP_PEM, REDIS_URL
+from sweepai.config.server import (
+    DB_MODAL_INST_NAME,
+    GITHUB_APP_ID,
+    GITHUB_APP_PEM,
+    REDIS_URL,
+)
 from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.event_logger import posthog
@@ -30,15 +31,18 @@ from sweepai.utils.scorer import merge_and_dedup_snippets
 
 MAX_FILE_COUNT = 50
 
+
 def make_valid_string(string: str):
     pattern = r"[^\w./-]+"
     return re.sub(pattern, "_", string)
+
 
 def get_jwt():
     signing_key = GITHUB_APP_PEM
     app_id = GITHUB_APP_ID
     payload = {"iat": int(time.time()), "exp": int(time.time()) + 600, "iss": app_id}
     return encode(payload, signing_key, algorithm="RS256")
+
 
 def get_token(installation_id: int):
     for timeout in [5.5, 5.5, 10.5]:
@@ -68,6 +72,7 @@ def get_github_client(installation_id: int):
     token = get_token(installation_id)
     return token, Github(token)
 
+
 def get_installation_id(username: str):
     jwt = get_jwt()
     response = requests.get(
@@ -83,6 +88,7 @@ def get_installation_id(username: str):
         return obj["id"]
     except:
         raise Exception("Could not get installation id, probably not installed")
+
 
 def list_directory_tree(
     root_directory,
@@ -121,8 +127,7 @@ def list_directory_tree(
 
         for name in file_and_folder_names[:MAX_FILE_COUNT]:
             relative_path = os.path.join(current_directory, name)[len(root_directory) + 1:]
-            if any(relative_path.startswith(excluded_directory) for excluded_directory in excluded_directories):
-                logger.info(f"Skipping {relative_path} because it is in excluded_directories {excluded_directories}")
+            if name in excluded_directories:
                 continue
             complete_path = os.path.join(current_directory, name)
 
@@ -147,6 +152,7 @@ def list_directory_tree(
     directory_tree = list_directory_contents(root_directory, ctags=ctags)
     return directory_tree
 
+
 def get_file_list(root_directory: str) -> str:
     files = []
 
@@ -162,8 +168,9 @@ def get_file_list(root_directory: str) -> str:
                 dfs_helper(item_path)  # Recursive call to explore subdirectory
 
     dfs_helper(root_directory)
-    files = [file[len(root_directory) + 1:] for file in files]
+    files = [file[len(root_directory) + 1 :] for file in files]
     return files
+
 
 def get_tree_and_file_list(
     repo: Repository,
@@ -182,7 +189,11 @@ def get_tree_and_file_list(
 
     sha = repo.get_branch(repo.default_branch).commit.sha
     retry = Retry(ExponentialBackoff(), 3)
-    cache_inst = Redis.from_url(REDIS_URL, retry=retry, retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError])
+    cache_inst = Redis.from_url(
+        REDIS_URL,
+        retry=retry,
+        retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
+    )
     ctags = CTags(sha=sha, redis_instance=cache_inst)
     all_names = []
     for file in snippet_paths:
@@ -197,19 +208,27 @@ def get_tree_and_file_list(
     )
     return tree
 
+
 def get_file_contents(repo: Repository, file_path, ref=None):
     if ref is None:
         ref = repo.default_branch
     file = repo.get_contents(file_path, ref=ref)
-    contents = file.decoded_content.decode("utf-8", errors='replace')
+    contents = file.decoded_content.decode("utf-8", errors="replace")
     return contents
 
+
 def get_file_names_from_query(query: str) -> list[str]:
-    query_file_names = re.findall(r'\b[\w\-\.\/]*\w+\.\w{1,6}\b', query)
-    return [query_file_name for query_file_name in query_file_names if len(query_file_name) > 3]
+    query_file_names = re.findall(r"\b[\w\-\.\/]*\w+\.\w{1,6}\b", query)
+    return [
+        query_file_name
+        for query_file_name in query_file_names
+        if len(query_file_name) > 3
+    ]
+
 
 def get_num_files_from_repo(repo: Repository, installation_id: str):
     from git import Repo
+
     token = get_token(installation_id)
     shutil.rmtree("repo", ignore_errors=True)
     repo_url = f"https://x-access-token:{token}@github.com/{repo.full_name}.git"
@@ -218,6 +237,7 @@ def get_num_files_from_repo(repo: Repository, installation_id: str):
     file_list = get_file_list("repo")
     shutil.rmtree("repo", ignore_errors=True)
     return len(file_list)
+
 
 def search_snippets(
     repo: Repository,
@@ -231,7 +251,9 @@ def search_snippets(
     excluded_directories: list[str] = None,
 ) -> tuple[list[Snippet], str]:
     # Initialize the relevant directories string
-    get_relevant_snippets = modal.Function.lookup(DB_MODAL_INST_NAME, "get_relevant_snippets")
+    get_relevant_snippets = modal.Function.lookup(
+        DB_MODAL_INST_NAME, "get_relevant_snippets"
+    )
     if multi_query:
         lists_of_snippets = list[list[Snippet]]()
         multi_query = [query] + multi_query
@@ -256,7 +278,9 @@ def search_snippets(
         except:
             continue
         try:
-            if len(file_contents) > sweep_config.max_file_limit:  # more than ~10000 tokens
+            if (
+                len(file_contents) > sweep_config.max_file_limit
+            ):  # more than ~10000 tokens
                 logger.warning(f"Skipping {snippet.file_path}, too many tokens")
                 continue
         except github.UnknownObjectException as e:
@@ -267,6 +291,7 @@ def search_snippets(
             new_snippets.append(snippet)
     snippets = new_snippets
     from git import Repo
+
     token = get_token(installation_id)
     shutil.rmtree("repo", ignore_errors=True)
     repo_url = f"https://x-access-token:{token}@github.com/{repo.full_name}.git"
@@ -280,21 +305,27 @@ def search_snippets(
             if query_file_name in file_path:
                 query_match_files.append(file_path)
     if multi_query:
-        snippet_paths = [snippet.file_path for snippet in snippets] + query_match_files[:20]
+        snippet_paths = [snippet.file_path for snippet in snippets] + query_match_files[
+            :20
+        ]
     else:
-        snippet_paths = [snippet.file_path for snippet in snippets] + query_match_files[:10]
+        snippet_paths = [snippet.file_path for snippet in snippets] + query_match_files[
+            :10
+        ]
     snippet_paths = list(set(snippet_paths))
     tree = get_tree_and_file_list(
         repo,
         installation_id,
         snippet_paths=snippet_paths,
-        excluded_directories=excluded_directories
+        excluded_directories=excluded_directories,
     )
     shutil.rmtree("repo")
     for file_path in query_match_files:
         try:
             file_contents = get_file_contents(repo, file_path, ref=branch)
-            if len(file_contents) > sweep_config.max_file_limit:  # more than 10000 tokens
+            if (
+                len(file_contents) > sweep_config.max_file_limit
+            ):  # more than 10000 tokens
                 logger.warning(f"Skipping {file_path}, too many tokens")
                 continue
         except github.UnknownObjectException as e:
@@ -315,6 +346,7 @@ def search_snippets(
         return snippets, tree
     else:
         return snippets
+
 
 def index_full_repository(
     repo_name: str,

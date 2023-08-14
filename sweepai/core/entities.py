@@ -10,7 +10,9 @@ Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
 class Message(BaseModel):
-    role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal["function"]
+    role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal[
+        "function"
+    ]
     content: str | None = None
     name: str | None = None
     function_call: dict | None = None
@@ -95,6 +97,7 @@ class ContextToPrune(RegexMatchableBaseModel):
             excluded_snippets=excluded_snippets,
         )
 
+
 class ExpandedPlan(RegexMatchableBaseModel):
     queries: str
     additional_instructions: str
@@ -107,16 +110,21 @@ class ExpandedPlan(RegexMatchableBaseModel):
         instructions_match = re.search(instructions_pattern, string, re.DOTALL)
         return cls(
             queries=query_match.groupdict()["queries"] if query_match else None,
-            additional_instructions=instructions_match.groupdict()["additional_instructions"].strip() if instructions_match else "",
+            additional_instructions=instructions_match.groupdict()[
+                "additional_instructions"
+            ].strip()
+            if instructions_match
+            else "",
         )
+
 
 # todo (fix double colon regex): Update the split from "file_tree.py : desc" to "file_tree.py\tdesc"
 # tab supremacy
 def clean_filename(file_name: str):
     valid_chars = "-_./$[]%s%s" % (string.ascii_letters, string.digits)
-    file_name = ''.join(c for c in file_name if c in valid_chars)
-    file_name = file_name.replace(' ', '')
-    file_name = file_name.strip('`')
+    file_name = "".join(c for c in file_name if c in valid_chars)
+    file_name = file_name.replace(" ", "")
+    file_name = file_name.strip("`")
     return os.path.normpath(file_name)
 
 
@@ -127,16 +135,18 @@ def clean_instructions(instructions: str):
 class FileChangeRequest(RegexMatchableBaseModel):
     filename: str
     instructions: str
-    change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal["rename"]
+    change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal[
+        "rename"
+    ]
     _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\-]*)\">(?P<instructions>.*?)<\/\1>"""
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
         result = super().from_string(string, **kwargs)
-        result.filename = result.filename.strip('/')
+        result.filename = result.filename.strip("/")
         result.instructions = result.instructions.replace("\n*", "\n•")
         return result
-    
+
     @property
     def instructions_display(self):
         if self.change_type == "rename":
@@ -152,7 +162,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
 class FileCreation(RegexMatchableBaseModel):
     commit_message: str
     code: str
-    _regex = r'''<new_file>(?P<code>.*)</new_file>'''
+    _regex = r"""<new_file>(?P<code>.*)</new_file>"""
     # Regex updated to support ``` outside of <new_file> tags
 
     @classmethod
@@ -163,7 +173,7 @@ class FileCreation(RegexMatchableBaseModel):
         if re_match is None:
             print(f"Did not match {string} with pattern {cls._regex}")
             raise ValueError("No <new_file> tags or ``` found in code block")
-        
+
         result = cls(
             code=re_match.groupdict()["code"].strip(),
             commit_message="Created file",
@@ -172,7 +182,7 @@ class FileCreation(RegexMatchableBaseModel):
         first_index = result.code.find("<new_file>")
         if first_index >= 0:
             last_index = result.code.rfind("</new_file>")
-            result.code = result.code[first_index + len('<new_file>'):last_index]
+            result.code = result.code[first_index + len("<new_file>") : last_index]
         else:
             first_index = result.code.find("```")
             if first_index >= 0:
@@ -192,8 +202,8 @@ class FileCreation(RegexMatchableBaseModel):
         if result.code.startswith("```"):
             first_newline = result.code.find("\n")
             last_newline = result.code.rfind("\n")
-            result.code = result.code[first_newline + 1:]
-            result.code = result.code[: last_newline]
+            result.code = result.code[first_newline + 1 :]
+            result.code = result.code[:last_newline]
 
         result.code += "\n"
         return result
@@ -218,7 +228,11 @@ class Snippet(BaseModel):
 
     def __eq__(self, other):
         if isinstance(other, Snippet):
-            return self.file_path == other.file_path and self.start == other.start and self.end == other.end
+            return (
+                self.file_path == other.file_path
+                and self.start == other.start
+                and self.end == other.end
+            )
         return False
 
     def __hash__(self):
@@ -226,11 +240,13 @@ class Snippet(BaseModel):
 
     def get_snippet(self):
         lines = self.content.splitlines()
-        snippet = "\n".join(f"{i+1}: {line}" for i, line in enumerate(lines[self.start:self.end]))
+        snippet = "\n".join(
+            f"{i+1}: {line}" for i, line in enumerate(lines[self.start : self.end])
+        )
         if self.start > 1:
-            snippet = '...\n' + snippet
-        if self.end < self.content.count('\n') + 1:
-            snippet = snippet + '\n...'
+            snippet = "...\n" + snippet
+        if self.end < self.content.count("\n") + 1:
+            snippet = snippet + "\n..."
         return snippet
 
     def __add__(self, other):
@@ -240,7 +256,7 @@ class Snippet(BaseModel):
             content=self.content,
             start=self.start,
             end=other.end,
-            file_path=self.file_path
+            file_path=self.file_path,
         )
 
     def __xor__(self, other: "Snippet") -> bool:
@@ -250,8 +266,8 @@ class Snippet(BaseModel):
         if self.file_path != other.file_path:
             return False
         return self.file_path == other.file_path and (
-                (self.start <= other.start and self.end >= other.start)
-                or (other.start <= self.start and other.end >= self.start)
+            (self.start <= other.start and self.end >= other.start)
+            or (other.start <= self.start and other.end >= self.start)
         )
 
     def __or__(self, other: "Snippet") -> "Snippet":
@@ -260,7 +276,7 @@ class Snippet(BaseModel):
             content=self.content,
             start=min(self.start, other.start),
             end=max(self.end, other.end),
-            file_path=self.file_path
+            file_path=self.file_path,
         )
 
     @property
@@ -282,11 +298,15 @@ class Snippet(BaseModel):
         return f"<{self.get_url(repo_name, commit_id)}|{base}{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}>"
 
     def get_preview(self, max_lines: int = 5):
-        snippet = "\n".join(self.content.splitlines()[self.start:min(self.start + max_lines, self.end)])
+        snippet = "\n".join(
+            self.content.splitlines()[
+                self.start : min(self.start + max_lines, self.end)
+            ]
+        )
         if self.start > 1:
-            snippet = '\n' + snippet
-        if self.end < self.content.count('\n') + 1 and self.end > max_lines:
-            snippet = snippet + '\n'
+            snippet = "\n" + snippet
+        if self.end < self.content.count("\n") + 1 and self.end > max_lines:
+            snippet = snippet + "\n"
         return snippet
 
     def expand(self, num_lines: int = 35):
@@ -294,7 +314,7 @@ class Snippet(BaseModel):
             content=self.content,
             start=max(self.start - num_lines, 1),
             end=min(self.end + num_lines, self.content.count("\n") + 1),
-            file_path=self.file_path
+            file_path=self.file_path,
         )
 
     @property
@@ -325,9 +345,11 @@ class NoFilesException(Exception):
     def __init__(self, message="Sweep could not find any files to modify"):
         super().__init__(message)
 
+
 class PRChangeRequest(BaseModel):
-    type: str # "comment", or "gha"
+    type: str  # "comment", or "gha"
     params: dict
+
 
 class MockPR(BaseModel):
     # Used to mock a PR object without creating a PR (branch will be created tho)
