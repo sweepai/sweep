@@ -553,8 +553,10 @@ class SweepBot(CodeGenBot, GithubBot):
             )
 
             if sandbox is not None:
-                loop = asyncio.get_event_loop()
-                file_change.code = loop.run_until_complete(sandbox.run_formatter(file_change_request.filename, file_change.code))
+                pass
+                # Todo(lukejagg): Work with E2B to get this working in Modal stub
+                # loop = asyncio.get_event_loop()
+                # file_change.code = loop.run_until_complete(sandbox.run_formatter(file_change_request.filename, file_change.code))
 
             self.repo.create_file(
                 file_change_request.filename,
@@ -628,8 +630,10 @@ class SweepBot(CodeGenBot, GithubBot):
 
             # Format the contents
             if sandbox is not None:
-                loop = asyncio.get_event_loop()
-                new_file_contents = loop.run_until_complete(sandbox.run_formatter(file_name, new_file_contents))
+                pass
+                # Todo(lukejagg): Work with E2B to get this working in Modal stub
+                # loop = asyncio.get_event_loop()
+                # new_file_contents = loop.run_until_complete(sandbox.run_formatter(file_name, new_file_contents))
 
 
             # Update the file with the new contents after all chunks have been processed
