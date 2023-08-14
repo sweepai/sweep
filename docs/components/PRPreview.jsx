@@ -21,7 +21,7 @@ export function PRPreview({ repoName, prId }) {
                 const data = await response.json();
                 console.log("pr data", data)
                 setPrData(data);
-                
+
                 if (!data.diff_url) {
                     return;
                 }
@@ -64,7 +64,7 @@ export function PRPreview({ repoName, prId }) {
                         setIssueData(issueData)
                         return
                     }
-                } 
+                }
             } catch (error) {
                 console.error("Error parsing cache hit:", error);
             }
@@ -72,7 +72,7 @@ export function PRPreview({ repoName, prId }) {
         console.log("cache miss")
         fetchPRData();
     }, [repoName, prId]);
-    
+
     useEffect(() => {
         console.log(localStorage);
         if (localStorage && prData && diffData && issueData) {
@@ -114,18 +114,18 @@ export function PRPreview({ repoName, prId }) {
                     }
                 `}
             </style>
-            <div 
+            <div
                 className="hoverEffect"
                 style={{
-                    border: "1px solid darkgrey", 
-                    borderRadius: 5, 
+                    border: "1px solid darkgrey",
+                    borderRadius: 5,
                     marginTop: 32,
                     padding: 10,
                 }}
             >
                 <div style={{display: "flex"}}>
-                    <h5 
-                        className="clickable" style={{marginTop: 0, fontWeight: "bold", fontSize: 18}} 
+                    <h5
+                        className="clickable" style={{marginTop: 0, fontWeight: "bold", fontSize: 18}}
                         onClick={() => window.open(prData.html_url, "_blank")}
                     >
                         {prData.title}
@@ -149,7 +149,7 @@ export function PRPreview({ repoName, prId }) {
                     <div
                         className="codeBlocks"
                         style={{
-                            borderRadius: 5, 
+                            borderRadius: 5,
                             padding: 10,
                             transition: "background-color 0.2s linear",
                         }}
@@ -158,17 +158,17 @@ export function PRPreview({ repoName, prId }) {
                             from !== "/dev/null" && from !== "sweep.yaml" &&
                             <>
                                 <p style={{
-                                    marginTop: 0, 
-                                    marginBottom: 0, 
+                                    marginTop: 0,
+                                    marginBottom: 0,
                                     fontFamily: "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace"
                                 }}>{from}</p>
-                                {chunks.map(({changes}) => 
+                                {chunks.map(({changes}) =>
                                     <pre style={{
-                                        backgroundColor: "#161717", 
+                                        backgroundColor: "#161717",
                                         borderRadius: 10,
                                         whiteSpace: "pre-wrap",
                                     }}>
-                                        {changes.map(({content, type}) => 
+                                        {changes.map(({content, type}) =>
                                             <>
                                                 {type === "add" && content && <div style={{backgroundColor: "#12261e", width: "100%", padding: 4}}>{content}</div>}
                                                 {type === "del" && content && <div style={{backgroundColor: "#25171c", width: "100%", padding: 4}}>{content}</div>}
