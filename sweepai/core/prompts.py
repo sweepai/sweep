@@ -5,7 +5,7 @@ List of common prompts used across the codebase.
 # Following two should be fused
 system_message_prompt = "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right."
 
-repo_description_prefix_prompt = "This is the repository description provided by the user. Keep this in mind:"
+repo_description_prefix_prompt = " This is a description of the repository:"
 
 human_message_prompt = [
 {'role': 'assistant', 'content': 'Examining repo...'},
@@ -657,67 +657,44 @@ The user is attempting to solve the following problem:
 Provide a summary of the page relevant to the problem, including all code snippets.
 """
 
-issue_description_rewrite_system_prompt = """\
-You are a brilliant support engineer assigned to the following Github issue. It is very important that you get this right.
-"""
+pruning_prompt = """\
+The above text may have too much unnecessary information, particularly in the <repo_tree> and the <relevant_paths_in_repo>.
+The snippets, relevant_paths_in_repo and repo_tree are 1:1. All files in the snippets expose parts of the repo tree, so adding or removing snippets will show more or less of the tree.
+The unnecessary information will hurt your performance on this task, so we will prune relevant_paths_in_repo and repo_tree to keep only the absolutely necessary information.
+First, list all of the files and directories we should keep in do_not_remove. These files and directories will be kept.
+For relevant_paths_in_repo, list any irrelevant paths in irrelevant_paths_in_repo and they will be removed.
+For repo_tree, list additional files or directories we don't need in irrelevant_repo_tree_paths. If you list a directory, you do not need to list its subdirectories or files in its subdirectories.
+Do not remove files or directories that are referenced in the issue title or descriptions.
 
-issue_description_rewrite_prompt = """\
-<original_title>
-{original_title}
-</original_title>
-<original_description>
-{original_description}
-</original_description>
-The above is a GitHub issue title and description. Assume that the writer of the issue wants a code change to be made.
-1. Rewrite the issue while maintaining the original purpose and retaining any valuable elements as you convert the text into a confident and commanding tone.
-2. You should rewrite the issue as if you are assigning this issue to someone else.
-3. Do not repeat yourself in the new issue description. 
-4. If file names are mentioned, keep the entire path as it's critical for handling the issue.
-5. Sometimes issue templates will be left empty. In this case it will say _No response_ or _No description provided_. Remove these and the associated headers.
-
-You MUST follow the following format delimited with XML tags:
+Reply in the following format:
 
 Step-by-step thoughts with explanations: 
-* Thought 1 - Explanation 1
-* Thought 2 - Explanation 2
+* Thought 1
+* Thought 2
 ...
-<issue_title>
-A clear issue title.
-</issue_title>
-<issue_description>
-A detailed issue description.
-More details ...
-</issue_description>
-"""
 
-issue_description_rewrite_comments_prompt = """\
-<original_title>
-{original_title}
-</original_title>
-<original_description>
-{original_description}
-</original_description>
-The above is a GitHub issue title and description. Assume that the writer of the issue wants a code change to be made.
-1. Rewrite the issue while maintaining the original purpose and retaining any valuable elements as you convert the text into a confident and commanding tone.
-2. You should rewrite the issue as if you are assigning this issue to someone else.
-3. Do not repeat yourself in the new issue description. 
-4. If file names are mentioned, keep the entire path as it's critical for handling the issue.
-5. There may be discussion between different users prefaced with "Comment: ". If those are irrelevant please remove them entirely.
-6. Sometimes issue templates will be left empty. In this case it will say _No response_ or _No description provided_. Remove these and the associated headers.
-
-You MUST follow the following format delimited with XML tags:
-
-Step-by-step thoughts with explanations: 
-* Thought 1 - Explanation 1
-* Thought 2 - Explanation 2
+Plan to address the issue:
+* Addition 1
+* Addition 2
 ...
-<issue_title>
-A clear issue title.
-</issue_title>
-<issue_description>
-A detailed issue description.
-More details ...
-</issue_description>
+
+<do_not_remove>
+* file or directory to keep 1
+* file or directory to keep 2
+...
+</do_not_remove>
+
+<irrelevant_paths_in_repo>
+* path to irrelevant snippet 1
+* path to irrelevant snippet 2
+...
+</irrelevant_paths_in_repo>
+
+<irrelevant_repo_tree_paths>
+* irrelevant repo tree path 1
+* irrelevant repo tree path 2
+...
+</irrelevant_repo_tree_paths>
 """
 
 docs_qa_system_prompt = """You are an expert at summarizing documentation for programming-related to help the user solve the problem. You will be given a question and relevant snippets of documentation, and be asked to provide a summary of relevant snippets for solving the problem."""
