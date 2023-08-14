@@ -12,7 +12,7 @@ from sweepai.core.prompts import external_search_system_prompt, external_search_
 class ExternalSearcher(ChatGPT):
     @staticmethod
     def extract_links(content: str) -> list[str]:
-        pattern = r'\b(?:(?:https?|ftp)://|www\.)\S+\b'
+        pattern = r"\b(?:(?:https?|ftp)://|www\.)\S+\b"
         return list(set(re.findall(pattern, content)))
 
     def extract_summary_from_link(self, url: str, problem: str) -> str:
@@ -20,11 +20,13 @@ class ExternalSearcher(ChatGPT):
 
         self.messages = [Message(role="system", content=external_search_system_prompt)]
         self.model = "gpt-3.5-turbo-16k-0613"  # can be optimized
-        response = self.chat(external_search_prompt.format(
-            page_metadata=page_metadata,
-            problem=problem,
-        ))
-        
+        response = self.chat(
+            external_search_prompt.format(
+                page_metadata=page_metadata,
+                problem=problem,
+            )
+        )
+
         return response.strip() + "\n"
 
     @staticmethod
@@ -39,7 +41,7 @@ class ExternalSearcher(ChatGPT):
             try:
                 external_searcher = ExternalSearcher()
                 summary = external_searcher.extract_summary_from_link(link, content)
-                result += f'{link}:\n\n{summary}\n\n'
+                result += f"{link}:\n\n{summary}\n\n"
             except Exception as e:
                 logger.error(f"External search error: {e}")
         return result
