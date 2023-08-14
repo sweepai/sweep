@@ -21,13 +21,17 @@
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@mui/material": "^5.14.4",
+    "@parcel/config-webextension": "^2.9.3",
+    "@types/chrome": "^0.0.243",
     "add": "^2.0.6",
     "chokidar": "^3.5.3",
     "parcel": "^2.9.3",
     "pnpm": "^8.6.12",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-shadow": "^20.4.0"
+    "react-shadow": "^20.4.0",
+    "tsc": "^2.0.4",
+    "typescript": "^5.1.6"
   },
   "targets": {
     "default": {
