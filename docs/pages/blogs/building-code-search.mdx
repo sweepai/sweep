@@ -10,9 +10,9 @@ Sweep is an open source AI-powered junior developer. We take your codebase and p
 
 ## Code Search
 
-Code search is a key part of working with LLMs to automate programming. We used small language models to perform code retrieval(aka semantic search), which comes with several benefits (to be discussed in a later post!). 
+Code search is a key part of working with LLMs to automate programming. We used small language models to perform code retrieval(aka semantic search), which comes with several benefits (to be discussed in a later post!).
 
-However, one shortcoming of pure semantic search is distinguishing between two similar pieces of code in a vacuum. 
+However, one shortcoming of pure semantic search is distinguishing between two similar pieces of code in a vacuum.
 
 ## Example
 
@@ -95,9 +95,9 @@ quality_score = line_count_score * commit_score / recency_score
 final_score = quality_score/max(quality_score) + similarity_score
 ```
 
-This solution usually worked fine, but we saw the same unexpected files showing up often. The max normalization was not enough. 
+This solution usually worked fine, but we saw the same unexpected files showing up often. The max normalization was not enough.
 
-We fixed this by squashing the scores into percentiles, and then capping the increase at .25. In this case, the best result gets a .25 boost and the worst gets no boost. 
+We fixed this by squashing the scores into percentiles, and then capping the increase at .25. In this case, the best result gets a .25 boost and the worst gets no boost.
 
 This lets us avoid fetching tests and configs which seem similar, and instead fetch business logic that actually helps Sweep write code!
 
