@@ -7,6 +7,7 @@ On Github ticket, get ChatGPT to deal with it
 import math
 import re
 import traceback
+import uuid
 import modal
 import openai
 import asyncio
@@ -107,6 +108,7 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None
 ):
+    run_id = uuid.uuid4()
     title, slow_mode, migrate = strip_sweep(title)
 
     # Flow:
@@ -648,10 +650,9 @@ def on_ticket(
                 -1
             )
         else:
-            edit_sweep_comment(
-                "I'm sorry, but it looks like an error has occurred. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev.",
-                -1
-            )
+        ai_type = "GPT-4" if use_faster_model else "GPT-3.5"
+        error_message = f"I'm sorry, but it looks like an error has occurred. AI Type: {ai_type}, Run ID: {run_id}. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev."
+        edit_sweep_comment(error_message, -1)
         log_error("Workflow", str(e) + "\n" + traceback.format_exc())
         posthog.capture(
             username,
