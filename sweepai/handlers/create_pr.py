@@ -1,3 +1,5 @@
+import json
+import emoji
 import modal
 import openai
 from github.Repository import Repository
@@ -315,6 +317,17 @@ body:
       label: Details
       description: More details about the bug
       placeholder: The bug might be in ... file"""
+
+def remove_emojis_from_titles(file_path):
+    with open(file_path, 'r') as file:
+        content = json.load(file)
+    for title in content:
+        content[title] = emoji.get_emoji_regexp().sub(u'', content[title])
+    with open(file_path, 'w') as file:
+        json.dump(content, file)
+
+remove_emojis_from_titles('docs/pages/_meta.json')
+remove_emojis_from_titles('docs/pages/videos/_meta.json')
 
 FEATURE_TEMPLATE = """\
 name: Feature Request

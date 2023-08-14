@@ -16,6 +16,7 @@ Homepage = "https://sweep.dev"
 
 [tool.poetry.dependencies]
 python = "^3.10"
+emoji = "^1.6.1"
 PyGithub = "1.58.2"
 loguru = "^0.6.0"
 requests = "^2.28.2"
@@ -37,6 +38,7 @@ robotexclusionrulesparser = "^1.7.1"
 deeplake = "^3.6.17"
 geopy = "^2.3.0"
 pre-commit = "^3.3.3"
+sentence_transformers = "^2.1.0"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"
