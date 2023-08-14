@@ -1,4 +1,5 @@
 // I'm going back to webpack if parcel continues to not want to cooperate
+import { Octokit } from "@octokit/core";
 
 const DEVICE_CODE_ENDPOINT = "https://github.com/login/device/code";
 const USER_LOGIN_ENDPOINT = "https://github.com/login/device";
@@ -116,3 +117,28 @@ chrome.runtime.onInstalled.addListener((details) => {
     }
   });
 });
+
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+  if (request.type == "createIssue") {
+    const { title: rawTitle, body, repo } = request.issue;
+    const title = `Sweep: ${rawTitle}`;
+    const labels = ["sweep"];
+    const [owner, repo_name] = repo.split("/");
+    // const { github_pat } = await chrome.storage.local.get("config")
+    console.log("Found github_pat in storage: ", github_pat)
+    const octokit = new Octokit({ auth: github_pat });
+    console.log("Sending request...")
+    const results = octokit.request("POST /repos/{owner}/{repo}/issues", {
+      owner,
+      repo: repo_name,
+      title,
+      body,
+      labels,
+      headers: {
+        'X-GitHub-Api-Version': '2022-11-28'
+      }
+    })
+    console.log("Received response: ", results)
+    sendResponse(results);
+  }
+})

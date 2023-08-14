@@ -3,7 +3,7 @@ import ShadowDomContainer from "./ShadowDomContainer";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 
-const nonUglyCSS = {
+const nonUglyTextboxCSS = {
   color: "white",
   background: "transparent",
   width: "100%",
@@ -88,15 +88,21 @@ export default function App() {
     const description = descriptionRef.current.value || "";
 
     const issue = {
-      title: `Sweep: ${title}`,
+      title: title,
       body: description,
-      labels: ["sweep"],
+      repo: "kevinlu1248/sweep-landing-page",
     };
 
     (async () => {
       await new Promise((r) => setTimeout(r, 1000));
 
       // process issue
+      const response = await chrome.runtime.sendMessage({
+        type: "createIssue",
+        issue,
+      })
+      const object = await response.json();
+      console.log(object)
 
       const url = "https://github.com/sweepai/sweep/issues/1235";
       window.open(url, "_blank");
@@ -120,7 +126,7 @@ export default function App() {
           <input
             placeholder='Write an api endpoint that does ... in the ... file ("Sweep:" prefix unneeded)'
             style={{
-              ...nonUglyCSS,
+              ...nonUglyTextboxCSS,
               marginBottom: 12,
             }}
             onKeyDown={(e) => {
@@ -135,7 +141,7 @@ export default function App() {
           <textarea
             placeholder="The new endpoint should use the ... class from ... file because it contains ... logic."
             style={{
-              ...nonUglyCSS,
+              ...nonUglyTextboxCSS,
               fontSize: 16,
               height: 300,
               resize: "none",

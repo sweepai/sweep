@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "manifest_version": 3,
   "background": {
-    "service_worker": "background.ts"
+    "service_worker": "background.ts",
+    "type": "module"
   },
   "content_scripts": [
     {
