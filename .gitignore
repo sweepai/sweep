@@ -168,3 +168,4 @@ tests/data
 scraped_docs
 node_modules
 extension/.parcel_cache
+extension
