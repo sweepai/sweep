@@ -7,6 +7,7 @@ On Github ticket, get ChatGPT to deal with it
 import math
 import re
 import traceback
+import uuid
 import modal
 import openai
 import asyncio
@@ -107,7 +108,10 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None
 ):
+    run_id = uuid.uuid4()
+    use_faster_model = chat_logger.use_faster_model(g)
     title, slow_mode, migrate = strip_sweep(title)
+    ai_type = "GPT-4" if use_faster_model else "GPT-3.5"
 
     # Flow:
     # 1. Get relevant files
@@ -139,8 +143,6 @@ def on_ticket(
 
     is_paying_user = chat_logger.is_paying_user()
     is_trial_user = chat_logger.is_trial_user()
-    use_faster_model = chat_logger.use_faster_model(g)
-
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
@@ -646,12 +648,9 @@ def on_ticket(
             edit_sweep_comment(
                 "I'm sorry, but it looks like an error has occurred due to insufficient information. Be sure to create a more detailed issue so I can better address it. If this error persists contact team@sweep.dev.",
                 -1
-            )
-        else:
-            edit_sweep_comment(
-                "I'm sorry, but it looks like an error has occurred. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev.",
-                -1
-            )
+    else:
+        error_message = f"I'm sorry, but it looks like an error has occurred. AI Type: {ai_type}, Run ID: {run_id}. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev."
+        edit_sweep_comment(error_message, -1)
         log_error("Workflow", str(e) + "\n" + traceback.format_exc())
         posthog.capture(
             username,
