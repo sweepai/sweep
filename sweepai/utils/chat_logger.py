@@ -68,24 +68,35 @@ class ChatLogger(BaseModel):
         self.index += 1
         self.chat_collection.insert_one(document)
 
-    def add_successful_ticket(self):
+    def add_successful_ticket(self, gpt3=False):
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
             return
         username = self.data["username"]
-        self.ticket_collection.update_one(
-            {"username": username},
-            {"$inc": {self.current_month: 1, self.current_date: 1}},
-            upsert=True,
-        )
+        if gpt3:
+            key = f"{self.current_month}_gpt3"
+            self.ticket_collection.update_one(
+                {"username": username},
+                {"$inc": {key: 1}},
+                upsert=True,
+            )
+        else:
+            self.ticket_collection.update_one(
+                {"username": username},
+                {"$inc": {self.current_month: 1, self.current_date: 1}},
+                upsert=True,
+            )
         logger.info(f"Added Successful Ticket for {username}")
 
-    def get_ticket_count(self, use_date=False):
+    def get_ticket_count(self, use_date=False, gpt3=False):
+        # gpt3 overrides use_date
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
             return 0
         username = self.data["username"]
         tracking_date = self.current_date if use_date else self.current_month
+        if gpt3:
+            tracking_date = f"{self.current_month}_gpt3"
         result = self.ticket_collection.aggregate(
             [
                 {"$match": {"username": username}},
