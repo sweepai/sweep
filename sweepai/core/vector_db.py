@@ -188,7 +188,7 @@ class ModalEmbeddingFunction:
             batches = [batch for batch in batches if len(batch) > 0]
             results = []
             for batch in tqdm(batches):
-                results.extend(Embedding.compute(batch))
+                results.extend(Embedding.compute.call(batch))
 
             return results
 
