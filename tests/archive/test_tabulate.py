@@ -6,22 +6,15 @@ file_change_requests = [
     FileChangeRequest(
         filename="main.py",
         change_type="create",
-        instructions="Do this\nthen that\nthen do\n```python\n#main {\nfont-size:12px\n}\n```",
+        instructions="Do this\nthen that\nthen do\n```python\n#main {\nfont-size:12px\n}\n```"
     )
 ]
 
 table = tabulate(
-    [
-        [
-            f"`{file_change_request.filename}`",
-            file_change_request.instructions.replace("\n", "<br/>").replace(
-                "```", "\\```"
-            ),
-        ]
-        for file_change_request in file_change_requests
-    ],
+    [[f"`{file_change_request.filename}`", file_change_request.instructions.replace('\n', '<br/>').replace('```', '\\```')] for file_change_request in
+        file_change_requests],
     headers=["File Path", "Proposed Changes"],
-    tablefmt="pipe",
+    tablefmt="pipe"
 )
 
 # assert table == """

@@ -80,18 +80,18 @@ Cleaning up orphan processes
 Secondly, there’s large sections of logs corresponding to loading or downloading sequences:
 
 ```bash
-remote: Counting objects:   1% (1/71)
-remote: Counting objects:   2% (2/71)
-remote: Counting objects:   4% (3/71)
-remote: Counting objects:   5% (4/71)
-remote: Counting objects:   7% (5/71)
+remote: Counting objects:   1% (1/71)        
+remote: Counting objects:   2% (2/71)        
+remote: Counting objects:   4% (3/71)        
+remote: Counting objects:   5% (4/71)        
+remote: Counting objects:   7% (5/71) 
 ```
 
 ```bash
-remote: Compressing objects:   1% (1/65)
-remote: Compressing objects:   3% (2/65)
-remote: Compressing objects:   4% (3/65)
-remote: Compressing objects:   6% (4/65)
+remote: Compressing objects:   1% (1/65)        
+remote: Compressing objects:   3% (2/65)        
+remote: Compressing objects:   4% (3/65)        
+remote: Compressing objects:   6% (4/65)        
 remote: Compressing objects:   7% (5/65)
 ```
 
@@ -135,9 +135,9 @@ Your job is to extract the relevant lines from the Github Actions workflow logs 
 User Message
 > Here are the logs:
 > \{gha_logs\}
->
+> 
 > Copy the lines from the logs corresponding to the error and wrap it in ```. Mention the command that failed.
->
+> 
 
 Yielding a response like
 
@@ -154,19 +154,19 @@ Yielding a response like
 > error Command failed with exit code 2.
 > info Visit <https://yarnpkg.com/en/docs/cli/run> for documentation about this command.
 > ```
->
+> 
 > The error occurred in the `CallToAction.tsx` and `InteractiveSphere.tsx` files. The specific error messages are related to type mismatches and duplicate identifiers. The command `yarn run tsc` failed with exit code 2.
->
+> 
 
-We finally wrap the results with the following template, framing the failed GHA as a user-reported bug. This also makes it understand what Sweep is currently doing for the user.
+We finally wrap the results with the following template, framing the failed GHA as a user-reported bug. This also makes it understand what Sweep is currently doing for the user. 
 
 > GitHub actions yielded the following error.
->
->
+> 
+> 
 > \{error_logs\}
->
+> 
 > This is likely a linting or type-checking issue with the source code but if you are updating the GitHub Actions or versioning, this could be an issue with the GitHub Action yaml files.
->
+> 
 
 ## Notes on Prompt Tuning 📔
 

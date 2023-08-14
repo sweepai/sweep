@@ -5,7 +5,6 @@ from dataclasses import dataclass
 import traceback
 from sweepai.config.server import ENV
 
-
 def download_parsers():
     from tree_sitter import Language
 
@@ -13,72 +12,43 @@ def download_parsers():
     for language in ["python", "java", "cpp", "go", "rust", "ruby", "php"]:
         subprocess.run(
             f"git clone https://github.com/tree-sitter/tree-sitter-{language} cache/tree-sitter-{language}",
-            shell=True,
-        )
+            shell=True)
     for language in ["python", "java", "cpp", "go", "rust", "ruby", "php"]:
-        Language.build_library(
-            f"cache/build/{language}.so", [f"cache/tree-sitter-{language}"]
-        )
-        subprocess.run(
-            f"cp cache/build/{language}.so /tmp/{language}.so", shell=True
-        )  # copying for executability
-    languages = {
-        language: Language(f"/tmp/{language}.so", language)
-        for language in ["python", "java", "cpp", "go", "rust", "ruby", "php"]
-    }
+        Language.build_library(f'cache/build/{language}.so', [f"cache/tree-sitter-{language}"])
+        subprocess.run(f"cp cache/build/{language}.so /tmp/{language}.so", shell=True)  # copying for executability
+    languages = {language: Language(f"/tmp/{language}.so", language) for language in ["python", "java", "cpp", "go", "rust", "ruby", "php"]}
 
-    subprocess.run(
-        f"git clone https://github.com/tree-sitter/tree-sitter-c-sharp cache/tree-sitter-c-sharp",
-        shell=True,
-    )
-    Language.build_library(f"cache/build/c-sharp.so", [f"cache/tree-sitter-c-sharp"])
+    subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-c-sharp cache/tree-sitter-c-sharp",
+                   shell=True)
+    Language.build_library(f'cache/build/c-sharp.so', [f"cache/tree-sitter-c-sharp"])
     subprocess.run(f"cp cache/build/c-sharp.so /tmp/c-sharp.so", shell=True)
     languages["c-sharp"] = Language("/tmp/c-sharp.so", "c_sharp")
 
     subprocess.run(
         f"git clone https://github.com/tree-sitter/tree-sitter-embedded-template cache/tree-sitter-embedded-template",
-        shell=True,
-    )
-    Language.build_library(
-        f"cache/build/embedded-template.so", [f"cache/tree-sitter-embedded-template"]
-    )
-    subprocess.run(
-        f"cp cache/build/embedded-template.so /tmp/embedded-template.so", shell=True
-    )
-    languages["embedded-template"] = Language(
-        "/tmp/embedded-template.so", "embedded_template"
-    )
+        shell=True)
+    Language.build_library(f'cache/build/embedded-template.so', [f"cache/tree-sitter-embedded-template"])
+    subprocess.run(f"cp cache/build/embedded-template.so /tmp/embedded-template.so", shell=True)
+    languages["embedded-template"] = Language("/tmp/embedded-template.so", "embedded_template")
 
-    subprocess.run(
-        f"git clone https://github.com/MDeiml/tree-sitter-markdown cache/tree-sitter-markdown",
-        shell=True,
-    )
-    Language.build_library(
-        f"cache/build/markdown.so", [f"cache/tree-sitter-markdown/tree-sitter-markdown"]
-    )
+    subprocess.run(f"git clone https://github.com/MDeiml/tree-sitter-markdown cache/tree-sitter-markdown",
+                   shell=True)
+    Language.build_library(f'cache/build/markdown.so', [f"cache/tree-sitter-markdown/tree-sitter-markdown"])
     subprocess.run(f"cp cache/build/markdown.so /tmp/markdown.so", shell=True)
     languages["markdown"] = Language("/tmp/markdown.so", "markdown")
 
-    subprocess.run(
-        f"git clone https://github.com/ikatyang/tree-sitter-vue cache/tree-sitter-vue",
-        shell=True,
-    )
-    Language.build_library(f"cache/build/vue.so", [f"cache/tree-sitter-vue"])
+    subprocess.run(f"git clone https://github.com/ikatyang/tree-sitter-vue cache/tree-sitter-vue", shell=True)
+    Language.build_library(f'cache/build/vue.so', [f"cache/tree-sitter-vue"])
     subprocess.run(f"cp cache/build/vue.so /tmp/vue.so", shell=True)
     languages["vue"] = Language("/tmp/vue.so", "vue")
 
-    subprocess.run(
-        f"git clone https://github.com/tree-sitter/tree-sitter-typescript cache/tree-sitter-typescript",
-        shell=True,
-    )
-    Language.build_library(
-        f"cache/build/typescript.so", [f"cache/tree-sitter-typescript/tsx"]
-    )
+    subprocess.run(f"git clone https://github.com/tree-sitter/tree-sitter-typescript cache/tree-sitter-typescript",
+                   shell=True)
+    Language.build_library(f'cache/build/typescript.so', [f"cache/tree-sitter-typescript/tsx"])
     subprocess.run(f"cp cache/build/typescript.so /tmp/typescript.so", shell=True)
     languages["tsx"] = Language("/tmp/typescript.so", "tsx")
 
     logger.debug("Finished downloading tree-sitter parsers")
-
 
 import modal
 from loguru import logger
@@ -87,9 +57,7 @@ from modal import method
 from sweepai.config.server import UTILS_MODAL_INST_NAME
 
 stub = modal.Stub(UTILS_MODAL_INST_NAME)
-tiktoken_image = modal.Image.debian_slim().pip_install(
-    "tiktoken", "loguru", "anthropic", "pyyaml", "PyGithub"
-)
+tiktoken_image = modal.Image.debian_slim().pip_install("tiktoken", "loguru", "anthropic", "pyyaml", "PyGithub")
 
 TIKTOKEN_CACHE_DIR = "/root/cache/tiktoken"
 tiktoken_volume = modal.NetworkFileSystem.persisted("tiktoken-models")
@@ -109,11 +77,7 @@ class Tiktoken:
 
     def __enter__(self):
         import tiktoken
-
-        self.openai_models = {
-            model: tiktoken.encoding_for_model(model)
-            for model in Tiktoken.openai_models
-        }
+        self.openai_models = {model: tiktoken.encoding_for_model(model) for model in Tiktoken.openai_models}
 
     @method()
     def count(self, text: str, model: str = "gpt-4"):
@@ -138,7 +102,7 @@ class Span:
     end: int
 
     def extract(self, s: str) -> str:
-        return "\n".join(s.splitlines()[self.start : self.end])
+        return "\n".join(s.splitlines()[self.start:self.end])
 
     def __add__(self, other):
         if isinstance(other, int):
@@ -174,9 +138,7 @@ def chunker(tree, source_code_bytes, max_chunk_size=512 * 3, coalesce=50):
             child_span = Span(child.start_byte, child.end_byte)
             if len(child_span) > max_chunk_size:
                 chunks.append(current_chunk)
-                chunks.extend(
-                    chunker_helper(child, source_code_bytes, child.start_byte)
-                )
+                chunks.extend(chunker_helper(child, source_code_bytes, child.start_byte))
                 current_chunk = Span(child.end_byte, child.end_byte)
             elif len(current_chunk) + len(child_span) > max_chunk_size:
                 chunks.append(current_chunk)
@@ -200,32 +162,23 @@ def chunker(tree, source_code_bytes, max_chunk_size=512 * 3, coalesce=50):
     while i < len(chunks):
         current_chunk += chunks[i]
         if count_length_without_whitespace(
-            source_code_bytes[current_chunk.start : current_chunk.end].decode("utf-8")
-        ) > coalesce and "\n" in source_code_bytes[
-            current_chunk.start : current_chunk.end
-        ].decode(
-            "utf-8"
-        ):
+                source_code_bytes[current_chunk.start:current_chunk.end].decode("utf-8")) > coalesce \
+                and "\n" in source_code_bytes[current_chunk.start:current_chunk.end].decode("utf-8"):
             new_chunks.append(current_chunk)
             current_chunk = Span(chunks[i].end, chunks[i].end)
         i += 1
     if len(current_chunk) > 0:
         new_chunks.append(current_chunk)
 
-    line_chunks = [
-        Span(
-            get_line_number(chunk.start, source_code=source_code_bytes),
-            get_line_number(chunk.end, source_code=source_code_bytes),
-        )
-        for chunk in new_chunks
-    ]
+    line_chunks = [Span(get_line_number(chunk.start, source_code=source_code_bytes),
+                        get_line_number(chunk.end, source_code=source_code_bytes)) for chunk in new_chunks]
     line_chunks = [chunk for chunk in line_chunks if len(chunk) > 0]
 
     return line_chunks
 
 
 def count_length_without_whitespace(s: str):
-    string_without_whitespace = re.sub(r"\s", "", s)
+    string_without_whitespace = re.sub(r'\s', '', s)
     return len(string_without_whitespace)
 
 
@@ -270,21 +223,16 @@ class Chunking:
 
     def __enter__(self):
         from tree_sitter import Language
-
         LANGUAGE_NAMES = ["python", "java", "cpp", "go", "rust", "ruby", "php"]
         self.languages = dict()
         for language_name in LANGUAGE_NAMES:
-            self.languages[language_name] = Language(
-                f"/tmp/{language_name}.so", language_name
-            )
+            self.languages[language_name] = Language(f"/tmp/{language_name}.so", language_name)
         self.languages["c-sharp"] = Language("/tmp/c-sharp.so", "c_sharp")
-        self.languages["embedded-template"] = Language(
-            "/tmp/embedded-template.so", "embedded_template"
-        )
+        self.languages["embedded-template"] = Language("/tmp/embedded-template.so", "embedded_template")
         self.languages["markdown"] = Language("/tmp/markdown.so", "markdown")
         self.languages["vue"] = Language("/tmp/vue.so", "vue")
         self.languages["tsx"] = Language("/tmp/typescript.so", "tsx")
-
+    
     @method()
     def chunk_core(
         self,
@@ -304,20 +252,18 @@ class Chunking:
         # TODO(Sweep): implement a config file for the above
         # TODO(Sweep): Prioritize the language based on extension
         from tree_sitter import Parser
-
         file_language = None
         tree = None
 
         logger.info(f"Chunking {file_path}, size {len(file_content)}")
 
         _, ext = os.path.splitext(file_path)
-        ext = ext[len(".") :]
+        ext = ext[len("."):]
         if ext in extension_to_language:
             # prioritize the language
             language_names = [extension_to_language[ext]]
             language_names += [
-                language_name
-                for language_name in self.languages.keys()
+                language_name for language_name in self.languages.keys()
                 if language_name != extension_to_language[ext]
             ]
             logger.info(language_names)
@@ -330,10 +276,7 @@ class Chunking:
                 parser = Parser()
                 parser.set_language(language)
                 tree = parser.parse(bytes(file_content, "utf-8"))
-                if (
-                    not tree.root_node.children
-                    or tree.root_node.children[0].type != "ERROR"
-                ):
+                if not tree.root_node.children or tree.root_node.children[0].type != "ERROR":
                     file_language = language
                     break
                 logger.warning(f"Not language {language_name}")
@@ -356,7 +299,7 @@ class Chunking:
                         "start": span.start,
                         "end": span.end,
                         "score": score,
-                        **additional_metadata,
+                        **additional_metadata
                     }
                     metadatas.append(metadata)
                 return chunks, metadatas, ids
@@ -364,25 +307,23 @@ class Chunking:
                 tb = traceback.format_exc()
                 logger.error(f"Error when chunking {file_path}\nwith traceback{tb}")
         logger.info("Unknown language")
-        source_lines = file_content.split("\n")
+        source_lines = file_content.split('\n')
         num_lines = len(source_lines)
         logger.info(f"Number of lines: {num_lines}")
         chunks = []
         start_line = 0
         while start_line < num_lines and num_lines > overlap:
             end_line = min(start_line + chunk_size, num_lines)
-            chunk = "\n".join(source_lines[start_line:end_line])
+            chunk = '\n'.join(source_lines[start_line:end_line])
             chunks.append(chunk)
             ids.append(f"{file_path}:{start_line}:{end_line}")
-            metadatas.append(
-                {
-                    "file_path": file_path,
-                    "start": start_line,
-                    "end": end_line,
-                    "score": score,
-                    **additional_metadata,
-                }
-            )
+            metadatas.append({
+                "file_path": file_path,
+                "start": start_line,
+                "end": end_line,
+                "score": score,
+                **additional_metadata
+            })
             start_line += chunk_size - overlap
         return chunks, metadatas, ids
 
@@ -403,7 +344,7 @@ def chunk(
 ):
     def chunk_single(file_content: str, file_path: str, score: str):
         try:
-            results = Chunking.chunk_core.call(  # pylint: disable=no-member
+            results = Chunking.chunk_core.call( # pylint: disable=no-member
                 file_content,
                 file_path,
                 score,
@@ -420,32 +361,26 @@ def chunk(
             ids = []
             metadatas = []
             logger.info("Unknown language")
-            source_lines = file_content.split("\n")
+            source_lines = file_content.split('\n')
             num_lines = len(source_lines)
             logger.info(f"Number of lines: {num_lines}")
             chunks = []
             start_line = 0
             while start_line < num_lines and num_lines > overlap:
                 end_line = min(start_line + chunk_size, num_lines)
-                chunk = "\n".join(source_lines[start_line:end_line])
+                chunk = '\n'.join(source_lines[start_line:end_line])
                 chunks.append(chunk)
                 ids.append(f"{file_path}:{start_line}:{end_line}")
-                metadatas.append(
-                    {
-                        "file_path": file_path,
-                        "start": start_line,
-                        "end": end_line,
-                        "score": score,
-                        **additional_metadata,
-                    }
-                )
+                metadatas.append({
+                    "file_path": file_path,
+                    "start": start_line,
+                    "end": end_line,
+                    "score": score,
+                    **additional_metadata
+                })
                 start_line += chunk_size - overlap
             return chunks, metadatas, ids
-
     if isinstance(file_content, str):
         return chunk_single(file_content, file_path, score)
     else:
-        return [
-            chunk_single(content, path, score)
-            for content, path, score in zip(file_content, file_path, score)
-        ]
+        return [chunk_single(content, path, score) for content, path, score in zip(file_content, file_path, score)]
