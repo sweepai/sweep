@@ -10,6 +10,8 @@ import traceback
 import modal
 import openai
 import asyncio
+
+from github import GithubException
 from loguru import logger
 from tabulate import tabulate
 from sweepai.core.context_pruning import ContextPruning
@@ -86,9 +88,25 @@ ordinal = lambda n: str(n) + (
 )
 
 
-def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5, exclude_snippets: list[str] = []):
-    snippets = [snippet for snippet in snippets if not any(snippet.file_path.endswith(ext) for ext in SweepConfig().exclude_exts)]
-    snippets = [snippet for snippet in snippets if not any(snippet.file_path == exclude_file for exclude_file in exclude_snippets)]
+def post_process_snippets(
+    snippets: list[Snippet],
+    max_num_of_snippets: int = 5,
+    exclude_snippets: list[str] = [],
+):
+    snippets = [
+        snippet
+        for snippet in snippets
+        if not any(
+            snippet.file_path.endswith(ext) for ext in SweepConfig().exclude_exts
+        )
+    ]
+    snippets = [
+        snippet
+        for snippet in snippets
+        if not any(
+            snippet.file_path == exclude_file for exclude_file in exclude_snippets
+        )
+    ]
     for snippet in snippets[:num_full_files]:
         snippet = snippet.expand()
 
@@ -466,27 +484,31 @@ def on_ticket(
         )
         snippets = post_process_snippets(snippets, max_num_of_snippets=5)
         human_message = HumanMessagePrompt(
-                repo_name=repo_name,
-                issue_url=issue_url,
-                username=username,
-                repo_description=repo_description,
-                title=title,
-                summary=message_summary + additional_plan,
-                snippets=snippets,
-                tree=tree,
-            )
+            repo_name=repo_name,
+            issue_url=issue_url,
+            username=username,
+            repo_description=repo_description,
+            title=title,
+            summary=message_summary + additional_plan,
+            snippets=snippets,
+            tree=tree,
+        )
     try:
         context_pruning = ContextPruning(chat_logger=chat_logger)
-        snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(human_message, repo=repo)
+        snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
+            human_message, repo=repo
+        )
         snippets, tree = search_snippets(
-                        repo,
-                        f"{title}\n{summary}\n{replies_text}",
-                        num_files=num_of_snippets_to_query,
-                        branch=None,
-                        installation_id=installation_id,
-                        excluded_directories=directories_to_ignore, # handles the tree
-                    )
-        snippets = post_process_snippets(snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore)
+            repo,
+            f"{title}\n{summary}\n{replies_text}",
+            num_files=num_of_snippets_to_query,
+            branch=None,
+            installation_id=installation_id,
+            excluded_directories=directories_to_ignore,  # handles the tree
+        )
+        snippets = post_process_snippets(
+            snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
+        )
         logger.info(f"New snippets: {snippets}")
         logger.info(f"New tree: {tree}")
         if slow_mode and not use_faster_model and additional_plan is not None:
@@ -799,13 +821,27 @@ def on_ticket(
             logger.error(e)
 
         is_draft = config.get("draft", False)
-        pr = repo.create_pull(
-            title=pr_changes.title,
-            body=pr_changes.body,
-            head=pr_changes.pr_head,
-            base=SweepConfig.get_branch(repo),
-            draft=is_draft,
-        )
+        try:
+            pr = repo.create_pull(
+                title=pr_changes.title,
+                body=pr_changes.body,
+                head=pr_changes.pr_head,
+                base=SweepConfig.get_branch(repo),
+                draft=is_draft,
+            )
+        except GithubException as e:
+            if "Draft pull requests are not supported" in e.headers["message"]:
+                is_draft = False
+                pr = repo.create_pull(
+                    title=pr_changes.title,
+                    body=pr_changes.body,
+                    head=pr_changes.pr_head,
+                    base=SweepConfig.get_branch(repo),
+                    draft=is_draft,
+                )
+            else:
+                raise e
+
         # Get the branch (SweepConfig.get_branch(repo))'s sha
         sha = repo.get_branch(SweepConfig.get_branch(repo)).commit.sha
 
