@@ -185,12 +185,8 @@ class ModalEmbeddingFunction:
                 for i in range(0, len(texts), ModalEmbeddingFunction.batch_size)
             ]
             batches = [batch for batch in batches if len(batch) > 0]
-            logger.info([len(batch) for batch in batches])
-            results = []
-            for batch in tqdm(
-                Embedding.compute.map(batches)
-            ):  # pylint: disable=no-member
-                results.extend(batch)
+            for batch in tqdm(batches):
+                results.extend(Embedding.compute(batch))
 
             return results
 
