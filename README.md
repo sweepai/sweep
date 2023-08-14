@@ -40,7 +40,6 @@ Describe bugs, small features, and refactors like you would to a junior develope
 ### Why is Sweep Unique?
 
 We're not a toy project or a proof-of-concept. We're a **production devtool** used by startups including ourselves to ship features everyday, with example features [here](https://docs.sweep.dev/examples).
-
 Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the **entire flow end-to-end**. Unlike ChatGPT, Sweep is able to automatically understand and search through your code base, removing the need to tediously copy-and-paste files.
 
 <details>
