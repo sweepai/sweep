@@ -4,61 +4,67 @@ import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 
 const nonUglyCSS = {
-    color: "white",
-    background: "transparent",
-    width: "100%",
-    fontSize: 24,
-    fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+  color: "white",
+  background: "transparent",
+  width: "100%",
+  fontSize: 24,
+  fontFamily:
+    '-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
+  outline: "none",
+  border: "none",
+  "&:focus": {
     outline: "none",
-    border: "none",
-    "&:focus": {
-        outline: "none"
-    },
-    "&::placeholder": {
-        color: "white"
-    }
+  },
+  "&::placeholder": {
+    color: "white",
+  },
 };
 
 export default function App() {
   const [open, setOpen] = useState(false);
   const titleRef = useRef(null);
   const descriptionRef = useRef(null);
+  const submitRef = useRef(null);
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
-  
+
   document.onkeydown = function (e) {
     if (e.key === "Escape") {
-        handleClose();
+      handleClose();
     } else if (e.key === "Enter" && e.ctrlKey) {
+      if (!open) {
         handleOpen();
+      } else if (submitRef.current) {
+        submitRef.current.click();
+      }
     }
-};
+  };
 
   const handleSubmit = () => {
     if (!titleRef.current.value) {
-        alert("Please fill out both fields");
-        return;
+      alert("Please fill out both fields");
+      return;
     }
 
     const title = titleRef.current.value;
     const description = descriptionRef.current.value || "";
 
     const issue = {
-        title: `Sweep: ${title}`,
-        body: description,
-        labels: ["sweep"],
+      title: `Sweep: ${title}`,
+      body: description,
+      labels: ["sweep"],
     };
 
     (async () => {
-        await new Promise(r => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 1000));
 
-        // process issue
+      // process issue
 
-        const url = "https://github.com/sweepai/sweep/issues/1235";
-        window.open(url, "_blank");
-    })()
-  }
+      const url = "https://github.com/sweepai/sweep/issues/1235";
+      window.open(url, "_blank");
+    })();
+  };
 
   return (
     <ShadowDomContainer>
@@ -99,32 +105,50 @@ export default function App() {
               minWidth: 1000,
               zIndex: 9999,
             }}
-            onClick={e => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             {/* MUI kinda monkey library tbh */}
-            <input 
-                placeholder='Write an api endpoint that does ... in the ... file ("Sweep:" prefix unneeded)'
-                style={{
-                    ...nonUglyCSS,
-                    marginBottom: 12,
-                }}
-                onKeyDown={e => e.stopPropagation()}
-                ref={titleRef}
-                autoFocus
+            <input
+              placeholder='Write an api endpoint that does ... in the ... file ("Sweep:" prefix unneeded)'
+              style={{
+                ...nonUglyCSS,
+                marginBottom: 12,
+              }}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" && e.ctrlKey) || e.key === "Escape") {
+                  return;
+                }
+                e.stopPropagation();
+              }}
+              ref={titleRef}
+              autoFocus
             />
             <textarea
-                placeholder='The new endpoint should use the ... class from ... file because it contains ... logic.'
-                style={{
-                    ...nonUglyCSS,
-                    fontSize: 16,
-                    height: 300,
-                    resize: "none",
-                }}
-                ref={descriptionRef}
-                onKeyDown={e => e.stopPropagation()}
+              placeholder="The new endpoint should use the ... class from ... file because it contains ... logic."
+              style={{
+                ...nonUglyCSS,
+                fontSize: 16,
+                height: 300,
+                resize: "none",
+              }}
+              ref={descriptionRef}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" && e.ctrlKey) || e.key === "Escape") {
+                  return;
+                }
+                e.stopPropagation();
+              }}
             />
-            <Box style={{width: "100%", display: "flex", justifyContent: "right"}}>
-                <Button onClick={handleSubmit}>Submit</Button>
+            <Box
+              style={{
+                width: "100%",
+                display: "flex",
+                justifyContent: "right",
+              }}
+            >
+              <Button onClick={handleSubmit} ref={submitRef}>
+                Submit
+              </Button>
             </Box>
           </Box>
         </Box>
