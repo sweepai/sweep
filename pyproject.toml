@@ -38,6 +38,7 @@ robotexclusionrulesparser = "^1.7.1"
 deeplake = "^3.6.17"
 geopy = "^2.3.0"
 pre-commit = "^3.3.3"
+sentence_transformers = "^2.1.0"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"
