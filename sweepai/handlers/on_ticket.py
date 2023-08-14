@@ -12,6 +12,7 @@ import openai
 import asyncio
 from loguru import logger
 from tabulate import tabulate
+from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import DocumentationSearcher
 
 from sweepai.core.entities import Snippet, NoFilesException
@@ -85,14 +86,9 @@ ordinal = lambda n: str(n) + (
 )
 
 
-def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5):
-    snippets = [
-        snippet
-        for snippet in snippets
-        if not any(
-            snippet.file_path.endswith(ext) for ext in SweepConfig().exclude_exts
-        )
-    ]
+def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 5, exclude_snippets: list[str] = []):
+    snippets = [snippet for snippet in snippets if not any(snippet.file_path.endswith(ext) for ext in SweepConfig().exclude_exts)]
+    snippets = [snippet for snippet in snippets if not any(snippet.file_path == exclude_file for exclude_file in exclude_snippets)]
     for snippet in snippets[:num_full_files]:
         snippet = snippet.expand()
 
@@ -455,7 +451,7 @@ def on_ticket(
         snippets=snippets,
         tree=tree,
     )
-
+    additional_plan = None
     if slow_mode and not use_faster_model:
         slow_mode_bot = SlowModeBot()
         queries, additional_plan = slow_mode_bot.expand_plan(human_message)
@@ -470,15 +466,43 @@ def on_ticket(
         )
         snippets = post_process_snippets(snippets, max_num_of_snippets=5)
         human_message = HumanMessagePrompt(
+                repo_name=repo_name,
+                issue_url=issue_url,
+                username=username,
+                repo_description=repo_description,
+                title=title,
+                summary=message_summary + additional_plan,
+                snippets=snippets,
+                tree=tree,
+            )
+    try:
+        context_pruning = ContextPruning(chat_logger=chat_logger)
+        snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(human_message, repo=repo)
+        snippets, tree = search_snippets(
+                        repo,
+                        f"{title}\n{summary}\n{replies_text}",
+                        num_files=num_of_snippets_to_query,
+                        branch=None,
+                        installation_id=installation_id,
+                        excluded_directories=directories_to_ignore, # handles the tree
+                    )
+        snippets = post_process_snippets(snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore)
+        logger.info(f"New snippets: {snippets}")
+        logger.info(f"New tree: {tree}")
+        if slow_mode and not use_faster_model and additional_plan is not None:
+            message_summary += additional_plan
+        human_message = HumanMessagePrompt(
             repo_name=repo_name,
             issue_url=issue_url,
             username=username,
             repo_description=repo_description,
             title=title,
-            summary=message_summary + additional_plan,
+            summary=message_summary,
             snippets=snippets,
             tree=tree,
         )
+    except Exception as e:
+        logger.error(f"Failed to prune context: {e}")
 
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
