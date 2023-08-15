@@ -1,8 +1,16 @@
+import os
+import os
 import time
 import modal
-from fastapi import HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from passlib.context import CryptContext
+from pydantic import BaseModel, ValidationError
+from jose import JWTError, jwt
 from loguru import logger
-from pydantic import ValidationError
+from sweepai.core.entities import PRChangeRequest
+from jose import JWTError, jwt
+from loguru import logger
 from sweepai.core.entities import PRChangeRequest
 
 from sweepai.events import (
@@ -79,7 +87,7 @@ secrets = [
 ]
 
 # Secret key for encoding and decoding JWT tokens
-SECRET_KEY = "your-secret-key"
+SECRET_KEY = os.getenv('SECRET_KEY')
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -90,6 +98,14 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
 
 class User(BaseModel):
     username: str
