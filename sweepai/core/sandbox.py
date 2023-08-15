@@ -1,9 +1,10 @@
 import asyncio
+import traceback
 
 from e2b import Session
 from loguru import logger
 from pydantic import BaseModel
-from typing import Type, TypeVar
+from typing import Type, TypeVar, Any
 
 from sweepai.config.client import get_sandbox_config, SweepConfig
 
@@ -29,30 +30,31 @@ class Sandbox(BaseModel):
     linter_command: str = None
     image: str = "Python3"
     session: Session
+    repo: Any
 
     class Config:
         arbitrary_types_allowed = True
 
     @classmethod
-    async def from_token(cls: Type[Self], username: str, token: str, repo, config=None) -> Self | None:
+    def from_token(cls: Type[Self], username: str, token: str, repo, config=None) -> Self | None:
         config = config or get_sandbox_config(repo)
         enabled = config.get("enabled", False)
         image = config.get("image", None)
+        install_command = config.get("install", IMAGE_INSTALLATION.get(image))
         formatter = config.get("formatter", None)
         linter = config.get("linter", None)
-        install_command = config.get("install", IMAGE_INSTALLATION.get(image))
-        main_branch = config.get("branch", None) or SweepConfig.get_branch(repo)
 
         if not enabled:  # Sandbox is not enabled
             logger.info("Sandbox is not enabled")
             return None
         if image is None or install_command is None:  # No image specified
+            logger.info("No image specified")
             return None
         if formatter is None and linter is None:  # No need to create a sandbox if there is no formatter or linter
+            logger.info("No formatter or linter specified")
             return None
 
         session = Session(image)
-        await session.open()
         sandbox = cls(
             username=username,
             token=token,
@@ -60,12 +62,22 @@ class Sandbox(BaseModel):
             session=session,
             format_command=f'cd {REPO_PATH}; {formatter}',
             linter_command=f'cd {REPO_PATH}; {linter}',
+            repo=repo
         )
 
-        await sandbox.clone_repo(repo.full_name)
-        await sandbox.update_branch(main_branch)
-        await sandbox.run_command(f"cd {REPO_PATH}; {install_command}")
         return sandbox
+
+    async def start(self):
+        config = get_sandbox_config(self.repo)
+        main_branch = SweepConfig.get_branch(self.repo)
+        image = config.get("image", None)
+        install_command = config.get("install", IMAGE_INSTALLATION.get(image))
+
+        await self.session.open()
+        await self.clone_repo(self.repo.full_name)
+        await self.update_branch(main_branch)
+        await self.run_command(f"cd {REPO_PATH}; {install_command}")
+
 
     async def run_command(self, command: str):
         print("Running command:", command)
@@ -111,7 +123,8 @@ class Sandbox(BaseModel):
             await self.run_command(self.format_command.format(file=file_path))
             return await self.read_repo_file(file_path)
         except Exception as e:
-            print("Error running formatter", e)
+            print("Error running formatter: ", e, "\n")
+            print("Trace", traceback.format_exc(), "\n")
             return content
 
     async def run_linter(self):

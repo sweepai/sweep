@@ -2,6 +2,7 @@ import asyncio
 import traceback
 import re
 
+import e2b
 import modal
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
@@ -529,8 +530,8 @@ class SweepBot(CodeGenBot, GithubBot):
                             flags=re.DOTALL,
                         )
 
-
-                    changed_file = self.handle_modify_file(file_change_request, branch, sandbox=sandbox)
+                    loop = asyncio.get_event_loop()
+                    changed_file = loop.run_until_complete(self.handle_modify_file(file_change_request, branch, sandbox=sandbox))
                 else:
                     raise Exception(f"Invalid change type: {file_change_request.change_type}")
                 yield file_change_request, changed_file
@@ -570,7 +571,7 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.info(f"Error in handle_create_file: {e}")
             return False
 
-    def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str,
+    async def handle_modify_file(self, file_change_request: FileChangeRequest, branch: str,
                            commit_message: str = None, sandbox=None):
         CHUNK_SIZE = 800  # Number of lines to process at a time
         try:
@@ -630,7 +631,33 @@ class SweepBot(CodeGenBot, GithubBot):
 
             # Format the contents
             if sandbox is not None:
-                pass
+                try:
+                    loop = asyncio.get_event_loop()
+                    print("1")
+                    session = e2b.Session("Nodejs")
+                    print("2")
+                    loop.run_until_complete(session.open())
+                    print("3")
+                    p = loop.run_until_complete(session.process.start(
+                        cmd="echo DEBUG E2B TEST",
+                        on_stdout=lambda data: print(data),
+                        on_stderr=lambda data: print(data),
+                    ))
+                    print("4")
+                    loop.run_until_complete(p.finished)
+                    print("5")
+
+                    loop = asyncio.get_event_loop()
+                    print("e2b 6")
+                    new_file_contents = loop.run_until_complete(sandbox.run_formatter(file_name, new_file_contents))
+                    print("e2b 7")
+                    pass
+                except Exception as e:
+                    # print e and print traceback
+                    print(e)
+                    print("\n\n")
+                    print(traceback.format_exc())
+                    print("OOPS E2B")
                 # Todo(lukejagg): Work with E2B to get this working in Modal stub
                 # loop = asyncio.get_event_loop()
                 # new_file_contents = loop.run_until_complete(sandbox.run_formatter(file_name, new_file_contents))
