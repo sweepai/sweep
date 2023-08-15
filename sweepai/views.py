@@ -1,6 +1,10 @@
 from flask import render_template, url_for, redirect, flash, request
-from .forms import LoginForm
-from .models import Employee
+from .models import Admin, Employee
+from flask_login import login_user
+from .forms import LoginForm, EmployeeForm
+from . import db
+from .forms import LoginForm, EmployeeForm
+from . import db
 
 def login():
     form = LoginForm()
