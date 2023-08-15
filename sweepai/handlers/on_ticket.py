@@ -199,7 +199,7 @@ def on_ticket(
     use_faster_model = chat_logger.use_faster_model(g)
 
     if fast_mode:
-        use_faster_model = False
+        use_faster_model = True
 
     organization, repo_name = repo_full_name.split("/")
     metadata = {
