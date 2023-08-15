@@ -3,6 +3,7 @@ import traceback
 import openai
 from loguru import logger
 from typing import Any
+from tabulate import tabulate
 
 
 def construct_metadata(
@@ -286,6 +287,31 @@ def on_comment(
             file_change_requests = sweep_bot.validate_file_change_requests(
                 file_change_requests, branch=branch_name
             )
+
+            sweep_response = ""
+            if len(file_change_requests) == 0:
+                sweep_response = "I couldn't find any relevant files to change."
+            else:
+                table_message = tabulate(
+                    [
+                        [
+                            f"`{file_change_request.filename}`",
+                            file_change_request.instructions_display.replace(
+                                "\n", "<br/>"
+                            ).replace("```", "\\```"),
+                        ]
+                        for file_change_request in file_change_requests
+                    ],
+                    headers=["File Path", "Proposed Changes"],
+                    tablefmt="pipe",
+                )
+                sweep_response = (
+                    f"I decided to make the following changes:\n\n{table_message}"
+                )
+            quoted_comment = "> " + comment.replace("\n", "\n> ")
+            response_for_user = f"{quoted_comment}\nHi @{username},\n\n{sweep_response}"
+            if pr_number:
+                pr.create_issue_comment(response_for_user)
         logger.info("Making Code Changes...")
         list(
             sweep_bot.change_files_in_github_iterator(file_change_requests, branch_name)
