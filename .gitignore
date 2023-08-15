@@ -166,6 +166,6 @@ tree-sitter-*
 poetry.lock
 tests/data
 scraped_docs
+.parcel-cache
 node_modules
-extension/.parcel_cache
-extension
+tests/js_tests
