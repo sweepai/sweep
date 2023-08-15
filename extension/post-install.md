@@ -6,4 +6,4 @@ Here's how to get started
 2. Click the purple "Make Sweep issue" button (or `ctrl-enter`).
 3. Write the issue title and description and click the submit button (or `ctrl-enter`).
 
-![](Sweep\ Extension\ Demo\ Video.gif)
+![](sweep_extension_demo_video.gif)
