@@ -4,7 +4,7 @@
   "description": "",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "parcel build src/content.tsx --no-source-maps --dist-dir build",
+    "build": "npx parcel build src/manifest.json --dist-dir build",
     "dev": "parcel watch src/content.tsx --no-source-maps --dist-dir build"
   },
   "keywords": [],

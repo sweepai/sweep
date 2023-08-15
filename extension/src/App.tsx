@@ -90,7 +90,7 @@ export default function App() {
     const issue = {
       title: title,
       body: description,
-      repo: "kevinlu1248/sweep-landing-page",
+      repo: /github\.com\/(?<repo_full_name>[^\/]*\/[^\/]*)/.exec(window.location.href)!["groups"]!["repo_full_name"],
     };
 
     (async () => {
@@ -99,11 +99,10 @@ export default function App() {
           type: "createIssue",
           issue,
         })
-        const object = await response.json();
-        console.log(object)
 
-        const url = "https://github.com/sweepai/sweep/issues/1235";
-        window.open(url, "_blank");
+        if (!response["success"]) {
+          alert("Something went wrong.")
+        }
       } catch (error) {
         alert("Error creating issue " + error);
       }
