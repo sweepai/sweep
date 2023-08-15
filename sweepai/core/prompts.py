@@ -5,48 +5,75 @@ List of common prompts used across the codebase.
 # Following two should be fused
 system_message_prompt = "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right."
 
-repo_description_prefix_prompt = "This is the repository description provided by the user. Keep this in mind:"
+repo_description_prefix_prompt = " This is a description of the repository:"
 
 human_message_prompt = [
-{'role': 'assistant', 'content': 'Examining repo...'},
-{'role': 'user', 'content': """<relevant_snippets_in_repo>
+    {"role": "assistant", "content": "Examining repo..."},
+    {
+        "role": "user",
+        "content": """<relevant_snippets_in_repo>
 {relevant_snippets}
-</relevant_snippets_in_repo>""", 'key': 'relevant_snippets'},
-{'role': 'user', 'content': """<relevant_paths_in_repo>
+</relevant_snippets_in_repo>""",
+        "key": "relevant_snippets",
+    },
+    {
+        "role": "user",
+        "content": """<relevant_paths_in_repo>
 {relevant_directories}
-</relevant_paths_in_repo>""", 'key': 'relevant_directories'},
-{'role': 'user', 'content': """<repo_tree>
+</relevant_paths_in_repo>""",
+        "key": "relevant_directories",
+    },
+    {
+        "role": "user",
+        "content": """<repo_tree>
 {tree}
-</repo_tree>""", 'key': 'relevant_tree'},
-{'role': 'user', 'content':
-"""# Repo & Issue Metadata
+</repo_tree>""",
+        "key": "relevant_tree",
+    },
+    {
+        "role": "user",
+        "content": """# Repo & Issue Metadata
 Repo: {repo_name}: {repo_description}
 Issue Url: {issue_url}
 Username: {username}
 Issue Title: {title}
-Issue Description: {description}"""}]
+Issue Description: {description}""",
+    },
+]
 
 human_message_review_prompt = [
-{'role': 'assistant', 'content': 'Reviewing my pull request...'},
-{'role': 'user', 'content': """<relevant_snippets_in_repo>
+    {"role": "assistant", "content": "Reviewing my pull request..."},
+    {
+        "role": "user",
+        "content": """<relevant_snippets_in_repo>
 {relevant_snippets}
-</relevant_snippets_in_repo>"""},
-{'role': 'user', 'content': """<relevant_paths_in_repo>
+</relevant_snippets_in_repo>""",
+    },
+    {
+        "role": "user",
+        "content": """<relevant_paths_in_repo>
 {relevant_directories}
-</relevant_paths_in_repo>"""},
-{'role': 'user', 'content': """"<repo_tree>
+</relevant_paths_in_repo>""",
+    },
+    {
+        "role": "user",
+        "content": """"<repo_tree>
 {tree}
-</repo_tree>"""},
-{'role': 'user', 'content':
-"""These are the file changes.
+</repo_tree>""",
+    },
+    {
+        "role": "user",
+        "content": """These are the file changes.
 We have the file_path, and the diffs.
 The file_path is the name of the file.
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
-{diffs}"""}]
+{diffs}""",
+    },
+]
 
 snippet_replacement = """
-In order to address this issue, what required information do you need about the snippets? Only include relevant code that provides you enough detail about the snippets for the problems: 
+In order to address this issue, what required information do you need about the snippets? Only include relevant code that provides you enough detail about the snippets for the problems:
 "{thoughts}"
 
 <contextual_thoughts>
@@ -79,9 +106,9 @@ The code was written by an inexperienced programmer and may contain
 * Logic errors (missing imports)
 * Syntax errors (wrong indents)
 * Unimplemented sections (such as "pass", "...", "# rest of code here")
-* Other issues. 
+* Other issues.
 
-Be sure to indicate any of these errors. Do not include formatting errors like missing ending newlines. Ensure that the code actually reflects the pull request summary and every function and class is fully implemented. 
+Be sure to indicate any of these errors. Do not include formatting errors like missing ending newlines. Ensure that the code actually reflects the pull request summary and every function and class is fully implemented.
 
 Think step-by-step to summarize and indicate potential errors. Respond in the following format:
 
@@ -139,35 +166,50 @@ issue_comment_prompt = """
 
 # Prompt for comments
 human_message_prompt_comment = [
-{'role': 'assistant', 'content': 'Reviewing my pull request...'},
-{'role': 'user', 'content':
-"""<relevant_snippets_in_repo>
+    {"role": "assistant", "content": "Reviewing my pull request..."},
+    {
+        "role": "user",
+        "content": """<relevant_snippets_in_repo>
 {relevant_snippets}
-</relevant_snippets_in_repo>"""},
-{'role': 'user', 'content': """<relevant_paths_in_repo>
+</relevant_snippets_in_repo>""",
+    },
+    {
+        "role": "user",
+        "content": """<relevant_paths_in_repo>
 {relevant_directories}
-</relevant_paths_in_repo>"""},
-{'role': 'user', 'content': """<repo_tree>
+</relevant_paths_in_repo>""",
+    },
+    {
+        "role": "user",
+        "content": """<repo_tree>
 {tree}
-</repo_tree>"""},
-{'role': 'user', 'content':
-"""# Repo, Issue, & PR Metadata
+</repo_tree>""",
+    },
+    {
+        "role": "user",
+        "content": """# Repo, Issue, & PR Metadata
 Repo: {repo_name}: {repo_description}
 Issue Url: {issue_url}
 Username: {username}
 Pull Request Title: {title}
-Pull Request Description: {description}"""},
-{'role': 'user', 'content':
-"""These are the file changes.
+Pull Request Description: {description}""",
+    },
+    {
+        "role": "user",
+        "content": """These are the file changes.
 We have the file_path and the diffs.
 The file_path is the name of the file.
 The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
 Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
-{diff}"""},
-{'role': 'user', 'content':
-"""Please handle the user review comment, taking into account the snippets, paths, tree, pull request title, pull request description, and the file changes.
+{diff}""",
+    },
+    {
+        "role": "user",
+        "content": """Please handle the user review comment, taking into account the snippets, paths, tree, pull request title, pull request description, and the file changes.
 Sometimes the user may not request changes, don't change anything in that case.
-User pull request review: "{comment}" """}]
+User pull request review: "{comment}" """,
+    },
+]
 
 comment_line_prompt = """\
 The user made the review in this file: {pr_file_path}
@@ -183,42 +225,67 @@ files_to_change_abstract_prompt = """Write an abstract minimum plan to address t
 files_to_change_prompt = """
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
 Then, provide a list of files you would like to modify, abiding by the following:
+* You may only create, modify, delete and rename files
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
 * Prefer modifying existing files over creating new files
 * Only modify or create files that definitely need to be touched
 * Use detailed, natural language instructions on what to modify, with reference to variable names
 * Be concrete with instructions and do not write "check for x" or "look for y". Simply write "add x" or "change y to z".
-* There MUST be both create_file and modify_file XML tags
-* The list of files to create or modify may be empty, but you MUST leave the XML tags with a single list element with "* None"
 * Create/modify up to 5 FILES
 * Do not modify non-text files such as images, svgs, binary, etc
 
-You MUST follow the following format with final output in XML tags:
+You MUST follow the following format with the final output in XML tags:
 
 Root cause:
 Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph.
 
-Step-by-step thoughts with explanations: 
+Step-by-step thoughts with explanations:
 * Thought 1
 * Thought 2
 ...
 
-<modify_file>
-* filename_1: instructions_1
-* filename_2: instructions_2
+<plan>
+<create file="file_path_1">
+* Instruction 1 for file_path_1
+* Instruction 2 for file_path_1
 ...
-</modify_file>
+</create>
 
-<create_file>
-* filename_3: instructions_3
-* filename_4: instructions_4
+<create file="file_path_2">
+* Instruction 1 for file_path_2
+* Instruction 2 for file_path_2
 ...
-</create_file>
+</create>
+
+...
+
+<modify file="file_path_3">
+* Instruction 1 for file_path_3
+* Instruction 2 for file_path_3
+...
+</modify>
+
+<modify file="file_path_4">
+* Instruction 1 for file_path_4
+* Instruction 2 for file_path_4
+...
+</modify>
+
+...
+
+<delete file="file_path_5"></delete>
+
+...
+
+<rename file="file_path_6">new full path for file path 6</rename>
+
+...
+</plan>
 """
 
 reply_prompt = """
 Write a 1-paragraph response to this user:
-* Tell them you have started working on this PR and a rough summary of your plan. 
+* Tell them you have started working on this PR and a rough summary of your plan.
 * Do not start with "Here is a draft", just write the response.
 * Use github markdown to format the response.
 """
@@ -238,7 +305,7 @@ instructions = "{instructions}"
 
 Reply in the following format:
 
-Step-by-step thoughts with explanations: 
+Step-by-step thoughts with explanations:
 * Thought 1
 * Thought 2
 ...
@@ -256,7 +323,7 @@ Commit message: "the commit message"
 """
 
 """
-Reply in the format below. 
+Reply in the format below.
 * You MUST use the new_file XML tags
 * DO NOT write ``` anywhere, unless it's markdown
 * DO NOT write "pass" or "Rest of code"
@@ -270,7 +337,9 @@ Any lines that you do not see will be handled, so trust that the imports are man
 If you see code that should be modified, please modify it. The changes may not need to be in this chunk, in that case just copy and return the code as is.
 """
 
-modify_file_hallucination_prompt = [{'content': """File Name: (non-existent example)
+modify_file_hallucination_prompt = [
+    {
+        "content": """File Name: (non-existent example)
 <old_file>
 example = True
 if example:
@@ -280,13 +349,13 @@ if example:
 
 def func():
     a = 3
-    
+
 </old_file>
 
 ---
 
 Code Planning:
-Step-by-step thoughts with explanations: 
+Step-by-step thoughts with explanations:
 * Thought 1
 * Thought 2
 ...
@@ -318,8 +387,12 @@ Request: "Change hello to goodbye and change 3 to 4". Limit your changes to the 
 
 Instructions:
 1. Complete the Code Planning step
-2. Complete the Code Generation step""", 'role': 'user', 'key': 'modify_file_hallucination'},
-{'content': """Code Planning:
+2. Complete the Code Generation step""",
+        "role": "user",
+        "key": "modify_file_hallucination",
+    },
+    {
+        "content": """Code Planning:
 Step-by-step thoughts with explanations:
 * We need to print "goodbye" instead of "hello".
 * We need to update the value of the variable a from 3 to 4.
@@ -343,16 +416,20 @@ Code Generation:
 <<<< ORIGINAL
 def func():
     a = 3
-    
+
 ====
 def func():
     a = 4
-    
+
 >>>> UPDATED
 ```
 
 Commit message: "Changed goodbye to hello and 3 to 4"\
-""", 'role': 'assistant', 'key': 'modify_file_hallucination'}]
+""",
+        "role": "assistant",
+        "key": "modify_file_hallucination",
+    },
+]
 
 # TODO: IMPORTANT: THIS DEPENDS ON THE ABOVE PROMPT, modify_file_hallucination_prompt
 modify_file_prompt_3 = """
@@ -381,12 +458,12 @@ File Name: {filename}
 
 ---
 
-Request: "{instructions}". 
+Request: "{instructions}".
 
 This file was edited previously by an inexperienced programmer to complete the users request. First, identify if the request has been completed and there are no any unimplemented or missing classes or functions. Then, identify any errors, other issues. Finally address them by suggesting changes.
 
 Code Planning:
-Step-by-step thoughts with explanations: 
+Step-by-step thoughts with explanations:
 * Thought 1
 * Thought 2
 ...
@@ -420,8 +497,8 @@ Instructions:
 
 pr_code_prompt = ""  # TODO: deprecate this
 
-pull_request_prompt = """Now, create a PR for your changes. Be concise but cover all of the changes that were made. 
-For the pr_content, add two sections, description and summary. 
+pull_request_prompt = """Now, create a PR for your changes. Be concise but cover all of the changes that were made.
+For the pr_content, add two sections, description and summary.
 Use GitHub markdown in the following format:
 
 pr_title = "..."
@@ -442,8 +519,8 @@ Code Instructions:
 """
 
 assistant_file_change_summarize_prompt = """
-Please summarize the following file using the file stubs. 
-Be sure to repeat each method signature and docstring. You may also add additional comments to the docstring. 
+Please summarize the following file using the file stubs.
+Be sure to repeat each method signature and docstring. You may also add additional comments to the docstring.
 Do not repeat the code in the file stubs.
 Code Changes:
 {message_content}
@@ -470,7 +547,7 @@ Gather information (i.e. fetch more snippets) to solve the problem. Use "create_
 
 code_repair_check_system_prompt = """\
 You are a genius trained for validating code.
-You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product. 
+You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product.
 Our goal is to validate if the final code is valid. This means there's undefined variables, no syntax errors, has no unimplemented functions (e.g. pass's, comments saying "rest of code") and the code runs.
 """
 
@@ -498,7 +575,7 @@ Step-by-step thoughts with explanations:
 
 code_repair_system_prompt = """\
 You are a genius trained for code stitching.
-You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product. The intention was to implement a change described as {feature}. 
+You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product. The intention was to implement a change described as {feature}.
 Our goal is to return a working version of user_code that follows {feature}. We should follow the instructions and make as few edits as possible.
 """
 
@@ -576,7 +653,7 @@ Here is the code snippet from the file:
 {code_snippet}
 
 To determine whether the instructions are referring to this section of the file, respond in the following format:
-1. Step-by-step thoughts with explanations: 
+1. Step-by-step thoughts with explanations:
 * Thought 1 - Explanation 1
 * Thought 2 - Explanation 2
 ...
@@ -600,7 +677,7 @@ Then add more instructions that build on the user's instructions. These instruct
 
 You MUST follow the following format delimited with XML tags:
 
-Step-by-step thoughts with explanations: 
+Step-by-step thoughts with explanations:
 * Thought 1 - Explanation 1
 * Thought 2 - Explanation 2
 ...
@@ -632,67 +709,44 @@ The user is attempting to solve the following problem:
 Provide a summary of the page relevant to the problem, including all code snippets.
 """
 
-issue_description_rewrite_system_prompt = """\
-You are a brilliant support engineer assigned to the following Github issue. It is very important that you get this right.
-"""
+pruning_prompt = """\
+The above text may have too much unnecessary information, particularly in the <repo_tree> and the <relevant_paths_in_repo>.
+The snippets, relevant_paths_in_repo and repo_tree are 1:1. All files in the snippets expose parts of the repo tree, so adding or removing snippets will show more or less of the tree.
+The unnecessary information will hurt your performance on this task, so we will prune relevant_paths_in_repo and repo_tree to keep only the absolutely necessary information.
+First, list all of the files and directories we should keep in do_not_remove. These files and directories will be kept.
+For relevant_paths_in_repo, list any irrelevant paths in irrelevant_paths_in_repo and they will be removed.
+For repo_tree, list additional files or directories we don't need in irrelevant_repo_tree_paths. If you list a directory, you do not need to list its subdirectories or files in its subdirectories.
+Do not remove files or directories that are referenced in the issue title or descriptions.
 
-issue_description_rewrite_prompt = """\
-<original_title>
-{original_title}
-</original_title>
-<original_description>
-{original_description}
-</original_description>
-The above is a GitHub issue title and description. Assume that the writer of the issue wants a code change to be made.
-1. Rewrite the issue while maintaining the original purpose and retaining any valuable elements as you convert the text into a confident and commanding tone.
-2. You should rewrite the issue as if you are assigning this issue to someone else.
-3. Do not repeat yourself in the new issue description. 
-4. If file names are mentioned, keep the entire path as it's critical for handling the issue.
-5. Sometimes issue templates will be left empty. In this case it will say _No response_ or _No description provided_. Remove these and the associated headers.
-
-You MUST follow the following format delimited with XML tags:
+Reply in the following format:
 
 Step-by-step thoughts with explanations: 
-* Thought 1 - Explanation 1
-* Thought 2 - Explanation 2
+* Thought 1
+* Thought 2
 ...
-<issue_title>
-A clear issue title.
-</issue_title>
-<issue_description>
-A detailed issue description.
-More details ...
-</issue_description>
-"""
 
-issue_description_rewrite_comments_prompt = """\
-<original_title>
-{original_title}
-</original_title>
-<original_description>
-{original_description}
-</original_description>
-The above is a GitHub issue title and description. Assume that the writer of the issue wants a code change to be made.
-1. Rewrite the issue while maintaining the original purpose and retaining any valuable elements as you convert the text into a confident and commanding tone.
-2. You should rewrite the issue as if you are assigning this issue to someone else.
-3. Do not repeat yourself in the new issue description. 
-4. If file names are mentioned, keep the entire path as it's critical for handling the issue.
-5. There may be discussion between different users prefaced with "Comment: ". If those are irrelevant please remove them entirely.
-6. Sometimes issue templates will be left empty. In this case it will say _No response_ or _No description provided_. Remove these and the associated headers.
-
-You MUST follow the following format delimited with XML tags:
-
-Step-by-step thoughts with explanations: 
-* Thought 1 - Explanation 1
-* Thought 2 - Explanation 2
+Plan to address the issue:
+* Addition 1
+* Addition 2
 ...
-<issue_title>
-A clear issue title.
-</issue_title>
-<issue_description>
-A detailed issue description.
-More details ...
-</issue_description>
+
+<do_not_remove>
+* file or directory to keep 1
+* file or directory to keep 2
+...
+</do_not_remove>
+
+<irrelevant_paths_in_repo>
+* path to irrelevant snippet 1
+* path to irrelevant snippet 2
+...
+</irrelevant_paths_in_repo>
+
+<irrelevant_repo_tree_paths>
+* irrelevant repo tree path 1
+* irrelevant repo tree path 2
+...
+</irrelevant_repo_tree_paths>
 """
 
 docs_qa_system_prompt = """You are an expert at summarizing documentation for programming-related to help the user solve the problem. You will be given a question and relevant snippets of documentation, and be asked to provide a summary of relevant snippets for solving the problem."""

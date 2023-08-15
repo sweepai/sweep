@@ -11,9 +11,9 @@
 </a>
 <a href="https://docs.sweep.dev/">
     <img alt="Docs" src="https://img.shields.io/badge/Docs-docs.sweep.dev-blue?link=https%3A%2F%2Fdocs.sweep.dev">
-</a> 
-<a href="https://discord.gg/sweep-ai">
-    <img src="https://dcbadge.vercel.app/api/server/sweep-ai?style=flat" />
+</a>
+<a href="https://discord.gg/sweep">
+    <img src="https://dcbadge.vercel.app/api/server/sweep?style=flat" />
 </a>
 <a href="https://github.com/sweepai/sweep">
     <img src="https://img.shields.io/github/stars/sweepai/sweep" />
@@ -26,21 +26,21 @@
 <b>Sweep</b> is an AI junior developer that transforms bug reports & feature requests into code changes.
 
 Describe bugs, small features, and refactors like you would to a junior developer, and Sweep:
-1. 🔍 reads your codebase
-2. 📝 plans the changes
-3. ⚡**writes a pull request with code**⚡
+1. Reads your codebase
+2. Plans the changes
+3. **Writes a pull request with code** ⚡
 
-### Features 🌠
+### Features
 
-* 🌠 Turns issues directly into pull requests (without an IDE)
-* 👀 Addresses developer replies & comments on its PRs
-* 🔎 Uses embedding-based code search
+* Turns issues directly into pull requests (without an IDE)
+* Addresses developer replies & comments on its PRs
+* Uses embedding-based code & online document search
+* Validates its changes with GitHub Actions and self-review
 
-### Why Sweep is Unique 🦄
+### Why Choose Sweep?
 
 We're not a toy project or a proof-of-concept. We're a **production devtool** used by startups including ourselves to ship features everyday, with example features [here](https://docs.sweep.dev/examples).
-
-Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the entire **flow end-to-end**. Unlike ChatGPT, Sweep does not require copy-pasting files.
+Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the **entire flow end-to-end**. Unlike ChatGPT, Sweep is able to automatically understand and search through your code base, removing the need to tediously copy-and-paste files.
 
 <details>
     <summary>
@@ -62,9 +62,9 @@ Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the 
 
 ## Getting Started 🚀
 
-Install Sweep by adding the [**Sweep GitHub app**](https://github.com/apps/sweep-ai) to your desired repositories.
+Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep-ai) to your desired repositories.
 
-* For more details, visit our [✨ Installation](docs/installation.md) page.
+* For more details, visit our [Installation](docs/installation.md) page.
 
 * Note: Sweep only considers issues with the "Sweep:" title on creation and not on update. If you want Sweep to pick up an issue after it has been created, you can add the "Sweep" label to the issue.
 
@@ -72,38 +72,39 @@ Install Sweep by adding the [**Sweep GitHub app**](https://github.com/apps/sweep
 
 ## Limitations of Sweep ⚠️
 
-* 🏗️ **Large-scale refactors**: >3 files or >150 lines of code changes (we're working on this!)
-    * e.g. Refactor the entire codebase from Tensorflow to PyTorch
+* **Large-scale refactors**: >3 files or >150 lines of code changes (we're working on this!)
+    * e.g. Refactor the entire codebase from TensorFlow to PyTorch
 
-* 🖼️ **Editing images** and other non-text assets
+* **Editing images** and other non-text assets
     * e.g. Use the logo to create favicons for our landing page
 
-* ⤵️ **Accessing external APIs**, including fetching API tokens
+* **Performing actions involving a dashboard**, including fetching API tokens
     * e.g. Set up sign-in using Ethereum
 
 ---
 
-## Story 📘
+## Story
 
 We were frustrated by small tickets, like simple bug fixes, annoying refactors, and small features. Each task required us to open our IDE to fix simple bugs. So we decided to leverage the capabilities of ChatGPT to address this directly in GitHub.
 
 Unlike existing AI solutions, this can solve entire tickets and can be parallelized + asynchronous: developers can spin up 10 tickets and Sweep will address them all at once.
 
-## The Stack 📚
-- GPT-4 32k 0613
-- ActiveLoop DeepLake for Vector DB with MiniLM L12 as our embeddings model
+## The Stack
+- **GPT-4 32k** & GPT-3.5 16k
+- GTE-base embedding model
+- ActiveLoop DeepLake Vector DB
 - Modal Labs for infra + deployment
 
 ## Highlights 🌟
 Examine pull requests created by Sweep [here](https://docs.sweep.dev/examples).
 
 ## Pricing
-We offer unlimited GPT-3.5 tickets to every user. Every user also starts with 5 GPT-4 issues a month, and you'll be able to use 2 GPT-4 issues a day.
+Every user receives unlimited GPT-3.5 tickets and 5 GPT-4 tickets per month. To prevent abuse, users can use 2 GPT-4 tickets a day.
 
 For professionals who want more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month. In addition, we're also offering 15 PRs for $60 as a one-time purchase for anyone interested in eventually purchasing Sweep Pro. You can purchase this [here](https://buy.stripe.com/7sI4jlaCR3PaabebIP).
 
-## Roadmap 🗺
-See [🗺️ Roadmap](https://docs.sweep.dev/roadmap)
+## Roadmap
+We plan on rapidly improving Sweep. To see what we're working on, check out our [Roadmap](https://docs.sweep.dev/roadmap).
 
 ---
 

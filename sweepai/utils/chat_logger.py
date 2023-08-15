@@ -17,90 +17,118 @@ class ChatLogger(BaseModel):
     ticket_collection: Any = None
     expiration: datetime = None
     index: int = 0
-    current_date: str = Field(default_factory=lambda: datetime.utcnow().strftime('%m/%Y/%d'))
-    current_month: str = Field(default_factory=lambda: datetime.utcnow().strftime('%m/%Y'))
+    current_date: str = Field(
+        default_factory=lambda: datetime.utcnow().strftime("%m/%Y/%d")
+    )
+    current_month: str = Field(
+        default_factory=lambda: datetime.utcnow().strftime("%m/%Y")
+    )
 
     def __init__(self, data: dict = Field(default_factory=dict)):
         super().__init__(data=data)  # Call the BaseModel's __init__ method
         key = MONGODB_URI
         if key is None:
-            logger.warning('Chat history logger has no key')
+            logger.warning("Chat history logger has no key")
             return
         try:
-            client = MongoClient(key, serverSelectionTimeoutMS=5000, socketTimeoutMS=5000)
-            db = client['llm']
-            self.chat_collection = db['chat_history']
-            self.ticket_collection = db['tickets']
-            self.ticket_collection.create_index('username')
-            self.chat_collection.create_index('expiration', expireAfterSeconds=2419200)  # 28 days data persistence
-            self.expiration = datetime.utcnow() + timedelta(days=1)  # 1 day since historical use case
+            client = MongoClient(
+                key, serverSelectionTimeoutMS=5000, socketTimeoutMS=5000
+            )
+            db = client["llm"]
+            self.chat_collection = db["chat_history"]
+            self.ticket_collection = db["tickets"]
+            self.ticket_collection.create_index("username")
+            self.chat_collection.create_index(
+                "expiration", expireAfterSeconds=2419200
+            )  # 28 days data persistence
+            self.expiration = datetime.utcnow() + timedelta(
+                days=1
+            )  # 1 day since historical use case
         except Exception as e:
-            logger.warning('Chat history could not connect to MongoDB')
+            logger.warning("Chat history could not connect to MongoDB")
             logger.warning(e)
 
     def get_chat_history(self, filters):
-        return self.chat_collection.find(filters) \
-            .sort([('expiration', 1), ('index', 1)]) \
+        return (
+            self.chat_collection.find(filters)
+            .sort([("expiration", 1), ("index", 1)])
             .limit(2000)
+        )
 
     def add_chat(self, additional_data):
         if self.chat_collection is None:
-            logger.error('Chat collection is not initialized')
+            logger.error("Chat collection is not initialized")
             return
-        document = {**self.data, **additional_data, 'expiration': self.expiration, 'index': self.index}
+        document = {
+            **self.data,
+            **additional_data,
+            "expiration": self.expiration,
+            "index": self.index,
+        }
         self.index += 1
         self.chat_collection.insert_one(document)
 
-    def add_successful_ticket(self):
+    def add_successful_ticket(self, gpt3=False):
         if self.ticket_collection is None:
-            logger.error('Ticket Collection Does Not Exist')
+            logger.error("Ticket Collection Does Not Exist")
             return
-        username = self.data['username']
-        self.ticket_collection.update_one(
-            {'username': username},
-            {'$inc': {self.current_month: 1, self.current_date: 1}},
-            upsert=True
-        )
-        logger.info(f'Added Successful Ticket for {username}')
+        username = self.data["username"]
+        if gpt3:
+            key = f"{self.current_month}_gpt3"
+            self.ticket_collection.update_one(
+                {"username": username},
+                {"$inc": {key: 1}},
+                upsert=True,
+            )
+        else:
+            self.ticket_collection.update_one(
+                {"username": username},
+                {"$inc": {self.current_month: 1, self.current_date: 1}},
+                upsert=True,
+            )
+        logger.info(f"Added Successful Ticket for {username}")
 
-    def get_ticket_count(self, use_date=False):
+    def get_ticket_count(self, use_date=False, gpt3=False):
+        # gpt3 overrides use_date
         if self.ticket_collection is None:
-            logger.error('Ticket Collection Does Not Exist')
+            logger.error("Ticket Collection Does Not Exist")
             return 0
-        username = self.data['username']
+        username = self.data["username"]
         tracking_date = self.current_date if use_date else self.current_month
-        result = self.ticket_collection.aggregate([
-            {'$match': {'username': username}},
-            {'$project': {
-                tracking_date: 1, 
-                '_id': 0
-            }}
-        ])
+        if gpt3:
+            tracking_date = f"{self.current_month}_gpt3"
+        result = self.ticket_collection.aggregate(
+            [
+                {"$match": {"username": username}},
+                {"$project": {tracking_date: 1, "_id": 0}},
+            ]
+        )
         result_list = list(result)
-        ticket_count = result_list[0].get(tracking_date, 0) if len(result_list) > 0 else 0
-        logger.info(f'Ticket Count for {username} {ticket_count}')
+        ticket_count = (
+            result_list[0].get(tracking_date, 0) if len(result_list) > 0 else 0
+        )
+        logger.info(f"Ticket Count for {username} {ticket_count}")
         return ticket_count
 
     def is_paying_user(self):
         if self.ticket_collection is None:
-            logger.error('Ticket Collection Does Not Exist')
+            logger.error("Ticket Collection Does Not Exist")
             return False
-        username = self.data['username']
-        result = self.ticket_collection.find_one({'username': username})
-        return result.get('is_paying_user', False) if result else False
+        username = self.data["username"]
+        result = self.ticket_collection.find_one({"username": username})
+        return result.get("is_paying_user", False) if result else False
 
     def is_trial_user(self):
         if self.ticket_collection is None:
-            logger.error('Ticket Collection Does Not Exist')
+            logger.error("Ticket Collection Does Not Exist")
             return False
-        username = self.data['username']
-        result = self.ticket_collection.find_one({'username': username})
-        return result.get('is_trial_user', False) if result else False
-
+        username = self.data["username"]
+        result = self.ticket_collection.find_one({"username": username})
+        return result.get("is_trial_user", False) if result else False
 
     def use_faster_model(self, g):
         if self.ticket_collection is None:
-            logger.error('Ticket Collection Does Not Exist')
+            logger.error("Ticket Collection Does Not Exist")
             return True
         if self.is_paying_user():
             return self.get_ticket_count() >= 120
@@ -108,8 +136,10 @@ class ChatLogger(BaseModel):
             return self.get_ticket_count() >= 15
 
         try:
-            loc_user = g.get_user(self.data['username']).location
-            loc = Nominatim(user_agent="location_checker").geocode(loc_user, exactly_one=True)
+            loc_user = g.get_user(self.data["username"]).location
+            loc = Nominatim(user_agent="location_checker").geocode(
+                loc_user, exactly_one=True
+            )
             g = False
             for c in SUPPORT_COUNTRY:
                 if c.lower() in loc.raw.get("display_name").lower():
@@ -117,7 +147,10 @@ class ChatLogger(BaseModel):
                     break
             if not g:
                 print("G EXCEPTION", loc_user)
-                return self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) >= 1
+                return (
+                    self.get_ticket_count() >= 5
+                    or self.get_ticket_count(use_date=True) >= 1
+                )
         except:
             pass
 
@@ -128,10 +161,10 @@ class ChatLogger(BaseModel):
 def discord_log_error(content):
     try:
         url = DISCORD_WEBHOOK_URL
-        data = {'content': content}
-        headers = {'Content-Type': 'application/json'}
+        data = {"content": content}
+        headers = {"Content-Type": "application/json"}
         response = requests.post(url, data=json.dumps(data), headers=headers)
         # Success: response.status_code == 204:
     except Exception as e:
-        logger.error(f'Could not log to Discord: {e}')
+        logger.error(f"Could not log to Discord: {e}")
         pass

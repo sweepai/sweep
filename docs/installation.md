@@ -6,7 +6,8 @@ If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?
 
 ## Create an issue on your own repository
 The issue title should start with `Sweep: ` For issues and PRs, call Sweep using the Sweep label or by prefixing your text with `Sweep: `
-- **Sweep works best with real repositories and real issues.**
+
+💡 **Sweep works best with real repositories and real issues.**
 
 
 <table>
@@ -48,10 +49,6 @@ Sweep will mess up sometimes. Comment on it's PR. (ex: "use PyTorch instead of T
 * 🏗️ **Large-scale refactors**: >3 files or >150 lines of code changes (we're working on this!)
     * We can't do this - "Refactor entire codebase from Tensorflow to PyTorch"
 
-* ⏲️ **Using the latest APIs** that have changed past 2022
-    * We can't do this - "Set up a vector store using LlamaIndex Typescript"
-    * 🎩 However if you provide the relevant docs as links/text, then Sweep will read them and make the changes.
-
 * 🖼️ **Editing images** and other non-text assets
     * We can't do this - "Use the logo to create favicons for our landing page"
 
@@ -79,4 +76,4 @@ Note - you need to have Sweep installed and [Issues enabled in Repo](https://doc
 
 # Bug Reports
 
-If Sweep fails to solve your issue that is within the scope of Sweep (see Limitations) and you submit a high-quality bug report at our [Discord](https://discord.gg/sweep-ai), we will reset your ticket count, giving your GPT-4 tickets back. This is only for GPT4 PRs.
+If Sweep fails to solve your issue that is within the scope of Sweep (see Limitations) and you submit a high-quality bug report at our [Discord](https://discord.gg/sweep), we will reset your ticket count, giving your GPT-4 tickets back. This is only for GPT4 PRs.

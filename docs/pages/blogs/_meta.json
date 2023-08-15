@@ -1,4 +1,5 @@
 {
+    "chunking-improvements": "📈 Improving LlamaIndex’s Code Chunker by Cleaning Tree-Sitter CSTs",
     "reading-docs": "🎓 How our AI junior dev reads all of your documentation",
     "sweeps-core-algo": "🧹 Sweep's Core Algorithm",
     "generating-50k-embeddings-with-gte": "⚙\uFE0F Generating 50k+ embeddings in 25 seconds using GTE 🧠 and MapReduce 💻",

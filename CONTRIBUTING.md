@@ -31,4 +31,3 @@ Please ensure your code adheres to the coding standards used throughout the proj
 ## Community
 
 Please be respectful and considerate of others. We're all here to learn and grow, so constructive, respectful communication is encouraged.
-

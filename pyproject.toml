@@ -9,7 +9,7 @@ readme = "README.md"
 
 [tool.poetry.urls]
 Repository = "https://github.com/sweepai/sweep"
-"Community" = "https://discord.gg/sweep-ai"
+"Community" = "https://discord.gg/sweep"
 Documentation = "https://docs.sweep.dev"
 Homepage = "https://sweep.dev"
 "Bug Tracker" = "https://github.com/sweepai/sweep/issues"
@@ -36,6 +36,7 @@ playwright = "^1.30.0"
 robotexclusionrulesparser = "^1.7.1"
 deeplake = "^3.6.17"
 geopy = "^2.3.0"
+pre-commit = "^3.3.3"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"
