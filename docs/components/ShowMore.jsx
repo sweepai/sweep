@@ -22,8 +22,8 @@ export function ShowMore({ children }) {
 
     return (
         <div>
-            <div 
-                style={contentStyle} 
+            <div
+                style={contentStyle}
                 ref={contentRef}
             >
                 {children}

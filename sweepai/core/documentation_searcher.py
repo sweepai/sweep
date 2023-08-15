@@ -7,19 +7,25 @@ from sweepai.core.documentation import DOCS_ENDPOINTS
 from sweepai.core.entities import Message
 from sweepai.core.prompts import docs_qa_system_prompt, docs_qa_user_prompt
 
+
 class DocumentationSearcher(ChatGPT):
     # Mostly copied from external_searcher.py
     # TODO: refactor to avoid code duplication
     # no but seriously, refactor this
 
     @staticmethod
-    def extract_docs_links(content: str, user_dict: str) -> list[str]:
+    def extract_docs_links(content: str, user_dict: dict) -> list[str]:
         urls = []
         logger.info(content)
         # add the user_dict to DOC_ENDPOINTS
-        DOCS_ENDPOINTS.update(user_dict)
+        assert isinstance(user_dict, dict), "user_dict must be a dict"
+        if user_dict:
+            DOCS_ENDPOINTS.update(user_dict)
         for framework, url in DOCS_ENDPOINTS.items():
-            if framework.lower() in content.lower() or framework.lower().replace(" ", "") in content.lower():
+            if (
+                framework.lower() in content.lower()
+                or framework.lower().replace(" ", "") in content.lower()
+            ):
                 urls.append(url)
         return urls
 
@@ -38,7 +44,7 @@ class DocumentationSearcher(ChatGPT):
             if metadata not in new_metadatas:
                 new_metadatas.append(metadata)
                 new_docs.append(doc)
-        
+
         self.messages = [
             Message(
                 role="system",
@@ -47,12 +53,19 @@ class DocumentationSearcher(ChatGPT):
         ]
         answer = self.chat(
             docs_qa_user_prompt.format(
-                snippets="\n\n".join([f"**{metadata['url']}:**\n\n{doc}" for metadata, doc in zip(new_metadatas, new_docs)]),
-                problem=problem
+                snippets="\n\n".join(
+                    [
+                        f"**{metadata['url']}:**\n\n{doc}"
+                        for metadata, doc in zip(new_metadatas, new_docs)
+                    ]
+                ),
+                problem=problem,
             ),
         )
-        return f"**Summary of related docs from {url}:**\n\n{answer}\n\nSources:\n" + "\n\n".join([f"* {metadata['url']}" for metadata in new_metadatas])
-
+        return (
+            f"**Summary of related docs from {url}:**\n\n{answer}\n\nSources:\n"
+            + "\n\n".join([f"* {metadata['url']}" for metadata in new_metadatas])
+        )
 
     @staticmethod
     def extract_relevant_docs(content: str, user_dict: dict):

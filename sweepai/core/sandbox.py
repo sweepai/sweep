@@ -12,10 +12,12 @@ Self = TypeVar("Self", bound="Sandbox")
 
 
 REPO_PATH = "/home/user/repo"
-GIT_PASS = 'cd ~; echo \'#!/bin/sh\\necho "{token}"\' > git-askpass.sh && chmod ugo+x git-askpass.sh'
-GIT_CLONE = "cd ~; export GIT_ASKPASS=./git-askpass.sh;" \
-            "git config --global credential.helper 'cache --timeout=3600';" \
-            "git clone https://{username}@github.com/{repo} " + REPO_PATH
+GIT_PASS = "cd ~; echo '#!/bin/sh\\necho \"{token}\"' > git-askpass.sh && chmod ugo+x git-askpass.sh"
+GIT_CLONE = (
+    "cd ~; export GIT_ASKPASS=./git-askpass.sh;"
+    "git config --global credential.helper 'cache --timeout=3600';"
+    "git clone https://{username}@github.com/{repo} " + REPO_PATH
+)
 GIT_BRANCH = f"cd {REPO_PATH}; " + "git checkout -B {branch}"
 IMAGE_INSTALLATION = {
     "Nodejs": f"npm install",
@@ -36,7 +38,9 @@ class Sandbox(BaseModel):
         arbitrary_types_allowed = True
 
     @classmethod
-    def from_token(cls: Type[Self], username: str, token: str, repo, config=None) -> Self | None:
+    def from_token(
+        cls: Type[Self], username: str, token: str, repo, config=None
+    ) -> Self | None:
         config = config or get_sandbox_config(repo)
         enabled = config.get("enabled", False)
         image = config.get("image", None)
@@ -50,7 +54,9 @@ class Sandbox(BaseModel):
         if image is None or install_command is None:  # No image specified
             logger.info("No image specified")
             return None
-        if formatter is None and linter is None:  # No need to create a sandbox if there is no formatter or linter
+        if (
+            formatter is None and linter is None
+        ):  # No need to create a sandbox if there is no formatter or linter
             logger.info("No formatter or linter specified")
             return None
 
@@ -60,9 +66,9 @@ class Sandbox(BaseModel):
             token=token,
             image=image,
             session=session,
-            format_command=f'cd {REPO_PATH}; {formatter}',
-            linter_command=f'cd {REPO_PATH}; {linter}',
-            repo=repo
+            format_command=f"cd {REPO_PATH}; {formatter}",
+            linter_command=f"cd {REPO_PATH}; {linter}",
+            repo=repo,
         )
 
         return sandbox
@@ -78,10 +84,10 @@ class Sandbox(BaseModel):
         await self.update_branch(main_branch)
         await self.run_command(f"cd {REPO_PATH}; {install_command}")
 
-
     async def run_command(self, command: str):
         print("Running command:", command)
         outputs = []
+
         def on_stdout(m):
             outputs.append(m)
             print(m.line, m.error)
@@ -110,12 +116,12 @@ class Sandbox(BaseModel):
 
     async def write_repo_file(self, file_path, content):
         await self.run_command(f"sudo chmod 777 {REPO_PATH}/{file_path}")
-        await self.session.filesystem.write(f'{REPO_PATH}/{file_path}', content)
+        await self.session.filesystem.write(f"{REPO_PATH}/{file_path}", content)
         # Fix permissions
         await self.run_command(f"sudo chmod 777 {REPO_PATH}/{file_path}")
 
     async def read_repo_file(self, file_path):
-        return await self.session.filesystem.read(f'{REPO_PATH}/{file_path}')
+        return await self.session.filesystem.read(f"{REPO_PATH}/{file_path}")
 
     async def run_formatter(self, file_path, content):
         try:
