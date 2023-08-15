@@ -24,5 +24,5 @@ def register(user: User):
     if user.email in users:
         raise HTTPException(status_code=400, detail="Email already registered")
     users[user.email] = pwd_context.hash(user.password)
-    return
+    return {"message": "User registered successfully"}
 
