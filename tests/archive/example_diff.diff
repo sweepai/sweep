@@ -14,12 +14,9 @@
 <<<< ORIGINAL
 def example():
     a = 3
-    
+
 ====
 def example():
     a = 4
-    
+
 >>>> UPDATED
-
-
-

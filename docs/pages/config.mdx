@@ -1,6 +1,6 @@
-# Sweep Config 
+# Sweep Config
 
-In this article, we will explore ways to configure Sweep. Mainly, we will focus on the `sweep.yaml` file, which is the main configuration file for Sweep. 
+In this article, we will explore ways to configure Sweep. Mainly, we will focus on the `sweep.yaml` file, which is the main configuration file for Sweep.
 
 ## Config Table
 | Key | Type | Description |
@@ -50,7 +50,9 @@ This setting is the description of the repository that will be passed to Sweep. 
 
 ## docs
 ```yaml
-docs: {"modal": "https://modal.com/docs/reference"}
+docs:
+  - Modal: https://modal.com/docs/reference
+  - PyGitHub: https://pygithub.readthedocs.io/en/latest/
 ```
 This setting contains documentation links that Sweep is able to search through. This is helpful for packages with syntax that has changed or newer packages.
 
@@ -59,7 +61,7 @@ This setting contains documentation links that Sweep is able to search through. 
 ---
 
 ## Our Configuration File
-This file is available [here](https://github.com/sweepai/sweep/blob/main/sweep.yaml). We have pasted this file below for your convenience. 
+This file is available [here](https://github.com/sweepai/sweep/blob/main/sweep.yaml). We have pasted this file below for your convenience.
 
 ```yaml
 gha_enabled: True
@@ -67,5 +69,6 @@ branch: main
 blocked_dirs: [".github/"]
 draft: False
 description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. Write code that adheres to PEP8."
-docs: {"modal": "https://modal.com/docs/reference", "github": "https://pygithub.readthedocs.io/en/stable", "deeplake": "https://docs.deeplake.ai/en/latest"}
-```
+docs:
+  - Modal: https://modal.com/docs/reference
+  - PyGitHub: https://pygithub.readthedocs.io/en/latest/
