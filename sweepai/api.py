@@ -165,12 +165,12 @@ def push_to_queue(repo_full_name: str, pr_id: int, pr_change_request: PRChangeRe
 @stub.function(**FUNCTION_SETTINGS)
 @modal.web_endpoint(method="POST")
 async def webhook(raw_request: Request):
-    """Handle a webhook request from GitHub or Azure DevOps."""
+    """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
         logger.info(f"Received request: {request_dict.keys()}")
         event = raw_request.headers.get("X-GitHub-Event")
-        assert event is not None, "Event is required"
+        assert event is not None
         action = request_dict.get("action", None)
         logger.info(f"Received event: {event}, {action}")
         match event, action:
