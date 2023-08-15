@@ -330,7 +330,10 @@ async def on_ticket(
         logger.info("Initializing sandbox...")
 
         # Todo(lukejagg): run this in the background
-        sandbox = await asyncio.wait_for(Sandbox.from_token(username, user_token, repo), timeout=30)
+        sandbox = Sandbox.from_token(username, user_token, repo)
+
+        # Todo(lukejagg): Max time?
+        await sandbox.start()
 
         # Todo(lukejagg): formatter, linter, etc
         # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc)
