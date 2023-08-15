@@ -734,6 +734,8 @@ class SweepBot(CodeGenBot, GithubBot):
         except MaxTokensExceeded as e:
             raise e
         except Exception as e:
-            tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")
-            return False
+    tb = traceback.format_exc()
+    logger.info(f"Error in handle_modify_file: {tb}")
+    return False
+    
+    
