@@ -6,6 +6,7 @@ from typing import Any
 from tabulate import tabulate
 from .filename import rollback_file, apply_original_plan, get_original_plan, apply_changes, get_github_client
 
+
 def construct_metadata(
     repo_full_name,
     repo_name,
