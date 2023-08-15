@@ -122,23 +122,18 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   if (request.type == "createIssue") {
     const { title: rawTitle, body, repo } = request.issue;
     const title = `Sweep: ${rawTitle}`;
-    const labels = ["sweep"];
-    const [owner, repo_name] = repo.split("/");
-    // const { github_pat } = await chrome.storage.local.get("config")
-    console.log("Found github_pat in storage: ", github_pat)
-    const octokit = new Octokit({ auth: github_pat });
-    console.log("Sending request...")
-    const results = octokit.request("POST /repos/{owner}/{repo}/issues", {
-      owner,
-      repo: repo_name,
-      title,
-      body,
-      labels,
-      headers: {
-        'X-GitHub-Api-Version': '2022-11-28'
-      }
-    })
-    console.log("Received response: ", results)
-    sendResponse(results);
+    const tab = await chrome.tabs.create({ url: `https://github.com/${repo}/issues/new` });
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: (title, body) => {
+        (document.querySelector("#issue_title") as HTMLInputElement).value = title;
+        (document.querySelector("#issue_body") as HTMLInputElement).value = body;
+        const submitButton = document.querySelector(`#new_issue > div > div > div.Layout-main > div > div.timeline-comment.color-bg-default.hx_comment-box--tip > div > div.flex-items-center.flex-justify-end.d-none.d-md-flex.mx-2.mb-2.px-0 > button`) as HTMLButtonElement;
+        submitButton.disabled = false;
+        submitButton.click();
+      },
+      args: [title, body],
+    });
+    sendResponse({ success: true });
   }
 })

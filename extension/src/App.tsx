@@ -94,19 +94,22 @@ export default function App() {
     };
 
     (async () => {
-      await new Promise((r) => setTimeout(r, 1000));
+      try {
+        const response = await chrome.runtime.sendMessage({
+          type: "createIssue",
+          issue,
+        })
+        const object = await response.json();
+        console.log(object)
 
-      // process issue
-      const response = await chrome.runtime.sendMessage({
-        type: "createIssue",
-        issue,
-      })
-      const object = await response.json();
-      console.log(object)
-
-      const url = "https://github.com/sweepai/sweep/issues/1235";
-      window.open(url, "_blank");
+        const url = "https://github.com/sweepai/sweep/issues/1235";
+        window.open(url, "_blank");
+      } catch (error) {
+        alert("Error creating issue " + error);
+      }
     })();
+
+    handleClose();
   };
 
   return (
