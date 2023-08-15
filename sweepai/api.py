@@ -441,9 +441,11 @@ async def webhook(raw_request: Request):
                 logger.info(f"Handling check suite for {request.repository.full_name}")
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
-                issue = repo.get_issue(request.check_run.pull_requests[0].number)
-                if not any(label.name == "sweep" for label in issue.labels):
-                    return {"success": True}
+                if request.check_run.pull_requests and issue.labels:
+                if request.check_run.pull_requests and issue.labels:
+                    issue = repo.get_issue(request.check_run.pull_requests[0].number)
+                    if not any(label.name == "sweep" for label in issue.labels):
+                        return {"success": True}
                 pull_request = repo.get_pull(request.check_run.pull_requests[0].number)
                 if (
                     len(request.check_run.pull_requests) > 0
