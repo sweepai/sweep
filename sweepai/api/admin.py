@@ -1,9 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
-
-from .login import oauth2_scheme
-
+from .login import oauth2_scheme, User
 router = APIRouter()
 
 class Employee(BaseModel):
@@ -33,7 +31,13 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         token_data = TokenData(email=email)
     except JWTError:
         raise credentials_exception
-    return users.get(token_data.email)
+    current_user = users.get(token_data.email)
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return current_user
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return current_user
 
 @router.post("/employee")
 def create_employee(employee: Employee, current_user: User = Depends(get_current_user)):
@@ -70,5 +74,5 @@ def delete_employee(employee_id: int, token: str = Depends(oauth2_scheme)):
         if existing_employee.id == employee_id:
             employees.pop(index)
             return {"message": "Employee deleted"}
-    raise
+    raise HTTPException(status_code=404, detail="Employee not found")
 
