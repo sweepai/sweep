@@ -453,39 +453,32 @@ class SweepBot(CodeGenBot, GithubBot):
 
                 self.delete_messages_from_chat(key)
 
-                # proposed_diffs = get_all_diffs(modify_file_response)
-                # proposed_diffs = (
-                #     f"<proposed_diffs>\n{proposed_diffs}\n</proposed_diffs>\n\n"
-                #     if proposed_diffs
-                #     else ""
-                # )
+                proposed_diffs = get_all_diffs(modify_file_response)
+                proposed_diffs = (
+                    f"<proposed_diffs>\n{proposed_diffs}\n</proposed_diffs>\n\n"
+                    if proposed_diffs
+                    else ""
+                )
 
-                # # validation step
-                # logger.info("Validating file change request...")
-                # new_diffs = self.chat(
-                #     code_repair_modify_prompt.format(
-                #         filename=file_change_request.filename,
-                #         instructions=file_change_request.instructions,
-                #         code=new_file,
-                #         diff=proposed_diffs,
-                #     ),
-                #     message_key=key + "-validation",
-                # )
+                # validation step
+                logger.info("Validating file change request...")
+                new_diffs = self.chat(
+                    code_repair_modify_prompt.format(
+                        filename=file_change_request.filename,
+                        instructions=file_change_request.instructions,
+                        code=new_file,
+                        diff=proposed_diffs,
+                    ),
+                    message_key=key + "-validation",
+                )
 
-                # final_file = generate_new_file_from_patch(
-                #     new_diffs, new_file, chunk_offset=chunk_offset
-                # )
-                # final_file = format_contents(final_file, file_markdown)
-                # logger.info("Done validating file change request")
+                final_file = generate_new_file_from_patch(
+                    new_diffs, new_file, chunk_offset=chunk_offset
+                )
+                final_file = format_contents(final_file, file_markdown)
+                logger.info("Done validating file change request")
 
-                # Todo(lukejagg): No longer need to fix EOF whitespace
-                """
-                if contents.endswith("\n"):
-                    final_file += "\n"
-                """
-
-                # return final_file, commit_message
-                return new_file, commit_message
+                return final_file, commit_message
             except Exception as e:
                 tb = traceback.format_exc()
                 logger.warning(
