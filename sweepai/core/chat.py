@@ -395,8 +395,6 @@ class ChatGPT(BaseModel):
                         )
                     try:
                         token_count = count_tokens.call(output)
-                        print(token_count)
-                        print(self.chat_logger.data["username"])
                         posthog.capture(
                             self.chat_logger.data["username"],
                             "call_openai",
