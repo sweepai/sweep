@@ -12,8 +12,9 @@
 // var github_pat = null;
 // var github_username = null;
 
-// chrome.runtime.onInstalled.addListener((details) => {
-//   console.log("Updated due to ", details.reason);
+chrome.runtime.onInstalled.addListener((details) => {
+  console.log("Updated due to ", details.reason);
+  chrome.tabs.create({ url: "https://github.com/sweepai/sweep/blob/main/docs/extension-post-install.md" });
 //   chrome.storage.local.get("config", async (result) => {
 //     if (result.config) {
 //       github_pat = result.config.github_pat;
@@ -115,7 +116,7 @@
 //       console.log("Saved GitHub access token and username to storage");
 //     }
 //   });
-// });
+});
 
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   if (request.type == "createIssue") {
