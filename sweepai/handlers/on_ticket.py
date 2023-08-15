@@ -136,11 +136,11 @@ def post_process_snippets(
 def strip_sweep(text: str):
     return (
         re.sub(
-            r"^[Ss]weep\s?(\(slow\))?(\(migrate\))?(\(fast\))?\s?:", "", text
+            r"^[Ss]weep\s?(\([Ss]low\))?(\([Mm]igrate\))?(\([Ff]ast\))?\s?:", "", text
         ).lstrip(),
-        re.search(r"^[Ss]weep\s?\(slow\)", text) is not None,
-        re.search(r"^[Ss]weep\s?\(migrate\)", text) is not None,
-        re.search(r"^[Ss]weep\s?\(fast\)", text) is not None,
+        re.search(r"^[Ss]weep\s?\([Ss]low\)", text) is not None,
+        re.search(r"^[Ss]weep\s?\([Mm]igrate\)", text) is not None,
+        re.search(r"^[Ss]weep\s?\([Ff]ast\)", text) is not None,
     )
 
 
