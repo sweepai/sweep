@@ -1,0 +1,23 @@
+{
+  "name": "Sweep Extension",
+  "version": "0.0.0",
+  "manifest_version": 3,
+  "background": {
+    "service_worker": "background.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*"],
+      "js": ["content.tsx"]
+    },
+    {
+      "matches": ["https://github.com/login/device"],
+      "js": ["installation.ts"]
+    }
+  ],
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "https://github.com/*"
+  ]
+}
