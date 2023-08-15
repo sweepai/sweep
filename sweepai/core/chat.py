@@ -19,6 +19,7 @@ from sweepai.config.server import (
     OPENAI_DO_HAVE_32K_MODEL_ACCESS,
 )
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.utils.event_logger import posthog
 
 # TODO: combine anthropic and openai
 
@@ -333,6 +334,19 @@ class ChatGPT(BaseModel):
                                 "output": output,
                             }
                         )
+                    try:
+                        posthog.capture(
+                            self.chat_logger.data["username"],
+                            "call_openai",
+                            {
+                                "model": model,
+                                "max_tokens": max_tokens - token_sub,
+                                "input_tokens": messages_length,
+                                "output_tokens": count_tokens.call(output["content"]),
+                            },
+                        )
+                    except Exception as e:
+                        logger.warning(e)
                     return output
                 except Exception as e:
                     logger.warning(e)
@@ -379,6 +393,23 @@ class ChatGPT(BaseModel):
                                 "output": output,
                             }
                         )
+                    try:
+                        token_count = count_tokens.call(output)
+                        print(token_count)
+                        print(self.chat_logger.data["username"])
+                        posthog.capture(
+                            self.chat_logger.data["username"],
+                            "call_openai",
+                            {
+                                "model": model,
+                                "max_tokens": max_tokens - token_sub,
+                                "input_tokens": messages_length,
+                                "output_tokens": token_count,
+                            },
+                        )
+                    except Exception as e:
+                        logger.warning(e)
+                        raise e
                     return output
                 except Exception as e:
                     logger.warning(e)
