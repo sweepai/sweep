@@ -165,7 +165,7 @@ def on_ticket(
     # Check if the repository is empty
     if repo.size == 0:
         # Update the issue comment with a clear error message
-        edit_sweep_comment("Sweep does not work on empty repositories. Please add some code to the repository and try again.", -1)
+        edit_sweep_comment("Sweep does not work on empty repositories. Please add some Python code to the repository and try again.", issue_number if comment_id is None else comment_id)
         return {"success": False, "reason": "Repository is empty"}
 
     # Flow:
