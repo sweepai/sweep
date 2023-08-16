@@ -100,7 +100,6 @@ def on_comment(
     repo: None = None,
     pr: Any = None,  # Uses PRFileChanges type too
     if comment.strip().upper() == "REVERT":
-    if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
     elif comment.strip().startswith("sweep: regenerate"):
         file_name = comment.strip().split(" ")[2]
