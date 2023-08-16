@@ -570,6 +570,7 @@ def on_ticket(
         repo=repo,
         is_reply=bool(comments),
         chat_logger=chat_logger,
+        sweep_context=sweep_context,
     )
 
     # Check repository for sweep.yml file.
