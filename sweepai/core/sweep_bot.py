@@ -1,6 +1,8 @@
+import asyncio
 import traceback
 import re
 
+import e2b
 import modal
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
@@ -501,6 +503,7 @@ class SweepBot(CodeGenBot, GithubBot):
         file_change_requests: list[FileChangeRequest],
         branch: str,
         blocked_dirs: list[str] = [],
+        sandbox=None,
     ):
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
@@ -508,7 +511,7 @@ class SweepBot(CodeGenBot, GithubBot):
         completed = 0
 
         for _, changed_file in self.change_files_in_github_iterator(
-            file_change_requests, branch, blocked_dirs
+            file_change_requests, branch, blocked_dirs, sandbox=sandbox
         ):
             if changed_file:
                 completed += 1
@@ -518,7 +521,8 @@ class SweepBot(CodeGenBot, GithubBot):
         self,
         file_change_requests: list[FileChangeRequest],
         branch: str,
-        blocked_dirs: list[str] = [],
+        blocked_dirs: list[str],
+        sandbox=None,
     ):
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
@@ -544,7 +548,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 match file_change_request.change_type:
                     case "create":
                         changed_file = self.handle_create_file(
-                            file_change_request, branch
+                            file_change_request, branch, sandbox=sandbox
                         )
                     case "modify":
                         # Add example for more consistent generation
@@ -571,7 +575,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             )
 
                         changed_file = self.handle_modify_file(
-                            file_change_request, branch
+                            file_change_request, branch, sandbox=sandbox
                         )
                     case "delete":
                         contents = self.repo.get_contents(
@@ -616,7 +620,9 @@ class SweepBot(CodeGenBot, GithubBot):
                 completed += 1
         return completed, num_fcr
 
-    def handle_create_file(self, file_change_request: FileChangeRequest, branch: str):
+    def handle_create_file(
+        self, file_change_request: FileChangeRequest, branch: str, sandbox=None
+    ):
         try:
             file_change = self.create_file(file_change_request)
             file_markdown = is_markdown(file_change_request.filename)
@@ -624,12 +630,21 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.debug(
                 f"{file_change_request.filename}, {f'Create {file_change_request.filename}'}, {file_change.code}, {branch}"
             )
+
+            if sandbox is not None:
+                pass
+                # Todo(lukejagg): Work with E2B to get this working in Modal stub
+                # loop = asyncio.get_event_loop()
+                # file_change.code = loop.run_until_complete(sandbox.run_formatter(file_change_request.filename, file_change.code))
+
             self.repo.create_file(
                 file_change_request.filename,
                 file_change.commit_message,
                 file_change.code,
                 branch=branch,
             )
+
+            file_change_request.new_content = file_change.code
 
             return True
         except Exception as e:
@@ -641,6 +656,7 @@ class SweepBot(CodeGenBot, GithubBot):
         file_change_request: FileChangeRequest,
         branch: str,
         commit_message: str = None,
+        sandbox=None,
     ):
         CHUNK_SIZE = 800  # Number of lines to process at a time
         try:
@@ -716,6 +732,27 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.debug(
                 f"{file_name}, {commit_message}, {new_file_contents}, {branch}"
             )
+
+            # Format the contents
+            if sandbox is not None:
+                try:
+                    pass
+                    # loop = asyncio.get_event_loop()
+                    # print("e2b 6")
+                    # new_file_contents = loop.run_until_complete(
+                    #     sandbox.run_formatter(file_name, new_file_contents)
+                    # )
+                    # print("e2b 7")
+                except Exception as e:
+                    # print e and print traceback
+                    print(e)
+                    print("\n\n")
+                    print(traceback.format_exc())
+                    print("OOPS E2B")
+                # Todo(lukejagg): Work with E2B to get this working in Modal stub
+                # loop = asyncio.get_event_loop()
+                # new_file_contents = loop.run_until_complete(sandbox.run_formatter(file_name, new_file_contents))
+
             # Update the file with the new contents after all chunks have been processed
             try:
                 self.repo.update_file(
@@ -726,6 +763,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     file.sha,
                     branch=branch,
                 )
+                file_change_request.new_content = new_file_contents
                 return True
             except Exception as e:
                 logger.info(f"Error in updating file, repulling and trying again {e}")
@@ -738,6 +776,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     file.sha,
                     branch=branch,
                 )
+                file_change_request.new_content = new_file_contents
                 return True
         except MaxTokensExceeded as e:
             raise e

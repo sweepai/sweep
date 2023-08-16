@@ -56,7 +56,7 @@ image = (
         "redis",
         "llama_index",
         "bs4",
-        "e2b",
+        "e2b==0.1.8",
         # for docs search
         "deeplake",
         "robotexclusionrulesparser",
