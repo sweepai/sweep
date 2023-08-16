@@ -134,7 +134,7 @@ def on_comment(
     issue_number = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body).group(
         "issue_number"
     )
-    author = repo.get_issue(issue_number).user.login
+    author = repo.get_issue(int(issue_number)).user.login
     chat_logger = ChatLogger(
         {
             "repo_name": repo_name,
