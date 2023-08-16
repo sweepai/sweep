@@ -61,7 +61,7 @@ update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 sep = "\n---\n"
 bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
 bot_suffix = (
-    f"\n{sep} To recreate the pull request, or edit the issue title or description."
+    f"\n{sep} To recreate the pull request edit the issue title or description."
 )
 discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep-ai)"
 
@@ -322,10 +322,7 @@ def on_ticket(
             if config_pr_url is not None
             else ""
         )
-        config_pr_message = (
-            ' To get Sweep to recreate this ticket, leave a comment prefixed with "sweep:" or edit the issue.\n'
-            + config_pr_message
-        )
+        config_pr_message = " To retrigger Sweep edit the issue.\n" + config_pr_message
         if index < 0:
             index = 0
         if index == 6:
@@ -424,6 +421,7 @@ def on_ticket(
             "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
             -1,
         )
+        return {"success": False}
 
     def log_error(error_type, exception, high_priority=True):
         nonlocal is_paying_user, is_trial_user

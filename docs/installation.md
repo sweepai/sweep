@@ -7,7 +7,7 @@ If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?
 ## Create an issue on your own repository
 The issue title should start with `Sweep: ` For issues and PRs, call Sweep using the Sweep label or by prefixing your text with `Sweep: `
 
-💡 **Sweep works best with real repositories and real issues.**
+💡 **Sweep works best with real repositories and real issues. Empty or test repositories will break Sweep.**
 
 
 <table>
