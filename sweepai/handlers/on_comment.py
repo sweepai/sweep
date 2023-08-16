@@ -89,7 +89,7 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
 
 
     
-    repo_description: str,
+    repo_description: str
     comment: str,
     pr_path: str | None,
     pr_line_position: int | None,
