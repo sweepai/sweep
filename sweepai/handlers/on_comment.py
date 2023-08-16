@@ -1,9 +1,11 @@
+import re
 import traceback
 
 import openai
 from loguru import logger
 from typing import Any
 from tabulate import tabulate
+from github.Repository import Repository
 
 from sweepai.config.client import get_blocked_dirs
 
@@ -98,7 +100,7 @@ def on_comment(
     pr_number: int = None,
     comment_id: int | None = None,
     g: None = None,
-    repo: None = None,
+    repo: Repository = None,
     pr: Any = None,  # Uses PRFileChanges type too
     chat_logger: Any = None,
 ):
@@ -129,6 +131,12 @@ def on_comment(
     pr_file_path = None
     diffs = get_pr_diffs(repo, pr)
     pr_line = None
+
+    issue_number = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body).group(
+        "issue_number"
+    )
+    author = repo.get_issue(issue_number).user.login
+    logger.info(f"Author of original issue is {author}")
     chat_logger = (
         chat_logger
         if chat_logger is not None
@@ -144,7 +152,7 @@ def on_comment(
                 "comment": comment,
                 "pr_path": pr_path,
                 "pr_line_position": pr_line_position,
-                "username": username,
+                "username": author,
                 "installation_id": installation_id,
                 "pr_number": pr_number,
                 "type": "comment",
