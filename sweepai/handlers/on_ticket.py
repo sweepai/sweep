@@ -323,7 +323,7 @@ def on_ticket(
             else ""
         )
         config_pr_message = (
-            'To get Sweep to recreate this ticket, leave a comment prefixed with "sweep:" or edit the issue.\n'
+            ' To get Sweep to recreate this ticket, leave a comment prefixed with "sweep:" or edit the issue.\n'
             + config_pr_message
         )
         if index < 0:
