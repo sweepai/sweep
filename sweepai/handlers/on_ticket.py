@@ -17,7 +17,7 @@ from tabulate import tabulate
 from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import DocumentationSearcher
 
-from sweepai.core.entities import Snippet, NoFilesException
+from sweepai.core.entities import Snippet, NoFilesException, SweepContext
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
@@ -191,6 +191,8 @@ def on_ticket(
             "comment_id": comment_id,
         }
     )
+    sweep_context = SweepContext(issue_url=issue_url)
+
     user_token, g = get_github_client(installation_id)
 
     is_paying_user = chat_logger.is_paying_user()
@@ -425,13 +427,19 @@ def on_ticket(
         )
         return {"success": False}
 
-    def log_error(error_type, exception, high_priority=True):
+    def log_error(error_type, exception, priority=0):
         nonlocal is_paying_user, is_trial_user
         if is_paying_user or is_trial_user:
             high_priority = True
 
-        content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
-        discord_log_error(content, high_priority=high_priority)
+        prefix = ""
+        if is_trial_user:
+            prefix = " (TRIAL)"
+        if is_paying_user:
+            prefix = " (PRO)"
+
+        content = f"**{error_type} Error**{prefix}\n{username}: {issue_url}\n```{exception}```"
+        discord_log_error(content, priority=priority)
 
     def fetch_file_contents_with_retry():
         retries = 1
@@ -466,9 +474,7 @@ def on_ticket(
             f"It looks like an issue has occurred around fetching the files. Perhaps the repo has not been initialized. If this error persists contact team@sweep.dev.\n\n> @{username}, please edit the issue description to include more details and I will automatically relaunch.",
             -1,
         )
-        log_error(
-            "File Fetch", str(e) + "\n" + traceback.format_exc(), high_priority=True
-        )
+        log_error("File Fetch", str(e) + "\n" + traceback.format_exc(), priority=1)
         raise e
 
     snippets = post_process_snippets(
@@ -561,6 +567,7 @@ def on_ticket(
         repo=repo,
         is_reply=bool(comments),
         chat_logger=chat_logger,
+        sweep_context=sweep_context,
     )
 
     # Check repository for sweep.yml file.
@@ -805,6 +812,7 @@ def on_ticket(
                     summary=summary,
                     replies_text=replies_text,
                     tree=tree,
+                    chat_logger=chat_logger,
                 )
                 review_message += (
                     f"Here is the {ordinal(i + 1)} review\n> "
@@ -827,6 +835,7 @@ def on_ticket(
                         pr_line_position=None,
                         pr_number=None,
                         pr=pr_changes,
+                        chat_logger=chat_logger,
                     )
                 else:
                     break
@@ -915,7 +924,7 @@ def on_ticket(
         log_error(
             "Max Tokens Exceeded",
             str(e) + "\n" + traceback.format_exc(),
-            high_priority=False,
+            priority=2,
         )
         if chat_logger.is_paying_user():
             edit_sweep_comment(
@@ -933,7 +942,7 @@ def on_ticket(
         log_error(
             "Sweep could not find files to modify",
             str(e) + "\n" + traceback.format_exc(),
-            high_priority=False,
+            priority=2,
         )
         edit_sweep_comment(
             f"Sorry, Sweep could not find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!\n\n> @{username}, please edit the issue description to include more details about this issue.",
@@ -950,7 +959,7 @@ def on_ticket(
         log_error(
             "Context Length",
             str(e) + "\n" + traceback.format_exc(),
-            high_priority=False,
+            priority=2,
         )
         posthog.capture(
             username,
@@ -976,9 +985,7 @@ def on_ticket(
                 "I'm sorry, but it looks like an error has occurred. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev.",
                 -1,
             )
-        log_error(
-            "Workflow", str(e) + "\n" + traceback.format_exc(), high_priority=True
-        )
+        log_error("Workflow", str(e) + "\n" + traceback.format_exc(), priority=0)
         posthog.capture(
             username,
             "failed",

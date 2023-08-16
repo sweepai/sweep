@@ -1,6 +1,7 @@
 import difflib
 import re
 
+from sweepai.core.entities import SweepContext
 from sweepai.utils.chat_logger import discord_log_error
 
 
@@ -273,6 +274,7 @@ def sliding_window_replacement(original, search, replace, search_context_before=
     if max_similarity == 0:
         print("WARNING: No identical lines")
         return original, None, IDENTICAL_LINES
+
     if current_hits > 1:
         # First, try matching beginning of search
         success = False
@@ -294,10 +296,13 @@ def sliding_window_replacement(original, search, replace, search_context_before=
         if not success:
             print("WARNING: Multiple hits")
             return original, None, MULTIPLE_HITS
+
     if index == -1:
         return original, None, NOT_FOUND
-    if int(max_similarity) != len(search):
-        return original, None, INCOMPLETE_MATCH
+
+    # Todo(lukejagg): this doesn't seem to work, add later
+    # if int(max_similarity) != len(search):
+    #     return original, None, INCOMPLETE_MATCH
 
     # if max_similarity != len(search):
     snippet, spaces, strip = get_snippet_with_padding(original, index, search)
@@ -325,7 +330,10 @@ def get_all_diffs(modify_file_response: str) -> str:
 
 
 def generate_new_file_from_patch(
-    modify_file_response: str, old_file_content: str, chunk_offset: int = 0
+    modify_file_response: str,
+    old_file_content: str,
+    chunk_offset: int = 0,
+    sweep_context: SweepContext = None,
 ):
     old_file_lines = old_file_content.split("\n")
 
@@ -361,11 +369,15 @@ def generate_new_file_from_patch(
         )
 
         if status is not None:
-            errors.append((status, search, replace))
+            nl = "\n"
+            errors.append(
+                f"- {status}\n```{nl.join(search)}```\n\n```{nl.join(replace)}```"
+            )
 
     if len(errors) > 0:
         discord_log_error(
-            "Matching error in modify: " + str(errors), high_priority=True
+            f"{sweep_context}\nModify Parsing Errors: " + str(errors),
+            priority=1,
         )
 
     result = "\n".join(old_file_lines)

@@ -102,6 +102,7 @@ def on_comment(
     g: None = None,
     repo: Repository = None,
     pr: Any = None,  # Uses PRFileChanges type too
+    chat_logger: Any = None,
 ):
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
@@ -135,23 +136,27 @@ def on_comment(
         "issue_number"
     )
     author = repo.get_issue(int(issue_number)).user.login
-    chat_logger = ChatLogger(
-        {
-            "repo_name": repo_name,
-            "title": "(Comment) " + pr_title,
-            "issue_url": pr.html_url,
-            "pr_file_path": pr_file_path,  # may be None
-            "pr_line": pr_line,  # may be None
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "comment": comment,
-            "pr_path": pr_path,
-            "pr_line_position": pr_line_position,
-            "username": author,
-            "installation_id": installation_id,
-            "pr_number": pr_number,
-            "type": "comment",
-        }
+    chat_logger = (
+        chat_logger
+        if chat_logger is not None
+        else ChatLogger(
+            {
+                "repo_name": repo_name,
+                "title": "(Comment) " + pr_title,
+                "issue_url": pr.html_url,
+                "pr_file_path": pr_file_path,  # may be None
+                "pr_line": pr_line,  # may be None
+                "repo_full_name": repo_full_name,
+                "repo_description": repo_description,
+                "comment": comment,
+                "pr_path": pr_path,
+                "pr_line_position": pr_line_position,
+                "username": username,
+                "installation_id": installation_id,
+                "pr_number": pr_number,
+                "type": "comment",
+            }
+        )
     )
 
     is_paying_user = chat_logger.is_paying_user()
