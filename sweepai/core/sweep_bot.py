@@ -453,12 +453,12 @@ class SweepBot(CodeGenBot, GithubBot):
 
                 self.delete_messages_from_chat(key)
 
-                proposed_diffs = get_all_diffs(modify_file_response)
-                proposed_diffs = (
-                    f"<proposed_diffs>\n{proposed_diffs}\n</proposed_diffs>\n\n"
-                    if proposed_diffs
-                    else ""
-                )
+                # proposed_diffs = get_all_diffs(modify_file_response)
+                # proposed_diffs = (
+                #     f"<proposed_diffs>\n{proposed_diffs}\n</proposed_diffs>\n\n"
+                #     if proposed_diffs
+                #     else ""
+                # )
 
                 # validation step
                 logger.info("Validating file change request...")
@@ -467,7 +467,6 @@ class SweepBot(CodeGenBot, GithubBot):
                         filename=file_change_request.filename,
                         instructions=file_change_request.instructions,
                         code=new_file,
-                        diff=proposed_diffs,
                     ),
                     message_key=key + "-validation",
                 )
