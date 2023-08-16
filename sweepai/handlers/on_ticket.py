@@ -162,6 +162,57 @@ def on_ticket(
         fast_mode,
     ) = strip_sweep(title)
     
+    user_token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    
+    def edit_sweep_comment(message: str, index: int, pr_message=""):
+        nonlocal current_index
+        # -1 = error, -2 = retry
+        # Only update the progress bar if the issue generation errors.
+        errored = index == -1
+        if index >= 0:
+            past_messages[index] = message
+            current_index = index
+    
+        agg_message = None
+        # Include progress history
+        # index = -2 is reserved for
+        for i in range(
+            current_index + 2
+        ):  # go to next header (for Working on it... text)
+            if i == 0 or i >= len(progress_headers):
+                continue  # skip None header
+            header = progress_headers[i]
+            if header is not None:
+                header = "## " + header + "\n"
+            else:
+                header = "No header\n"
+            msg = header + (past_messages.get(i) or "Working on it...")
+            if agg_message is None:
+                agg_message = msg
+            else:
+                agg_message = agg_message + f"\n{sep}" + msg
+    
+        suffix = bot_suffix + discord_suffix
+        if errored:
+            agg_message = (
+                "## ❌ Unable to Complete PR"
+                + "\n"
+                + message
+                + "\n\nFor bonus GPT-4 tickets, please report this bug on **[Discord](https://discord.com/invite/sweep-ai)**."
+            )
+            if table is not None:
+                agg_message = (
+                    agg_message
+                    + f"\n{sep}Please look at the generated plan. If something looks wrong, please add more details to your issue.\n\n{table}"
+                )
+            suffix = bot_suffix  # don't include discord suffix for error messages
+    
+        # Update the issue comment
+        issue_comment.edit(
+            f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{suffix}"
+        )
+    
     # Check if the repository is empty
     if repo.size == 0:
         # Update the issue comment with a clear error message
