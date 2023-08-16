@@ -34,7 +34,6 @@ from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.config.client import (
     SweepConfig,
     get_documentation_dict,
-    get_sandbox_enabled,
 )
 from sweepai.config.server import (
     PREFIX,
@@ -144,7 +143,7 @@ def strip_sweep(text: str):
     )
 
 
-def on_ticket(
+async def on_ticket(
     title: str,
     summary: str,
     issue_number: int,
@@ -464,6 +463,20 @@ def on_ticket(
         )
         raise error
 
+    # Clone repo and perform local tests (linters, formatters, GHA)
+    sandbox = None
+    try:
+        pass
+        # Todo(lukejagg): Enable this once we have formatter working
+        # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc) (done?)
+        # Todo(lukejagg): Max time limit for sandbox
+        # logger.info("Initializing sandbox...")
+        # sandbox = Sandbox.from_token(username, user_token, repo)
+        # await sandbox.start()
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        logger.error(e)
+
     logger.info("Fetching relevant files...")
     try:
         snippets, tree = fetch_file_contents_with_retry()
@@ -713,6 +726,7 @@ def on_ticket(
             username,
             installation_id,
             issue_number,
+            sandbox=sandbox,
             chat_logger=chat_logger,
         )
         table_message = tabulate(
@@ -796,13 +810,46 @@ def on_ticket(
 
         review_message = f"Here are my self-reviews of my changes at [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
 
+        lint_output = None
         try:
             current_issue.delete_reaction(eyes_reaction.id)
         except:
             pass
 
+        # Clone repo and perform local tests (linters, formatters, GHA)
+        try:
+            lint_sandbox = Sandbox.from_token(username, user_token, repo)
+            if lint_sandbox is None:
+                raise Exception("Sandbox is disabled")
+
+            files = [
+                f.filename
+                for f in file_change_requests
+                if (f.filename.endswith(".js") or f.filename.endswith(".ts"))
+                and (f.change_type == "create" or f.change_type == "modify")
+                and f.new_content is not None
+            ]
+            lint_output = await lint_sandbox.formatter_workflow(
+                branch=pull_request.branch_name, files=files
+            )
+
+            # Todo(lukejagg): Is this necessary?
+            # # Set file content:
+            # for f in file_change_requests:
+            #     print("E2B DEBUG", f.filename, f.new_content)
+            #     if f.new_content is not None:
+            #         await lint_sandbox.session.filesystem.write(
+            #             f"/home/user/repo/{f.filename}", f.new_content
+            #         )
+            #         print(f"Wrote {f.filename}")
+
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
+
         for i in range(1 if not slow_mode else 3):
             try:
+                # Todo(lukejagg): Pass sandbox linter results to review_pr
                 # CODE REVIEW
                 changes_required, review_comment = review_pr(
                     repo=repo,
@@ -814,8 +861,11 @@ def on_ticket(
                     summary=summary,
                     replies_text=replies_text,
                     tree=tree,
+                    lint_output=lint_output,
                     chat_logger=chat_logger,
                 )
+                # Todo(lukejagg): Execute sandbox after each iteration
+                lint_output = None
                 review_message += (
                     f"Here is the {ordinal(i + 1)} review\n> "
                     + review_comment.replace("\n", "\n> ")
@@ -849,31 +899,6 @@ def on_ticket(
         edit_sweep_comment(
             review_message + "\n\nI finished incorporating these changes.", 5
         )
-
-        # Clone repo and perform local tests (linters, formatters, GHA)
-        sandbox = None
-        try:
-            if not get_sandbox_enabled(repo):
-                raise Exception("Sandbox is disabled")
-
-            async def run_sandbox(title: str, summary: str):
-                nonlocal sandbox
-                sandbox = await asyncio.wait_for(
-                    Sandbox.from_token(username, user_token), timeout=15
-                )
-                await asyncio.wait_for(sandbox.clone_repo(), timeout=60)
-                # Currently only works with Python3 venvs
-                await asyncio.wait_for(sandbox.create_python_venv(), timeout=60)
-                await asyncio.wait_for(sandbox.close(), timeout=15)
-
-            logger.info("Running sandbox...")
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(run_sandbox(title, summary))
-            # Todo(lukejagg): formatter, linter, etc
-            # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc)
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
 
         is_draft = config.get("draft", False)
         try:
@@ -910,6 +935,13 @@ def on_ticket(
 
                 for check_run in check_runs:
                     check_run.rerequest()
+        except Exception as e:
+            logger.error(e)
+
+        # Close sandbox
+        try:
+            if sandbox is not None:
+                await asyncio.wait_for(sandbox.close(), timeout=10)
         except Exception as e:
             logger.error(e)
 
