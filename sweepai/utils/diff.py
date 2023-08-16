@@ -273,6 +273,7 @@ def sliding_window_replacement(original, search, replace, search_context_before=
     if max_similarity == 0:
         print("WARNING: No identical lines")
         return original, None, IDENTICAL_LINES
+
     if current_hits > 1:
         # First, try matching beginning of search
         success = False
@@ -294,10 +295,13 @@ def sliding_window_replacement(original, search, replace, search_context_before=
         if not success:
             print("WARNING: Multiple hits")
             return original, None, MULTIPLE_HITS
+
     if index == -1:
         return original, None, NOT_FOUND
-    if int(max_similarity) != len(search):
-        return original, None, INCOMPLETE_MATCH
+
+    # Todo(lukejagg): this doesn't seem to work, add later
+    # if int(max_similarity) != len(search):
+    #     return original, None, INCOMPLETE_MATCH
 
     # if max_similarity != len(search):
     snippet, spaces, strip = get_snippet_with_padding(original, index, search)
@@ -361,7 +365,10 @@ def generate_new_file_from_patch(
         )
 
         if status is not None:
-            errors.append((status, search, replace))
+            nl = "\n"
+            errors.append(
+                f"Error: {status}\n\n```{nl.join(search)}```\n\n```{nl.join(replace)}```"
+            )
 
     if len(errors) > 0:
         discord_log_error(
