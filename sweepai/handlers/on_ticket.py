@@ -426,6 +426,10 @@ def on_ticket(
         )
 
     def log_error(error_type, exception, high_priority=True):
+        nonlocal is_paying_user, is_trial_user
+        if is_paying_user or is_trial_user:
+            high_priority = True
+
         content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
         discord_log_error(content, high_priority=high_priority)
 
