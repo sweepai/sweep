@@ -424,6 +424,8 @@ def on_ticket(
             "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
             -1,
         )
+        return
+        return
 
     def log_error(error_type, exception):
         content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
