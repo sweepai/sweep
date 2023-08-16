@@ -345,7 +345,12 @@ class ChatGPT(BaseModel):
                                     "max_tokens": max_tokens - token_sub,
                                     "input_tokens": messages_length,
                                     "output_tokens": token_count,
-                                    "chat_logger_data": self.chat_logger.data,
+                                    "repo_full_name": self.chat_logger.data.get(
+                                        "repo_full_name"
+                                    ),
+                                    "username": self.chat_logger.data.get("username"),
+                                    "pr_number": self.chat_logger.data.get("pr_number"),
+                                    "issue_url": self.chat_logger.data.get("issue_url"),
                                 },
                             )
                         except Exception as e:
@@ -407,7 +412,12 @@ class ChatGPT(BaseModel):
                                     "max_tokens": max_tokens - token_sub,
                                     "input_tokens": messages_length,
                                     "output_tokens": token_count,
-                                    "chat_logger_data": self.chat_logger.data,
+                                    "repo_full_name": self.chat_logger.data.get(
+                                        "repo_full_name"
+                                    ),
+                                    "username": self.chat_logger.data.get("username"),
+                                    "pr_number": self.chat_logger.data.get("pr_number"),
+                                    "issue_url": self.chat_logger.data.get("issue_url"),
                                 },
                             )
                         except Exception as e:
