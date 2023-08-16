@@ -191,6 +191,9 @@ def on_ticket(
             "comment_id": comment_id,
         }
     )
+    chat_logger.add_successful_ticket(
+        gpt3=use_faster_model
+    )  # moving higher, will increment the issue regardless of whether it's a success or not
 
     user_token, g = get_github_client(installation_id)
 
@@ -900,7 +903,6 @@ def on_ticket(
         )
 
         logger.info("Add successful ticket to counter")
-        chat_logger.add_successful_ticket(gpt3=use_faster_model)
     except MaxTokensExceeded as e:
         logger.info("Max tokens exceeded")
         log_error("Max Tokens Exceeded", str(e) + "\n" + traceback.format_exc())
