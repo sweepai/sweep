@@ -17,7 +17,7 @@ from tabulate import tabulate
 from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import DocumentationSearcher
 
-from sweepai.core.entities import Snippet, NoFilesException
+from sweepai.core.entities import Snippet, NoFilesException, SweepContext
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
@@ -60,7 +60,7 @@ update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 sep = "\n---\n"
 bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
 bot_suffix = (
-    f"\n{sep} To recreate the pull request, or edit the issue title or description."
+    f"\n{sep} To recreate the pull request edit the issue title or description."
 )
 discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep-ai)"
 
@@ -190,12 +190,17 @@ async def on_ticket(
             "comment_id": comment_id,
         }
     )
+    sweep_context = SweepContext(issue_url=issue_url)
 
     user_token, g = get_github_client(installation_id)
 
     is_paying_user = chat_logger.is_paying_user()
     is_trial_user = chat_logger.is_trial_user()
     use_faster_model = chat_logger.use_faster_model(g)
+
+    chat_logger.add_successful_ticket(
+        gpt3=use_faster_model
+    )  # moving higher, will increment the issue regardless of whether it's a success or not
 
     if fast_mode:
         use_faster_model = True
@@ -243,8 +248,6 @@ async def on_ticket(
         )
     summary = summary if summary else ""
 
-    # Check if branch was already created for this issue
-    preexisting_branch = None
     prs = repo.get_pulls(
         state="open", sort="created", base=SweepConfig.get_branch(repo)
     )
@@ -257,7 +260,6 @@ async def on_ticket(
         ):
             success = safe_delete_sweep_branch(pr, repo)
 
-    # Add emojis
     eyes_reaction = item_to_react_to.create_reaction("eyes")
     # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
     reactions = item_to_react_to.get_reactions()
@@ -265,7 +267,6 @@ async def on_ticket(
         if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
             item_to_react_to.delete_reaction(reaction.id)
 
-    # Creates progress bar ASCII for 0-5 states
     progress_headers = [
         None,
         "Step 1: 🔍 Code Search",
@@ -322,10 +323,7 @@ async def on_ticket(
             if config_pr_url is not None
             else ""
         )
-        config_pr_message = (
-            'To get Sweep to recreate this ticket, leave a comment prefixed with "sweep:" or edit the issue.\n'
-            + config_pr_message
-        )
+        config_pr_message = " To retrigger Sweep edit the issue.\n" + config_pr_message
         if index < 0:
             index = 0
         if index == 6:
@@ -411,9 +409,35 @@ async def on_ticket(
             f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{suffix}"
         )
 
-    def log_error(error_type, exception):
-        content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
-        discord_log_error(content)
+    if len(title + summary) < 20:
+        edit_sweep_comment(
+            "Please add more details to your issue. I need at least 20 characters to generate a plan.",
+            -1,
+        )
+
+    if (
+        repo_name != "sweep" and "sweep" in repo_name.lower()
+    ) or "test" in repo_name.lower():
+        # Todo(kevinlu1248): Instead of blocking, use faster model.
+        edit_sweep_comment(
+            "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
+            -1,
+        )
+        return {"success": False}
+
+    def log_error(error_type, exception, priority=0):
+        nonlocal is_paying_user, is_trial_user
+        if is_paying_user or is_trial_user:
+            high_priority = True
+
+        prefix = ""
+        if is_trial_user:
+            prefix = " (TRIAL)"
+        if is_paying_user:
+            prefix = " (PRO)"
+
+        content = f"**{error_type} Error**{prefix}\n{username}: {issue_url}\n```{exception}```"
+        discord_log_error(content, priority=priority)
 
     def fetch_file_contents_with_retry():
         retries = 1
@@ -465,7 +489,7 @@ async def on_ticket(
             f"It looks like an issue has occurred around fetching the files. Perhaps the repo has not been initialized. If this error persists contact team@sweep.dev.\n\n> @{username}, please edit the issue description to include more details and I will automatically relaunch.",
             -1,
         )
-        log_error("File Fetch", str(e) + "\n" + traceback.format_exc())
+        log_error("File Fetch", str(e) + "\n" + traceback.format_exc(), priority=1)
         raise e
 
     snippets = post_process_snippets(
@@ -558,6 +582,7 @@ async def on_ticket(
         repo=repo,
         is_reply=bool(comments),
         chat_logger=chat_logger,
+        sweep_context=sweep_context,
     )
 
     # Check repository for sweep.yml file.
@@ -613,6 +638,19 @@ async def on_ticket(
         # TODO: removed issue commenting here
         logger.info("Fetching files to modify/create...")
         file_change_requests, plan = sweep_bot.get_files_to_change()
+
+        if not file_change_requests:
+            if len(title + summary) < 60:
+                edit_sweep_comment(
+                    "Sorry, I could not find any files to modify, can you please provide more details? Please make sure that the title and summary of the issue are at least 60 characters.",
+                    -1,
+                )
+            else:
+                edit_sweep_comment(
+                    "Sorry, I could not find any files to modify, can you please provide more details?",
+                    -1,
+                )
+            raise Exception("No files to modify.")
 
         sweep_bot.summarize_snippets(plan)
 
@@ -689,6 +727,7 @@ async def on_ticket(
             installation_id,
             issue_number,
             sandbox=sandbox,
+            chat_logger=chat_logger,
         )
         table_message = tabulate(
             [
@@ -870,6 +909,7 @@ async def on_ticket(
                     replies_text=replies_text,
                     tree=tree,
                     lint_output=lint_output,
+                    chat_logger=chat_logger,
                 )
                 # Todo(lukejagg): Execute sandbox after each iteration
                 lint_output = None
@@ -894,6 +934,7 @@ async def on_ticket(
                         pr_line_position=None,
                         pr_number=None,
                         pr=pr_changes,
+                        chat_logger=chat_logger,
                     )
                 else:
                     break
@@ -959,10 +1000,13 @@ async def on_ticket(
         )
 
         logger.info("Add successful ticket to counter")
-        chat_logger.add_successful_ticket(gpt3=use_faster_model)
     except MaxTokensExceeded as e:
         logger.info("Max tokens exceeded")
-        log_error("Max Tokens Exceeded", str(e) + "\n" + traceback.format_exc())
+        log_error(
+            "Max Tokens Exceeded",
+            str(e) + "\n" + traceback.format_exc(),
+            priority=2,
+        )
         if chat_logger.is_paying_user():
             edit_sweep_comment(
                 f"Sorry, I could not edit `{e.filename}` as this file is too long. We are currently working on improved file streaming to address this issue.\n",
@@ -979,6 +1023,7 @@ async def on_ticket(
         log_error(
             "Sweep could not find files to modify",
             str(e) + "\n" + traceback.format_exc(),
+            priority=2,
         )
         edit_sweep_comment(
             f"Sorry, Sweep could not find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!\n\n> @{username}, please edit the issue description to include more details about this issue.",
@@ -989,10 +1034,14 @@ async def on_ticket(
         logger.error(traceback.format_exc())
         logger.error(e)
         edit_sweep_comment(
-            "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev.",
+            "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists report it at https://discord.gg/sweep.",
             -1,
         )
-        log_error("Context Length", str(e) + "\n" + traceback.format_exc())
+        log_error(
+            "Context Length",
+            str(e) + "\n" + traceback.format_exc(),
+            priority=2,
+        )
         posthog.capture(
             username,
             "failed",
@@ -1009,7 +1058,7 @@ async def on_ticket(
         # title and summary are defined elsewhere
         if len(title + summary) < 60:
             edit_sweep_comment(
-                "I'm sorry, but it looks like an error has occurred due to insufficient information. Be sure to create a more detailed issue so I can better address it. If this error persists contact team@sweep.dev.",
+                "I'm sorry, but it looks like an error has occurred due to insufficient information. Be sure to create a more detailed issue so I can better address it. If this error persists report it at https://discord.gg/sweep.",
                 -1,
             )
         else:
@@ -1017,7 +1066,7 @@ async def on_ticket(
                 "I'm sorry, but it looks like an error has occurred. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev.",
                 -1,
             )
-        log_error("Workflow", str(e) + "\n" + traceback.format_exc())
+        log_error("Workflow", str(e) + "\n" + traceback.format_exc(), priority=0)
         posthog.capture(
             username,
             "failed",

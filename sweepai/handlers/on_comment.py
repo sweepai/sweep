@@ -1,9 +1,13 @@
+import re
 import traceback
 
 import openai
 from loguru import logger
 from typing import Any
 from tabulate import tabulate
+from github.Repository import Repository
+
+from sweepai.config.client import get_blocked_dirs
 
 from sweepai.config.client import get_blocked_dirs
 
@@ -98,8 +102,9 @@ def on_comment(
     pr_number: int = None,
     comment_id: int | None = None,
     g: None = None,
-    repo: None = None,
+    repo: Repository = None,
     pr: Any = None,  # Uses PRFileChanges type too
+    chat_logger: Any = None,
 ):
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
@@ -128,23 +133,33 @@ def on_comment(
     pr_file_path = None
     diffs = get_pr_diffs(repo, pr)
     pr_line = None
-    chat_logger = ChatLogger(
-        {
-            "repo_name": repo_name,
-            "title": "(Comment) " + pr_title,
-            "issue_url": pr.html_url,
-            "pr_file_path": pr_file_path,  # may be None
-            "pr_line": pr_line,  # may be None
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "comment": comment,
-            "pr_path": pr_path,
-            "pr_line_position": pr_line_position,
-            "username": username,
-            "installation_id": installation_id,
-            "pr_number": pr_number,
-            "type": "comment",
-        }
+
+    issue_number = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body).group(
+        "issue_number"
+    )
+    author = repo.get_issue(int(issue_number)).user.login
+    logger.info(f"Author of original issue is {author}")
+    chat_logger = (
+        chat_logger
+        if chat_logger is not None
+        else ChatLogger(
+            {
+                "repo_name": repo_name,
+                "title": "(Comment) " + pr_title,
+                "issue_url": pr.html_url,
+                "pr_file_path": pr_file_path,  # may be None
+                "pr_line": pr_line,  # may be None
+                "repo_full_name": repo_full_name,
+                "repo_description": repo_description,
+                "comment": comment,
+                "pr_path": pr_path,
+                "pr_line_position": pr_line_position,
+                "username": author,
+                "installation_id": installation_id,
+                "pr_number": pr_number,
+                "type": "comment",
+            }
+        )
     )
 
     is_paying_user = chat_logger.is_paying_user()
@@ -263,7 +278,7 @@ def on_comment(
             human_message=human_message,
             repo=repo,
             chat_logger=chat_logger,
-            model="gpt-4-32k-0613",
+            model="gpt-3.5" if use_faster_model else "gpt-4-32k-0613",
         )
     except Exception as e:
         logger.error(traceback.format_exc())
@@ -285,15 +300,89 @@ def on_comment(
                 )
             ]
         else:
-            file_change_requests, _ = sweep_bot.get_files_to_change(retries=3)
-            file_change_requests = sweep_bot.validate_file_change_requests(
-                file_change_requests, branch=branch_name
-            )
+            if comment.strip().lower().startswith("sweep: regenerate"):
+                logger.info("Running regenerate...")
 
-            sweep_response = ""
-            if len(file_change_requests) == 0:
-                sweep_response = "I couldn't find any relevant files to change."
+                file_paths = comment.strip().split(" ")[2:]
+
+                def get_contents_with_fallback(repo: Repository, file_path: str):
+                    try:
+                        return repo.get_contents(file_path)
+                    except Exception as e:
+                        logger.error(e)
+                        return None
+
+                old_file_contents = [
+                    get_contents_with_fallback(repo, file_path)
+                    for file_path in file_paths
+                ]
+                print(old_file_contents)
+                for file_path, old_file_content in zip(file_paths, old_file_contents):
+                    current_content = sweep_bot.get_contents(
+                        file_path, branch=branch_name
+                    )
+                    if old_file_content:
+                        logger.info("Resetting file...")
+                        sweep_bot.repo.update_file(
+                            file_path,
+                            f"Reset {file_path}",
+                            old_file_content.decoded_content,
+                            sha=current_content.sha,
+                            branch=branch_name,
+                        )
+                    else:
+                        logger.info("Deleting file...")
+                        sweep_bot.repo.delete_file(
+                            file_path,
+                            f"Reset {file_path}",
+                            sha=current_content.sha,
+                            branch=branch_name,
+                        )
+
+                quoted_pr_summary = "> " + pr.body.replace("\n", "\n> ")
+                file_change_requests = [
+                    FileChangeRequest(
+                        filename=file_path,
+                        instructions=f"Modify the file {file_path} based on the PR summary:\n\n{quoted_pr_summary}",
+                        change_type="modify",
+                    )
+                    for file_path in file_paths
+                ]
+                print(file_change_requests)
+                file_change_requests = sweep_bot.validate_file_change_requests(
+                    file_change_requests, branch=branch_name
+                )
+
+                logger.info("Getting response from ChatGPT...")
+                human_message = HumanMessageCommentPrompt(
+                    comment=comment,
+                    repo_name=repo_name,
+                    repo_description=repo_description if repo_description else "",
+                    diffs=get_pr_diffs(repo, pr),
+                    issue_url=pr.html_url,
+                    username=username,
+                    title=pr_title,
+                    tree=tree,
+                    summary=pr_body,
+                    snippets=snippets,
+                    pr_file_path=pr_file_path,  # may be None
+                    pr_line=pr_line,  # may be None
+                )
+
+                logger.info(f"Human prompt{human_message.construct_prompt()}")
+                sweep_bot = SweepBot.from_system_message_content(
+                    human_message=human_message,
+                    repo=repo,
+                    chat_logger=chat_logger,
+                )
             else:
+                file_change_requests, _ = sweep_bot.get_files_to_change(retries=3)
+                file_change_requests = sweep_bot.validate_file_change_requests(
+                    file_change_requests, branch=branch_name
+                )
+
+            sweep_response = "I couldn't find any relevant files to change."
+            if file_change_requests:
                 table_message = tabulate(
                     [
                         [
@@ -311,7 +400,9 @@ def on_comment(
                     f"I decided to make the following changes:\n\n{table_message}"
                 )
             quoted_comment = "> " + comment.replace("\n", "\n> ")
-            response_for_user = f"{quoted_comment}\nHi @{username},\n\n{sweep_response}"
+            response_for_user = (
+                f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
+            )
             if pr_number:
                 pr.create_issue_comment(response_for_user)
         logger.info("Making Code Changes...")

@@ -56,6 +56,7 @@ def review_pr(
     replies_text,
     tree,
     lint_output=None,
+    chat_logger=None,
 ):
     repo_name = repo.full_name
     logger.info("Getting PR diffs...")
@@ -75,23 +76,27 @@ def review_pr(
     )
     summarization_replies = []
 
-    chat_logger = ChatLogger(
-        {
-            "repo_name": repo_name,
-            "title": "(Review) " + title,
-            "summary": summary + replies_text,
-            "issue_url": issue_url,
-            "username": username,
-            "repo_description": repo_description,
-            "issue_url": issue_url,
-            "username": username,
-            "repo_description": repo_description,
-            "title": title,
-            "summary": summary,
-            "replies_text": replies_text,
-            "tree": tree,
-            "type": "review",
-        }
+    chat_logger = (
+        chat_logger
+        if chat_logger is not None
+        else ChatLogger(
+            {
+                "repo_name": repo_name,
+                "title": "(Review) " + title,
+                "summary": summary + replies_text,
+                "issue_url": issue_url,
+                "username": username,
+                "repo_description": repo_description,
+                "issue_url": issue_url,
+                "username": username,
+                "repo_description": repo_description,
+                "title": title,
+                "summary": summary,
+                "replies_text": replies_text,
+                "tree": tree,
+                "type": "review",
+            }
+        )
     )
     sweep_bot = SweepBot.from_system_message_content(
         # human_message=human_message, model="claude-v1.3-100k", repo=repo, is_reply=False

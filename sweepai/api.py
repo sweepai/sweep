@@ -447,6 +447,10 @@ async def webhook(raw_request: Request):
                     and pull_request.user.login.lower().startswith("sweep")
                     and request.check_run.conclusion == "failure"
                     and not pull_request.title.startswith("[DRAFT]")
+                    and pull_request.labels
+                    and any(
+                        label.name.lower() == "sweep" for label in pull_request.labels
+                    )
                 ):
                     logger.info("Handling check suite")
                     pr_change_request = PRChangeRequest(

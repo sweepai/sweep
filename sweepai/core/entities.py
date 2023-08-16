@@ -376,3 +376,10 @@ class MockPR(BaseModel):
     def create_review(self, *args, **kwargs):
         # Todo: used to prevent erroring in on_review.py file
         pass
+
+
+class SweepContext(BaseModel):
+    issue_url: str
+
+    def __str__(self):
+        return self.issue_url
