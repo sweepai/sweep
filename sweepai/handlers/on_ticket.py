@@ -244,8 +244,6 @@ def on_ticket(
         )
     summary = summary if summary else ""
 
-    # Check if branch was already created for this issue
-    preexisting_branch = None
     prs = repo.get_pulls(
         state="open", sort="created", base=SweepConfig.get_branch(repo)
     )
@@ -258,7 +256,6 @@ def on_ticket(
         ):
             success = safe_delete_sweep_branch(pr, repo)
 
-    # Add emojis
     eyes_reaction = item_to_react_to.create_reaction("eyes")
     # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
     reactions = item_to_react_to.get_reactions()
@@ -266,7 +263,6 @@ def on_ticket(
         if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
             item_to_react_to.delete_reaction(reaction.id)
 
-    # Creates progress bar ASCII for 0-5 states
     progress_headers = [
         None,
         "Step 1: 🔍 Code Search",
@@ -410,6 +406,12 @@ def on_ticket(
         # Update the issue comment
         issue_comment.edit(
             f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{suffix}"
+        )
+
+    if len(title + summary) < 15:
+        edit_sweep_comment(
+            f"Please add more details to your issue. I need at least 20 characters to generate a plan.",
+            -1,
         )
 
     def log_error(error_type, exception):
