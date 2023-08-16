@@ -92,6 +92,7 @@ class ChatGPT(BaseModel):
         human_message: HumanMessagePrompt,
         is_reply: bool = False,
         chat_logger=None,
+        sweep_context=None,
         **kwargs,
     ) -> Self:
         content = system_message_prompt
@@ -112,6 +113,7 @@ class ChatGPT(BaseModel):
             messages=messages,
             human_message=human_message,
             chat_logger=chat_logger,
+            sweep_context=sweep_context,
             **kwargs,
         )
 
