@@ -299,11 +299,13 @@ def on_comment(
             ]
         else:
             if comment.strip().lower().startswith("sweep: regenerate"):
+                logger.info("Running regenerate...")
+
                 file_paths = comment.strip().split(" ")[2:]
 
                 def get_contents_with_fallback(repo, file_path):
                     try:
-                        return repo.get_contents(file_path, ref=branch_name)
+                        return repo.get_contents(file_path)
                     except Exception as e:
                         logger.error(e)
                         return None
@@ -332,14 +334,16 @@ def on_comment(
                             branch=branch_name,
                         )
 
-                quoted_pr_summary = pr.body.replace(">", "")
+                quoted_pr_summary = "> " + pr.body.replace("\n", "\n> ")
                 file_change_requests = [
                     FileChangeRequest(
                         filename=file_path,
-                        instructions=f"Modify the file {file_path} based on the PR summary:\n\n> {quoted_pr_summary}",
+                        instructions=f"Modify the file {file_path} based on the PR summary:\n\n{quoted_pr_summary}",
                         change_type="modify",
                     )
+                    for file_path in file_paths
                 ]
+                print(file_change_requests)
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name
                 )
