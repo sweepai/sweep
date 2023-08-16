@@ -24,6 +24,38 @@ IMAGE_INSTALLATION = {
 }
 PYTHON_CREATE_VENV = f"cd {REPO_PATH} && python3 -m venv venv && source venv/bin/activate && poetry install"
 
+LINT_CONFIG = """module.exports = {
+    "env": {
+        "browser": true,
+        "es2021": true
+    },
+    "extends": [
+        "eslint:recommended",
+    ],
+    "overrides": [
+        {
+            "env": {
+                "node": true
+            },
+            "files": [
+                ".eslintrc.{js,cjs}"
+            ],
+            "parserOptions": {
+                "sourceType": "script"
+            }
+        }
+    ],
+    "parserOptions": {
+        "ecmaVersion": "latest",
+        "sourceType": "module"
+    },
+    "plugins": [
+    ],
+    "rules": {
+    }
+}
+"""
+
 
 class Sandbox(BaseModel):
     username: str
@@ -137,6 +169,30 @@ class Sandbox(BaseModel):
         if self.linter_command is None:
             return None
         await self.run_command(self.linter_command)
+
+    async def formatter_workflow(self, branch, files):
+        if len(files) == 0:
+            return
+
+        await asyncio.wait_for(self.start(), timeout=60)
+        await asyncio.wait_for(
+            self.run_command(
+                f"cd repo; git fetch; git pull; git checkout {branch}; npm init -y; npm install eslint --save-dev; npm install @typescript-eslint/parser @typescript-eslint/eslint-plugin --save-dev"
+            ),
+            timeout=60,
+        )
+        await asyncio.wait_for(
+            self.session.filesystem.write("/home/user/repo/.eslintrc.js", LINT_CONFIG),
+            timeout=60,
+        )
+
+        files_str = '"' + '" "'.join(files) + '"'
+        lint_output = await self.run_command("cd repo; npx eslint " + files_str)
+        print("E2B:", "\n".join(f.line for f in lint_output))
+
+        await self.close()
+
+        return lint_output
 
     async def close(self):
         await self.session.close()
