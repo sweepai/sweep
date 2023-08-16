@@ -78,7 +78,10 @@ def create_pr_changes(
             file_change_request,
             changed_file,
         ) in sweep_bot.change_files_in_github_iterator(
-            file_change_requests, pull_request.branch_name, blocked_dirs, sandbox
+            file_change_requests,
+            pull_request.branch_name,
+            blocked_dirs,
+            sandbox=sandbox,
         ):
             completed_count += changed_file
             logger.info("Completed {}/{} files".format(completed_count, fcr_count))

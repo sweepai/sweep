@@ -46,7 +46,16 @@ def get_pr_diffs(repo, pr):
 
 
 def review_pr(
-    repo, pr, issue_url, username, repo_description, title, summary, replies_text, tree
+    repo,
+    pr,
+    issue_url,
+    username,
+    repo_description,
+    title,
+    summary,
+    replies_text,
+    tree,
+    lint_output=None,
 ):
     repo_name = repo.full_name
     logger.info("Getting PR diffs...")
@@ -105,6 +114,10 @@ def review_pr(
     final_review_prompt = HumanMessageFinalPRComment(
         summarization_replies=summarization_replies
     ).construct_prompt()
+
+    if lint_output is not None:
+        final_review_prompt += f"\n\n<linting_output>\n{lint_output}\n</linting_output>"
+
     reply = sweep_bot.chat(final_review_prompt, message_key="final_review")
     review_comment = PullRequestComment.from_string(reply)
     pr.create_review(body=review_comment.content, event="COMMENT", comments=[])

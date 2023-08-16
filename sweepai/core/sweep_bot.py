@@ -495,6 +495,7 @@ class SweepBot(CodeGenBot, GithubBot):
         file_change_requests: list[FileChangeRequest],
         branch: str,
         blocked_dirs: list[str] = [],
+        sandbox=None,
     ):
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
@@ -502,7 +503,7 @@ class SweepBot(CodeGenBot, GithubBot):
         completed = 0
 
         for _, changed_file in self.change_files_in_github_iterator(
-            file_change_requests, branch, blocked_dirs
+            file_change_requests, branch, blocked_dirs, sandbox=sandbox
         ):
             if changed_file:
                 completed += 1
@@ -513,7 +514,7 @@ class SweepBot(CodeGenBot, GithubBot):
         file_change_requests: list[FileChangeRequest],
         branch: str,
         blocked_dirs: list[str],
-        sandbox,
+        sandbox=None,
     ):
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
@@ -635,12 +636,14 @@ class SweepBot(CodeGenBot, GithubBot):
                 branch=branch,
             )
 
+            file_change_request.new_content = file_change.code
+
             return True
         except Exception as e:
             logger.info(f"Error in handle_create_file: {e}")
             return False
 
-    async def handle_modify_file(
+    def handle_modify_file(
         self,
         file_change_request: FileChangeRequest,
         branch: str,
@@ -725,30 +728,13 @@ class SweepBot(CodeGenBot, GithubBot):
             # Format the contents
             if sandbox is not None:
                 try:
-                    loop = asyncio.get_event_loop()
-                    print("1")
-                    session = e2b.Session("Nodejs")
-                    print("2")
-                    loop.run_until_complete(session.open())
-                    print("3")
-                    p = loop.run_until_complete(
-                        session.process.start(
-                            cmd="echo DEBUG E2B TEST",
-                            on_stdout=lambda data: print(data),
-                            on_stderr=lambda data: print(data),
-                        )
-                    )
-                    print("4")
-                    loop.run_until_complete(p.finished)
-                    print("5")
-
-                    loop = asyncio.get_event_loop()
-                    print("e2b 6")
-                    new_file_contents = loop.run_until_complete(
-                        sandbox.run_formatter(file_name, new_file_contents)
-                    )
-                    print("e2b 7")
                     pass
+                    # loop = asyncio.get_event_loop()
+                    # print("e2b 6")
+                    # new_file_contents = loop.run_until_complete(
+                    #     sandbox.run_formatter(file_name, new_file_contents)
+                    # )
+                    # print("e2b 7")
                 except Exception as e:
                     # print e and print traceback
                     print(e)
@@ -769,6 +755,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     file.sha,
                     branch=branch,
                 )
+                file_change_request.new_content = new_file_contents
                 return True
             except Exception as e:
                 logger.info(f"Error in updating file, repulling and trying again {e}")
@@ -781,6 +768,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     file.sha,
                     branch=branch,
                 )
+                file_change_request.new_content = new_file_contents
                 return True
         except MaxTokensExceeded as e:
             raise e
