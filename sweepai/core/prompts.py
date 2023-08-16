@@ -551,9 +551,6 @@ Our goal is to validate if the final code is valid. This means there's undefined
 
 code_repair_check_prompt = """\
 This is the diff that was applied to create user_code. Only make changes to code in user_code if the code was affected by the diff.
-<diff>
-{diff}
-</diff>
 
 This is the user_code.
 <user_code>
@@ -579,9 +576,6 @@ Our goal is to return a working version of user_code that follows {feature}. We 
 
 code_repair_prompt = """\
 This is the diff that was applied to create user_code. Only make changes to code in user_code if the code was affected by the diff.
-<diff>
-{diff}
-</diff>
 
 This is the user_code.
 <user_code>
