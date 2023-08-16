@@ -425,7 +425,6 @@ def on_ticket(
             -1,
         )
         return
-        return
 
     def log_error(error_type, exception):
         content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
