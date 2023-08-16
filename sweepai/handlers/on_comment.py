@@ -317,7 +317,14 @@ def on_comment(
                             branch=branch_name,
                         )
 
-                file_change_requests, _ = sweep_bot.get_files_to_change(retries=3)
+                quoted_pr_summary = pr.body.replace(">", "")
+                file_change_requests = [
+                    FileChangeRequest(
+                        filename=file_path,
+                        instructions=f"Modify the file {file_path} based on the PR summary:\n\n> {quoted_pr_summary}",
+                        change_type="modify",
+                    )
+                ]
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name
                 )
@@ -345,16 +352,14 @@ def on_comment(
                     chat_logger=chat_logger,
                     model="gpt-4-32k-0613",
                 )
-
-            file_change_requests, _ = sweep_bot.get_files_to_change(retries=3)
-            file_change_requests = sweep_bot.validate_file_change_requests(
-                file_change_requests, branch=branch_name
-            )
-
-            sweep_response = ""
-            if len(file_change_requests) == 0:
-                sweep_response = "I couldn't find any relevant files to change."
             else:
+                file_change_requests, _ = sweep_bot.get_files_to_change(retries=3)
+                file_change_requests = sweep_bot.validate_file_change_requests(
+                    file_change_requests, branch=branch_name
+                )
+
+            sweep_response = "I couldn't find any relevant files to change."
+            if file_change_requests:
                 table_message = tabulate(
                     [
                         [
@@ -372,7 +377,9 @@ def on_comment(
                     f"I decided to make the following changes:\n\n{table_message}"
                 )
             quoted_comment = "> " + comment.replace("\n", "\n> ")
-            response_for_user = f"{quoted_comment}\nHi @{username},\n\n{sweep_response}"
+            response_for_user = (
+                f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
+            )
             if pr_number:
                 pr.create_issue_comment(response_for_user)
         logger.info("Making Code Changes...")
