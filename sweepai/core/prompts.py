@@ -450,8 +450,6 @@ Instructions:
 code_repair_modify_prompt = """
 File Name: {filename}
 
-{diff}
-
 <suggested_new_file>
 {code}
 </suggested_new_file>
