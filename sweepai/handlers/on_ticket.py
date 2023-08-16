@@ -476,6 +476,7 @@ def on_ticket(
     if (
         repo_name != "sweep" and "sweep" in repo_name.lower()
     ) or "test" in repo_name.lower():
+        # Todo(kevinlu1248): Instead of blocking, use faster model.
         edit_sweep_comment(
             "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
             -1,
