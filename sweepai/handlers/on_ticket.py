@@ -421,10 +421,15 @@ def on_ticket(
             "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
             -1,
         )
+        return {"success": False}
 
-    def log_error(error_type, exception):
+    def log_error(error_type, exception, high_priority=True):
+        nonlocal is_paying_user, is_trial_user
+        if is_paying_user or is_trial_user:
+            high_priority = True
+
         content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
-        discord_log_error(content)
+        discord_log_error(content, high_priority=high_priority)
 
     def fetch_file_contents_with_retry():
         retries = 1
@@ -459,7 +464,9 @@ def on_ticket(
             f"It looks like an issue has occurred around fetching the files. Perhaps the repo has not been initialized. If this error persists contact team@sweep.dev.\n\n> @{username}, please edit the issue description to include more details and I will automatically relaunch.",
             -1,
         )
-        log_error("File Fetch", str(e) + "\n" + traceback.format_exc())
+        log_error(
+            "File Fetch", str(e) + "\n" + traceback.format_exc(), high_priority=True
+        )
         raise e
 
     snippets = post_process_snippets(
@@ -695,6 +702,7 @@ def on_ticket(
             username,
             installation_id,
             issue_number,
+            chat_logger=chat_logger,
         )
         table_message = tabulate(
             [
@@ -902,7 +910,11 @@ def on_ticket(
         logger.info("Add successful ticket to counter")
     except MaxTokensExceeded as e:
         logger.info("Max tokens exceeded")
-        log_error("Max Tokens Exceeded", str(e) + "\n" + traceback.format_exc())
+        log_error(
+            "Max Tokens Exceeded",
+            str(e) + "\n" + traceback.format_exc(),
+            high_priority=False,
+        )
         if chat_logger.is_paying_user():
             edit_sweep_comment(
                 f"Sorry, I could not edit `{e.filename}` as this file is too long. We are currently working on improved file streaming to address this issue.\n",
@@ -919,6 +931,7 @@ def on_ticket(
         log_error(
             "Sweep could not find files to modify",
             str(e) + "\n" + traceback.format_exc(),
+            high_priority=False,
         )
         edit_sweep_comment(
             f"Sorry, Sweep could not find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!\n\n> @{username}, please edit the issue description to include more details about this issue.",
@@ -932,7 +945,11 @@ def on_ticket(
             "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists report it at https://discord.gg/sweep.",
             -1,
         )
-        log_error("Context Length", str(e) + "\n" + traceback.format_exc())
+        log_error(
+            "Context Length",
+            str(e) + "\n" + traceback.format_exc(),
+            high_priority=False,
+        )
         posthog.capture(
             username,
             "failed",
@@ -957,7 +974,9 @@ def on_ticket(
                 "I'm sorry, but it looks like an error has occurred. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev.",
                 -1,
             )
-        log_error("Workflow", str(e) + "\n" + traceback.format_exc())
+        log_error(
+            "Workflow", str(e) + "\n" + traceback.format_exc(), high_priority=True
+        )
         posthog.capture(
             username,
             "failed",
