@@ -161,14 +161,6 @@ def on_ticket(
         migrate,
         fast_mode,
     ) = strip_sweep(title)
-    
-    # Check if the repository is empty. The get_contents method is a part of the github.Repository.Repository class from the PyGithub library.
-    if not repo.get_contents(""):
-        # If the repository is empty, update the issue comment with an error message. The first argument is the error message to be added to the issue comment, and the second argument (-1) is an error code or status indicator.
-        edit_sweep_comment("Sweep does not work on empty repositories.", -1)
-        # The on_ticket function returns a dictionary with "success" and "reason" keys when the repository is empty. The function or method that calls on_ticket should expect these keys in the return value.
-        # The on_ticket function returns a dictionary with "success" and "reason" keys when the repository is empty. The function or method that calls on_ticket should expect these keys in the return value.
-        return {"success": False, "reason": "Repository is empty"}
 
     # Flow:
     # 1. Get relevant files
@@ -222,12 +214,12 @@ def on_ticket(
         "function": "on_ticket",
         "model": "gpt-3.5" if use_faster_model else "gpt-4",
         "tier": "pro" if is_paying_user else "free",
-        "mode": PREFIX,
-    }
-    posthog.capture(username, "started", properties=metadata)
-
-    logger.info(f"Getting repo {repo_full_name}")
-    repo = g.get_repo(repo_full_name)
+    (
+        title,
+        slow_mode,
+        migrate,
+        fast_mode,
+    ) = strip_sweep(title)
     config = SweepConfig.get_config(repo)
 
     current_issue = repo.get_issue(number=issue_number)
