@@ -1,6 +1,8 @@
 import difflib
 import re
 
+from sweepai.utils.chat_logger import discord_log_error
+
 
 def diff_contains_dups_or_removals(diff, new_code):
     # The regex pattern for lines removed or added in the actual code
@@ -166,6 +168,7 @@ def generate_new_file(
 NOT_FOUND = "NOT_FOUND"
 IDENTICAL_LINES = "IDENTICAL_LINES"
 MULTIPLE_HITS = "MULTIPLE_HITS"
+INCOMPLETE_MATCH = "INCOMPLETE_MATCH"
 
 
 def match_string(original, search, start_index=None):
@@ -183,7 +186,7 @@ def match_string(original, search, start_index=None):
 
                 # If searching for previous snippet (like regex)
                 if start_index is not None and search[j] == original[i + j]:
-                    count += 0.01
+                    count += 0.001
         if count > max_similarity:
             index = i
             max_similarity = count
@@ -293,6 +296,8 @@ def sliding_window_replacement(original, search, replace, search_context_before=
             return original, None, MULTIPLE_HITS
     if index == -1:
         return original, None, NOT_FOUND
+    if int(max_similarity) != len(search):
+        return original, None, INCOMPLETE_MATCH
 
     # if max_similarity != len(search):
     snippet, spaces, strip = get_snippet_with_padding(original, index, search)
@@ -321,13 +326,15 @@ def get_all_diffs(modify_file_response: str) -> str:
 
 def generate_new_file_from_patch(
     modify_file_response: str, old_file_content: str, chunk_offset: int = 0
-) -> str:
+):
     old_file_lines = old_file_content.split("\n")
 
     # Extract content between <new_file> tags
     matches = re.findall(
         r"<<<<.*?\n(.*?)\n====[^\n=]*\n(.*?)\n?>>>>", modify_file_response, re.DOTALL
     )
+
+    errors = []
 
     if not old_file_content.strip():
         # If old file is empty, just return the first match
@@ -353,8 +360,16 @@ def generate_new_file_from_patch(
             old_file_lines, search.split("\n"), replace.split("\n")
         )
 
+        if status is not None:
+            errors.append((status, search, replace))
+
+    if len(errors) > 0:
+        discord_log_error(
+            "Matching error in modify: " + str(errors), high_priority=True
+        )
+
     result = "\n".join(old_file_lines)
-    return result
+    return result, errors
 
 
 def join_contents_k(first, second, k):
