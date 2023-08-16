@@ -101,6 +101,7 @@ def on_comment(
     pr: Any = None,  # Uses PRFileChanges type too
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
+        pass
     elif comment.strip().startswith("sweep: regenerate"):
         file_name = comment.strip().split(" ")[2]
         rollback_file(repo_full_name, file_name, installation_id, pr_number)
@@ -109,6 +110,8 @@ def on_comment(
             "success": True,
             "message": "File has been regenerated based on the original plan.",
         }
+    else:
+        pass
 
     # Flow:
     # 1. Get relevant files
