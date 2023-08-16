@@ -1,6 +1,6 @@
 import os
 
-PREFIX = "prod"
+PREFIX = "dev2"
 print(f"Using prefix: {PREFIX}")
 ENV = PREFIX
 
