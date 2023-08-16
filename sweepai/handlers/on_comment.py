@@ -263,7 +263,7 @@ def on_comment(
             human_message=human_message,
             repo=repo,
             chat_logger=chat_logger,
-            model="gpt-4-32k-0613",
+            model="gpt-3.5" if use_faster_model else "gpt-4-32k-0613",
         )
     except Exception as e:
         logger.error(traceback.format_exc())
