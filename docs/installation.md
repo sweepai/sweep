@@ -9,6 +9,8 @@ The issue title should start with `Sweep: ` For issues and PRs, call Sweep using
 
 💡 **Sweep works best with real repositories and real issues. Empty or test repositories will break Sweep.**
 
+*If you really need a boilerplate repo for testing, we recommend https://github.com/facebook/create-react-app or other CRA templates.*
+
 
 <table>
   <tr>
