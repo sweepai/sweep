@@ -369,7 +369,6 @@ def generate_new_file_from_patch(
         )
 
         if status is not None:
-            nl = "\n"
             errors.append(f"- {status}\n```{search}```\n\n```{replace}```")
 
     if len(errors) > 0:
