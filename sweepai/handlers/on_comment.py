@@ -5,6 +5,8 @@ from loguru import logger
 from typing import Any
 from tabulate import tabulate
 
+from sweepai.config.client import get_blocked_dirs
+
 
 def construct_metadata(
     repo_full_name,
@@ -313,8 +315,13 @@ def on_comment(
             if pr_number:
                 pr.create_issue_comment(response_for_user)
         logger.info("Making Code Changes...")
+
+        blocked_dirs = get_blocked_dirs(sweep_bot.repo)
+
         list(
-            sweep_bot.change_files_in_github_iterator(file_change_requests, branch_name)
+            sweep_bot.change_files_in_github_iterator(
+                file_change_requests, branch_name, blocked_dirs
+            )
         )
         if type(pr) != MockPR:
             if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
