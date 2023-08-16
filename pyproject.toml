@@ -35,6 +35,7 @@ markdownify = "^0.11.6"
 playwright = "^1.30.0"
 robotexclusionrulesparser = "^1.7.1"
 deeplake = "^3.6.17"
+translate = "^1.0.0"
 geopy = "^2.3.0"
 pre-commit = "^3.3.3"
 
