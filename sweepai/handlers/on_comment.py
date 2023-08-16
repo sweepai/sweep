@@ -4,6 +4,7 @@ import openai
 from loguru import logger
 from typing import Any
 from tabulate import tabulate
+from .filename import rollback_file, apply_original_plan, get_original_plan, apply_changes, get_github_client
 
 from sweepai.config.client import get_blocked_dirs
 
@@ -87,8 +88,7 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     return result_snippets[:max_num_of_snippets]
 
 
-def on_comment(
-    repo_full_name: str,
+    
     repo_description: str,
     comment: str,
     pr_path: str | None,
@@ -98,16 +98,24 @@ def on_comment(
     pr_number: int = None,
     comment_id: int | None = None,
     g: None = None,
-    repo: None = None,
-    pr: Any = None,  # Uses PRFileChanges type too
-):
-    # Check if the comment is "REVERT"
+    ):
+    pass
+    ):
+    pass
+    
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
+        pass
+    elif comment.strip().startswith("sweep: regenerate"):
+        file_name = comment.strip().split(" ")[2]
+        rollback_file(repo_full_name, file_name, installation_id, pr_number)
+        apply_original_plan(file_name)
         return {
             "success": True,
-            "message": "File has been reverted to the previous commit.",
+            "message": "File has been regenerated based on the original plan.",
         }
+    else:
+        pass
 
     # Flow:
     # 1. Get relevant files
@@ -374,8 +382,14 @@ def on_comment(
 def capture_posthog_event(username, event, properties):
     posthog.capture(username, event, properties=properties)
 
+def apply_original_plan(file_name):
+    # Retrieve the original plan for the file
+    original_plan = get_original_plan(file_name)
+    # Apply the changes to the file
+    apply_changes(file_name, original_plan)
 
-def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
+
+def rollback_file(repo_full_name, file_name, installation_id, pr_number):
     _, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
     pr = repo.get_pull(pr_number)
@@ -408,7 +422,7 @@ def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
         previous_file_content = previous_content.decoded_content.decode("utf-8")
         # Create a new commit with the previous file content
         repo.update_file(
-            pr_path,
+            file_name,
             "Revert file to previous commit",
             previous_file_content,
             current_file_sha,
