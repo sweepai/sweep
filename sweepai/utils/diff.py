@@ -1,6 +1,7 @@
 import difflib
 import re
 
+from sweepai.core.entities import SweepContext
 from sweepai.utils.chat_logger import discord_log_error
 
 
@@ -329,7 +330,10 @@ def get_all_diffs(modify_file_response: str) -> str:
 
 
 def generate_new_file_from_patch(
-    modify_file_response: str, old_file_content: str, chunk_offset: int = 0
+    modify_file_response: str,
+    old_file_content: str,
+    chunk_offset: int = 0,
+    sweep_context: SweepContext = None,
 ):
     old_file_lines = old_file_content.split("\n")
 
@@ -367,12 +371,13 @@ def generate_new_file_from_patch(
         if status is not None:
             nl = "\n"
             errors.append(
-                f"Error: {status}\n\n```{nl.join(search)}```\n\n```{nl.join(replace)}```"
+                f"- {status}\n```{nl.join(search)}```\n\n```{nl.join(replace)}```"
             )
 
     if len(errors) > 0:
         discord_log_error(
-            "Matching error in modify: " + str(errors), high_priority=True
+            f"{sweep_context}\nModify Parsing Errors: " + str(errors),
+            high_priority=True,
         )
 
     result = "\n".join(old_file_lines)
