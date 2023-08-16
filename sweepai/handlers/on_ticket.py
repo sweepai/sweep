@@ -161,6 +161,9 @@ def on_ticket(
         migrate,
         fast_mode,
     ) = strip_sweep(title)
+    
+    if len(title) < 15:
+        raise Exception("The prompt is too short. Please provide more details.")
 
     # Flow:
     # 1. Get relevant files
