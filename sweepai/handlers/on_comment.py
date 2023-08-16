@@ -99,8 +99,8 @@ def on_comment(
     pr_number: int = None,
     comment_id: int | None = None,
     g: None = None,
-    repo: None = None,
-    pr: Any = None,  # Uses PRFileChanges type too
+    def on_comment(
+        ...
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
         pass
