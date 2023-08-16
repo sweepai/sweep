@@ -815,51 +815,10 @@ async def on_ticket(
 
         # Clone repo and perform local tests (linters, formatters, GHA)
         try:
-            sandbox = Sandbox.from_token(username, user_token, repo)
-            if sandbox is None:
+            lint_sandbox = Sandbox.from_token(username, user_token, repo)
+            if lint_sandbox is None:
                 raise Exception("Sandbox is disabled")
 
-            # Todo(lukejagg): Max time?
-            # Pull from `pull_request.branch_name` branch
-            await sandbox.start()
-
-            await sandbox.run_command(
-                f"cd repo; git fetch; git checkout -B {pull_request.branch_name}; git pull; npm init -y; npm install eslint --save-dev; npm install @typescript-eslint/parser @typescript-eslint/eslint-plugin --save-dev"
-            )
-            await sandbox.session.filesystem.write(
-                "/home/user/repo/.eslintrc.js",
-                """module.exports = {
-        "env": {
-            "browser": true,
-            "es2021": true
-        },
-        "extends": [
-            "eslint:recommended",
-        ],
-        "overrides": [
-            {
-                "env": {
-                    "node": true
-                },
-                "files": [
-                    ".eslintrc.{js,cjs}"
-                ],
-                "parserOptions": {
-                    "sourceType": "script"
-                }
-            }
-        ],
-        "parserOptions": {
-            "ecmaVersion": "latest",
-            "sourceType": "module"
-        },
-        "plugins": [
-        ],
-        "rules": {
-        }
-    }
-    """,
-            )
             files = [
                 f.filename
                 for f in file_change_requests
@@ -867,26 +826,20 @@ async def on_ticket(
                 and (f.change_type == "create" or f.change_type == "modify")
                 and f.new_content is not None
             ]
+            lint_output = await lint_sandbox.formatter_workflow(
+                branch=pull_request.branch_name, files=files
+            )
 
-            # Set file content:
-            for f in file_change_requests:
-                print("E2B DEBUG", f.filename, f.new_content)
-                if f.new_content is not None:
-                    await sandbox.session.filesystem.write(
-                        f"/home/user/repo/{f.filename}", f.new_content
-                    )
-                    print(f"Wrote {f.filename}")
+            # Todo(lukejagg): Is this necessary?
+            # # Set file content:
+            # for f in file_change_requests:
+            #     print("E2B DEBUG", f.filename, f.new_content)
+            #     if f.new_content is not None:
+            #         await lint_sandbox.session.filesystem.write(
+            #             f"/home/user/repo/{f.filename}", f.new_content
+            #         )
+            #         print(f"Wrote {f.filename}")
 
-            if len(files) > 0:
-                files_str = '"' + '" "'.join(files) + '"'
-                lint_output = await sandbox.run_command(
-                    "cd repo; npx eslint " + files_str
-                )
-                logger.info("E2B:", lint_output)
-
-            await sandbox.close()
-            # Todo(lukejagg): formatter, linter, etc
-            # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
