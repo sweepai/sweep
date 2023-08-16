@@ -66,6 +66,7 @@ class RegexMatchableBaseModel(BaseModel):
             **kwargs,
         )
 
+
 class ContextToPrune(RegexMatchableBaseModel):
     excluded_dirs: list[str] = []
     excluded_snippets: list[str] = []
@@ -75,8 +76,12 @@ class ContextToPrune(RegexMatchableBaseModel):
         excluded_dirs = []
         excluded_snippets = []
         irrelevant_paths_in_repo_pattern = r"""<irrelevant_paths_in_repo>(\n)?(?P<irrelevant_paths_in_repo>.*)</irrelevant_paths_in_repo>"""
-        irrelevant_paths_in_repo_match = re.search(irrelevant_paths_in_repo_pattern, string, re.DOTALL)
-        for path in irrelevant_paths_in_repo_match.groupdict()["irrelevant_paths_in_repo"].split("\n"):
+        irrelevant_paths_in_repo_match = re.search(
+            irrelevant_paths_in_repo_pattern, string, re.DOTALL
+        )
+        for path in irrelevant_paths_in_repo_match.groupdict()[
+            "irrelevant_paths_in_repo"
+        ].split("\n"):
             path = path.strip()
             path = path.replace("* ", "")
             path = path.replace("...", "")
@@ -84,8 +89,12 @@ class ContextToPrune(RegexMatchableBaseModel):
                 logger.info(f"Excluding path: {path}")
                 excluded_snippets.append(path)
         irrelevant_repo_tree_paths_pattern = r"""<irrelevant_repo_tree_paths>(\n)?(?P<irrelevant_repo_tree_paths>.*)</irrelevant_repo_tree_paths>"""
-        irrelevant_repo_tree_paths_match = re.search(irrelevant_repo_tree_paths_pattern, string, re.DOTALL)
-        for path in irrelevant_repo_tree_paths_match.groupdict()["irrelevant_repo_tree_paths"].split("\n"):
+        irrelevant_repo_tree_paths_match = re.search(
+            irrelevant_repo_tree_paths_pattern, string, re.DOTALL
+        )
+        for path in irrelevant_repo_tree_paths_match.groupdict()[
+            "irrelevant_repo_tree_paths"
+        ].split("\n"):
             path = path.strip()
             path = path.replace("* ", "")
             path = path.replace("...", "")
@@ -139,6 +148,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
         "rename"
     ]
     _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\-]*)\">(?P<instructions>.*?)<\/\1>"""
+    new_content: str | None = None
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
