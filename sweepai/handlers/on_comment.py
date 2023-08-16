@@ -88,8 +88,7 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     return result_snippets[:max_num_of_snippets]
 
 
-def on_comment(
-    repo_full_name: str,
+    
     repo_description: str,
     comment: str,
     pr_path: str | None,
@@ -99,8 +98,7 @@ def on_comment(
     pr_number: int = None,
     comment_id: int | None = None,
     g: None = None,
-    def on_comment(
-        ...
+    
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
         pass
