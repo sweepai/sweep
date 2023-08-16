@@ -19,7 +19,7 @@ class CodeRepairChecker(ChatGPT):
         ]
         self.model = "gpt-3.5-turbo-16k-0613"
         response = self.chat(
-            code_repair_check_prompt.format(diff=diff, user_code=user_code),
+            code_repair_check_prompt.format(user_code=user_code),
             message_key="code_repair",
         )
         return "<valid>True</valid>" in response
@@ -87,7 +87,7 @@ class CodeRepairer(ChatGPT):
         retry_count = 0
         while retry_count < retries:
             response = self.chat(
-                code_repair_prompt.format(diff=diff, user_code=user_code),
+                code_repair_prompt.format(user_code=user_code),
                 message_key="code_repair",
             )
             # Check if the length of the response does not differ by more than 15% from the input

@@ -60,7 +60,7 @@ Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the 
 
 ---
 
-## Getting Started 🚀
+## Getting Started
 
 Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep-ai) to your desired repositories.
 
@@ -70,7 +70,7 @@ Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep
 
 * We support all languages GPT-4 supports, including Python, JS/TS, Rust, Go, Java, C# and C++.
 
-## Limitations of Sweep ⚠️
+## Limitations of Sweep
 
 * **Large-scale refactors**: >3 files or >150 lines of code changes (we're working on this!)
     * e.g. Refactor the entire codebase from TensorFlow to PyTorch
@@ -95,7 +95,7 @@ Unlike existing AI solutions, this can solve entire tickets and can be paralleli
 - ActiveLoop DeepLake Vector DB
 - Modal Labs for infra + deployment
 
-## Highlights 🌟
+## Highlights
 Examine pull requests created by Sweep [here](https://docs.sweep.dev/examples).
 
 ## Pricing
@@ -108,13 +108,13 @@ We plan on rapidly improving Sweep. To see what we're working on, check out our 
 
 ---
 
-## Star History ⭐
+## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=sweepai/sweep&type=Date)](https://star-history.com/#sweepai/sweep&Date)
 
 Consider starring us if you're using Sweep so more people hear about us!
 
-## Contributing 🤝
+## Contributing
 Contributions are welcome and greatly appreciated! For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
 * [Sweep Docs](https://docs.sweep.dev/).
 

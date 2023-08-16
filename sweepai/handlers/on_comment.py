@@ -1,9 +1,11 @@
+import re
 import traceback
 
 import openai
 from loguru import logger
 from typing import Any
 from tabulate import tabulate
+from github.Repository import Repository
 
 from sweepai.config.client import get_blocked_dirs
 
@@ -98,8 +100,9 @@ def on_comment(
     pr_number: int = None,
     comment_id: int | None = None,
     g: None = None,
-    repo: None = None,
+    repo: Repository = None,
     pr: Any = None,  # Uses PRFileChanges type too
+    chat_logger: Any = None,
 ):
     # Check if the comment is "REVERT"
     if comment.strip().upper() == "REVERT":
@@ -128,23 +131,33 @@ def on_comment(
     pr_file_path = None
     diffs = get_pr_diffs(repo, pr)
     pr_line = None
-    chat_logger = ChatLogger(
-        {
-            "repo_name": repo_name,
-            "title": "(Comment) " + pr_title,
-            "issue_url": pr.html_url,
-            "pr_file_path": pr_file_path,  # may be None
-            "pr_line": pr_line,  # may be None
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "comment": comment,
-            "pr_path": pr_path,
-            "pr_line_position": pr_line_position,
-            "username": username,
-            "installation_id": installation_id,
-            "pr_number": pr_number,
-            "type": "comment",
-        }
+
+    issue_number = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body).group(
+        "issue_number"
+    )
+    author = repo.get_issue(int(issue_number)).user.login
+    logger.info(f"Author of original issue is {author}")
+    chat_logger = (
+        chat_logger
+        if chat_logger is not None
+        else ChatLogger(
+            {
+                "repo_name": repo_name,
+                "title": "(Comment) " + pr_title,
+                "issue_url": pr.html_url,
+                "pr_file_path": pr_file_path,  # may be None
+                "pr_line": pr_line,  # may be None
+                "repo_full_name": repo_full_name,
+                "repo_description": repo_description,
+                "comment": comment,
+                "pr_path": pr_path,
+                "pr_line_position": pr_line_position,
+                "username": author,
+                "installation_id": installation_id,
+                "pr_number": pr_number,
+                "type": "comment",
+            }
+        )
     )
 
     is_paying_user = chat_logger.is_paying_user()
@@ -263,7 +276,7 @@ def on_comment(
             human_message=human_message,
             repo=repo,
             chat_logger=chat_logger,
-            model="gpt-4-32k-0613",
+            model="gpt-3.5" if use_faster_model else "gpt-4-32k-0613",
         )
     except Exception as e:
         logger.error(traceback.format_exc())

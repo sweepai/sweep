@@ -9,7 +9,7 @@ import openai
 from loguru import logger
 from pydantic import BaseModel
 
-from sweepai.core.entities import Message, Function
+from sweepai.core.entities import Message, Function, SweepContext
 from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import get_description
@@ -84,6 +84,7 @@ class ChatGPT(BaseModel):
     human_message: HumanMessagePrompt | None = None
     file_change_paths = []
     chat_logger: ChatLogger | None
+    sweep_context: SweepContext | None = None
 
     @classmethod
     def from_system_message_content(
@@ -345,7 +346,12 @@ class ChatGPT(BaseModel):
                                     "max_tokens": max_tokens - token_sub,
                                     "input_tokens": messages_length,
                                     "output_tokens": token_count,
-                                    "chat_logger_data": self.chat_logger.data,
+                                    "repo_full_name": self.chat_logger.data.get(
+                                        "repo_full_name"
+                                    ),
+                                    "username": self.chat_logger.data.get("username"),
+                                    "pr_number": self.chat_logger.data.get("pr_number"),
+                                    "issue_url": self.chat_logger.data.get("issue_url"),
                                 },
                             )
                         except Exception as e:
@@ -407,7 +413,12 @@ class ChatGPT(BaseModel):
                                     "max_tokens": max_tokens - token_sub,
                                     "input_tokens": messages_length,
                                     "output_tokens": token_count,
-                                    "chat_logger_data": self.chat_logger.data,
+                                    "repo_full_name": self.chat_logger.data.get(
+                                        "repo_full_name"
+                                    ),
+                                    "username": self.chat_logger.data.get("username"),
+                                    "pr_number": self.chat_logger.data.get("pr_number"),
+                                    "issue_url": self.chat_logger.data.get("issue_url"),
                                 },
                             )
                         except Exception as e:

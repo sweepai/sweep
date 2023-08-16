@@ -140,7 +140,7 @@ Step-by-step thoughts:
 """
 
 final_review_prompt = """\
-This were the file summaries you provided:
+These were the file summaries you provided:
 <file_summaries>
 {file_summaries}
 </file_summaries>
@@ -450,8 +450,6 @@ Instructions:
 code_repair_modify_prompt = """
 File Name: {filename}
 
-{diff}
-
 <suggested_new_file>
 {code}
 </suggested_new_file>
@@ -526,25 +524,6 @@ Code Changes:
 {message_content}
 """
 
-slack_system_message_prompt = "Your name is Sweep bot. You are an engineer assigned to assisting the following Slack user. You will be helpful and friendly, but informal and concise: get to the point. You will use Slack-style markdown when needed to structure your responses."
-
-slack_slash_command_prompt = """
-Relevant snippets provided by search engine (decreasing relevance):
-<relevant_snippets_in_repo>
-{relevant_snippets}
-</relevant_snippets_in_repo>
-
-<relevant_paths_in_repo>
-{relevant_directories}
-</relevant_paths_in_repo>
-
-Repo: {repo_name}: {repo_description}
-Username: {username}
-Query: {query}
-
-Gather information (i.e. fetch more snippets) to solve the problem. Use "create_pr" if the user asks for changes or you think code changes are needed.
-"""
-
 code_repair_check_system_prompt = """\
 You are a genius trained for validating code.
 You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product.
@@ -553,9 +532,6 @@ Our goal is to validate if the final code is valid. This means there's undefined
 
 code_repair_check_prompt = """\
 This is the diff that was applied to create user_code. Only make changes to code in user_code if the code was affected by the diff.
-<diff>
-{diff}
-</diff>
 
 This is the user_code.
 <user_code>
@@ -581,9 +557,6 @@ Our goal is to return a working version of user_code that follows {feature}. We 
 
 code_repair_prompt = """\
 This is the diff that was applied to create user_code. Only make changes to code in user_code if the code was affected by the diff.
-<diff>
-{diff}
-</diff>
 
 This is the user_code.
 <user_code>
@@ -720,7 +693,7 @@ Do not remove files or directories that are referenced in the issue title or des
 
 Reply in the following format:
 
-Step-by-step thoughts with explanations: 
+Step-by-step thoughts with explanations:
 * Thought 1
 * Thought 2
 ...
