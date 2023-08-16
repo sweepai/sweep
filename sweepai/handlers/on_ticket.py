@@ -408,9 +408,17 @@ def on_ticket(
             f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{suffix}"
         )
 
-    if len(title + summary) < 15:
+    if len(title + summary) < 20:
         edit_sweep_comment(
-            f"Please add more details to your issue. I need at least 20 characters to generate a plan.",
+            "Please add more details to your issue. I need at least 20 characters to generate a plan.",
+            -1,
+        )
+
+    if (
+        repo_name != "sweep" and "sweep" in repo_name.lower()
+    ) or "test" in repo_name.lower():
+        edit_sweep_comment(
+            "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
             -1,
         )
 
@@ -599,6 +607,19 @@ def on_ticket(
         # TODO: removed issue commenting here
         logger.info("Fetching files to modify/create...")
         file_change_requests, plan = sweep_bot.get_files_to_change()
+
+        if not file_change_requests:
+            if len(title + summary) < 60:
+                edit_sweep_comment(
+                    "Sorry, I could not find any files to modify, can you please provide more details? Please make sure that the title and summary of the issue are at least 60 characters.",
+                    -1,
+                )
+            else:
+                edit_sweep_comment(
+                    "Sorry, I could not find any files to modify, can you please provide more details?",
+                    -1,
+                )
+            raise Exception("No files to modify.")
 
         sweep_bot.summarize_snippets(plan)
 
@@ -909,7 +930,7 @@ def on_ticket(
         logger.error(traceback.format_exc())
         logger.error(e)
         edit_sweep_comment(
-            "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists contact team@sweep.dev.",
+            "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists report it at https://discord.gg/sweep.",
             -1,
         )
         log_error("Context Length", str(e) + "\n" + traceback.format_exc())
@@ -929,7 +950,7 @@ def on_ticket(
         # title and summary are defined elsewhere
         if len(title + summary) < 60:
             edit_sweep_comment(
-                "I'm sorry, but it looks like an error has occurred due to insufficient information. Be sure to create a more detailed issue so I can better address it. If this error persists contact team@sweep.dev.",
+                "I'm sorry, but it looks like an error has occurred due to insufficient information. Be sure to create a more detailed issue so I can better address it. If this error persists report it at https://discord.gg/sweep.",
                 -1,
             )
         else:
