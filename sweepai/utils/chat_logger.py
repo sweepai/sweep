@@ -8,7 +8,12 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
-from sweepai.config.server import MONGODB_URI, DISCORD_WEBHOOK_URL, SUPPORT_COUNTRY
+from sweepai.config.server import (
+    MONGODB_URI,
+    DISCORD_WEBHOOK_URL,
+    SUPPORT_COUNTRY,
+    DISCORD_LOW_PRIORITY_URL,
+)
 
 
 class ChatLogger(BaseModel):
@@ -158,9 +163,9 @@ class ChatLogger(BaseModel):
         return self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) >= 2
 
 
-def discord_log_error(content):
+def discord_log_error(content, high_priority=True):
     try:
-        url = DISCORD_WEBHOOK_URL
+        url = DISCORD_WEBHOOK_URL if high_priority else DISCORD_LOW_PRIORITY_URL
         data = {"content": content}
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, data=json.dumps(data), headers=headers)
