@@ -334,19 +334,22 @@ class ChatGPT(BaseModel):
                                 "output": output,
                             }
                         )
-                    try:
-                        posthog.capture(
-                            self.chat_logger.data["username"],
-                            "call_openai",
-                            {
-                                "model": model,
-                                "max_tokens": max_tokens - token_sub,
-                                "input_tokens": messages_length,
-                                "output_tokens": count_tokens.call(output["content"]),
-                            },
-                        )
-                    except Exception as e:
-                        logger.warning(e)
+                    if self.chat_logger:
+                        try:
+                            token_count = count_tokens.call(output)
+                            posthog.capture(
+                                self.chat_logger.data.get("username"),
+                                "call_openai",
+                                {
+                                    "model": model,
+                                    "max_tokens": max_tokens - token_sub,
+                                    "input_tokens": messages_length,
+                                    "output_tokens": token_count,
+                                    "chat_logger_data": self.chat_logger.data,
+                                },
+                            )
+                        except Exception as e:
+                            logger.warning(e)
                     return output
                 except Exception as e:
                     logger.warning(e)
@@ -393,21 +396,22 @@ class ChatGPT(BaseModel):
                                 "output": output,
                             }
                         )
-                    try:
-                        token_count = count_tokens.call(output)
-                        posthog.capture(
-                            self.chat_logger.data["username"],
-                            "call_openai",
-                            {
-                                "model": model,
-                                "max_tokens": max_tokens - token_sub,
-                                "input_tokens": messages_length,
-                                "output_tokens": token_count,
-                            },
-                        )
-                    except Exception as e:
-                        logger.warning(e)
-                        raise e
+                    if self.chat_logger:
+                        try:
+                            token_count = count_tokens.call(output)
+                            posthog.capture(
+                                self.chat_logger.data.get("username"),
+                                "call_openai",
+                                {
+                                    "model": model,
+                                    "max_tokens": max_tokens - token_sub,
+                                    "input_tokens": messages_length,
+                                    "output_tokens": token_count,
+                                    "chat_logger_data": self.chat_logger.data,
+                                },
+                            )
+                        except Exception as e:
+                            logger.warning(e)
                     return output
                 except Exception as e:
                     logger.warning(e)
