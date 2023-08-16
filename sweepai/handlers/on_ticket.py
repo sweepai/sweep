@@ -161,6 +161,12 @@ def on_ticket(
         migrate,
         fast_mode,
     ) = strip_sweep(title)
+    
+    # Check if the repository is empty
+    if repo.size == 0:
+        # Update the issue comment with a clear error message
+        edit_sweep_comment("Sweep does not work on empty repositories. Please add some code to the repository and try again.", -1)
+        return {"success": False, "reason": "Repository is empty"}
 
     # Flow:
     # 1. Get relevant files
