@@ -377,8 +377,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 message_key=key + "-validation",
             )
             final_file, errors = generate_new_file_from_patch(
-                new_diffs,
-                file_change.code,
+                new_diffs, file_change.code, sweep_context=self.sweep_context
             )
 
             final_file = format_contents(
@@ -441,7 +440,10 @@ class SweepBot(CodeGenBot, GithubBot):
                     f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}"
                 )
                 new_file, errors = generate_new_file_from_patch(
-                    modify_file_response, contents, chunk_offset=chunk_offset
+                    modify_file_response,
+                    contents,
+                    chunk_offset=chunk_offset,
+                    sweep_context=self.sweep_context,
                 )
 
                 new_file = format_contents(new_file, file_markdown)
@@ -475,7 +477,10 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
 
                 final_file, errors = generate_new_file_from_patch(
-                    new_diffs, new_file, chunk_offset=chunk_offset
+                    new_diffs,
+                    new_file,
+                    chunk_offset=chunk_offset,
+                    sweep_context=self.sweep_context,
                 )
 
                 final_file = format_contents(final_file, file_markdown)

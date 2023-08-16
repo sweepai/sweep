@@ -9,7 +9,7 @@ import openai
 from loguru import logger
 from pydantic import BaseModel
 
-from sweepai.core.entities import Message, Function
+from sweepai.core.entities import Message, Function, SweepContext
 from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import get_description
@@ -84,6 +84,7 @@ class ChatGPT(BaseModel):
     human_message: HumanMessagePrompt | None = None
     file_change_paths = []
     chat_logger: ChatLogger | None
+    sweep_context: SweepContext | None = None
 
     @classmethod
     def from_system_message_content(
