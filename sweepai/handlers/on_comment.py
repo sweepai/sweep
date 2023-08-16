@@ -136,6 +136,7 @@ def on_comment(
         "issue_number"
     )
     author = repo.get_issue(int(issue_number)).user.login
+    logger.info(f"Author of original issue is {author}")
     chat_logger = (
         chat_logger
         if chat_logger is not None
@@ -151,7 +152,7 @@ def on_comment(
                 "comment": comment,
                 "pr_path": pr_path,
                 "pr_line_position": pr_line_position,
-                "username": username,
+                "username": author,
                 "installation_id": installation_id,
                 "pr_number": pr_number,
                 "type": "comment",

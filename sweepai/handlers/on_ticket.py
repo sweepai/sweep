@@ -417,9 +417,9 @@ def on_ticket(
             -1,
         )
 
-    if (
-        repo_name != "sweep" and "sweep" in repo_name.lower()
-    ) or "test" in repo_name.lower():
+    if (repo_name != "sweep" and "sweep" in repo_name.lower()) or (
+        repo_name != "test-canary" and "test" in repo_name.lower()
+    ):
         logger.info("Test repository detected")
         edit_sweep_comment(
             "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
