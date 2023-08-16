@@ -89,8 +89,8 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
 
 
     
-    repo_description: str
-    comment: str
+    repo_description: str,
+    comment: str,
     pr_path: str | None,
     pr_line_position: int | None,
     username: str,
@@ -98,6 +98,10 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     pr_number: int = None,
     comment_id: int | None = None,
     g: None = None,
+    ):
+    pass
+    ):
+    pass
     
     if comment.strip().upper() == "REVERT":
         rollback_file(repo_full_name, pr_path, installation_id, pr_number)
