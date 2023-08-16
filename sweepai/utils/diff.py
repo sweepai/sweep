@@ -370,9 +370,7 @@ def generate_new_file_from_patch(
 
         if status is not None:
             nl = "\n"
-            errors.append(
-                f"- {status}\n```{nl.join(search)}```\n\n```{nl.join(replace)}```"
-            )
+            errors.append(f"- {status}\n```{search}```\n\n```{replace}```")
 
     if len(errors) > 0:
         discord_log_error(
