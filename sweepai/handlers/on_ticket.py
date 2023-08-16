@@ -34,7 +34,6 @@ from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.config.client import (
     SweepConfig,
     get_documentation_dict,
-    get_sandbox_enabled,
 )
 from sweepai.config.server import (
     PREFIX,
@@ -772,10 +771,89 @@ async def on_ticket(
 
         review_message = f"Here are my self-reviews of my changes at [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
 
+        lint_output = None
         try:
             current_issue.delete_reaction(eyes_reaction.id)
         except:
             pass
+
+        # Clone repo and perform local tests (linters, formatters, GHA)
+        try:
+            sandbox = Sandbox.from_token(username, user_token, repo)
+            if sandbox is None:
+                raise Exception("Sandbox is disabled")
+
+            # Todo(lukejagg): Max time?
+            # Pull from `pull_request.branch_name` branch
+            await sandbox.start()
+
+            await sandbox.run_command(
+                f"cd repo; git fetch; git checkout -B {pull_request.branch_name}; git pull; npm init -y; npm install eslint --save-dev; npm install @typescript-eslint/parser @typescript-eslint/eslint-plugin --save-dev"
+            )
+            await sandbox.session.filesystem.write(
+                "/home/user/repo/.eslintrc.js",
+                """module.exports = {
+        "env": {
+            "browser": true,
+            "es2021": true
+        },
+        "extends": [
+            "eslint:recommended",
+        ],
+        "overrides": [
+            {
+                "env": {
+                    "node": true
+                },
+                "files": [
+                    ".eslintrc.{js,cjs}"
+                ],
+                "parserOptions": {
+                    "sourceType": "script"
+                }
+            }
+        ],
+        "parserOptions": {
+            "ecmaVersion": "latest",
+            "sourceType": "module"
+        },
+        "plugins": [
+        ],
+        "rules": {
+        }
+    }
+    """,
+            )
+            files = [
+                f.filename
+                for f in file_change_requests
+                if (f.filename.endswith(".js") or f.filename.endswith(".ts"))
+                and (f.change_type == "create" or f.change_type == "modify")
+                and f.new_content is not None
+            ]
+
+            # Set file content:
+            for f in file_change_requests:
+                print("E2B DEBUG", f.filename, f.new_content)
+                if f.new_content is not None:
+                    await sandbox.session.filesystem.write(
+                        f"/home/user/repo/{f.filename}", f.new_content
+                    )
+                    print(f"Wrote {f.filename}")
+
+            if len(files) > 0:
+                files_str = '"' + '" "'.join(files) + '"'
+                lint_output = await sandbox.run_command(
+                    "cd repo; npx eslint " + files_str
+                )
+                logger.info("E2B:", lint_output)
+
+            await sandbox.close()
+            # Todo(lukejagg): formatter, linter, etc
+            # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
 
         for i in range(1 if not slow_mode else 3):
             try:
@@ -791,7 +869,10 @@ async def on_ticket(
                     summary=summary,
                     replies_text=replies_text,
                     tree=tree,
+                    lint_output=lint_output,
                 )
+                # Todo(lukejagg): Execute sandbox after each iteration
+                lint_output = None
                 review_message += (
                     f"Here is the {ordinal(i + 1)} review\n> "
                     + review_comment.replace("\n", "\n> ")
@@ -824,31 +905,6 @@ async def on_ticket(
         edit_sweep_comment(
             review_message + "\n\nI finished incorporating these changes.", 5
         )
-
-        # Clone repo and perform local tests (linters, formatters, GHA)
-        sandbox = None
-        try:
-            if not get_sandbox_enabled(repo):
-                raise Exception("Sandbox is disabled")
-
-            async def run_sandbox(title: str, summary: str):
-                nonlocal sandbox
-                sandbox = await asyncio.wait_for(
-                    Sandbox.from_token(username, user_token), timeout=15
-                )
-                await asyncio.wait_for(sandbox.clone_repo(), timeout=60)
-                # Currently only works with Python3 venvs
-                await asyncio.wait_for(sandbox.create_python_venv(), timeout=60)
-                await asyncio.wait_for(sandbox.close(), timeout=15)
-
-            logger.info("Running sandbox...")
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(run_sandbox(title, summary))
-            # Todo(lukejagg): formatter, linter, etc
-            # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc)
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
 
         is_draft = config.get("draft", False)
         try:
