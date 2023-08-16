@@ -95,7 +95,7 @@ Unlike existing AI solutions, this can solve entire tickets and can be paralleli
 - ActiveLoop DeepLake Vector DB
 - Modal Labs for infra + deployment
 
-## Highlights 🌟
+## Highlights
 Examine pull requests created by Sweep [here](https://docs.sweep.dev/examples).
 
 ## Pricing
