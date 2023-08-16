@@ -303,7 +303,7 @@ def on_comment(
 
                 file_paths = comment.strip().split(" ")[2:]
 
-                def get_contents_with_fallback(repo, file_path):
+                def get_contents_with_fallback(repo: Repository, file_path: str):
                     try:
                         return repo.get_contents(file_path)
                     except Exception as e:
@@ -316,13 +316,16 @@ def on_comment(
                 ]
                 print(old_file_contents)
                 for file_path, old_file_content in zip(file_paths, old_file_contents):
+                    current_content = sweep_bot.get_contents(
+                        file_path, branch=branch_name
+                    )
                     if old_file_content:
                         logger.info("Resetting file...")
                         sweep_bot.repo.update_file(
                             file_path,
                             f"Reset {file_path}",
-                            old_file_content.content,
-                            sha=old_file_content.sha,
+                            old_file_content.decoded_content,
+                            sha=current_content.sha,
                             branch=branch_name,
                         )
                     else:
@@ -330,7 +333,7 @@ def on_comment(
                         sweep_bot.repo.delete_file(
                             file_path,
                             f"Reset {file_path}",
-                            sha=old_file_content.sha,
+                            sha=current_content.sha,
                             branch=branch_name,
                         )
 
