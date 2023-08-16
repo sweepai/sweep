@@ -463,16 +463,13 @@ async def on_ticket(
     # Clone repo and perform local tests (linters, formatters, GHA)
     sandbox = None
     try:
-        logger.info("Initializing sandbox...")
-
-        # Todo(lukejagg): run this in the background
-        sandbox = Sandbox.from_token(username, user_token, repo)
-
-        # Todo(lukejagg): Max time?
-        await sandbox.start()
-
-        # Todo(lukejagg): formatter, linter, etc
-        # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc)
+        pass
+        # Todo(lukejagg): Enable this once we have formatter working
+        # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc) (done?)
+        # Todo(lukejagg): Max time limit for sandbox
+        # logger.info("Initializing sandbox...")
+        # sandbox = Sandbox.from_token(username, user_token, repo)
+        # await sandbox.start()
     except Exception as e:
         logger.error(traceback.format_exc())
         logger.error(e)
