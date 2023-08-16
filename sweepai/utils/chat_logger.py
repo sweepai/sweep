@@ -13,6 +13,7 @@ from sweepai.config.server import (
     DISCORD_WEBHOOK_URL,
     SUPPORT_COUNTRY,
     DISCORD_LOW_PRIORITY_URL,
+    DISCORD_MEDIUM_PRIORITY_URL,
 )
 
 
@@ -163,9 +164,17 @@ class ChatLogger(BaseModel):
         return self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) >= 2
 
 
-def discord_log_error(content, high_priority=True):
+def discord_log_error(content, priority=0):
+    """
+    priority: 0 (high), 1 (medium), 2 (low)
+    """
     try:
-        url = DISCORD_WEBHOOK_URL if high_priority else DISCORD_LOW_PRIORITY_URL
+        url = DISCORD_WEBHOOK_URL
+        if priority == 1:
+            url = DISCORD_MEDIUM_PRIORITY_URL
+        if priority == 2:
+            url = DISCORD_LOW_PRIORITY_URL
+
         data = {"content": content}
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, data=json.dumps(data), headers=headers)

@@ -377,7 +377,7 @@ def generate_new_file_from_patch(
     if len(errors) > 0:
         discord_log_error(
             f"{sweep_context}\nModify Parsing Errors: " + str(errors),
-            high_priority=True,
+            priority=1,
         )
 
     result = "\n".join(old_file_lines)
