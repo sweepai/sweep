@@ -810,6 +810,7 @@ def on_ticket(
                     summary=summary,
                     replies_text=replies_text,
                     tree=tree,
+                    chat_logger=chat_logger,
                 )
                 review_message += (
                     f"Here is the {ordinal(i + 1)} review\n> "
@@ -832,6 +833,7 @@ def on_ticket(
                         pr_line_position=None,
                         pr_number=None,
                         pr=pr_changes,
+                        chat_logger=chat_logger,
                     )
                 else:
                     break
