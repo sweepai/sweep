@@ -17,7 +17,7 @@ from tabulate import tabulate
 from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import DocumentationSearcher
 
-from sweepai.core.entities import Snippet, NoFilesException
+from sweepai.core.entities import Snippet, NoFilesException, SweepContext
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
@@ -194,6 +194,8 @@ def on_ticket(
             "comment_id": comment_id,
         }
     )
+    sweep_context = SweepContext(issue_url=issue_url)
+
     user_token, g = get_github_client(installation_id)
 
     is_paying_user = chat_logger.is_paying_user()
@@ -431,7 +433,13 @@ def on_ticket(
         if is_paying_user or is_trial_user:
             high_priority = True
 
-        content = f"**{error_type} Error**\n{username}: {issue_url}\n```{exception}```"
+        prefix = ""
+        if is_trial_user:
+            prefix = " (TRIAL)"
+        if is_paying_user:
+            prefix = " (PRO)"
+
+        content = f"**{error_type} Error**{prefix}\n{username}: {issue_url}\n```{exception}```"
         discord_log_error(content, high_priority=high_priority)
 
     def fetch_file_contents_with_retry():
