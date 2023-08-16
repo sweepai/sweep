@@ -302,6 +302,7 @@ def on_comment(
                 print(old_file_contents)
                 for file_path, old_file_content in zip(file_paths, old_file_contents):
                     if old_file_content:
+                        logger.info("Resetting file...")
                         sweep_bot.repo.update_file(
                             file_path,
                             f"Reset {file_path}",
@@ -310,6 +311,7 @@ def on_comment(
                             branch=branch_name,
                         )
                     else:
+                        logger.info("Deleting file...")
                         sweep_bot.repo.delete_file(
                             file_path,
                             f"Reset {file_path}",
@@ -350,7 +352,6 @@ def on_comment(
                     human_message=human_message,
                     repo=repo,
                     chat_logger=chat_logger,
-                    model="gpt-4-32k-0613",
                 )
             else:
                 file_change_requests, _ = sweep_bot.get_files_to_change(retries=3)
