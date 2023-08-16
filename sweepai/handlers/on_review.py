@@ -55,6 +55,7 @@ def review_pr(
     summary,
     replies_text,
     tree,
+    lint_output=None,
     chat_logger=None,
 ):
     repo_name = repo.full_name
@@ -118,6 +119,10 @@ def review_pr(
     final_review_prompt = HumanMessageFinalPRComment(
         summarization_replies=summarization_replies
     ).construct_prompt()
+
+    if lint_output is not None:
+        final_review_prompt += f"\n\n<linting_output>\n{lint_output}\n</linting_output>"
+
     reply = sweep_bot.chat(final_review_prompt, message_key="final_review")
     review_comment = PullRequestComment.from_string(reply)
     pr.create_review(body=review_comment.content, event="COMMENT", comments=[])
