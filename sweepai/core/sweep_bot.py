@@ -33,6 +33,7 @@ from sweepai.core.prompts import (
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
+from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import (
     format_contents,
     generate_new_file_from_patch,
@@ -377,10 +378,10 @@ class SweepBot(CodeGenBot, GithubBot):
                 ),
                 message_key=key + "-validation",
             )
-            final_file = generate_new_file_from_patch(
-                new_diffs,
-                file_change.code,
+            final_file, errors = generate_new_file_from_patch(
+                new_diffs, file_change.code, sweep_context=self.sweep_context
             )
+
             final_file = format_contents(
                 final_file, is_markdown(file_change_request.filename)
             )
@@ -440,9 +441,13 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.info(
                     f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}"
                 )
-                new_file = generate_new_file_from_patch(
-                    modify_file_response, contents, chunk_offset=chunk_offset
+                new_file, errors = generate_new_file_from_patch(
+                    modify_file_response,
+                    contents,
+                    chunk_offset=chunk_offset,
+                    sweep_context=self.sweep_context,
                 )
+
                 new_file = format_contents(new_file, file_markdown)
 
                 commit_message_match = re.search(
@@ -455,12 +460,12 @@ class SweepBot(CodeGenBot, GithubBot):
 
                 self.delete_messages_from_chat(key)
 
-                proposed_diffs = get_all_diffs(modify_file_response)
-                proposed_diffs = (
-                    f"<proposed_diffs>\n{proposed_diffs}\n</proposed_diffs>\n\n"
-                    if proposed_diffs
-                    else ""
-                )
+                # proposed_diffs = get_all_diffs(modify_file_response)
+                # proposed_diffs = (
+                #     f"<proposed_diffs>\n{proposed_diffs}\n</proposed_diffs>\n\n"
+                #     if proposed_diffs
+                #     else ""
+                # )
 
                 # validation step
                 logger.info("Validating file change request...")
@@ -469,14 +474,17 @@ class SweepBot(CodeGenBot, GithubBot):
                         filename=file_change_request.filename,
                         instructions=file_change_request.instructions,
                         code=new_file,
-                        diff=proposed_diffs,
                     ),
                     message_key=key + "-validation",
                 )
 
-                final_file = generate_new_file_from_patch(
-                    new_diffs, new_file, chunk_offset=chunk_offset
+                final_file, errors = generate_new_file_from_patch(
+                    new_diffs,
+                    new_file,
+                    chunk_offset=chunk_offset,
+                    sweep_context=self.sweep_context,
                 )
+
                 final_file = format_contents(final_file, file_markdown)
                 logger.info("Done validating file change request")
 

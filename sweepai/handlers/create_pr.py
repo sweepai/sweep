@@ -36,6 +36,7 @@ def create_pr_changes(
     installation_id: int,
     issue_number: int | None = None,
     sandbox=None,
+    chat_logger: ChatLogger = None,
 ):
     # Flow:
     # 1. Get relevant files
@@ -43,15 +44,19 @@ def create_pr_changes(
     # 3. Get files to change
     # 4. Get file changes
     # 5. Create PR
-    chat_logger = ChatLogger(
-        {
-            "username": username,
-            "installation_id": installation_id,
-            "repo_full_name": sweep_bot.repo.full_name,
-            "title": pull_request.title,
-            "summary": "",
-            "issue_url": "",
-        }
+    chat_logger = (
+        chat_logger
+        if chat_logger is not None
+        else ChatLogger(
+            {
+                "username": username,
+                "installation_id": installation_id,
+                "repo_full_name": sweep_bot.repo.full_name,
+                "title": pull_request.title,
+                "summary": "",
+                "issue_url": "",
+            }
+        )
     )
     sweep_bot.chat_logger = chat_logger
     organization, repo_name = sweep_bot.repo.full_name.split("/")

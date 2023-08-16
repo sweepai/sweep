@@ -8,7 +8,6 @@ DB_MODAL_INST_NAME = PREFIX + "-db"
 DOCS_MODAL_INST_NAME = PREFIX + "-docs"
 API_MODAL_INST_NAME = PREFIX + "-api"
 UTILS_MODAL_INST_NAME = PREFIX + "-utils"
-SLACK_MODAL_INST_NAME = PREFIX + "-slack"
 
 # deprecated: old logic transfer so upstream can use this; just create an empty modal secret for this
 if PREFIX == "prod":
@@ -18,6 +17,8 @@ else:
 
 # goes under Modal 'discord' secret name (optional, can leave env var blank)
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
+DISCORD_MEDIUM_PRIORITY_URL = os.environ.get("DISCORD_MEDIUM_PRIORITY_URL")
+DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
 
 # goes under Modal 'github' secret name
 GITHUB_BOT_TOKEN = os.environ.get("GITHUB_BOT_TOKEN")
@@ -74,12 +75,6 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 OPENAI_DO_HAVE_32K_MODEL_ACCESS = (
     os.environ.get("OPENAI_DO_HAVE_32K_MODEL_ACCESS", "true").lower() == "true"
 )
-
-# goes under Modal 'slack' secret name
-SLACK_CLIENT_ID = os.environ.get("SLACK_CLIENT_ID")
-SLACK_CLIENT_SECRET = os.environ.get("SLACK_CLIENT_SECRET")
-SLACK_APP_PAGE_URL = os.environ.get("SLACK_APP_PAGE_URL")
-SLACK_APP_INSTALL_URL = os.environ.get("SLACK_APP_INSTALL_URL")
 
 # goes under Modal 'anthropic' secret name
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")

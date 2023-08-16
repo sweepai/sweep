@@ -116,7 +116,7 @@ export default function App() {
       <Button
         onClick={handleOpen}
         variant="outlined"
-        style={{ marginBottom: 12 }}
+        style={{ marginBottom: 12, marginTop: 12 }}
         color="primary"
         fullWidth={true}
       >

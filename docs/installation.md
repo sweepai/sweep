@@ -1,14 +1,12 @@
 # Welcome to Sweep - GitHub App installed successfully! 🎉
 
-⚠️ Be sure to follow these instructions in your own repository.
+⚠️ Be sure to follow these instructions in your own repository. Sweep works best with real repositories and real issues; empty or test repositories will break Sweep. *If you really need a boilerplate repo for testing, we recommend https://github.com/facebook/create-react-app or other CRA templates.*
+
 
 If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?v=fr5V5EWVcyM&lc=UgxM_ZzFiFYfjo1ADU54AaABAg)
 
 ## Create an issue on your own repository
 The issue title should start with `Sweep: ` For issues and PRs, call Sweep using the Sweep label or by prefixing your text with `Sweep: `
-
-💡 **Sweep works best with real repositories and real issues.**
-
 
 <table>
   <tr>

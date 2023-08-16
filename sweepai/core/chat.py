@@ -9,7 +9,7 @@ import openai
 from loguru import logger
 from pydantic import BaseModel
 
-from sweepai.core.entities import Message, Function
+from sweepai.core.entities import Message, Function, SweepContext
 from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import get_description
@@ -84,6 +84,7 @@ class ChatGPT(BaseModel):
     human_message: HumanMessagePrompt | None = None
     file_change_paths = []
     chat_logger: ChatLogger | None
+    sweep_context: SweepContext | None = None
 
     @classmethod
     def from_system_message_content(
@@ -91,6 +92,7 @@ class ChatGPT(BaseModel):
         human_message: HumanMessagePrompt,
         is_reply: bool = False,
         chat_logger=None,
+        sweep_context=None,
         **kwargs,
     ) -> Self:
         content = system_message_prompt
@@ -111,6 +113,7 @@ class ChatGPT(BaseModel):
             messages=messages,
             human_message=human_message,
             chat_logger=chat_logger,
+            sweep_context=sweep_context,
             **kwargs,
         )
 
@@ -334,19 +337,27 @@ class ChatGPT(BaseModel):
                                 "output": output,
                             }
                         )
-                    try:
-                        posthog.capture(
-                            self.chat_logger.data["username"],
-                            "call_openai",
-                            {
-                                "model": model,
-                                "max_tokens": max_tokens - token_sub,
-                                "input_tokens": messages_length,
-                                "output_tokens": count_tokens.call(output["content"]),
-                            },
-                        )
-                    except Exception as e:
-                        logger.warning(e)
+                    if self.chat_logger:
+                        try:
+                            token_count = count_tokens.call(output)
+                            posthog.capture(
+                                self.chat_logger.data.get("username"),
+                                "call_openai",
+                                {
+                                    "model": model,
+                                    "max_tokens": max_tokens - token_sub,
+                                    "input_tokens": messages_length,
+                                    "output_tokens": token_count,
+                                    "repo_full_name": self.chat_logger.data.get(
+                                        "repo_full_name"
+                                    ),
+                                    "username": self.chat_logger.data.get("username"),
+                                    "pr_number": self.chat_logger.data.get("pr_number"),
+                                    "issue_url": self.chat_logger.data.get("issue_url"),
+                                },
+                            )
+                        except Exception as e:
+                            logger.warning(e)
                     return output
                 except Exception as e:
                     logger.warning(e)
@@ -393,21 +404,27 @@ class ChatGPT(BaseModel):
                                 "output": output,
                             }
                         )
-                    try:
-                        token_count = count_tokens.call(output)
-                        posthog.capture(
-                            self.chat_logger.data["username"],
-                            "call_openai",
-                            {
-                                "model": model,
-                                "max_tokens": max_tokens - token_sub,
-                                "input_tokens": messages_length,
-                                "output_tokens": token_count,
-                            },
-                        )
-                    except Exception as e:
-                        logger.warning(e)
-                        raise e
+                    if self.chat_logger:
+                        try:
+                            token_count = count_tokens.call(output)
+                            posthog.capture(
+                                self.chat_logger.data.get("username"),
+                                "call_openai",
+                                {
+                                    "model": model,
+                                    "max_tokens": max_tokens - token_sub,
+                                    "input_tokens": messages_length,
+                                    "output_tokens": token_count,
+                                    "repo_full_name": self.chat_logger.data.get(
+                                        "repo_full_name"
+                                    ),
+                                    "username": self.chat_logger.data.get("username"),
+                                    "pr_number": self.chat_logger.data.get("pr_number"),
+                                    "issue_url": self.chat_logger.data.get("issue_url"),
+                                },
+                            )
+                        except Exception as e:
+                            logger.warning(e)
                     return output
                 except Exception as e:
                     logger.warning(e)
