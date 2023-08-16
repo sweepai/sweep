@@ -17,6 +17,7 @@ else:
 
 # goes under Modal 'discord' secret name (optional, can leave env var blank)
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
+DISCORD_MEDIUM_PRIORITY_URL = os.environ.get("DISCORD_MEDIUM_PRIORITY_URL")
 DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
 
 # goes under Modal 'github' secret name
