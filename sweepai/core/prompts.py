@@ -140,7 +140,7 @@ Step-by-step thoughts:
 """
 
 final_review_prompt = """\
-This were the file summaries you provided:
+These were the file summaries you provided:
 <file_summaries>
 {file_summaries}
 </file_summaries>
@@ -720,7 +720,7 @@ Do not remove files or directories that are referenced in the issue title or des
 
 Reply in the following format:
 
-Step-by-step thoughts with explanations: 
+Step-by-step thoughts with explanations:
 * Thought 1
 * Thought 2
 ...
