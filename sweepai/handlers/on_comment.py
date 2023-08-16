@@ -285,6 +285,67 @@ def on_comment(
                 )
             ]
         else:
+            if comment.strip().lower().startswith("sweep: regenerate"):
+                file_paths = comment.strip().split(" ")[2:]
+
+                def get_contents_with_fallback(repo, file_path):
+                    try:
+                        return repo.get_contents(file_path, ref=branch_name)
+                    except Exception as e:
+                        logger.error(e)
+                        return None
+
+                old_file_contents = [
+                    get_contents_with_fallback(repo, file_path)
+                    for file_path in file_paths
+                ]
+                print(old_file_contents)
+                for file_path, old_file_content in zip(file_paths, old_file_contents):
+                    if old_file_content:
+                        sweep_bot.repo.update_file(
+                            file_path,
+                            f"Reset {file_path}",
+                            old_file_content.content,
+                            sha=old_file_content.sha,
+                            branch=branch_name,
+                        )
+                    else:
+                        sweep_bot.repo.delete_file(
+                            file_path,
+                            f"Reset {file_path}",
+                            sha=old_file_content.sha,
+                            branch=branch_name,
+                        )
+
+                file_change_requests, _ = sweep_bot.get_files_to_change(retries=3)
+                file_change_requests = sweep_bot.validate_file_change_requests(
+                    file_change_requests, branch=branch_name
+                )
+
+                logger.info("Getting response from ChatGPT...")
+                human_message = HumanMessageCommentPrompt(
+                    comment=comment,
+                    repo_name=repo_name,
+                    repo_description=repo_description if repo_description else "",
+                    diffs=get_pr_diffs(repo, pr),
+                    issue_url=pr.html_url,
+                    username=username,
+                    title=pr_title,
+                    tree=tree,
+                    summary=pr_body,
+                    snippets=snippets,
+                    pr_file_path=pr_file_path,  # may be None
+                    pr_line=pr_line,  # may be None
+                )
+
+                logger.info(f"Human prompt{human_message.construct_prompt()}")
+                sweep_bot = SweepBot.from_system_message_content(
+                    human_message=human_message,
+                    repo=repo,
+                    chat_logger=chat_logger,
+                    model="gpt-4-32k-0613",
+                )
+
             file_change_requests, _ = sweep_bot.get_files_to_change(retries=3)
             file_change_requests = sweep_bot.validate_file_change_requests(
                 file_change_requests, branch=branch_name
