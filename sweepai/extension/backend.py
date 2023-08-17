@@ -17,7 +17,6 @@ image = modal.Image.debian_slim().pip_install(
     "requests", "PyGithub", "loguru", "posthog"
 )
 secrets = [
-    modal.Secret.from_name("github"),
     modal.Secret.from_name("posthog"),
     modal.Secret.from_name(BOT_TOKEN_NAME),
 ]
