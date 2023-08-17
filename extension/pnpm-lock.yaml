@@ -35,6 +35,9 @@ dependencies:
   chokidar:
     specifier: ^3.5.3
     version: 3.5.3
+  fuse.js:
+    specifier: ^6.6.2
+    version: 6.6.2
   node:
     specifier: ^20.5.0
     version: 20.5.0
@@ -2212,6 +2215,11 @@ packages:
 
   /function-bind@1.1.1:
     resolution: {integrity: sha512-yIovAzMX49sF8Yl58fSCWJ5svSLuaibPxXQJFLmBObTuCr0Mf1KiPopGM9NiFjiYBCbfaa2Fh6breQ6ANVTI0A==}
+    dev: false
+
+  /fuse.js@6.6.2:
+    resolution: {integrity: sha512-cJaJkxCCxC8qIIcPBF9yGxY0W/tVZS3uEISDxhYIdtk8OL93pe+6Zj7LjCqVV4dzbqcriOZ+kQ/NE4RXZHsIGA==}
+    engines: {node: '>=10'}
     dev: false
 
   /get-port@4.2.0:

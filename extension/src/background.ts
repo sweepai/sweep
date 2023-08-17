@@ -127,32 +127,45 @@ chrome.runtime.onInstalled.addListener((details) => {
   });
 });
 
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-  if (request.type == "createIssue") {
-    const { title: rawTitle, body, repo } = request.issue;
-    const title = `Sweep: ${rawTitle}`;
-    const tab = await chrome.tabs.create({ url: `https://github.com/${repo}/issues/new` });
-    chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: (title, body) => {
-        (document.querySelector("#issue_title") as HTMLInputElement).value = title;
-        (document.querySelector("#issue_body") as HTMLInputElement).value = body;
-        const submitButton = document.querySelector(`#new_issue > div > div > div.Layout-main > div > div.timeline-comment.color-bg-default.hx_comment-box--tip > div > div.flex-items-center.flex-justify-end.d-none.d-md-flex.mx-2.mb-2.px-0 > button`) as HTMLButtonElement;
-        submitButton.disabled = false;
-        submitButton.click();
-      },
-      args: [title, body],
-    });
-    sendResponse({ success: true });
-  } else if (request.type == "enterGithub") {
-    console.log("Enter GitHub");
-    const octokit = new Octokit({
-      auth: github_pat
-    })
-    const [ owner, repo ] = request.repo_full_name.split("/");
-    const key = `tree/${request.repo_full_name}`
-    const cache = await chrome.storage.local.get(key)
-    if (cache[key]) {
+chrome.storage.local.set({"trees/sweepai/sweep": [[], 0]})
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  (async () => {
+    if (request.type == "createIssue") {
+      const { title: rawTitle, body, repo } = request.issue;
+      const title = `Sweep: ${rawTitle}`;
+      const tab = await chrome.tabs.create({ url: `https://github.com/${repo}/issues/new` });
+      chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: (title, body) => {
+          (document.querySelector("#issue_title") as HTMLInputElement).value = title;
+          (document.querySelector("#issue_body") as HTMLInputElement).value = body;
+          const submitButton = document.querySelector(`#new_issue > div > div > div.Layout-main > div > div.timeline-comment.color-bg-default.hx_comment-box--tip > div > div.flex-items-center.flex-justify-end.d-none.d-md-flex.mx-2.mb-2.px-0 > button`) as HTMLButtonElement;
+          submitButton.disabled = false;
+          submitButton.click();
+        },
+        args: [title, body],
+      });
+      sendResponse({ success: true });
+    } else if (request.type == "enterGithub") {
+      console.log("Enter GitHub");
+      const octokit = new Octokit({
+        auth: github_pat
+      })
+      const [ owner, repo ] = request.repo_full_name.split("/");
+      const key = `tree/${request.repo_full_name}`
+      const cache = await chrome.storage.local.get(key)
+      if (cache[key] != undefined) {
+        console.log("Cache hit!")
+        console.log(cache[key])
+        const [tree, date] = cache[key];
+        if (Date.now() - date < 24 * 60 * 60 * 1000) {
+          sendResponse(tree)
+          return;
+        } else {
+          console.log("Cache expired!")
+        }
+      }
       console.log("Cache didn't hit!")
       const response = await octokit.request('GET /repos/{owner}/{repo}/git/trees/{tree_sha}', {
         owner,
@@ -163,12 +176,10 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
           'X-GitHub-Api-Version': '2022-11-28'
         }
       });
-      console.log(response)
+      console.log(response.data.tree)
       sendResponse(response.data.tree)
-      await chrome.storage.local.set({[`tree/${request.repo_full_name}`]: response.data.tree})
-    } else {
-      console.log("Cache hit!")
-      sendResponse(cache[key])
+      await chrome.storage.local.set({[`tree/${request.repo_full_name}`]: [response.data.tree, Date.now()]})
     }
-  }
+  })();
+  return true;
 })

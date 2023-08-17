@@ -1,22 +1,26 @@
 import App from "./App";
+import GitHubAutocomplete from "./Autocomplete";
 import { createRoot } from "react-dom/client";
 
-const rootNode = document.createElement("div");
-rootNode.id = "root";
-const querySelector =
+const issueCreatorRootNode = document.createElement("div");
+issueCreatorRootNode.id = "root";
+const issueCreatorQuerySelector =
   "#repo-content-pjax-container > div > div > div.Layout.Layout--flowRow-until-md.Layout--sidebarPosition-end.Layout--sidebarPosition-flowRow-end > div.Layout-main";
-const main_div = document.querySelector(querySelector);
+const issueCreatorMainDiv = document.querySelector(issueCreatorQuerySelector);
 
-if (main_div) {
-  main_div.prepend(rootNode);
-  const root = createRoot(rootNode);
-  root.render(<App />);
+if (issueCreatorMainDiv) {
+  issueCreatorMainDiv.prepend(issueCreatorRootNode);
+  const issueCreatorRoot = createRoot(issueCreatorRootNode);
+  issueCreatorRoot.render(<App />);
 }
 
-(async () => {
-  const tree = await chrome.runtime.sendMessage({
-    type: "enterGithub",
-    repo_full_name: /github\.com\/(?<repo_full_name>[^\/]*?\/[^\/]*?)\/.*/.exec(window.location.href)!["groups"]!["repo_full_name"]
-  })
-  console.log(tree)
-})()
+const autocompleteRootNode = document.createElement("div");
+issueCreatorRootNode.id = "root";
+const autocompleteQuerySelector = "body";
+const autocompleteMainDiv = document.querySelector(autocompleteQuerySelector);
+
+if (autocompleteMainDiv) {
+  autocompleteMainDiv.prepend(autocompleteRootNode)
+  const autocompleteRoot = createRoot(autocompleteRootNode)
+  autocompleteRoot.render(<GitHubAutocomplete />)
+}
