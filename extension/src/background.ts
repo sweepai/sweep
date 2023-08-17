@@ -1,3 +1,5 @@
+import { Octokit } from "@octokit/core";
+
 const DEVICE_CODE_ENDPOINT = "https://github.com/login/device/code";
 const USER_LOGIN_ENDPOINT = "https://github.com/login/device";
 const DEVICE_SUCCESS_URL = "https://github.com/login/device/success";
@@ -142,5 +144,31 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       args: [title, body],
     });
     sendResponse({ success: true });
+  } else if (request.type == "enterGithub") {
+    console.log("Enter GitHub");
+    const octokit = new Octokit({
+      auth: github_pat
+    })
+    const [ owner, repo ] = request.repo_full_name.split("/");
+    const key = `tree/${request.repo_full_name}`
+    const cache = await chrome.storage.local.get(key)
+    if (cache[key]) {
+      console.log("Cache didn't hit!")
+      const response = await octokit.request('GET /repos/{owner}/{repo}/git/trees/{tree_sha}', {
+        owner,
+        repo,
+        tree_sha: "refs/heads/main",
+        recursive: "true",
+        headers: {
+          'X-GitHub-Api-Version': '2022-11-28'
+        }
+      });
+      console.log(response)
+      sendResponse(response.data.tree)
+      await chrome.storage.local.set({[`tree/${request.repo_full_name}`]: response.data.tree})
+    } else {
+      console.log("Cache hit!")
+      sendResponse(cache[key])
+    }
   }
 })
