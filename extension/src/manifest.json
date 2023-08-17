@@ -17,6 +17,12 @@
     },
     "default_title": "Sweep Extension"
   },
+  "icons": {
+    "16": "images/final-sweep-wizard_16x16.png",
+    "32": "images/final-sweep-wizard_32x32.png",
+    "48": "images/final-sweep-wizard_48x48.png",
+    "128": "images/final-sweep-wizard_128x128.png"
+  },
   "content_scripts": [
     {
       "matches": ["https://github.com/*"],

@@ -1,5 +1,3 @@
-// I'm going back to webpack if parcel continues to not want to cooperate
-
 const DEVICE_CODE_ENDPOINT = "https://github.com/login/device/code";
 const USER_LOGIN_ENDPOINT = "https://github.com/login/device";
 const DEVICE_SUCCESS_URL = "https://github.com/login/device/success";
@@ -17,7 +15,7 @@ var github_username = null;
 chrome.runtime.onInstalled.addListener((details) => {
   console.log("Updated due to ", details.reason);
   chrome.storage.local.get("config", async (result) => {
-    if (false && result.config) {
+    if (result.config) {
       github_pat = result.config.github_pat;
       github_username = result.config.github_username;
       console.log("Found github_pat and username in storage");
