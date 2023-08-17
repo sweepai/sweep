@@ -69,6 +69,7 @@ image = (
         "posthog",
         "redis",
         "pyyaml",
+        "rapidfuzz",
     )
     .run_function(download_models)
 )
