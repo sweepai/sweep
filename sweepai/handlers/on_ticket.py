@@ -198,9 +198,10 @@ async def on_ticket(
     is_trial_user = chat_logger.is_trial_user()
     use_faster_model = chat_logger.use_faster_model(g)
 
-    chat_logger.add_successful_ticket(
-        gpt3=use_faster_model
-    )  # moving higher, will increment the issue regardless of whether it's a success or not
+    if not fast_mode and comment_id is not None:
+        chat_logger.add_successful_ticket(
+            gpt3=use_faster_model
+        )  # moving higher, will increment the issue regardless of whether it's a success or not
 
     if fast_mode:
         use_faster_model = True
