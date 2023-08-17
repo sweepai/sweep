@@ -46,7 +46,6 @@ from sweepai.config.server import (
     GITHUB_BOT_USERNAME,
     PREFIX,
     OPENAI_API_KEY,
-    GITHUB_BOT_TOKEN,
 )
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
@@ -55,7 +54,6 @@ from sweepai.utils.github_utils import (
 )
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
 
-github_access_token = GITHUB_BOT_TOKEN
 openai.api_key = OPENAI_API_KEY
 
 num_of_snippets_to_query = 30
