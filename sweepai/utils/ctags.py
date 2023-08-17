@@ -6,6 +6,8 @@ from collections import defaultdict
 from loguru import logger
 from redis import Redis
 
+VERSION = "0.0.2"
+
 
 @dataclass
 class CTags:
@@ -22,7 +24,7 @@ class CTags:
 
     def run_ctags(self, filename: str) -> list[dict]:
         cmd = self.ctags_cmd + ["--input-encoding=utf-8", filename]
-        ctags_cache_key = f"ctags-{self.sha}{filename}"
+        ctags_cache_key = f"ctags-{self.sha}{filename}-{VERSION}"
         cache_hit = self.redis_instance.get(ctags_cache_key)
         if cache_hit:
             logger.info(f"Cache hit for {ctags_cache_key}")
