@@ -1,18 +1,24 @@
+import os
 import modal
 from pydantic import BaseModel
 from fastapi import FastAPI
+import requests
+from urllib.parse import parse_qs
+from loguru import logger
+from github import Github
 
-from sweepai.config.server import ENV
+from sweepai.utils.event_logger import posthog
+from sweepai.config.server import ENV, BOT_TOKEN_NAME
 
+GITHUB_OAUTH_URL = "https://github.com/login/oauth/access_token"
 
 stub = modal.Stub(ENV + "-ext")
-image = (
-    modal.Image.debian_slim()
-    .pip_install(
-    )
+image = modal.Image.debian_slim().pip_install(
+    "requests", "PyGithub", "loguru", "posthog"
 )
 secrets = [
-    modal.Secret.from_name("github"),
+    modal.Secret.from_name("posthog"),
+    modal.Secret.from_name(BOT_TOKEN_NAME),
 ]
 
 FUNCTION_SETTINGS = {
@@ -22,8 +28,9 @@ FUNCTION_SETTINGS = {
     "keep_warm": 1,
 }
 
+
 @stub.function(**FUNCTION_SETTINGS)
-@modal.asgi_app(label=ENV+"-ext")
+@modal.asgi_app(label=ENV + "-ext")
 def _asgi_app():
     asgi_app = FastAPI()
 
@@ -31,23 +38,42 @@ def _asgi_app():
         username: str
         pat: str
 
-    class CheckRepoRequest(BaseModel):
-        repo_full_name: str
-        config: Config
+    def validate_config(config: Config):
+        try:
+            g = Github(config.pat)
+        except Exception as e:
+            logger.error(e)
+            logger.error("Likely wrong correct.")
+            raise e
+        username = g.get_user().login
+        assert username == config.username
+        return True
 
-    @asgi_app.post("/check_repo")
-    def check_repo(request: CheckRepoRequest):
-        pass
+    @asgi_app.get("/oauth")
+    def oauth(code: str):
+        # pass
+        params = {
+            "client_id": os.environ.get("GITHUB_CLIENT_ID"),
+            "client_secret": os.environ.get("GITHUB_CLIENT_SECRET"),
+            "code": code,
+        }
+        response = requests.post(GITHUB_OAUTH_URL, params=params)
+        if response.status > 400:
+            return response.text
+        else:
+            # parse response
+            parsed = parse_qs(response.text)
+            access_token = parsed.get("access_token")[0]
+            return "Successfully authorized."
 
-    class CreateIssueRequest(BaseModel):
-        repo_full_name: str
-        title: str
-        body: str
-        username: str
-        config: Config
+    @asgi_app.post("/auth")
+    def auth(config: Config):
+        assert validate_config(config)
+        posthog.capture(
+            "extension-installed",
+            config.username,
+            properties={"username": config.username},
+        )
+        return {"success": True}
 
-    @asgi_app.post("/create_issue")
-    def create_issue(request: CreateIssueRequest):
-        pass
-    
     return asgi_app

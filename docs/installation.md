@@ -1,14 +1,13 @@
 # Welcome to Sweep - GitHub App installed successfully! 🎉
 
-⚠️ Be sure to follow these instructions in your own repository.
+
+⚠️ Be sure to follow these instructions in your own repository. Sweep works best with real repositories and real issues; empty or test repositories will break Sweep. *If you really need a boilerplate repo for testing, we recommend https://github.com/facebook/create-react-app or other CRA templates.*
+
 
 If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?v=fr5V5EWVcyM&lc=UgxM_ZzFiFYfjo1ADU54AaABAg)
 
 ## Create an issue on your own repository
 The issue title should start with `Sweep: ` For issues and PRs, call Sweep using the Sweep label or by prefixing your text with `Sweep: `
-
-💡 **Sweep works best with real repositories and real issues. Empty or test repositories will break Sweep.**
-
 
 <table>
   <tr>
@@ -43,6 +42,13 @@ Sweep will mess up sometimes. Comment on it's PR. (ex: "use PyTorch instead of T
 * Describe the changes or fixes you want.
 * Provide any additional context that might be helpful.
 * For more guidance, visit [Sweep Recipes](https://docs.sweep.dev/recipes).
+
+Learn to use Sweep better by installing the extension:
+
+<a href="https://chrome.google.com/webstore/detail/sweep-extension/fdjiilckbdcgjdpfhipnojhemphhjjbl">
+  <img src="https://storage.googleapis.com/web-dev-uploads/image/WlD8wC6g8khYWPJUsQceQkhXSlv1/iNEddTyWiMfLSwFD6qGq.png" width="200px" />
+</a>
+
 
 ## Limitations of Sweep (for now) ⚠️
 

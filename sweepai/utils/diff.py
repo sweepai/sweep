@@ -372,8 +372,9 @@ def generate_new_file_from_patch(
             errors.append(f"- {status}\n```{search}```\n\n```{replace}```")
 
     if len(errors) > 0:
+        log = "\n\n".join(errors)
         discord_log_error(
-            f"{sweep_context}\nModify Parsing Errors: " + str(errors),
+            f"{sweep_context.issue_url}\nModify Parsing Errors: " + log,
             priority=1,
         )
 

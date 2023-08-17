@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from typing import Dict
 
 import yaml
 from github.Repository import Repository
@@ -166,14 +167,17 @@ def get_description(repo: Repository) -> str:
 
 
 @lru_cache(maxsize=None)
-def get_sandbox_enabled(repo: Repository) -> bool:
-    # try:
-    #     contents = repo.get_contents("sweep.yaml")
-    #     description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get("sandbox_enabled", False)
-    #     return description
-    # except Exception as e:
-    #     return False
-    return False
+def get_sandbox_config(repo: Repository):
+    try:
+        contents = repo.get_contents("sweep.yaml")
+        description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
+            "sandbox", {"enabled": False}
+        )
+        if "enabled" not in description:
+            description["enabled"] = False
+        return description
+    except Exception as e:
+        return {"enabled": False}
 
 
 @lru_cache(maxsize=None)
