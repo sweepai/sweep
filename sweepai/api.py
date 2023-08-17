@@ -63,6 +63,7 @@ image = (
         "playwright",
         "markdownify",
         "geopy",
+        "rapidfuzz",
     )
 )
 secrets = [
