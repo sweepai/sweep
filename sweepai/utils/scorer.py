@@ -3,10 +3,12 @@ import math
 from datetime import datetime
 from itertools import cycle
 
+from git import Commit
+
 from sweepai.core.entities import Snippet
 
 
-def get_factors(contents: str, commits: list):
+def get_factors(contents: str, commits: list[Commit]):
     line_count = contents.count("\n")
     if line_count > 200:
         line_count_score = 10
@@ -15,7 +17,7 @@ def get_factors(contents: str, commits: list):
     commit_count = len(commits) + 1
     days_since_last_modified = (
         max(
-            ((datetime.now() - commits[0].commit.author.date).total_seconds() // 3600),
+            ((datetime.now() - commits[0].committed_datetime).total_seconds() // 3600),
             0,
         )
         + 1
