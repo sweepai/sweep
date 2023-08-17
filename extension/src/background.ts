@@ -64,25 +64,14 @@ chrome.runtime.onInstalled.addListener((details) => {
       console.log(entering_code_execution_results);
       await sleep(1500);
       console.log("Done entering code");
-      for (var i = 0; i < 20; i += 1) {
-        await sleep(1000);
+      for (var i = 0; i < 40; i += 1) {
+        await sleep(500);
         const currentTab = await chrome.tabs.get(tab.id)
         console.log(currentTab.url)
         if (currentTab.url == DEVICE_SUCCESS_URL) {
           break;
         }
       }
-      // const authorize_execution_results = await chrome.scripting.executeScript({
-      //   target: { tabId: tab.id },
-      //   func: () => {
-      //     const authorize_button = document.querySelector(
-      //       "button#js-oauth-authorize-btn",
-      //     ) as HTMLButtonElement;
-      //     console.log(authorize_button);
-      //     authorize_button.click();
-      //   },
-      // });
-      // console.log(authorize_execution_results);
       console.log("Done authorizing");
       await chrome.tabs.remove(tab.id);
       chrome.tabs.create({ url: "https://github.com/sweepai/sweep/blob/main/docs/extension-post-install.md" });
