@@ -20,6 +20,7 @@ const autocompleteQuerySelector = "body";
 const autocompleteMainDiv = document.querySelector(autocompleteQuerySelector);
 
 if (autocompleteMainDiv) {
+  console.log("autocompleteMainDiv found")
   autocompleteMainDiv.prepend(autocompleteRootNode)
   const autocompleteRoot = createRoot(autocompleteRootNode)
   autocompleteRoot.render(<GitHubAutocomplete />)

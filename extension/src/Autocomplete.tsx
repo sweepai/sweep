@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Autocomplete } from "@mui/material";
+import { Autocomplete, TextField } from "@mui/material";
 import Fuse from 'fuse.js';
 
 var options = ['Apple', 'Banana', 'Cherry'];
@@ -14,8 +14,11 @@ var options = ['Apple', 'Banana', 'Cherry'];
 
 export default function GitHubAutocomplete() {
   const [anchorEl, setAnchorEl] = useState(null);
+  console.log("GitHubAutocomplete rendered")
 
   const handleInputChange = (event, value) => {
+    console.log(anchorEl);
+
     const words = value.split(' ');
     const lastWord = words[words.length - 1];
     const fuse = new Fuse(options, { includeScore: true });
