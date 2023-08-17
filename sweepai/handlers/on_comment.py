@@ -173,7 +173,7 @@ def on_comment(
         installation_id,
         username,
         "on_comment",
-        "gpt-3.5" if use_faster_model else "gpt-4",
+        "gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4",
         "pro" if is_paying_user else "free",
         PREFIX,
     )
@@ -278,7 +278,7 @@ def on_comment(
             human_message=human_message,
             repo=repo,
             chat_logger=chat_logger,
-            model="gpt-3.5" if use_faster_model else "gpt-4-32k-0613",
+            model="gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4-32k-0613",
         )
     except Exception as e:
         logger.error(traceback.format_exc())
