@@ -221,6 +221,13 @@ async def on_ticket(
 
     logger.info(f"Getting repo {repo_full_name}")
     repo = g.get_repo(repo_full_name)
+    num_of_files = get_num_files_from_repo(repo, installation_id)
+    if num_of_files == 0:
+        edit_sweep_comment(
+            "Sweep doesn't work on empty repositories. Please add some files and try again.",
+            -1,
+        )
+        return
     config = SweepConfig.get_config(repo)
 
     current_issue = repo.get_issue(number=issue_number)
