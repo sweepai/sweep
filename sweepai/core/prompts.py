@@ -74,7 +74,6 @@ Keep in mind that we may see a diff for a deletion and replacement, so don't poi
 
 snippet_replacement = """
 In order to address this issue, what required information do you need about the snippets? Only include relevant code that provides you enough detail about the snippets for the problems:
-"{thoughts}"
 
 <contextual_thoughts>
 * Thought_1
