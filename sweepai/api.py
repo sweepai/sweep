@@ -67,7 +67,6 @@ image = (
 )
 secrets = [
     modal.Secret.from_name(BOT_TOKEN_NAME),
-    modal.Secret.from_name("github"),
     modal.Secret.from_name("openai-secret"),
     modal.Secret.from_name("anthropic"),
     modal.Secret.from_name("posthog"),
