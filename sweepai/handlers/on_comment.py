@@ -9,8 +9,6 @@ from github.Repository import Repository
 
 from sweepai.config.client import get_blocked_dirs
 
-from sweepai.config.client import get_blocked_dirs
-
 
 def construct_metadata(
     repo_full_name,
