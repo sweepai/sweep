@@ -75,10 +75,7 @@ image = (
 )
 secrets = [
     modal.Secret.from_name(BOT_TOKEN_NAME),
-    modal.Secret.from_name("github"),
     modal.Secret.from_name("openai-secret"),
-    modal.Secret.from_name("huggingface"),
-    modal.Secret.from_name("chroma-endpoint"),
     modal.Secret.from_name("posthog"),
     modal.Secret.from_name("redis_url"),
     modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
