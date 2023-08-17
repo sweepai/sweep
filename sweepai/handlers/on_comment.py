@@ -9,6 +9,8 @@ from github.Repository import Repository
 
 from sweepai.config.client import get_blocked_dirs
 
+from sweepai.config.client import get_blocked_dirs
+
 
 def construct_metadata(
     repo_full_name,
@@ -404,6 +406,7 @@ def on_comment(
             if pr_number:
                 pr.create_issue_comment(response_for_user)
         logger.info("Making Code Changes...")
+
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
 
         list(
