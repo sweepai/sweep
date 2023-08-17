@@ -226,11 +226,11 @@ files_to_change_prompt = """
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
 Then, provide a list of files you would like to modify, abiding by the following:
 * You may only create, modify, delete and rename files
-* Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
+* Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
 * Prefer modifying existing files over creating new files
-* Only modify or create files that definitely need to be touched
+* Only modify or create files that DEFINITELY need to be touched
 * Use detailed, natural language instructions on what to modify, with reference to variable names
-* Be concrete with instructions and do not write "check for x" or "look for y". Simply write "add x" or "change y to z".
+* Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
 * Create/modify up to 5 FILES
 * Do not modify non-text files such as images, svgs, binary, etc
 
