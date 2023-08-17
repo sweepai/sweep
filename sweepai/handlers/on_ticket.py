@@ -431,7 +431,10 @@ async def on_ticket(
     def log_error(error_type, exception, priority=0):
         nonlocal is_paying_user, is_trial_user
         if is_paying_user or is_trial_user:
-            high_priority = True
+            if priority == 1:
+                priority = 0
+            elif priority == 2:
+                priority = 1
 
         prefix = ""
         if is_trial_user:
