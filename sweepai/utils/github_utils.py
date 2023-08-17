@@ -269,7 +269,7 @@ def get_top_match_ctags(repo, file_list, query):
         ctags_score.append((score, file))
     ctags_score.sort(key=lambda x: x[0], reverse=True)
     top_match = ctags_score[0]
-    return top_match[1]
+    return top_match[1] if top_match[0] > 40 else None
 
 
 def search_snippets(
@@ -331,7 +331,7 @@ def search_snippets(
     git_repo = Repo.clone_from(repo_url, "repo")
     git_repo.git.checkout(SweepConfig.get_branch(repo))
     file_list = get_file_list("repo")
-    top_ctags_match = get_top_match_ctags(repo, file_list, query)
+    top_ctags_match = get_top_match_ctags(repo, file_list, query)  # ctags match
     query_file_names = get_file_names_from_query(query)
     query_match_files = []  # files in both query and repo
     for file_path in tqdm(file_list):
