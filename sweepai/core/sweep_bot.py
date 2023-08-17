@@ -54,7 +54,7 @@ class MaxTokensExceeded(Exception):
 class CodeGenBot(ChatGPT):
     def summarize_snippets(self, content: str = ""):
         snippet_summarization = self.chat(
-            snippet_replacement.format(thoughts=content),
+            snippet_replacement,
             message_key="snippet_summarization",
         )  # maybe add relevant info
         contextual_thought_match = re.search(
