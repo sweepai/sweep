@@ -321,7 +321,9 @@ def get_deeplake_vs_from_repo(
                         score_factor = json.loads(cached_value)
                         score_factors.append(score_factor)
                         continue
-                commits = list(repo.get_commits(path=file_path, sha=branch_name))
+                # commits = list(repo.get_commits(path=file_path, sha=branch_name))
+                git_repo = Repo("repo")
+                commits = list(git_repo.iter_commits(paths=file_path))
                 score_factor = get_factors(contents, commits)
                 if cache_inst and cache_success:
                     cache_inst.set(cache_key, json.dumps(score_factor), ex=60 * 60 * 2)
