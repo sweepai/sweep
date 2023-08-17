@@ -365,6 +365,9 @@ class SweepBot(CodeGenBot, GithubBot):
             else:
                 file_change.commit_message = f"Create {file_change_request.filename}"
             assert file_change is not None
+            file_change.commit_message = file_change.commit_message[
+                len(file_change.commit_message) : 50
+            ]
             # file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
 
             self.delete_messages_from_chat(key_to_delete=key)
@@ -457,6 +460,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     commit_message = commit_message_match.group("commit_message")
                 else:
                     commit_message = f"Updated {file_change_request.filename}"
+                commit_message = commit_message[: min(len(commit_message), 50)]
 
                 # self.delete_messages_from_chat(key)
 
