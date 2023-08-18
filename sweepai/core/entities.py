@@ -147,7 +147,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
     change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal[
         "rename"
     ]
-    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\-]*)\">(?P<instructions>.*?)<\/\1>"""
+    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\">(?P<instructions>.*?)<\/\1>"""
     new_content: str | None = None
 
     @classmethod
@@ -155,6 +155,8 @@ class FileChangeRequest(RegexMatchableBaseModel):
         result = super().from_string(string, **kwargs)
         result.filename = result.filename.strip("/")
         result.instructions = result.instructions.replace("\n*", "\n•")
+        if result.instructions.startswith("*"):
+            result.instructions = "•" + result.instructions[1:]
         return result
 
     @property
