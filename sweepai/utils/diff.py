@@ -390,7 +390,7 @@ def generate_new_file_from_patch(
         if status is not None:
             s = search.replace("`", "\\`")
             r = replace.replace("`", "\\`")
-            errors.append(f"- {status}\n```{s}```\n\n```{r}```")
+            errors.append(f"- {status}\n```\n{s}\n```\n\n```\n{r}\n```")
 
     if len(errors) > 0:
         log = "\n\n".join(errors)
