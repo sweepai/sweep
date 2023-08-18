@@ -637,10 +637,24 @@ class SweepBot(CodeGenBot, GithubBot):
             )
 
             if sandbox is not None:
-                pass
-                # Todo(lukejagg): Work with E2B to get this working in Modal stub
-                # loop = asyncio.get_event_loop()
-                # file_change.code = loop.run_until_complete(sandbox.run_formatter(file_change_request.filename, file_change.code))
+                try:
+                    # Todo(lukejagg): Work with E2B to get this working in Modal stub
+                    loop = asyncio.get_event_loop()
+                    # run for up to 10 seconds
+                    file_change.code = loop.run_until_complete(
+                        asyncio.wait_for(
+                            sandbox.run_formatter(
+                                file_change_request.filename, file_change.code
+                            ),
+                            timeout=30,
+                        )
+                    )
+                except Exception as e:
+                    # print e and print traceback
+                    print(e)
+                    print("\n\n")
+                    print(traceback.format_exc())
+                    print("OOPS E2B modify")
 
             self.repo.create_file(
                 file_change_request.filename,
@@ -741,22 +755,20 @@ class SweepBot(CodeGenBot, GithubBot):
             # Format the contents
             if sandbox is not None:
                 try:
-                    pass
-                    # loop = asyncio.get_event_loop()
-                    # print("e2b 6")
-                    # new_file_contents = loop.run_until_complete(
-                    #     sandbox.run_formatter(file_name, new_file_contents)
-                    # )
-                    # print("e2b 7")
+                    # Todo(lukejagg): Work with E2B to get this working in Modal stub
+                    loop = asyncio.get_event_loop()
+                    new_file_contents = loop.run_until_complete(
+                        asyncio.wait_for(
+                            sandbox.run_formatter(file_name, new_file_contents),
+                            timeout=30,
+                        )
+                    )
                 except Exception as e:
                     # print e and print traceback
                     print(e)
                     print("\n\n")
                     print(traceback.format_exc())
                     print("OOPS E2B")
-                # Todo(lukejagg): Work with E2B to get this working in Modal stub
-                # loop = asyncio.get_event_loop()
-                # new_file_contents = loop.run_until_complete(sandbox.run_formatter(file_name, new_file_contents))
 
             # Update the file with the new contents after all chunks have been processed
             try:
