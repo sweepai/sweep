@@ -696,7 +696,7 @@ async def on_ticket(
             (
                 file_change_request.filename,
                 file_change_request.instructions_display,
-                "⏳",
+                "⏳ In Progress",
             )
             for file_change_request in file_change_requests
         ]
@@ -784,7 +784,7 @@ async def on_ticket(
                 issue.edit(body=summary + "\n\n" + checkboxes_message)
             else:
                 files_progress = [
-                    (file, instructions, "❌")
+                    (file, instructions, "❌ Failed")
                     if file_change_request.filename == file
                     else (file, instructions, progress)
                     for file, instructions, progress in files_progress
