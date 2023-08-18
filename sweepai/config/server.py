@@ -37,7 +37,7 @@ if not GITHUB_APP_ID:
         GITHUB_APP_ID = "327588"
 GITHUB_BOT_USERNAME = os.environ.get("GITHUB_BOT_USERNAME")
 
-# deprecated: left to support old logic 
+# deprecated: left to support old logic
 if not GITHUB_BOT_USERNAME:
     if ENVIRONMENT == "prod":
         GITHUB_BOT_USERNAME = "sweep-ai[bot]"
@@ -99,5 +99,7 @@ POSTHOG_API_KEY = os.environ.get("POSTHOG_API_KEY")
 E2B_API_KEY = os.environ.get("E2B_API_KEY")
 
 SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")
+
+WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
 
 SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
