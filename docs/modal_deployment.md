@@ -29,7 +29,7 @@ Ensure you have the following:
 ---
 3. **Register a new GitHub App:**
 
-    Use [this guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) to register a new GitHub App. 
+    Use [this guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) to register a new GitHub App.
 
     Permissions:
     ```
@@ -62,8 +62,8 @@ Ensure you have the following:
     check suite
     push
    ```
-    
-   Disable the webhook for now. You can use any URL for the homepage (e.g. repository URL). [Install the app](https://docs.github.com/en/apps/using-github-apps/installing-your-own-github-app) on your account or organization and generate a private key as per [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps). 
+
+   Disable the webhook for now. You can use any URL for the homepage (e.g. repository URL). [Install the app](https://docs.github.com/en/apps/using-github-apps/installing-your-own-github-app) on your account or organization and generate a private key as per [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps).
 ---
 
 4. **Setup modal environment:**
@@ -75,7 +75,7 @@ Ensure you have the following:
     GITHUB_BOT_USERNAME: Your App name
     GITHUB_APP_PEM: Your App's private key, make sure to include whitespaces as in original file with pk
     ```
-   
+
    - Create 'openai-secret' modal secret with following variables:
     ```cmd
     OPENAI_API_KEY: Your OpenAI API key
@@ -88,7 +88,10 @@ Ensure you have the following:
     REDIS_URL: Redis connection URL
     ```
 
-   - Create emtpy secrets named 'bot-token', 'posthog', 'anthropic', 'e2b', 'discord', 'gdrp', 'activeloop', and 'activeloop_token' (fill with any values/envs).
+   - Go to the root of previously cloned project and run the following command:
+    ```bash
+    ./bin/create_optional_secrets.sh
+    ```
 ---
 
 5. **Deploy Sweep to modal:**
