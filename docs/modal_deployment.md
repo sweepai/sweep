@@ -12,19 +12,19 @@ Ensure you have the following:
 
 ## Steps
 ---
-1. **Install the modal client, link it to your account:**
-
-    ```bash
-    pip install modal-client
-    modal token new
-    ```
----
-2. **Clone the sweep repository and install dependencies:**
+1. **Clone the sweep repository and install dependencies:**
 
     ```bash
     git clone git@github.com:sweepai/sweep.git
     cd sweep
-    poetry install
+    bin/install.sh
+    ```
+---
+2. **Install the modal client, link it to your account:**
+
+    ```bash
+    pip install modal-client
+    modal token new
     ```
 ---
 3. **Register a new GitHub App:**
@@ -88,7 +88,7 @@ Ensure you have the following:
     REDIS_URL: Redis connection URL
     ```
 
-   - Create emtpy secrets named 'bot-token', 'huggingface', 'posthog', 'anthropic', 'e2b', 'discord', 'highlight', 'gdrp', 'activeloop', and 'activeloop_token' (fill with any values/envs).
+   - Create emtpy secrets named 'bot-token', 'posthog', 'anthropic', 'e2b', 'discord', 'gdrp', 'activeloop', and 'activeloop_token' (fill with any values/envs).
 ---
 
 5. **Deploy Sweep to modal:**

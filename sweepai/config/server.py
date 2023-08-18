@@ -89,9 +89,6 @@ ORG_ID = os.environ.get("ORG_ID")
 # goes under Modal 'posthog' secret name (optional, can leave env var blank)
 POSTHOG_API_KEY = os.environ.get("POSTHOG_API_KEY")
 
-# goes under Modal 'highlight' secret name (optional, can leave env var blank)
-HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY")
-
 E2B_API_KEY = os.environ.get("E2B_API_KEY")
 
 SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")
