@@ -158,7 +158,9 @@ class Sandbox(BaseModel):
     async def run_formatter(self, file_path, content):
         try:
             await self.write_repo_file(file_path, content)
-            await self.run_command(self.format_command.format(file=file_path))
+            await self.run_command(
+                self.format_command.format(file=file_path, files=file_path)
+            )
             return await self.read_repo_file(file_path)
         except Exception as e:
             print("Error running formatter: ", e, "\n")
