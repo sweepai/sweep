@@ -302,6 +302,8 @@ async def webhook(raw_request: Request):
                         request.installation.id,
                         None,
                     )
+                else:
+                    logger.info("Issue edited, but not a sweep issue")
             case "issues", "labeled":
                 request = IssueRequest(**request_dict)
                 if (
