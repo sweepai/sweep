@@ -12,14 +12,12 @@ from sweepai.config.server import (
     OPENAI_API_KEY,
     PREFIX,
     DB_MODAL_INST_NAME,
-    GITHUB_BOT_TOKEN,
     GITHUB_BOT_USERNAME,
     GITHUB_CONFIG_BRANCH,
 )
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
 from sweepai.utils.event_logger import posthog
 
-github_access_token = GITHUB_BOT_TOKEN
 openai.api_key = OPENAI_API_KEY
 
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
