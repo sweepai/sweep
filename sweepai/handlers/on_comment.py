@@ -8,34 +8,6 @@ from tabulate import tabulate
 from github.Repository import Repository
 
 from sweepai.config.client import get_blocked_dirs
-
-
-def construct_metadata(
-    repo_full_name,
-    repo_name,
-    organization,
-    repo_description,
-    installation_id,
-    username,
-    function,
-    model,
-    tier,
-    mode,
-):
-    return {
-        "repo_full_name": repo_full_name,
-        "repo_name": repo_name,
-        "organization": organization,
-        "repo_description": repo_description,
-        "installation_id": installation_id,
-        "username": username,
-        "function": function,
-        "model": model,
-        "tier": tier,
-        "mode": mode,
-    }
-
-
 from sweepai.core.entities import FileChangeRequest, NoFilesException, Snippet, MockPR
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
@@ -166,18 +138,25 @@ def on_comment(
     is_paying_user = chat_logger.is_paying_user()
     use_faster_model = chat_logger.use_faster_model(g)
 
-    metadata = construct_metadata(
-        repo_full_name,
-        repo_name,
-        organization,
-        repo_description,
-        installation_id,
-        username,
-        "on_comment",
-        "gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4",
-        "pro" if is_paying_user else "free",
-        PREFIX,
-    )
+    metadata = {
+        "repo_full_name": repo_full_name,
+        "repo_name": repo_name,
+        "organization": organization,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "username": username,
+        "function": "on_comment",
+        "model": "gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4",
+        "tier": "pro" if is_paying_user else "free",
+        "mode": PREFIX,
+        "pr_path": pr_path,
+        "pr_line_position": pr_line_position,
+        "pr_number": pr_number,
+        "pr_html_url": pr.html_url,
+        "comment_id": comment_id,
+        "comment": comment,
+        "issue_number": issue_number if issue_number_match else "",
+    }
 
     capture_posthog_event(username, "started", properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
