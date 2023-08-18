@@ -34,6 +34,8 @@ GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID")
 if not GITHUB_APP_ID:
     if ENVIRONMENT == "prod":
         GITHUB_APP_ID = "307814"
+        if PREFIX == "dev2":
+            GITHUB_APP_ID = "327588"  # temporary fix
     elif ENVIRONMENT == "dev":
         GITHUB_APP_ID = "324098"
     elif ENVIRONMENT == "dev2":
@@ -43,6 +45,8 @@ GITHUB_BOT_USERNAME = os.environ.get("GITHUB_BOT_USERNAME")
 if not GITHUB_BOT_USERNAME:
     if ENVIRONMENT == "prod":
         GITHUB_BOT_USERNAME = "sweep-ai[bot]"
+        if PREFIX == "dev2":
+            GITHUB_APP_ID = "327588"  # temporary fix
     elif ENVIRONMENT == "dev":
         GITHUB_BOT_USERNAME = "sweep-nightly[bot]"
     elif ENVIRONMENT == "dev2":
