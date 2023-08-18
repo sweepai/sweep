@@ -40,7 +40,6 @@ from sweepai.config.server import (
     DB_MODAL_INST_NAME,
     UTILS_MODAL_INST_NAME,
     OPENAI_API_KEY,
-    GITHUB_BOT_TOKEN,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
 )
@@ -52,7 +51,6 @@ from sweepai.utils.github_utils import (
 )
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
-github_access_token = GITHUB_BOT_TOKEN
 openai.api_key = OPENAI_API_KEY
 
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
