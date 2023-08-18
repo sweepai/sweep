@@ -1,3 +1,4 @@
+import re
 import time
 from datetime import datetime
 
@@ -600,7 +601,9 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
         state="open", head="sweep", sort="updated", direction="desc"
     )[:5]
 
+    # Todo(lukejagg): Check if the corresponding issue is closed in PR
     # For each pull request, attempt to merge the changes from the default branch into the pull request branch
+    old_issues = []
     for pr in pulls:
         try:
             # make sure it's a sweep ticket
@@ -608,15 +611,21 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
             if not feature_branch.startswith("sweep/"):
                 continue
 
-            # # Get age of branch
-            # branch_age = (datetime.now() - pr.updated_at).days
-            # if branch_age >= branch_ttl:
-            #     # Get issue number in format "Fixes
-            #     # Delete PR branch
-            #     success = safe_delete_sweep_branch(pr, repo)
-            #     if success:
-            #         # Delete corresponding issue
-            #     continue
+            # Get age of branch
+            branch_age = (datetime.now() - pr.updated_at).days
+            if branch_age >= branch_ttl:
+                # Get issue number in format "Fixes #..."
+                issue_number = int(re.search(r"Fixes #(\d+)", pr.body).group(1))
+                old_issues.append(issue_number)
+
+                # Delete PR branch
+                success = safe_delete_sweep_branch(pr, repo)
+                if success:
+                    # Delete corresponding issue
+                    old_issues.append(issue_number)
+
+                # No need to merge for old branches
+                continue
 
             repo.merge(
                 feature_branch, repo.default_branch, f"Merge main into {feature_branch}"
@@ -635,3 +644,16 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
             logger.error(
                 f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
             )
+
+    for num in old_issues:
+        try:
+            issue = repo.get_issue(number=num)
+            branch_age = (datetime.now() - issue.updated_at).days
+            labeled = GITHUB_LABEL_NAME in [
+                label.name.lower() for label in issue.labels
+            ]
+            if branch_age >= branch_ttl and labeled:
+                issue.edit(state="closed")
+                logger.info(f"Successfully closed issue #{issue}")
+        except Exception as e:
+            logger.error(f"Failed to close issue #{issue}: {e}")
