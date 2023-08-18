@@ -154,6 +154,7 @@ def on_comment(
         "pr_number": pr_number,
         "pr_html_url": pr.html_url,
         "comment_id": comment_id,
+        "comment": comment,
         "issue_number": issue_number if issue_number_match else "",
     }
 
