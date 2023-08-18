@@ -99,13 +99,22 @@ def review_pr(
         )
     )
     sweep_bot = SweepBot.from_system_message_content(
-        # human_message=human_message, model="claude-v1.3-100k", repo=repo, is_reply=False
         human_message=human_message,
         repo=repo,
         is_reply=False,
         chat_logger=chat_logger,
     )
-    summarization_reply = sweep_bot.chat(review_prompt, message_key="review")
+    summarization_reply = sweep_bot.chat(
+        review_prompt.format(
+            repo_name=repo_name,
+            repo_description=repo_description,
+            issue_url=issue_url,
+            username=username,
+            title=title,
+            description=summary + replies_text,
+        ),
+        message_key="review",
+    )
     extracted_summary = DiffSummarization.from_string(summarization_reply)
     summarization_replies.append(extracted_summary.content)
     for diff in diffs[1:]:
