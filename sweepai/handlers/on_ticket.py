@@ -42,6 +42,7 @@ from sweepai.config.server import (
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
+    WHITELISTED_REPOS,
 )
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
@@ -422,15 +423,14 @@ async def on_ticket(
             -1,
         )
 
-    if (repo_name != "sweep" and "sweep" in repo_name.lower()) or (
-        repo_name != "test-canary" and "test" in repo_name.lower()
-    ):
-        logger.info("Test repository detected")
-        edit_sweep_comment(
-            "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
-            -1,
-        )
-        return {"success": False}
+    if repo_name.lower() not in WHITELISTED_REPOS:
+        if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
+            logger.info("Test repository detected")
+            edit_sweep_comment(
+                "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
+                -1,
+            )
+            return {"success": False}
 
     def log_error(error_type, exception, priority=0):
         nonlocal is_paying_user, is_trial_user
