@@ -1,15 +1,16 @@
 import asyncio
 import re
+
+import modal
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from loguru import logger
-import modal
 from modal import method
 from tqdm import tqdm
+
+from sweepai.config.env import DOCS_MODAL_INST_NAME, ENV, ORG_ID
 from sweepai.core.robots import is_url_allowed
 from sweepai.core.webscrape import webscrape
 from sweepai.pre_indexed_docs import DOCS_ENDPOINTS
-
-from sweepai.config.server import DOCS_MODAL_INST_NAME, ENV, ORG_ID
 
 stub = modal.Stub(DOCS_MODAL_INST_NAME)
 image = (

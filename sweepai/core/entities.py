@@ -2,7 +2,7 @@ import os
 import re
 import string
 from typing import ClassVar, Literal, Type, TypeVar, Any
-from github.Branch import Branch
+
 from loguru import logger
 from pydantic import BaseModel
 

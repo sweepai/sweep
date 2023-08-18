@@ -12,24 +12,23 @@ from loguru import logger
 from modal import method
 from redis import Redis
 from redis.backoff import ExponentialBackoff
-from redis.retry import Retry
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
+from redis.retry import Retry
 from tqdm import tqdm
 
-from sweepai.core.entities import Snippet
-from sweepai.utils.event_logger import posthog
-from sweepai.utils.hash import hash_sha256
-from sweepai.utils.scorer import get_factors, get_scores
-from sweepai.config.client import SweepConfig
-from sweepai.config.server import (
+from sweepai.config.config_manager import ConfigManager
+from sweepai.config.env import (
     ENV,
     DB_MODAL_INST_NAME,
     UTILS_MODAL_INST_NAME,
     REDIS_URL,
     BOT_TOKEN_NAME,
 )
-from ..utils.github_utils import get_token
-
+from sweepai.core.entities import Snippet
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import get_token
+from sweepai.utils.hash import hash_sha256
+from sweepai.utils.scorer import get_factors, get_scores
 
 stub = modal.Stub(DB_MODAL_INST_NAME)
 chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "chunk")
@@ -201,7 +200,7 @@ def get_deeplake_vs_from_repo(
     repo_name: str,
     installation_id: int,
     branch_name: str | None = None,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: ConfigManager = ConfigManager(),
 ):
     token = get_token(installation_id)
     g = Github(token)
@@ -260,7 +259,7 @@ def get_deeplake_vs_from_repo(
     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
     shutil.rmtree("repo", ignore_errors=True)
 
-    branch_name = SweepConfig.get_branch(repo)
+    branch_name = ConfigManager.get_branch(repo)
 
     git_repo = Repo.clone_from(repo_url, "repo")
     git_repo.git.checkout(branch_name)
@@ -447,7 +446,7 @@ def compute_deeplake_vs(
 def update_index(
     repo_name,
     installation_id: int,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: ConfigManager = ConfigManager(),
 ) -> int:
     get_deeplake_vs_from_repo(
         repo_name, installation_id, branch_name=None, sweep_config=sweep_config
@@ -469,7 +468,7 @@ def get_relevant_snippets(
     n_results: int,
     installation_id: int,
     username: str | None = None,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: ConfigManager = ConfigManager(),
 ):
     logger.info("Starting search by getting vector store...")
     deeplake_vs = get_deeplake_vs_from_repo(

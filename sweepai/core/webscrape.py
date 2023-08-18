@@ -1,13 +1,10 @@
-import asyncio
-import os
 import re
-import time
-from loguru import logger
 
-from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
-from tqdm import tqdm
+from loguru import logger
 from markdownify import markdownify as md
+from playwright.async_api import async_playwright
+from tqdm import tqdm
 
 
 def parse_html(html):

@@ -9,17 +9,17 @@ import openai
 from loguru import logger
 from pydantic import BaseModel
 
-from sweepai.core.entities import Message, Function, SweepContext
-from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
-from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.client import get_description
-from sweepai.config.server import (
+from sweepai.config.config_manager import ConfigManager
+from sweepai.config.env import (
     UTILS_MODAL_INST_NAME,
     ANTHROPIC_API_KEY,
     OPENAI_DO_HAVE_32K_MODEL_ACCESS,
 )
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.core.entities import Message, Function, SweepContext
+from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
+from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 # TODO: combine anthropic and openai
 
@@ -99,7 +99,7 @@ class ChatGPT(BaseModel):
         repo = kwargs.get("repo")
         if repo:
             logger.info(f"Repo: {repo}")
-            repo_description = get_description(repo)
+            repo_description = ConfigManager.get_description(repo)
             if repo_description:
                 logger.info(f"Repo description: {repo_description}")
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"

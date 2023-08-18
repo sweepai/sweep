@@ -6,10 +6,10 @@ import openai
 import requests
 from loguru import logger
 
+from sweepai.config.config_manager import ConfigManager
 from sweepai.core.gha_extraction import GHAExtractor
+from sweepai.entrypoints.api.handlers.on_comment import on_comment
 from sweepai.events import CheckRunCompleted
-from sweepai.handlers.on_comment import on_comment
-from sweepai.config.client import get_gha_enabled
 from sweepai.utils.github_utils import get_github_client, get_token
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -131,7 +131,7 @@ def on_check_suite(request: CheckRunCompleted):
     )
     _, g = get_github_client(request.installation.id)
     repo = g.get_repo(request.repository.full_name)
-    if not get_gha_enabled(repo):
+    if not ConfigManager.is_gha_enabled(repo):
         logger.info(
             f"Skipping github action for {request.repository.full_name} because it is not enabled"
         )

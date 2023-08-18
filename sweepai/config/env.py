@@ -32,7 +32,7 @@ if not GITHUB_APP_ID:
         GITHUB_APP_ID = "327588"
 GITHUB_BOT_USERNAME = os.environ.get("GITHUB_BOT_USERNAME")
 
-# deprecated: left to support old logic 
+# deprecated: left to support old logic
 if not GITHUB_BOT_USERNAME:
     if PREFIX == "prod":
         GITHUB_BOT_USERNAME = "sweep-ai[bot]"

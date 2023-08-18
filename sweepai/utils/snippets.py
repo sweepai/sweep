@@ -1,8 +1,8 @@
 import modal
 from loguru import logger
 
+from sweepai.config.env import UTILS_MODAL_INST_NAME
 from sweepai.core.entities import Snippet
-from sweepai.config.server import UTILS_MODAL_INST_NAME
 
 chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "chunk")
 

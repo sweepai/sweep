@@ -1,8 +1,6 @@
-import asyncio
-import traceback
 import re
+import traceback
 
-import e2b
 import modal
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
@@ -10,6 +8,8 @@ from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
 
+from sweepai.config.config_manager import ConfigManager
+from sweepai.config.env import DB_MODAL_INST_NAME, SECONDARY_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.edit_chunk import EditBot
 from sweepai.core.entities import (
@@ -31,13 +31,9 @@ from sweepai.core.prompts import (
     snippet_replacement,
     chunking_prompt,
 )
-from sweepai.config.client import SweepConfig, get_blocked_dirs
-from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
-from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import (
     format_contents,
     generate_new_file_from_patch,
-    get_all_diffs,
     is_markdown,
 )
 
@@ -202,7 +198,7 @@ class GithubBot(BaseModel):
 
     def get_contents(self, path: str, branch: str = ""):
         if not branch:
-            branch = SweepConfig.get_branch(self.repo)
+            branch = ConfigManager.get_branch(self.repo)
         try:
             return self.repo.get_contents(path, ref=branch)
         except Exception as e:
@@ -236,7 +232,7 @@ class GithubBot(BaseModel):
     def create_branch(self, branch: str, retry=True) -> str:
         # Generate PR if nothing is supplied maybe
         branch = self.clean_branch_name(branch)
-        base_branch = self.repo.get_branch(SweepConfig.get_branch(self.repo))
+        base_branch = self.repo.get_branch(ConfigManager.get_branch(self.repo))
         try:
             try:
                 test = self.repo.get_branch("sweep")
@@ -275,7 +271,7 @@ class GithubBot(BaseModel):
         for snippet in snippets:
             try:
                 snippet.content = self.repo.get_contents(
-                    snippet.file_path, SweepConfig.get_branch(self.repo)
+                    snippet.file_path, ConfigManager.get_branch(self.repo)
                 ).decoded_content.decode("utf-8")
             except Exception as e:
                 logger.error(snippet)
@@ -308,14 +304,14 @@ class GithubBot(BaseModel):
     def validate_file_change_requests(
         self, file_change_requests: list[FileChangeRequest], branch: str = ""
     ):
-        blocked_dirs = get_blocked_dirs(self.repo)
+        blocked_dirs = ConfigManager.get_blocked_dirs(self.repo)
         for file_change_request in file_change_requests:
             try:
                 exists = False
                 try:
                     exists = self.repo.get_contents(
                         file_change_request.filename,
-                        branch or SweepConfig.get_branch(self.repo),
+                        branch or ConfigManager.get_branch(self.repo),
                     )
                 except UnknownObjectException:
                     exists = False

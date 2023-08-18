@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-import os
 from functools import lru_cache
-from typing import Dict
 
 import yaml
 from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
-from sweepai.config.server import PREFIX
 
 
-class SweepConfig(BaseModel):
+class ConfigManager(BaseModel):
     include_dirs: list[str] = []
     exclude_dirs: list[str] = [".git", "node_modules", "venv"]
     include_exts: list[str] = [
@@ -86,7 +83,7 @@ class SweepConfig(BaseModel):
         return yaml.safe_dump(self.dict())
 
     @classmethod
-    def from_yaml(cls, yaml_str: str) -> "SweepConfig":
+    def from_yaml(cls, yaml_str: str) -> "ConfigManager":
         data = yaml.safe_load(yaml_str)
         return cls.parse_obj(data)
 
@@ -128,88 +125,81 @@ class SweepConfig(BaseModel):
             logger.warning(f"Error when getting config: {e}, returning empty dict")
             return {}
 
-
-@lru_cache(maxsize=None)
-def get_gha_enabled(repo: Repository) -> bool:
-    try:
-        contents = repo.get_contents("sweep.yaml")
-        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "gha_enabled", True
-        )
-        return gha_enabled
-    except Exception as e:
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def is_gha_enabled(repo: Repository) -> bool:
         try:
-            contents = repo.get_contents(".github/sweep.yaml")
+            contents = repo.get_contents("sweep.yaml")
+            gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
+                "gha_enabled", True
+            )
+            return gha_enabled
         except Exception as e:
             try:
                 contents = repo.get_contents(".github/sweep.yaml")
             except Exception as e:
-                logger.warning(
-                    f"Error when getting gha enabled: {e}, falling back to True"
-                )
-                return True
-        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "gha_enabled", True
-        )
-        return gha_enabled
+                try:
+                    contents = repo.get_contents(".github/sweep.yaml")
+                except Exception as e:
+                    logger.warning(
+                        f"Error when getting gha enabled: {e}, falling back to True"
+                    )
+                    return True
+            gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
+                "gha_enabled", True
+            )
+            return gha_enabled
 
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def get_description(repo: Repository) -> str:
+        try:
+            contents = repo.get_contents("sweep.yaml")
+            description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
+                "description", ""
+            )
+            return description
+        except Exception as e:
+            return ""
 
-@lru_cache(maxsize=None)
-def get_description(repo: Repository) -> str:
-    try:
-        contents = repo.get_contents("sweep.yaml")
-        description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "description", ""
-        )
-        return description
-    except Exception as e:
-        return ""
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def get_sandbox_config(repo: Repository):
+        try:
+            contents = repo.get_contents("sweep.yaml")
+            description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
+                "sandbox", {"enabled": False}
+            )
+            if "enabled" not in description:
+                description["enabled"] = False
+            return description
+        except Exception as e:
+            return {"enabled": False}
 
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def get_documentation_dict(repo: Repository):
+        try:
+            sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
+                "utf-8"
+            )
+            sweep_yaml = yaml.safe_load(sweep_yaml_content)
+            docs = sweep_yaml.get("docs", {})
+            return docs
+        except Exception as e:
+            logger.warning(f"Error when getting docs: {e}, returning empty dict")
+            return {}
 
-@lru_cache(maxsize=None)
-def get_sandbox_config(repo: Repository):
-    try:
-        contents = repo.get_contents("sweep.yaml")
-        description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "sandbox", {"enabled": False}
-        )
-        if "enabled" not in description:
-            description["enabled"] = False
-        return description
-    except Exception as e:
-        return {"enabled": False}
-
-
-@lru_cache(maxsize=None)
-def get_documentation_dict(repo: Repository):
-    try:
-        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
-            "utf-8"
-        )
-        sweep_yaml = yaml.safe_load(sweep_yaml_content)
-        docs = sweep_yaml.get("docs", {})
-        return docs
-    except Exception as e:
-        logger.warning(f"Error when getting docs: {e}, returning empty dict")
-        return {}
-
-
-@lru_cache(maxsize=None)
-def get_blocked_dirs(repo: Repository):
-    try:
-        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
-            "utf-8"
-        )
-        sweep_yaml = yaml.safe_load(sweep_yaml_content)
-        dirs = sweep_yaml.get("blocked_dirs", [])
-        return dirs
-    except Exception as e:
-        logger.warning(f"Error when getting docs: {e}, returning empty dict")
-        return []
-
-
-# optional, can leave env var blank
-GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926a9f")
-SWEEP_API_ENDPOINT = os.environ.get(
-    "SWEEP_API_ENDPOINT", f"https://sweepai--{PREFIX}-ui.modal.run"
-)
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def get_blocked_dirs(repo: Repository):
+        try:
+            sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
+                "utf-8"
+            )
+            sweep_yaml = yaml.safe_load(sweep_yaml_content)
+            dirs = sweep_yaml.get("blocked_dirs", [])
+            return dirs
+        except Exception as e:
+            logger.warning(f"Error when getting docs: {e}, returning empty dict")
+            return []

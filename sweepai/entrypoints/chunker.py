@@ -1,9 +1,49 @@
 import os
 import re
 import subprocess
-from dataclasses import dataclass
 import traceback
-from sweepai.config.server import ENV
+from dataclasses import dataclass
+
+import modal
+from loguru import logger
+from modal import method
+
+from sweepai.config.env import ENV, UTILS_MODAL_INST_NAME
+
+stub = modal.Stub(UTILS_MODAL_INST_NAME)
+tiktoken_image = modal.Image.debian_slim().pip_install(
+    "tiktoken", "loguru", "anthropic", "pyyaml", "PyGithub"
+)
+
+TIKTOKEN_CACHE_DIR = "/root/cache/tiktoken"
+CHUNKING_CACHE_DIR = "/root/cache/"
+tiktoken_volume = modal.NetworkFileSystem.persisted("tiktoken-models")
+chunking_volume = modal.NetworkFileSystem.persisted("chunking-parsers")
+
+
+@stub.cls(
+    image=tiktoken_image,
+    network_file_systems={TIKTOKEN_CACHE_DIR: tiktoken_volume},
+    secret=modal.Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR}),
+    keep_warm=5 if ENV == "prod" else 0,
+    cpu=0.5,
+)
+class Tiktoken:
+    openai_models = ["gpt-3.5-turbo", "gpt-4", "gpt-4-32k", "gpt-4-32k-0613"]
+    anthropic_models = ["claude-v1", "claude-v1.3-100k", "claude-instant-v1.3-100k"]
+    models = openai_models + anthropic_models
+
+    def __enter__(self):
+        import tiktoken
+
+        self.openai_models = {
+            model: tiktoken.encoding_for_model(model)
+            for model in Tiktoken.openai_models
+        }
+
+    @method()
+    def count(self, text: str, model: str = "gpt-4"):
+        return len(self.openai_models[model].encode(text, disallowed_special=()))
 
 
 def download_parsers():
@@ -80,56 +120,12 @@ def download_parsers():
     logger.debug("Finished downloading tree-sitter parsers")
 
 
-import modal
-from loguru import logger
-from modal import method
-
-from sweepai.config.server import UTILS_MODAL_INST_NAME
-
-stub = modal.Stub(UTILS_MODAL_INST_NAME)
-tiktoken_image = modal.Image.debian_slim().pip_install(
-    "tiktoken", "loguru", "anthropic", "pyyaml", "PyGithub"
-)
-
-TIKTOKEN_CACHE_DIR = "/root/cache/tiktoken"
-tiktoken_volume = modal.NetworkFileSystem.persisted("tiktoken-models")
-
-
-@stub.cls(
-    image=tiktoken_image,
-    network_file_systems={TIKTOKEN_CACHE_DIR: tiktoken_volume},
-    secret=modal.Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR}),
-    keep_warm=5 if ENV == "prod" else 0,
-    cpu=0.5,
-)
-class Tiktoken:
-    openai_models = ["gpt-3.5-turbo", "gpt-4", "gpt-4-32k", "gpt-4-32k-0613"]
-    anthropic_models = ["claude-v1", "claude-v1.3-100k", "claude-instant-v1.3-100k"]
-    models = openai_models + anthropic_models
-
-    def __enter__(self):
-        import tiktoken
-
-        self.openai_models = {
-            model: tiktoken.encoding_for_model(model)
-            for model in Tiktoken.openai_models
-        }
-
-    @method()
-    def count(self, text: str, model: str = "gpt-4"):
-        return len(self.openai_models[model].encode(text, disallowed_special=()))
-
-
 chunking_image = (
     modal.Image.debian_slim()
     .apt_install("git")
     .pip_install("tree-sitter", "loguru", "pyyaml", "PyGithub")
     .run_function(download_parsers)
 )
-
-CHUNKING_CACHE_DIR = "/root/cache/"
-# chunking_volume = modal.SharedVolume().persist("chunking-parsers")
-chunking_volume = modal.NetworkFileSystem.persisted("chunking-parsers")
 
 
 @dataclass

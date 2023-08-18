@@ -1,7 +1,6 @@
-from typing import List
-import math
 from datetime import datetime
 from itertools import cycle
+from typing import List
 
 from git import Commit
 

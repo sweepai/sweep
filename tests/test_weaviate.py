@@ -1,4 +1,4 @@
-from sweepai.config.server import DOCS_MODAL_INST_NAME
+from sweepai.config.env import DOCS_MODAL_INST_NAME
 
 
 import modal
