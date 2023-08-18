@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 
 import modal
 from fastapi import HTTPException, Request
@@ -31,6 +32,16 @@ from sweepai.events import (
     ReposAddedRequest,
 )
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.config.env import (
+    DB_MODAL_INST_NAME,
+    API_MODAL_INST_NAME,
+    DOCS_MODAL_INST_NAME,
+    GITHUB_BOT_USERNAME,
+    GITHUB_LABEL_NAME,
+    GITHUB_LABEL_COLOR,
+    GITHUB_LABEL_DESCRIPTION,
+    BOT_TOKEN_NAME,
+)
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
 
@@ -57,7 +68,7 @@ image = (
         "redis",
         "llama_index",
         "bs4",
-        "e2b==0.1.8",
+        "e2b==0.1.10",
         # for docs search
         "deeplake",
         "robotexclusionrulesparser",
@@ -302,6 +313,8 @@ async def webhook(raw_request: Request):
                         request.installation.id,
                         None,
                     )
+                else:
+                    logger.info("Issue edited, but not a sweep issue")
             case "issues", "labeled":
                 request = IssueRequest(**request_dict)
                 if (
@@ -584,6 +597,13 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
 
     # Get the repository
     repo = g.get_repo(repo_full_name)
+    config = ConfigManager.get_config(repo)
+
+    try:
+        branch_ttl = int(config.get("branch_ttl", 7))
+    except:
+        branch_ttl = 7
+    branch_ttl = max(branch_ttl, 1)
 
     # Get all open pull requests created by Sweep
     pulls = repo.get_pulls(
@@ -597,6 +617,17 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
             feature_branch = pr.head.ref
             if not feature_branch.startswith("sweep/"):
                 continue
+
+            # # Get age of branch
+            # branch_age = (datetime.now() - pr.updated_at).days
+            # if branch_age >= branch_ttl:
+            #     # Get issue number in format "Fixes
+            #     # Delete PR branch
+            #     success = safe_delete_sweep_branch(pr, repo)
+            #     if success:
+            #         # Delete corresponding issue
+            #     continue
+
             repo.merge(
                 feature_branch, repo.default_branch, f"Merge main into {feature_branch}"
             )

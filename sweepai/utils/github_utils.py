@@ -41,6 +41,7 @@ def make_valid_string(string: str):
 def get_jwt():
     signing_key = GITHUB_APP_PEM
     app_id = GITHUB_APP_ID
+    print(GITHUB_APP_ID)
     payload = {"iat": int(time.time()), "exp": int(time.time()) + 600, "iss": app_id}
     return encode(payload, signing_key, algorithm="RS256")
 
@@ -353,7 +354,7 @@ def search_snippets(
         snippet_paths=snippet_paths,
         excluded_directories=excluded_directories,
     )
-    shutil.rmtree("repo")
+    shutil.rmtree("repo", ignore_errors=True)
     # Add top ctags match to snippets
     if top_ctags_match and top_ctags_match not in query_match_files:
         query_match_files = [top_ctags_match] + query_match_files
