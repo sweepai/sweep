@@ -22,13 +22,13 @@ We'll use [Docusaurus](https://vercel.com/templates/next.js/docusaurus-2) since 
 
 ![Initial](/tutorial/initial.png)
 
-    a. If the PR's preview looks completely wrong, you can add more details to the issue description or title and Sweep will make a new PR.
+    a. If the PR's preview looks completely wrong, you can **add more details to the issue description or title** and Sweep will make a new PR with a new preview like the following:
 
-![New issue](/tutorial/new_ticket.png)
+![New issue](/tutorial/new.png)
 
-    b. If the PR is mostly right but you want to do some tweaking, you can leave a comments on the PR or in the code and Sweep will address the comments.
+    b. If the PR is mostly right but you want to do some tweaking, you can **leave a comments on the PR or code** and Sweep will address the comments, also generating a new preview, like the following:
 
-![PR Comment](/tutorial/pr_comment.png)
+![PR Comment](/tutorial/comment.png)
 
     c. If you have GitHub Actions set up, it will automatically run the linters, build, and tests and will show any failed logs to Sweep to handle. This only works with GitHub Actions and not other CI providers, so unfortunately for Vercel we have to copy paste manually.
 
@@ -36,8 +36,10 @@ We'll use [Docusaurus](https://vercel.com/templates/next.js/docusaurus-2) since 
 
 6. Once you are happy with the PR, you can merge it and it will be deployed to production via Vercel.
 
-![Final Preview](/tutorial/final_preview.png)
+
+![Final](/tutorial/final.png)
+
 
 You can see the example at https://github.com/kevinlu1248/docusaurus-2/pull/4 with preview https://docusaurus-2-ql4cskc5o-sweepai.vercel.app/.
 
-Not to be a Sweep power user,
+Now to be a Sweep power user, check out [Prompting Sweep](https://docs.sweep.dev/recipes) and [Sweep Configuration](https://docs.sweep.dev/config)
