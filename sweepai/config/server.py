@@ -1,6 +1,9 @@
 import os
 
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "prod")
+print(f"Using environment: {ENVIRONMENT}")
 PREFIX = "prod"
+
 print(f"Using prefix: {PREFIX}")
 ENV = PREFIX
 
@@ -24,21 +27,25 @@ DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
 GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID")
 # deprecated: old logic transfer so upstream can use this
 if not GITHUB_APP_ID:
-    if PREFIX == "prod":
+    if ENVIRONMENT == "prod":
         GITHUB_APP_ID = "307814"
-    elif PREFIX == "dev":
+        if PREFIX == "dev2":
+            GITHUB_APP_ID = "327588"  # temporary fix
+    elif ENVIRONMENT == "dev":
         GITHUB_APP_ID = "324098"
-    elif PREFIX == "dev2":
+    elif ENVIRONMENT == "dev2":
         GITHUB_APP_ID = "327588"
 GITHUB_BOT_USERNAME = os.environ.get("GITHUB_BOT_USERNAME")
 
 # deprecated: left to support old logic 
 if not GITHUB_BOT_USERNAME:
-    if PREFIX == "prod":
+    if ENVIRONMENT == "prod":
         GITHUB_BOT_USERNAME = "sweep-ai[bot]"
-    elif PREFIX == "dev":
+        if PREFIX == "dev2":
+            GITHUB_APP_ID = "327588"  # temporary fix
+    elif ENVIRONMENT == "dev":
         GITHUB_BOT_USERNAME = "sweep-nightly[bot]"
-    elif PREFIX == "dev2":
+    elif ENVIRONMENT == "dev2":
         GITHUB_BOT_USERNAME = "sweep-canary[bot]"
 
 GITHUB_LABEL_NAME = os.environ.get("GITHUB_LABEL_NAME", "sweep")

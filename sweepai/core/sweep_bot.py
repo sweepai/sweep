@@ -54,7 +54,7 @@ class MaxTokensExceeded(Exception):
 class CodeGenBot(ChatGPT):
     def summarize_snippets(self, content: str = ""):
         snippet_summarization = self.chat(
-            snippet_replacement.format(thoughts=content),
+            snippet_replacement,
             message_key="snippet_summarization",
         )  # maybe add relevant info
         contextual_thought_match = re.search(
@@ -365,6 +365,9 @@ class SweepBot(CodeGenBot, GithubBot):
             else:
                 file_change.commit_message = f"Create {file_change_request.filename}"
             assert file_change is not None
+            file_change.commit_message = file_change.commit_message[
+                len(file_change.commit_message) : 50
+            ]
             # file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
 
             self.delete_messages_from_chat(key_to_delete=key)
@@ -457,6 +460,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     commit_message = commit_message_match.group("commit_message")
                 else:
                     commit_message = f"Updated {file_change_request.filename}"
+                commit_message = commit_message[: min(len(commit_message), 50)]
 
                 # self.delete_messages_from_chat(key)
 
@@ -633,10 +637,24 @@ class SweepBot(CodeGenBot, GithubBot):
             )
 
             if sandbox is not None:
-                pass
-                # Todo(lukejagg): Work with E2B to get this working in Modal stub
-                # loop = asyncio.get_event_loop()
-                # file_change.code = loop.run_until_complete(sandbox.run_formatter(file_change_request.filename, file_change.code))
+                try:
+                    # Todo(lukejagg): Work with E2B to get this working in Modal stub
+                    loop = asyncio.get_event_loop()
+                    # run for up to 10 seconds
+                    file_change.code = loop.run_until_complete(
+                        asyncio.wait_for(
+                            sandbox.run_formatter(
+                                file_change_request.filename, file_change.code
+                            ),
+                            timeout=30,
+                        )
+                    )
+                except Exception as e:
+                    # print e and print traceback
+                    print(e)
+                    print("\n\n")
+                    print(traceback.format_exc())
+                    print("OOPS E2B modify")
 
             self.repo.create_file(
                 file_change_request.filename,
@@ -737,22 +755,20 @@ class SweepBot(CodeGenBot, GithubBot):
             # Format the contents
             if sandbox is not None:
                 try:
-                    pass
-                    # loop = asyncio.get_event_loop()
-                    # print("e2b 6")
-                    # new_file_contents = loop.run_until_complete(
-                    #     sandbox.run_formatter(file_name, new_file_contents)
-                    # )
-                    # print("e2b 7")
+                    # Todo(lukejagg): Work with E2B to get this working in Modal stub
+                    loop = asyncio.get_event_loop()
+                    new_file_contents = loop.run_until_complete(
+                        asyncio.wait_for(
+                            sandbox.run_formatter(file_name, new_file_contents),
+                            timeout=30,
+                        )
+                    )
                 except Exception as e:
                     # print e and print traceback
                     print(e)
                     print("\n\n")
                     print(traceback.format_exc())
                     print("OOPS E2B")
-                # Todo(lukejagg): Work with E2B to get this working in Modal stub
-                # loop = asyncio.get_event_loop()
-                # new_file_contents = loop.run_until_complete(sandbox.run_formatter(file_name, new_file_contents))
 
             # Update the file with the new contents after all chunks have been processed
             try:
