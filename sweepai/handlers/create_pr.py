@@ -196,6 +196,7 @@ def safe_delete_sweep_branch(
         branch = repo.get_git_ref(f"heads/{pr.head.ref}")
         # pr.edit(state='closed')
         branch.delete()
+        print(f"Deleted branch {pr.head.ref}")
         return True
     else:
         # Failed to delete branch as it was edited by someone else
