@@ -1,6 +1,6 @@
 import os
 
-ENVIRONMENT = os.environ.get("ENVIRONMENT", "dev2")
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "prod")
 print(f"Using environment: {ENVIRONMENT}")
 PREFIX = "prod"
 
