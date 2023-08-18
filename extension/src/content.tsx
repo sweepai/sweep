@@ -12,3 +12,8 @@ if (main_div) {
 
 const root = createRoot(rootNode);
 root.render(<App />);
+
+chrome.runtime.sendMessage({
+  type: "enterGitHub",
+
+})
