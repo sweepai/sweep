@@ -308,7 +308,8 @@ body:
     attributes:
       label: Details
       description: More details for Sweep
-      placeholder: We are migrating this function to ... version because ..."""
+      placeholder: We are migrating this function to ... version because ...
+"""
 
 BUGFIX_TEMPLATE = """\
 name: Bugfix
@@ -321,7 +322,8 @@ body:
     attributes:
       label: Details
       description: More details about the bug
-      placeholder: The bug might be in ... file"""
+      placeholder: The bug might be in ... file
+"""
 
 FEATURE_TEMPLATE = """\
 name: Feature Request
@@ -334,4 +336,5 @@ body:
     attributes:
       label: Details
       description: More details for Sweep
-      placeholder: The new endpoint should use the ... class from ... file because it contains ... logic"""
+      placeholder: The new endpoint should use the ... class from ... file because it contains ... logic
+"""

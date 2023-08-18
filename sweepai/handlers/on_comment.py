@@ -9,8 +9,6 @@ from github.Repository import Repository
 
 from sweepai.config.client import get_blocked_dirs
 
-from sweepai.config.client import get_blocked_dirs
-
 
 def construct_metadata(
     repo_full_name,
@@ -132,33 +130,38 @@ def on_comment(
     diffs = get_pr_diffs(repo, pr)
     pr_line = None
 
-    issue_number = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body).group(
-        "issue_number"
-    )
-    author = repo.get_issue(int(issue_number)).user.login
-    logger.info(f"Author of original issue is {author}")
-    chat_logger = (
-        chat_logger
-        if chat_logger is not None
-        else ChatLogger(
-            {
-                "repo_name": repo_name,
-                "title": "(Comment) " + pr_title,
-                "issue_url": pr.html_url,
-                "pr_file_path": pr_file_path,  # may be None
-                "pr_line": pr_line,  # may be None
-                "repo_full_name": repo_full_name,
-                "repo_description": repo_description,
-                "comment": comment,
-                "pr_path": pr_path,
-                "pr_line_position": pr_line_position,
-                "username": author,
-                "installation_id": installation_id,
-                "pr_number": pr_number,
-                "type": "comment",
-            }
+    issue_number_match = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body)
+    original_issue = None
+    if issue_number_match:
+        issue_number = issue_number_match.group("issue_number")
+        original_issue = repo.get_issue(int(issue_number))
+        author = original_issue.user.login
+        logger.info(f"Author of original issue is {author}")
+        chat_logger = (
+            chat_logger
+            if chat_logger is not None
+            else ChatLogger(
+                {
+                    "repo_name": repo_name,
+                    "title": "(Comment) " + pr_title,
+                    "issue_url": pr.html_url,
+                    "pr_file_path": pr_file_path,  # may be None
+                    "pr_line": pr_line,  # may be None
+                    "repo_full_name": repo_full_name,
+                    "repo_description": repo_description,
+                    "comment": comment,
+                    "pr_path": pr_path,
+                    "pr_line_position": pr_line_position,
+                    "username": author,
+                    "installation_id": installation_id,
+                    "pr_number": pr_number,
+                    "type": "comment",
+                }
+            )
         )
-    )
+    else:
+        logger.warning(f"No issue number found in PR body for summary {pr.body}")
+        chat_logger = None
 
     is_paying_user = chat_logger.is_paying_user()
     use_faster_model = chat_logger.use_faster_model(g)
@@ -171,7 +174,7 @@ def on_comment(
         installation_id,
         username,
         "on_comment",
-        "gpt-3.5" if use_faster_model else "gpt-4",
+        "gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4",
         "pro" if is_paying_user else "free",
         PREFIX,
     )
@@ -276,7 +279,7 @@ def on_comment(
             human_message=human_message,
             repo=repo,
             chat_logger=chat_logger,
-            model="gpt-3.5" if use_faster_model else "gpt-4-32k-0613",
+            model="gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4-32k-0613",
         )
     except Exception as e:
         logger.error(traceback.format_exc())
@@ -314,6 +317,7 @@ def on_comment(
                     get_contents_with_fallback(repo, file_path)
                     for file_path in file_paths
                 ]
+
                 print(old_file_contents)
                 for file_path, old_file_content in zip(file_paths, old_file_contents):
                     current_content = sweep_bot.get_contents(
@@ -337,15 +341,41 @@ def on_comment(
                             branch=branch_name,
                         )
 
-                quoted_pr_summary = "> " + pr.body.replace("\n", "\n> ")
-                file_change_requests = [
-                    FileChangeRequest(
-                        filename=file_path,
-                        instructions=f"Modify the file {file_path} based on the PR summary:\n\n{quoted_pr_summary}",
-                        change_type="modify",
+                file_change_requests = []
+                if original_issue:
+                    content = original_issue.body
+                    checklist_dropdown = re.search(
+                        "<details>\n<summary>Checklist</summary>.*?</details>",
+                        content,
+                        re.DOTALL,
                     )
-                    for file_path in file_paths
-                ]
+                    checklist = checklist_dropdown.group(0)
+                    matches = re.findall(
+                        "- \[[X ]\] `(?P<filename>.*?)`(?P<instructions>.*?)(?=- \[[X ]\]|</details>)",
+                        checklist,
+                        re.DOTALL,
+                    )
+                    instructions_mapping = {}
+                    for filename, instructions in matches:
+                        instructions_mapping[filename] = instructions
+                    file_change_requests = [
+                        FileChangeRequest(
+                            filename=file_path,
+                            instructions=instructions_mapping[file_path],
+                            change_type="modify",
+                        )
+                        for file_path in file_paths
+                    ]
+                else:
+                    quoted_pr_summary = "> " + pr.body.replace("\n", "\n> ")
+                    file_change_requests = [
+                        FileChangeRequest(
+                            filename=file_path,
+                            instructions=f"Modify the file {file_path} based on the PR summary:\n\n{quoted_pr_summary}",
+                            change_type="modify",
+                        )
+                        for file_path in file_paths
+                    ]
                 print(file_change_requests)
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name

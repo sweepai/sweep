@@ -92,6 +92,7 @@ class Sandbox(BaseModel):
             logger.info("No formatter or linter specified")
             return None
 
+        print("Created E2B session")
         session = Session(image)
         sandbox = cls(
             username=username,
@@ -102,6 +103,7 @@ class Sandbox(BaseModel):
             linter_command=f"cd {REPO_PATH}; {linter}",
             repo=repo,
         )
+        print("Created sandbox class")
 
         return sandbox
 
@@ -111,9 +113,13 @@ class Sandbox(BaseModel):
         image = config.get("image", None)
         install_command = config.get("install", IMAGE_INSTALLATION.get(image))
 
+        print("Starting E2B session")
         await self.session.open()
+        print("Cloning repo")
         await self.clone_repo(self.repo.full_name)
+        print("Updating branch")
         await self.update_branch(main_branch)
+        print("Installing dependencies")
         await self.run_command(f"cd {REPO_PATH}; {install_command}")
 
     async def run_command(self, command: str):
@@ -158,7 +164,9 @@ class Sandbox(BaseModel):
     async def run_formatter(self, file_path, content):
         try:
             await self.write_repo_file(file_path, content)
-            await self.run_command(self.format_command.format(file=file_path))
+            await self.run_command(
+                self.format_command.format(file=file_path, files=file_path)
+            )
             return await self.read_repo_file(file_path)
         except Exception as e:
             print("Error running formatter: ", e, "\n")

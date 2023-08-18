@@ -196,12 +196,13 @@ async def on_ticket(
     is_trial_user = chat_logger.is_trial_user()
     use_faster_model = chat_logger.use_faster_model(g)
 
-    chat_logger.add_successful_ticket(
-        gpt3=use_faster_model
-    )  # moving higher, will increment the issue regardless of whether it's a success or not
-
     if fast_mode:
         use_faster_model = True
+
+    if not comment_id:
+        chat_logger.add_successful_ticket(
+            gpt3=use_faster_model
+        )  # moving higher, will increment the issue regardless of whether it's a success or not
 
     organization, repo_name = repo_full_name.split("/")
     metadata = {
@@ -408,6 +409,7 @@ async def on_ticket(
         )
 
     if len(title + summary) < 20:
+        logger.info("Issue too short")
         edit_sweep_comment(
             "Please add more details to your issue. I need at least 20 characters to generate a plan.",
             -1,
@@ -416,7 +418,7 @@ async def on_ticket(
     if (repo_name != "sweep" and "sweep" in repo_name.lower()) or (
         repo_name != "test-canary" and "test" in repo_name.lower()
     ):
-        # Todo(kevinlu1248): Instead of blocking, use faster model.
+        logger.info("Test repository detected")
         edit_sweep_comment(
             "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
             -1,
@@ -468,9 +470,9 @@ async def on_ticket(
         # Todo(lukejagg): Enable this once we have formatter working
         # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc) (done?)
         # Todo(lukejagg): Max time limit for sandbox
-        # logger.info("Initializing sandbox...")
-        # sandbox = Sandbox.from_token(username, user_token, repo)
-        # await sandbox.start()
+        logger.info("Initializing sandbox...")
+        sandbox = Sandbox.from_token(username, user_token, repo)
+        await sandbox.start()
     except Exception as e:
         logger.error(traceback.format_exc())
         logger.error(e)
@@ -692,7 +694,7 @@ async def on_ticket(
             (
                 file_change_request.filename,
                 file_change_request.instructions_display,
-                "⏳",
+                "⏳ In Progress",
             )
             for file_change_request in file_change_requests
         ]
@@ -780,7 +782,7 @@ async def on_ticket(
                 issue.edit(body=summary + "\n\n" + checkboxes_message)
             else:
                 files_progress = [
-                    (file, instructions, "❌")
+                    (file, instructions, "❌ Failed")
                     if file_change_request.filename == file
                     else (file, instructions, progress)
                     for file, instructions, progress in files_progress
@@ -940,8 +942,10 @@ async def on_ticket(
         try:
             if sandbox is not None:
                 await asyncio.wait_for(sandbox.close(), timeout=10)
+                logger.info("Closed e2b sandbox")
         except Exception as e:
             logger.error(e)
+            logger.info("Failed to close e2b sandbox")
 
         # Completed code review
         edit_sweep_comment(
