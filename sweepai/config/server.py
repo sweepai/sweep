@@ -24,11 +24,6 @@ DISCORD_MEDIUM_PRIORITY_URL = os.environ.get("DISCORD_MEDIUM_PRIORITY_URL")
 DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
 
 # goes under Modal 'github' secret name
-GITHUB_BOT_TOKEN = os.environ.get("GITHUB_BOT_TOKEN")
-# deprecated: old logic transfer so upstream can use this
-if not GITHUB_BOT_TOKEN:
-    GITHUB_BOT_TOKEN = os.environ.get("GITHUB_TOKEN")
-
 GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID")
 # deprecated: old logic transfer so upstream can use this
 if not GITHUB_APP_ID:
@@ -41,7 +36,8 @@ if not GITHUB_APP_ID:
     elif ENVIRONMENT == "dev2":
         GITHUB_APP_ID = "327588"
 GITHUB_BOT_USERNAME = os.environ.get("GITHUB_BOT_USERNAME")
-# deprecated: old logic transfer so upstream can use this
+
+# deprecated: left to support old logic 
 if not GITHUB_BOT_USERNAME:
     if ENVIRONMENT == "prod":
         GITHUB_BOT_USERNAME = "sweep-ai[bot]"
@@ -83,7 +79,7 @@ OPENAI_DO_HAVE_32K_MODEL_ACCESS = (
     os.environ.get("OPENAI_DO_HAVE_32K_MODEL_ACCESS", "true").lower() == "true"
 )
 
-# goes under Modal 'anthropic' secret name
+# goes under Modal 'anthropic' secret name (optional, can leave env var blank)
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
 # goes under Modal 'mongodb' secret name
@@ -99,9 +95,6 @@ ORG_ID = os.environ.get("ORG_ID")
 
 # goes under Modal 'posthog' secret name (optional, can leave env var blank)
 POSTHOG_API_KEY = os.environ.get("POSTHOG_API_KEY")
-
-# goes under Modal 'highlight' secret name (optional, can leave env var blank)
-HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY")
 
 E2B_API_KEY = os.environ.get("E2B_API_KEY")
 
