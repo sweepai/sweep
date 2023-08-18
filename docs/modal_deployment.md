@@ -17,7 +17,7 @@ Ensure you have the following:
     ```bash
     git clone git@github.com:sweepai/sweep.git
     cd sweep
-    bin/install.sh
+    ./bin/install.sh
     ```
 ---
 2. **Install the modal client, link it to your account:**
