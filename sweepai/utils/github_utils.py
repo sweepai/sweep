@@ -269,8 +269,10 @@ def get_top_match_ctags(repo, file_list, query):
         score = fuzz.ratio(query, names)
         ctags_score.append((score, file))
     ctags_score.sort(key=lambda x: x[0], reverse=True)
-    top_match = ctags_score[0]
-    return top_match[1] if top_match[0] > 40 else None
+
+    if len(ctags_score) > 0:
+        top_match = ctags_score[0]
+        return top_match[1] if top_match[0] > 40 else None
 
 
 def search_snippets(
