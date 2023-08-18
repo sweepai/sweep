@@ -944,8 +944,10 @@ async def on_ticket(
         try:
             if sandbox is not None:
                 await asyncio.wait_for(sandbox.close(), timeout=10)
+                logger.info("Closed e2b sandbox")
         except Exception as e:
             logger.error(e)
+            logger.info("Failed to close e2b sandbox")
 
         # Completed code review
         edit_sweep_comment(
