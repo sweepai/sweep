@@ -210,9 +210,13 @@ async def on_ticket(
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
+        "repo_full_name": repo_full_name,
+        "organization": organization,
         "repo_name": repo_name,
         "repo_description": repo_description,
         "username": username,
+        "comment_id": comment_id,
+        "title": title,
         "installation_id": installation_id,
         "function": "on_ticket",
         "model": "gpt-3.5" if use_faster_model else "gpt-4",
