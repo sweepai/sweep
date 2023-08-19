@@ -427,7 +427,11 @@ async def on_ticket(
             -1,
         )
 
-    if repo_name.lower() not in WHITELISTED_REPOS:
+    if (
+        repo_name.lower() not in WHITELISTED_REPOS
+        and not is_paying_user
+        and not is_trial_user
+    ):
         if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
             logger.info("Test repository detected")
             edit_sweep_comment(
