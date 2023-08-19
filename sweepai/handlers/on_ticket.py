@@ -42,6 +42,7 @@ from sweepai.config.server import (
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
+    WHITELISTED_REPOS,
 )
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
@@ -419,15 +420,14 @@ async def on_ticket(
             -1,
         )
 
-    if (repo_name != "sweep" and "sweep" in repo_name.lower()) or (
-        repo_name != "test-canary" and "test" in repo_name.lower()
-    ):
-        logger.info("Test repository detected")
-        edit_sweep_comment(
-            "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
-            -1,
-        )
-        return {"success": False}
+    if repo_name.lower() not in WHITELISTED_REPOS:
+        if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
+            logger.info("Test repository detected")
+            edit_sweep_comment(
+                "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
+                -1,
+            )
+            return {"success": False}
 
     def log_error(error_type, exception, priority=0):
         nonlocal is_paying_user, is_trial_user
@@ -723,6 +723,7 @@ async def on_ticket(
         issue = repo.get_issue(number=issue_number)
         issue.edit(body=summary + "\n\n" + checkboxes_message)
 
+        delete_branch = False
         generator = create_pr_changes(
             file_change_requests,
             pull_request,
@@ -976,6 +977,7 @@ async def on_ticket(
                 f"Sorry, I could not edit `{e.filename}` as this file is too long.\n\nIf this file is incorrect, please describe the desired file in the prompt. However, if you would like to edit longer files, consider upgrading to [Sweep Pro](https://sweep.dev/) for longer context lengths.\n",
                 -1,
             )
+        delete_branch = True
         raise e
     except NoFilesException as e:
         logger.info("Sweep could not find files to modify")
@@ -988,6 +990,7 @@ async def on_ticket(
             f"Sorry, Sweep could not find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!\n\n> @{username}, please edit the issue description to include more details about this issue.",
             -1,
         )
+        delete_branch = True
         raise e
     except openai.error.InvalidRequestError as e:
         logger.error(traceback.format_exc())
@@ -1010,6 +1013,7 @@ async def on_ticket(
                 **metadata,
             },
         )
+        delete_branch = True
         raise e
     except Exception as e:
         logger.error(traceback.format_exc())
@@ -1038,6 +1042,19 @@ async def on_ticket(
             item_to_react_to.create_reaction("rocket")
         except Exception as e:
             logger.error(e)
+
+    if delete_branch:
+        try:
+            if pull_request.branch_name.startswith("sweep/"):
+                repo.get_git_ref(f"heads/{pull_request.branch_name}").delete()
+            else:
+                raise Exception(
+                    f"Branch name {pull_request.branch_name} does not start with sweep/"
+                )
+        except Exception as e:
+            logger.error(e)
+            logger.error(traceback.format_exc())
+            print("Deleted branch", pull_request.branch_name)
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
