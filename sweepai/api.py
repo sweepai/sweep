@@ -248,6 +248,7 @@ async def webhook(raw_request: Request):
                         request.repository.description,
                         request.installation.id,
                         request.comment.id,
+                        edited=True,
                     )
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
