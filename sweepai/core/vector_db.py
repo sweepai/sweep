@@ -39,9 +39,9 @@ DEEPLAKE_DIR = "/root/cache/"
 DISKCACHE_DIR = "/root/cache/diskcache/"
 DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 128
-SENTENCE_TRANSFORMERS_MODEL = "thenlper/gte-base"
+SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-mpnet-base-v2"
 timeout = 60 * 60  # 30 minutes
-CACHE_VERSION = "v1.0.9"
+CACHE_VERSION = "v1.0.10"
 MAX_FILES = 500
 CPU = 0.5
 
