@@ -424,9 +424,7 @@ def on_comment(
         if changes_made:
             pr.create_issue_comment("Done.")
         else:
-            pr.create_issue_comment(
-                "No changes made. Please add more details so I know what to change."
-            )
+            pr.create_review_comment_reply(comment_id, "No changes made. Please add more details so I know what to change.")
 
         if type(pr) != MockPR:
             if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
