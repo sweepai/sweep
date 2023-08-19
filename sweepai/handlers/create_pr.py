@@ -65,8 +65,9 @@ def create_pr_changes(
         "repo_description": sweep_bot.repo.description,
         "username": username,
         "installation_id": installation_id,
-        "function": "on_ticket",
+        "function": "create_pr",
         "mode": PREFIX,
+        "issue_number": issue_number,
     }
     posthog.capture(username, "started", properties=metadata)
 
