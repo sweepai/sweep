@@ -59,7 +59,7 @@ update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 sep = "\n---\n"
 bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
 bot_suffix = (
-    f"\n{sep} To recreate the pull request edit the issue title or description."
+    f"\n{sep}\nLatest changes!\n* You can now get Sweep to format files before pushing by adding content from https://docs.sweep.dev/config#sandbox to you Sweep.yaml!\n{sep} 💡 To recreate the pull request edit the issue title or description."
 )
 discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep)"
 
@@ -350,9 +350,9 @@ async def on_ticket(
         )
 
     num_of_files = get_num_files_from_repo(repo, installation_id)
-    time_estimate = math.ceil(5 + 5 * num_of_files / 1000)  # idk how accurate this is
+    time_estimate = math.ceil(3 + 5 * num_of_files / 1000)
 
-    indexing_message = f"I'm searching for relevant snippets in your repository. If this is your first time using Sweep, I'm indexing your repository. This may take {time_estimate} minutes. I'll let you know when I'm done."
+    indexing_message = f"I'm searching for relevant snippets in your repository. If this is your first time using Sweep, I'm indexing your repository. This may take up to {time_estimate} minutes. I'll let you know when I'm done."
     first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
     for comment in comments:
         if comment.user.login == GITHUB_BOT_USERNAME:
