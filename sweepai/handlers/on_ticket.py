@@ -61,7 +61,7 @@ bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](htt
 bot_suffix = (
     f"\n{sep} To recreate the pull request edit the issue title or description."
 )
-discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep-ai)"
+discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep)"
 
 stars_suffix = "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
 
