@@ -408,7 +408,7 @@ def on_comment(
                 )
             quoted_comment = "> " + comment.replace("\n", "\n> ")
             response_for_user = (
-                f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
+                f"💡 {quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
             )
             if pr_number:
                 pr.create_issue_comment(response_for_user)
