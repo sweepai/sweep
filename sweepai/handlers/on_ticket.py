@@ -152,6 +152,7 @@ async def on_ticket(
     repo_description: str,
     installation_id: int,
     comment_id: int = None,
+    edited: bool = False,
 ):
     (
         title,
@@ -186,7 +187,9 @@ async def on_ticket(
             "repo_full_name": repo_full_name,
             "repo_description": repo_description,
             "installation_id": installation_id,
+            "type": "ticket",
             "comment_id": comment_id,
+            "edited": edited,
         }
     )
     sweep_context = SweepContext(issue_url=issue_url)
@@ -200,7 +203,7 @@ async def on_ticket(
     if fast_mode:
         use_faster_model = True
 
-    if not comment_id:
+    if not comment_id and not edited:
         chat_logger.add_successful_ticket(
             gpt3=use_faster_model
         )  # moving higher, will increment the issue regardless of whether it's a success or not
@@ -217,6 +220,7 @@ async def on_ticket(
         "title": title,
         "installation_id": installation_id,
         "function": "on_ticket",
+        "edited": edited,
         "model": "gpt-3.5" if use_faster_model else "gpt-4",
         "tier": "pro" if is_paying_user else "free",
         "mode": PREFIX,
