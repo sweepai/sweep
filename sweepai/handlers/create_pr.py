@@ -112,11 +112,10 @@ def create_pr_changes(
 
             return {"success": False, "error": error_msg}
         # Include issue number in PR description
-        PR_DESCRIPTION_TEMPLATE = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```\n💡 To get Sweep to edit this pull request, leave a comment below or in the code. Leaving a comment in the code will only modify the file but commenting below can change the entire PR."
         if issue_number:
-            pr_description = f"{PR_DESCRIPTION_TEMPLATE}\n\nFixes #{issue_number}."
+            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\n---\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```\n To get Sweep to edit this pull request, leave a comment below or in the code. Leaving a comment in the code will only modify the file but commenting below can change the entire PR."
         else:
-            pr_description = PR_DESCRIPTION_TEMPLATE
+            pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
