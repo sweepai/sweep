@@ -1,10 +1,11 @@
 import os
 
-PREFIX = "dev"
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "dev")
+print(f"Using environment: {ENVIRONMENT}")
+PREFIX = 'dev2'
 
 print(f"Using prefix: {PREFIX}")
 ENV = PREFIX
-ENVIRONMENT = PREFIX
 
 DB_MODAL_INST_NAME = PREFIX + "-db"
 DOCS_MODAL_INST_NAME = PREFIX + "-docs"
@@ -12,7 +13,6 @@ API_MODAL_INST_NAME = PREFIX + "-api"
 UTILS_MODAL_INST_NAME = PREFIX + "-utils"
 
 BOT_TOKEN_NAME = "bot-token"
-
 # goes under Modal 'discord' secret name (optional, can leave env var blank)
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 DISCORD_MEDIUM_PRIORITY_URL = os.environ.get("DISCORD_MEDIUM_PRIORITY_URL")
