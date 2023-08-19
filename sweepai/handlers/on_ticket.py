@@ -59,7 +59,7 @@ update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 sep = "\n---\n"
 bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
 bot_suffix = (
-    f"\n{sep} 💡 To recreate the pull request edit the issue title or description."
+    f"\n{sep}\nLatest changes!\n* You can now get Sweep to format files before pushing by adding content from https://docs.sweep.dev/config#sandbox to you Sweep.yaml!\n{sep} 💡 To recreate the pull request edit the issue title or description."
 )
 discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep)"
 
