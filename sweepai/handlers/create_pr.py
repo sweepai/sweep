@@ -259,7 +259,7 @@ def create_config_pr(
         - If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.com/invite/sweep) for help.
         
         If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
-        Thank you for using Sweep! 🧹""",
+        Thank you for using Sweep! 🧹""".replace("    ", ""),
         head=branch_name,
         base=SweepConfig.get_branch(sweep_bot.repo),
     )
