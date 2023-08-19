@@ -69,7 +69,7 @@ image = (
     )
 )
 secrets = [
-    modal.Secret.from_name(BOT_TOKEN_NAME),
+    modal.Secret.from_name("bot-token"),
     modal.Secret.from_name("github"),
     modal.Secret.from_name("openai-secret"),
     modal.Secret.from_name("anthropic"),
