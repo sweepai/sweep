@@ -422,9 +422,9 @@ def on_comment(
             )
         )
         if changes_made:
-            pr.get_issue_comment(comment_id).create_reply("Done.")
+            pr.create_issue_comment("Done.")
         else:
-            pr.get_issue_comment(comment_id).create_reply(
+            pr.create_issue_comment(
                 "No changes made. Please add more details so I know what to change."
             )
 
