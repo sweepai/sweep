@@ -61,7 +61,7 @@ bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](htt
 bot_suffix = (
     f"\n{sep} To recreate the pull request edit the issue title or description."
 )
-discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep-ai)"
+discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep)"
 
 stars_suffix = "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
 
@@ -424,7 +424,11 @@ async def on_ticket(
             -1,
         )
 
-    if repo_name.lower() not in WHITELISTED_REPOS:
+    if (
+        repo_name.lower() not in WHITELISTED_REPOS
+        and not is_paying_user
+        and not is_trial_user
+    ):
         if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
             logger.info("Test repository detected")
             edit_sweep_comment(
