@@ -150,8 +150,7 @@ def strip_sweep(text: str):
 stub = modal.Stub(ISSUES_MODAL_INST_NAME)
 stub.workers = modal.Dict.new() 
 stub.worker_stop_signals = modal.Dict.new() 
-workers = []
-worker_stop_signals = []
+
 
 def worker_stopper(issue_number):
     global stup
