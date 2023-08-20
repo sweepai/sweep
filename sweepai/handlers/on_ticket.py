@@ -10,6 +10,8 @@ import traceback
 import modal
 import openai
 import asyncio
+import random
+import time
 
 from github import GithubException
 from loguru import logger
@@ -85,6 +87,9 @@ ordinal = lambda n: str(n) + (
 )
 
 
+
+
+
 def post_process_snippets(
     snippets: list[Snippet],
     max_num_of_snippets: int = 5,
@@ -140,6 +145,28 @@ def strip_sweep(text: str):
         re.search(r"^[Ss]weep\s?\([Ff]ast\)", text) is not None,
     )
 
+workers = []
+worker_stop_signals = []
+
+def worker_stopper(issue_number):
+    global workers
+    global worker_stop_signals
+    for worker in workers:
+        if worker[0] == issue_number:
+            worker_stop_signals.append(worker[1])
+            while worker[1] in worker_stop_signals:
+                time.sleep(1)
+            return True
+    return True
+
+
+def checkpoint(worker_id):
+    global worker_stop_signals
+    if worker_id in worker_stop_signals:
+        worker_stop_signals.remove(worker_id)
+        return False
+    return True
+
 
 async def on_ticket(
     title: str,
@@ -153,6 +180,10 @@ async def on_ticket(
     comment_id: int = None,
     edited: bool = False,
 ):
+    global workers
+    worker_id = [issue_number, random.randint(10000, 99999)]
+    worker_stopper(issue_number)
+    workers.append(issue_number)
     (
         title,
         slow_mode,
@@ -351,6 +382,9 @@ async def on_ticket(
     num_of_files = get_num_files_from_repo(repo, installation_id)
     time_estimate = math.ceil(3 + 5 * num_of_files / 1000)
 
+    if not checkpoint(worker_id):
+        return {"success": False, "reason": "Issue edited"} 
+    
     indexing_message = f"I'm searching for relevant snippets in your repository. If this is your first time using Sweep, I'm indexing your repository. This may take up to {time_estimate} minutes. I'll let you know when I'm done."
     first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
     for comment in comments:
@@ -650,6 +684,9 @@ async def on_ticket(
         logger.info("Fetching files to modify/create...")
         file_change_requests, plan = sweep_bot.get_files_to_change()
 
+        if not checkpoint(worker_id):
+            return {"success": False, "reason": "Issue edited"} 
+        
         if not file_change_requests:
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -688,6 +725,9 @@ async def on_ticket(
             2,
         )
 
+        if not checkpoint(worker_id):
+            return {"success": False, "reason": "Issue edited"} 
+        
         # TODO(lukejagg): Generate PR after modifications are made
         # CREATE PR METADATA
         logger.info("Generating PR...")
@@ -730,6 +770,10 @@ async def on_ticket(
         issue = repo.get_issue(number=issue_number)
         issue.edit(body=summary + "\n\n" + checkboxes_message)
 
+
+        if not checkpoint(worker_id):
+            return {"success": False, "reason": "Issue edited"} 
+        
         delete_branch = False
         generator = create_pr_changes(
             file_change_requests,
@@ -828,6 +872,10 @@ async def on_ticket(
         except:
             pass
 
+        if not checkpoint(worker_id):
+            return {"success": False, "reason": "Issue edited"}         
+
+        
         # Clone repo and perform local tests (linters, formatters, GHA)
         try:
             lint_sandbox = Sandbox.from_token(username, user_token, repo)
