@@ -113,10 +113,9 @@ def create_pr_changes(
             return {"success": False, "error": error_msg}
         # Include issue number in PR description
         if issue_number:
-            if issue_number:
-                pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\n---\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```\n 💡 To get Sweep to edit this pull request, leave a comment below or in the code. Leaving a comment in the code will only modify the file but commenting below can change the entire PR."
-            else:
-                pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
+            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\n---\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```\n 💡 To get Sweep to edit this pull request, leave a comment below or in the code. Leaving a comment in the code will only modify the file but commenting below can change the entire PR."
+        else:
+            pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
@@ -252,14 +251,14 @@ def create_config_pr(
     pr = sweep_bot.repo.create_pull(
         title=title,
         body="""🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
-        
-        ## What's new?
-        - **Sweep is now configurable**.
-        - To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
-        - If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep) for help.
-        
-        If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
-        Thank you for using Sweep! 🧹""".replace("    ", ""),
+
+## What's new?
+- **Sweep is now configurable**.
+- To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
+- If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep) for help.
+
+If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
+Thank you for using Sweep! 🧹""",
         head=branch_name,
         base=SweepConfig.get_branch(sweep_bot.repo),
     )
