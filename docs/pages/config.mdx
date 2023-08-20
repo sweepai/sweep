@@ -11,6 +11,7 @@ In this article, we will explore ways to configure Sweep. Mainly, we will focus 
 | `draft` | `bool` | Whether or not to create PRs as drafts |
 | `description` | `str` | The description of the repository |
 | `docs` | `dict` | A dictionary of documentation links |
+| `sandbox` | `dict` | Sandbox settings for linting and formatting |
 
 ---
 
@@ -57,6 +58,35 @@ docs:
 This setting contains documentation links that Sweep is able to search through. This is helpful for packages with syntax that has changed or newer packages.
 
 **Important**: Please contact us if you would like to add a documentation link so we can add it to our database.
+
+## sandbox
+Python:
+```yaml
+sandbox:
+  enabled: true
+  image: "Python3"
+  install: "python -m venv venv; . venv/bin/activate; pip install black"
+  formatter: ". venv/bin/activate; black {files}"
+```
+
+JavaScript/TypeScript
+```yaml
+sandbox:
+  enabled: true
+  image: "Nodejs"
+  install: "npm install --save-dev prettier"
+  formatter: "npx prettier --write {files}"
+```
+
+This setting contains sandbox settings for linting and formatting. This is helpful when changes are required to be formatted and tested.
+
+### install
+This command is executed when setting up the environment.
+
+### formatter
+This command is executed after Sweep changes a file and before Sweep commits the changes. The `{files}` placeholder is replaced with the files that Sweep has changed.
+
+**Important**: Please contact us if you would like to add a sandbox setting, so we can add it to our database.
 
 ---
 

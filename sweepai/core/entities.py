@@ -199,7 +199,9 @@ class FileCreation(RegexMatchableBaseModel):
             first_index = result.code.find("```")
             if first_index >= 0:
                 last_index = result.code.rfind("```")
-                result.code = result.code[first_index:last_index]
+                file_extension = os.path.splitext(result.code)[1]
+                if file_extension not in [".md", ".rst", ".mdx", ".txt"]:
+                    result.code = result.code[first_index:last_index]
 
         result.code = result.code.strip()
         if result.code.endswith("</new_file>"):

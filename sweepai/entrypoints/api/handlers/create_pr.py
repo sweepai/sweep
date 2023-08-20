@@ -3,7 +3,13 @@ import openai
 from github.Repository import Repository
 from loguru import logger
 
-from sweepai.config.config_manager import ConfigManager
+from sweepai.core.entities import FileChangeRequest, PullRequest, MockPR
+from sweepai.config.config_manager import (
+    ConfigManager,
+    get_blocked_dirs,
+    UPDATES_MESSAGE,
+)
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.env import (
     GITHUB_DEFAULT_CONFIG,
     GITHUB_LABEL_NAME,
@@ -24,6 +30,12 @@ update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
+
+INSTRUCTIONS_FOR_REVIEW = """\
+💡 To get Sweep to edit this pull request, you can:
+* Leave a comment below to get Sweep to edit the entire PR
+* Leave a comment in the code will only modify the file
+* Edit the original issue to get Sweep to recreate the PR from scratch"""
 
 
 def create_pr_changes(
@@ -65,8 +77,9 @@ def create_pr_changes(
         "repo_description": sweep_bot.repo.description,
         "username": username,
         "installation_id": installation_id,
-        "function": "on_ticket",
+        "function": "create_pr",
         "mode": PREFIX,
+        "issue_number": issue_number,
     }
     posthog.capture(username, "started", properties=metadata)
 
@@ -111,11 +124,12 @@ def create_pr_changes(
 
             return {"success": False, "error": error_msg}
         # Include issue number in PR description
+        PR_CHECKOUT_COMMAND = "To checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
         if issue_number:
             # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)
-            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\n---\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```\n To get Sweep to edit this pull request, leave a comment below or in the code. Leaving a comment in the code will only modify the file but commenting below can change the entire PR."
+            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\n---\n{PR_CHECKOUT_COMMAND}\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
         else:
-            pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
+            pr_description = f"{pull_request.content}\n\n{PR_CHECKOUT_COMMAND}"
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
@@ -252,13 +266,15 @@ def create_config_pr(
         title=title,
         body="""🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
 
-## What's new?
-- **Sweep is now configurable**.
-- To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
-- If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep) for help.
+        ## What's new?
+        - **Sweep is now configurable**.
+        - To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
+        - If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep) for help.
 
-If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
-Thank you for using Sweep! 🧹""",
+        If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
+        Thank you for using Sweep! 🧹""".replace(
+            "    ", ""
+        ),
         head=branch_name,
         base=ConfigManager.get_branch(sweep_bot.repo),
     )
@@ -308,7 +324,8 @@ body:
     attributes:
       label: Details
       description: More details for Sweep
-      placeholder: We are migrating this function to ... version because ..."""
+      placeholder: We are migrating this function to ... version because ...
+"""
 
 BUGFIX_TEMPLATE = """\
 name: Bugfix
@@ -321,7 +338,8 @@ body:
     attributes:
       label: Details
       description: More details about the bug
-      placeholder: The bug might be in ... file"""
+      placeholder: The bug might be in ... file
+"""
 
 FEATURE_TEMPLATE = """\
 name: Feature Request
@@ -334,4 +352,5 @@ body:
     attributes:
       label: Details
       description: More details for Sweep
-      placeholder: The new endpoint should use the ... class from ... file because it contains ... logic"""
+      placeholder: The new endpoint should use the ... class from ... file because it contains ... logic
+"""

@@ -362,9 +362,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 file_change.commit_message = f"Create {file_change_request.filename}"
             assert file_change is not None
             file_change.commit_message = file_change.commit_message[
-                len(file_change.commit_message) : 50
+                : min(len(file_change.commit_message), 50)
             ]
-            # file_change.commit_message = f"sweep: {file_change.commit_message[:50]}"
 
             self.delete_messages_from_chat(key_to_delete=key)
 

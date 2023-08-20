@@ -15,7 +15,25 @@ from github import GithubException
 from loguru import logger
 from tabulate import tabulate
 
-from sweepai.config.config_manager import ConfigManager
+from sweepai.core.entities import Snippet, NoFilesException, SweepContext
+from sweepai.core.external_searcher import ExternalSearcher
+from sweepai.core.slow_mode_expand import SlowModeBot
+from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
+from sweepai.core.prompts import issue_comment_prompt
+from sweepai.core.sandbox import Sandbox
+from sweepai.handlers.create_pr import (
+    create_pr_changes,
+    create_config_pr,
+    safe_delete_sweep_branch,
+)
+from sweepai.handlers.on_comment import on_comment
+from sweepai.handlers.on_review import review_pr
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.config.config_manager import (
+    UPDATES_MESSAGE,
+    ConfigManager,
+    get_documentation_dict,
+)
 from sweepai.config.env import (
     PREFIX,
     DB_MODAL_INST_NAME,
@@ -23,6 +41,7 @@ from sweepai.config.env import (
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
+    WHITELISTED_REPOS,
 )
 from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import DocumentationSearcher
@@ -54,10 +73,8 @@ update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 sep = "\n---\n"
 bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
-bot_suffix = (
-    f"\n{sep} To recreate the pull request edit the issue title or description."
-)
-discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep-ai)"
+bot_suffix = f"\n{sep}\n{UPDATES_MESSAGE}\n{sep} 💡 To recreate the pull request edit the issue title or description."
+discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep)"
 
 stars_suffix = "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
 
@@ -148,6 +165,7 @@ async def on_ticket(
     repo_description: str,
     installation_id: int,
     comment_id: int = None,
+    edited: bool = False,
 ):
     (
         title,
@@ -182,7 +200,9 @@ async def on_ticket(
             "repo_full_name": repo_full_name,
             "repo_description": repo_description,
             "installation_id": installation_id,
+            "type": "ticket",
             "comment_id": comment_id,
+            "edited": edited,
         }
     )
     sweep_context = SweepContext(issue_url=issue_url)
@@ -196,7 +216,7 @@ async def on_ticket(
     if fast_mode:
         use_faster_model = True
 
-    if not comment_id:
+    if not comment_id and not edited:
         chat_logger.add_successful_ticket(
             gpt3=use_faster_model
         )  # moving higher, will increment the issue regardless of whether it's a success or not
@@ -204,11 +224,16 @@ async def on_ticket(
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
+        "repo_full_name": repo_full_name,
+        "organization": organization,
         "repo_name": repo_name,
         "repo_description": repo_description,
         "username": username,
+        "comment_id": comment_id,
+        "title": title,
         "installation_id": installation_id,
         "function": "on_ticket",
+        "edited": edited,
         "model": "gpt-3.5" if use_faster_model else "gpt-4",
         "tier": "pro" if is_paying_user else "free",
         "mode": PREFIX,
@@ -319,7 +344,7 @@ async def on_ticket(
             if config_pr_url is not None
             else ""
         )
-        config_pr_message = " To retrigger Sweep edit the issue.\n" + config_pr_message
+        config_pr_message = " To retrigger Sweep, edit the issue.\n" + config_pr_message
         if index < 0:
             index = 0
         if index == 6:
@@ -338,9 +363,9 @@ async def on_ticket(
         )
 
     num_of_files = get_num_files_from_repo(repo, installation_id)
-    time_estimate = math.ceil(5 + 5 * num_of_files / 1000)  # idk how accurate this is
+    time_estimate = math.ceil(3 + 5 * num_of_files / 1000)
 
-    indexing_message = f"I'm searching for relevant snippets in your repository. If this is your first time using Sweep, I'm indexing your repository. This may take {time_estimate} minutes. I'll let you know when I'm done."
+    indexing_message = f"I'm searching for relevant snippets in your repository. If this is your first time using Sweep, I'm indexing your repository. This may take up to {time_estimate} minutes. I'll let you know when I'm done."
     first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
     for comment in comments:
         if comment.user.login == GITHUB_BOT_USERNAME:
@@ -412,15 +437,18 @@ async def on_ticket(
             -1,
         )
 
-    if (repo_name != "sweep" and "sweep" in repo_name.lower()) or (
-        repo_name != "test-canary" and "test" in repo_name.lower()
+    if (
+        repo_name.lower() not in WHITELISTED_REPOS
+        and not is_paying_user
+        and not is_trial_user
     ):
-        logger.info("Test repository detected")
-        edit_sweep_comment(
-            "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
-            -1,
-        )
-        return {"success": False}
+        if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
+            logger.info("Test repository detected")
+            edit_sweep_comment(
+                "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
+                -1,
+            )
+            return {"success": False}
 
     def log_error(error_type, exception, priority=0):
         nonlocal is_paying_user, is_trial_user
@@ -716,6 +744,7 @@ async def on_ticket(
         issue = repo.get_issue(number=issue_number)
         issue.edit(body=summary + "\n\n" + checkboxes_message)
 
+        delete_branch = False
         generator = create_pr_changes(
             file_change_requests,
             pull_request,
@@ -969,6 +998,7 @@ async def on_ticket(
                 f"Sorry, I could not edit `{e.filename}` as this file is too long.\n\nIf this file is incorrect, please describe the desired file in the prompt. However, if you would like to edit longer files, consider upgrading to [Sweep Pro](https://sweep.dev/) for longer context lengths.\n",
                 -1,
             )
+        delete_branch = True
         raise e
     except NoFilesException as e:
         logger.info("Sweep could not find files to modify")
@@ -981,6 +1011,7 @@ async def on_ticket(
             f"Sorry, Sweep could not find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!\n\n> @{username}, please edit the issue description to include more details about this issue.",
             -1,
         )
+        delete_branch = True
         raise e
     except openai.error.InvalidRequestError as e:
         logger.error(traceback.format_exc())
@@ -1003,6 +1034,7 @@ async def on_ticket(
                 **metadata,
             },
         )
+        delete_branch = True
         raise e
     except Exception as e:
         logger.error(traceback.format_exc())
@@ -1031,6 +1063,19 @@ async def on_ticket(
             item_to_react_to.create_reaction("rocket")
         except Exception as e:
             logger.error(e)
+
+    if delete_branch:
+        try:
+            if pull_request.branch_name.startswith("sweep/"):
+                repo.get_git_ref(f"heads/{pull_request.branch_name}").delete()
+            else:
+                raise Exception(
+                    f"Branch name {pull_request.branch_name} does not start with sweep/"
+                )
+        except Exception as e:
+            logger.error(e)
+            logger.error(traceback.format_exc())
+            print("Deleted branch", pull_request.branch_name)
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")

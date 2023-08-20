@@ -166,18 +166,25 @@ def on_comment(
     is_paying_user = chat_logger.is_paying_user()
     use_faster_model = chat_logger.use_faster_model(g)
 
-    metadata = construct_metadata(
-        repo_full_name,
-        repo_name,
-        organization,
-        repo_description,
-        installation_id,
-        username,
-        "on_comment",
-        "gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4",
-        "pro" if is_paying_user else "free",
-        PREFIX,
-    )
+    metadata = {
+        "repo_full_name": repo_full_name,
+        "repo_name": repo_name,
+        "organization": organization,
+        "repo_description": repo_description,
+        "installation_id": installation_id,
+        "username": username,
+        "function": "on_comment",
+        "model": "gpt-3.5" if use_faster_model else "gpt-4",
+        "tier": "pro" if is_paying_user else "free",
+        "mode": PREFIX,
+        "pr_path": pr_path,
+        "pr_line_position": pr_line_position,
+        "pr_number": pr_number or pr.id,
+        "pr_html_url": pr.html_url,
+        "comment_id": comment_id,
+        "comment": comment,
+        "issue_number": issue_number if issue_number_match else "",
+    }
 
     capture_posthog_event(username, "started", properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
@@ -437,11 +444,22 @@ def on_comment(
 
         blocked_dirs = ConfigManager.get_blocked_dirs(sweep_bot.repo)
 
-        list(
-            sweep_bot.change_files_in_github_iterator(
-                file_change_requests, branch_name, blocked_dirs
-            )
+        changes_made = sum(
+            [
+                change_made
+                for _, change_made in sweep_bot.change_files_in_github_iterator(
+                    file_change_requests, branch_name, blocked_dirs
+                )
+            ]
         )
+        if changes_made:
+            pr.create_review_comment_reply(comment_id, "Done.")
+        else:
+            pr.create_review_comment_reply(
+                comment_id,
+                "No changes made. Please add more details so I know what to change.",
+            )
+
         if type(pr) != MockPR:
             if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
                 # Update the PR title to remove the "[DRAFT]" prefix

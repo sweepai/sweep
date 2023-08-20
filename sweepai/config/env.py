@@ -1,22 +1,17 @@
 import os
 
-ENVIRONMENT = os.environ.get("ENVIRONMENT", "prod")
-print(f"Using environment: {ENVIRONMENT}")
-PREFIX = "prod"
+PREFIX = "dev"
 
 print(f"Using prefix: {PREFIX}")
 ENV = PREFIX
+ENVIRONMENT = PREFIX
 
 DB_MODAL_INST_NAME = PREFIX + "-db"
 DOCS_MODAL_INST_NAME = PREFIX + "-docs"
 API_MODAL_INST_NAME = PREFIX + "-api"
 UTILS_MODAL_INST_NAME = PREFIX + "-utils"
 
-# deprecated: old logic transfer so upstream can use this; just create an empty modal secret for this
-if PREFIX == "prod":
-    BOT_TOKEN_NAME = "bot-token"
-else:
-    BOT_TOKEN_NAME = PREFIX + "-bot-token"
+BOT_TOKEN_NAME = "bot-token"
 
 # goes under Modal 'discord' secret name (optional, can leave env var blank)
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
@@ -99,5 +94,7 @@ POSTHOG_API_KEY = os.environ.get("POSTHOG_API_KEY")
 E2B_API_KEY = os.environ.get("E2B_API_KEY")
 
 SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")
+
+WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
 
 SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"

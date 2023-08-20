@@ -79,7 +79,7 @@ image = (
     )
 )
 secrets = [
-    modal.Secret.from_name(BOT_TOKEN_NAME),
+    modal.Secret.from_name("bot-token"),
     modal.Secret.from_name("github"),
     modal.Secret.from_name("openai-secret"),
     modal.Secret.from_name("anthropic"),
@@ -258,6 +258,7 @@ async def webhook(raw_request: Request):
                         request.repository.description,
                         request.installation.id,
                         request.comment.id,
+                        edited=True,
                     )
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
@@ -422,9 +423,10 @@ async def webhook(raw_request: Request):
                 pr = repo.get_pull(request.pull_request.number)
                 labels = pr.get_labels()
                 comment = request.comment.body
-                if comment.lower().startswith("sweep:") or any(
-                    label.name.lower() == "sweep" for label in labels
-                ):
+                if (
+                    comment.lower().startswith("sweep:")
+                    or any(label.name.lower() == "sweep" for label in labels)
+                ) and request.comment.user.type == "User":
                     pr_change_request = PRChangeRequest(
                         type="comment",
                         params={

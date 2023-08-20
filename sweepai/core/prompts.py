@@ -99,6 +99,17 @@ diff_section_prompt = """
 """
 
 review_prompt = """\
+Repo & Issue Metadata:
+
+<metadata>
+Repo: {repo_name}: {repo_description}
+Issue Url: {issue_url}
+Username: {username}
+Issue Title: {title}
+Issue Description:
+{description}
+</metadata>
+
 I need you to carefully review the code diffs in this pull request.
 
 The code was written by an inexperienced programmer and may contain
@@ -107,7 +118,7 @@ The code was written by an inexperienced programmer and may contain
 * Unimplemented sections (such as "pass", "...", "# rest of code here")
 * Other issues.
 
-Be sure to indicate any of these errors. Do not include formatting errors like missing ending newlines. Ensure that the code actually reflects the pull request summary and every function and class is fully implemented.
+Be sure to indicate any of these errors. Do not include formatting errors like missing ending newlines. Ensure that the code resolves the issue requested by the user and every function and class is fully implemented.
 
 Think step-by-step to summarize and indicate potential errors. Respond in the following format:
 
@@ -346,8 +357,11 @@ if example:
     print("hello")
     x = 2
 
-def func():
-    a = 3
+class Example:
+    foo: int = 1
+
+    def func():
+        a = 3
 
 </old_file>
 
@@ -367,7 +381,12 @@ Detailed plan of modifications:
 Code Generation:
 
 ```
-Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Prefer many small edits over few large edits. Always add lines before and after if possible.
+Generate a diff based on the given plan using the search and replace pairs in the format below.
+* Always prefer the least amount of changes possible
+* Prefer many small edits over few large edits
+* Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
+
+The format is as follows:
 
 <<<< ORIGINAL
 line_before
@@ -403,23 +422,31 @@ Detailed plan of modifications:
 Code Generation:
 ```
 <<<< ORIGINAL
+example = True
+if example:
     x = 1 # comment
     print("hello")
     x = 2
 ====
+example = True
+if example:
     x = 1 # comment
     print("goodbye")
     x = 2
 >>>> UPDATED
 
 <<<< ORIGINAL
-def func():
-    a = 3
+class Example:
+    foo: int = 1
 
+    def func():
+        a = 3
 ====
-def func():
-    a = 4
+class Example:
+    foo: int = 1
 
+    def func():
+        a = 4
 >>>> UPDATED
 ```
 

@@ -203,3 +203,60 @@ class ConfigManager(BaseModel):
         except Exception as e:
             logger.warning(f"Error when getting docs: {e}, returning empty dict")
             return []
+
+
+@lru_cache(maxsize=None)
+def get_sandbox_config(repo: Repository):
+    try:
+        contents = repo.get_contents("sweep.yaml")
+        description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
+            "sandbox", {"enabled": False}
+        )
+        if "enabled" not in description:
+            description["enabled"] = False
+        return description
+    except Exception as e:
+        return {"enabled": False}
+
+
+@lru_cache(maxsize=None)
+def get_documentation_dict(repo: Repository):
+    try:
+        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
+            "utf-8"
+        )
+        sweep_yaml = yaml.safe_load(sweep_yaml_content)
+        docs = sweep_yaml.get("docs", {})
+        return docs
+    except Exception as e:
+        logger.warning(f"Error when getting docs: {e}, returning empty dict")
+        return {}
+
+
+@lru_cache(maxsize=None)
+def get_blocked_dirs(repo: Repository):
+    try:
+        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
+            "utf-8"
+        )
+        sweep_yaml = yaml.safe_load(sweep_yaml_content)
+        dirs = sweep_yaml.get("blocked_dirs", [])
+        return dirs
+    except Exception as e:
+        logger.warning(f"Error when getting docs: {e}, returning empty dict")
+        return []
+
+
+# optional, can leave env var blank
+GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926a9f")
+SWEEP_API_ENDPOINT = os.environ.get(
+    "SWEEP_API_ENDPOINT", f"https://sweepai--{PREFIX}-ui.modal.run"
+)
+
+UPDATES_MESSAGE = """\
+🎉 Latest mprovements to Sweep:
+* Getting Sweep to format before committing! Check out [Sweep Sandbox Configs](https://docs.sweep.dev/config#sandbox) to set it up.
+* We launched our [browser extension](https://github.com/sweepai/sweep/releases/tag/browser-extension-v0.0.1) making it faster to make Sweep issues.
+* We released a [demo of our chunker](https://huggingface.co/spaces/sweepai/chunker), where you can find the corresponding blog and code.
+"""
+# * We open-sourced our new [fine-tuned code search model](https://huggingface.co/sweepai/mpnet-code-search).

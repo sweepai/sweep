@@ -41,7 +41,6 @@ def make_valid_string(string: str):
 def get_jwt():
     signing_key = GITHUB_APP_PEM
     app_id = GITHUB_APP_ID
-    print(GITHUB_APP_ID)
     payload = {"iat": int(time.time()), "exp": int(time.time()) + 600, "iss": app_id}
     return encode(payload, signing_key, algorithm="RS256")
 
@@ -269,8 +268,10 @@ def get_top_match_ctags(repo, file_list, query):
         score = fuzz.ratio(query, names)
         ctags_score.append((score, file))
     ctags_score.sort(key=lambda x: x[0], reverse=True)
-    top_match = ctags_score[0]
-    return top_match[1] if top_match[0] > 40 else None
+
+    if len(ctags_score) > 0:
+        top_match = ctags_score[0]
+        return top_match[1] if top_match[0] > 40 else None
 
 
 def search_snippets(
@@ -332,7 +333,7 @@ def search_snippets(
     git_repo = Repo.clone_from(repo_url, "repo")
     git_repo.git.checkout(ConfigManager.get_branch(repo))
     file_list = get_file_list("repo")
-    top_ctags_match = get_top_match_ctags(repo, file_list, query)  # ctags match
+    # top_ctags_match = get_top_match_ctags(repo, file_list, query)  # ctags match
     query_file_names = get_file_names_from_query(query)
     query_match_files = []  # files in both query and repo
     for file_path in tqdm(file_list):
@@ -356,9 +357,9 @@ def search_snippets(
     )
     shutil.rmtree("repo", ignore_errors=True)
     # Add top ctags match to snippets
-    if top_ctags_match and top_ctags_match not in query_match_files:
-        query_match_files = [top_ctags_match] + query_match_files
-        print(f"Top ctags match: {top_ctags_match}")
+    # if top_ctags_match and top_ctags_match not in query_match_files:
+    #     query_match_files = [top_ctags_match] + query_match_files
+    #     print(f"Top ctags match: {top_ctags_match}")
     for file_path in query_match_files:
         try:
             file_contents = get_file_contents(repo, file_path, ref=branch)
