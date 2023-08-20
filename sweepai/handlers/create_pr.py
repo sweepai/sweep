@@ -7,10 +7,10 @@ from sweepai.core.entities import FileChangeRequest, PullRequest, MockPR
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import SweepConfig, get_blocked_dirs, UPDATES_MESSAGE
 from sweepai.config.server import (
+    ENV,
     GITHUB_DEFAULT_CONFIG,
     GITHUB_LABEL_NAME,
     OPENAI_API_KEY,
-    PREFIX,
     DB_MODAL_INST_NAME,
     GITHUB_BOT_USERNAME,
     GITHUB_CONFIG_BRANCH,
@@ -72,7 +72,7 @@ def create_pr_changes(
         "username": username,
         "installation_id": installation_id,
         "function": "create_pr",
-        "mode": PREFIX,
+        "mode": ENV,
         "issue_number": issue_number,
     }
     posthog.capture(username, "started", properties=metadata)
