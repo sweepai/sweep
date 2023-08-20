@@ -204,7 +204,7 @@ async def on_ticket(
 
     if not comment_id and not edited:
         chat_logger.add_successful_ticket(
-            gpt3=use_faster_model
+            gpt3=fast_mode
         )  # moving higher, will increment the issue regardless of whether it's a success or not
 
     organization, repo_name = repo_full_name.split("/")
