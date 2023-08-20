@@ -185,7 +185,7 @@ async def on_ticket(
     edited: bool = False,
 ):
     global stup
-    worker_id = [issue_number, random.randint(10000, 99999)]
+    worker_id = [issue_number, repo_full_name+str(random.randint(10000, 99999))]
     worker_stopper(issue_number)
     stub.workers.append(issue_number)
     (
