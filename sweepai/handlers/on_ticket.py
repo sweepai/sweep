@@ -37,7 +37,7 @@ from sweepai.config.client import (
     get_documentation_dict,
 )
 from sweepai.config.server import (
-    PREFIX,
+    ENV,
     DB_MODAL_INST_NAME,
     UTILS_MODAL_INST_NAME,
     OPENAI_API_KEY,
@@ -187,6 +187,7 @@ async def on_ticket(
             "repo_description": repo_description,
             "installation_id": installation_id,
             "type": "ticket",
+            "mode": ENV,
             "comment_id": comment_id,
             "edited": edited,
         }
@@ -222,7 +223,7 @@ async def on_ticket(
         "edited": edited,
         "model": "gpt-3.5" if use_faster_model else "gpt-4",
         "tier": "pro" if is_paying_user else "free",
-        "mode": PREFIX,
+        "mode": ENV,
     }
     posthog.capture(username, "started", properties=metadata)
 
