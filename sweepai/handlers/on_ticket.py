@@ -41,6 +41,7 @@ from sweepai.config.client import (
 from sweepai.config.server import (
     PREFIX,
     DB_MODAL_INST_NAME,
+    ISSUES_MODAL_INST_NAME,
     UTILS_MODAL_INST_NAME,
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
@@ -145,25 +146,29 @@ def strip_sweep(text: str):
         re.search(r"^[Ss]weep\s?\([Ff]ast\)", text) is not None,
     )
 
+
+stub = modal.Stub(ISSUES_MODAL_INST_NAME)
+stub.workers = modal.Dict.new() 
+stub.worker_stop_signals = modal.Dict.new() 
 workers = []
 worker_stop_signals = []
 
 def worker_stopper(issue_number):
-    global workers
-    global worker_stop_signals
-    for worker in workers:
+    global stup
+
+    for worker in stub.workers:
         if worker[0] == issue_number:
-            worker_stop_signals.append(worker[1])
-            while worker[1] in worker_stop_signals:
+            stub.worker_stop_signals.append(worker[1])
+            while worker[1] in stub.worker_stop_signals:
                 time.sleep(1)
             return True
     return True
 
 
 def checkpoint(worker_id):
-    global worker_stop_signals
-    if worker_id in worker_stop_signals:
-        worker_stop_signals.remove(worker_id)
+    global stup
+    if worker_id in stub.worker_stop_signals:
+        stub.worker_stop_signals.remove(worker_id)
         return False
     return True
 
@@ -180,10 +185,10 @@ async def on_ticket(
     comment_id: int = None,
     edited: bool = False,
 ):
-    global workers
+    global stup
     worker_id = [issue_number, random.randint(10000, 99999)]
     worker_stopper(issue_number)
-    workers.append(issue_number)
+    stub.workers.append(issue_number)
     (
         title,
         slow_mode,
