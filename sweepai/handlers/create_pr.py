@@ -25,6 +25,8 @@ update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
 
+CHECKOUT_COMMAND = f"To checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
+
 
 def create_pr_changes(
     file_change_requests: list[FileChangeRequest],
@@ -37,7 +39,6 @@ def create_pr_changes(
     chat_logger: ChatLogger = None,
 ):
     PR_CONTENT = pull_request.content
-    CHECKOUT_COMMAND = f"To checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
