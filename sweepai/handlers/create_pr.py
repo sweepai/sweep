@@ -5,7 +5,7 @@ from loguru import logger
 
 from sweepai.core.entities import FileChangeRequest, PullRequest, MockPR
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.client import SweepConfig, get_blocked_dirs
+from sweepai.config.client import SweepConfig, get_blocked_dirs, UPDATES_MESSAGE
 from sweepai.config.server import (
     GITHUB_DEFAULT_CONFIG,
     GITHUB_LABEL_NAME,
@@ -24,6 +24,12 @@ update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
+
+INSTRUCTIONS_FOR_REVIEW = """\
+💡 To get Sweep to edit this pull request, you can:
+* Leave a comment below to get Sweep to edit the entire PR
+* Leave a comment in the code will only modify the file
+* Edit the original issue to get Sweep to recreate the PR from scratch"""
 
 
 def create_pr_changes(
@@ -115,7 +121,7 @@ def create_pr_changes(
         PR_CHECKOUT_COMMAND = "To checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
         if issue_number:
             # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)
-            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\n---\n{PR_CHECKOUT_COMMAND}\n\n---\n\n To get Sweep to edit this pull request, leave a comment below or in the code. Leaving a comment in the code will only modify the file but commenting below can change the entire PR."
+            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\n---\n{PR_CHECKOUT_COMMAND}\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
         else:
             pr_description = f"{pull_request.content}\n\n{PR_CHECKOUT_COMMAND}"
         pr_title = pull_request.title
