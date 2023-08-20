@@ -416,15 +416,21 @@ def on_comment(
 
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
 
-        changes_made = list(
-            sweep_bot.change_files_in_github_iterator(
-                file_change_requests, branch_name, blocked_dirs
-            )
+        changes_made = sum(
+            [
+                change_made
+                for _, change_made in sweep_bot.change_files_in_github_iterator(
+                    file_change_requests, branch_name, blocked_dirs
+                )
+            ]
         )
         if changes_made:
             pr.create_review_comment_reply(comment_id, "Done.")
         else:
-            pr.create_review_comment_reply(comment_id, "No changes made. Please add more details so I know what to change.")
+            pr.create_review_comment_reply(
+                comment_id,
+                "No changes made. Please add more details so I know what to change.",
+            )
 
         if type(pr) != MockPR:
             if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
