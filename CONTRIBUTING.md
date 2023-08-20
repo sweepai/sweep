@@ -24,6 +24,9 @@ To submit a pull request, follow the following steps:
 4. Push your branch and submit a pull request to the `main` branch.
 5. Await review. Respond to any comments or requests made by reviewers.
 
+## Important Notes
+1. Please do not edit the structure of the repo. Sweep is constantly changing, and we want to make sure that we can easily integrate your changes into our codebase.
+
 ## Coding Standards
 
 Please ensure your code adheres to the coding standards used throughout the project. This includes proper indentation, accurate comments, and clear, concise code.
