@@ -36,6 +36,8 @@ def create_pr_changes(
     sandbox=None,
     chat_logger: ChatLogger = None,
 ):
+    PR_CONTENT = pull_request.content
+    CHECKOUT_COMMAND = f"To checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -113,9 +115,9 @@ def create_pr_changes(
             return {"success": False, "error": error_msg}
         # Include issue number in PR description
         if issue_number:
-            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\n---\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```\n 💡 To get Sweep to edit this pull request, leave a comment below or in the code. Leaving a comment in the code will only modify the file but commenting below can change the entire PR."
+            pr_description = f"{PR_CONTENT}\n\nFixes #{issue_number}.\n\n---\n{CHECKOUT_COMMAND}\n 💡 To get Sweep to edit this pull request, leave a comment below or in the code. Leaving a comment in the code will only modify the file but commenting below can change the entire PR."
         else:
-            pr_description = f"{pull_request.content}\n\nTo checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
+            pr_description = f"{PR_CONTENT}\n\n{CHECKOUT_COMMAND}"
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
