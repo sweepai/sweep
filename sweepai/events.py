@@ -27,6 +27,7 @@ class CommentCreatedRequest(BaseModel):
     class Comment(BaseModel):
         class User(BaseModel):
             login: str
+            type: str
 
         body: str | None
         original_line: int
