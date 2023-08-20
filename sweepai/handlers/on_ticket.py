@@ -41,7 +41,6 @@ from sweepai.config.client import (
 from sweepai.config.server import (
     PREFIX,
     DB_MODAL_INST_NAME,
-    ISSUES_MODAL_INST_NAME,
     UTILS_MODAL_INST_NAME,
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
@@ -62,7 +61,7 @@ update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 sep = "\n---\n"
 bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
-bot_suffix = f"\n{sep}\n{UPDATES_MESSAGE}\n{sep} 💡 To recreate the pull request edit the issue title or description."
+bot_suffix = f"\n{sep}\n{UPDATES_MESSAGE}\n{sep} 💡 To recreate the pull request, edit the issue title or description."
 discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep)"
 
 stars_suffix = "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
@@ -86,9 +85,6 @@ num_full_files = 2
 ordinal = lambda n: str(n) + (
     "th" if 4 <= n <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
 )
-
-
-
 
 
 def post_process_snippets(
@@ -147,31 +143,6 @@ def strip_sweep(text: str):
     )
 
 
-stub = modal.Stub(ISSUES_MODAL_INST_NAME)
-stub.workers = modal.Dict.new() 
-stub.worker_stop_signals = modal.Dict.new() 
-
-
-def worker_stopper(issue_number):
-    global stup
-
-    for worker in stub.workers:
-        if worker[0] == issue_number:
-            stub.worker_stop_signals.append(worker[1])
-            while worker[1] in stub.worker_stop_signals:
-                time.sleep(1)
-            return True
-    return True
-
-
-def checkpoint(worker_id):
-    global stup
-    if worker_id in stub.worker_stop_signals:
-        stub.worker_stop_signals.remove(worker_id)
-        return False
-    return True
-
-
 async def on_ticket(
     title: str,
     summary: str,
@@ -184,10 +155,6 @@ async def on_ticket(
     comment_id: int = None,
     edited: bool = False,
 ):
-    global stup
-    worker_id = [issue_number, repo_full_name+str(random.randint(10000, 99999))]
-    worker_stopper(issue_number)
-    stub.workers.append(worker_id)
     (
         title,
         slow_mode,
@@ -386,9 +353,6 @@ async def on_ticket(
     num_of_files = get_num_files_from_repo(repo, installation_id)
     time_estimate = math.ceil(3 + 5 * num_of_files / 1000)
 
-    if not checkpoint(worker_id):
-        return {"success": False, "reason": "Issue edited"} 
-    
     indexing_message = f"I'm searching for relevant snippets in your repository. If this is your first time using Sweep, I'm indexing your repository. This may take up to {time_estimate} minutes. I'll let you know when I'm done."
     first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
     for comment in comments:
@@ -688,9 +652,6 @@ async def on_ticket(
         logger.info("Fetching files to modify/create...")
         file_change_requests, plan = sweep_bot.get_files_to_change()
 
-        if not checkpoint(worker_id):
-            return {"success": False, "reason": "Issue edited"} 
-        
         if not file_change_requests:
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -729,9 +690,6 @@ async def on_ticket(
             2,
         )
 
-        if not checkpoint(worker_id):
-            return {"success": False, "reason": "Issue edited"} 
-        
         # TODO(lukejagg): Generate PR after modifications are made
         # CREATE PR METADATA
         logger.info("Generating PR...")
@@ -774,10 +732,6 @@ async def on_ticket(
         issue = repo.get_issue(number=issue_number)
         issue.edit(body=summary + "\n\n" + checkboxes_message)
 
-
-        if not checkpoint(worker_id):
-            return {"success": False, "reason": "Issue edited"} 
-        
         delete_branch = False
         generator = create_pr_changes(
             file_change_requests,
@@ -868,7 +822,16 @@ async def on_ticket(
             4,
         )
 
-        review_message = f"Here are my self-reviews of my changes at [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
+        total_reviews = 1 if not slow_mode else 3
+        pr_markdown_link = f"[`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head})"
+        if total_reviews > 1:
+            review_message = (
+                f"Here are my self-reviews of my changes at {pr_markdown_link}.\n\n"
+            )
+        else:
+            review_message = (
+                f"Here is my self-review of my changes at {pr_markdown_link}.\n\n"
+            )
 
         lint_output = None
         try:
@@ -876,10 +839,6 @@ async def on_ticket(
         except:
             pass
 
-        if not checkpoint(worker_id):
-            return {"success": False, "reason": "Issue edited"}         
-
-        
         # Clone repo and perform local tests (linters, formatters, GHA)
         try:
             lint_sandbox = Sandbox.from_token(username, user_token, repo)
@@ -911,7 +870,7 @@ async def on_ticket(
             logger.error(traceback.format_exc())
             logger.error(e)
 
-        for i in range(1 if not slow_mode else 3):
+        for i in range(total_reviews):
             try:
                 # Todo(lukejagg): Pass sandbox linter results to review_pr
                 # CODE REVIEW
@@ -931,7 +890,11 @@ async def on_ticket(
                 # Todo(lukejagg): Execute sandbox after each iteration
                 lint_output = None
                 review_message += (
-                    f"Here is the {ordinal(i + 1)} review\n> "
+                    (
+                        f"Here is the {ordinal(i + 1)} review\n> "
+                        if total_reviews > 1
+                        else ""
+                    )
                     + review_comment.replace("\n", "\n> ")
                     + "\n\n"
                 )
