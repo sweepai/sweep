@@ -10,6 +10,8 @@ import traceback
 import modal
 import openai
 import asyncio
+import random
+import time
 
 from github import GithubException
 from loguru import logger
@@ -59,7 +61,7 @@ update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 sep = "\n---\n"
 bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
-bot_suffix = f"\n{sep}\n{UPDATES_MESSAGE}\n{sep} 💡 To recreate the pull request edit the issue title or description."
+bot_suffix = f"\n{sep}\n{UPDATES_MESSAGE}\n{sep} 💡 To recreate the pull request, edit the issue title or description."
 discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep)"
 
 stars_suffix = "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
@@ -817,7 +819,16 @@ async def on_ticket(
             4,
         )
 
-        review_message = f"Here are my self-reviews of my changes at [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
+        total_reviews = 1 if not slow_mode else 3
+        pr_markdown_link = f"[`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head})"
+        if total_reviews > 1:
+            review_message = (
+                f"Here are my self-reviews of my changes at {pr_markdown_link}.\n\n"
+            )
+        else:
+            review_message = (
+                f"Here is my self-review of my changes at {pr_markdown_link}.\n\n"
+            )
 
         lint_output = None
         try:
@@ -856,7 +867,7 @@ async def on_ticket(
             logger.error(traceback.format_exc())
             logger.error(e)
 
-        for i in range(1 if not slow_mode else 3):
+        for i in range(total_reviews):
             try:
                 # Todo(lukejagg): Pass sandbox linter results to review_pr
                 # CODE REVIEW
@@ -876,7 +887,11 @@ async def on_ticket(
                 # Todo(lukejagg): Execute sandbox after each iteration
                 lint_output = None
                 review_message += (
-                    f"Here is the {ordinal(i + 1)} review\n> "
+                    (
+                        f"Here is the {ordinal(i + 1)} review\n> "
+                        if total_reviews > 1
+                        else ""
+                    )
                     + review_comment.replace("\n", "\n> ")
                     + "\n\n"
                 )
