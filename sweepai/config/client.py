@@ -213,3 +213,11 @@ GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926
 SWEEP_API_ENDPOINT = os.environ.get(
     "SWEEP_API_ENDPOINT", f"https://sweepai--{PREFIX}-ui.modal.run"
 )
+
+UPDATES_MESSAGE = """\
+🎉 Latest mprovements to Sweep:
+* Getting Sweep to format before committing! Check out [Sweep Sandbox Configs](https://docs.sweep.dev/config#sandbox) to set it up.
+* We launched our [browser extension](https://github.com/sweepai/sweep/releases/tag/browser-extension-v0.0.1) making it faster to make Sweep issues.
+* We released a [demo of our chunker](https://huggingface.co/spaces/sweepai/chunker), where you can find the corresponding blog and code.
+"""
+# * We open-sourced our new [fine-tuned code search model](https://huggingface.co/sweepai/mpnet-code-search).
