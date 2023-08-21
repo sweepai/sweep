@@ -14,7 +14,7 @@ from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.server import (
     GITHUB_BOT_USERNAME,
-    PREFIX,
+    ENV,
     OPENAI_API_KEY,
 )
 from sweepai.utils.event_logger import posthog
@@ -148,7 +148,7 @@ def on_comment(
         "function": "on_comment",
         "model": "gpt-3.5" if use_faster_model else "gpt-4",
         "tier": "pro" if is_paying_user else "free",
-        "mode": PREFIX,
+        "mode": ENV,
         "pr_path": pr_path,
         "pr_line_position": pr_line_position,
         "pr_number": pr_number or pr.id,
