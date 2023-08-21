@@ -14,10 +14,11 @@ import asyncio
 from github import GithubException
 from loguru import logger
 from tabulate import tabulate
+from tqdm import tqdm
 from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import DocumentationSearcher
 
-from sweepai.core.entities import Snippet, NoFilesException, SweepContext
+from sweepai.core.entities import ProposedIssue, Snippet, NoFilesException, SweepContext
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
@@ -131,10 +132,10 @@ def post_process_snippets(
 def strip_sweep(text: str):
     return (
         re.sub(
-            r"^[Ss]weep\s?(\([Ss]low\))?(\([Mm]igrate\))?(\([Ff]ast\))?\s?:", "", text
+            r"^[Ss]weep\s?(\([Ss]low\))?(\([Mm]ap\))?(\([Ff]ast\))?\s?:", "", text
         ).lstrip(),
         re.search(r"^[Ss]weep\s?\([Ss]low\)", text) is not None,
-        re.search(r"^[Ss]weep\s?\([Mm]igrate\)", text) is not None,
+        re.search(r"^[Ss]weep\s?\([Mm]ap\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Ss]ubissues?\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Ff]ast\)", text) is not None,
     )
@@ -155,7 +156,7 @@ async def on_ticket(
     (
         title,
         slow_mode,
-        migrate,
+        do_map,
         subissues_mode,
         fast_mode,
     ) = strip_sweep(title)
@@ -174,6 +175,10 @@ async def on_ticket(
     summary = re.sub("Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL)
 
     repo_name = repo_full_name
+    user_token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    current_issue = repo.get_issue(number=issue_number)
+    assignee = current_issue.assignee.login if current_issue.assignee else None
 
     chat_logger = ChatLogger(
         {
@@ -182,7 +187,7 @@ async def on_ticket(
             "summary": summary,
             "issue_number": issue_number,
             "issue_url": issue_url,
-            "username": username,
+            "username": username if username.startswith("sweep") else assignee,
             "repo_full_name": repo_full_name,
             "repo_description": repo_description,
             "installation_id": installation_id,
@@ -193,8 +198,6 @@ async def on_ticket(
         }
     )
     sweep_context = SweepContext(issue_url=issue_url)
-
-    user_token, g = get_github_client(installation_id)
 
     is_paying_user = chat_logger.is_paying_user()
     is_trial_user = chat_logger.is_trial_user()
@@ -228,10 +231,8 @@ async def on_ticket(
     posthog.capture(username, "started", properties=metadata)
 
     logger.info(f"Getting repo {repo_full_name}")
-    repo = g.get_repo(repo_full_name)
     config = SweepConfig.get_config(repo)
 
-    current_issue = repo.get_issue(number=issue_number)
     if current_issue.state == "closed":
         logger.warning(f"Issue {issue_number} is closed")
         posthog.capture(username, "issue_closed", properties=metadata)
@@ -645,6 +646,44 @@ async def on_ticket(
             + (f"\n\n{docs_results}\n\n" if docs_results else ""),
             1,
         )
+
+        if do_map:
+            subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
+            edit_sweep_comment(
+                f"I'm creating the following subissues:\n\n"
+                + "\n\n".join(
+                    [
+                        f"* #{subissue.title}:\n> "
+                        + subissue.body.replace("\n", "\n> ")
+                        for subissue in subissues
+                    ]
+                ),
+                3,
+            )
+            for subissue in tqdm(subissues):
+                subissue.issue_id = repo.create_issue(
+                    title="Sweep: " + subissue.title,
+                    body=subissue.body + f"\n\nParent issue: #{issue_number}",
+                    assignee=username,
+                ).number
+            subissues_checklist = "\n\n".join(
+                [
+                    f"- [ ] #{subissue.issue_id}\n\n> "
+                    + f"**{subissue.title}**\n{subissue.body}".replace("\n", "\n> ")
+                    for subissue in subissues
+                ]
+            )
+            current_issue.edit(
+                body=summary + "\n\n---\n\nChecklist:\n\n" + subissues_checklist
+            )
+            edit_sweep_comment(
+                f"I finished creating the subissues! Track them at:\n\n"
+                + "\n".join(f"* #{subissue.issue_id}" for subissue in subissues),
+                4,
+            )
+            edit_sweep_comment(f"N/A", 5)
+            edit_sweep_comment(f"I finished creating all the subissues.", 6)
+            return {"success": True}
 
         # COMMENT ON ISSUE
         # TODO: removed issue commenting here

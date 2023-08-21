@@ -1,9 +1,9 @@
 from tabulate import tabulate
 
-from sweepai.core.entities import FileChangeRequest
+from sweepai.core.entities import ProposedIssue
 
 file_change_requests = [
-    FileChangeRequest(
+    ProposedIssue(
         filename="main.py",
         change_type="create",
         instructions="Do this\nthen that\nthen do\n```python\n#main {\nfont-size:12px\n}\n```",

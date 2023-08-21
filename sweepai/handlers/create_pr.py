@@ -3,7 +3,7 @@ import openai
 from github.Repository import Repository
 from loguru import logger
 
-from sweepai.core.entities import FileChangeRequest, PullRequest, MockPR
+from sweepai.core.entities import ProposedIssue, PullRequest, MockPR
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import SweepConfig, get_blocked_dirs, UPDATES_MESSAGE
 from sweepai.config.server import (
@@ -33,7 +33,7 @@ INSTRUCTIONS_FOR_REVIEW = """\
 
 
 def create_pr_changes(
-    file_change_requests: list[FileChangeRequest],
+    file_change_requests: list[ProposedIssue],
     pull_request: PullRequest,
     sweep_bot: SweepBot,
     username: str,
