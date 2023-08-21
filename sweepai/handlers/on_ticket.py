@@ -18,10 +18,16 @@ from tqdm import tqdm
 from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import DocumentationSearcher
 
-from sweepai.core.entities import ProposedIssue, Snippet, NoFilesException, SweepContext
+from sweepai.core.entities import (
+    ProposedIssue,
+    Snippet,
+    NoFilesException,
+    SweepContext,
+    MaxTokensExceeded,
+)
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.slow_mode_expand import SlowModeBot
-from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
+from sweepai.core.sweep_bot import SweepBot
 from sweepai.core.prompts import issue_comment_prompt
 from sweepai.core.sandbox import Sandbox
 from sweepai.handlers.create_pr import (
