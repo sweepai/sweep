@@ -513,7 +513,7 @@ async def on_ticket(
         logger.error(traceback.format_exc())
         logger.error(e)
         sandbox = None
-        # Todo(lukejagg): log state of sandbox
+        # Todo(lukejagg): log state of sandbox to discord?
 
     logger.info("Fetching relevant files...")
     try:
