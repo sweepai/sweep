@@ -637,7 +637,7 @@ async def on_ticket(
             logger.info("Creating sweep.yaml file...")
             config_pr = create_config_pr(sweep_bot)
             config_pr_url = config_pr.html_url
-            edit_sweep_comment(message="", index=-2)
+            edit_sweep_comment(message="", index=-2, progress_stage="Configuring PR")
         except Exception as e:
             logger.error(
                 "Failed to create new branch for sweep.yaml file.\n",
