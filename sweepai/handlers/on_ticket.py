@@ -24,6 +24,7 @@ from sweepai.core.entities import (
     NoFilesException,
     SweepContext,
     MaxTokensExceeded,
+    EmptyRepository,
 )
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.slow_mode_expand import SlowModeBot
@@ -239,7 +240,6 @@ async def on_ticket(
     posthog.capture(username, "started", properties=metadata)
 
     logger.info(f"Getting repo {repo_full_name}")
-    config = SweepConfig.get_config(repo)
 
     if current_issue.state == "closed":
         logger.warning(f"Issue {issue_number} is closed")
@@ -432,6 +432,16 @@ async def on_ticket(
             "Please add more details to your issue. I need at least 20 characters to generate a plan.",
             -1,
         )
+
+    try:
+        config = SweepConfig.get_config(repo)
+    except EmptyRepository as e:
+        logger.info("Empty repo")
+        edit_sweep_comment(
+            "Sweep is currently not supported on empty repositories. Please add some code to your repository and try again.",
+            -1,
+        )
+        return {"success": False}
 
     if (
         repo_name.lower() not in WHITELISTED_REPOS

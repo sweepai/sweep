@@ -400,3 +400,8 @@ class SweepContext(BaseModel):
 class MaxTokensExceeded(Exception):
     def __init__(self, filename):
         self.filename = filename
+
+
+class EmptyRepository(Exception):
+    def __init__(self):
+        pass
