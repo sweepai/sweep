@@ -7,11 +7,9 @@ body:
     id: description
     attributes:
       label: Details
-      description: More details for Sweep
+      description: Tell Sweep where and what to edit and provide enough context for a new developer to the codebase
       placeholder: |
-        When prompting Sweep, tell it where and what to edit and provide enough context for a new developer to the codebase.
-        
-        Examples:
         Bugs: The bug might be in ... file. Here are the logs: ...
         Features: the new endpoint should use the ... class from ... file because it contains ... logic.
         Refactors: We are migrating this function to ... version because ...
+      
