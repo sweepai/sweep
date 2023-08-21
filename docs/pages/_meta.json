@@ -1,32 +1,26 @@
 {
   "index": "🚀 Getting Started",
-  "examples": "Examples",
-  "tutorial": "Tutorial",
-  "recipes": "Recipes",
-  "commenting": "Responding to Sweep",
-  "tricks": "Tips & Tricks",
-  "limitations": "Limitations",
-  "roadmap": "Roadmap",
-  "config": "Config",
+  "usage": "📖 Usage",
+  "about": "👋 About",
   "faq": "❓ FAQ",
-  "blogs": "Blogs",
-  "videos": "Videos",
+  "blogs": "📚 Blogs",
+  "videos": "🎥 Videos",
   "privacy": "🔒 Privacy Policy",
-  "about": {
-    "title": "🏠 Home",
+  "home": {
+    "title": "Home",
     "type": "page",
     "href": "https://sweep.dev"
   },
   "email": {
-    "title": "✉️ Email",
+    "title": "Email",
     "type": "page",
     "href": "mailto:team@sweep.dev",
     "newWindow": true
   },
   "payment": {
-    "title": "💎 Sweep Pro",
+    "title": "Sweep Pro",
     "type": "page",
-    "href": "https://buy.stripe.com/9AQ8zB26letOgzC5kp",
+    "href": "https://buy.stripe.com/6oE5npbGVbhC97afZ4",
     "newWindow": true
   }
 }
