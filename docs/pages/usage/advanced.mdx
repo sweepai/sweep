@@ -1,0 +1,64 @@
+# Advanced: becoming a Sweep power user 🧠
+
+## Usage 📖
+
+### Mention important files
+
+To ensure that Sweep scans a file, mention the file name in your ticket. Sweep searches for relevant files at runtime, but specifying the file helps avoid missing important details.
+
+### Giving Sweep feedback
+
+If Sweep's plan isn't accurate, you can respond to Sweep in three places:
+
+1. **Issue**: Sweep will create a new pull request and close the old one. Alternatively, you can edit the issue description to recreate the pull request.
+2. **Pull request**: Sweep will update the PR based on your PR comments
+3. **Code**: Sweep will only update the file that the comment is on
+
+Whenever you make a message that Sweep is taking a look at, you will see an 👀 emoji. If you don't see this, make sure the PR/issue is open and you prefixed the message with "sweep:".
+
+Further, on failed Github Action runs, Sweep will update the PR based on the error message.
+
+## Configuration 🛠️
+
+### Use GitHub Actions
+
+We highly recommend linters, as well as Netlify/Vercel preview builds. Sweep auto-corrects based on linter and build errors, and Netlify and Vercel helps with iteration cycles by providing previews of static sites using Netlify.
+
+### Set up `sweep.yaml`
+
+You can set up `sweep.yaml` to
+* Provide up to date docs by setting up `docs` (https://docs.sweep.dev/config#docs)
+* Set up automated formatting and linting by setting up `sandbox` (https://docs.sweep.dev/config#sandbox). Never have Sweep commit a failing `npm lint` again.
+* Give Sweep a high level description of where to find files in your repo by editing the `repo_description` field.
+
+For more on configs, check out https://docs.sweep.dev/config.
+
+## Prompting 🗣️
+
+### Use an imperative tone when writing comments
+
+This means writing the comment as a command or instruction. For example, instead of writing 'This line of code needs to be optimized', write 'Optimize this line of code'. Using an imperative tone makes the action required clear and direct.
+
+### Be specific
+
+Don’t write “fix typos”, "write tests" or “fix the first error”. Sweep will get confused and might crash. Put a real issue that you would like solved in your codebase, with as much detail as you would provide a junior developer.
+
+### Recipes
+
+#### To get the best performance from Sweep, we recommend the following approach to writing GitHub issues.
+For harder problems, try to provide the same information a human would need. For simpler problems, providing a single line and a file name should suffice.
+
+A good issue might include:
+
+| Where to look <br/> **[file name or function name]**     | What to do <br/> **[change the logic to do this]**                                      | Additional Context (optional) <br/> **[there's a bug/we need this feature/there's this dependency]** |
+|---------------------------------------------------------|----------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| In `sweepai/app/ui.py`                                  | use an os-agnostic temp directory                                                      | N/A                                                                                                 |
+| In `on_comment.py`                                      | we should not fire an event                                                            | because it's possible that the comment is on a closed PR                                            |
+| In the config loader in `packages/server/src/config.ts` | add a third option called "env" to load the config settings from environment variables | At present, there are two options:  1. ... and 2. ...                                               |
+
+If you want Sweep to use a file, try to mention the full path. Similarly, to have Sweep use a function, try to mention the class method or what it does. Also see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/tricks).
+
+### Limitations:
+Sweep is unlikely to complete complex issues on the first try, similar to the average junior developer. Here are Sweep's limitations(for now):
+- Try to change less than 300 lines of code
+- Try to modify less than 5 files
