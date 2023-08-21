@@ -1,17 +1,18 @@
 # Deploying your own Sweep instance on modal
 
+*Note that Sweep uses the CC-NC license, meaning you may only self-host Sweep for non-commercial purposes. Contact us at team@sweep.dev or use the Intercom bubble in the bottom right if you're interested in self-hosting Sweep.*
+
 ## Prerequisites
 Ensure you have the following:
 
 - OpenAI API-key, preferably with access to a 32k context GPT-4 model
 - Network exposed MongoDB and Redis instances
 - Poetry package manager installed on your machine
-- Account on modal.com (free-tier)
+- Account on https://modal.com (free-tier)
 
 > This guide is set for a minimal working setup. Feel free to take a look at `sweepai/config/server.py` and adjust your steps as per requirements.
 
 ## Steps
----
 1. **Clone the sweep repository and install dependencies:**
 
     ```bash
@@ -19,14 +20,14 @@ Ensure you have the following:
     cd sweep
     ./bin/install.sh
     ```
----
+
 2. **Install the modal client, link it to your account:**
 
     ```bash
     pip install modal-client
     modal token new
     ```
----
+
 3. **Register a new GitHub App:**
 
     Use [this guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) to register a new GitHub App.
@@ -64,7 +65,6 @@ Ensure you have the following:
    ```
 
    Disable the webhook for now. You can use any URL for the homepage (e.g. repository URL). [Install the app](https://docs.github.com/en/apps/using-github-apps/installing-your-own-github-app) on your account or organization and generate a private key as per [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps).
----
 
 4. **Setup modal environment:**
 
@@ -92,7 +92,6 @@ Ensure you have the following:
     ```bash
     ./bin/create_optional_secrets.sh
     ```
----
 
 5. **Deploy Sweep to modal:**
 
@@ -100,11 +99,10 @@ Ensure you have the following:
     poetry shell
     ./bin/deploy.sh
     ```
----
+
 6. **Setup Github webhook:**
 
-- Head over to 'modal.com' and login.
-- Proceed to 'Apps', locate your deployed API instance (by default, it is 'prod-api').
+- Head over to https://modal.com and login.
+- Proceed to "Apps", locate your deployed API instance (by default, it is `api`).
 - Search for the webhook function and duplicate the webhook URL.
 - In the GitHub app settings, populate the webhook URL field with this copied URL. Ensure SSL verification remains active.
----
