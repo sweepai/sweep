@@ -229,6 +229,12 @@ def create_config_pr(
             SWEEP_SLOW_TEMPLATE,
             branch=branch_name,
         )
+        sweep_bot.repo.create_file(
+            ".github/ISSUE_TEMPLATE/sweep-fast-template.yml",
+            "Create sweep fast template",
+            SWEEP_FAST_TEMPLATE,
+            branch=branch_name,
+        )
     except Exception as e:
         logger.error(e)
 
@@ -358,6 +364,23 @@ SWEEP_SLOW_TEMPLATE = """\
 name: Sweep Slow Issue
 title: 'Sweep (slow): '
 description: For larger bugs, features, refactors, and tests to be handled by Sweep, an AI-powered junior developer. Sweep will perform a deeper search and more self-reviews but will take longer.
+labels: sweep
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Details
+      description: Tell Sweep where and what to edit and provide enough context for a new developer to the codebase
+      placeholder: |
+        Bugs: The bug might be in ... file. Here are the logs: ...
+        Features: the new endpoint should use the ... class from ... file because it contains ... logic.
+        Refactors: We are migrating this function to ... version because ...
+"""
+
+SWEEP_FAST_TEMPLATE = """\
+name: Sweep Fast Issue
+title: 'Sweep (fast): '
+description: For few-line fixes to be handled by Sweep, an AI-powered junior developer. Sweep will use GPT-3.5 to quickly create a PR for very small changes.
 labels: sweep
 body:
   - type: textarea
