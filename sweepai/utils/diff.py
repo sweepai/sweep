@@ -235,6 +235,14 @@ def get_snippet_with_padding(original, index, search):
 def sliding_window_replacement(
     original, search, replace, search_context_before=None, exact_match=False
 ):
+    # If replace string is empty and multiple hits occur
+    if not replace and current_hits > 1:
+        exact_matches = [line for line in original if line in search]
+        # If there are no duplicates and all lines have a match
+        if len(set(exact_matches)) == len(search):
+            # Remove all of those corresponding lines in the content
+            original = [line for line in original if line not in search]
+            return original, None, None
     status, replace_index = None, None
     # First, do check for "..." (example: define method, then put ... to ignore initial lines)
     canDoDotCheck = not any(
