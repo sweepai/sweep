@@ -236,14 +236,6 @@ def sliding_window_replacement(
     original, search, replace, search_context_before=None, exact_match=False
 ):
     current_hits = 0
-    # If replace string is empty and multiple hits occur
-    if not replace and current_hits > 1:
-        exact_matches = [line for line in original if line in search]
-        # If there are no duplicates and all lines have a match
-        if len(set(exact_matches)) == len(search):
-            # Remove all of those corresponding lines in the content
-            original = [line for line in original if line not in search]
-            return original, None, None
     status, replace_index = None, None
     # First, do check for "..." (example: define method, then put ... to ignore initial lines)
     canDoDotCheck = not any(
@@ -296,6 +288,14 @@ def sliding_window_replacement(
         return original, None, IDENTICAL_LINES
 
     if current_hits > 1:
+        # If replace string is empty and multiple hits occur
+        if not replace:
+            exact_matches = [line for line in original if line in search]
+            # If there are no duplicates and all lines have a match
+            if len(set(exact_matches)) == len(search):
+                # Remove all of those corresponding lines in the content
+                original = [line for line in original if line not in search]
+                return original, None, None
         # First, try matching beginning of search
         success = False
         if search_context_before:
