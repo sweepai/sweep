@@ -1,18 +1,12 @@
 {
   "index": "🚀 Getting Started",
-  "examples": "Examples",
-  "tutorial": "Tutorial",
-  "recipes": "Recipes",
-  "commenting": "Responding to Sweep",
-  "tricks": "Tips & Tricks",
-  "limitations": "Limitations",
-  "roadmap": "Roadmap",
-  "config": "Config",
+  "usage": "📖 Usage",
+  "about": "👋 About",
   "faq": "❓ FAQ",
-  "blogs": "Blogs",
-  "videos": "Videos",
+  "blogs": "📚 Blogs",
+  "videos": "🎥 Videos",
   "privacy": "🔒 Privacy Policy",
-  "about": {
+  "home": {
     "title": "🏠 Home",
     "type": "page",
     "href": "https://sweep.dev"
