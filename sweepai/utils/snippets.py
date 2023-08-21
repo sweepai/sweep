@@ -17,7 +17,7 @@ def format_snippets(snippets: list[Snippet]):
     logger.info("Expanding snippets...")
     for snippet in most_relevant_snippets:
         current_snippet = snippet
-        _chunks, metadatas, _ids = chunker.call(
+        _chunks, metadatas, _ids = chunker.chunk_text(
             current_snippet.content, current_snippet.file_path
         )
         segmented_snippets = [
