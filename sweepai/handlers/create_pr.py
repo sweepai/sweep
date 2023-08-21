@@ -3,7 +3,7 @@ import openai
 from github.Repository import Repository
 from loguru import logger
 
-from sweepai.core.entities import ProposedIssue, PullRequest, MockPR
+from sweepai.core.entities import ProposedIssue, PullRequest, MockPR, MaxTokensExceeded
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import SweepConfig, get_blocked_dirs, UPDATES_MESSAGE
 from sweepai.config.server import (
@@ -15,7 +15,7 @@ from sweepai.config.server import (
     GITHUB_BOT_USERNAME,
     GITHUB_CONFIG_BRANCH,
 )
-from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
+from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.event_logger import posthog
 
 openai.api_key = OPENAI_API_KEY
