@@ -5,19 +5,12 @@ from sweepai.core.entities import Snippet
 
 
 def compute_score(file_path, git_repo):
-    with open(file_path, "r") as f:
-        contents = f.read()
     commits = list(git_repo.iter_commits(paths=file_path[5:]))
-    score_factor = get_factors(contents, commits)
+    score_factor = get_factors(commits)
     return score_factor
 
 
-def get_factors(contents: str, commits):
-    line_count = contents.count("\n")
-    if line_count > 200:
-        line_count_score = 10
-    else:
-        line_count_score = line_count / 20
+def get_factors(commits):
     commit_count = len(commits) + 1
     earliest_commit = commits[0].committed_datetime
     current_time = datetime.now()
@@ -31,7 +24,7 @@ def get_factors(contents: str, commits):
         )
         + 1
     )
-    return (line_count_score, commit_count, days_since_last_modified)
+    return (1, commit_count, days_since_last_modified)
 
 
 def convert_to_percentiles(values, max_percentile=0.1):
