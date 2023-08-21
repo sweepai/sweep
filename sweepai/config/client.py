@@ -8,7 +8,7 @@ import yaml
 from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
-from sweepai.config.server import PREFIX
+from sweepai.config.server import ENV
 
 
 class SweepConfig(BaseModel):
@@ -210,9 +210,6 @@ def get_blocked_dirs(repo: Repository):
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926a9f")
-SWEEP_API_ENDPOINT = os.environ.get(
-    "SWEEP_API_ENDPOINT", f"https://sweepai--{PREFIX}-ui.modal.run"
-)
 
 UPDATES_MESSAGE = """\
 🎉 Latest mprovements to Sweep:
