@@ -511,10 +511,12 @@ async def on_ticket(
         # Todo(lukejagg): Max time limit for sandbox
         logger.info("Initializing sandbox...")
         sandbox = Sandbox.from_token(username, user_token, repo)
-        await sandbox.start()
+        await asyncio.wait_for(sandbox.start(), timeout=60)
     except Exception as e:
         logger.error(traceback.format_exc())
         logger.error(e)
+        sandbox = None
+        # Todo(lukejagg): log state of sandbox
 
     logger.info("Fetching relevant files...")
     try:
