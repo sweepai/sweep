@@ -568,6 +568,13 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
                 match file_change_request.change_type:
                     case "create":
+                        # Add example for more consistent generation
+                        if not added_modify_hallucination:
+                            added_modify_hallucination = True
+                            # Add hallucinated example for better parsing
+                            for message in modify_file_hallucination_prompt:
+                                self.messages.append(Message(**message))
+
                         changed_file = self.handle_create_file(
                             file_change_request, branch, sandbox=sandbox
                         )
