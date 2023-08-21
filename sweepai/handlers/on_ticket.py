@@ -160,7 +160,6 @@ async def on_ticket(
         subissues_mode,
         fast_mode,
     ) = strip_sweep(title)
-    print(do_map)
 
     # Flow:
     # 1. Get relevant files
@@ -674,17 +673,16 @@ async def on_ticket(
                     for subissue in subissues
                 ]
             )
-            subissues_dropdown = collapsible_template.format(
-                summary="Checklist", body=subissues_checklist
+            current_issue.edit(
+                body=summary + "\n\n---\n\nChecklist:\n\n" + subissues_checklist
             )
-            current_issue.edit(body=summary + "\n\n" + subissues_dropdown)
             edit_sweep_comment(
                 f"I finished creating the subissues! Track them at:\n\n"
                 + "\n".join(f"* #{subissue.issue_id}" for subissue in subissues),
                 4,
             )
             edit_sweep_comment(f"N/A", 5)
-            edit_sweep_comment(f"N/A", 6)
+            edit_sweep_comment(f"I finished creating all the subissues.", 6)
             return {"success": True}
 
         # COMMENT ON ISSUE
