@@ -293,6 +293,36 @@ Step-by-step thoughts with explanations:
 </plan>
 """
 
+subissues_prompt = """
+Think step-by-step to break down the requested problem or feature into small sub-issues each comprising of few-line changes.
+
+You MUST follow the following format with the final output in XML tags:
+
+Root cause:
+Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph.
+
+Step-by-step thoughts with explanations:
+* Thought 1
+* Thought 2
+...
+
+<plan>
+<issue title="title_1">
+* Instruction 1 for subissue_1
+* Instruction 2 for subissue_1
+...
+</issue>
+
+<issue title="title_2">
+* Instruction 1 for subissue_2
+* Instruction 2 for subissue_2
+...
+</issue>
+
+...
+</plan>
+"""
+
 reply_prompt = """
 Write a 1-paragraph response to this user:
 * Tell them you have started working on this PR and a rough summary of your plan.
