@@ -7,20 +7,20 @@
   "videos": "🎥 Videos",
   "privacy": "🔒 Privacy Policy",
   "home": {
-    "title": "🏠 Home",
+    "title": "Home",
     "type": "page",
     "href": "https://sweep.dev"
   },
   "email": {
-    "title": "✉️ Email",
+    "title": "Email",
     "type": "page",
     "href": "mailto:team@sweep.dev",
     "newWindow": true
   },
   "payment": {
-    "title": "💎 Sweep Pro",
+    "title": "Sweep Pro",
     "type": "page",
-    "href": "https://buy.stripe.com/9AQ8zB26letOgzC5kp",
+    "href": "https://buy.stripe.com/6oE5npbGVbhC97afZ4",
     "newWindow": true
   }
 }
