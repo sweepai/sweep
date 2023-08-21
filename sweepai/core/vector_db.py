@@ -217,7 +217,7 @@ def get_deeplake_vs_from_repo(
     if REDIS_URL is not None:
         try:
             # todo: initialize once
-            retry = Retry(retries=2)
+            retry = Retry(retries=2, backoff=ExponentialBackoff())
             cache_inst = Redis.from_url(
                 REDIS_URL,
                 retry=retry,
