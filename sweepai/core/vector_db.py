@@ -421,7 +421,7 @@ def get_relevant_snippets(
     sweep_config: SweepConfig = SweepConfig(),
 ):
     logger.info("Getting query embedding...")
-    query_embedding = CPUEmbedding.compute.spawn(query)
+    query_embedding = CPUEmbedding.compute.call(query)
     logger.info("Starting search by getting vector store...")
     deeplake_vs = get_deeplake_vs_from_repo(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
