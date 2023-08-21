@@ -172,7 +172,9 @@ MULTIPLE_HITS = "MULTIPLE_HITS"
 INCOMPLETE_MATCH = "INCOMPLETE_MATCH"
 
 
-def match_string(original, search, start_index=None, exact_match=False):
+def match_string(
+    original, search, start_index=None, exact_match=False, ignore_comments=False
+):
     index = -1
     max_similarity = 0
     current_hits = 0
@@ -184,10 +186,15 @@ def match_string(original, search, start_index=None, exact_match=False):
         for j in range(len(search)):
             if i + j >= len(original):
                 continue
+            original_line = original[i + j]
+            if ignore_comments:
+                # Remove comments
+                original_line = original_line.rsplit("#")[0].rsplit("//")[0]
+
             match = (
-                search[j] == original[i + j]
+                search[j] == original_line
                 if exact_match
-                else search[j].strip() == original[i + j].strip()
+                else search[j].strip() == original_line.strip()
             )
             if match:
                 count += 1
@@ -233,7 +240,7 @@ def get_snippet_with_padding(original, index, search):
 
 
 def sliding_window_replacement(
-    original, search, replace, search_context_before=None, exact_match=False
+    original, search, replace, search_context_before=None, **kwargs
 ):
     status, replace_index = None, None
     # First, do check for "..." (example: define method, then put ... to ignore initial lines)
@@ -273,25 +280,37 @@ def sliding_window_replacement(
                 search[first_line_idx + 1 :],
                 replace[first_line_idx_replace + 1 :],
                 search_context_before,
+                **kwargs,
             )
             search = search[:first_line_idx]
             replace = replace[:first_line_idx_replace]
 
+    exact_match = kwargs.get("exact_match", False)
+    ignore_comments = kwargs.get("ignore_comments", False)
     index, max_similarity, current_hits = match_string(
-        original, search, exact_match=exact_match
+        original, search, exact_match=exact_match, ignore_comments=ignore_comments
     )
 
     # No changes could be found. Return original code.
     if max_similarity == 0:
+        if not ignore_comments:  # In case Sweep decided not to include comments
+            return sliding_window_replacement(
+                original,
+                search,
+                replace,
+                ignore_comments=True,
+                **{k: v for k, v in kwargs.items() if k != "ignore_comments"},
+            )
         print("WARNING: No identical lines")
         return original, None, IDENTICAL_LINES
 
     if current_hits > 1:
-        # First, try matching beginning of search
         success = False
         if search_context_before:
             old_index, _, current_hits = match_string(
-                original, search_context_before, exact_match=exact_match
+                original,
+                search_context_before,
+                exact_match=exact_match,
             )
             _, old_spaces, _ = get_snippet_with_padding(
                 original, old_index, search_context_before
@@ -308,15 +327,31 @@ def sliding_window_replacement(
                 success = True
 
         if not success:
-            if not exact_match:
+            if (
+                len(replace) == 1 and not replace[0] and not search_context_before
+            ):  # Backup 1: independent line matches
+                exact_matches = [line for line in original if line in search]
+                # If there are no duplicates and all lines have a match
+                if len(set(exact_matches)) == len(search):
+                    # Remove all of those corresponding lines in the content
+                    original = [line for line in original if line not in search]
+                    return original, None, None
+
+            if not exact_match:  # Backup 2: exact line matches
                 return sliding_window_replacement(
-                    original, search, replace, exact_match=True
+                    original,
+                    search,
+                    replace,
+                    exact_match=True,
+                    **{k: v for k, v in kwargs.items() if k != "exact_match"},
                 )
 
             print("WARNING: Multiple hits")
             return original, None, MULTIPLE_HITS
 
+    # Todo(lukejagg): Remove unreachable code
     if index == -1:
+        # First, try matching beginning of search
         return original, None, NOT_FOUND
 
     # Todo(lukejagg): this doesn't seem to work, add later

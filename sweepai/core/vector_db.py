@@ -11,12 +11,13 @@ from github import Github
 from loguru import logger
 from modal import method
 from redis import Redis
-from redis.backoff import ExponentialBackoff
+from redis.backoff import ConstantBackoff
 from redis.retry import Retry
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 from tqdm import tqdm
 
 from sweepai.core.entities import Snippet
+from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
 from sweepai.core.repo_parsing_utils import repo_to_chunks
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
@@ -217,7 +218,7 @@ def get_deeplake_vs_from_repo(
     if REDIS_URL is not None:
         try:
             # todo: initialize once
-            retry = Retry(ExponentialBackoff(), 3)
+            retry = Retry(ConstantBackoff(backoff=1), retries=3)
             cache_inst = Redis.from_url(
                 REDIS_URL,
                 retry=retry,
@@ -230,31 +231,6 @@ def get_deeplake_vs_from_repo(
             logger.error(f"Failed to connect to redis cache")
     else:
         logger.warning(f"REDIS_URL is None, skipping cache")
-
-    if cache_inst and cache_success:
-        try:
-            github_cache_key = f"github-{commit_hash}{CACHE_VERSION}"
-            cache_hit = cache_inst.get(github_cache_key)
-            if cache_hit:
-                deeplake_items = json.loads(cache_hit)
-                logger.info(f"Cache hit for {repo_name}")
-            else:
-                deeplake_items = None
-                logger.info(f"Cache miss for {repo_name}")
-
-            if deeplake_items:
-                deeplake_vs = init_deeplake_vs(repo_name)
-                deeplake_vs.add(
-                    text=deeplake_items["ids"],
-                    embedding=deeplake_items["embeddings"],
-                    metadata=deeplake_items["metadatas"],
-                )
-                logger.info(f"Returning deeplake vs for {repo_name}")
-                return deeplake_vs
-            else:
-                logger.info(f"Cache for {repo_name} is empty")
-        except:
-            logger.info(f"Failed to get cache for {repo_name}")
     logger.info(f"Downloading repository and indexing for {repo_name}...")
     start = time.time()
     logger.info("Recursively getting list of files...")
@@ -263,11 +239,15 @@ def get_deeplake_vs_from_repo(
     shutil.rmtree("repo", ignore_errors=True)
 
     branch_name = SweepConfig.get_branch(repo)
-
+    if os.path.exists("repo"):
+        shutil.rmtree("repo", ignore_errors=True)
     git_repo = Repo.clone_from(repo_url, "repo")
     git_repo.git.checkout(branch_name)
 
     snippets, file_list = repo_to_chunks(sweep_config)
+    # prepare lexical search
+    index = prepare_index_from_snippets(snippets)
+    # scoring for vector search
     files_to_scores = {}
     score_factors = []
     for file_path in file_list:
@@ -280,17 +260,6 @@ def get_deeplake_vs_from_repo(
     }
     logger.info(f"Found {len(file_list)} files in repository {repo_name}")
 
-    # chunks.append(chunk)
-    # ids.append(f"{file_path}:{start_line}:{end_line}")
-    # metadatas.append(
-    #     {
-    #         "file_path": file_path,
-    #         "start": start_line,
-    #         "end": end_line,
-    #         "score": score,
-    #         **additional_metadata,
-    #     }
-    # )
     documents = []
     metadatas = []
     ids = []
@@ -305,19 +274,20 @@ def get_deeplake_vs_from_repo(
         metadatas.append(metadata)
         gh_file_path = snippet.file_path[len("repo/") :]
         ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")
-
-    shutil.rmtree("repo", ignore_errors=True)
     logger.info(f"Getting list of all files took {time.time() - start}")
     logger.info(f"Received {len(documents)} documents from repository {repo_name}")
     collection_name = parse_collection_name(repo_name)
-    return compute_deeplake_vs(
-        collection_name,
-        documents,
-        cache_success,
-        cache_inst,
-        ids,
-        metadatas,
-        commit_hash,
+    return (
+        compute_deeplake_vs(
+            collection_name,
+            documents,
+            cache_success,
+            cache_inst,
+            ids,
+            metadatas,
+            commit_hash,
+        ),
+        index,
     )
 
 
@@ -413,16 +383,20 @@ def get_relevant_snippets(
     installation_id: int,
     username: str | None = None,
     sweep_config: SweepConfig = SweepConfig(),
+    lexical=False,
 ):
+    logger.info("Getting query embedding...")
+    query_embedding = CPUEmbedding.compute.call(query)
     logger.info("Starting search by getting vector store...")
-    deeplake_vs = get_deeplake_vs_from_repo(
+    deeplake_vs, lexical_index = get_deeplake_vs_from_repo(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
     )
+    lexical_results = search_index(query, lexical_index)
+    logger.info(f"Top files: {lexical_results}")
     logger.info("Searching for relevant snippets...")
     results = {"metadata": [], "text": []}
     for n_result in range(n_results, 0, -1):
         try:
-            query_embedding = embedding_function([query], cpu=True)[0]
             results = deeplake_vs.search(embedding=query_embedding, k=n_result)
             break
         except Exception:
@@ -459,6 +433,17 @@ def get_relevant_snippets(
 
     # Extract the sorted metadatas and relevant_paths
     sorted_metadatas = [metadata for _, metadata in sorted_list]
+    # intersection of lexical and vector results should be first
+    if lexical:
+        sorted_metadatas = [
+            metadata
+            for metadata in sorted_metadatas
+            if metadata["file_path"] in lexical_results
+        ] + [
+            metadata
+            for metadata in sorted_metadatas
+            if metadata["file_path"] not in lexical_results
+        ]
     relevant_paths = [metadata["file_path"] for metadata in sorted_metadatas]
     logger.info("Relevant paths: {}".format(relevant_paths))
     return [
