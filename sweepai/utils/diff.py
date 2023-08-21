@@ -277,6 +277,7 @@ def sliding_window_replacement(
             search = search[:first_line_idx]
             replace = replace[:first_line_idx_replace]
 
+    exact_match = kwargs.get("exact_match", False)
     index, max_similarity, current_hits = match_string(
         original, search, exact_match=kwargs.get("exact_match", False)
     )
