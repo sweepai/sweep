@@ -358,13 +358,21 @@ async def on_ticket(
             + config_pr_message
         )
 
+    # Find Sweep's previous comment
+    for comment in comments:
+        if comment.user.login == GITHUB_BOT_USERNAME:
+            issue_comment = comment
+            break
+
     try:
         config = SweepConfig.get_config(repo)
     except EmptyRepository as e:
         logger.info("Empty repo")
-        current_issue.create_comment(
-            f"Sweep is currently not supported on empty repositories. Please add some code to your repository and try again.\n{sep}## {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
-        )
+        first_comment = f"Sweep is currently not supported on empty repositories. Please add some code to your repository and try again.\n{sep}## {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
+        if issue_comment is None:
+            issue_comment = current_issue.create_comment(first_comment)
+        else:
+            issue_comment.edit(first_comment)
         return {"success": False}
 
     num_of_files = get_num_files_from_repo(repo, installation_id)
@@ -372,13 +380,11 @@ async def on_ticket(
 
     indexing_message = f"I'm searching for relevant snippets in your repository. If this is your first time using Sweep, I'm indexing your repository. This may take up to {time_estimate} minutes. I'll let you know when I'm done."
     first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
-    for comment in comments:
-        if comment.user.login == GITHUB_BOT_USERNAME:
-            issue_comment = comment
-            issue_comment.edit(first_comment)
-            break
+
     if issue_comment is None:
         issue_comment = current_issue.create_comment(first_comment)
+    else:
+        issue_comment.edit(first_comment)
 
     # Comment edit function
     past_messages = {}
