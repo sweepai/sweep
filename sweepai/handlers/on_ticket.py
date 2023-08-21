@@ -179,6 +179,8 @@ async def on_ticket(
     repo = g.get_repo(repo_full_name)
     current_issue = repo.get_issue(number=issue_number)
     assignee = current_issue.assignee.login if current_issue.assignee else None
+    if assignee is None:
+        assignee = current_issue.user.login
 
     chat_logger = ChatLogger(
         {
