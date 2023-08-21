@@ -235,7 +235,6 @@ def get_snippet_with_padding(original, index, search):
 def sliding_window_replacement(
     original, search, replace, search_context_before=None, exact_match=False
 ):
-    current_hits = 0
     status, replace_index = None, None
     # First, do check for "..." (example: define method, then put ... to ignore initial lines)
     canDoDotCheck = not any(
