@@ -173,10 +173,21 @@ class Sandbox(BaseModel):
             print("Trace", traceback.format_exc(), "\n")
             return content
 
-    async def run_linter(self):
+    async def run_linter(self, file_path, content):
         if self.linter_command is None:
             return None
-        await self.run_command(self.linter_command)
+
+        try:
+            await self.write_repo_file(file_path, content)
+            lines = await self.run_command(self.linter_command)
+
+            # Determine if the linter result contains error
+
+            return lines
+        except Exception as e:
+            print("Error running formatter: ", e, "\n")
+            print("Trace", traceback.format_exc(), "\n")
+            return None
 
     async def formatter_workflow(self, branch, files):
         if len(files) == 0:

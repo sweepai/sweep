@@ -654,7 +654,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
             if sandbox is not None:
                 try:
-                    # Todo(lukejagg): Work with E2B to get this working in Modal stub
+                    # Format file
                     loop = asyncio.get_event_loop()
                     # run for up to 10 seconds
                     file_change.code = loop.run_until_complete(
@@ -665,6 +665,21 @@ class SweepBot(CodeGenBot, GithubBot):
                             timeout=30,
                         )
                     )
+
+                    # Run linter on file
+                    lint_results = loop.run_until_complete(
+                        asyncio.wait_for(
+                            sandbox.run_linter(
+                                file_change_request.filename, file_change.code
+                            ),
+                            timeout=30,
+                        )
+                    )
+
+                    if lint_results:
+                        # Todo: pass this file to review in sweep_bot
+                        pass
+
                 except Exception as e:
                     # print e and print traceback
                     print(e)
@@ -779,6 +794,21 @@ class SweepBot(CodeGenBot, GithubBot):
                             timeout=30,
                         )
                     )
+
+                    # Run linter on file
+                    lint_results = loop.run_until_complete(
+                        asyncio.wait_for(
+                            sandbox.run_linter(
+                                file_change_request.filename, file_change.code
+                            ),
+                            timeout=30,
+                        )
+                    )
+
+                    if lint_results:
+                        # Todo: pass this file to review in sweep_bot
+
+                        pass
                 except Exception as e:
                     # print e and print traceback
                     print(e)
