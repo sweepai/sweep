@@ -32,6 +32,7 @@ from sweepai.config.server import (
 from ..utils.github_utils import get_token
 
 
+REPO_DIR = os.path.join(os.getcwd(), "repo")  # New variable for the relative path
 stub = modal.Stub(DB_MODAL_INST_NAME)
 model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
 MODEL_DIR = "/root/cache/model"
@@ -262,10 +263,10 @@ def get_deeplake_vs_from_repo(
     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
     shutil.rmtree("repo", ignore_errors=True)
 
-    shutil.rmtree("/home/user/repo", ignore_errors=True)
-    if os.path.exists("/home/user/repo"):
-        shutil.rmtree("/home/user/repo", ignore_errors=True)
-    git_repo = Repo.clone_from(repo_url, "/home/user/repo")
+    shutil.rmtree(REPO_DIR, ignore_errors=True)
+    if os.path.exists(REPO_DIR):
+        shutil.rmtree(REPO_DIR, ignore_errors=True)
+    git_repo = Repo.clone_from(repo_url, REPO_DIR)
     git_repo.git.checkout(branch_name)
 
     snippets, file_list = repo_to_chunks(sweep_config)
@@ -300,7 +301,7 @@ def get_deeplake_vs_from_repo(
     for snippet in snippets:
         documents.append(snippet.content)
         metadata = {
-            "file_path": snippet.file_path[len("/home/user/repo/") :],
+            "file_path": snippet.file_path[len(REPO_DIR + "/") :],
             "start": snippet.start,
             "end": snippet.end,
             "score": files_to_scores[snippet.file_path],
