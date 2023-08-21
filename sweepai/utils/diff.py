@@ -233,7 +233,7 @@ def get_snippet_with_padding(original, index, search):
 
 
 def sliding_window_replacement(
-    original, search, replace, search_context_before=None, exact_match=False
+    original, search, replace, search_context_before=None, **kwargs
 ):
     status, replace_index = None, None
     # First, do check for "..." (example: define method, then put ... to ignore initial lines)
@@ -277,6 +277,7 @@ def sliding_window_replacement(
             search = search[:first_line_idx]
             replace = replace[:first_line_idx_replace]
 
+    exact_match = kwargs.get("exact_match", False)
     index, max_similarity, current_hits = match_string(
         original, search, exact_match=exact_match
     )
@@ -290,7 +291,9 @@ def sliding_window_replacement(
         success = False
         if search_context_before:
             old_index, _, current_hits = match_string(
-                original, search_context_before, exact_match=exact_match
+                original,
+                search_context_before,
+                exact_match=exact_match,
             )
             _, old_spaces, _ = get_snippet_with_padding(
                 original, old_index, search_context_before
