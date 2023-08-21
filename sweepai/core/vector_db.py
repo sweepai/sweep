@@ -11,7 +11,7 @@ from github import Github
 from loguru import logger
 from modal import method
 from redis import Redis
-from redis.backoff import ExponentialBackoff
+from redis.backoff import ConstantBackoff
 from redis.retry import Retry
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 from tqdm import tqdm
@@ -217,7 +217,7 @@ def get_deeplake_vs_from_repo(
     if REDIS_URL is not None:
         try:
             # todo: initialize once
-            retry = Retry(retries=2)
+            retry = Retry(ConstantBackoff(backoff=1), retries=3)
             cache_inst = Redis.from_url(
                 REDIS_URL,
                 retry=retry,
