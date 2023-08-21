@@ -235,6 +235,7 @@ def get_snippet_with_padding(original, index, search):
 def sliding_window_replacement(
     original, search, replace, search_context_before=None, exact_match=False
 ):
+    current_hits = 0
     # If replace string is empty and multiple hits occur
     if not replace and current_hits > 1:
         exact_matches = [line for line in original if line in search]
