@@ -262,10 +262,10 @@ def get_deeplake_vs_from_repo(
     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
     shutil.rmtree("repo", ignore_errors=True)
 
-    branch_name = SweepConfig.get_branch(repo)
-    if os.path.exists("repo"):
-        shutil.rmtree("repo", ignore_errors=True)
-    git_repo = Repo.clone_from(repo_url, "repo")
+    shutil.rmtree("/home/user/repo", ignore_errors=True)
+    if os.path.exists("/home/user/repo"):
+        shutil.rmtree("/home/user/repo", ignore_errors=True)
+    git_repo = Repo.clone_from(repo_url, "/home/user/repo")
     git_repo.git.checkout(branch_name)
 
     snippets, file_list = repo_to_chunks(sweep_config)
@@ -300,7 +300,7 @@ def get_deeplake_vs_from_repo(
     for snippet in snippets:
         documents.append(snippet.content)
         metadata = {
-            "file_path": snippet.file_path[len("repo/") :],
+            "file_path": snippet.file_path[len("/home/user/repo/") :],
             "start": snippet.start,
             "end": snippet.end,
             "score": files_to_scores[snippet.file_path],
