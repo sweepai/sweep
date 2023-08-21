@@ -1,4 +1,4 @@
-def chunk_text(text):
+def chunk_text(text, file_path=None):
     """
     This function takes a text string and chunks it into smaller pieces.
     """
