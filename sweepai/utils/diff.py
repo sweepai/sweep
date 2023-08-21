@@ -233,7 +233,7 @@ def get_snippet_with_padding(original, index, search):
 
 
 def sliding_window_replacement(
-    original, search, replace, search_context_before=None, exact_match=False
+    original, search, replace, search_context_before=None, **kwargs
 ):
     status, replace_index = None, None
     # First, do check for "..." (example: define method, then put ... to ignore initial lines)
@@ -278,7 +278,7 @@ def sliding_window_replacement(
             replace = replace[:first_line_idx_replace]
 
     index, max_similarity, current_hits = match_string(
-        original, search, exact_match=exact_match
+        original, search, exact_match=kwargs.get("exact_match", False)
     )
 
     # No changes could be found. Return original code.
@@ -290,7 +290,9 @@ def sliding_window_replacement(
         success = False
         if search_context_before:
             old_index, _, current_hits = match_string(
-                original, search_context_before, exact_match=exact_match
+                original,
+                search_context_before,
+                exact_match=kwargs.get("exact_match", False),
             )
             _, old_spaces, _ = get_snippet_with_padding(
                 original, old_index, search_context_before
@@ -301,7 +303,7 @@ def sliding_window_replacement(
                     original,
                     [old_spaces + s for s in search],
                     start_index=old_index + 1,
-                    exact_match=exact_match,
+                    exact_match=kwargs.get("exact_match", False),
                 )
                 current_hits = 1  # Ignore multiple hits, use first complete comparison
                 success = True
@@ -317,7 +319,7 @@ def sliding_window_replacement(
                     original = [line for line in original if line not in search]
                     return original, None, None
 
-            if not exact_match:  # Backup 2: exact line matches
+            if not kwargs.get("exact_match", False):  # Backup 2: exact line matches
                 return sliding_window_replacement(
                     original, search, replace, exact_match=True
                 )
