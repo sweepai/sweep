@@ -415,6 +415,7 @@ def get_relevant_snippets(
     sweep_config: SweepConfig = SweepConfig(),
 ):
     logger.info("Starting search by getting vector store...")
+    query_embedding = embedding_function([query], cpu=True)[0]
     deeplake_vs = get_deeplake_vs_from_repo(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
     )
@@ -422,7 +423,6 @@ def get_relevant_snippets(
     results = {"metadata": [], "text": []}
     for n_result in range(n_results, 0, -1):
         try:
-            query_embedding = embedding_function([query], cpu=True)[0]
             results = deeplake_vs.search(embedding=query_embedding, k=n_result)
             break
         except Exception:
