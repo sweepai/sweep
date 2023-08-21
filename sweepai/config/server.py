@@ -1,6 +1,5 @@
 import os
 
-# PREFIX = "dev"
 ENV = os.environ.get("MODAL_ENVIRONMENT", "prod")
 
 print(f"Using environment: {ENV}")
