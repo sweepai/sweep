@@ -1,5 +1,6 @@
 import modal
 from loguru import logger
+from sweepai.module_name import chunker
 
 from sweepai.core.entities import Snippet
 from sweepai.config.server import UTILS_MODAL_INST_NAME
