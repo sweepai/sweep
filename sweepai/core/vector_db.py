@@ -180,7 +180,7 @@ class ModalEmbeddingFunction:
         if len(texts) == 0:
             return []
         if cpu or len(texts) < 10:
-            return CPUEmbedding.compute.call(texts)  # pylint: disable=no-member
+    return CPUEmbedding().compute(texts)
         else:
             batches = [
                 texts[i : i + ModalEmbeddingFunction.batch_size]
