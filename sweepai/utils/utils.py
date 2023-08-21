@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import traceback
 import requests
 from dataclasses import dataclass
 
@@ -174,7 +175,8 @@ def chunk_code(code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100)
             snippets.append(new_snippet)
         return snippets
     except Exception as e:
-        return str(e)
+        logger.error(traceback.format_exc())
+        return []
 
 
 import modal
