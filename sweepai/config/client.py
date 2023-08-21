@@ -9,6 +9,7 @@ from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
 from sweepai.config.server import ENV
+from sweepai.core.entities import EmptyRepository
 
 
 class SweepConfig(BaseModel):
@@ -126,6 +127,8 @@ class SweepConfig(BaseModel):
             return config
         except Exception as e:
             logger.warning(f"Error when getting config: {e}, returning empty dict")
+            if "This repository is empty." in str(e):
+                raise EmptyRepository()
             return {}
 
 

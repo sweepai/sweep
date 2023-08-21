@@ -395,3 +395,13 @@ class SweepContext(BaseModel):
 
     def __str__(self):
         return self.issue_url
+
+
+class MaxTokensExceeded(Exception):
+    def __init__(self, filename):
+        self.filename = filename
+
+
+class EmptyRepository(Exception):
+    def __init__(self):
+        pass

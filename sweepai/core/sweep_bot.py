@@ -2,7 +2,6 @@ import asyncio
 import traceback
 import re
 
-import e2b
 import modal
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
@@ -21,6 +20,7 @@ from sweepai.core.entities import (
     Snippet,
     NoFilesException,
     Message,
+    MaxTokensExceeded,
 )
 from sweepai.core.prompts import (
     files_to_change_prompt,
@@ -35,22 +35,15 @@ from sweepai.core.prompts import (
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
-from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import (
     format_contents,
     generate_new_file_from_patch,
-    get_all_diffs,
     is_markdown,
 )
 
 USING_DIFF = True
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
-
-
-class MaxTokensExceeded(Exception):
-    def __init__(self, filename):
-        self.filename = filename
 
 
 class CodeGenBot(ChatGPT):
