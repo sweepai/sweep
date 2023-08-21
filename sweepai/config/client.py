@@ -216,8 +216,9 @@ GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926
 
 UPDATES_MESSAGE = """\
 🎉 Latest improvements to Sweep:
+* Sweep Map breaks a large issue into sub-issues by prefixing with "Sweep (map):", perfect for large tasks like "Sweep (map): migrate from React class components to function components"
 * Getting Sweep to format before committing! Check out [Sweep Sandbox Configs](https://docs.sweep.dev/config#sandbox) to set it up.
-* We launched our [browser extension](https://github.com/sweepai/sweep/releases/tag/browser-extension-v0.0.1) making it faster to make Sweep issues.
 * We released a [demo of our chunker](https://huggingface.co/spaces/sweepai/chunker), where you can find the corresponding blog and code.
 """
 # * We open-sourced our new [fine-tuned code search model](https://huggingface.co/sweepai/mpnet-code-search).
+# * We launched our [browser extension](https://github.com/sweepai/sweep/releases/tag/browser-extension-v0.0.1) making it faster to make Sweep issues.
