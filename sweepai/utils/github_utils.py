@@ -16,6 +16,8 @@ from jwt import encode
 from loguru import logger
 from tqdm import tqdm
 
+REPO_DIR = os.path.join(os.getcwd(), "repo")
+
 from sweepai.core.entities import Snippet
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import (
