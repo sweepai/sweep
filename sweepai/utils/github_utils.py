@@ -16,6 +16,8 @@ from jwt import encode
 from loguru import logger
 from tqdm import tqdm
 
+REPO_DIR = os.path.join(os.getcwd(), "repo")
+
 from sweepai.core.entities import Snippet
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import (
@@ -204,7 +206,7 @@ def get_tree_and_file_list(
         ctags_str, names = get_ctags_for_file(ctags, os.path.join("repo", file))
         all_names.extend(names)
     tree = list_directory_tree(
-        "repo",
+        REPO_DIR,
         included_directories=prefixes,
         included_files=snippet_paths,
         excluded_directories=excluded_directories,
