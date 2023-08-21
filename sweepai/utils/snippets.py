@@ -18,7 +18,7 @@ def format_snippets(snippets: list[Snippet]):
     for snippet in most_relevant_snippets:
         current_snippet = snippet
         _chunks, metadatas, _ids = chunker.chunk_text(
-            current_snippet.content, current_snippet.file_path
+            current_snippet.content
         )
         segmented_snippets = [
             Snippet(
