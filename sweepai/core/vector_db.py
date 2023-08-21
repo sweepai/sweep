@@ -418,7 +418,7 @@ def update_index(
     keep_warm=1,
     cpu=CPU,
 )
-def get_relevant_snippets(
+async def get_relevant_snippets(
     repo_name: str,
     query: str,
     n_results: int,
