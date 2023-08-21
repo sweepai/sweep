@@ -820,7 +820,7 @@ Generate a diff based on the given plan using the search and replace pairs in th
 
 The linter returned the following logs:
 <linter_logs>
-Error: the file must end with a newline.
+{logs}
 </linter_logs>
 
 Modify your created file.
