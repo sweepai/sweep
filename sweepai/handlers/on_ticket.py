@@ -358,6 +358,15 @@ async def on_ticket(
             + config_pr_message
         )
 
+    try:
+        config = SweepConfig.get_config(repo)
+    except EmptyRepository as e:
+        logger.info("Empty repo")
+        current_issue.create_comment(
+            f"Sweep is currently not supported on empty repositories. Please add some code to your repository and try again.\n{sep}## {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
+        )
+        return {"success": False}
+
     num_of_files = get_num_files_from_repo(repo, installation_id)
     time_estimate = math.ceil(3 + 5 * num_of_files / 1000)
 
@@ -432,16 +441,6 @@ async def on_ticket(
             "Please add more details to your issue. I need at least 20 characters to generate a plan.",
             -1,
         )
-
-    try:
-        config = SweepConfig.get_config(repo)
-    except EmptyRepository as e:
-        logger.info("Empty repo")
-        edit_sweep_comment(
-            "Sweep is currently not supported on empty repositories. Please add some code to your repository and try again.",
-            -1,
-        )
-        return {"success": False}
 
     if (
         repo_name.lower() not in WHITELISTED_REPOS
