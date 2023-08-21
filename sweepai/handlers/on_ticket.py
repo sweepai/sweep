@@ -76,8 +76,6 @@ collapsible_template = """
 
 checkbox_template = "- [{check}] `{filename}`\n> {instructions}\n"
 
-chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "chunk")
-
 num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
 num_full_files = 2
