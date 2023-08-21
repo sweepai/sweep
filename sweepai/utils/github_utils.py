@@ -204,7 +204,7 @@ def get_tree_and_file_list(
         ctags_str, names = get_ctags_for_file(ctags, os.path.join("repo", file))
         all_names.extend(names)
     tree = list_directory_tree(
-        "repo",
+        "/home/user/repo",
         included_directories=prefixes,
         included_files=snippet_paths,
         excluded_directories=excluded_directories,
