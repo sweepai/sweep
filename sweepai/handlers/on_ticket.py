@@ -393,7 +393,10 @@ async def on_ticket(
     # Random variables to save in case of errors
     table = None  # Show plan so user can finetune prompt
 
-    def edit_sweep_comment(message: str, index: int, pr_message=""):
+    def edit_sweep_comment(
+        message: str, index: int, progress_stage: str, pr_message=""
+    ):
+        message = collapsible_template.format(summary=progress_stage, body=message)
         nonlocal current_index
         # -1 = error, -2 = retry
         # Only update the progress bar if the issue generation errors.
@@ -668,6 +671,7 @@ async def on_ticket(
             )
             + (f"\n\n{docs_results}\n\n" if docs_results else ""),
             1,
+            "Step 1: Code Search",
         )
 
         if do_map:
