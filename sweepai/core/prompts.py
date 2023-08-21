@@ -294,7 +294,7 @@ Step-by-step thoughts with explanations:
 """
 
 subissues_prompt = """
-Think step-by-step to break down the requested problem or feature into small sub-issues each comprising of few-line changes.
+Think step-by-step to break down the requested problem into small sub-issues with each max 3 files of non-trivial changes. The sub-issue should be a small, self-contained, and independent part of the problem, and should partition the files to be changed.
 
 You MUST follow the following format with the final output in XML tags:
 
@@ -306,16 +306,27 @@ Step-by-step thoughts with explanations:
 * Thought 2
 ...
 
+List of all files to modify:
+* file_path_1
+* file_path_2
+...
+
 <plan>
 <issue title="title_1">
-* Instruction 1 for subissue_1
-* Instruction 2 for subissue_1
+* In file_path_1, do a
+* In file_path_1, do b
+...
+* In file_path_2, do c
+* In file_path_2, do d
 ...
 </issue>
 
 <issue title="title_2">
-* Instruction 1 for subissue_2
-* Instruction 2 for subissue_2
+* In file_path_1, do a
+* In file_path_1, do b
+...
+* In file_path_2, do c
+* In file_path_2, do d
 ...
 </issue>
 

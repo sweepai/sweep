@@ -79,6 +79,8 @@ class ChatLogger(BaseModel):
             logger.error("Ticket Collection Does Not Exist")
             return
         username = self.data["username"]
+        if "assignee" in self.data:
+            username = self.data["assignee"]
         if gpt3:
             key = f"{self.current_month}_gpt3"
             self.ticket_collection.update_one(
