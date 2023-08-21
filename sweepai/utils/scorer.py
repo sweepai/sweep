@@ -1,5 +1,6 @@
 from datetime import datetime
 from itertools import cycle
+from typing import List
 
 from sweepai.core.entities import Snippet
 

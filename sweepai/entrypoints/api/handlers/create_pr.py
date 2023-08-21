@@ -3,19 +3,19 @@ import openai
 from github.Repository import Repository
 from loguru import logger
 
-from sweepai.core.entities import ProposedIssue, PullRequest, MockPR
-from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.client import SweepConfig, get_blocked_dirs, UPDATES_MESSAGE
-from sweepai.config.server import (
-    ENV,
-    GITHUB_DEFAULT_CONFIG,
-    GITHUB_LABEL_NAME,
+from sweepai.config.config_manager import ConfigManager
+from sweepai.config.env import (
     OPENAI_API_KEY,
     DB_MODAL_INST_NAME,
+    ENV,
+    UPDATES_MESSAGE,
     GITHUB_BOT_USERNAME,
     GITHUB_CONFIG_BRANCH,
+    GITHUB_LABEL_NAME,
 )
+from sweepai.core.entities import ProposedIssue, PullRequest, MockPR
 from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 
 openai.api_key = OPENAI_API_KEY
@@ -82,7 +82,7 @@ def create_pr_changes(
         pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
         completed_count, fcr_count = 0, len(file_change_requests)
 
-        blocked_dirs = get_blocked_dirs(sweep_bot.repo)
+        blocked_dirs = ConfigManager.get_blocked_dirs(sweep_bot.repo)
 
         for (
             file_change_request,
@@ -174,7 +174,7 @@ def create_pr_changes(
             body=pr_description,
             pr_head=pull_request.branch_name,
             base=sweep_bot.repo.get_branch(
-                SweepConfig.get_branch(sweep_bot.repo)
+                ConfigManager.get_branch(sweep_bot.repo)
             ).commit,
             head=sweep_bot.repo.get_branch(pull_request.branch_name).commit,
         ),
@@ -243,7 +243,7 @@ def create_config_pr(
     pull_requests = sweep_bot.repo.get_pulls(
         state="open",
         sort="created",
-        base=SweepConfig.get_branch(sweep_bot.repo),
+        base=ConfigManager.get_branch(sweep_bot.repo),
         head=branch_name,
     )
     for pr in pull_requests:
@@ -264,7 +264,7 @@ def create_config_pr(
             "    ", ""
         ),
         head=branch_name,
-        base=SweepConfig.get_branch(sweep_bot.repo),
+        base=ConfigManager.get_branch(sweep_bot.repo),
     )
     pr.add_to_labels(GITHUB_LABEL_NAME)
     return pr

@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import re
 import traceback
-import requests
 from dataclasses import dataclass
 
+import modal
+from loguru import logger
+from modal import method
 
+from sweepai.config.env import UTILS_MODAL_INST_NAME, ENV
 from sweepai.core.entities import Snippet
 
 
@@ -178,12 +181,6 @@ def chunk_code(code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100)
         logger.error(traceback.format_exc())
         return []
 
-
-import modal
-from loguru import logger
-from modal import method
-
-from sweepai.config.server import ENV, UTILS_MODAL_INST_NAME
 
 stub = modal.Stub(UTILS_MODAL_INST_NAME)
 tiktoken_image = modal.Image.debian_slim().pip_install(

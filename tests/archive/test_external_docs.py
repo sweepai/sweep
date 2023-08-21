@@ -1,4 +1,4 @@
-from sweepai.core.documentation import DOCS_ENDPOINTS
+from sweepai.entrypoints.doc_parser import DOCS_ENDPOINTS
 
 
 def extract_docs_links(content: str) -> list[str]:

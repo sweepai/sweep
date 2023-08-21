@@ -4,48 +4,44 @@ On Github ticket, get ChatGPT to deal with it
 
 # TODO: Add file validation
 
+import asyncio
 import math
 import re
 import traceback
+
 import modal
 import openai
-import asyncio
-
 from github import GithubException
 from loguru import logger
 from tabulate import tabulate
 from tqdm import tqdm
-from sweepai.core.context_pruning import ContextPruning
-from sweepai.core.documentation_searcher import DocumentationSearcher
 
-from sweepai.core.entities import ProposedIssue, Snippet, NoFilesException, SweepContext
-from sweepai.core.external_searcher import ExternalSearcher
-from sweepai.core.slow_mode_expand import SlowModeBot
-from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
-from sweepai.core.prompts import issue_comment_prompt
-from sweepai.core.sandbox import Sandbox
-from sweepai.handlers.create_pr import (
-    create_pr_changes,
-    create_config_pr,
-    safe_delete_sweep_branch,
-)
-from sweepai.handlers.on_comment import on_comment
-from sweepai.handlers.on_review import review_pr
-from sweepai.utils.chat_logger import ChatLogger, discord_log_error
-from sweepai.config.client import (
-    UPDATES_MESSAGE,
-    SweepConfig,
-    get_documentation_dict,
-)
-from sweepai.config.server import (
+from sweepai.config.config_manager import ConfigManager
+from sweepai.config.env import (
     ENV,
     DB_MODAL_INST_NAME,
-    UTILS_MODAL_INST_NAME,
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
     WHITELISTED_REPOS,
+    UPDATES_MESSAGE,
 )
+from sweepai.core.context_pruning import ContextPruning
+from sweepai.core.documentation_searcher import DocumentationSearcher
+from sweepai.core.entities import ProposedIssue, Snippet, NoFilesException, SweepContext
+from sweepai.core.external_searcher import ExternalSearcher
+from sweepai.core.prompts import issue_comment_prompt
+from sweepai.core.sandbox import Sandbox
+from sweepai.core.slow_mode_expand import SlowModeBot
+from sweepai.core.sweep_bot import SweepBot, MaxTokensExceeded
+from sweepai.entrypoints.api.handlers.create_pr import (
+    safe_delete_sweep_branch,
+    create_config_pr,
+    create_pr_changes,
+)
+from sweepai.entrypoints.api.handlers.on_comment import on_comment
+from sweepai.entrypoints.api.handlers.on_review import review_pr
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     get_github_client,
@@ -93,7 +89,7 @@ def post_process_snippets(
         snippet
         for snippet in snippets
         if not any(
-            snippet.file_path.endswith(ext) for ext in SweepConfig().exclude_exts
+            snippet.file_path.endswith(ext) for ext in ConfigManager().exclude_exts
         )
     ]
     snippets = [
@@ -231,7 +227,7 @@ async def on_ticket(
     posthog.capture(username, "started", properties=metadata)
 
     logger.info(f"Getting repo {repo_full_name}")
-    config = SweepConfig.get_config(repo)
+    config = ConfigManager.get_config(repo)
 
     if current_issue.state == "closed":
         logger.warning(f"Issue {issue_number} is closed")
@@ -258,7 +254,7 @@ async def on_ticket(
     summary = summary if summary else ""
 
     prs = repo.get_pulls(
-        state="open", sort="created", base=SweepConfig.get_branch(repo)
+        state="open", sort="created", base=ConfigManager.get_branch(repo)
     )
     for pr in prs:
         # Check if this issue is mentioned in the PR, and pr is owned by bot
@@ -516,7 +512,7 @@ async def on_ticket(
     external_results = ExternalSearcher.extract_summaries(message_summary)
     if external_results:
         message_summary += "\n\n" + external_results
-    user_dict = get_documentation_dict(repo)
+    user_dict = ConfigManager.get_documentation_dict(repo)
     docs_results = DocumentationSearcher.extract_relevant_docs(
         title + message_summary, user_dict
     )
@@ -958,7 +954,7 @@ async def on_ticket(
                 title=pr_changes.title,
                 body=pr_changes.body,
                 head=pr_changes.pr_head,
-                base=SweepConfig.get_branch(repo),
+                base=ConfigManager.get_branch(repo),
                 draft=is_draft,
             )
         except GithubException as e:
@@ -967,12 +963,12 @@ async def on_ticket(
                 title=pr_changes.title,
                 body=pr_changes.body,
                 head=pr_changes.pr_head,
-                base=SweepConfig.get_branch(repo),
+                base=ConfigManager.get_branch(repo),
                 draft=is_draft,
             )
 
-        # Get the branch (SweepConfig.get_branch(repo))'s sha
-        sha = repo.get_branch(SweepConfig.get_branch(repo)).commit.sha
+        # Get the branch (ConfigManager.get_branch(repo))'s sha
+        sha = repo.get_branch(ConfigManager.get_branch(repo)).commit.sha
 
         pr.add_to_labels(GITHUB_LABEL_NAME)
         current_issue.create_reaction("rocket")

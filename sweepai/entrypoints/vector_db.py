@@ -1,4 +1,4 @@
-import glob
+import json
 import json
 import os
 import re
@@ -12,8 +12,8 @@ from loguru import logger
 from modal import method
 from redis import Redis
 from redis.backoff import ConstantBackoff
-from redis.retry import Retry
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
+from redis.retry import Retry
 from tqdm import tqdm
 
 from sweepai.core.entities import Snippet
@@ -21,17 +21,10 @@ from sweepai.core.lexical_search import prepare_index_from_snippets, search_inde
 from sweepai.core.repo_parsing_utils import repo_to_chunks
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
-from sweepai.utils.scorer import compute_score, get_factors, get_scores
-from sweepai.config.client import SweepConfig
-from sweepai.config.server import (
-    ENV,
-    DB_MODAL_INST_NAME,
-    UTILS_MODAL_INST_NAME,
-    REDIS_URL,
-    BOT_TOKEN_NAME,
-)
+from sweepai.utils.scorer import compute_score, get_scores
+from ..config.config_manager import ConfigManager
+from ..config.env import DB_MODAL_INST_NAME, ENV, BOT_TOKEN_NAME, REDIS_URL
 from ..utils.github_utils import get_token
-
 
 stub = modal.Stub(DB_MODAL_INST_NAME)
 model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
@@ -204,7 +197,7 @@ def get_deeplake_vs_from_repo(
     repo_name: str,
     installation_id: int,
     branch_name: str | None = None,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: ConfigManager = ConfigManager(),
 ):
     token = get_token(installation_id)
     g = Github(token)
@@ -238,7 +231,7 @@ def get_deeplake_vs_from_repo(
     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
     shutil.rmtree("repo", ignore_errors=True)
 
-    branch_name = SweepConfig.get_branch(repo)
+    branch_name = ConfigManager.get_branch(repo)
     if os.path.exists("repo"):
         shutil.rmtree("repo", ignore_errors=True)
     git_repo = Repo.clone_from(repo_url, "repo")
@@ -360,7 +353,7 @@ def compute_deeplake_vs(
 def update_index(
     repo_name,
     installation_id: int,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: ConfigManager = ConfigManager(),
 ) -> int:
     get_deeplake_vs_from_repo(
         repo_name, installation_id, branch_name=None, sweep_config=sweep_config
@@ -382,7 +375,7 @@ def get_relevant_snippets(
     n_results: int,
     installation_id: int,
     username: str | None = None,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: ConfigManager = ConfigManager(),
     lexical=False,
 ):
     logger.info("Getting query embedding...")

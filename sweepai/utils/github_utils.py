@@ -5,30 +5,30 @@ import time
 
 import github
 import modal
-from redis import Redis
-from redis.backoff import ExponentialBackoff
-from redis.retry import Retry
-from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 import requests
 from github import Github
 from github.Repository import Repository
 from jwt import encode
 from loguru import logger
+from rapidfuzz import fuzz
+from redis import Redis
+from redis.backoff import ExponentialBackoff
+from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
+from redis.retry import Retry
 from tqdm import tqdm
 
-from sweepai.core.entities import Snippet
-from sweepai.config.client import SweepConfig
-from sweepai.config.server import (
+from sweepai.config.config_manager import ConfigManager
+from sweepai.config.env import (
     DB_MODAL_INST_NAME,
     GITHUB_APP_ID,
     GITHUB_APP_PEM,
     REDIS_URL,
 )
+from sweepai.core.entities import Snippet
 from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file, get_ctags_for_search
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.scorer import merge_and_dedup_snippets
-from rapidfuzz import fuzz
 
 MAX_FILE_COUNT = 50
 
@@ -237,7 +237,7 @@ def get_num_files_from_repo(repo: Repository, installation_id: str):
     shutil.rmtree("repo", ignore_errors=True)
     repo_url = f"https://x-access-token:{token}@github.com/{repo.full_name}.git"
     git_repo = Repo.clone_from(repo_url, "repo")
-    git_repo.git.checkout(SweepConfig.get_branch(repo))
+    git_repo.git.checkout(ConfigManager.get_branch(repo))
     file_list = get_file_list("repo")
     shutil.rmtree("repo", ignore_errors=True)
     return len(file_list)
@@ -282,7 +282,7 @@ def search_snippets(
     num_files: int = 5,
     include_tree: bool = True,
     branch: str = None,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: ConfigManager = ConfigManager(),
     multi_query: list[str] = None,
     excluded_directories: list[str] = None,
 ) -> tuple[list[Snippet], str]:
@@ -332,7 +332,7 @@ def search_snippets(
     shutil.rmtree("repo", ignore_errors=True)
     repo_url = f"https://x-access-token:{token}@github.com/{repo.full_name}.git"
     git_repo = Repo.clone_from(repo_url, "repo")
-    git_repo.git.checkout(SweepConfig.get_branch(repo))
+    git_repo.git.checkout(ConfigManager.get_branch(repo))
     file_list = get_file_list("repo")
     # top_ctags_match = get_top_match_ctags(repo, file_list, query)  # ctags match
     query_file_names = get_file_names_from_query(query)
@@ -392,7 +392,7 @@ def search_snippets(
 def index_full_repository(
     repo_name: str,
     installation_id: int = None,
-    sweep_config: SweepConfig = SweepConfig(),
+    sweep_config: ConfigManager = ConfigManager(),
 ):
     update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
     num_indexed_docs = update_index.spawn(

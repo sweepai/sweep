@@ -1,12 +1,25 @@
 import time
-from datetime import datetime
 
 import modal
 from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
-from sweepai.core.entities import PRChangeRequest
 
+from sweepai.config.config_manager import ConfigManager
+from sweepai.config.env import (
+    DB_MODAL_INST_NAME,
+    API_MODAL_INST_NAME,
+    DOCS_MODAL_INST_NAME,
+    GITHUB_BOT_USERNAME,
+    GITHUB_LABEL_NAME,
+    GITHUB_LABEL_COLOR,
+    GITHUB_LABEL_DESCRIPTION,
+)
+from sweepai.core.entities import PRChangeRequest
+from sweepai.entrypoints.api.handlers.create_pr import create_pr_changes, create_gha_pr  # type: ignore
+from sweepai.entrypoints.api.handlers.on_check_suite import on_check_suite  # type: ignore
+from sweepai.entrypoints.api.handlers.on_comment import on_comment
+from sweepai.entrypoints.api.handlers.on_ticket import on_ticket
 from sweepai.events import (
     CheckRunCompleted,
     CommentCreatedRequest,
@@ -16,22 +29,7 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
 )
-from sweepai.handlers.create_pr import create_pr_changes, create_gha_pr, safe_delete_sweep_branch  # type: ignore
-from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
-from sweepai.handlers.on_comment import on_comment
-from sweepai.handlers.on_ticket import on_ticket
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.client import get_documentation_dict, SweepConfig
-from sweepai.config.server import (
-    DB_MODAL_INST_NAME,
-    API_MODAL_INST_NAME,
-    DOCS_MODAL_INST_NAME,
-    GITHUB_BOT_USERNAME,
-    GITHUB_LABEL_NAME,
-    GITHUB_LABEL_COLOR,
-    GITHUB_LABEL_DESCRIPTION,
-    BOT_TOKEN_NAME,
-)
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
 
@@ -587,7 +585,7 @@ async def webhook(raw_request: Request):
 
                         _, g = get_github_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
-                        docs = get_documentation_dict(repo)
+                        docs = ConfigManager.get_documentation_dict(repo)
                         logger.info(f"Sweep.yaml docs: {docs}")
                         # Call the write_documentation function for each of the existing fields in the "docs" mapping
                         for _, doc_url in docs.items():
@@ -622,7 +620,7 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
 
     # Get the repository
     repo = g.get_repo(repo_full_name)
-    config = SweepConfig.get_config(repo)
+    config = ConfigManager.get_config(repo)
 
     try:
         branch_ttl = int(config.get("branch_ttl", 7))

@@ -95,3 +95,11 @@ SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")
 WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
 
 SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
+
+UPDATES_MESSAGE = """\
+🎉 Latest improvements to Sweep:
+* Getting Sweep to format before committing! Check out [Sweep Sandbox Configs](https://docs.sweep.dev/config#sandbox) to set it up.
+* We launched our [browser extension](https://github.com/sweepai/sweep/releases/tag/browser-extension-v0.0.1) making it faster to make Sweep issues.
+* We released a [demo of our chunker](https://huggingface.co/spaces/sweepai/chunker), where you can find the corresponding blog and code.
+"""
+# * We open-sourced our new [fine-tuned code search model](https://huggingface.co/sweepai/mpnet-code-search).

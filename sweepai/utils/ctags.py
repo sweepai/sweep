@@ -1,8 +1,7 @@
-from dataclasses import dataclass
 import json
-import os
 import subprocess
-from collections import defaultdict
+from dataclasses import dataclass
+
 from loguru import logger
 from redis import Redis
 

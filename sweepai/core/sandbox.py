@@ -1,12 +1,12 @@
 import asyncio
 import traceback
+from typing import Type, TypeVar, Any
 
 from e2b import Session
 from loguru import logger
 from pydantic import BaseModel
-from typing import Type, TypeVar, Any
 
-from sweepai.config.client import get_sandbox_config, SweepConfig
+from sweepai.config.config_manager import ConfigManager
 
 Self = TypeVar("Self", bound="Sandbox")
 
@@ -73,7 +73,7 @@ class Sandbox(BaseModel):
     def from_token(
         cls: Type[Self], username: str, token: str, repo, config=None
     ) -> Self | None:
-        config = config or get_sandbox_config(repo)
+        config = config or ConfigManager.get_sandbox_config(repo)
         enabled = config.get("enabled", False)
         image = config.get("image", None)
         install_command = config.get("install", IMAGE_INSTALLATION.get(image))
@@ -108,8 +108,8 @@ class Sandbox(BaseModel):
         return sandbox
 
     async def start(self):
-        config = get_sandbox_config(self.repo)
-        main_branch = SweepConfig.get_branch(self.repo)
+        config = ConfigManager.get_sandbox_config(self.repo)
+        main_branch = ConfigManager.get_branch(self.repo)
         image = config.get("image", None)
         install_command = config.get("install", IMAGE_INSTALLATION.get(image))
 

@@ -1,22 +1,18 @@
 import re
 import traceback
+from typing import Any
 
 import openai
-from loguru import logger
-from typing import Any
-from tabulate import tabulate
 from github.Repository import Repository
+from loguru import logger
+from tabulate import tabulate
 
-from sweepai.config.client import get_blocked_dirs
+from sweepai.config.config_manager import ConfigManager
+from sweepai.config.env import ENV, GITHUB_BOT_USERNAME, OPENAI_API_KEY
 from sweepai.core.entities import ProposedIssue, NoFilesException, Snippet, MockPR
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.handlers.on_review import get_pr_diffs
+from sweepai.entrypoints.api.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.server import (
-    GITHUB_BOT_USERNAME,
-    ENV,
-    OPENAI_API_KEY,
-)
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     get_github_client,
@@ -415,7 +411,7 @@ def on_comment(
                 pr.create_issue_comment(response_for_user)
         logger.info("Making Code Changes...")
 
-        blocked_dirs = get_blocked_dirs(sweep_bot.repo)
+        blocked_dirs = ConfigManager.get_blocked_dirs(sweep_bot.repo)
 
         changes_made = sum(
             [
