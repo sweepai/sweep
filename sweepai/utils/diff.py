@@ -172,7 +172,9 @@ MULTIPLE_HITS = "MULTIPLE_HITS"
 INCOMPLETE_MATCH = "INCOMPLETE_MATCH"
 
 
-def match_string(original, search, start_index=None, exact_match=False):
+def match_string(
+    original, search, start_index=None, exact_match=False, ignore_comments=False
+):
     index = -1
     max_similarity = 0
     current_hits = 0
@@ -184,10 +186,15 @@ def match_string(original, search, start_index=None, exact_match=False):
         for j in range(len(search)):
             if i + j >= len(original):
                 continue
+            original_line = original[i + j]
+            if ignore_comments:
+                # Remove comments
+                original_line = original_line.rsplit("#")[0].rsplit("//")[0]
+
             match = (
-                search[j] == original[i + j]
+                search[j] == original_line
                 if exact_match
-                else search[j].strip() == original[i + j].strip()
+                else search[j].strip() == original_line.strip()
             )
             if match:
                 count += 1
@@ -281,11 +288,19 @@ def sliding_window_replacement(
     exact_match = kwargs.get("exact_match", False)
     ignore_comments = kwargs.get("ignore_comments", False)
     index, max_similarity, current_hits = match_string(
-        original, search, exact_match=exact_match
+        original, search, exact_match=exact_match, ignore_comments=ignore_comments
     )
 
     # No changes could be found. Return original code.
     if max_similarity == 0:
+        if not ignore_comments:  # In case Sweep decided not to include comments
+            return sliding_window_replacement(
+                original,
+                search,
+                replace,
+                ignore_comments=True,
+                **{k: v for k, v in kwargs.items() if k != "ignore_comments"},
+            )
         print("WARNING: No identical lines")
         return original, None, IDENTICAL_LINES
 
