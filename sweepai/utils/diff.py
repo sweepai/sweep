@@ -307,19 +307,20 @@ def sliding_window_replacement(
                 success = True
 
         if not success:
-            if not exact_match:  # Backup 1: exact line matches
-                return sliding_window_replacement(
-                    original, search, replace, exact_match=True
-                )
-            elif (
-                not replace and not search_context_before
-            ):  # Backup 2: independent line matches
+            if (
+                len(replace) == 1 and not replace[0] and not search_context_before
+            ):  # Backup 1: independent line matches
                 exact_matches = [line for line in original if line in search]
                 # If there are no duplicates and all lines have a match
                 if len(set(exact_matches)) == len(search):
                     # Remove all of those corresponding lines in the content
                     original = [line for line in original if line not in search]
                     return original, None, None
+
+            if not exact_match:  # Backup 2: exact line matches
+                return sliding_window_replacement(
+                    original, search, replace, exact_match=True
+                )
 
             print("WARNING: Multiple hits")
             return original, None, MULTIPLE_HITS
