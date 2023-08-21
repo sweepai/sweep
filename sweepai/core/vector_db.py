@@ -386,7 +386,7 @@ def get_relevant_snippets(
     lexical=False,
 ):
     logger.info("Getting query embedding...")
-    query_embedding = CPUEmbedding.compute.call(query)
+    query_embedding = CPUEmbedding.compute.call(query)  # pylint: disable=no-member
     logger.info("Starting search by getting vector store...")
     deeplake_vs, lexical_index = get_deeplake_vs_from_repo(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
