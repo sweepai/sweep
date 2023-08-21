@@ -1,3 +1,4 @@
+import traceback
 from dataclasses import dataclass
 import itertools
 import re
@@ -144,11 +145,15 @@ def prepare_index_from_snippets(snippets):
 
 def search_index(query, ix):
     """Title, score, content"""
-    # Create a query parser for the "content" field of the index
-    qp = QueryParser("content", schema=ix.schema, group=OrGroup)
-    q = qp.parse(query)
+    try:
+        # Create a query parser for the "content" field of the index
+        qp = QueryParser("content", schema=ix.schema, group=OrGroup)
+        q = qp.parse(query)
 
-    # Search the index
-    with ix.searcher() as searcher:
-        results = searcher.search(q, limit=30, terms=True)
-        return [(hit["title"]) for hit in results]
+        # Search the index
+        with ix.searcher() as searcher:
+            results = searcher.search(q, limit=30, terms=True)
+            return [(hit["title"]) for hit in results]
+    except Exception as e:
+        print("Error in search_index", e, traceback.format_exc())
+        return []
