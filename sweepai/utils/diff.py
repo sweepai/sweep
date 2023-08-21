@@ -287,6 +287,14 @@ def sliding_window_replacement(
         return original, None, IDENTICAL_LINES
 
     if current_hits > 1:
+        # If replace string is empty and multiple hits occur
+        if not replace:
+            exact_matches = [line for line in original if line in search]
+            # If there are no duplicates and all lines have a match
+            if len(set(exact_matches)) == len(search):
+                # Remove all of those corresponding lines in the content
+                original = [line for line in original if line not in search]
+                return original, None, None
         # First, try matching beginning of search
         success = False
         if search_context_before:
