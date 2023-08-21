@@ -259,22 +259,23 @@ def sliding_window_replacement(
             search = search[1:]
             replace = replace[1:]
         elif (
-            first_line_idx == len(search) - 1
-            and first_line_idx_replace == len(replace) - 1
-        ):
-            search = search[:first_line_idx]
-            replace = replace[:first_line_idx_replace]
-        elif first_line_idx != -1 and first_line_idx_replace != -1:
-            # SPLIT INTO TWO PARTS
-            # TODO(lukejagg): pass in the first and last lines as context for matching (so ambiguous ... can be matched)
-            search_context_before = search[:first_line_idx]
-            original, replace_index, status = sliding_window_replacement(
-                original,
-                search[first_line_idx + 1 :],
-                replace[first_line_idx_replace + 1 :],
-                search_context_before,
-            )
-            search = search[:first_line_idx]
+            def sliding_window_replacement(
+                original, search, replace, search_context_before=None, **kwargs
+            ):
+                status, replace_index = None, None
+                ...
+                elif first_line_idx != -1 and first_line_idx_replace != -1:
+                    # SPLIT INTO TWO PARTS
+                    # TODO(lukejagg): pass in the first and last lines as context for matching (so ambiguous ... can be matched)
+                    search_context_before = search[:first_line_idx]
+                    original, replace_index, status = sliding_window_replacement(
+                        original,
+                        search[first_line_idx + 1 :],
+                        replace[first_line_idx_replace + 1 :],
+                        search_context_before,
+                        **kwargs
+                    )
+                ...
             replace = replace[:first_line_idx_replace]
 
     exact_match = kwargs.get("exact_match", False)

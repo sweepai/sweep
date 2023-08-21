@@ -1,3 +1,6 @@
+# Install the black package
+pip install black
+
 # Lint the code and check the return code
 if sh bin/lint.sh; then
   # Linting passed, continue with other commands
