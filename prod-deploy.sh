@@ -3,11 +3,10 @@ if sh bin/lint.sh; then
   # Linting passed, continue with other commands
   echo "Successfully linted"
 
-    [ "$(uname)" = "Darwin" ] && sed -i "" -E "s/PREFIX = \"(dev|dev2)\"/PREFIX = \"prod\"/" sweepai/config/server.py || sed -i -E "s/PREFIX = 'PREFIX = \"(dev|dev2)\"/PREFIX = \"prod\"/" sweepai/config/server.py
-    modal deploy --env=main sweepai/utils/utils.py &
-    modal deploy --env=main sweepai/core/vector_db.py &
-    modal deploy --env=main sweepai/core/documentation.py &
-    modal deploy --env=main sweepai/api.py
+  modal deploy --env=main sweepai/entrypoints/chunker.py &&
+    modal deploy --env=main sweepai/entrypoints/vector_db.py &&
+    modal deploy --env=main sweepai/entrypoints/doc_parser.py &&
+    modal deploy --env=main sweepai/entrypoints/api/api.py
 
 else
   # Linting failed, show an error message and exit

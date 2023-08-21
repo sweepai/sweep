@@ -14,6 +14,7 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.edit_chunk import EditBot
 from sweepai.core.entities import (
     FileCreation,
+    ProposedIssue,
     FileChangeRequest,
     PullRequest,
     RegexMatchError,
@@ -23,6 +24,7 @@ from sweepai.core.entities import (
 )
 from sweepai.core.prompts import (
     files_to_change_prompt,
+    subissues_prompt,
     pull_request_prompt,
     create_file_prompt,
     modify_file_hallucination_prompt,
@@ -123,6 +125,27 @@ class CodeGenBot(ChatGPT):
         msg = Message(content=msg_content, role="assistant", key=BOT_ANALYSIS_SUMMARY)
         self.messages.insert(-2, msg)
 
+    def generate_subissues(self, retries: int = 3):
+        subissues: list[ProposedIssue] = []
+        for count in range(retries):
+            try:
+                logger.info(f"Generating for the {count}th time...")
+                files_to_change_response = self.chat(
+                    subissues_prompt, message_key="subissues"
+                )  # Dedup files to change here
+                subissues = []
+                for re_match in re.finditer(
+                    ProposedIssue._regex, files_to_change_response, re.DOTALL
+                ):
+                    subissues.append(ProposedIssue.from_string(re_match.group(0)))
+                if subissues:
+                    return subissues
+            except RegexMatchError:
+                logger.warning("Failed to parse! Retrying...")
+                self.delete_messages_from_chat("files_to_change")
+                continue
+        raise NoFilesException()
+
     def get_files_to_change(self, retries=1):
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
@@ -143,7 +166,8 @@ class CodeGenBot(ChatGPT):
                     )
                 if file_change_requests:
                     return file_change_requests, files_to_change_response
-            except RegexMatchError:
+            except RegexMatchError as e:
+                print(e)
                 logger.warning("Failed to parse! Retrying...")
                 self.delete_messages_from_chat("files_to_change")
                 continue
@@ -302,7 +326,7 @@ class GithubBot(BaseModel):
         return {"success": False}
 
     def validate_file_change_requests(
-        self, file_change_requests: list[FileChangeRequest], branch: str = ""
+        self, file_change_requests: list[ProposedIssue], branch: str = ""
     ):
         blocked_dirs = ConfigManager.get_blocked_dirs(self.repo)
         for file_change_request in file_change_requests:
@@ -335,7 +359,7 @@ class GithubBot(BaseModel):
 
 
 class SweepBot(CodeGenBot, GithubBot):
-    def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
+    def create_file(self, file_change_request: ProposedIssue) -> FileCreation:
         file_change: FileCreation | None = None
         key = f"file_change_created_{file_change_request.filename}"
         create_file_response = self.chat(
@@ -397,7 +421,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def modify_file(
         self,
-        file_change_request: FileChangeRequest,
+        file_change_request: ProposedIssue,
         contents: str = "",
         contents_line_numbers: str = "",
         branch=None,
@@ -500,7 +524,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def change_files_in_github(
         self,
-        file_change_requests: list[FileChangeRequest],
+        file_change_requests: list[ProposedIssue],
         branch: str,
         blocked_dirs: list[str] = [],
         sandbox=None,
@@ -519,7 +543,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def change_files_in_github_iterator(
         self,
-        file_change_requests: list[FileChangeRequest],
+        file_change_requests: list[ProposedIssue],
         branch: str,
         blocked_dirs: list[str],
         sandbox=None,
@@ -621,7 +645,7 @@ class SweepBot(CodeGenBot, GithubBot):
         return completed, num_fcr
 
     def handle_create_file(
-        self, file_change_request: FileChangeRequest, branch: str, sandbox=None
+        self, file_change_request: ProposedIssue, branch: str, sandbox=None
     ):
         try:
             file_change = self.create_file(file_change_request)
@@ -667,7 +691,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def handle_modify_file(
         self,
-        file_change_request: FileChangeRequest,
+        file_change_request: ProposedIssue,
         branch: str,
         commit_message: str = None,
         sandbox=None,

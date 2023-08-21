@@ -1,5 +1,4 @@
 import time
-from datetime import datetime
 
 import modal
 from fastapi import HTTPException, Request
@@ -15,7 +14,6 @@ from sweepai.config.env import (
     GITHUB_LABEL_NAME,
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
-    BOT_TOKEN_NAME,
 )
 from sweepai.core.entities import PRChangeRequest
 from sweepai.entrypoints.api.handlers.create_pr import create_pr_changes, create_gha_pr  # type: ignore
@@ -32,21 +30,12 @@ from sweepai.events import (
     ReposAddedRequest,
 )
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.env import (
-    DB_MODAL_INST_NAME,
-    API_MODAL_INST_NAME,
-    DOCS_MODAL_INST_NAME,
-    GITHUB_BOT_USERNAME,
-    GITHUB_LABEL_NAME,
-    GITHUB_LABEL_COLOR,
-    GITHUB_LABEL_DESCRIPTION,
-    BOT_TOKEN_NAME,
-)
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client, index_full_repository
 
 stub = modal.Stub(API_MODAL_INST_NAME)
 stub.pr_queues = modal.Dict.new()  # maps (repo_full_name, pull_request_ids) -> queues
+stub.issue_lock = modal.Dict.new()  # maps (repo_full_name, issue_number) -> process id
 image = (
     modal.Image.debian_slim()
     .apt_install("git", "universal-ctags")
@@ -248,7 +237,15 @@ async def webhook(raw_request: Request):
 
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
-                    handle_ticket.spawn(
+                    key = (request.repository.full_name, request.issue.number)
+                    logger.info(f"Checking if {key} is in {stub.issue_lock}")
+                    process = stub.issue_lock[key] if key in stub.issue_lock else None
+                    if process:
+                        logger.info("Cancelling process")
+                        process.cancel()
+                    stub.issue_lock[
+                        (request.repository.full_name, request.issue.number)
+                    ] = handle_ticket.spawn(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
@@ -303,7 +300,15 @@ async def webhook(raw_request: Request):
                     and not request.sender.login.startswith("sweep")
                 ):
                     logger.info("New issue edited")
-                    handle_ticket.spawn(
+                    key = (request.repository.full_name, request.issue.number)
+                    logger.info(f"Checking if {key} is in {stub.issue_lock}")
+                    process = stub.issue_lock[key] if key in stub.issue_lock else None
+                    if process:
+                        logger.info("Cancelling process")
+                        process.cancel()
+                    stub.issue_lock[
+                        (request.repository.full_name, request.issue.number)
+                    ] = handle_ticket.spawn(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
@@ -328,7 +333,15 @@ async def webhook(raw_request: Request):
                     )
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
-                    handle_ticket.spawn(
+                    key = (request.repository.full_name, request.issue.number)
+                    logger.info(f"Checking if {key} is in {stub.issue_lock}")
+                    process = stub.issue_lock[key] if key in stub.issue_lock else None
+                    if process:
+                        logger.info("Cancelling process")
+                        process.cancel()
+                    stub.issue_lock[
+                        (request.repository.full_name, request.issue.number)
+                    ] = handle_ticket.spawn(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
@@ -369,7 +382,15 @@ async def webhook(raw_request: Request):
 
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
-                    handle_ticket.spawn(
+                    key = (request.repository.full_name, request.issue.number)
+                    logger.info(f"Checking if {key} is in {stub.issue_lock}")
+                    process = stub.issue_lock[key] if key in stub.issue_lock else None
+                    if process:
+                        logger.info("Cancelling process")
+                        process.cancel()
+                    stub.issue_lock[
+                        (request.repository.full_name, request.issue.number)
+                    ] = handle_ticket.spawn(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,

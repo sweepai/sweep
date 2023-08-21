@@ -230,6 +230,13 @@ class PullRequest(RegexMatchableBaseModel):
     _regex = r'''pr_title\s+=\s+"(?P<title>.*?)"\n+branch\s+=\s+"(?P<branch_name>.*?)"\n+pr_content\s+=\s+f?"""(?P<content>.*?)"""'''
 
 
+class ProposedIssue(RegexMatchableBaseModel):
+    title: str
+    body: str
+    issue_id: int | None = None
+    _regex = r'<issue\s+title="(?P<title>.*?)">(?P<body>.*?)</issue>'
+
+
 class Snippet(BaseModel):
     """
     Start and end refer to line numbers
@@ -374,6 +381,7 @@ class MockPR(BaseModel):
     base: Any
     head: Any
 
+    id: int = -1
     state: str = "open"
     html_url: str = ""
 

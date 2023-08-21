@@ -8,43 +8,11 @@ from loguru import logger
 from tabulate import tabulate
 
 from sweepai.config.config_manager import ConfigManager
-
-
-def construct_metadata(
-    repo_full_name,
-    repo_name,
-    organization,
-    repo_description,
-    installation_id,
-    username,
-    function,
-    model,
-    tier,
-    mode,
-):
-    return {
-        "repo_full_name": repo_full_name,
-        "repo_name": repo_name,
-        "organization": organization,
-        "repo_description": repo_description,
-        "installation_id": installation_id,
-        "username": username,
-        "function": function,
-        "model": model,
-        "tier": tier,
-        "mode": mode,
-    }
-
-
-from sweepai.core.entities import FileChangeRequest, NoFilesException, Snippet, MockPR
+from sweepai.config.env import ENV, GITHUB_BOT_USERNAME, OPENAI_API_KEY
+from sweepai.core.entities import ProposedIssue, NoFilesException, Snippet, MockPR
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.entrypoints.api.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.env import (
-    GITHUB_BOT_USERNAME,
-    PREFIX,
-    OPENAI_API_KEY,
-)
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     get_github_client,
@@ -165,6 +133,7 @@ def on_comment(
 
     is_paying_user = chat_logger.is_paying_user()
     use_faster_model = chat_logger.use_faster_model(g)
+    assignee = pr.assignee.login if pr.assignee else None
 
     metadata = {
         "repo_full_name": repo_full_name,
@@ -172,11 +141,11 @@ def on_comment(
         "organization": organization,
         "repo_description": repo_description,
         "installation_id": installation_id,
-        "username": username,
+        "username": username if not username.startswith("sweep") else assignee,
         "function": "on_comment",
         "model": "gpt-3.5" if use_faster_model else "gpt-4",
         "tier": "pro" if is_paying_user else "free",
-        "mode": PREFIX,
+        "mode": ENV,
         "pr_path": pr_path,
         "pr_line_position": pr_line_position,
         "pr_number": pr_number or pr.id,
@@ -301,7 +270,7 @@ def on_comment(
         logger.info("Fetching files to modify/create...")
         if file_comment:
             file_change_requests = [
-                FileChangeRequest(
+                ProposedIssue(
                     filename=pr_file_path,
                     instructions=f"{comment}\n\nCommented on this line: {pr_line}",
                     change_type="modify",
@@ -366,7 +335,7 @@ def on_comment(
                     for filename, instructions in matches:
                         instructions_mapping[filename] = instructions
                     file_change_requests = [
-                        FileChangeRequest(
+                        ProposedIssue(
                             filename=file_path,
                             instructions=instructions_mapping[file_path],
                             change_type="modify",
@@ -376,7 +345,7 @@ def on_comment(
                 else:
                     quoted_pr_summary = "> " + pr.body.replace("\n", "\n> ")
                     file_change_requests = [
-                        FileChangeRequest(
+                        ProposedIssue(
                             filename=file_path,
                             instructions=f"Modify the file {file_path} based on the PR summary:\n\n{quoted_pr_summary}",
                             change_type="modify",
@@ -452,13 +421,17 @@ def on_comment(
                 )
             ]
         )
-        if changes_made:
-            pr.create_review_comment_reply(comment_id, "Done.")
-        else:
-            pr.create_review_comment_reply(
-                comment_id,
-                "No changes made. Please add more details so I know what to change.",
-            )
+        try:
+            if comment_id:
+                if changes_made:
+                    pr.create_review_comment_reply(comment_id, "Done.")
+                else:
+                    pr.create_review_comment_reply(
+                        comment_id,
+                        "No changes made. Please add more details so I know what to change.",
+                    )
+        except Exception as e:
+            logger.error(f"Failed to reply to comment: {e}")
 
         if type(pr) != MockPR:
             if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):

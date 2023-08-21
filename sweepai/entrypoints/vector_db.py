@@ -1,4 +1,4 @@
-import glob
+import json
 import json
 import os
 import re
@@ -11,27 +11,22 @@ from github import Github
 from loguru import logger
 from modal import method
 from redis import Redis
-from redis.backoff import ExponentialBackoff
+from redis.backoff import ConstantBackoff
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 from redis.retry import Retry
 from tqdm import tqdm
 
-from sweepai.config.config_manager import ConfigManager
-from sweepai.config.env import (
-    ENV,
-    DB_MODAL_INST_NAME,
-    UTILS_MODAL_INST_NAME,
-    REDIS_URL,
-    BOT_TOKEN_NAME,
-)
 from sweepai.core.entities import Snippet
+from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
+from sweepai.core.repo_parsing_utils import repo_to_chunks
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import get_token
 from sweepai.utils.hash import hash_sha256
-from sweepai.utils.scorer import get_factors, get_scores
+from sweepai.utils.scorer import compute_score, get_scores
+from ..config.config_manager import ConfigManager
+from ..config.env import DB_MODAL_INST_NAME, ENV, BOT_TOKEN_NAME, REDIS_URL
+from ..utils.github_utils import get_token
 
 stub = modal.Stub(DB_MODAL_INST_NAME)
-chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "chunk")
 model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
 MODEL_DIR = "/root/cache/model"
 DEEPLAKE_DIR = "/root/cache/"
@@ -40,9 +35,9 @@ DEEPLAKE_FOLDER = "deeplake/"
 BATCH_SIZE = 128
 SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-mpnet-base-v2"
 timeout = 60 * 60  # 30 minutes
-CACHE_VERSION = "v1.0.10"
+CACHE_VERSION = "v1.0.11"
 MAX_FILES = 500
-CPU = 0.5
+CPU = 1
 
 
 def download_models():
@@ -69,6 +64,8 @@ image = (
         "redis",
         "pyyaml",
         "rapidfuzz",
+        "whoosh",
+        "tree-sitter-languages",
     )
     .run_function(download_models)
 )
@@ -214,7 +211,7 @@ def get_deeplake_vs_from_repo(
     if REDIS_URL is not None:
         try:
             # todo: initialize once
-            retry = Retry(ExponentialBackoff(), 3)
+            retry = Retry(ConstantBackoff(backoff=1), retries=3)
             cache_inst = Redis.from_url(
                 REDIS_URL,
                 retry=retry,
@@ -227,31 +224,6 @@ def get_deeplake_vs_from_repo(
             logger.error(f"Failed to connect to redis cache")
     else:
         logger.warning(f"REDIS_URL is None, skipping cache")
-
-    if cache_inst and cache_success:
-        try:
-            github_cache_key = f"github-{commit_hash}{CACHE_VERSION}"
-            cache_hit = cache_inst.get(github_cache_key)
-            if cache_hit:
-                deeplake_items = json.loads(cache_hit)
-                logger.info(f"Cache hit for {repo_name}")
-            else:
-                deeplake_items = None
-                logger.info(f"Cache miss for {repo_name}")
-
-            if deeplake_items:
-                deeplake_vs = init_deeplake_vs(repo_name)
-                deeplake_vs.add(
-                    text=deeplake_items["ids"],
-                    embedding=deeplake_items["embeddings"],
-                    metadata=deeplake_items["metadatas"],
-                )
-                logger.info(f"Returning deeplake vs for {repo_name}")
-                return deeplake_vs
-            else:
-                logger.info(f"Cache for {repo_name} is empty")
-        except:
-            logger.info(f"Failed to get cache for {repo_name}")
     logger.info(f"Downloading repository and indexing for {repo_name}...")
     start = time.time()
     logger.info("Recursively getting list of files...")
@@ -260,119 +232,55 @@ def get_deeplake_vs_from_repo(
     shutil.rmtree("repo", ignore_errors=True)
 
     branch_name = ConfigManager.get_branch(repo)
-
+    if os.path.exists("repo"):
+        shutil.rmtree("repo", ignore_errors=True)
     git_repo = Repo.clone_from(repo_url, "repo")
     git_repo.git.checkout(branch_name)
 
-    file_list = glob.iglob("repo/**", recursive=True)
-    file_list = [
-        file
-        for file in tqdm(file_list)
-        if os.path.isfile(file)
-        and all(not file.endswith(ext) for ext in sweep_config.exclude_exts)
-        and all(
-            not file[len("repo/") :].startswith(dir_name)
-            for dir_name in sweep_config.exclude_dirs
-        )
-    ]
-    logger.info(f"First pass through files complete, found {len(file_list)} files")
-    file_paths = []
-    file_contents = []
+    snippets, file_list = repo_to_chunks(sweep_config)
+    # prepare lexical search
+    index = prepare_index_from_snippets(snippets)
+    # scoring for vector search
+    files_to_scores = {}
     score_factors = []
+    for file_path in file_list:
+        score_factor = compute_score(file_path, git_repo)
+        score_factors.append(score_factor)
+    # compute all scores
+    all_scores = get_scores(score_factors)
+    files_to_scores = {
+        file_path: score for file_path, score in zip(file_list, all_scores)
+    }
+    logger.info(f"Found {len(file_list)} files in repository {repo_name}")
 
-    for file in tqdm(file_list):
-        with open(file, "rb") as f:
-            is_binary = False
-            for block in iter(lambda: f.read(1024), b""):
-                if b"\0" in block:
-                    is_binary = True
-                    break
-            if is_binary:
-                logger.debug("Skipping binary file...")
-                continue
-
-        with open(file, "rb") as f:
-            if len(f.read()) > sweep_config.max_file_limit:
-                logger.debug("Skipping large file...")
-                continue
-
-        with open(file, "r") as f:
-            # Can parallelize this
-            try:
-                contents = f.read()
-                contents = file + contents
-            except UnicodeDecodeError as e:
-                logger.warning(f"Received warning {e}, skipping...")
-                continue
-            file_path = file[len("repo/") :]
-            file_paths.append(file_path)
-            file_contents.append(contents)
-            if len(file_list) > MAX_FILES:
-                score_factors.append((1, 2, 5))  # This is a low score
-                continue
-            try:
-                cache_key = f"{repo_name}-{file_path}-{CACHE_VERSION}"
-                if cache_inst and cache_success:
-                    cached_value = cache_inst.get(cache_key)
-                    if cached_value:
-                        score_factor = json.loads(cached_value)
-                        score_factors.append(score_factor)
-                        continue
-                # commits = list(repo.get_commits(path=file_path, sha=branch_name))
-                git_repo = Repo("repo")
-                commits = list(git_repo.iter_commits(paths=file_path))
-                score_factor = get_factors(contents, commits)
-                if cache_inst and cache_success:
-                    cache_inst.set(cache_key, json.dumps(score_factor), ex=60 * 60 * 2)
-                score_factors.append(score_factor)
-            except Exception as e:
-                logger.warning(f"Received warning during scoring {e}, skipping...")
-                score_factors.append((1, 2, 5))
-                continue
-    scores = get_scores(score_factors)  # take percentiles + sum the scores
-
-    logger.info(f"Finished getting list of files, chunking...")
-
-    def chunk_into_sublists(lst, sublist_size=200) -> list[list]:
-        return [lst[i : i + sublist_size] for i in range(0, len(lst), sublist_size)]
-
-    file_contents_batches = chunk_into_sublists(file_contents)
-    file_paths_batches = chunk_into_sublists(file_paths)
-    scores_batches = chunk_into_sublists(scores)
-
-    logger.info(f"Batched into {len(file_contents_batches)} batches...")
-
-    chunked_results = []
-    for batch in chunker.starmap(
-        zip(file_contents_batches, file_paths_batches, scores_batches),
-        kwargs={
-            "additional_metadata": {"repo_name": repo_name, "branch_name": branch_name}
-        },
-    ):
-        chunked_results.extend(batch)
-
-    # Todo(lukejagg): Should we default return ([], [], []) on empty list?
-    documents, metadatas, ids = (
-        zip(*chunked_results) if len(chunked_results) > 0 else ([], [], [])
-    )
-    documents = [item for sublist in documents for item in sublist]
-    metadatas = [item for sublist in metadatas for item in sublist]
-    ids = [item for sublist in ids for item in sublist]
-
-    logger.info(f"Used {len(file_paths)} files...")
-
-    shutil.rmtree("repo", ignore_errors=True)
+    documents = []
+    metadatas = []
+    ids = []
+    for snippet in snippets:
+        documents.append(snippet.content)
+        metadata = {
+            "file_path": snippet.file_path[len("repo/") :],
+            "start": snippet.start,
+            "end": snippet.end,
+            "score": files_to_scores[snippet.file_path],
+        }
+        metadatas.append(metadata)
+        gh_file_path = snippet.file_path[len("repo/") :]
+        ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")
     logger.info(f"Getting list of all files took {time.time() - start}")
     logger.info(f"Received {len(documents)} documents from repository {repo_name}")
     collection_name = parse_collection_name(repo_name)
-    return compute_deeplake_vs(
-        collection_name,
-        documents,
-        cache_success,
-        cache_inst,
-        ids,
-        metadatas,
-        commit_hash,
+    return (
+        compute_deeplake_vs(
+            collection_name,
+            documents,
+            cache_success,
+            cache_inst,
+            ids,
+            metadatas,
+            commit_hash,
+        ),
+        index,
     )
 
 
@@ -428,7 +336,6 @@ def compute_deeplake_vs(
                     for key, value in zip(cache_keys, computed_embeddings)
                 }
             )
-        logger.info("Finished indexing repository")
         return deeplake_vs
     else:
         logger.error("No documents found in repository")
@@ -469,16 +376,20 @@ def get_relevant_snippets(
     installation_id: int,
     username: str | None = None,
     sweep_config: ConfigManager = ConfigManager(),
+    lexical=False,
 ):
+    logger.info("Getting query embedding...")
+    query_embedding = CPUEmbedding.compute.call(query)
     logger.info("Starting search by getting vector store...")
-    deeplake_vs = get_deeplake_vs_from_repo(
+    deeplake_vs, lexical_index = get_deeplake_vs_from_repo(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
     )
+    lexical_results = search_index(query, lexical_index)
+    logger.info(f"Top files: {lexical_results}")
     logger.info("Searching for relevant snippets...")
     results = {"metadata": [], "text": []}
     for n_result in range(n_results, 0, -1):
         try:
-            query_embedding = embedding_function([query], cpu=True)[0]
             results = deeplake_vs.search(embedding=query_embedding, k=n_result)
             break
         except Exception:
@@ -515,6 +426,17 @@ def get_relevant_snippets(
 
     # Extract the sorted metadatas and relevant_paths
     sorted_metadatas = [metadata for _, metadata in sorted_list]
+    # intersection of lexical and vector results should be first
+    if lexical:
+        sorted_metadatas = [
+            metadata
+            for metadata in sorted_metadatas
+            if metadata["file_path"] in lexical_results
+        ] + [
+            metadata
+            for metadata in sorted_metadatas
+            if metadata["file_path"] not in lexical_results
+        ]
     relevant_paths = [metadata["file_path"] for metadata in sorted_metadatas]
     logger.info("Relevant paths: {}".format(relevant_paths))
     return [

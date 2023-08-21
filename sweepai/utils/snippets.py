@@ -1,10 +1,9 @@
+from sweepai.utils import chunker
 import modal
 from loguru import logger
 
 from sweepai.config.env import UTILS_MODAL_INST_NAME
 from sweepai.core.entities import Snippet
-
-chunker = modal.Function.lookup(UTILS_MODAL_INST_NAME, "chunk")
 
 
 def format_snippets(snippets: list[Snippet]):
