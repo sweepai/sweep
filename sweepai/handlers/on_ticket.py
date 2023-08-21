@@ -368,7 +368,7 @@ async def on_ticket(
         config = SweepConfig.get_config(repo)
     except EmptyRepository as e:
         logger.info("Empty repo")
-        first_comment = f"Sweep is currently not supported on empty repositories. Please add some code to your repository and try again.\n{sep}## {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
+        first_comment = f"Sweep is currently not supported on empty repositories. Please add some code to your repository and try again.\n{sep}## {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
         if issue_comment is None:
             issue_comment = current_issue.create_comment(first_comment)
         else:
