@@ -217,7 +217,7 @@ def get_deeplake_vs_from_repo(
     if REDIS_URL is not None:
         try:
             # todo: initialize once
-            retry = Retry(retries=2)
+            retry = Retry(retries=2, backoff=ExponentialBackoff())
             cache_inst = Redis.from_url(
                 REDIS_URL,
                 retry=retry,
@@ -416,7 +416,7 @@ def get_relevant_snippets(
     sweep_config: SweepConfig = SweepConfig(),
 ):
     logger.info("Getting query embedding...")
-    query_embedding = CPUEmbedding.compute.spawn(query)
+    query_embedding = CPUEmbedding().compute(query)
     logger.info("Starting search by getting vector store...")
     deeplake_vs = get_deeplake_vs_from_repo(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
