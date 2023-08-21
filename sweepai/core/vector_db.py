@@ -1,3 +1,4 @@
+import asyncio
 import glob
 import json
 import os
@@ -197,6 +198,17 @@ class ModalEmbeddingFunction:
 
 
 embedding_function = ModalEmbeddingFunction()
+
+@stub.function(
+    image=image,
+    secrets=secrets,
+    network_file_systems={DEEPLAKE_DIR: model_volume},
+    timeout=timeout,
+    keep_warm=1,
+    cpu=CPU,
+)
+def compute_query_embedding(query: str):
+    return embedding_function([query], cpu=True)[0]
 
 
 def get_deeplake_vs_from_repo(
@@ -415,18 +427,16 @@ def get_relevant_snippets(
     sweep_config: SweepConfig = SweepConfig(),
 ):
     logger.info("Starting search by getting vector store...")
-    query_embedding = embedding_function([query], cpu=True)[0]
+    query_embedding_future = compute_query_embedding(query)
     deeplake_vs = get_deeplake_vs_from_repo(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
     )
     logger.info("Searching for relevant snippets...")
-    results = {"metadata": [], "text": []}
-    for n_result in range(n_results, 0, -1):
-        try:
-            results = deeplake_vs.search(embedding=query_embedding, k=n_result)
-            break
-        except Exception:
-            pass
+    results_future = asyncio.gather(
+        query_embedding_future,
+        deeplake_vs.search(embedding=query_embedding_future, k=n_results)
+    )
+    query_embedding, results = await results_future
     logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
         if username is None:
