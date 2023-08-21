@@ -200,7 +200,7 @@ class FileCreation(RegexMatchableBaseModel):
             if first_index >= 0:
                 last_index = result.code.rfind("```")
                 file_extension = os.path.splitext(result.code)[1]
-                if file_extension not in ['.md', '.rst', '.mdx', '.txt']:
+                if file_extension not in [".md", ".rst", ".mdx", ".txt"]:
                     result.code = result.code[first_index:last_index]
 
         result.code = result.code.strip()
@@ -228,6 +228,13 @@ class PullRequest(RegexMatchableBaseModel):
     branch_name: str
     content: str
     _regex = r'''pr_title\s+=\s+"(?P<title>.*?)"\n+branch\s+=\s+"(?P<branch_name>.*?)"\n+pr_content\s+=\s+f?"""(?P<content>.*?)"""'''
+
+
+class ProposedIssue(RegexMatchableBaseModel):
+    title: str
+    body: str
+    issue_id: int | None = None
+    _regex = r'<issue\s+title="(?P<title>.*?)">(?P<body>.*?)</issue>'
 
 
 class Snippet(BaseModel):
@@ -374,6 +381,7 @@ class MockPR(BaseModel):
     base: Any
     head: Any
 
+    id: int = -1
     state: str = "open"
     html_url: str = ""
 
