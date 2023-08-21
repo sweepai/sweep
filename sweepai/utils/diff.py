@@ -273,11 +273,13 @@ def sliding_window_replacement(
                 search[first_line_idx + 1 :],
                 replace[first_line_idx_replace + 1 :],
                 search_context_before,
+                **kwargs,
             )
             search = search[:first_line_idx]
             replace = replace[:first_line_idx_replace]
 
     exact_match = kwargs.get("exact_match", False)
+    ignore_comments = kwargs.get("ignore_comments", False)
     index, max_similarity, current_hits = match_string(
         original, search, exact_match=exact_match
     )
@@ -322,12 +324,17 @@ def sliding_window_replacement(
 
             if not exact_match:  # Backup 2: exact line matches
                 return sliding_window_replacement(
-                    original, search, replace, exact_match=True
+                    original,
+                    search,
+                    replace,
+                    exact_match=True,
+                    **{k: v for k, v in kwargs.items() if k != "exact_match"},
                 )
 
             print("WARNING: Multiple hits")
             return original, None, MULTIPLE_HITS
 
+    # Todo(lukejagg): Remove unreachable code
     if index == -1:
         # First, try matching beginning of search
         return original, None, NOT_FOUND
