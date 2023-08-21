@@ -1,3 +1,4 @@
+from sweepai.utils import chunker
 import modal
 from loguru import logger
 from sweepai import chunker
