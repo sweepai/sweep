@@ -218,27 +218,15 @@ def create_config_pr(
     branch_name = sweep_bot.create_branch(branch_name, retry=False)
     try:
         sweep_bot.repo.create_file(
-            "sweep.yaml",
-            "Create sweep.yaml config file",
-            GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
+            ".github/ISSUE_TEMPLATE/sweep-template.yml",
+            "Create sweep template",
+            SWEEP_TEMPLATE,
             branch=branch_name,
         )
         sweep_bot.repo.create_file(
-            ".github/ISSUE_TEMPLATE/sweep-bugfix.yml",
-            "Create bugfix template",
-            BUGFIX_TEMPLATE,
-            branch=branch_name,
-        )
-        sweep_bot.repo.create_file(
-            ".github/ISSUE_TEMPLATE/sweep-feature.yml",
-            "Create feature template",
-            FEATURE_TEMPLATE,
-            branch=branch_name,
-        )
-        sweep_bot.repo.create_file(
-            ".github/ISSUE_TEMPLATE/sweep-refactor.yml",
-            "Create refactor template",
-            REFACTOR_TEMPLATE,
+            ".github/ISSUE_TEMPLATE/sweep-slow-template.yml",
+            "Create sweep slow template",
+            SWEEP_SLOW_TEMPLATE,
             branch=branch_name,
         )
     except Exception as e:
@@ -258,7 +246,7 @@ def create_config_pr(
 
     pr = sweep_bot.repo.create_pull(
         title=title,
-        body="""🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your trusty AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
+        body="""🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
 
         ## What's new?
         - **Sweep is now configurable**.
@@ -347,4 +335,38 @@ body:
       label: Details
       description: More details for Sweep
       placeholder: The new endpoint should use the ... class from ... file because it contains ... logic
+"""
+
+SWEEP_TEMPLATE = """\
+name: Sweep Issue
+title: 'Sweep: '
+description: For small bugs, features, refactors, and tests to be handled by Sweep, an AI-powered junior developer.
+labels: sweep
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Details
+      description: Tell Sweep where and what to edit and provide enough context for a new developer to the codebase
+      placeholder: |
+        Bugs: The bug might be in ... file. Here are the logs: ...
+        Features: the new endpoint should use the ... class from ... file because it contains ... logic.
+        Refactors: We are migrating this function to ... version because ...
+"""
+
+SWEEP_SLOW_TEMPLATE = """\
+name: Sweep Slow Issue
+title: 'Sweep (slow): '
+description: For larger bugs, features, refactors, and tests to be handled by Sweep, an AI-powered junior developer. Sweep will perform a deeper search and more self-reviews but will take longer.
+labels: sweep
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Details
+      description: Tell Sweep where and what to edit and provide enough context for a new developer to the codebase
+      placeholder: |
+        Bugs: The bug might be in ... file. Here are the logs: ...
+        Features: the new endpoint should use the ... class from ... file because it contains ... logic.
+        Refactors: We are migrating this function to ... version because ...
 """
