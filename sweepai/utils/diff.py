@@ -287,15 +287,6 @@ def sliding_window_replacement(
         return original, None, IDENTICAL_LINES
 
     if current_hits > 1:
-        # If replace string is empty and multiple hits occur
-        if not replace:
-            exact_matches = [line for line in original if line in search]
-            # If there are no duplicates and all lines have a match
-            if len(set(exact_matches)) == len(search):
-                # Remove all of those corresponding lines in the content
-                original = [line for line in original if line not in search]
-                return original, None, None
-        # First, try matching beginning of search
         success = False
         if search_context_before:
             old_index, _, current_hits = match_string(
@@ -316,15 +307,25 @@ def sliding_window_replacement(
                 success = True
 
         if not success:
-            if not exact_match:
+            if not exact_match:  # Backup 1: exact line matches
                 return sliding_window_replacement(
                     original, search, replace, exact_match=True
                 )
+            elif (
+                not replace and not search_context_before
+            ):  # Backup 2: independent line matches
+                exact_matches = [line for line in original if line in search]
+                # If there are no duplicates and all lines have a match
+                if len(set(exact_matches)) == len(search):
+                    # Remove all of those corresponding lines in the content
+                    original = [line for line in original if line not in search]
+                    return original, None, None
 
             print("WARNING: Multiple hits")
             return original, None, MULTIPLE_HITS
 
     if index == -1:
+        # First, try matching beginning of search
         return original, None, NOT_FOUND
 
     # Todo(lukejagg): this doesn't seem to work, add later
