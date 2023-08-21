@@ -217,7 +217,7 @@ def get_deeplake_vs_from_repo(
     if REDIS_URL is not None:
         try:
             # todo: initialize once
-            retry = Retry(ExponentialBackoff(), 3)
+            retry = Retry(retries=2)
             cache_inst = Redis.from_url(
                 REDIS_URL,
                 retry=retry,
@@ -231,30 +231,30 @@ def get_deeplake_vs_from_repo(
     else:
         logger.warning(f"REDIS_URL is None, skipping cache")
 
-    if cache_inst and cache_success:
-        try:
-            github_cache_key = f"github-{commit_hash}{CACHE_VERSION}"
-            cache_hit = cache_inst.get(github_cache_key)
-            if cache_hit:
-                deeplake_items = json.loads(cache_hit)
-                logger.info(f"Cache hit for {repo_name}")
-            else:
-                deeplake_items = None
-                logger.info(f"Cache miss for {repo_name}")
+    # if cache_inst and cache_success:
+    #     try:
+    #         github_cache_key = f"github-{commit_hash}{CACHE_VERSION}"
+    #         cache_hit = cache_inst.get(github_cache_key)
+    #         if cache_hit:
+    #             deeplake_items = json.loads(cache_hit)
+    #             logger.info(f"Cache hit for {repo_name}")
+    #         else:
+    #             deeplake_items = None
+    #             logger.info(f"Cache miss for {repo_name}")
 
-            if deeplake_items:
-                deeplake_vs = init_deeplake_vs(repo_name)
-                deeplake_vs.add(
-                    text=deeplake_items["ids"],
-                    embedding=deeplake_items["embeddings"],
-                    metadata=deeplake_items["metadatas"],
-                )
-                logger.info(f"Returning deeplake vs for {repo_name}")
-                return deeplake_vs
-            else:
-                logger.info(f"Cache for {repo_name} is empty")
-        except:
-            logger.info(f"Failed to get cache for {repo_name}")
+    #         if deeplake_items:
+    #             deeplake_vs = init_deeplake_vs(repo_name)
+    #             deeplake_vs.add(
+    #                 text=deeplake_items["ids"],
+    #                 embedding=deeplake_items["embeddings"],
+    #                 metadata=deeplake_items["metadatas"],
+    #             )
+    #             logger.info(f"Returning deeplake vs for {repo_name}")
+    #             return deeplake_vs
+    #         else:
+    #             logger.info(f"Cache for {repo_name} is empty")
+    #     except:
+    #         logger.info(f"Failed to get cache for {repo_name}")
     logger.info(f"Downloading repository and indexing for {repo_name}...")
     start = time.time()
     logger.info("Recursively getting list of files...")
@@ -263,16 +263,19 @@ def get_deeplake_vs_from_repo(
     shutil.rmtree("repo", ignore_errors=True)
 
     branch_name = SweepConfig.get_branch(repo)
-
+    if os.path.exists("repo"):
+        shutil.rmtree("repo", ignore_errors=True)
     git_repo = Repo.clone_from(repo_url, "repo")
     git_repo.git.checkout(branch_name)
 
     snippets, file_list = repo_to_chunks(sweep_config)
+    logger.info(f"Chunking took {time.time() - start}")
     files_to_scores = {}
     score_factors = []
     for file_path in file_list:
         score_factor = compute_score(file_path, git_repo)
         score_factors.append(score_factor)
+    logger.info(f"Scoring took {time.time() - start}")
     # compute all scores
     all_scores = get_scores(score_factors)
     files_to_scores = {
@@ -305,8 +308,6 @@ def get_deeplake_vs_from_repo(
         metadatas.append(metadata)
         gh_file_path = snippet.file_path[len("repo/") :]
         ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")
-
-    shutil.rmtree("repo", ignore_errors=True)
     logger.info(f"Getting list of all files took {time.time() - start}")
     logger.info(f"Received {len(documents)} documents from repository {repo_name}")
     collection_name = parse_collection_name(repo_name)
