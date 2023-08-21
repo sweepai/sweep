@@ -684,7 +684,34 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
 
                     if lint_results:
+                        logs = "\n".join([l.line for l in lint_results])
+
                         # Todo: pass this file to review in sweep_bot
+                        # Get modifications needed
+                        fix_message = linting_modify_prompt.format(logs=logs)
+                        lint_response = self.chat(
+                            fix_message,
+                            message_key="linting",
+                        )
+                        self.delete_messages_from_chat("linting")
+
+                        # Apply modifications to previous message
+                        last_msg = self.messages[-1]
+                        # replace all text between <new_file> and </new_file> with lint_response
+                        last_msg.content = re.sub(
+                            r"<new_file>\n.*?\n?</new_file>",
+                            f"<new_file>\n{lint_response}\n</new_file>",
+                            last_msg.content,
+                            flags=re.DOTALL,
+                        )
+
+                        new_file, errors = generate_new_file_from_patch(
+                            lint_response,
+                            file_change.code,
+                            sweep_context=self.sweep_context,
+                        )
+
+                        file_change.code = lint_response
                         pass
 
                 except Exception as e:
@@ -802,12 +829,11 @@ class SweepBot(CodeGenBot, GithubBot):
                         )
                     )
 
+                    # Todo(lukejagg): Multiple iterations of linting?
                     # Run linter on file
                     lint_results = loop.run_until_complete(
                         asyncio.wait_for(
-                            sandbox.run_linter(
-                                file_change_request.filename, file_change.code
-                            ),
+                            sandbox.run_linter(file_name, new_file_contents),
                             timeout=30,
                         )
                     )
@@ -815,7 +841,12 @@ class SweepBot(CodeGenBot, GithubBot):
                     if lint_results:
                         # Todo: pass this file to review in sweep_bot
 
+                        logs = "\n".join([l.line for l in lint_results])
+
+                        # This prompt must be different from the one in handle_create_file
+                        # This one uses diffs, so maybe remove the previous messages temporarily and then add them back?
                         pass
+
                 except Exception as e:
                     # print e and print traceback
                     print(e)

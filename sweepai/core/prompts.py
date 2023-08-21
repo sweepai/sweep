@@ -816,14 +816,12 @@ Generate a diff based on the given plan using the search and replace pairs in th
 * Prefer many small edits over few large edits
 * Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
 
----
-
 The linter returned the following logs:
 <linter_logs>
 {logs}
 </linter_logs>
 
-Modify your created file.
+Modify your created file. Note if no changes are needed.
 
 ---
 
