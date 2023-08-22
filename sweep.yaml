@@ -17,5 +17,6 @@ docs: {"modal": "https://modal.com/docs/reference", "github": "https://pygithub.
 sandbox:
   enabled: true
   image: "Python3"
-  install: "python -m venv venv; . venv/bin/activate; pip install black"
+  install: "python -m venv venv; . venv/bin/activate; pip install black pylint"
   formatter: ". venv/bin/activate; black {files}"
+  linter: ". venv/bin/activate; pylint -E {files}"

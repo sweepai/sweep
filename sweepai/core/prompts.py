@@ -849,3 +849,47 @@ docs_qa_user_prompt = """Here are the relevant documentation snippets:
 The user is attempting to solve the following problem:
 {problem}
 """
+
+linting_new_file_prompt = """
+<new_file>
+{code}
+</new_file>
+"""
+
+linting_modify_prompt = """Code Planning:
+Step-by-step thoughts with explanations:
+* Thought 1
+* Thought 2
+...
+
+Detailed plan of modifications:
+* Modification 1
+* Modification 2
+...
+
+Code Generation:
+
+```
+Generate a diff based on the given plan using the search and replace pairs in the format below.
+* Always prefer the least amount of changes possible
+* Prefer many small edits over few large edits
+* Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
+
+The linter returned the following logs:
+<linter_logs>
+{logs}
+</linter_logs>
+
+Modify your created file. Note if no changes are needed.
+
+---
+
+The format is as follows:
+
+<<<< ORIGINAL
+====
+>>>> UPDATED
+
+Instructions:
+1. Complete the Code Planning step
+2. Complete the Code Generation step"""
