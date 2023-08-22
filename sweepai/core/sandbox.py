@@ -178,6 +178,10 @@ class Sandbox(BaseModel):
             return None
 
         try:
+            await self.session.filesystem.write(
+                "/home/user/repo/.eslintrc.js", LINT_CONFIG
+            )
+
             await self.write_repo_file(file_path, content)
             lines = await self.run_command(
                 self.linter_command.format(file=file_path, files=file_path)
