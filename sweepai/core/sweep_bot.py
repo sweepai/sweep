@@ -697,25 +697,23 @@ class SweepBot(CodeGenBot, GithubBot):
                         )
                         self.delete_messages_from_chat("linting")
 
-                        # Apply modifications to previous message
-                        last_msg = self.messages[-1]
-                        # replace all text between <new_file> and </new_file> with lint_response
-                        last_msg.content = re.sub(
-                            r"<new_file>\n.*?\n?</new_file>",
-                            f"<new_file>\n{lint_response}\n</new_file>",
-                            last_msg.content,
-                            flags=re.DOTALL,
-                        )
-
                         new_file, errors = generate_new_file_from_patch(
                             lint_response,
                             file_change.code,
                             sweep_context=self.sweep_context,
                         )
 
-                        file_change.code = lint_response
-                        pass
+                        # Apply modifications to previous message
+                        last_msg = self.messages[-1]
+                        # replace all text between <new_file> and </new_file> with lint_response
+                        last_msg.content = re.sub(
+                            r"<new_file>\n.*?\n?</new_file>",
+                            f"<new_file>\n{new_file}\n</new_file>",
+                            last_msg.content,
+                            flags=re.DOTALL,
+                        )
 
+                        file_change.code = new_file
                 except Exception as e:
                     # print e and print traceback
                     print(e)
@@ -847,8 +845,35 @@ class SweepBot(CodeGenBot, GithubBot):
 
                         # This prompt must be different from the one in handle_create_file
                         # This one uses diffs, so maybe remove the previous messages temporarily and then add them back?
-                        pass
 
+                        # Todo: pass this file to review in sweep_bot
+                        # Get modifications needed
+                        fix_code = linting_new_file_prompt.format(
+                            code=new_file_contents
+                        )
+                        fix_message = linting_modify_prompt.format(logs=logs)
+                        lint_response = self.chat(
+                            fix_code + fix_message,
+                            message_key="linting",
+                        )
+                        self.delete_messages_from_chat("linting")
+
+                        # Apply modifications to previous message
+                        last_msg = self.messages[-1]
+
+                        # Todo(lukejagg): add the linted diffs to the message
+                        # last_msg.content = re.sub(
+                        #     r"<new_file>\n.*?\n?</new_file>",
+                        #     f"<new_file>\n{lint_response}\n</new_file>",
+                        #     last_msg.content,
+                        #     flags=re.DOTALL,
+                        # )
+
+                        new_file_contents, errors = generate_new_file_from_patch(
+                            lint_response,
+                            new_file_contents,
+                            sweep_context=self.sweep_context,
+                        )
                 except Exception as e:
                     # print e and print traceback
                     print(e)
