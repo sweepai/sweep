@@ -1,6 +1,8 @@
 import modal
 
-stub = modal.Stub("sandbox")
+from sweepai.core.sandbox import Sandbox
+
+stub = modal.Stub("api")
 
 god_image = (
     modal.Image.debian_slim()
@@ -18,20 +20,19 @@ god_image = (
         "apt update",
         "apt install yarn",
     )
-    .run_commands("curl -fsSL https://get.pnpm.io/install.sh | sh -")
+    # .run_commands("curl -fsSL https://get.pnpm.io/install.sh | sh -")
     .pip_install("pre-commit")
 )
 
 
 def run_sandbox(
-    install_script: str = "yarn",
-    ci_script: str = "yarn lint && yarn tsc",
+    sandbox: Sandbox,
     timeout: int = 60,
 ):
     sb = stub.app.spawn_sandbox(
         "bash",
         "-c",
-        f"cd repo && {install_script} && {ci_script}",
+        f"cd repo && {sandbox.install_command} && {sandbox.linter_command}",
         image=god_image,
         mounts=[modal.Mount.from_local_dir("repo")],
         timeout=timeout,
@@ -40,6 +41,6 @@ def run_sandbox(
     sb.wait()
 
     if sb.returncode != 0:
-        raise Exception(sb.stderror.read())
+        raise Exception(sb.stdout.read() + "\n\n" + sb.stderr.read())
     else:
         return sb.stdout.read()
