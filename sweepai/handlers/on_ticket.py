@@ -1106,7 +1106,7 @@ async def on_ticket(
                 "I'm sorry, but it looks like an error has occurred. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev.",
                 -1,
             )
-        log_error("Workflow", str(e) + "\n" + traceback.format_exc(), priority=0)
+        log_error("Workflow", str(e) + "\n" + traceback.format_exc(), priority=1)
         posthog.capture(
             username,
             "failed",
