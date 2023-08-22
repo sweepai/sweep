@@ -384,7 +384,7 @@ def get_relevant_snippets(
     installation_id: int,
     username: str | None = None,
     sweep_config: SweepConfig = SweepConfig(),
-    lexical=False,
+    lexical=True,
 ):
     logger.info("Getting query embedding...")
     query_embedding = CPUEmbedding.compute.call(query)  # pylint: disable=no-member
