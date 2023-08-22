@@ -757,6 +757,10 @@ async def on_ticket(
         # CREATE PR METADATA
         logger.info("Generating PR...")
         pull_request = sweep_bot.generate_pull_request()
+        # Ensure that the pull_request.branch_name is not None or empty
+        assert (
+            pull_request.branch_name
+        ), "The pull request branch name is not set correctly."
         pull_request_content = pull_request.content.strip().replace("\n", "\n>")
         pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
         edit_sweep_comment(
@@ -979,6 +983,10 @@ async def on_ticket(
 
         is_draft = config.get("draft", False)
         try:
+            # Ensure that the pr_changes.pr_head (which is the pull_request.branch_name) is not None or empty
+            assert (
+                pr_changes.pr_head
+            ), "The pull request branch name is not retrieved correctly."
             pr = repo.create_pull(
                 title=pr_changes.title,
                 body=pr_changes.body,
