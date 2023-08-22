@@ -32,6 +32,7 @@ from sweepai.core.prompts import (
     code_repair_modify_prompt,
     snippet_replacement,
     chunking_prompt,
+    linting_modify_prompt,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
