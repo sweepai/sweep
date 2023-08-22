@@ -96,7 +96,7 @@ Unlike existing AI solutions, this can solve entire tickets and can be paralleli
 - Modal Labs for infra + deployment
 
 ## Highlights
-Examine pull requests created by Sweep [here](https://docs.sweep.dev/examples).
+Examine pull requests created by Sweep [here](https://docs.sweep.dev/about/examples).
 
 ## Pricing
 Every user receives unlimited GPT-3.5 tickets and 5 GPT-4 tickets per month. To prevent abuse, users can use 2 GPT-4 tickets a day.
