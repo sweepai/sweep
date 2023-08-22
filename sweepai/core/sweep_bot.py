@@ -37,6 +37,8 @@ from sweepai.core.prompts import (
     sandbox_code_repair_modify_prompt,
     snippet_replacement,
     chunking_prompt,
+    linting_new_file_prompt,
+    linting_modify_prompt,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
@@ -616,6 +618,13 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
                 match file_change_request.change_type:
                     case "create":
+                        # Add example for more consistent generation
+                        if not added_modify_hallucination:
+                            added_modify_hallucination = True
+                            # Add hallucinated example for better parsing
+                            for message in modify_file_hallucination_prompt:
+                                self.messages.append(Message(**message))
+
                         changed_file = self.handle_create_file(
                             file_change_request, branch, sandbox=sandbox
                         )
@@ -702,7 +711,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
             if sandbox is not None:
                 try:
-                    # Todo(lukejagg): Work with E2B to get this working in Modal stub
+                    # Format file
                     loop = asyncio.get_event_loop()
                     # run for up to 10 seconds
                     file_change.code = loop.run_until_complete(
@@ -713,6 +722,47 @@ class SweepBot(CodeGenBot, GithubBot):
                             timeout=30,
                         )
                     )
+
+                    # Run linter on file
+                    lint_results = loop.run_until_complete(
+                        asyncio.wait_for(
+                            sandbox.run_linter(
+                                file_change_request.filename, file_change.code
+                            ),
+                            timeout=30,
+                        )
+                    )
+
+                    if lint_results:
+                        logs = "\n".join([l.line for l in lint_results])
+                        print("E2B lint output", logs)
+
+                        # Todo: pass this file to review in sweep_bot
+                        # Get modifications needed
+                        fix_message = linting_modify_prompt.format(logs=logs)
+                        lint_response = self.chat(
+                            fix_message,
+                            message_key="linting",
+                        )
+                        self.delete_messages_from_chat("linting")
+
+                        new_file, errors = generate_new_file_from_patch(
+                            lint_response,
+                            file_change.code,
+                            sweep_context=self.sweep_context,
+                        )
+
+                        # Apply modifications to previous message
+                        last_msg = self.messages[-1]
+                        # replace all text between <new_file> and </new_file> with lint_response
+                        last_msg.content = re.sub(
+                            r"<new_file>\n.*?\n?</new_file>",
+                            f"<new_file>\n{new_file}\n</new_file>",
+                            last_msg.content,
+                            flags=re.DOTALL,
+                        )
+
+                        file_change.code = new_file
                 except Exception as e:
                     # print e and print traceback
                     print(e)
@@ -827,6 +877,53 @@ class SweepBot(CodeGenBot, GithubBot):
                             timeout=30,
                         )
                     )
+
+                    # Todo(lukejagg): Multiple iterations of linting?
+                    # Run linter on file
+                    lint_results = loop.run_until_complete(
+                        asyncio.wait_for(
+                            sandbox.run_linter(file_name, new_file_contents),
+                            timeout=30,
+                        )
+                    )
+
+                    if lint_results:
+                        # Todo: pass this file to review in sweep_bot
+
+                        logs = "\n".join([l.line for l in lint_results])
+                        print("E2B lint output", logs)
+
+                        # This prompt must be different from the one in handle_create_file
+                        # This one uses diffs, so maybe remove the previous messages temporarily and then add them back?
+
+                        # Todo: pass this file to review in sweep_bot
+                        # Get modifications needed
+                        fix_code = linting_new_file_prompt.format(
+                            code=new_file_contents
+                        )
+                        fix_message = linting_modify_prompt.format(logs=logs)
+                        lint_response = self.chat(
+                            fix_code + fix_message,
+                            message_key="linting",
+                        )
+                        self.delete_messages_from_chat("linting")
+
+                        # Apply modifications to previous message
+                        last_msg = self.messages[-1]
+
+                        # Todo(lukejagg): add the linted diffs to the message
+                        # last_msg.content = re.sub(
+                        #     r"<new_file>\n.*?\n?</new_file>",
+                        #     f"<new_file>\n{lint_response}\n</new_file>",
+                        #     last_msg.content,
+                        #     flags=re.DOTALL,
+                        # )
+
+                        new_file_contents, errors = generate_new_file_from_patch(
+                            lint_response,
+                            new_file_contents,
+                            sweep_context=self.sweep_context,
+                        )
                 except Exception as e:
                     # print e and print traceback
                     print(e)
