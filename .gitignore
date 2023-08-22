@@ -169,3 +169,4 @@ scraped_docs
 .parcel-cache
 node_modules
 tests/js_tests
+test_repos
