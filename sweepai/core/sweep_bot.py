@@ -687,6 +687,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
                     if lint_results:
                         logs = "\n".join([l.line for l in lint_results])
+                        print("E2B lint output", logs)
 
                         # Todo: pass this file to review in sweep_bot
                         # Get modifications needed
@@ -842,6 +843,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         # Todo: pass this file to review in sweep_bot
 
                         logs = "\n".join([l.line for l in lint_results])
+                        print("E2B lint output", logs)
 
                         # This prompt must be different from the one in handle_create_file
                         # This one uses diffs, so maybe remove the previous messages temporarily and then add them back?
