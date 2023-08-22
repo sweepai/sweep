@@ -206,7 +206,6 @@ async def on_ticket(
             "edited": edited,
         }
     )
-    sweep_context = SweepContext(issue_url=issue_url)
 
     is_paying_user = chat_logger.is_paying_user()
     is_trial_user = chat_logger.is_trial_user()
@@ -214,6 +213,8 @@ async def on_ticket(
 
     if fast_mode:
         use_faster_model = True
+
+    sweep_context = SweepContext(issue_url=issue_url, use_faster_model=use_faster_model)
 
     if not comment_id and not edited:
         chat_logger.add_successful_ticket(
