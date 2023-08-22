@@ -47,7 +47,6 @@ from sweepai.config.client import (
 from sweepai.config.server import (
     ENV,
     DB_MODAL_INST_NAME,
-    UTILS_MODAL_INST_NAME,
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
@@ -500,20 +499,8 @@ async def on_ticket(
         raise error
 
     # Clone repo and perform local tests (linters, formatters, GHA)
-    sandbox = None
-    try:
-        pass
-        # Todo(lukejagg): Enable this once we have formatter working
-        # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc) (done?)
-        # Todo(lukejagg): Max time limit for sandbox
-        logger.info("Initializing sandbox...")
-        sandbox = Sandbox.from_token(username, user_token, repo)
-        await asyncio.wait_for(sandbox.start(), timeout=60)
-    except Exception as e:
-        logger.error(traceback.format_exc())
-        logger.error(e)
-        sandbox = None
-        # Todo(lukejagg): log state of sandbox to discord?
+    logger.info("Initializing sandbox...")
+    sandbox = Sandbox.from_token(repo)
 
     logger.info("Fetching relevant files...")
     try:
@@ -894,35 +881,35 @@ async def on_ticket(
             pass
 
         # Clone repo and perform local tests (linters, formatters, GHA)
-        try:
-            lint_sandbox = Sandbox.from_token(username, user_token, repo)
-            if lint_sandbox is None:
-                raise Exception("Sandbox is disabled")
+        # try:
+        #     lint_sandbox = Sandbox.from_token(repo)
+        #     if lint_sandbox is None:
+        #         raise Exception("Sandbox is disabled")
 
-            files = [
-                f.filename
-                for f in file_change_requests
-                if (f.filename.endswith(".js") or f.filename.endswith(".ts"))
-                and (f.change_type == "create" or f.change_type == "modify")
-                and f.new_content is not None
-            ]
-            lint_output = await lint_sandbox.formatter_workflow(
-                branch=pull_request.branch_name, files=files
-            )
+        #     files = [
+        #         f.filename
+        #         for f in file_change_requests
+        #         if (f.filename.endswith(".js") or f.filename.endswith(".ts"))
+        #         and (f.change_type == "create" or f.change_type == "modify")
+        #         and f.new_content is not None
+        #     ]
+        #     lint_output = await lint_sandbox.formatter_workflow(
+        #         branch=pull_request.branch_name, files=files
+        #     )
 
-            # Todo(lukejagg): Is this necessary?
-            # # Set file content:
-            # for f in file_change_requests:
-            #     print("E2B DEBUG", f.filename, f.new_content)
-            #     if f.new_content is not None:
-            #         await lint_sandbox.session.filesystem.write(
-            #             f"/home/user/repo/{f.filename}", f.new_content
-            #         )
-            #         print(f"Wrote {f.filename}")
+        #     # Todo(lukejagg): Is this necessary?
+        #     # # Set file content:
+        #     # for f in file_change_requests:
+        #     #     print("E2B DEBUG", f.filename, f.new_content)
+        #     #     if f.new_content is not None:
+        #     #         await lint_sandbox.session.filesystem.write(
+        #     #             f"/home/user/repo/{f.filename}", f.new_content
+        #     #         )
+        #     #         print(f"Wrote {f.filename}")
 
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        # except Exception as e:
+        #     logger.error(traceback.format_exc())
+        #     logger.error(e)
 
         for i in range(1 if not slow_mode else 3):
             try:
@@ -1016,13 +1003,13 @@ async def on_ticket(
             logger.error(e)
 
         # Close sandbox
-        try:
-            if sandbox is not None:
-                await asyncio.wait_for(sandbox.close(), timeout=10)
-                logger.info("Closed e2b sandbox")
-        except Exception as e:
-            logger.error(e)
-            logger.info("Failed to close e2b sandbox")
+        # try:
+        #     if sandbox is not None:
+        #         await asyncio.wait_for(sandbox.close(), timeout=10)
+        #         logger.info("Closed e2b sandbox")
+        # except Exception as e:
+        #     logger.error(e)
+        #     logger.info("Failed to close e2b sandbox")
 
         # Completed code review
         edit_sweep_comment(
