@@ -216,7 +216,8 @@ GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926
 
 UPDATES_MESSAGE = """\
 🎉 Latest improvements to Sweep:
-* Sweep Map breaks a large issue into sub-issues by prefixing with "Sweep (map):", perfect for large tasks like "Sweep (map): migrate from React class components to function components"
+
+* Use Sweep Map to break large issues into smaller sub-issues, perfect for large tasks like "Sweep (map): migrate from React class components to function components"
 * Getting Sweep to format before committing! Check out [Sweep Sandbox Configs](https://docs.sweep.dev/config#sandbox) to set it up.
 * We released a [demo of our chunker](https://huggingface.co/spaces/sweepai/chunker), where you can find the corresponding blog and code.
 """
