@@ -288,6 +288,7 @@ def get_deeplake_vs_from_repo(
             commit_hash,
         ),
         index,
+        len(documents),
     )
 
 
@@ -388,19 +389,17 @@ def get_relevant_snippets(
     logger.info("Getting query embedding...")
     query_embedding = CPUEmbedding.compute.call(query)  # pylint: disable=no-member
     logger.info("Starting search by getting vector store...")
-    deeplake_vs, lexical_index = get_deeplake_vs_from_repo(
+    deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
     )
-    lexical_results = search_index(query, lexical_index)
-    logger.info(f"Top files: {lexical_results}")
+    content_to_lexical_score = search_index(query, lexical_index)
+    logger.info(f"content_to_lexical_score: {content_to_lexical_score}")
     logger.info("Searching for relevant snippets...")
     results = {"metadata": [], "text": []}
-    for n_result in range(n_results, 0, -1):
-        try:
-            results = deeplake_vs.search(embedding=query_embedding, k=n_result)
-            break
-        except Exception:
-            pass
+    try:
+        results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
+    except Exception:
+        pass
     logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
         if username is None:
@@ -419,11 +418,25 @@ def get_relevant_snippets(
         return []
     metadatas = results["metadata"]
     code_scores = [metadata["score"] for metadata in metadatas]
+    lexical_scores = []
+    for metadata in metadatas:
+        if metadata["file_path"] in content_to_lexical_score:
+            lexical_scores.append(content_to_lexical_score[metadata["file_path"]])
+        else:
+            lexical_scores.append(0.75)
     vector_scores = results["score"]
-    combined_scores = [
-        code_score + vector_score
-        for code_score, vector_score in zip(code_scores, vector_scores)
-    ]
+    if lexical:
+        combined_scores = [
+            code_score + vector_score * lexical_score
+            for code_score, vector_score, lexical_score in zip(
+                code_scores, vector_scores, lexical_scores
+            )
+        ]
+    else:
+        combined_scores = [
+            code_score + vector_score
+            for code_score, vector_score in zip(code_scores, vector_scores)
+        ]
     # Sort by combined scores
     # Combine the three lists into a single list of tuples
     combined_list = list(zip(combined_scores, metadatas))
@@ -433,17 +446,6 @@ def get_relevant_snippets(
 
     # Extract the sorted metadatas and relevant_paths
     sorted_metadatas = [metadata for _, metadata in sorted_list]
-    # intersection of lexical and vector results should be first
-    if lexical:
-        sorted_metadatas = [
-            metadata
-            for metadata in sorted_metadatas
-            if metadata["file_path"] in lexical_results
-        ] + [
-            metadata
-            for metadata in sorted_metadatas
-            if metadata["file_path"] not in lexical_results
-        ]
     relevant_paths = [metadata["file_path"] for metadata in sorted_metadatas]
     logger.info("Relevant paths: {}".format(relevant_paths))
     return [
@@ -454,4 +456,4 @@ def get_relevant_snippets(
             file_path=file_path,
         )
         for metadata, file_path in zip(sorted_metadatas, relevant_paths)
-    ]
+    ][: min(num_docs, 25)]
