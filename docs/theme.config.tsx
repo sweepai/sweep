@@ -1,6 +1,5 @@
 import React from 'react'
 import { DocsThemeConfig } from 'nextra-theme-docs'
-import { FaStar } from 'react-icons/fa'
 
 const config: DocsThemeConfig = {
   logo: <img width={120} src="https://docs.sweep.dev/banner.png" style={{borderRadius: 5}}/>,
