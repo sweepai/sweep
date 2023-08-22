@@ -12,7 +12,10 @@ get_relevant_snippets = modal.Function.lookup(
 dev = 36855882
 staging = 40419656
 
-test_query = "make multiple passes of self review using chat_logger"
+test_query = """Sweep: Fix Uncaught SyntaxError: Unexpected token '&' (at examples:14:21). https://github.com/sweepai/sweep/blob/d9d53a78b4fab18b89e4003268cf6ba50da4f068/docs/theme.config.tsx#L15
+
+Fix Uncaught SyntaxError: Unexpected token '&' (at examples:14:21)
+In docs/theme.config.tsx"""
 lexical = get_relevant_snippets.call(
     repo_name="sweepai/sweep",
     query=test_query,
@@ -32,8 +35,8 @@ vector = get_relevant_snippets.call(
 
 # format vector and lexical titles one by one
 print("Lexical Results:")
-for result in lexical:
+for result in lexical[:5]:
     print(result)
 print("Vector Results:")
-for result in vector:
+for result in vector[:5]:
     print(result)
