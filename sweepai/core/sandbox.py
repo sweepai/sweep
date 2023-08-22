@@ -179,7 +179,9 @@ class Sandbox(BaseModel):
 
         try:
             await self.write_repo_file(file_path, content)
-            lines = await self.run_command(self.linter_command)
+            lines = await self.run_command(
+                self.linter_command.format(file=file_path, files=file_path)
+            )
 
             # Determine if the linter result contains error
 
