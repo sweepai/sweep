@@ -797,6 +797,12 @@ The user is attempting to solve the following problem:
 {problem}
 """
 
+linting_new_file_prompt = """
+<new_file>
+{code}
+</new_file>
+"""
+
 linting_modify_prompt = """Code Planning:
 Step-by-step thoughts with explanations:
 * Thought 1
