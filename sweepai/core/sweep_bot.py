@@ -1,4 +1,6 @@
 import asyncio
+import os
+import shutil
 import traceback
 import re
 
@@ -8,6 +10,7 @@ from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
+from git import Repo
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.edit_chunk import EditBot
@@ -22,6 +25,7 @@ from sweepai.core.entities import (
     Message,
     MaxTokensExceeded,
 )
+from sweepai.core.modal_sandbox import run_sandbox
 from sweepai.core.prompts import (
     files_to_change_prompt,
     subissues_prompt,
@@ -30,6 +34,7 @@ from sweepai.core.prompts import (
     modify_file_hallucination_prompt,
     modify_file_prompt_3,
     code_repair_modify_prompt,
+    sandbox_code_repair_modify_prompt,
     snippet_replacement,
     chunking_prompt,
 )
@@ -40,6 +45,7 @@ from sweepai.utils.diff import (
     generate_new_file_from_patch,
     is_markdown,
 )
+from sweepai.utils.github_utils import get_github_client
 
 USING_DIFF = True
 
@@ -239,13 +245,8 @@ class GithubBot(BaseModel):
             return False
 
     def clean_branch_name(self, branch: str) -> str:
-        # Replace invalid characters with underscores
         branch = re.sub(r"[^a-zA-Z0-9_\-/]", "_", branch)
-
-        # Remove consecutive underscores
         branch = re.sub(r"_+", "_", branch)
-
-        # Remove leading or trailing underscores
         branch = branch.strip("_")
 
         return branch
@@ -416,6 +417,48 @@ class SweepBot(CodeGenBot, GithubBot):
             self.delete_messages_from_chat(key)
         raise Exception("Failed to parse response after 5 attempts.")
 
+    def sandbox_code_repair_modify(
+        self,
+        proposed_file: str,
+        filename: str,
+        chunk_offset: int = 0,
+    ):
+        # logger.info("Validating file modification...")
+        # repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
+        # shutil.rmtree("repo", ignore_errors=True)
+
+        # if os.path.exists("repo"):
+        #     shutil.rmtree("repo", ignore_errors=True)
+        # Repo.clone_from(repo_url, "repo")
+
+        with open(f"repo/{filename}", "w") as f:
+            f.write(proposed_file)
+
+        try:
+            run_sandbox()
+            return proposed_file
+        except:
+            logger.warning("Failed to run sandbox. Retrying...")
+            new_diffs = self.sweep_bot.chat(
+                sandbox_code_repair_modify_prompt.format(
+                    filename=filename, code=proposed_file, error_logs=""
+                ),
+                message_key=filename + "-validation",
+            )
+
+            final_file, errors = generate_new_file_from_patch(
+                new_diffs,
+                proposed_file,
+                chunk_offset=chunk_offset,
+                sweep_context=self.sweep_bot.sweep_context,
+            )
+
+            file_markdown = is_markdown(filename)
+            final_file = format_contents(final_file, file_markdown)
+            logger.info("Done fixing based on file change request")
+
+            return final_file
+
     def modify_file(
         self,
         file_change_request: ProposedIssue,
@@ -478,7 +521,13 @@ class SweepBot(CodeGenBot, GithubBot):
                     commit_message = f"Updated {file_change_request.filename}"
                 commit_message = commit_message[: min(len(commit_message), 50)]
 
-                # self.delete_messages_from_chat(key)
+                self.delete_messages_from_chat(key)
+
+                final_file = self.sandbox_code_repair_modify(
+                    new_file,
+                    file_change_request.filename,
+                    chunk_offset=chunk_offset,
+                )
 
                 # proposed_diffs = get_all_diffs(modify_file_response)
                 # proposed_diffs = (
@@ -487,7 +536,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 #     else ""
                 # )
 
-                # validation step
                 # logger.info("Validating file change request...")
                 # new_diffs = self.chat(
                 #     code_repair_modify_prompt.format(
@@ -508,8 +556,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 # final_file = format_contents(final_file, file_markdown)
                 # logger.info("Done validating file change request")
 
-                # return final_file, commit_message
-                return new_file, commit_message
+                return final_file, commit_message
+                # return new_file, commit_message
             except Exception as e:
                 tb = traceback.format_exc()
                 logger.warning(
