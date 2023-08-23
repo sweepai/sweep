@@ -563,18 +563,19 @@ Instructions:
 sandbox_code_repair_modify_prompt = """
 File Name: {filename}
 
-<suggested_new_file>
+<file>
 {code}
-</suggested_new_file>
-
-The code has been linted and returned the following logs:
-{stderr}
-
-Determine whether changes are necessary based on the error.
+</file>
 
 ---
 
 Above is the code that was written by an inexperienced programmer, followed by error logs from the CI pipeline.
+
+The code has been linted and returned the following logs:
+{stderr}
+
+
+Determine whether changes are necessary based on the errors (ignore warnings).
 
 Instructions:
 1. Complete the Code Planning step
