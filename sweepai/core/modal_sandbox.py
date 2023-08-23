@@ -41,7 +41,7 @@ def run_sandbox(
     sb = stub.app.spawn_sandbox(
         "bash",
         "-c",
-        f"cd repo &>/dev/null && {sandbox.install_command} &>/dev/null || true && {sandbox.linter_command}",
+        f"(cd repo &>/dev/null && {sandbox.install_command} &>/dev/null) && {sandbox.linter_command}",
         image=god_image,
         mounts=[modal.Mount.from_local_dir("repo")],
         timeout=timeout,
