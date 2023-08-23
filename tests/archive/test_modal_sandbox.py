@@ -1,9 +1,11 @@
+import json
 import os
 import subprocess
 from typing import Literal
 import modal
 from pydantic import BaseModel
 
+from dataclasses import dataclass
 from sweepai.core.sandbox import Sandbox
 
 stub = modal.Stub("api")
@@ -29,9 +31,9 @@ god_image = (
 )
 
 
-class InstallSetup(BaseModel):
-    name: str
-    lang: Literal["py"] | Literal["js"]
+@dataclass
+class InstallSetup:
+    lang: str
     install_script: str
     required_files: list[str]
     _name: str | None = None
@@ -45,10 +47,17 @@ class InstallSetup(BaseModel):
             [required_file in file_list for required_file in self.required_files]
         )
 
-
-class JSInstallSetup(InstallSetup):
-    def get_ci_script(repo: str):
-        return []
+    def get_lint_scripts(self, repo: str = "./repo"):
+        scripts = []
+        if self.lang == "js":
+            tsconfig_path = os.path.join(repo, "tsconfig.json")
+            if os.path.exists(tsconfig_path):
+                scripts.append("tsc")
+            package_json = json.load(open(os.path.join(repo, "package.json")))
+            if "lint" in package_json.get("scripts", []):
+                scripts.append("lint")
+            scripts = [f"{self.name} run {script}" for script in scripts]
+        return scripts
 
 
 INSTALL_SETUPS = [
@@ -84,27 +93,27 @@ def detect_install_setup(root="repo"):
     return None
 
 
-print(detect_install_setup("test_repos/landing-page"))
+install_setup = detect_install_setup("test_repos/landing-page")
+print(install_setup.get_lint_scripts("./test_repos/landing-page"))
+exit()
 
 
 @stub.local_entrypoint()
 def run_sandbox(
     timeout: int = 90,
 ):
-    sandbox: Sandbox = Sandbox(
-        install_command="yarn install --ignore-engines",
-        formatter_command="yarn run prettier --write",
-        linter_command="yarn lint && yarn run tsc",
-    )
+    # sandbox: Sandbox = Sandbox(
+    #     install_command="yarn install --ignore-engines",
+    #     formatter_command="yarn run prettier --write",
+    #     linter_command="yarn lint && yarn run tsc",
+    # )
     sb = stub.app.spawn_sandbox(
         "bash",
         "-c",
-        f"cd landing-page && yarn run tsc",
+        f"cd landing-page && yarn run lint && yarn run tsc",
         image=god_image.copy_local_file(
             "test_repos/landing-page/package.json", "./landing-page/package.json"
-        ).run_commands(
-            "ls landing-page && cd landing-page && yarn install --ignore-engines"
-        ),
+        ).run_commands("cd landing-page && yarn install --ignore-engines"),
         mounts=[modal.Mount.from_local_dir("test_repos/landing-page")],
         timeout=timeout,
     )
