@@ -50,6 +50,8 @@ def run_sandbox(
     sb.wait()
     print("RETURN CODE: " + str(sb.returncode))
 
+    print("STDOUT:", sb.stdout.read())
+    print("STDERR:", sb.stderr.read())
     if sb.returncode != 0:
         raise SandboxError(sb.stdout.read(), sb.stderr.read())
     else:
