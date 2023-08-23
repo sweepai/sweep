@@ -380,6 +380,7 @@ class MockPR(BaseModel):
     pr_head: str
     base: Any
     head: Any
+    assignee: Any = None
 
     id: int = -1
     state: str = "open"
