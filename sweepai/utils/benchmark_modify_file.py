@@ -9,9 +9,9 @@ def benchmark_modify_file(file_path):
     # Record the start time
     start_time = time.time()
 
-    # Call the modify_file function
+    # Call the process_file function
     sweep_bot = SweepBot()
-    sweep_bot.modify_file(file_contents)
+    sweep_bot.process_file(file_contents)
 
     # Record the end time
     end_time = time.time()
@@ -21,5 +21,5 @@ def benchmark_modify_file(file_path):
     print(f"The modify_file function took {execution_time} seconds to execute.")
 
 if __name__ == "__main__":
-    benchmark_modify_file("path_to_file")
+    benchmark_modify_file("sweepai/core/sweep_bot.py")
 
