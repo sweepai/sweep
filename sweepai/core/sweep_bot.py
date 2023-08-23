@@ -146,7 +146,7 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    def get_files_to_change(self, retries=1):
+    def get_files_to_change(self, retries=1) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
@@ -326,7 +326,7 @@ class GithubBot(BaseModel):
         return {"success": False}
 
     def validate_file_change_requests(
-        self, file_change_requests: list[ProposedIssue], branch: str = ""
+        self, file_change_requests: list[FileChangeRequest], branch: str = ""
     ):
         blocked_dirs = get_blocked_dirs(self.repo)
         for file_change_request in file_change_requests:
