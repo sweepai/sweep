@@ -317,8 +317,13 @@ async def on_ticket(
         else ""
     )
     user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
+    gpt_tickets_left_message = (
+        f"{ticket_count} GPT-4 tickets left for the month"
+        if not is_paying_user
+        else "unlimited GPT-4 tickets"
+    )
     payment_message = (
-        f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count if not is_paying_user else 'unlimited'} GPT-4 tickets left for the month{daily_message}."
+        f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}."
         + (
             f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})"
             if not is_paying_user
@@ -327,7 +332,7 @@ async def on_ticket(
     )
     slow_mode_status = " using slow mode" if slow_mode else " "
     payment_message_start = (
-        f"{user_type}: I'm creating this ticket using {model_name}{slow_mode_status}. You have {ticket_count if not is_paying_user else 'unlimited'} GPT-4 tickets left{daily_message}."
+        f"{user_type}: I'm creating this ticket using {model_name}{slow_mode_status}. You have {gpt_tickets_left_message}{daily_message}."
         + (
             f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})"
             if not is_paying_user
