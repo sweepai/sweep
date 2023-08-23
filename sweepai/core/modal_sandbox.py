@@ -51,6 +51,8 @@ def run_sandbox(
     print("RETURN CODE: " + str(sb.returncode))
 
     if sb.returncode != 0:
-        raise SandboxError(sb.stdout.read(), sb.stderr.read())
+        # raise SandboxError(sb.stdout.read(), sb.stderr.read())
+        # Instead of raising exception, return the error (from linting)
+        return sb.stderr.read()
     else:
         return sb.stdout.read()
