@@ -21,7 +21,7 @@ god_image = (
         "apt install yarn",
     )
     # .run_commands("curl -fsSL https://get.pnpm.io/install.sh | sh -")
-    .pip_install("pre-commit")
+    .pip_install(["pre-commit", "pylint", "black"])
 )
 
 
