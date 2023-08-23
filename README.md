@@ -39,7 +39,7 @@ Describe bugs, small features, and refactors like you would to a junior develope
 
 ### Why Choose Sweep?
 
-We're not a toy project or a proof-of-concept. We're a **production devtool** used by startups including ourselves to ship features everyday, with example features [here](https://docs.sweep.dev/examples).
+We're not a toy project or a proof-of-concept. We're a **production devtool** used by startups including ourselves to ship features everyday, with example features [here](https://docs.sweep.dev/about/examples).
 Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the **entire flow end-to-end**. Unlike ChatGPT, Sweep is able to automatically understand and search through your code base, removing the need to tediously copy-and-paste files.
 
 <details>
@@ -96,7 +96,7 @@ Unlike existing AI solutions, this can solve entire tickets and can be paralleli
 - Modal Labs for infra + deployment
 
 ## Highlights
-Examine pull requests created by Sweep [here](https://docs.sweep.dev/examples).
+Examine pull requests created by Sweep [here](https://docs.sweep.dev/about/examples).
 
 ## Pricing
 Every user receives unlimited GPT-3.5 tickets and 5 GPT-4 tickets per month. To prevent abuse, users can use 2 GPT-4 tickets a day.
