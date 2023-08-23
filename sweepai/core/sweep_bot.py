@@ -278,7 +278,7 @@ class GithubBot(BaseModel):
                 f"{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}"
             )
             if retry:
-                for i in range(1, 16):
+                for i in range(1, 31):
                     try:
                         logger.warning(f"Retrying {branch}_{i}...")
                         self.repo.create_git_ref(
@@ -428,10 +428,13 @@ class SweepBot(CodeGenBot, GithubBot):
         chunk_offset: int = 0,
         sandbox: Sandbox = None,
     ) -> tuple[str, str | None]:
-        sandbox_error = None
         current_file = proposed_file
+        final_sandbox_error = None
 
-        for i in range(3):
+        print("self.chat_logger")
+        print(self.chat_Logger)
+
+        for i in range(5):
             logger.info(f"Checking with sandbox for the {i + 1}th time")
             try:
                 logger.info(current_file)
@@ -443,19 +446,32 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.warning("Sandbox linter failed.")
                 logger.error(sandbox_error)
 
+                final_sandbox_error = sandbox_error
+
                 print(
                     "Fixing linting errors...\n",
                     sandbox_error.stdout + "\n\n" + sandbox_error.stderr,
                 )
+                cleaned_stdout = "\n".join(
+                    line
+                    for line in sandbox_error.stdout.split("\n")
+                    if not line.startswith("[warn]")
+                )
+                cleaned_stderr = "\n".join(
+                    line
+                    for line in sandbox_error.stderr.split("\n")
+                    if not line.startswith("[warn]")
+                )
                 code_repairer = ChatGPT.from_system_message_string(
-                    code_repair_modify_prompt
+                    code_repair_modify_prompt,
+                    chat_logger=self.chat_logger,
                 )
                 new_diffs = code_repairer.chat(
                     sandbox_code_repair_modify_prompt.format(
                         filename=filename,
                         code=current_file,
-                        stdout=sandbox_error.stdout,  # Doesn't contain linting errors
-                        stderr=sandbox_error.stderr,
+                        stdout=cleaned_stdout,  # Doesn't contain linting errors
+                        stderr=cleaned_stderr,
                     ),
                     message_key=filename + "-validation",
                 )
@@ -473,7 +489,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.info("Updated file based on logs")
                 current_file = final_file
 
-        return current_file, sandbox_error
+        return current_file, final_sandbox_error
 
     def modify_file(
         self,

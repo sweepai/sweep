@@ -303,15 +303,10 @@ async def webhook(raw_request: Request):
                     logger.info("New issue edited")
                     key = (request.repository.full_name, request.issue.number)
                     logger.info(f"Checking if {key} is in {stub.issue_lock}")
-                    try:
-                        process = (
-                            stub.issue_lock[key] if key in stub.issue_lock else None
-                        )
-                        if process:
-                            logger.info("Cancelling process")
-                            process.cancel()
-                    except:
-                        pass
+                    process = stub.issue_lock[key] if key in stub.issue_lock else None
+                    if process:
+                        logger.info("Cancelling process")
+                        process.cancel()
                     stub.issue_lock[
                         (request.repository.full_name, request.issue.number)
                     ] = handle_ticket.spawn(

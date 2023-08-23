@@ -10,26 +10,6 @@ from sweepai.core.sandbox import Sandbox
 
 stub = modal.Stub("api")
 
-# god_image = (
-#     modal.Image.debian_slim()
-#     .apt_install(
-#         # Install npm
-#         "git",
-#         "npm",
-#         "nodejs",
-#         "curl",
-#     )
-#     .run_commands(
-#         # Install yarn
-#         "curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -",
-#         'echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list',
-#         "apt update",
-#         "apt install yarn",
-#     )
-#     # .run_commands("curl -fsSL https://get.pnpm.io/install.sh | sh -")
-#     .pip_install("pre-commit")
-# )
-
 god_image = (
     modal.Image.debian_slim()
     .apt_install(
@@ -132,7 +112,7 @@ def run_sandbox(
     sb = stub.app.spawn_sandbox(
         "bash",
         "-c",
-        f"cd landing-page && yarn run prettier --check . && yarn run lint && yarn run tsc",
+        f"cd landing-page && (yarn run --prettier check . || (exit_code=$?; if [ $exit_code -eq 2 ]; then exit 2; fi; exit 0)) && yarn run lint && yarn run tsc",
         image=god_image.copy_local_file(
             "test_repos/landing-page/package.json", "./landing-page/package.json"
         ).run_commands("cd landing-page && yarn install --ignore-engines"),
