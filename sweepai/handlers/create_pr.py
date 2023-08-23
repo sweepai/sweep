@@ -1,9 +1,17 @@
+from typing import Generator
+
 import modal
 import openai
 from github.Repository import Repository
 from loguru import logger
 
-from sweepai.core.entities import ProposedIssue, PullRequest, MockPR, MaxTokensExceeded
+from sweepai.core.entities import (
+    ProposedIssue,
+    PullRequest,
+    MockPR,
+    MaxTokensExceeded,
+    FileChangeRequest,
+)
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import SweepConfig, get_blocked_dirs, UPDATES_MESSAGE
 from sweepai.config.server import (
@@ -33,7 +41,7 @@ INSTRUCTIONS_FOR_REVIEW = """\
 
 
 def create_pr_changes(
-    file_change_requests: list[ProposedIssue],
+    file_change_requests: list[FileChangeRequest],
     pull_request: PullRequest,
     sweep_bot: SweepBot,
     username: str,
@@ -41,7 +49,7 @@ def create_pr_changes(
     issue_number: int | None = None,
     sandbox=None,
     chat_logger: ChatLogger = None,
-):
+) -> Generator[tuple[FileChangeRequest, int], None, dict]:
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
