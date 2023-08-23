@@ -380,6 +380,7 @@ class MockPR(BaseModel):
     pr_head: str
     base: Any
     head: Any
+    assignee: Any = None
 
     id: int = -1
     state: str = "open"
@@ -392,9 +393,10 @@ class MockPR(BaseModel):
 
 class SweepContext(BaseModel):
     issue_url: str
+    use_faster_model: bool
 
     def __str__(self):
-        return self.issue_url
+        return f"{self.issue_url}, {self.use_faster_model}"
 
 
 class MaxTokensExceeded(Exception):
