@@ -52,7 +52,9 @@ def run_sandbox(
 
     print("STDOUT:", sb.stdout.read())
     print("STDERR:", sb.stderr.read())
-    if sb.returncode != 0:
-        raise SandboxError(sb.stdout.read(), sb.stderr.read())
+
+    err = sb.stderr.read()
+    if sb.returncode != 0 and err:  # If no error message, don't raise
+        raise SandboxError(sb.stdout.read(), err)
     else:
         return sb.stdout.read()
