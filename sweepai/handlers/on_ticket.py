@@ -183,8 +183,8 @@ async def on_ticket(
     summary = summary or ""
     summary = re.sub(
         "<details>\n<summary>Checklist</summary>.*", "", summary, flags=re.DOTALL
-    )
-    summary = re.sub("Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL)
+    ).strip()
+    summary = re.sub("Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL).strip()
 
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
@@ -546,7 +546,7 @@ async def on_ticket(
         repo_name=repo_name,
         issue_url=issue_url,
         username=username,
-        repo_description=repo_description,
+        repo_description=repo_description.strip(),
         title=title,
         summary=message_summary,
         snippets=snippets,

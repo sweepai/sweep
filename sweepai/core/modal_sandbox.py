@@ -9,11 +9,14 @@ stub = modal.Stub("api")
 god_image = (
     modal.Image.debian_slim()
     .apt_install(
-        # Install npm
+        # Basics
         "git",
-        "npm",
-        "nodejs",
         "curl",
+    )
+    .run_commands(
+        # Install Node & npm
+        "curl -fsSL https://deb.nodesource.com/setup_18.x | -E bash -",
+        "apt install nodejs",
     )
     .run_commands(
         # Install yarn
@@ -41,8 +44,11 @@ def run_sandbox(
     sb = stub.app.spawn_sandbox(
         "bash",
         "-c",
-        f"cd repo && {sandbox.install_command} &>/dev/null && {sandbox.linter_command}",
-        image=god_image,
+        f"cd repo && {sandbox.linter_command}",
+        # image=god_image,
+        image=god_image.copy_local_file(
+            "repo/package.json", "repo/package.json"
+        ).run_commands(f"cd repo && {sandbox.install_command}"),
         mounts=[modal.Mount.from_local_dir("repo")],
         timeout=timeout,
     )

@@ -10,14 +10,37 @@ from sweepai.core.sandbox import Sandbox
 
 stub = modal.Stub("api")
 
+# god_image = (
+#     modal.Image.debian_slim()
+#     .apt_install(
+#         # Install npm
+#         "git",
+#         "npm",
+#         "nodejs",
+#         "curl",
+#     )
+#     .run_commands(
+#         # Install yarn
+#         "curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -",
+#         'echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list',
+#         "apt update",
+#         "apt install yarn",
+#     )
+#     # .run_commands("curl -fsSL https://get.pnpm.io/install.sh | sh -")
+#     .pip_install("pre-commit")
+# )
+
 god_image = (
     modal.Image.debian_slim()
     .apt_install(
-        # Install npm
+        # Basics
         "git",
-        "npm",
-        "nodejs",
         "curl",
+    )
+    .run_commands(
+        # Install Node & npm
+        "curl -fsSL https://deb.nodesource.com/setup_18.x | bash -",
+        "apt install nodejs",
     )
     .run_commands(
         # Install yarn
@@ -27,7 +50,7 @@ god_image = (
         "apt install yarn",
     )
     # .run_commands("curl -fsSL https://get.pnpm.io/install.sh | sh -")
-    .pip_install("pre-commit")
+    .pip_install(["pre-commit", "pylint", "black"])
 )
 
 
@@ -95,7 +118,6 @@ def detect_install_setup(root="repo"):
 
 install_setup = detect_install_setup("test_repos/landing-page")
 print(install_setup.get_lint_scripts("./test_repos/landing-page"))
-exit()
 
 
 @stub.local_entrypoint()
@@ -110,7 +132,7 @@ def run_sandbox(
     sb = stub.app.spawn_sandbox(
         "bash",
         "-c",
-        f"cd landing-page && yarn run lint && yarn run tsc",
+        f"cd landing-page && yarn run prettier --check . && yarn run lint && yarn run tsc",
         image=god_image.copy_local_file(
             "test_repos/landing-page/package.json", "./landing-page/package.json"
         ).run_commands("cd landing-page && yarn install --ignore-engines"),
@@ -120,7 +142,6 @@ def run_sandbox(
 
     sb.wait()
     print(sb.returncode)
-    return
 
     if sb.returncode != 0:
         # raise Exception(sb.stdout.read() + "\n\n" + sb.stderr.read())
