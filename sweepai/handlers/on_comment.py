@@ -8,7 +8,7 @@ from tabulate import tabulate
 from github.Repository import Repository
 
 from sweepai.config.client import get_blocked_dirs
-from sweepai.core.entities import ProposedIssue, NoFilesException, Snippet, MockPR
+from sweepai.core.entities import NoFilesException, Snippet, MockPR, FileChangeRequest
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
@@ -274,7 +274,7 @@ def on_comment(
         logger.info("Fetching files to modify/create...")
         if file_comment:
             file_change_requests = [
-                ProposedIssue(
+                FileChangeRequest(
                     filename=pr_file_path,
                     instructions=f"{comment}\n\nCommented on this line: {pr_line}",
                     change_type="modify",
@@ -339,7 +339,7 @@ def on_comment(
                     for filename, instructions in matches:
                         instructions_mapping[filename] = instructions
                     file_change_requests = [
-                        ProposedIssue(
+                        FileChangeRequest(
                             filename=file_path,
                             instructions=instructions_mapping[file_path],
                             change_type="modify",
@@ -349,7 +349,7 @@ def on_comment(
                 else:
                     quoted_pr_summary = "> " + pr.body.replace("\n", "\n> ")
                     file_change_requests = [
-                        ProposedIssue(
+                        FileChangeRequest(
                             filename=file_path,
                             instructions=f"Modify the file {file_path} based on the PR summary:\n\n{quoted_pr_summary}",
                             change_type="modify",
