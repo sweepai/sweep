@@ -427,14 +427,6 @@ class SweepBot(CodeGenBot, GithubBot):
         chunk_offset: int = 0,
         sandbox: Sandbox = None,
     ) -> tuple[str, str]:
-        # logger.info("Validating file modification...")
-        # repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
-        # shutil.rmtree("repo", ignore_errors=True)
-
-        # if os.path.exists("repo"):
-        #     shutil.rmtree("repo", ignore_errors=True)
-        # Repo.clone_from(repo_url, "repo")
-
         sandbox_error = None
         current_file = proposed_file
 
