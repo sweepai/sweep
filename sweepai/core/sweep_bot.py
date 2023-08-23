@@ -25,7 +25,7 @@ from sweepai.core.entities import (
     Message,
     MaxTokensExceeded,
 )
-from sweepai.core.modal_sandbox import run_sandbox
+from sweepai.core.modal_sandbox import SandboxError, run_sandbox
 from sweepai.core.prompts import (
     files_to_change_prompt,
     subissues_prompt,
@@ -426,7 +426,7 @@ class SweepBot(CodeGenBot, GithubBot):
         filename: str,
         chunk_offset: int = 0,
         sandbox: Sandbox = None,
-    ):
+    ) -> tuple[str, str]:
         # logger.info("Validating file modification...")
         # repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
         # shutil.rmtree("repo", ignore_errors=True)
@@ -435,32 +435,44 @@ class SweepBot(CodeGenBot, GithubBot):
         #     shutil.rmtree("repo", ignore_errors=True)
         # Repo.clone_from(repo_url, "repo")
 
-        try:
-            run_sandbox(sandbox)
-            return proposed_file
-        except Exception as e:
-            logger.warning("Failed to run sandbox. Retrying...")
-            logger.error(e)
+        sandbox_error = None
+        current_file = proposed_file
 
-            new_diffs = self.chat(
-                sandbox_code_repair_modify_prompt.format(
-                    filename=filename, code=proposed_file, error_logs=e.args[0]
-                ),
-                message_key=filename + "-validation",
-            )
+        for i in range(3):
+            logger.info(f"Checking with sandbox for the {i + 1}th time")
+            try:
+                logger.info(current_file)
+                run_sandbox(sandbox)
+                logger.info("Successful sandbox run.")
+                return current_file, None
+            except SandboxError as sandbox_error:
+                logger.warning("Failed to run sandbox. Retrying...")
+                logger.error(sandbox_error)
 
-            final_file, errors = generate_new_file_from_patch(
-                new_diffs,
-                proposed_file,
-                chunk_offset=chunk_offset,
-                sweep_context=self.sweep_context,
-            )
+                new_diffs = self.chat(
+                    sandbox_code_repair_modify_prompt.format(
+                        filename=filename,
+                        code=current_file,
+                        stdout=sandbox_error.stdout,
+                        stderr=sandbox_error.stderr,
+                    ),
+                    message_key=filename + "-validation",
+                )
+                self.delete_messages_from_chat(filename + "validation")
 
-            file_markdown = is_markdown(filename)
-            final_file = format_contents(final_file, file_markdown)
-            logger.info("Done fixing based on file change request")
+                final_file, _errors = generate_new_file_from_patch(
+                    new_diffs,
+                    current_file,
+                    chunk_offset=chunk_offset,
+                    sweep_context=self.sweep_context,
+                )
 
-            return final_file
+                file_markdown = is_markdown(filename)
+                final_file = format_contents(final_file, file_markdown)
+                logger.info("Updated file based on logs")
+                current_file = final_file
+
+        return current_file, sandbox_error
 
     def modify_file(
         self,
@@ -527,10 +539,11 @@ class SweepBot(CodeGenBot, GithubBot):
 
                 self.delete_messages_from_chat(key)
 
+                sandbox_error = None
                 if not chunk_offset:
                     with open(f"repo/{file_change_request.filename}", "w") as f:
                         f.write(new_file)
-                    final_file = self.sandbox_code_repair_modify(
+                    final_file, sandbox_error = self.sandbox_code_repair_modify(
                         new_file,
                         file_change_request.filename,
                         chunk_offset=chunk_offset,
@@ -566,7 +579,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 # final_file = format_contents(final_file, file_markdown)
                 # logger.info("Done validating file change request")
 
-                return final_file, commit_message
+                return final_file, commit_message, sandbox_error
                 # return new_file, commit_message
             except Exception as e:
                 tb = traceback.format_exc()
@@ -607,6 +620,7 @@ class SweepBot(CodeGenBot, GithubBot):
         logger.debug(file_change_requests)
         num_fcr = len(file_change_requests)
         completed = 0
+        sandbox_error = None
 
         added_modify_hallucination = False
 
@@ -633,7 +647,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             for message in modify_file_hallucination_prompt:
                                 self.messages.append(Message(**message))
 
-                        changed_file = self.handle_create_file(
+                        changed_file, sandbox_error = self.handle_create_file(
                             file_change_request, branch, sandbox=sandbox
                         )
                     case "modify":
@@ -660,7 +674,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 flags=re.DOTALL,
                             )
 
-                        changed_file = self.handle_modify_file(
+                        changed_file, sandbox_error = self.handle_modify_file(
                             file_change_request, branch, sandbox=sandbox
                         )
                     case "delete":
@@ -696,7 +710,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             f"Unknown change type {file_change_request.change_type}"
                         )
                 print(f"Done processing {file_change_request.filename}.")
-                yield file_change_request, changed_file
+                yield file_change_request, changed_file, sandbox_error
             except MaxTokensExceeded as e:
                 raise e
             except Exception as e:
@@ -708,7 +722,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def handle_create_file(
         self, file_change_request: ProposedIssue, branch: str, sandbox=None
-    ):
+    ) -> tuple[bool, None]:
         try:
             file_change = self.create_file(file_change_request)
             file_markdown = is_markdown(file_change_request.filename)
@@ -787,10 +801,10 @@ class SweepBot(CodeGenBot, GithubBot):
 
             file_change_request.new_content = file_change.code
 
-            return True
+            return True, None
         except Exception as e:
             logger.info(f"Error in handle_create_file: {e}")
-            return False
+            return False, None
 
     def handle_modify_file(
         self,
@@ -798,8 +812,9 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str,
         commit_message: str = None,
         sandbox=None,
-    ):
+    ) -> tuple[str, SandboxError]:
         CHUNK_SIZE = 800  # Number of lines to process at a time
+        sandbox_error = None
         try:
             file = self.get_file(file_change_request.filename, branch=branch)
             file_contents = file.decoded_content.decode("utf-8")
@@ -821,7 +836,11 @@ class SweepBot(CodeGenBot, GithubBot):
                     )  # Only chunk if the file is large enough
                     file_name = file_change_request.filename
                     if not chunking:
-                        new_file_contents, suggested_commit_message = self.modify_file(
+                        (
+                            new_file_contents,
+                            suggested_commit_message,
+                            sandbox_error,
+                        ) = self.modify_file(
                             file_change_request,
                             contents="\n".join(lines),
                             branch=branch,
@@ -846,7 +865,11 @@ class SweepBot(CodeGenBot, GithubBot):
                             ):
                                 new_chunk = chunk_contents
                             else:
-                                new_chunk, suggested_commit_message = self.modify_file(
+                                (
+                                    new_chunk,
+                                    suggested_commit_message,
+                                    sandbox_error,
+                                ) = self.modify_file(
                                     file_change_request,
                                     contents=chunk_contents,
                                     branch=branch,
@@ -871,7 +894,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.warning(
                     f"No changes made to {file_change_request.filename}. Skipping file update."
                 )
-                return False
+                return False, sandbox_error
             logger.debug(
                 f"{file_name}, {commit_message}, {new_file_contents}, {branch}"
             )
@@ -952,7 +975,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     branch=branch,
                 )
                 file_change_request.new_content = new_file_contents
-                return True
+                return True, sandbox_error
             except Exception as e:
                 logger.info(f"Error in updating file, repulling and trying again {e}")
                 file = self.get_file(file_change_request.filename, branch=branch)
@@ -965,10 +988,10 @@ class SweepBot(CodeGenBot, GithubBot):
                     branch=branch,
                 )
                 file_change_request.new_content = new_file_contents
-                return True
+                return True, sandbox_error
         except MaxTokensExceeded as e:
             raise e
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
-            return False
+            return False, sandbox_error

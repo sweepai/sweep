@@ -87,6 +87,7 @@ def create_pr_changes(
         for (
             file_change_request,
             changed_file,
+            sandbox_error,
         ) in sweep_bot.change_files_in_github_iterator(
             file_change_requests,
             pull_request.branch_name,
@@ -95,7 +96,7 @@ def create_pr_changes(
         ):
             completed_count += changed_file
             logger.info("Completed {}/{} files".format(completed_count, fcr_count))
-            yield file_change_request, changed_file
+            yield file_change_request, changed_file, sandbox_error
         if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")
             posthog.capture(
