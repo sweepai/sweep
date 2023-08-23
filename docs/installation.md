@@ -49,6 +49,10 @@ Learn to use Sweep better by installing the extension:
   <img src="https://storage.googleapis.com/web-dev-uploads/image/WlD8wC6g8khYWPJUsQceQkhXSlv1/iNEddTyWiMfLSwFD6qGq.png" width="200px" />
 </a>
 
+### Advanced Sweep Tricks and Feedback Tips
+[![Video](http://img.youtube.com/vi/Qn9vB71R4UM/0.jpg)](http://www.youtube.com/watch?v=Qn9vB71R4UM "Advanced Sweep Tricks and Feedback Tips")
+
+This video provides advanced tips and tricks for using Sweep and controlling feedback.
 
 ## Limitations of Sweep (for now) ⚠️
 
