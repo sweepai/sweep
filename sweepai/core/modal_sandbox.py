@@ -15,7 +15,7 @@ god_image = (
     )
     .run_commands(
         # Install Node & npm
-        "curl -fsSL https://deb.nodesource.com/setup_18.x | -E bash -",
+        "curl -fsSL https://deb.nodesource.com/setup_18.x | bash -",
         "apt install nodejs",
     )
     .run_commands(
@@ -38,7 +38,7 @@ class SandboxError(Exception):
 
 def run_sandbox(
     sandbox: Sandbox,
-    timeout: int = 120,
+    timeout: int = 600,
 ):
     print(sandbox.linter_command)
     sb = stub.app.spawn_sandbox(
