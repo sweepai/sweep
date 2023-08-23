@@ -441,7 +441,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.warning("Sandbox linter failed.")
                 logger.error(sandbox_error)
 
-                print("Fixing linting errors...")
+                print("Fixing linting errors...\n", sandbox_error.stderr)
                 new_diffs = self.chat(
                     sandbox_code_repair_modify_prompt.format(
                         filename=filename,
