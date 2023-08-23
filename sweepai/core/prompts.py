@@ -572,6 +572,8 @@ File Name: {filename}
 Above is the code that was written by an inexperienced programmer, followed by error logs from the CI pipeline.
 
 The code has been linted and returned the following logs:
+{stdout}
+
 {stderr}
 
 
