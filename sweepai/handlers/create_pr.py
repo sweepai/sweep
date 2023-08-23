@@ -2,7 +2,7 @@ from typing import Generator
 
 import modal
 import openai
-from github import Repository
+from github.Repository import Repository
 from loguru import logger
 
 from sweepai.core.entities import (
