@@ -1,12 +1,9 @@
-import asyncio
-import traceback
-
-from e2b import Session
 from loguru import logger
 from pydantic import BaseModel
 from typing import Type, TypeVar, Any
 
 from sweepai.config.client import get_sandbox_config, SweepConfig
+
 
 Self = TypeVar("Self", bound="Sandbox")
 
