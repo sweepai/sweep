@@ -567,9 +567,10 @@ File Name: {filename}
 {code}
 </suggested_new_file>
 
-<stderr>
+The code has been linted and returned the following logs:
 {stderr}
-</stderr>
+
+Determine whether changes are necessary based on the error.
 
 ---
 
