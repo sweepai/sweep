@@ -563,50 +563,21 @@ Instructions:
 sandbox_code_repair_modify_prompt = """
 File Name: {filename}
 
-Suggested New File:
-
 <suggested_new_file>
 {code}
 </suggested_new_file>
 
-Error logs:
+<stdout>
+{stdout}
+</stdout>
 
-<error_logs>
-{error_logs}
-</error_logs>
+<stderr>
+{stderr}
+</stderr>
 
 ---
 
 Above is the code that was written by an inexperienced programmer, followed by error logs from the CI pipeline.
-
-## Code Planning:
-Step-by-step thoughts with explanations:
-* Thought 1
-* Thought 2
-...
-
-Detailed plan of modifications:
-* Modification 1
-* Modification 2
-...
-
-## Code Generation:
-Generate a diff based on the given plan using the search and replace pairs in the format below.
-* Always prefer the least amount of changes possible
-* Prefer many small edits over few large edits
-* Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
-
-```
-<<<< ORIGINAL
-line_before
-old_code
-line_after
-====
-line_before
-new_code
-line_after
->>>> UPDATED
-```
 
 Instructions:
 1. Complete the Code Planning step

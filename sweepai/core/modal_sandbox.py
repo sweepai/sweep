@@ -1,4 +1,6 @@
+from dataclasses import dataclass
 import modal
+from pydantic import BaseModel
 
 from sweepai.core.sandbox import Sandbox
 
@@ -25,22 +27,30 @@ god_image = (
 )
 
 
+@dataclass
+class SandboxError(Exception):
+    stdout: str
+    stderr: str
+
+
 def run_sandbox(
     sandbox: Sandbox,
-    timeout: int = 60,
+    timeout: int = 90,
 ):
+    print(sandbox.linter_command)
     sb = stub.app.spawn_sandbox(
         "bash",
         "-c",
-        f"cd repo && {sandbox.install_command} && {sandbox.linter_command}",
+        f"cd repo; {sandbox.install_command}; {sandbox.linter_command}",
         image=god_image,
         mounts=[modal.Mount.from_local_dir("repo")],
         timeout=timeout,
     )
 
     sb.wait()
+    print("RETURN CODE: " + sb.returncode)
 
     if sb.returncode != 0:
-        raise Exception(sb.stdout.read() + "\n\n" + sb.stderr.read())
+        raise SandboxError(sb.stdout.read(), sb.stderr.read())
     else:
         return sb.stdout.read()

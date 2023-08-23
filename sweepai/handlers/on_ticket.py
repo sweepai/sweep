@@ -143,8 +143,13 @@ def strip_sweep(text: str):
         re.search(r"^[Ss]weep\s?\([Ss]low\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Mm]ap\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Ss]ubissues?\)", text) is not None,
+        re.search(r"^[Ss]weep\s?\([Ss]andbox?\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Ff]ast\)", text) is not None,
     )
+
+
+def test_mode(issue):
+    sandbox_logs = ""
 
 
 async def on_ticket(
@@ -164,6 +169,7 @@ async def on_ticket(
         slow_mode,
         do_map,
         subissues_mode,
+        sandbox_mode,
         fast_mode,
     ) = strip_sweep(title)
 
@@ -758,6 +764,7 @@ async def on_ticket(
                 file_change_request.filename,
                 file_change_request.instructions_display,
                 "⏳ In Progress",
+                "``` ```",
             )
             for file_change_request in file_change_requests
         ]
@@ -795,10 +802,15 @@ async def on_ticket(
         )
         table_message = tabulate(
             [
-                (f"`{filename}`", instructions.replace("\n", "<br/>"), progress)
-                for filename, instructions, progress in files_progress
+                (
+                    f"`{filename}`",
+                    instructions.replace("\n", "<br/>"),
+                    progress,
+                    error_logs,
+                )
+                for filename, instructions, progress, error_logs in files_progress
             ],
-            headers=["File", "Instructions", "Progress"],
+            headers=["File", "Instructions", "Progress", "Error logs"],
             tablefmt="pipe",
         )
         logger.info(files_progress)
@@ -808,7 +820,7 @@ async def on_ticket(
             if isinstance(item, dict):
                 response = item
                 break
-            file_change_request, changed_file = item
+            file_change_request, changed_file, sandbox_error = item
             if changed_file:
                 commit_hash = repo.get_branch(pull_request.branch_name).commit.sha
                 commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
@@ -817,10 +829,19 @@ async def on_ticket(
                         file,
                         instructions,
                         f"✅ Commit [`{commit_hash[:7]}`]({commit_url})",
+                        (
+                            "```"
+                            + sandbox_error.stdout
+                            + "\n\n"
+                            + sandbox_error.stderr
+                            + "```"
+                        )
+                        if sandbox_error
+                        else "No errors.",
                     )
                     if file_change_request.filename == file
-                    else (file, instructions, progress)
-                    for file, instructions, progress in files_progress
+                    else (file, instructions, progress, error_log)
+                    for file, instructions, progress, error_log in files_progress
                 ]
 
                 checkboxes_progress = [
@@ -846,19 +867,24 @@ async def on_ticket(
                 issue.edit(body=summary + "\n\n" + checkboxes_message)
             else:
                 files_progress = [
-                    (file, instructions, "❌ Failed")
+                    (file, instructions, "❌ Failed", error_log)
                     if file_change_request.filename == file
-                    else (file, instructions, progress)
-                    for file, instructions, progress in files_progress
+                    else (file, instructions, progress, error_log)
+                    for file, instructions, progress, error_log in files_progress
                 ]
             logger.info(files_progress)
             logger.info(f"Edited {file_change_request.filename}")
             table_message = tabulate(
                 [
-                    (f"`{filename}`", instructions.replace("\n", "<br/>"), progress)
-                    for filename, instructions, progress in files_progress
+                    (
+                        f"`{filename}`",
+                        instructions.replace("\n", "<br/>"),
+                        progress,
+                        error_log,
+                    )
+                    for filename, instructions, progress, error_log in files_progress
                 ],
-                headers=["File", "Instructions", "Progress"],
+                headers=["File", "Instructions", "Progress", "Error logs"],
                 tablefmt="pipe",
             )
             edit_sweep_comment(table_message, 4)

@@ -1,62 +1,8 @@
-# import subprocess
-# import modal
-
-# stub = modal.Stub()
-
-# god_image = (
-#     modal.Image.debian_slim()
-#     .apt_install(
-#         # Install npm
-#         "git",
-#         "npm",
-#         "nodejs",
-#         "curl",
-#     )
-#     .run_commands(
-#         # Install yarn
-#         "curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -",
-#         'echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list',
-#         "apt update",
-#         "apt install yarn",
-#     )
-#     .pip_install("pre-commit", "pytest")
-# )
-
-
-# @stub.local_entrypoint()
-# def main():
-#     repo_name = "sweep"
-#     subprocess.run(
-#         [
-#             "git",
-#             "clone",
-#             f"https://github.com/sweepai/{repo_name}",
-#             f"./test_repos/{repo_name}",
-#         ]
-#     )
-#     # install_script = "yarn"
-#     # ci_script = "yarn lint && yarn run tsc"
-#     install_script = "pre-commit install"
-#     ci_script = "pre-commit run --all-files"
-#     sb = stub.app.spawn_sandbox(
-#         "bash",
-#         "-c",
-#         f"cd {repo_name} && {install_script} && {ci_script}",
-#         image=god_image,
-#         mounts=[modal.Mount.from_local_dir(f"./test_repos/{repo_name}")],
-#         timeout=10,
-#     )
-
-#     sb.wait()
-
-#     print(sb.stdout.read())
-#     if sb.returncode != 0:
-#         print(f"Tests failed with code {sb.returncode}")
-#         print(sb.stderr.read())
-#     else:
-#         print("Tests passed!")
-
+import os
+import subprocess
+from typing import Literal
 import modal
+from pydantic import BaseModel
 
 from sweepai.core.sandbox import Sandbox
 
@@ -83,6 +29,64 @@ god_image = (
 )
 
 
+class InstallSetup(BaseModel):
+    name: str
+    lang: Literal["py"] | Literal["js"]
+    install_script: str
+    required_files: list[str]
+    _name: str | None = None
+
+    @property
+    def name(self):
+        return self._name or self.install_script.split()[0]
+
+    def is_used_in(self, file_list: list[str]):
+        return all(
+            [required_file in file_list for required_file in self.required_files]
+        )
+
+
+class JSInstallSetup(InstallSetup):
+    def get_ci_script(repo: str):
+        return []
+
+
+INSTALL_SETUPS = [
+    InstallSetup(
+        lang="py",
+        install_script="pip install -r requirements.txt",
+        required_files=["requirements.txt"],
+    ),
+    InstallSetup(
+        lang="py", install_script="poetry install", required_files=["pyproject.toml"]
+    ),
+    InstallSetup(
+        lang="js",
+        install_script="npm install",
+        required_files=["package.json", "package-lock.json"],
+    ),
+    InstallSetup(
+        lang="js", install_script="yarn", required_files=["package.json", "yarn.lock"]
+    ),
+    InstallSetup(
+        lang="js",
+        install_script="pnpm install",
+        required_files=["package.json", "pnpm-lock.yaml"],
+    ),
+]
+
+
+def detect_install_setup(root="repo"):
+    files_in_root = os.listdir(root)
+    for install_setup in INSTALL_SETUPS:
+        if install_setup.is_used_in(files_in_root):
+            return install_setup
+    return None
+
+
+print(detect_install_setup("test_repos/landing-page"))
+
+
 @stub.local_entrypoint()
 def run_sandbox(
     timeout: int = 90,
@@ -95,15 +99,24 @@ def run_sandbox(
     sb = stub.app.spawn_sandbox(
         "bash",
         "-c",
-        f"cd landing-page && {sandbox.install_command} && {sandbox.linter_command}",
-        image=god_image,
+        f"cd landing-page && yarn run tsc",
+        image=god_image.copy_local_file(
+            "test_repos/landing-page/package.json", "./landing-page/package.json"
+        ).run_commands(
+            "ls landing-page && cd landing-page && yarn install --ignore-engines"
+        ),
         mounts=[modal.Mount.from_local_dir("test_repos/landing-page")],
         timeout=timeout,
     )
 
     sb.wait()
+    print(sb.returncode)
+    return
 
     if sb.returncode != 0:
-        raise Exception(sb.stdout.read() + "\n\n" + sb.stderr.read())
+        # raise Exception(sb.stdout.read() + "\n\n" + sb.stderr.read())
+        # print(sb.stdout.read())
+        print(sb.stderr.read())
+        print("Error!")
     else:
         return sb.stdout.read()

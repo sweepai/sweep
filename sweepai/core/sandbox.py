@@ -64,6 +64,7 @@ LINT_CONFIG = """module.exports = {
 
 
 class Sandbox(BaseModel):
+    # Make these multi-command
     install_command: str = None
     format_command: str = None
     linter_command: str = None
