@@ -1,6 +1,7 @@
 import asyncio
 import traceback
 import re
+from typing import Generator
 
 import modal
 from github.ContentFile import ContentFile
@@ -358,7 +359,7 @@ class GithubBot(BaseModel):
 
 
 class SweepBot(CodeGenBot, GithubBot):
-    def create_file(self, file_change_request: ProposedIssue) -> FileCreation:
+    def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
         file_change: FileCreation | None = None
         key = f"file_change_created_{file_change_request.filename}"
         create_file_response = self.chat(
@@ -420,7 +421,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def modify_file(
         self,
-        file_change_request: ProposedIssue,
+        file_change_request: FileChangeRequest,
         contents: str = "",
         contents_line_numbers: str = "",
         branch=None,
@@ -523,7 +524,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def change_files_in_github(
         self,
-        file_change_requests: list[ProposedIssue],
+        file_change_requests: list[FileChangeRequest],
         branch: str,
         blocked_dirs: list[str] = [],
         sandbox=None,
@@ -542,11 +543,11 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def change_files_in_github_iterator(
         self,
-        file_change_requests: list[ProposedIssue],
+        file_change_requests: list[FileChangeRequest],
         branch: str,
         blocked_dirs: list[str],
         sandbox=None,
-    ):
+    ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
         num_fcr = len(file_change_requests)
@@ -651,7 +652,7 @@ class SweepBot(CodeGenBot, GithubBot):
         return completed, num_fcr
 
     def handle_create_file(
-        self, file_change_request: ProposedIssue, branch: str, sandbox=None
+        self, file_change_request: FileChangeRequest, branch: str, sandbox=None
     ):
         try:
             file_change = self.create_file(file_change_request)
@@ -738,7 +739,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def handle_modify_file(
         self,
-        file_change_request: ProposedIssue,
+        file_change_request: FileChangeRequest,
         branch: str,
         commit_message: str = None,
         sandbox=None,
