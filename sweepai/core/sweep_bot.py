@@ -32,7 +32,7 @@ from sweepai.core.prompts import (
     pull_request_prompt,
     create_file_prompt,
     modify_file_hallucination_prompt,
-    modify_file_prompt_3,
+    modify_file_prompt_4,
     code_repair_modify_prompt,
     sandbox_code_repair_modify_prompt,
     snippet_replacement,
@@ -434,15 +434,22 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.info(f"Checking with sandbox for the {i + 1}th time")
             try:
                 logger.info(current_file)
-                run_sandbox(sandbox)
+                if sandbox:
+                    run_sandbox(sandbox)
                 logger.info("Sandbox linter success.")
                 return current_file, None
             except SandboxError as sandbox_error:
                 logger.warning("Sandbox linter failed.")
                 logger.error(sandbox_error)
 
-                print("Fixing linting errors...\n", sandbox_error.stderr)
-                new_diffs = self.chat(
+                print(
+                    "Fixing linting errors...\n",
+                    sandbox_error.stdout + "\n\n" + sandbox_error.stderr,
+                )
+                code_repairer = ChatGPT.from_system_message_string(
+                    code_repair_modify_prompt
+                )
+                new_diffs = code_repairer.chat(
                     sandbox_code_repair_modify_prompt.format(
                         filename=filename,
                         code=current_file,
@@ -451,7 +458,6 @@ class SweepBot(CodeGenBot, GithubBot):
                     ),
                     message_key=filename + "-validation",
                 )
-                self.delete_messages_from_chat(filename + "validation")
                 print("Tried to fix them\n", new_diffs)
 
                 final_file, _errors = generate_new_file_from_patch(
@@ -483,7 +489,7 @@ class SweepBot(CodeGenBot, GithubBot):
             key = f"file_change_modified_{file_change_request.filename}"
             file_markdown = is_markdown(file_change_request.filename)
             # TODO(sweep): edge case at empty file
-            message = modify_file_prompt_3.format(
+            message = modify_file_prompt_4.format(
                 filename=file_change_request.filename,
                 instructions=file_change_request.instructions,
                 code=contents_line_numbers,
@@ -635,22 +641,22 @@ class SweepBot(CodeGenBot, GithubBot):
                 match file_change_request.change_type:
                     case "create":
                         # Add example for more consistent generation
-                        if not added_modify_hallucination:
-                            added_modify_hallucination = True
-                            # Add hallucinated example for better parsing
-                            for message in modify_file_hallucination_prompt:
-                                self.messages.append(Message(**message))
+                        # if not added_modify_hallucination:
+                        #     added_modify_hallucination = True
+                        #     # Add hallucinated example for better parsing
+                        #     for message in modify_file_hallucination_prompt:
+                        #         self.messages.append(Message(**message))
 
                         changed_file, sandbox_error = self.handle_create_file(
                             file_change_request, branch, sandbox=sandbox
                         )
                     case "modify":
                         # Add example for more consistent generation
-                        if not added_modify_hallucination:
-                            added_modify_hallucination = True
-                            # Add hallucinated example for better parsing
-                            for message in modify_file_hallucination_prompt:
-                                self.messages.append(Message(**message))
+                        # if not added_modify_hallucination:
+                        #     added_modify_hallucination = True
+                        #     # Add hallucinated example for better parsing
+                        #     for message in modify_file_hallucination_prompt:
+                        #         self.messages.append(Message(**message))
 
                         # Remove snippets from this file if they exist
                         snippet_msgs = [

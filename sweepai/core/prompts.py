@@ -5,7 +5,7 @@ List of common prompts used across the codebase.
 # Following two should be fused
 system_message_prompt = "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right."
 
-repo_description_prefix_prompt = " This is a description of the repository:"
+repo_description_prefix_prompt = "\n\nThis is a description of the repository:"
 
 human_message_prompt = [
     {"role": "assistant", "content": "Examining repo..."},
@@ -423,8 +423,9 @@ Code Generation:
 
 ```
 Generate a diff based on the given plan using the search and replace pairs in the format below.
-* Always prefer the least amount of changes possible
-* Prefer many small edits over few large edits
+* Always prefer the least amount of changes possible, but ensure the solution is complete
+* Prefer multiple small changes over a single large change.
+* NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
 * Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
 
 The format is as follows:
@@ -499,7 +500,7 @@ Commit message: "Changed goodbye to hello and 3 to 4"\
 ]
 
 # TODO: IMPORTANT: THIS DEPENDS ON THE ABOVE PROMPT, modify_file_hallucination_prompt
-modify_file_prompt_3 = """
+modify_file_prompt_3 = """\
 File Name: {filename}
 <old_file>
 {code}
@@ -507,14 +508,93 @@ File Name: {filename}
 
 ---
 
-Request: "{instructions}". Limit your changes to the request.
+Request:
+{instructions}
+
+Limit your changes to the request.
 
 Instructions:
 1. Complete the Code Planning step
 2. Complete the Code Generation step
 """
 
-code_repair_modify_prompt = """
+modify_file_prompt_4 = """\
+File Name: {filename}
+
+<file>
+{code}
+</file>
+
+---
+
+User's Request:
+{instructions}
+
+Limit your changes to the request. Respond in the following format:
+
+Code Planning:
+
+Step-by-step thoughts with explanations:
+* Thought 1
+* Thought 2
+...
+
+Detailed plan of modifications:
+* Modification 1
+* Modification 2
+...
+
+Code Modification:
+
+```
+Generate a diff based on the given plan using the search and replace pairs in the format below.
+* Always prefer the least amount of changes possible, but ensure the solution is complete
+* Prefer multiple small changes over a single large change.
+* DO NOT write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+* Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
+
+The format is as follows:
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+```
+
+Commit message: "the commit message"
+
+Again, the request is:
+{instructions}
+
+Instructions:
+1. Complete the Code Planning step
+2. Complete the Code Modification step
+"""
+
+code_repair_modify_prompt = """\
 File Name: {filename}
 
 <suggested_new_file>
@@ -543,13 +623,31 @@ Generate a diff based on the given plan using the search and replace pairs in th
 
 ```
 <<<< ORIGINAL
-line_before
-old_code
-line_after
+second line before
+first line before
+old code
+first line after
+second line after
 ====
-line_before
-new_code
-line_after
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
 >>>> UPDATED
 ```
 
@@ -560,6 +658,8 @@ Instructions:
 2. Complete the Code Generation step
 """
 
+code_repair_modify_system_prompt = "You are to identify the problem in the code and fix it given the error logs. It is very important you get this right."
+
 sandbox_code_repair_modify_prompt = """
 File Name: {filename}
 
@@ -569,17 +669,107 @@ File Name: {filename}
 
 ---
 
-Above is the code that was written by an inexperienced programmer, followed by error logs from the CI pipeline.
+Above is the code that was written by an inexperienced programmer, and contain errors. The CI pipeline returned the following logs:
 
-The code has been linted and returned the following logs:
+<stdout>
+{stdout}
+</stdout>
+
+<stderr>
 {stderr}
+</stderr>
 
+Determine the following in code planning:
+1. Are there any syntax errors? Look through the file to find where the syntax error is, not necessarily relying on the error logs.
+2. Are there basic linting errors, like undefined variables, undefined members or type errors?
+3. Are there incorrect imports and exports?
+4. Are there any other errors not listed above?
 
-Determine whether changes are necessary based on the errors (ignore warnings).
+Write changes necessary to solve the error in the code generation step.
 
 Instructions:
 1. Complete the Code Planning step
-2. Complete the Code Generation step
+2. Complete the Code Generation step\
+"""
+
+sandbox_code_repair_modify_prompt_2 = """
+File Name: {filename}
+
+<file>
+{code}
+</file>
+
+---
+
+Above is the code that was written by an inexperienced programmer, and contain errors such as syntax errors, linting erors and type-checking errors. The CI pipeline returned the following logs:
+
+stdout:
+```
+{stdout}
+```
+
+stderr
+```
+{stderr}
+```
+
+Respond in the following format:
+
+Code Planning
+
+Determine the following in code planning:
+1. Are there any syntax errors? Look through the file to find all syntax errors.
+2. Are there basic linting errors, like undefined variables, undefined members or type errors?
+3. Are there incorrect imports and exports?
+4. Are there any other errors not listed above?
+
+Determine whether changes are necessary based on the errors (ignore warnings).
+
+Code Modification:
+
+```
+Generate a diff based on the given plan using the search and replace pairs in the format below.
+* Always prefer the least amount of changes possible, but ensure the solution is complete
+* Prefer multiple small changes over a single large change.
+* DO NOT write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+* Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
+
+The format is as follows:
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+```
+
+Commit message: "the commit message"
+
+Instructions:
+1. Complete the Code Planning step
+2. Complete the Code Modification step
 """
 
 pr_code_prompt = ""  # TODO: deprecate this
