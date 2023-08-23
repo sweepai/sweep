@@ -426,7 +426,7 @@ class SweepBot(CodeGenBot, GithubBot):
         filename: str,
         chunk_offset: int = 0,
         sandbox: Sandbox = None,
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str | None]:
         sandbox_error = None
         current_file = proposed_file
 
@@ -435,22 +435,24 @@ class SweepBot(CodeGenBot, GithubBot):
             try:
                 logger.info(current_file)
                 run_sandbox(sandbox)
-                logger.info("Successful sandbox run.")
+                logger.info("Sandbox linter success.")
                 return current_file, None
             except SandboxError as sandbox_error:
-                logger.warning("Failed to run sandbox. Retrying...")
+                logger.warning("Sandbox linter failed.")
                 logger.error(sandbox_error)
 
+                print("Fixing linting errors...")
                 new_diffs = self.chat(
                     sandbox_code_repair_modify_prompt.format(
                         filename=filename,
                         code=current_file,
-                        stdout=sandbox_error.stdout,
+                        stdout=sandbox_error.stdout,  # Doesn't contain linting errors
                         stderr=sandbox_error.stderr,
                     ),
                     message_key=filename + "-validation",
                 )
                 self.delete_messages_from_chat(filename + "validation")
+                print("Tried to fix them\n", new_diffs)
 
                 final_file, _errors = generate_new_file_from_patch(
                     new_diffs,

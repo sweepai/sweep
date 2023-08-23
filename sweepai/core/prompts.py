@@ -567,10 +567,6 @@ File Name: {filename}
 {code}
 </suggested_new_file>
 
-<stdout>
-{stdout}
-</stdout>
-
 <stderr>
 {stderr}
 </stderr>
