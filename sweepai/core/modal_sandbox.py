@@ -35,7 +35,7 @@ class SandboxError(Exception):
 
 def run_sandbox(
     sandbox: Sandbox,
-    timeout: int = 90,
+    timeout: int = 120,
 ):
     print(sandbox.linter_command)
     sb = stub.app.spawn_sandbox(
