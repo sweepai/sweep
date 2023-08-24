@@ -240,39 +240,34 @@ def get_snippet_with_padding(original, index, search):
 
 
 def radix_replace(original, search, replace) -> tuple[list[str], bool]:
-    # based on start and end, find the lines that are the same
-    # then, replace the lines in between
-    MAX_RADIX = 20
-
-    # Todo(lukejagg): Make this work for variable length replace
-    if len(search) != len(replace):
+    # remove all whitespaces from all texts for comparison
+    check_if_span_is_subspan = lambda little_span, big_span: "".join(
+        [s.strip() for s in little_span]
+    ) in "".join([s.strip() for s in big_span])
+    # always anchor on the original line
+    first_line = search[0]
+    if first_line not in original:
         return None
-
-    for i in range(len(original)):
-        for j in range(i + len(search), len(original) + len(search) + MAX_RADIX + 1):
-            if j >= len(original):
+    first_line_idx = original.index(first_line)
+    # check if the rest of the lines are in the original
+    for second_pointer in range(
+        1, len(search)
+    ):  # when this loop terminates, it becomes a two pointer approach
+        match_span = search[second_pointer:]
+        if check_if_span_is_subspan(match_span, original[first_line_idx:]):
+            # check with whitespace
+            if match_span[0] not in original:
                 continue
-            # Match ends
-            match_start = original[i].strip() == search[0].strip()
-            match_end = original[j].strip() == search[-1].strip()
-            if not match_start or not match_end:
-                continue
-
-            # Todo(lukejagg): If replace length is not the same, check the equivalent line in replace and then merge
-            matches = []
-            current_index = i
-            count = 0
-            while current_index <= j:
-                if original[current_index].strip() == search[count].strip():
-                    matches.append(current_index)
-                    count += 1
-                current_index += 1
-
-            if count == len(search):
-                # replace
-                for i, original_index in enumerate(matches):
-                    original[original_index] = replace[i]
-                return original
+            # TODO: perhaps we shouldn't match cases like ")" ? but leaving for now
+            # get the match
+            end_idx = original.index(match_span[0])
+            original = (
+                original[:first_line_idx]
+                + replace
+                + original[end_idx + len(match_span) :]
+            )
+            return original
+    return None
 
 
 def sliding_window_replacement(
@@ -305,6 +300,7 @@ def sliding_window_replacement(
             and search_context_before is None
             and len(kwargs) == 0
         ):
+            # import pdb; pdb.set_trace()
             radix_original = radix_replace(original, search, replace)
             if radix_original is not None:
                 return radix_original, None, None
@@ -453,6 +449,7 @@ def generate_new_file_from_patch(
 
     for search, replace in matches:
         print(search)
+        print()
         print(replace)
         # Remove trailing tags
         if search.lstrip().startswith("<old_file>") and replace.lstrip().startswith(
@@ -466,7 +463,6 @@ def generate_new_file_from_patch(
         ):
             search = search.rstrip()[: -len("</old_file>")]
             replace = replace.rstrip()[: -len("</old_file>")]
-
         old_file_lines, replace_index, status = sliding_window_replacement(
             old_file_lines, search.split("\n"), replace.split("\n")
         )
