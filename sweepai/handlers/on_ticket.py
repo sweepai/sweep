@@ -316,7 +316,7 @@ async def on_ticket(
     if is_trial_user:
         tickets_allocated = 15
     if is_paying_user:
-        tickets_allocated = 120
+        tickets_allocated = 500
     ticket_count = max(tickets_allocated - chat_logger.get_ticket_count(), 0)
     daily_ticket_count = (
         2 - chat_logger.get_ticket_count(use_date=True) if not use_faster_model else 0
@@ -331,9 +331,13 @@ async def on_ticket(
         else ""
     )
     user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
+    gpt_tickets_left_message = (
+        f"{ticket_count} GPT-4 tickets left for the month"
+        if not is_paying_user
+        else "unlimited GPT-4 tickets"
+    )
     payment_message = (
-        f"{user_type}: I used {model_name} to create this ticket. You have"
-        f" {ticket_count} GPT-4 tickets left for the month{daily_message}."
+        f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}."
         + (
             f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})"
             if not is_paying_user
@@ -342,8 +346,7 @@ async def on_ticket(
     )
     slow_mode_status = " using slow mode" if slow_mode else " "
     payment_message_start = (
-        f"{user_type}: I'm creating this ticket using {model_name}{slow_mode_status}."
-        f" You have {ticket_count} GPT-4 tickets left{daily_message}."
+        f"{user_type}: I'm creating this ticket using {model_name}{slow_mode_status}. You have {gpt_tickets_left_message}{daily_message}."
         + (
             f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})"
             if not is_paying_user
