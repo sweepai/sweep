@@ -439,7 +439,7 @@ class SweepBot(CodeGenBot, GithubBot):
             try:
                 logger.info(current_file)
                 if sandbox:
-                    run_sandbox(sandbox)
+                    run_sandbox(sandbox, current_file)
                 logger.info("Sandbox linter success.")
                 return current_file, None
             except SandboxError as sandbox_error:
