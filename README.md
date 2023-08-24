@@ -107,7 +107,7 @@ For professionals who want more tickets and priority support/feature requests, c
 We plan on rapidly improving Sweep. To see what we're working on, check out our [Roadmap](https://docs.sweep.dev/roadmap).
 
 ## Self-hosting 
-Bare-metal self-hosting is currently not available due to tight integration with Modal infrastructure. However, if you want to deploy a private instance of Sweep for testing or development purposes, check out our [Modal Deployment](docs/modal_deployment.md) page.
+Bare-metal self-hosting is currently not available due to tight integration with Modal infrastructure. However, if you want to deploy a private instance of Sweep for testing or development purposes, check out our [Modal Deployment](https://docs.sweep.dev/usage/deployment) page.
 
 ---
 
