@@ -46,10 +46,12 @@ from sweepai.core.prompts import (
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
 from sweepai.core.sandbox import Sandbox
+from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import (
     format_contents,
     generate_new_file_from_patch,
     is_markdown,
+    get_matches,
 )
 from sweepai.utils.github_utils import get_github_client
 
@@ -368,6 +370,42 @@ class GithubBot(BaseModel):
 
 
 class SweepBot(CodeGenBot, GithubBot):
+    def check_completion(self, new_content: str) -> bool:
+        # GPT-4 generated conditions
+        # Checking for unimplemented Python code with NotImplementedError
+        if "raise NotImplementedError" in new_content:
+            return False
+
+        # Checking for TODO or FIXME comments
+        if "TODO" in new_content or "FIXME" in new_content:
+            return False
+
+        # Checking for Python functions with only a 'pass' statement
+        if "def " in new_content and ":\n    pass\n" in new_content:
+            return False
+
+        # Checking for TypeScript/JavaScript functions that are empty
+        if "function" in new_content and "){}" in new_content:
+            return False
+
+        # Checking for TypeScript/JavaScript arrow functions that are empty
+        if ") => {}" in new_content:
+            return False
+
+        # Checking for abstract methods in TypeScript
+        if "abstract" in new_content and "): void;" in new_content:
+            return False
+
+        # Checking for TypeScript/JavaScript methods that only contain a comment
+        if (
+            "function" in new_content
+            and "){\n    // " in new_content
+            and " \n}" in new_content
+        ):
+            return False
+
+        return True
+
     def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
         file_change: FileCreation | None = None
         key = f"file_change_created_{file_change_request.filename}"
@@ -420,6 +458,16 @@ class SweepBot(CodeGenBot, GithubBot):
             # final_file += "\n"
             # file_change.code = final_file
             # logger.info("Done validating file change request")
+
+            try:
+                unimplemented = self.check_completion(file_change.code)
+                if unimplemented:
+                    discord_log_error(
+                        f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
+                        priority=2 if self.sweep_context.use_faster_model else 0,
+                    )
+            except Exception as e:
+                logger.error(f"Error: {e}")
 
             return file_change
         except Exception as e:
@@ -554,6 +602,19 @@ class SweepBot(CodeGenBot, GithubBot):
                     chunk_offset=chunk_offset,
                     sweep_context=self.sweep_context,
                 )
+
+                try:
+                    for _, replace in get_matches(modify_file_response):
+                        unimplemented = self.check_completion(replace)
+                        if unimplemented:
+                            discord_log_error(
+                                f"{self.sweep_context.issue_url}\nUnimplemented Modify Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
+                                priority=2
+                                if self.sweep_context.use_faster_model
+                                else 0,
+                            )
+                except Exception as e:
+                    logger.error(f"Error: {e}")
 
                 new_file = format_contents(new_file, file_markdown)
 
