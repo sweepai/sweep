@@ -81,7 +81,7 @@ stars_suffix = (
 )
 
 collapsible_template = """
-<details>
+<details {opened}>
 <summary>{summary}</summary>
 
 {body}
@@ -191,7 +191,10 @@ async def on_ticket(
 
     summary = summary or ""
     summary = re.sub(
-        "<details>\n<summary>Checklist</summary>.*", "", summary, flags=re.DOTALL
+        "<details (open)?>\n<summary>Checklist</summary>.*",
+        "",
+        summary,
+        flags=re.DOTALL,
     ).strip()
     summary = re.sub("Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL).strip()
 
@@ -706,6 +709,7 @@ async def on_ticket(
                         for snippet in snippets
                     ]
                 ),
+                opened="",
             )
             + (
                 "I also found the following external resources that might be"
@@ -723,8 +727,7 @@ async def on_ticket(
                 f"I'm creating the following subissues:\n\n"
                 + "\n\n".join(
                     [
-                        f"* #{subissue.title}:\n> "
-                        + subissue.body.replace("\n", "\n> ")
+                        f"#{subissue.title}:\n> " + subissue.body.replace("\n", "\n> ")
                         for subissue in subissues
                     ]
                 ),
@@ -847,6 +850,7 @@ async def on_ticket(
                     for filename, instructions, check in checkboxes_progress
                 ]
             ),
+            opened="open",
         )
         issue = repo.get_issue(number=issue_number)
         issue.edit(body=summary + "\n\n" + checkboxes_message)
@@ -924,6 +928,7 @@ async def on_ticket(
                             for filename, instructions, check in checkboxes_progress
                         ]
                     ),
+                    opened="open",
                 )
                 issue = repo.get_issue(number=issue_number)
                 issue.edit(body=summary + "\n\n" + checkboxes_message)
