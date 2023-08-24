@@ -127,10 +127,7 @@ def create_pr_changes(
 
             return {"success": False, "error": error_msg}
         # Include issue number in PR description
-        PR_CHECKOUT_COMMAND = (
-            "To checkout this PR branch, run the following command in your"
-            " terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
-        )
+        PR_CHECKOUT_COMMAND = f"To checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
         if issue_number:
             # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)
             pr_description = (
