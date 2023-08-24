@@ -554,17 +554,9 @@ The format is as follows:
 First hunk's description
 
 <<<< ORIGINAL
-second line before
-first line before
-old code
-first line after
-second line after
+{exact copy of lines you would like to change}
 ====
-second line before
-first line before
-new code
-first line after
-second line after
+{updated lines}
 >>>> UPDATED
 
 Second hunk's description
