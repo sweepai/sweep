@@ -245,8 +245,8 @@ def radix_replace(original, search, replace) -> tuple[list[str], bool]:
     MAX_RADIX = 20
 
     # Todo(lukejagg): Make this work for variable length replace
-    if len(search) != len(replace):
-        return None
+    # if len(search) != len(replace):
+    #     return None
 
     for i in range(len(original)):
         for j in range(i + len(search), len(original) + len(search) + MAX_RADIX + 1):
