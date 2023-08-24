@@ -5,6 +5,7 @@ from typing import ClassVar, Literal, Type, TypeVar, Any
 from github.Branch import Branch
 from loguru import logger
 from pydantic import BaseModel
+from urllib.parse import quote
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
@@ -306,7 +307,8 @@ class Snippet(BaseModel):
 
     def get_url(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
-        return f"https://github.com/{repo_name}/blob/{commit_id}/{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}"
+        encoded_file_path = quote(self.file_path, safe='/')
+        return f"https://github.com/{repo_name}/blob/{commit_id}/{encoded_file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}"
 
     def get_markdown_link(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
