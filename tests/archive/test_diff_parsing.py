@@ -22,13 +22,7 @@ export default class CallToAction extends React.Component {
 code_replaces = """
 <<<< ORIGINAL
 export default class CallToAction extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      spin: false,
-    };
-  }
-  return (
+put whatever you want here gpt4
     <Container maxW={"5xl"}>
 ====
 export default class CallToAction extends React.Component {
