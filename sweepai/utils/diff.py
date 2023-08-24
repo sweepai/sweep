@@ -239,6 +239,42 @@ def get_snippet_with_padding(original, index, search):
     return snippet, spaces, strip
 
 
+def radix_replace(original, search, replace) -> tuple[list[str], bool]:
+    # based on start and end, find the lines that are the same
+    # then, replace the lines in between
+    MAX_RADIX = 20
+
+    # Todo(lukejagg): Make this work for variable length replace
+    if len(search) != len(replace):
+        return None
+
+    for i in range(len(original)):
+        for j in range(i + len(search), len(original) + len(search) + MAX_RADIX + 1):
+            if j >= len(original):
+                continue
+            # Match ends
+            match_start = original[i].strip() == search[0].strip()
+            match_end = original[j].strip() == search[-1].strip()
+            if not match_start or not match_end:
+                continue
+
+            # Todo(lukejagg): If replace length is not the same, check the equivalent line in replace and then merge
+            matches = []
+            current_index = i
+            count = 0
+            while current_index <= j:
+                if original[current_index].strip() == search[count].strip():
+                    matches.append(current_index)
+                    count += 1
+                current_index += 1
+
+            if count == len(search):
+                # replace
+                for i, original_index in enumerate(matches):
+                    original[original_index] = replace[i]
+                return original
+
+
 def sliding_window_replacement(
     original, search, replace, search_context_before=None, **kwargs
 ):
@@ -261,6 +297,17 @@ def sliding_window_replacement(
             if replace[i].strip() == "...":
                 first_line_idx_replace = i
                 break
+
+        # if no ...'s, then use radix_replace
+        if (
+            first_line_idx == -1
+            and first_line_idx_replace == -1
+            and search_context_before is None
+            and len(kwargs) == 0
+        ):
+            radix_original = radix_replace(original, search, replace)
+            if radix_original is not None:
+                return radix_original, None, None
 
         if first_line_idx == 0 and first_line_idx_replace == 0:
             search = search[1:]
