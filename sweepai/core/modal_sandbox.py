@@ -38,13 +38,15 @@ class SandboxError(Exception):
 
 def run_sandbox(
     sandbox: Sandbox,
+    file_path: str,
     timeout: int = 600,
 ):
-    print(sandbox.linter_command)
+    lint = sandbox.linter_command.format(file=file_path)
+    print(lint)
     sb = stub.app.spawn_sandbox(
         "bash",
         "-c",
-        f"cd repo && {sandbox.linter_command}",
+        f"cd repo && {lint}",
         # image=god_image,
         image=god_image.copy_local_file(
             "repo/package.json", "repo/package.json"
