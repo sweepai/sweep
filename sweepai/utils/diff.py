@@ -426,6 +426,13 @@ def get_all_diffs(modify_file_response: str) -> str:
     return result
 
 
+def get_matches(modify_file_response):
+    matches = re.findall(
+        r"<<<<.*?\n(.*?)\n====[^\n=]*\n(.*?)\n?>>>>", modify_file_response, re.DOTALL
+    )
+    return matches
+
+
 def generate_new_file_from_patch(
     modify_file_response: str,
     old_file_content: str,
@@ -435,10 +442,7 @@ def generate_new_file_from_patch(
     old_file_lines = old_file_content.split("\n")
 
     # Extract content between <new_file> tags
-    matches = re.findall(
-        r"<<<<.*?\n(.*?)\n====[^\n=]*\n(.*?)\n?>>>>", modify_file_response, re.DOTALL
-    )
-
+    matches = get_matches(modify_file_response)
     errors = []
 
     if not old_file_content.strip():
