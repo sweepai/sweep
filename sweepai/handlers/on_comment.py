@@ -89,7 +89,8 @@ def on_comment(
     # 4. Get file changes
     # 5. Create PR
     logger.info(
-        f"Calling on_comment() with the following arguments: {comment}, {repo_full_name}, {repo_description}, {pr_path}"
+        f"Calling on_comment() with the following arguments: {comment},"
+        f" {repo_full_name}, {repo_description}, {pr_path}"
     )
     organization, repo_name = repo_full_name.split("/")
 
@@ -331,7 +332,10 @@ def on_comment(
                     )
                     checklist = checklist_dropdown.group(0)
                     matches = re.findall(
-                        "- \[[X ]\] `(?P<filename>.*?)`(?P<instructions>.*?)(?=- \[[X ]\]|</details>)",
+                        (
+                            "- \[[X ]\] `(?P<filename>.*?)`(?P<instructions>.*?)(?=-"
+                            " \[[X ]\]|</details>)"
+                        ),
                         checklist,
                         re.DOTALL,
                     )
@@ -351,7 +355,10 @@ def on_comment(
                     file_change_requests = [
                         FileChangeRequest(
                             filename=file_path,
-                            instructions=f"Modify the file {file_path} based on the PR summary:\n\n{quoted_pr_summary}",
+                            instructions=(
+                                f"Modify the file {file_path} based on the PR"
+                                f" summary:\n\n{quoted_pr_summary}"
+                            ),
                             change_type="modify",
                         )
                         for file_path in file_paths
@@ -432,7 +439,10 @@ def on_comment(
                 else:
                     pr.create_review_comment_reply(
                         comment_id,
-                        "No changes made. Please add more details so I know what to change.",
+                        (
+                            "No changes made. Please add more details so I know what to"
+                            " change."
+                        ),
                     )
         except Exception as e:
             logger.error(f"Failed to reply to comment: {e}")

@@ -115,7 +115,8 @@ def on_check_suite(request: CheckRunCompleted):
     repo = g.get_repo(request.repository.full_name)
     if not get_gha_enabled(repo):
         logger.info(
-            f"Skipping github action for {request.repository.full_name} because it is not enabled"
+            f"Skipping github action for {request.repository.full_name} because it is"
+            " not enabled"
         )
         return None
     pr = repo.get_pull(request.check_run.pull_requests[0].number)
@@ -134,7 +135,10 @@ def on_check_suite(request: CheckRunCompleted):
     logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
     problematic_logs = extractor.gha_extract(logs)
     if problematic_logs.count("\n") > 15:
-        problematic_logs += "\n\nThere are a lot of errors. This is likely due to a small parsing issue or a missing import with the files changed in the PR."
+        problematic_logs += (
+            "\n\nThere are a lot of errors. This is likely due to a small parsing issue"
+            " or a missing import with the files changed in the PR."
+        )
     comments = list(pr.get_issue_comments())
 
     # logs_list = [extract_logs_from_comment(comment.body) for comment in comments]
@@ -148,7 +152,8 @@ def on_check_suite(request: CheckRunCompleted):
     ):
         comment = pr.as_issue().create_comment(
             log_message.format(error_logs=problematic_logs)
-            + "\n\nI'm getting the same errors 3 times in a row, so I will stop working on fixing this PR."
+            + "\n\nI'm getting the same errors 3 times in a row, so I will stop working"
+            " on fixing this PR."
         )
         logger.warning("Skipping logs because it is duplicated")
         return {"error": "Duplicate error logs"}
