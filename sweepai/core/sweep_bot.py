@@ -40,6 +40,7 @@ from sweepai.core.prompts import (
     chunking_prompt,
     linting_new_file_prompt,
     linting_modify_prompt,
+    code_repair_modify_prompt,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
