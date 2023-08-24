@@ -438,7 +438,7 @@ def generate_new_file_from_patch(
         else:
             discord_log_error(
                 f"Modify Parsing Errors gpt3.5: \n" + log,
-                priority=0,
+                priority=1,
             )
 
     result = "\n".join(old_file_lines)
