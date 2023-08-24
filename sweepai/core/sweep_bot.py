@@ -427,12 +427,15 @@ class SweepBot(CodeGenBot, GithubBot):
             # file_change.code = final_file
             # logger.info("Done validating file change request")
 
-            unimplemented = self.check_completion(file_change.code)
-            if unimplemented:
-                discord_log_error(
-                    f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
-                    priority=2 if self.sweep_context.use_faster_model else 0,
-                )
+            try:
+                unimplemented = self.check_completion(file_change.code)
+                if unimplemented:
+                    discord_log_error(
+                        f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
+                        priority=2 if self.sweep_context.use_faster_model else 0,
+                    )
+            except Exception as e:
+                logger.error(f"Error: {e}")
 
             return file_change
         except Exception as e:
