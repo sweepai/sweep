@@ -289,9 +289,9 @@ def search_snippets(
     get_relevant_snippets = modal.Function.lookup(
         DB_MODAL_INST_NAME, "get_relevant_snippets"
     )
-    if multi_query:
-        lists_of_snippets = list[list[Snippet]]()
-        multi_query = [query] + multi_query
+    snippets: list[Snippet] = get_relevant_snippets.remote(
+        repo.full_name, query, num_files, installation_id=installation_id
+    )
         for query in multi_query:
             snippets: list[Snippet] = get_relevant_snippets.remote(
                 repo.full_name, query, num_files, installation_id=installation_id
