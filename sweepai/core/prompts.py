@@ -658,14 +658,64 @@ Instructions:
 2. Complete the Code Generation step
 """
 
-sandbox_code_repair_modify_system_prompt = "You are to identify the problem in the code and fix it given the error logs. It is very important you get this right."
+sandbox_code_repair_modify_system_prompt = """\
+You are to identify the problem from the error logs and fix the code. You will respond in the following format:
+
+Code Planning:
+
+1. What does the error log say?
+2. Where is this occurring?
+3. What is wrong with the code?
+4. What should you do to fix it?
+
+Code Modification:
+
+```
+Generate a diff based on the given plan using the search and replace pairs in the format below.
+* Always prefer the least amount of changes possible, but ensure the solution is complete
+* Prefer multiple small changes over a single large change.
+* NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+* Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
+* Restrict the changes to fixing the errors from the logs.
+
+The format is as follows:
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+```\
+"""
 
 sandbox_code_repair_modify_prompt = """
 File Name: {filename}
 
-<file>
+### START OF FILE ###
 {code}
-</file>
+### END OF FILE ###
 
 ---
 
@@ -679,17 +729,9 @@ Above is the code that was written by an inexperienced programmer, and contain e
 {stderr}
 </stderr>
 
-Determine the following in code planning:
-1. Are there any syntax errors? Look through the file to find where the syntax error is, not necessarily relying on the error logs.
-2. Are there basic linting errors, like undefined variables, undefined members or type errors?
-3. Are there incorrect imports and exports?
-4. Are there any other errors not listed above?
-
-Write changes necessary to solve the error in the code generation step.
-
 Instructions:
 1. Complete the Code Planning step
-2. Complete the Code Generation step\
+2. Complete the Code Modification step\
 """
 
 sandbox_code_repair_modify_prompt_2 = """

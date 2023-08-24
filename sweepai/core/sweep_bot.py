@@ -434,12 +434,17 @@ class SweepBot(CodeGenBot, GithubBot):
         print("self.chat_logger")
         print(self.chat_logger)
 
-        for i in range(5):
+        def clean_logs(logs: str) -> str:
+            return "\n".join(
+                line for line in logs.split("\n") if not line.startswith("[warn]")
+            ).strip()
+
+        for i in range(10):
             logger.info(f"Checking with sandbox for the {i + 1}th time")
             try:
                 logger.info(current_file)
                 if sandbox:
-                    run_sandbox(sandbox, current_file)
+                    run_sandbox(sandbox, filename)
                 logger.info("Sandbox linter success.")
                 return current_file, None
             except SandboxError as sandbox_error:
@@ -452,16 +457,6 @@ class SweepBot(CodeGenBot, GithubBot):
                     "Fixing linting errors...\n",
                     sandbox_error.stdout + "\n\n" + sandbox_error.stderr,
                 )
-                cleaned_stdout = "\n".join(
-                    line
-                    for line in sandbox_error.stdout.split("\n")
-                    if not line.startswith("[warn]")
-                )
-                cleaned_stderr = "\n".join(
-                    line
-                    for line in sandbox_error.stderr.split("\n")
-                    if not line.startswith("[warn]")
-                )
                 code_repairer = ChatGPT.from_system_message_string(
                     sandbox_code_repair_modify_system_prompt,
                     chat_logger=self.chat_logger,
@@ -470,14 +465,14 @@ class SweepBot(CodeGenBot, GithubBot):
                     sandbox_code_repair_modify_prompt.format(
                         filename=filename,
                         code=current_file,
-                        stdout=cleaned_stdout,  # Doesn't contain linting errors
-                        stderr=cleaned_stderr,
+                        stdout=clean_logs(sandbox.stdout),
+                        stderr=clean_logs(sandbox.stderr),
                     ),
                     message_key=filename + "-validation",
                 )
                 print("Tried to fix them\n", new_diffs)
 
-                final_file, _errors = generate_new_file_from_patch(
+                next_file, _errors = generate_new_file_from_patch(
                     new_diffs,
                     current_file,
                     chunk_offset=chunk_offset,
@@ -485,10 +480,14 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
 
                 file_markdown = is_markdown(filename)
-                final_file = format_contents(final_file, file_markdown)
+                next_file = format_contents(next_file, file_markdown)
                 logger.info("Updated file based on logs")
-                current_file = final_file
+                current_file = next_file
+                with open(f"repo/{filename}", "w") as f:
+                    f.write(current_file)
 
+        with open(f"repo/{filename}", "w") as f:
+            f.write(current_file)
         return current_file, final_sandbox_error
 
     def modify_file(
@@ -566,8 +565,6 @@ class SweepBot(CodeGenBot, GithubBot):
                         chunk_offset=chunk_offset,
                         sandbox=sandbox,
                     )
-                    with open(f"repo/{file_change_request.filename}", "w") as f:
-                        f.write(final_file)
 
                 # proposed_diffs = get_all_diffs(modify_file_response)
                 # proposed_diffs = (

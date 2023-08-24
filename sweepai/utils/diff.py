@@ -405,15 +405,17 @@ def generate_new_file_from_patch(
         return search_and_replace[1]
 
     for search, replace in matches:
+        print(search)
+        print(replace)
         # Remove trailing tags
         if search.lstrip().startswith("<old_file>") and replace.lstrip().startswith(
-            "<old_file"
+            "<old_file>"
         ):
             search = search.lstrip()[len("<old_file>") :]
             replace = replace.lstrip()[len("<old_file>") :]
         # Remove trailing tags
         if search.rstrip().endswith("</old_file>") and replace.rstrip().endswith(
-            "</old_file"
+            "</old_file>"
         ):
             search = search.rstrip()[: -len("</old_file>")]
             replace = replace.rstrip()[: -len("</old_file>")]
