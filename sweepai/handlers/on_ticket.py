@@ -47,7 +47,6 @@ from sweepai.config.client import (
 from sweepai.config.server import (
     ENV,
     DB_MODAL_INST_NAME,
-    UTILS_MODAL_INST_NAME,
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
@@ -66,11 +65,20 @@ openai.api_key = OPENAI_API_KEY
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 sep = "\n---\n"
-bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
-bot_suffix = f"\n{sep}\n{UPDATES_MESSAGE}\n{sep} 💡 To recreate the pull request edit the issue title or description."
+bot_suffix_starring = (
+    "⭐ If you are enjoying Sweep, please [star our"
+    " repo](https://github.com/sweepai/sweep) so more people can hear about us!"
+)
+bot_suffix = (
+    f"\n{sep}\n{UPDATES_MESSAGE}\n{sep} 💡 To recreate the pull request edit the issue"
+    " title or description."
+)
 discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep)"
 
-stars_suffix = "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
+stars_suffix = (
+    "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep)"
+    " so more people can hear about us!"
+)
 
 collapsible_template = """
 <details>
@@ -144,8 +152,13 @@ def strip_sweep(text: str):
         re.search(r"^[Ss]weep\s?\([Ss]low\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Mm]ap\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Ss]ubissues?\)", text) is not None,
+        re.search(r"^[Ss]weep\s?\([Ss]andbox?\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Ff]ast\)", text) is not None,
     )
+
+
+def test_mode(issue):
+    sandbox_logs = ""
 
 
 async def on_ticket(
@@ -165,6 +178,7 @@ async def on_ticket(
         slow_mode,
         do_map,
         subissues_mode,
+        sandbox_mode,
         fast_mode,
     ) = strip_sweep(title)
 
@@ -178,8 +192,8 @@ async def on_ticket(
     summary = summary or ""
     summary = re.sub(
         "<details>\n<summary>Checklist</summary>.*", "", summary, flags=re.DOTALL
-    )
-    summary = re.sub("Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL)
+    ).strip()
+    summary = re.sub("Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL).strip()
 
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
@@ -374,7 +388,11 @@ async def on_ticket(
         config = SweepConfig.get_config(repo)
     except EmptyRepository as e:
         logger.info("Empty repo")
-        first_comment = f"Sweep is currently not supported on empty repositories. Please add some code to your repository and try again.\n{sep}## {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
+        first_comment = (
+            "Sweep is currently not supported on empty repositories. Please add some"
+            f" code to your repository and try again.\n{sep}##"
+            f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
+        )
         if issue_comment is None:
             issue_comment = current_issue.create_comment(first_comment)
         else:
@@ -384,8 +402,17 @@ async def on_ticket(
     num_of_files = get_num_files_from_repo(repo, installation_id)
     time_estimate = math.ceil(3 + 5 * num_of_files / 1000)
 
-    indexing_message = f"I'm searching for relevant snippets in your repository. If this is your first time using Sweep, I'm indexing your repository. This may take up to {time_estimate} minutes. I'll let you know when I'm done."
-    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
+    indexing_message = (
+        "I'm searching for relevant snippets in your repository. If this is your first"
+        " time using Sweep, I'm indexing your repository. This may take up to"
+        f" {time_estimate} minutes. I'll let you know when I'm done."
+    )
+    first_comment = (
+        f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I"
+        " will update the progress of the ticket in this comment. I am currently"
+        f" searching through your code, looking for relevant snippets.\n{sep}##"
+        f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
+    )
 
     if issue_comment is None:
         issue_comment = current_issue.create_comment(first_comment)
@@ -433,12 +460,14 @@ async def on_ticket(
                 "## ❌ Unable to Complete PR"
                 + "\n"
                 + message
-                + "\n\nFor bonus GPT-4 tickets, please report this bug on **[Discord](https://discord.com/invite/sweep-ai)**."
+                + "\n\nFor bonus GPT-4 tickets, please report this bug on"
+                " **[Discord](https://discord.com/invite/sweep-ai)**."
             )
             if table is not None:
                 agg_message = (
                     agg_message
-                    + f"\n{sep}Please look at the generated plan. If something looks wrong, please add more details to your issue.\n\n{table}"
+                    + f"\n{sep}Please look at the generated plan. If something looks"
+                    f" wrong, please add more details to your issue.\n\n{table}"
                 )
             suffix = bot_suffix  # don't include discord suffix for error messages
 
@@ -450,7 +479,10 @@ async def on_ticket(
     if len(title + summary) < 20:
         logger.info("Issue too short")
         edit_sweep_comment(
-            "Please add more details to your issue. I need at least 20 characters to generate a plan.",
+            (
+                "Please add more details to your issue. I need at least 20 characters"
+                " to generate a plan."
+            ),
             -1,
         )
 
@@ -462,7 +494,11 @@ async def on_ticket(
         if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
             logger.info("Test repository detected")
             edit_sweep_comment(
-                "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
+                (
+                    "Sweep does not work on test repositories. Please create an issue"
+                    " on a real repository. If you think this is a mistake, please"
+                    " report this at https://discord.gg/sweep."
+                ),
                 -1,
             )
             return {"success": False}
@@ -481,7 +517,10 @@ async def on_ticket(
         if is_paying_user:
             prefix = " (PRO)"
 
-        content = f"**{error_type} Error**{prefix}\n{username}: {issue_url}\n```{exception}```"
+        content = (
+            f"**{error_type} Error**{prefix}\n{username}:"
+            f" {issue_url}\n```{exception}```"
+        )
         discord_log_error(content, priority=priority)
 
     def fetch_file_contents_with_retry():
@@ -506,20 +545,8 @@ async def on_ticket(
         raise error
 
     # Clone repo and perform local tests (linters, formatters, GHA)
-    sandbox = None
-    try:
-        pass
-        # Todo(lukejagg): Enable this once we have formatter working
-        # Todo(lukejagg): allow configuration of sandbox (Python3, Nodejs, etc) (done?)
-        # Todo(lukejagg): Max time limit for sandbox
-        logger.info("Initializing sandbox...")
-        sandbox = Sandbox.from_token(username, user_token, repo)
-        await asyncio.wait_for(sandbox.start(), timeout=60)
-    except Exception as e:
-        logger.error(traceback.format_exc())
-        logger.error(e)
-        sandbox = None
-        # Todo(lukejagg): log state of sandbox to discord?
+    logger.info("Initializing sandbox...")
+    sandbox = Sandbox.from_token(repo)
 
     logger.info("Fetching relevant files...")
     try:
@@ -530,7 +557,13 @@ async def on_ticket(
         logger.error(e)
         logger.error(trace)
         edit_sweep_comment(
-            f"It looks like an issue has occurred around fetching the files. Perhaps the repo has not been initialized. If this error persists contact team@sweep.dev.\n\n> @{username}, please edit the issue description to include more details and I will automatically relaunch.",
+            (
+                "It looks like an issue has occurred around fetching the files."
+                " Perhaps the repo has not been initialized. If this error persists"
+                f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
+                " description to include more details and I will automatically"
+                " relaunch."
+            ),
             -1,
         )
         log_error("File Fetch", str(e) + "\n" + traceback.format_exc(), priority=1)
@@ -558,7 +591,7 @@ async def on_ticket(
         repo_name=repo_name,
         issue_url=issue_url,
         username=username,
-        repo_description=repo_description,
+        repo_description=repo_description.strip(),
         title=title,
         summary=message_summary,
         snippets=snippets,
@@ -658,10 +691,15 @@ async def on_ticket(
 
         newline = "\n"
         edit_sweep_comment(
-            "I found the following snippets in your repository. I will now analyze these snippets and come up with a plan."
+            "I found the following snippets in your repository. I will now analyze"
+            " these snippets and come up with a plan."
             + "\n\n"
             + collapsible_template.format(
-                summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
+                summary=(
+                    "Some code snippets I looked at (click to expand). If some file is"
+                    " missing from here, you can mention the path in the ticket"
+                    " description."
+                ),
                 body="\n".join(
                     [
                         f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
@@ -670,7 +708,8 @@ async def on_ticket(
                 ),
             )
             + (
-                f"I also found the following external resources that might be helpful:\n\n{external_results}\n\n"
+                "I also found the following external resources that might be"
+                f" helpful:\n\n{external_results}\n\n"
                 if external_results
                 else ""
             )
@@ -724,12 +763,19 @@ async def on_ticket(
         if not file_change_requests:
             if len(title + summary) < 60:
                 edit_sweep_comment(
-                    "Sorry, I could not find any files to modify, can you please provide more details? Please make sure that the title and summary of the issue are at least 60 characters.",
+                    (
+                        "Sorry, I could not find any files to modify, can you please"
+                        " provide more details? Please make sure that the title and"
+                        " summary of the issue are at least 60 characters."
+                    ),
                     -1,
                 )
             else:
                 edit_sweep_comment(
-                    "Sorry, I could not find any files to modify, can you please provide more details?",
+                    (
+                        "Sorry, I could not find any files to modify, can you please"
+                        " provide more details?"
+                    ),
                     -1,
                 )
             raise Exception("No files to modify.")
@@ -753,9 +799,8 @@ async def on_ticket(
             tablefmt="pipe",
         )
         edit_sweep_comment(
-            "From looking through the relevant snippets, I decided to make the following modifications:\n\n"
-            + table
-            + "\n\n",
+            "From looking through the relevant snippets, I decided to make the"
+            " following modifications:\n\n" + table + "\n\n",
             2,
         )
 
@@ -766,7 +811,11 @@ async def on_ticket(
         pull_request_content = pull_request.content.strip().replace("\n", "\n>")
         pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
         edit_sweep_comment(
-            f"I have created a plan for writing the pull request. I am now working my plan and coding the required changes to address this issue. Here is the planned pull request:\n\n{pull_request_summary}",
+            (
+                "I have created a plan for writing the pull request. I am now working"
+                " my plan and coding the required changes to address this issue. Here"
+                f" is the planned pull request:\n\n{pull_request_summary}"
+            ),
             3,
         )
 
@@ -777,6 +826,7 @@ async def on_ticket(
                 file_change_request.filename,
                 file_change_request.instructions_display,
                 "⏳ In Progress",
+                "``` ```",
             )
             for file_change_request in file_change_requests
         ]
@@ -814,10 +864,15 @@ async def on_ticket(
         )
         table_message = tabulate(
             [
-                (f"`{filename}`", instructions.replace("\n", "<br/>"), progress)
-                for filename, instructions, progress in files_progress
+                (
+                    f"`{filename}`",
+                    instructions.replace("\n", "<br/>"),
+                    progress,
+                    error_logs,
+                )
+                for filename, instructions, progress, error_logs in files_progress
             ],
-            headers=["File", "Instructions", "Progress"],
+            headers=["File", "Instructions", "Progress", "Error logs"],
             tablefmt="pipe",
         )
         logger.info(files_progress)
@@ -827,7 +882,7 @@ async def on_ticket(
             if isinstance(item, dict):
                 response = item
                 break
-            file_change_request, changed_file = item
+            file_change_request, changed_file, sandbox_error = item
             if changed_file:
                 commit_hash = repo.get_branch(pull_request.branch_name).commit.sha
                 commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
@@ -836,10 +891,19 @@ async def on_ticket(
                         file,
                         instructions,
                         f"✅ Commit [`{commit_hash[:7]}`]({commit_url})",
+                        (
+                            "```"
+                            + sandbox_error.stdout
+                            + "\n\n"
+                            + sandbox_error.stderr
+                            + "```"
+                        )
+                        if sandbox_error
+                        else "No errors.",
                     )
                     if file_change_request.filename == file
-                    else (file, instructions, progress)
-                    for file, instructions, progress in files_progress
+                    else (file, instructions, progress, error_log)
+                    for file, instructions, progress, error_log in files_progress
                 ]
 
                 checkboxes_progress = [
@@ -865,19 +929,24 @@ async def on_ticket(
                 issue.edit(body=summary + "\n\n" + checkboxes_message)
             else:
                 files_progress = [
-                    (file, instructions, "❌ Failed")
+                    (file, instructions, "❌ Failed", error_log)
                     if file_change_request.filename == file
-                    else (file, instructions, progress)
-                    for file, instructions, progress in files_progress
+                    else (file, instructions, progress, error_log)
+                    for file, instructions, progress, error_log in files_progress
                 ]
             logger.info(files_progress)
             logger.info(f"Edited {file_change_request.filename}")
             table_message = tabulate(
                 [
-                    (f"`{filename}`", instructions.replace("\n", "<br/>"), progress)
-                    for filename, instructions, progress in files_progress
+                    (
+                        f"`{filename}`",
+                        instructions.replace("\n", "<br/>"),
+                        progress,
+                        error_log,
+                    )
+                    for filename, instructions, progress, error_log in files_progress
                 ],
-                headers=["File", "Instructions", "Progress"],
+                headers=["File", "Instructions", "Progress", "Error logs"],
                 tablefmt="pipe",
             )
             edit_sweep_comment(table_message, 4)
@@ -887,11 +956,15 @@ async def on_ticket(
 
         edit_sweep_comment(
             table_message
-            + "I have finished coding the issue. I am now reviewing it for completeness.",
+            + "I have finished coding the issue. I am now reviewing it for"
+            " completeness.",
             4,
         )
 
-        review_message = f"Here are my self-reviews of my changes at [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
+        review_message = (
+            "Here are my self-reviews of my changes at"
+            f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
+        )
 
         lint_output = None
         try:
@@ -900,35 +973,35 @@ async def on_ticket(
             pass
 
         # Clone repo and perform local tests (linters, formatters, GHA)
-        try:
-            lint_sandbox = Sandbox.from_token(username, user_token, repo)
-            if lint_sandbox is None:
-                raise Exception("Sandbox is disabled")
+        # try:
+        #     lint_sandbox = Sandbox.from_token(repo)
+        #     if lint_sandbox is None:
+        #         raise Exception("Sandbox is disabled")
 
-            files = [
-                f.filename
-                for f in file_change_requests
-                if (f.filename.endswith(".js") or f.filename.endswith(".ts"))
-                and (f.change_type == "create" or f.change_type == "modify")
-                and f.new_content is not None
-            ]
-            lint_output = await lint_sandbox.formatter_workflow(
-                branch=pull_request.branch_name, files=files
-            )
+        #     files = [
+        #         f.filename
+        #         for f in file_change_requests
+        #         if (f.filename.endswith(".js") or f.filename.endswith(".ts"))
+        #         and (f.change_type == "create" or f.change_type == "modify")
+        #         and f.new_content is not None
+        #     ]
+        #     lint_output = await lint_sandbox.formatter_workflow(
+        #         branch=pull_request.branch_name, files=files
+        #     )
 
-            # Todo(lukejagg): Is this necessary?
-            # # Set file content:
-            # for f in file_change_requests:
-            #     print("E2B DEBUG", f.filename, f.new_content)
-            #     if f.new_content is not None:
-            #         await lint_sandbox.session.filesystem.write(
-            #             f"/home/user/repo/{f.filename}", f.new_content
-            #         )
-            #         print(f"Wrote {f.filename}")
+        #     # Todo(lukejagg): Is this necessary?
+        #     # # Set file content:
+        #     # for f in file_change_requests:
+        #     #     print("E2B DEBUG", f.filename, f.new_content)
+        #     #     if f.new_content is not None:
+        #     #         await lint_sandbox.session.filesystem.write(
+        #     #             f"/home/user/repo/{f.filename}", f.new_content
+        #     #         )
+        #     #         print(f"Wrote {f.filename}")
 
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+        # except Exception as e:
+        #     logger.error(traceback.format_exc())
+        #     logger.error(e)
 
         for i in range(1 if not slow_mode else 3):
             try:
@@ -1022,19 +1095,21 @@ async def on_ticket(
             logger.error(e)
 
         # Close sandbox
-        try:
-            if sandbox is not None:
-                await asyncio.wait_for(sandbox.close(), timeout=10)
-                logger.info("Closed e2b sandbox")
-        except Exception as e:
-            logger.error(e)
-            logger.info("Failed to close e2b sandbox")
+        # try:
+        #     if sandbox is not None:
+        #         await asyncio.wait_for(sandbox.close(), timeout=10)
+        #         logger.info("Closed e2b sandbox")
+        # except Exception as e:
+        #     logger.error(e)
+        #     logger.info("Failed to close e2b sandbox")
 
         # Completed code review
         edit_sweep_comment(
             review_message + "\n\nSuccess! 🚀",
             6,
-            pr_message=f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}",
+            pr_message=(
+                f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}"
+            ),
         )
 
         logger.info("Add successful ticket to counter")
@@ -1047,12 +1122,22 @@ async def on_ticket(
         )
         if chat_logger.is_paying_user():
             edit_sweep_comment(
-                f"Sorry, I could not edit `{e.filename}` as this file is too long. We are currently working on improved file streaming to address this issue.\n",
+                (
+                    f"Sorry, I could not edit `{e.filename}` as this file is too long."
+                    " We are currently working on improved file streaming to address"
+                    " this issue.\n"
+                ),
                 -1,
             )
         else:
             edit_sweep_comment(
-                f"Sorry, I could not edit `{e.filename}` as this file is too long.\n\nIf this file is incorrect, please describe the desired file in the prompt. However, if you would like to edit longer files, consider upgrading to [Sweep Pro](https://sweep.dev/) for longer context lengths.\n",
+                (
+                    f"Sorry, I could not edit `{e.filename}` as this file is too"
+                    " long.\n\nIf this file is incorrect, please describe the desired"
+                    " file in the prompt. However, if you would like to edit longer"
+                    " files, consider upgrading to [Sweep Pro](https://sweep.dev/) for"
+                    " longer context lengths.\n"
+                ),
                 -1,
             )
         delete_branch = True
@@ -1065,7 +1150,12 @@ async def on_ticket(
             priority=2,
         )
         edit_sweep_comment(
-            f"Sorry, Sweep could not find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!\n\n> @{username}, please edit the issue description to include more details about this issue.",
+            (
+                "Sorry, Sweep could not find any appropriate files to edit to address"
+                " this issue. If this is a mistake, please provide more context and I"
+                f" will retry!\n\n> @{username}, please edit the issue description to"
+                " include more details about this issue."
+            ),
             -1,
         )
         delete_branch = True
@@ -1074,7 +1164,12 @@ async def on_ticket(
         logger.error(traceback.format_exc())
         logger.error(e)
         edit_sweep_comment(
-            "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists report it at https://discord.gg/sweep.",
+            (
+                "I'm sorry, but it looks our model has ran out of context length. We're"
+                " trying to make this happen less, but one way to mitigate this is to"
+                " code smaller files. If this error persists report it at"
+                " https://discord.gg/sweep."
+            ),
             -1,
         )
         log_error(
@@ -1099,12 +1194,21 @@ async def on_ticket(
         # title and summary are defined elsewhere
         if len(title + summary) < 60:
             edit_sweep_comment(
-                "I'm sorry, but it looks like an error has occurred due to insufficient information. Be sure to create a more detailed issue so I can better address it. If this error persists report it at https://discord.gg/sweep.",
+                (
+                    "I'm sorry, but it looks like an error has occurred due to"
+                    " insufficient information. Be sure to create a more detailed issue"
+                    " so I can better address it. If this error persists report it at"
+                    " https://discord.gg/sweep."
+                ),
                 -1,
             )
         else:
             edit_sweep_comment(
-                "I'm sorry, but it looks like an error has occurred. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev.",
+                (
+                    "I'm sorry, but it looks like an error has occurred. Try changing"
+                    " the issue description to re-trigger Sweep. If this error persists"
+                    " contact team@sweep.dev."
+                ),
                 -1,
             )
         log_error("Workflow", str(e) + "\n" + traceback.format_exc(), priority=1)

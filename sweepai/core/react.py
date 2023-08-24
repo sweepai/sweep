@@ -81,22 +81,34 @@ class Tool(BaseModel):
 
 
 class CodeSearch(Tool):
-    description = "Search in the codebase for relevant snippets of code. Takes natural language search query as input."
+    description = (
+        "Search in the codebase for relevant snippets of code. Takes natural language"
+        " search query as input."
+    )
     example_inputs = "Modal component on main page."
 
 
 class ReadFiles(Tool):
-    description = "Reads listed files. Takes list of literal file paths as input, separated by newlines. Max 3 files."
+    description = (
+        "Reads listed files. Takes list of literal file paths as input, separated by"
+        " newlines. Max 3 files."
+    )
     example_inputs = "src/main.py\ntests/test_main.py\ntests/test_utils.py:101:200"
 
 
 class Google(Tool):
-    description = "Search for code documentation on Google. Takes natural language search query as input."
+    description = (
+        "Search for code documentation on Google. Takes natural language search query"
+        " as input."
+    )
     example_inputs = "Discord API docs"
 
 
 class Finish(Tool):
-    description = "Indicate you have sufficient information to move forward with making changes to the codebase. Return with an empty string."
+    description = (
+        "Indicate you have sufficient information to move forward with making changes"
+        " to the codebase. Return with an empty string."
+    )
     example_inputs = ""
     function = lambda _: ""
 
