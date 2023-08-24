@@ -423,6 +423,7 @@ class SweepBot(CodeGenBot, GithubBot):
             return file_change
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
+            logger.info(traceback.format_exc())
             logger.warning(e)
             logger.warning(f"Failed to parse. Retrying for the 1st time...")
             self.delete_messages_from_chat(key)
