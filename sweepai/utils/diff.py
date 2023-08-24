@@ -271,7 +271,22 @@ def radix_replace(original, search, replace) -> tuple[list[str], bool]:
             if count == len(search):
                 # replace
                 for i, original_index in enumerate(matches):
-                    original[original_index] = replace[i]
+                    if i < len(replace):
+                        original[original_index] = replace[i]
+
+                if len(replace) > len(search):
+                    # Add lines after the end of search if replace is longer
+                    original = (
+                        original[: original_index + 1]
+                        + replace[len(search) :]
+                        + original[original_index + 1 :]
+                    )
+                else:
+                    # Remove lines after end of search if replace is shorter
+                    original = (
+                        original[:original_index]
+                        + original[original_index + len(search) - len(replace) :]
+                    )
                 return original
 
 
