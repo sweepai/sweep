@@ -1,137 +1,151 @@
 from sweepai.utils.diff import generate_new_file_from_patch
 
 old_file = r"""
-import logging
-import os
+import React from 'react';
+import {
+  Flex,
+  Container,
+  Heading,
+  Stack,
+  Text,
+  Button,
+} from "@chakra-ui/react";
+import { tsParticles } from "tsparticles";
+import { loadConfettiPreset } from "tsparticles-preset-confetti";
+import { FaDiscord, FaGithub } from "react-icons/fa";
+import logo from "../assets/icon.png";
 
-from pathlib import Path
+import ExternalLinkWithText from "./ExternalLinkWithText";
+const demo = require("../assets/demo.mp4");
 
-import openai
-import typer
+export default class CallToAction extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { spin: false };
+    this.handleClick = this.handleClick.bind(this);
+  }
+  // const canvas = document.getElementById('canvas3d');
+  // const app = new Application(canvas);
+  // app.load('https://prod.spline.design/jzV1MbbHCyCmMG7u/scene.splinecode');
+  handleClick = async () => {
+      this.setState({ spin: !this.state.spin });
+      await loadConfettiPreset(tsParticles);
+      await tsParticles.load("tsparticles", {
+        preset: "confetti",
+        particles: {
+          color: {
+            value: ["#800080", "#FFFFFF"],
+          },
+        },
+      });
+    }
 
-from dotenv import load_dotenv
-
-from gpt_engineer.ai import AI
-from gpt_engineer.collect import collect_learnings
-from gpt_engineer.db import DB, DBs, archive
-from gpt_engineer.learning import collect_consent
-from gpt_engineer.steps import STEPS, Config as StepsConfig
-
-app = typer.Typer()  # creates a CLI app
-
-
-def load_env_if_needed():
-    if os.getenv("OPENAI_API_KEY") is None:
-        load_dotenv()
-    openai.api_key = os.getenv("OPENAI_API_KEY")
-
-
-@app.command()
-def main(
-    project_path: str = typer.Argument("projects/example", help="path"),
-    model: str = typer.Argument("gpt-4", help="model id string"),
-    temperature: float = 0.1,
-    steps_config: StepsConfig = typer.Option(
-        StepsConfig.DEFAULT, "--steps", "-s", help="decide which steps to run"
-    ),
-    improve_option: bool = typer.Option(
-        False,
-        "--improve",
-        "-i",
-        help="Improve code from existing project.",
-    ),
-    verbose: bool = typer.Option(False, "--verbose", "-v"),
-):
-    logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO)
-
-    # For the improve option take current project as path and add .gpteng folder
-    # By now, ignoring the 'project_path' argument
-    if improve_option:
-        # The default option for the --improve is the IMPROVE_CODE, not DEFAULT
-        if steps_config == StepsConfig.DEFAULT:
-            steps_config = StepsConfig.IMPROVE_CODE
-
-    load_env_if_needed()
-
-    ai = AI(
-        model_name=model,
-        temperature=temperature,
-    )
-
-    input_path = Path(project_path).absolute()
-    memory_path = input_path / "memory"
-    workspace_path = input_path / "workspace"
-    archive_path = input_path / "archive"
-
-    dbs = DBs(
-        memory=DB(memory_path),
-        logs=DB(memory_path / "logs"),
-        input=DB(input_path),
-        workspace=DB(workspace_path),
-        preprompts=DB(
-            Path(__file__).parent / "preprompts"
-        ),  # Loads preprompts from the preprompts directory
-        archive=DB(archive_path),
-    )
-
-    if steps_config not in [
-        StepsConfig.EXECUTE_ONLY,
-        StepsConfig.USE_FEEDBACK,
-        StepsConfig.EVALUATE,
-    ]:
-        archive(dbs)
-
-    steps = STEPS[steps_config]
-    for step in steps:
-        messages = step(ai, dbs)
-        dbs.logs[step.__name__] = AI.serialize_messages(messages)
-
-    if collect_consent():
-        collect_learnings(model, temperature, steps, dbs)
-
-    dbs.logs["token_usage"] = ai.format_token_usage_log()
-
-
-import subprocess
-import venv
-
-def handle_python_dependencies():
-    venv.create('venv', with_pip=True)
-    subprocess.run(['venv/bin/pip', 'install', '-r', 'requirements.txt'])
-    subprocess.run(['venv/bin/pip', 'freeze', '>', 'requirements.txt'])
-
-def handle_node_dependencies():
-    if not os.path.exists('package.json'):
-        subprocess.run(['npm', 'init', '-y'])
-    with open('package.json', 'r') as f:
-        package_json = json.load(f)
-    for dependency in package_json['dependencies']:
-        subprocess.run(['npm', 'install', dependency])
-
-if __name__ == "__main__":
-    handle_python_dependencies()
-    handle_node_dependencies()
-    app()
+    render() {
+      return (
+        <Container maxW={"5xl"}>
+      <Stack
+        textAlign={"center"}
+        align={"center"}
+        spacing={{ base: 8, md: 10 }}
+        py={{ base: 4, md: 15 }}
+        style={{ paddingTop: "0 !important" }}
+        mb={36}
+      >
+        <img src={logo} alt="Logo" style={{ width: '200px', animation: this.state.spin ? "spin 0.5s linear" : "bob 0.75s ease-in-out infinite alternate", marginTop: "-2rem !important", borderRadius: "50%" }} onClick={this.handleClick} />
+        {/* <img src={logo} alt="Logo" width={120} height={120} style={{
+          animation: "bob 0.75s ease-in-out infinite alternate",
+        }} /> */}
+        <style>
+          {`
+            @keyframes bob {
+              from {
+                transform: translateY(0);
+              }
+              to {
+                transform: translateY(15px);
+              }
+            }
+            @keyframes spin {
+              from {
+                transform: rotate(0deg) scale(1);
+              }
+              to {
+                transform: rotate(360deg);
+              }
+            }
+          `}
+        </style>
+        <Heading
+          fontWeight={600}
+          fontSize={{ base: "3xl", sm: "4xl", md: "6xl" }}
+          lineHeight={"110%"}
+          mt="0 !important"
+        >
+          Ship code faster
+        </Heading>
+        <Text color={"purple.400"} maxW={"3xl"} mt="1rem !important" mb="1rem !important">
+          Let Sweep handle your tech debt so you can focus on the exciting problems
+        </Text>
+        <Button
+          color="white"
+          p={6}
+          colorScheme={"purple"}
+          bg={"purple.400"}
+          _hover={{ bg: "purple.600" }}
+          onClick={() => window.open("https://github.com/apps/sweep-ai")}
+          fontSize={"xl"}
+          mb="1rem !important"
+        >
+          <FaGithub />&nbsp;&nbsp;Install Sweep
+        </Button>
+        <ExternalLinkWithText
+          href="https://discord.gg/sweep" // updated link
+          color="purple.400"
+          mt="0 !important"
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "center",
+          }}
+        >
+          <FaDiscord />&nbsp;&nbsp;Join our Discord
+        </ExternalLinkWithText>
+        <Flex w={"full"} mt="4rem !important">
+          <Container width="100vw" boxShadow="0 0 80px #181818" p={0} maxWidth="full">
+            <video src={demo} autoPlay muted loop playsInline>
+              Your browser does not support the video tag.
+            </video>
+          </Container>
+        </Flex>
+      </Stack>
+    </Container>
+  );
+}
+}
 """
 
 code_replaces = """
-```
 <<<< ORIGINAL
-def handle_node_dependencies():
-    if not os.path.exists('package.json'):
-        subprocess.run(['npm', 'init', '-y'])
-    with open('package.json', 'r') as f:
-        package_json = json.load(f)
-    for dependency in package_json['dependencies']:
-        subprocess.run(['npm', 'install', dependency])
+export default class CallToAction extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { spin: false };
+    this.handleClick = this.handleClick.bind(this);
+  }
+  handleClick = async () => {
+      this.setState({ spin: !this.state.spin });
 ====
-def handle_node_dependencies():
-    if not os.path.exists('package.json'):
-        subprocess.run(['npm', 'init', '-y'])
-    subprocess.run(['npm', 'install'])
+export default class CallToAction extends React.Component<any, {spin: boolean}> {
+  constructor(props: any) {
+    super(props);
+    this.state = { spin: false };
+    this.handleClick = this.handleClick.bind(this);
+  }
+  handleClick = async () => {
+      this.setState({ spin: !this.state.spin });
 >>>> UPDATED
-```
 """
 
 if __name__ == "__main__":
-    print(generate_new_file_from_patch(code_replaces, old_file)[0])
+    # print(generate_new_file_from_patch(code_replaces, old_file)[0])
+    generate_new_file_from_patch(code_replaces, old_file)[0]
