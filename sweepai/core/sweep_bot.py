@@ -400,25 +400,26 @@ class SweepBot(CodeGenBot, GithubBot):
 
             self.delete_messages_from_chat(key_to_delete=key)
 
-            new_diffs = self.chat(
-                sandbox_code_repair_modify_prompt.format(
-                    filename=file_change_request.filename,
-                    instructions=file_change_request.instructions,
-                    code=file_change.code,
-                    diff="",
-                ),
-                message_key=key + "-validation",
-            )
-            final_file, errors = generate_new_file_from_patch(
-                new_diffs, file_change.code, sweep_context=self.sweep_context
-            )
-
-            final_file = format_contents(
-                final_file, is_markdown(file_change_request.filename)
-            )
-            final_file += "\n"
-            file_change.code = final_file
-            logger.info("Done validating file change request")
+            # Todo: prompt was updated, and has {stdout} key now
+            # new_diffs = self.chat(
+            #     sandbox_code_repair_modify_prompt.format(
+            #         filename=file_change_request.filename,
+            #         instructions=file_change_request.instructions,
+            #         code=file_change.code,
+            #         diff="",
+            #     ),
+            #     message_key=key + "-validation",
+            # )
+            # final_file, errors = generate_new_file_from_patch(
+            #     new_diffs, file_change.code, sweep_context=self.sweep_context
+            # )
+            #
+            # final_file = format_contents(
+            #     final_file, is_markdown(file_change_request.filename)
+            # )
+            # final_file += "\n"
+            # file_change.code = final_file
+            # logger.info("Done validating file change request")
 
             return file_change
         except Exception as e:
