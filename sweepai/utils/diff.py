@@ -475,12 +475,12 @@ def generate_new_file_from_patch(
             discord_log_error(
                 f"{sweep_context.issue_url}\nModify Parsing Errors {'gpt3.5' if sweep_context.use_faster_model else 'gpt4'}: \n"
                 + log,
-                priority=0 if sweep_context.use_faster_model else 1,
+                priority=2 if sweep_context.use_faster_model else 0,
             )
         else:
             discord_log_error(
                 f"Modify Parsing Errors gpt3.5: \n" + log,
-                priority=1,
+                priority=2,
             )
 
     result = "\n".join(old_file_lines)
