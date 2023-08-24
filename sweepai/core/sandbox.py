@@ -9,7 +9,10 @@ Self = TypeVar("Self", bound="Sandbox")
 
 
 REPO_PATH = "/home/user/repo"
-GIT_PASS = "cd ~; echo '#!/bin/sh\\necho \"{token}\"' > git-askpass.sh && chmod ugo+x git-askpass.sh"
+GIT_PASS = (
+    "cd ~; echo '#!/bin/sh\\necho \"{token}\"' > git-askpass.sh && chmod ugo+x"
+    " git-askpass.sh"
+)
 GIT_CLONE = (
     "cd ~; export GIT_ASKPASS=./git-askpass.sh;"
     "git config --global credential.helper 'cache --timeout=3600';"
@@ -19,7 +22,10 @@ GIT_BRANCH = f"cd {REPO_PATH}; " + "git checkout -B {branch}"
 IMAGE_INSTALLATION = {
     "Nodejs": f"npm install",
 }
-PYTHON_CREATE_VENV = f"cd {REPO_PATH} && python3 -m venv venv && source venv/bin/activate && poetry install"
+PYTHON_CREATE_VENV = (
+    f"cd {REPO_PATH} && python3 -m venv venv && source venv/bin/activate && poetry"
+    " install"
+)
 
 LINT_CONFIG = """module.exports = {
     "env": {
