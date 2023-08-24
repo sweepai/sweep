@@ -567,15 +567,16 @@ class SweepBot(CodeGenBot, GithubBot):
                 self.delete_messages_from_chat(key)
 
                 sandbox_error = None
-                # if not chunk_offset:
-                #     with open(f"repo/{file_change_request.filename}", "w") as f:
-                #         f.write(new_file)
-                #     final_file, sandbox_error = self.sandbox_code_repair_modify(
-                #         new_file,
-                #         file_change_request.filename,
-                #         chunk_offset=chunk_offset,
-                #         sandbox=sandbox,
-                #     )
+                if not chunk_offset:
+                    with open(f"repo/{file_change_request.filename}", "w") as f:
+                        f.write(new_file)
+                    # final_file, sandbox_error = self.sandbox_code_repair_modify(
+                    #     new_file,
+                    #     file_change_request.filename,
+                    #     chunk_offset=chunk_offset,
+                    #     sandbox=sandbox,
+                    # )
+                    # return final_file, commit_message, sandbox_error
 
                 # proposed_diffs = get_all_diffs(modify_file_response)
                 # proposed_diffs = (
@@ -604,8 +605,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 # final_file = format_contents(final_file, file_markdown)
                 # logger.info("Done validating file change request")
 
-                # return final_file, commit_message, sandbox_error
-                return new_file, commit_message, None
+                return new_file, commit_message, sandbox_error
             except Exception as e:
                 tb = traceback.format_exc()
                 logger.warning(
