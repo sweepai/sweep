@@ -8,7 +8,7 @@ from tabulate import tabulate
 from github.Repository import Repository
 
 from sweepai.config.client import get_blocked_dirs
-from sweepai.core.entities import NoFilesException, Snippet, MockPR, FileChangeRequest
+from sweepai.core.entities import NoFilesException, Snippet, MockPR, FileChangeRequest, SweepContext
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
@@ -109,28 +109,29 @@ def on_comment(
         original_issue = repo.get_issue(int(issue_number))
         author = original_issue.user.login
         logger.info(f"Author of original issue is {author}")
-        chat_logger = (
-            chat_logger
-            if chat_logger is not None
-            else ChatLogger(
-                {
-                    "repo_name": repo_name,
-                    "title": "(Comment) " + pr_title,
-                    "issue_url": pr.html_url,
-                    "pr_file_path": pr_file_path,  # may be None
-                    "pr_line": pr_line,  # may be None
-                    "repo_full_name": repo_full_name,
-                    "repo_description": repo_description,
-                    "comment": comment,
-                    "pr_path": pr_path,
-                    "pr_line_position": pr_line_position,
-                    "username": author,
-                    "installation_id": installation_id,
-                    "pr_number": pr_number,
-                    "type": "comment",
-                }
-            )
+    chat_logger = (
+        chat_logger
+        if chat_logger is not None
+        else ChatLogger(
+            {
+                "repo_name": repo_name,
+                "title": "(Comment) " + pr_title,
+                "issue_url": pr.html_url,
+                "pr_file_path": pr_file_path,  # may be None
+                "pr_line": pr_line,  # may be None
+                "repo_full_name": repo_full_name,
+                "repo_description": repo_description,
+                "comment": comment,
+                "pr_path": pr_path,
+                "pr_line_position": pr_line_position,
+                "username": author,
+                "installation_id": installation_id,
+                "pr_number": pr_number,
+                "type": "comment",
+            }
         )
+    )
+    sweep_context = SweepContext(issue_url=pr.html_url, use_faster_model=chat_logger.use_faster_model(g))
     else:
         logger.warning(f"No issue number found in PR body for summary {pr.body}")
         chat_logger = None
