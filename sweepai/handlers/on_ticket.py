@@ -399,7 +399,11 @@ async def on_ticket(
     # Random variables to save in case of errors
     table = None  # Show plan so user can finetune prompt
 
-    def edit_sweep_comment(message: str, index: int, pr_message=""):
+    def edit_sweep_comment(message: str, index: int, pr_message="", is_latest=False):
+        if not is_latest:
+            message = (
+                f"<details><summary>Update {index}</summary>\n\n{message}\n</details>"
+            )
         nonlocal current_index
         # -1 = error, -2 = retry
         # Only update the progress bar if the issue generation errors.
@@ -1035,6 +1039,7 @@ async def on_ticket(
             review_message + "\n\nSuccess! 🚀",
             6,
             pr_message=f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}",
+            is_latest=True,
         )
 
         logger.info("Add successful ticket to counter")
