@@ -1,5 +1,5 @@
 import time
-from sweepai.core.sweep_bot import SweepBot
+from sweepai.core.sweep_bot import SweepBot, SweepContext
 
 def benchmark_modify_file(file_path):
     # Open and read the file
@@ -9,8 +9,11 @@ def benchmark_modify_file(file_path):
     # Record the start time
     start_time = time.time()
 
-    # Call the process_file function
-    sweep_bot = SweepBot()
+    # Generate the context for the SweepBot
+    context = SweepContext(issue_url="placeholder", use_faster_model=False)
+    
+    # Call the process_file function with the generated context
+    sweep_bot = SweepBot(context=context)
     sweep_bot.process_file(file_contents)
 
     # Record the end time
