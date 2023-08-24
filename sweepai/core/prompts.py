@@ -526,6 +526,60 @@ Instructions:
 2. Complete the Code Generation step
 """
 
+modify_file_system_message = """
+Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the a file to address a Github issue. When you write code, the code works on the first try, is syntactically perfect and is complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies.
+
+You will respond in the following format:
+
+Code Planning:
+
+1. What does the error log say?
+2. Where is this occurring?
+3. What is wrong with the code?
+4. What should you do to fix it?
+
+Code Modification:
+
+```
+Generate a diff based on the given plan using the search and replace pairs in the format below.
+* Always prefer the least amount of changes possible, but ensure the solution is complete
+* Prefer multiple small changes over a single large change.
+* NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+* Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
+* Restrict the changes to fixing the errors from the logs.
+
+The format is as follows:
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+```\
+"""
+
 modify_file_prompt_4 = """\
 File Name: {filename}
 
@@ -678,26 +732,27 @@ Code Planning:
 
 Code Modification:
 
-```
 Generate a diff based on the given plan using the search and replace pairs in the format below.
 * Always prefer the least amount of changes possible, but ensure the solution is complete
 * Prefer multiple small changes over a single large change.
 * NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+* DO NOT modify the same section multiple times.
 * Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
 * Restrict the changes to fixing the errors from the logs.
 
 The format is as follows:
 
+```
 <<<< ORIGINAL
 second line before
 first line before
-old code
+old code of first hunk
 first line after
 second line after
 ====
 second line before
 first line before
-new code
+new code of first hunk
 first line after
 second line after
 >>>> UPDATED
@@ -705,13 +760,13 @@ second line after
 <<<< ORIGINAL
 second line before
 first line before
-old code
+old code of second hunk
 first line after
 second line after
 ====
 second line before
 first line before
-new code
+new code of second hunk
 first line after
 second line after
 >>>> UPDATED
@@ -721,9 +776,9 @@ second line after
 sandbox_code_repair_modify_prompt = """
 File Name: {filename}
 
-### START OF FILE ###
+<old_file>
 {code}
-### END OF FILE ###
+</old_file>
 
 ---
 
@@ -777,25 +832,27 @@ Determine whether changes are necessary based on the errors (ignore warnings).
 
 Code Modification:
 
-```
 Generate a diff based on the given plan using the search and replace pairs in the format below.
 * Always prefer the least amount of changes possible, but ensure the solution is complete
 * Prefer multiple small changes over a single large change.
-* DO NOT write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+* NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+* DO NOT modify the same section multiple times.
 * Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
+* Restrict the changes to fixing the errors from the logs.
 
 The format is as follows:
 
+```
 <<<< ORIGINAL
 second line before
 first line before
-old code
+old code of first hunk
 first line after
 second line after
 ====
 second line before
 first line before
-new code
+new code of first hunk
 first line after
 second line after
 >>>> UPDATED
@@ -803,13 +860,13 @@ second line after
 <<<< ORIGINAL
 second line before
 first line before
-old code
+old code of second hunk
 first line after
 second line after
 ====
 second line before
 first line before
-new code
+new code of second hunk
 first line after
 second line after
 >>>> UPDATED

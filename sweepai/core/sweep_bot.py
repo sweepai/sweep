@@ -471,8 +471,8 @@ class SweepBot(CodeGenBot, GithubBot):
                     sandbox_code_repair_modify_prompt.format(
                         filename=filename,
                         code=current_file,
-                        stdout=clean_logs(sandbox.stdout),
-                        stderr=clean_logs(sandbox.stderr),
+                        stdout=clean_logs(sandbox_error.stdout),
+                        stderr=clean_logs(sandbox_error.stderr),
                     ),
                     message_key=filename + "-validation",
                 )
