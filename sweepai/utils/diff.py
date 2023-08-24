@@ -239,6 +239,37 @@ def get_snippet_with_padding(original, index, search):
     return snippet, spaces, strip
 
 
+def radix_replace(original, search, replace) -> tuple[list[str], bool]:
+    # remove all whitespaces from all texts for comparison
+    check_if_span_is_subspan = lambda little_span, big_span: "".join(
+        [s.strip() for s in little_span]
+    ) in "".join([s.strip() for s in big_span])
+    # always anchor on the original line
+    first_line = search[0]
+    if first_line not in original:
+        return None
+    first_line_idx = original.index(first_line)
+    # check if the rest of the lines are in the original
+    for second_pointer in range(
+        1, len(search)
+    ):  # when this loop terminates, it becomes a two pointer approach
+        match_span = search[second_pointer:]
+        if check_if_span_is_subspan(match_span, original[first_line_idx:]):
+            # check with whitespace
+            if match_span[0] not in original:
+                continue
+            # TODO: perhaps we shouldn't match cases like ")" ? but leaving for now
+            # get the match
+            end_idx = original.index(match_span[0])
+            original = (
+                original[:first_line_idx]
+                + replace
+                + original[end_idx + len(match_span) :]
+            )
+            return original
+    return None
+
+
 def sliding_window_replacement(
     original, search, replace, search_context_before=None, **kwargs
 ):
@@ -261,6 +292,18 @@ def sliding_window_replacement(
             if replace[i].strip() == "...":
                 first_line_idx_replace = i
                 break
+
+        # if no ...'s, then use radix_replace
+        if (
+            first_line_idx == -1
+            and first_line_idx_replace == -1
+            and search_context_before is None
+            and len(kwargs) == 0
+        ):
+            # import pdb; pdb.set_trace()
+            radix_original = radix_replace(original, search, replace)
+            if radix_original is not None:
+                return radix_original, None, None
 
         if first_line_idx == 0 and first_line_idx_replace == 0:
             search = search[1:]
@@ -405,19 +448,21 @@ def generate_new_file_from_patch(
         return search_and_replace[1]
 
     for search, replace in matches:
+        print(search)
+        print()
+        print(replace)
         # Remove trailing tags
         if search.lstrip().startswith("<old_file>") and replace.lstrip().startswith(
-            "<old_file"
+            "<old_file>"
         ):
             search = search.lstrip()[len("<old_file>") :]
             replace = replace.lstrip()[len("<old_file>") :]
         # Remove trailing tags
         if search.rstrip().endswith("</old_file>") and replace.rstrip().endswith(
-            "</old_file"
+            "</old_file>"
         ):
             search = search.rstrip()[: -len("</old_file>")]
             replace = replace.rstrip()[: -len("</old_file>")]
-
         old_file_lines, replace_index, status = sliding_window_replacement(
             old_file_lines, search.split("\n"), replace.split("\n")
         )

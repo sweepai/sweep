@@ -59,7 +59,6 @@ image = (
         "redis",
         "llama_index",
         "bs4",
-        "e2b==0.1.10",
         # for docs search
         "deeplake",
         "robotexclusionrulesparser",
@@ -503,7 +502,9 @@ async def webhook(raw_request: Request):
                     )
                 else:
                     logger.info(
-                        f"Skipping check suite for {request.repository.full_name} because it is not a failure or not from the bot or is a draft"
+                        "Skipping check suite for"
+                        f" {request.repository.full_name} because it is not a failure"
+                        " or not from the bot or is a draft"
                     )
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
@@ -659,7 +660,8 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
 
             # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
             logger.info(
-                f"Merging changes from default branch into PR #{pr.number} for branch {feature_branch}"
+                f"Merging changes from default branch into PR #{pr.number} for branch"
+                f" {feature_branch}"
             )
 
             # Check if the merged PR is the config PR
