@@ -3,7 +3,15 @@ List of common prompts used across the codebase.
 """
 
 # Following two should be fused
-system_message_prompt = "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right."
+system_message_prompt = (
+    "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to"
+    " write code for the following Github issue. When you write code, the code works on"
+    " the first try, is syntactically perfect and is complete. You have the utmost care"
+    " for the code that you write, so you do not make mistakes and every function and"
+    " class will be fully implemented. Take into account the current repository's"
+    " language, frameworks, and dependencies. It is very important that you get this"
+    " right."
+)
 
 repo_description_prefix_prompt = "\n\nThis is a description of the repository:"
 
@@ -987,7 +995,10 @@ Step-by-step thoughts with explanations:
 </additional_instructions>
 """
 
-external_search_system_prompt = "You are an expert at summarizing content from pages that are relevant to a query. You will be given a page and asked to summarize it."
+external_search_system_prompt = (
+    "You are an expert at summarizing content from pages that are relevant to a query."
+    " You will be given a page and asked to summarize it."
+)
 
 external_search_prompt = """\
 Here is the page metadata:

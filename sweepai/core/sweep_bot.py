@@ -89,12 +89,14 @@ class CodeGenBot(ChatGPT):
             for raw_snippet in relevant_snippets.split("\n"):
                 if ":" not in raw_snippet:
                     logger.warning(
-                        f"Error in summarize_snippets: {raw_snippet}. Likely failed to parse"
+                        f"Error in summarize_snippets: {raw_snippet}. Likely failed to"
+                        " parse"
                     )
                 file_path, lines = raw_snippet.split(":", 1)
                 if "-" not in lines:
                     logger.warning(
-                        f"Error in summarize_snippets: {raw_snippet}. Likely failed to parse"
+                        f"Error in summarize_snippets: {raw_snippet}. Likely failed to"
+                        " parse"
                     )
                 start, end = lines.split("-", 1)
                 start = int(start)
@@ -110,7 +112,7 @@ class CodeGenBot(ChatGPT):
         except Exception as e:
             logger.warning(f"Error in summarize_snippets: {e}. Likely failed to parse")
             snippets_text = self.get_message_content_from_message_key(
-                ("relevant_snippets")
+                "relevant_snippets"
             )
 
         # Remove line numbers (1:line) from snippets
@@ -355,7 +357,10 @@ class GithubBot(BaseModel):
                 )
                 if block_status["success"]:
                     # red X emoji
-                    file_change_request.instructions = f'❌ Unable to modify files in `{block_status["path"]}`\nEdit `sweep.yaml` to configure.'
+                    file_change_request.instructions = (
+                        f'❌ Unable to modify files in `{block_status["path"]}`\nEdit'
+                        " `sweep.yaml` to configure."
+                    )
             except Exception as e:
                 logger.info(traceback.format_exc())
         return file_change_requests
@@ -534,7 +539,8 @@ class SweepBot(CodeGenBot, GithubBot):
                     raise MaxTokensExceeded(file_change_request.filename)
             try:
                 logger.info(
-                    f"generate_new_file with contents: {contents} and modify_file_response: {modify_file_response}"
+                    f"generate_new_file with contents: {contents} and"
+                    f" modify_file_response: {modify_file_response}"
                 )
                 new_file, errors = generate_new_file_from_patch(
                     modify_file_response,
@@ -599,7 +605,8 @@ class SweepBot(CodeGenBot, GithubBot):
             except Exception as e:
                 tb = traceback.format_exc()
                 logger.warning(
-                    f"Failed to parse. Retrying for the {count}th time. Received error {e}\n{tb}"
+                    f"Failed to parse. Retrying for the {count}th time. Received error"
+                    f" {e}\n{tb}"
                 )
                 self.delete_messages_from_chat(key)
                 continue
@@ -646,12 +653,14 @@ class SweepBot(CodeGenBot, GithubBot):
                     "success"
                 ]:
                     logger.info(
-                        f"Skipping {file_change_request.filename} because it is blocked."
+                        f"Skipping {file_change_request.filename} because it is"
+                        " blocked."
                     )
                     continue
 
                 print(
-                    f"Processing {file_change_request.filename} for change type {file_change_request.change_type}..."
+                    f"Processing {file_change_request.filename} for change type"
+                    f" {file_change_request.change_type}..."
                 )
                 match file_change_request.change_type:
                     case "create":
@@ -709,7 +718,10 @@ class SweepBot(CodeGenBot, GithubBot):
                         )
                         self.repo.create_file(
                             file_change_request.instructions,
-                            f"Renamed {file_change_request.filename} to {file_change_request.instructions}",
+                            (
+                                f"Renamed {file_change_request.filename} to"
+                                f" {file_change_request.instructions}"
+                            ),
                             contents.decoded_content,
                             branch=branch,
                         )
@@ -743,7 +755,9 @@ class SweepBot(CodeGenBot, GithubBot):
             file_markdown = is_markdown(file_change_request.filename)
             file_change.code = format_contents(file_change.code, file_markdown)
             logger.debug(
-                f"{file_change_request.filename}, {f'Create {file_change_request.filename}'}, {file_change.code}, {branch}"
+                f"{file_change_request.filename},"
+                f" {f'Create {file_change_request.filename}'}, {file_change.code},"
+                f" {branch}"
             )
 
             # if sandbox is not None:
@@ -835,8 +849,8 @@ class SweepBot(CodeGenBot, GithubBot):
             file_contents = file.decoded_content.decode("utf-8")
             lines = file_contents.split("\n")
 
-            new_file_contents = (
-                ""  # Initialize an empty string to hold the new file contents
+            new_file_contents = (  # Initialize an empty string to hold the new file contents
+                ""
             )
             all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
             chunk_sizes = [
@@ -907,7 +921,8 @@ class SweepBot(CodeGenBot, GithubBot):
             # If the original file content is identical to the new file content, log a warning and return
             if file_contents == new_file_contents:
                 logger.warning(
-                    f"No changes made to {file_change_request.filename}. Skipping file update."
+                    f"No changes made to {file_change_request.filename}. Skipping file"
+                    " update."
                 )
                 return False, sandbox_error
             logger.debug(

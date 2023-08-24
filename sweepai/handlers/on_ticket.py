@@ -65,11 +65,20 @@ openai.api_key = OPENAI_API_KEY
 update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 sep = "\n---\n"
-bot_suffix_starring = "⭐ If you are enjoying Sweep, please [star our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
-bot_suffix = f"\n{sep}\n{UPDATES_MESSAGE}\n{sep} 💡 To recreate the pull request edit the issue title or description."
+bot_suffix_starring = (
+    "⭐ If you are enjoying Sweep, please [star our"
+    " repo](https://github.com/sweepai/sweep) so more people can hear about us!"
+)
+bot_suffix = (
+    f"\n{sep}\n{UPDATES_MESSAGE}\n{sep} 💡 To recreate the pull request edit the issue"
+    " title or description."
+)
 discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep)"
 
-stars_suffix = "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep) so more people can hear about us!"
+stars_suffix = (
+    "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep)"
+    " so more people can hear about us!"
+)
 
 collapsible_template = """
 <details>
@@ -323,7 +332,8 @@ async def on_ticket(
     )
     user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
     payment_message = (
-        f"{user_type}: I used {model_name} to create this ticket. You have {ticket_count} GPT-4 tickets left for the month{daily_message}."
+        f"{user_type}: I used {model_name} to create this ticket. You have"
+        f" {ticket_count} GPT-4 tickets left for the month{daily_message}."
         + (
             f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})"
             if not is_paying_user
@@ -332,7 +342,8 @@ async def on_ticket(
     )
     slow_mode_status = " using slow mode" if slow_mode else " "
     payment_message_start = (
-        f"{user_type}: I'm creating this ticket using {model_name}{slow_mode_status}. You have {ticket_count} GPT-4 tickets left{daily_message}."
+        f"{user_type}: I'm creating this ticket using {model_name}{slow_mode_status}."
+        f" You have {ticket_count} GPT-4 tickets left{daily_message}."
         + (
             f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})"
             if not is_paying_user
@@ -374,7 +385,11 @@ async def on_ticket(
         config = SweepConfig.get_config(repo)
     except EmptyRepository as e:
         logger.info("Empty repo")
-        first_comment = f"Sweep is currently not supported on empty repositories. Please add some code to your repository and try again.\n{sep}## {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
+        first_comment = (
+            "Sweep is currently not supported on empty repositories. Please add some"
+            f" code to your repository and try again.\n{sep}##"
+            f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
+        )
         if issue_comment is None:
             issue_comment = current_issue.create_comment(first_comment)
         else:
@@ -384,8 +399,17 @@ async def on_ticket(
     num_of_files = get_num_files_from_repo(repo, installation_id)
     time_estimate = math.ceil(3 + 5 * num_of_files / 1000)
 
-    indexing_message = f"I'm searching for relevant snippets in your repository. If this is your first time using Sweep, I'm indexing your repository. This may take up to {time_estimate} minutes. I'll let you know when I'm done."
-    first_comment = f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n{sep}## {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
+    indexing_message = (
+        "I'm searching for relevant snippets in your repository. If this is your first"
+        " time using Sweep, I'm indexing your repository. This may take up to"
+        f" {time_estimate} minutes. I'll let you know when I'm done."
+    )
+    first_comment = (
+        f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket!. I"
+        " will update the progress of the ticket in this comment. I am currently"
+        f" searching through your code, looking for relevant snippets.\n{sep}##"
+        f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
+    )
 
     if issue_comment is None:
         issue_comment = current_issue.create_comment(first_comment)
@@ -433,12 +457,14 @@ async def on_ticket(
                 "## ❌ Unable to Complete PR"
                 + "\n"
                 + message
-                + "\n\nFor bonus GPT-4 tickets, please report this bug on **[Discord](https://discord.com/invite/sweep-ai)**."
+                + "\n\nFor bonus GPT-4 tickets, please report this bug on"
+                " **[Discord](https://discord.com/invite/sweep-ai)**."
             )
             if table is not None:
                 agg_message = (
                     agg_message
-                    + f"\n{sep}Please look at the generated plan. If something looks wrong, please add more details to your issue.\n\n{table}"
+                    + f"\n{sep}Please look at the generated plan. If something looks"
+                    f" wrong, please add more details to your issue.\n\n{table}"
                 )
             suffix = bot_suffix  # don't include discord suffix for error messages
 
@@ -450,7 +476,10 @@ async def on_ticket(
     if len(title + summary) < 20:
         logger.info("Issue too short")
         edit_sweep_comment(
-            "Please add more details to your issue. I need at least 20 characters to generate a plan.",
+            (
+                "Please add more details to your issue. I need at least 20 characters"
+                " to generate a plan."
+            ),
             -1,
         )
 
@@ -462,7 +491,11 @@ async def on_ticket(
         if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
             logger.info("Test repository detected")
             edit_sweep_comment(
-                "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
+                (
+                    "Sweep does not work on test repositories. Please create an issue"
+                    " on a real repository. If you think this is a mistake, please"
+                    " report this at https://discord.gg/sweep."
+                ),
                 -1,
             )
             return {"success": False}
@@ -481,7 +514,10 @@ async def on_ticket(
         if is_paying_user:
             prefix = " (PRO)"
 
-        content = f"**{error_type} Error**{prefix}\n{username}: {issue_url}\n```{exception}```"
+        content = (
+            f"**{error_type} Error**{prefix}\n{username}:"
+            f" {issue_url}\n```{exception}```"
+        )
         discord_log_error(content, priority=priority)
 
     def fetch_file_contents_with_retry():
@@ -518,7 +554,13 @@ async def on_ticket(
         logger.error(e)
         logger.error(trace)
         edit_sweep_comment(
-            f"It looks like an issue has occurred around fetching the files. Perhaps the repo has not been initialized. If this error persists contact team@sweep.dev.\n\n> @{username}, please edit the issue description to include more details and I will automatically relaunch.",
+            (
+                "It looks like an issue has occurred around fetching the files."
+                " Perhaps the repo has not been initialized. If this error persists"
+                f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
+                " description to include more details and I will automatically"
+                " relaunch."
+            ),
             -1,
         )
         log_error("File Fetch", str(e) + "\n" + traceback.format_exc(), priority=1)
@@ -646,10 +688,15 @@ async def on_ticket(
 
         newline = "\n"
         edit_sweep_comment(
-            "I found the following snippets in your repository. I will now analyze these snippets and come up with a plan."
+            "I found the following snippets in your repository. I will now analyze"
+            " these snippets and come up with a plan."
             + "\n\n"
             + collapsible_template.format(
-                summary="Some code snippets I looked at (click to expand). If some file is missing from here, you can mention the path in the ticket description.",
+                summary=(
+                    "Some code snippets I looked at (click to expand). If some file is"
+                    " missing from here, you can mention the path in the ticket"
+                    " description."
+                ),
                 body="\n".join(
                     [
                         f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
@@ -658,7 +705,8 @@ async def on_ticket(
                 ),
             )
             + (
-                f"I also found the following external resources that might be helpful:\n\n{external_results}\n\n"
+                "I also found the following external resources that might be"
+                f" helpful:\n\n{external_results}\n\n"
                 if external_results
                 else ""
             )
@@ -712,12 +760,19 @@ async def on_ticket(
         if not file_change_requests:
             if len(title + summary) < 60:
                 edit_sweep_comment(
-                    "Sorry, I could not find any files to modify, can you please provide more details? Please make sure that the title and summary of the issue are at least 60 characters.",
+                    (
+                        "Sorry, I could not find any files to modify, can you please"
+                        " provide more details? Please make sure that the title and"
+                        " summary of the issue are at least 60 characters."
+                    ),
                     -1,
                 )
             else:
                 edit_sweep_comment(
-                    "Sorry, I could not find any files to modify, can you please provide more details?",
+                    (
+                        "Sorry, I could not find any files to modify, can you please"
+                        " provide more details?"
+                    ),
                     -1,
                 )
             raise Exception("No files to modify.")
@@ -741,9 +796,8 @@ async def on_ticket(
             tablefmt="pipe",
         )
         edit_sweep_comment(
-            "From looking through the relevant snippets, I decided to make the following modifications:\n\n"
-            + table
-            + "\n\n",
+            "From looking through the relevant snippets, I decided to make the"
+            " following modifications:\n\n" + table + "\n\n",
             2,
         )
 
@@ -754,7 +808,11 @@ async def on_ticket(
         pull_request_content = pull_request.content.strip().replace("\n", "\n>")
         pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
         edit_sweep_comment(
-            f"I have created a plan for writing the pull request. I am now working my plan and coding the required changes to address this issue. Here is the planned pull request:\n\n{pull_request_summary}",
+            (
+                "I have created a plan for writing the pull request. I am now working"
+                " my plan and coding the required changes to address this issue. Here"
+                f" is the planned pull request:\n\n{pull_request_summary}"
+            ),
             3,
         )
 
@@ -895,11 +953,15 @@ async def on_ticket(
 
         edit_sweep_comment(
             table_message
-            + "I have finished coding the issue. I am now reviewing it for completeness.",
+            + "I have finished coding the issue. I am now reviewing it for"
+            " completeness.",
             4,
         )
 
-        review_message = f"Here are my self-reviews of my changes at [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
+        review_message = (
+            "Here are my self-reviews of my changes at"
+            f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
+        )
 
         lint_output = None
         try:
@@ -1042,7 +1104,9 @@ async def on_ticket(
         edit_sweep_comment(
             review_message + "\n\nSuccess! 🚀",
             6,
-            pr_message=f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}",
+            pr_message=(
+                f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}"
+            ),
         )
 
         logger.info("Add successful ticket to counter")
@@ -1055,12 +1119,22 @@ async def on_ticket(
         )
         if chat_logger.is_paying_user():
             edit_sweep_comment(
-                f"Sorry, I could not edit `{e.filename}` as this file is too long. We are currently working on improved file streaming to address this issue.\n",
+                (
+                    f"Sorry, I could not edit `{e.filename}` as this file is too long."
+                    " We are currently working on improved file streaming to address"
+                    " this issue.\n"
+                ),
                 -1,
             )
         else:
             edit_sweep_comment(
-                f"Sorry, I could not edit `{e.filename}` as this file is too long.\n\nIf this file is incorrect, please describe the desired file in the prompt. However, if you would like to edit longer files, consider upgrading to [Sweep Pro](https://sweep.dev/) for longer context lengths.\n",
+                (
+                    f"Sorry, I could not edit `{e.filename}` as this file is too"
+                    " long.\n\nIf this file is incorrect, please describe the desired"
+                    " file in the prompt. However, if you would like to edit longer"
+                    " files, consider upgrading to [Sweep Pro](https://sweep.dev/) for"
+                    " longer context lengths.\n"
+                ),
                 -1,
             )
         delete_branch = True
@@ -1073,7 +1147,12 @@ async def on_ticket(
             priority=2,
         )
         edit_sweep_comment(
-            f"Sorry, Sweep could not find any appropriate files to edit to address this issue. If this is a mistake, please provide more context and I will retry!\n\n> @{username}, please edit the issue description to include more details about this issue.",
+            (
+                "Sorry, Sweep could not find any appropriate files to edit to address"
+                " this issue. If this is a mistake, please provide more context and I"
+                f" will retry!\n\n> @{username}, please edit the issue description to"
+                " include more details about this issue."
+            ),
             -1,
         )
         delete_branch = True
@@ -1082,7 +1161,12 @@ async def on_ticket(
         logger.error(traceback.format_exc())
         logger.error(e)
         edit_sweep_comment(
-            "I'm sorry, but it looks our model has ran out of context length. We're trying to make this happen less, but one way to mitigate this is to code smaller files. If this error persists report it at https://discord.gg/sweep.",
+            (
+                "I'm sorry, but it looks our model has ran out of context length. We're"
+                " trying to make this happen less, but one way to mitigate this is to"
+                " code smaller files. If this error persists report it at"
+                " https://discord.gg/sweep."
+            ),
             -1,
         )
         log_error(
@@ -1107,12 +1191,21 @@ async def on_ticket(
         # title and summary are defined elsewhere
         if len(title + summary) < 60:
             edit_sweep_comment(
-                "I'm sorry, but it looks like an error has occurred due to insufficient information. Be sure to create a more detailed issue so I can better address it. If this error persists report it at https://discord.gg/sweep.",
+                (
+                    "I'm sorry, but it looks like an error has occurred due to"
+                    " insufficient information. Be sure to create a more detailed issue"
+                    " so I can better address it. If this error persists report it at"
+                    " https://discord.gg/sweep."
+                ),
                 -1,
             )
         else:
             edit_sweep_comment(
-                "I'm sorry, but it looks like an error has occurred. Try changing the issue description to re-trigger Sweep. If this error persists contact team@sweep.dev.",
+                (
+                    "I'm sorry, but it looks like an error has occurred. Try changing"
+                    " the issue description to re-trigger Sweep. If this error persists"
+                    " contact team@sweep.dev."
+                ),
                 -1,
             )
         log_error("Workflow", str(e) + "\n" + traceback.format_exc(), priority=1)
