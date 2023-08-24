@@ -658,7 +658,7 @@ Instructions:
 2. Complete the Code Generation step
 """
 
-code_repair_modify_system_prompt = "You are to identify the problem in the code and fix it given the error logs. It is very important you get this right."
+sandbox_code_repair_modify_system_prompt = "You are to identify the problem in the code and fix it given the error logs. It is very important you get this right."
 
 sandbox_code_repair_modify_prompt = """
 File Name: {filename}
