@@ -3,9 +3,17 @@ List of common prompts used across the codebase.
 """
 
 # Following two should be fused
-system_message_prompt = "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies. It is very important that you get this right."
+system_message_prompt = (
+    "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to"
+    " write code for the following Github issue. When you write code, the code works on"
+    " the first try, is syntactically perfect and is complete. You have the utmost care"
+    " for the code that you write, so you do not make mistakes and every function and"
+    " class will be fully implemented. Take into account the current repository's"
+    " language, frameworks, and dependencies. It is very important that you get this"
+    " right."
+)
 
-repo_description_prefix_prompt = " This is a description of the repository:"
+repo_description_prefix_prompt = "\n\nThis is a description of the repository:"
 
 human_message_prompt = [
     {"role": "assistant", "content": "Examining repo..."},
@@ -239,7 +247,7 @@ Then, provide a list of files you would like to modify, abiding by the following
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
 * Prefer modifying existing files over creating new files
 * Only modify or create files that DEFINITELY need to be touched
-* Use detailed, natural language instructions on what to modify, with reference to variable names
+* Use detailed, natural language instructions on what to modify regarding business logic, and do not add low-level details like imports
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
 * Create/modify up to 5 FILES
 * Do not modify non-text files such as images, svgs, binary, etc
@@ -423,8 +431,9 @@ Code Generation:
 
 ```
 Generate a diff based on the given plan using the search and replace pairs in the format below.
-* Always prefer the least amount of changes possible
-* Prefer many small edits over few large edits
+* Always prefer the least amount of changes possible, but ensure the solution is complete
+* Prefer multiple small changes over a single large change.
+* NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
 * Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
 
 The format is as follows:
@@ -499,7 +508,7 @@ Commit message: "Changed goodbye to hello and 3 to 4"\
 ]
 
 # TODO: IMPORTANT: THIS DEPENDS ON THE ABOVE PROMPT, modify_file_hallucination_prompt
-modify_file_prompt_3 = """
+modify_file_prompt_3 = """\
 File Name: {filename}
 <old_file>
 {code}
@@ -507,14 +516,93 @@ File Name: {filename}
 
 ---
 
-Request: "{instructions}". Limit your changes to the request.
+Request:
+{instructions}
+
+Limit your changes to the request.
 
 Instructions:
 1. Complete the Code Planning step
 2. Complete the Code Generation step
 """
 
-code_repair_modify_prompt = """
+modify_file_prompt_4 = """\
+File Name: {filename}
+
+<file>
+{code}
+</file>
+
+---
+
+User's Request:
+{instructions}
+
+Limit your changes to the request. Respond in the following format:
+
+Code Planning:
+
+Step-by-step thoughts with explanations:
+* Thought 1
+* Thought 2
+...
+
+Detailed plan of modifications:
+* Modification 1
+* Modification 2
+...
+
+Code Modification:
+
+```
+Generate a diff based on the given plan using the search and replace pairs in the format below.
+* Always prefer the least amount of changes possible, but ensure the solution is complete
+* Prefer multiple small changes over a single large change.
+* DO NOT write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+* Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
+
+The format is as follows:
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+```
+
+Commit message: "the commit message"
+
+Again, the request is:
+{instructions}
+
+Instructions:
+1. Complete the Code Planning step
+2. Complete the Code Modification step
+"""
+
+code_repair_modify_prompt = """\
 File Name: {filename}
 
 <suggested_new_file>
@@ -543,13 +631,31 @@ Generate a diff based on the given plan using the search and replace pairs in th
 
 ```
 <<<< ORIGINAL
-line_before
-old_code
-line_after
+second line before
+first line before
+old code
+first line after
+second line after
 ====
-line_before
-new_code
-line_after
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
 >>>> UPDATED
 ```
 
@@ -558,6 +664,162 @@ Again the request was "{instructions}".
 Instructions:
 1. Complete the Code Planning step
 2. Complete the Code Generation step
+"""
+
+sandbox_code_repair_modify_system_prompt = """\
+You are to identify the problem from the error logs and fix the code. You will respond in the following format:
+
+Code Planning:
+
+1. What does the error log say?
+2. Where is this occurring?
+3. What is wrong with the code?
+4. What should you do to fix it?
+
+Code Modification:
+
+```
+Generate a diff based on the given plan using the search and replace pairs in the format below.
+* Always prefer the least amount of changes possible, but ensure the solution is complete
+* Prefer multiple small changes over a single large change.
+* NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+* Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
+* Restrict the changes to fixing the errors from the logs.
+
+The format is as follows:
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+```\
+"""
+
+sandbox_code_repair_modify_prompt = """
+File Name: {filename}
+
+### START OF FILE ###
+{code}
+### END OF FILE ###
+
+---
+
+Above is the code that was written by an inexperienced programmer, and contain errors. The CI pipeline returned the following logs:
+
+<stdout>
+{stdout}
+</stdout>
+
+<stderr>
+{stderr}
+</stderr>
+
+Instructions:
+1. Complete the Code Planning step
+2. Complete the Code Modification step\
+"""
+
+sandbox_code_repair_modify_prompt_2 = """
+File Name: {filename}
+
+<file>
+{code}
+</file>
+
+---
+
+Above is the code that was written by an inexperienced programmer, and contain errors such as syntax errors, linting erors and type-checking errors. The CI pipeline returned the following logs:
+
+stdout:
+```
+{stdout}
+```
+
+stderr
+```
+{stderr}
+```
+
+Respond in the following format:
+
+Code Planning
+
+Determine the following in code planning:
+1. Are there any syntax errors? Look through the file to find all syntax errors.
+2. Are there basic linting errors, like undefined variables, undefined members or type errors?
+3. Are there incorrect imports and exports?
+4. Are there any other errors not listed above?
+
+Determine whether changes are necessary based on the errors (ignore warnings).
+
+Code Modification:
+
+```
+Generate a diff based on the given plan using the search and replace pairs in the format below.
+* Always prefer the least amount of changes possible, but ensure the solution is complete
+* Prefer multiple small changes over a single large change.
+* DO NOT write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+* Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
+
+The format is as follows:
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+```
+
+Commit message: "the commit message"
+
+Instructions:
+1. Complete the Code Planning step
+2. Complete the Code Modification step
 """
 
 pr_code_prompt = ""  # TODO: deprecate this
@@ -733,7 +995,10 @@ Step-by-step thoughts with explanations:
 </additional_instructions>
 """
 
-external_search_system_prompt = "You are an expert at summarizing content from pages that are relevant to a query. You will be given a page and asked to summarize it."
+external_search_system_prompt = (
+    "You are an expert at summarizing content from pages that are relevant to a query."
+    " You will be given a page and asked to summarize it."
+)
 
 external_search_prompt = """\
 Here is the page metadata:

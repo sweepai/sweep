@@ -174,13 +174,11 @@ def get_sandbox_config(repo: Repository):
     try:
         contents = repo.get_contents("sweep.yaml")
         description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "sandbox", {"enabled": False}
+            "sandbox", {}
         )
-        if "enabled" not in description:
-            description["enabled"] = False
         return description
-    except Exception as e:
-        return {"enabled": False}
+    except Exception:
+        return {}
 
 
 @lru_cache(maxsize=None)
