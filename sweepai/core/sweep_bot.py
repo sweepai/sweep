@@ -33,14 +33,15 @@ from sweepai.core.prompts import (
     pull_request_prompt,
     create_file_prompt,
     modify_file_hallucination_prompt,
+    modify_file_prompt_3,
     modify_file_prompt_4,
+    modify_file_system_message,
     sandbox_code_repair_modify_system_prompt,
     sandbox_code_repair_modify_prompt,
     snippet_replacement,
     chunking_prompt,
     linting_new_file_prompt,
     linting_modify_prompt,
-    code_repair_modify_prompt,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
@@ -400,7 +401,7 @@ class SweepBot(CodeGenBot, GithubBot):
             self.delete_messages_from_chat(key_to_delete=key)
 
             new_diffs = self.chat(
-                code_repair_modify_prompt.format(
+                sandbox_code_repair_modify_prompt.format(
                     filename=file_change_request.filename,
                     instructions=file_change_request.instructions,
                     code=file_change.code,
@@ -471,8 +472,8 @@ class SweepBot(CodeGenBot, GithubBot):
                     sandbox_code_repair_modify_prompt.format(
                         filename=filename,
                         code=current_file,
-                        stdout=clean_logs(sandbox.stdout),
-                        stderr=clean_logs(sandbox.stderr),
+                        stdout=clean_logs(sandbox_error.stdout),
+                        stderr=clean_logs(sandbox_error.stderr),
                     ),
                     message_key=filename + "-validation",
                 )
@@ -511,7 +512,7 @@ class SweepBot(CodeGenBot, GithubBot):
             key = f"file_change_modified_{file_change_request.filename}"
             file_markdown = is_markdown(file_change_request.filename)
             # TODO(sweep): edge case at empty file
-            message = modify_file_prompt_4.format(
+            message = modify_file_prompt_3.format(
                 filename=file_change_request.filename,
                 instructions=file_change_request.instructions,
                 code=contents_line_numbers,
@@ -527,10 +528,13 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
                     self.delete_messages_from_chat(key)
                 else:
+                    old_system_message = self.messages[0].content
+                    self.messages[0].content = modify_file_system_message
                     modify_file_response = self.chat(
                         message,
                         message_key=key,
                     )
+                    self.messages[0].content = old_system_message
             except Exception as e:  # Check for max tokens error
                 if "max tokens" in str(e).lower():
                     logger.error(
@@ -563,15 +567,15 @@ class SweepBot(CodeGenBot, GithubBot):
                 self.delete_messages_from_chat(key)
 
                 sandbox_error = None
-                if not chunk_offset:
-                    with open(f"repo/{file_change_request.filename}", "w") as f:
-                        f.write(new_file)
-                    final_file, sandbox_error = self.sandbox_code_repair_modify(
-                        new_file,
-                        file_change_request.filename,
-                        chunk_offset=chunk_offset,
-                        sandbox=sandbox,
-                    )
+                # if not chunk_offset:
+                #     with open(f"repo/{file_change_request.filename}", "w") as f:
+                #         f.write(new_file)
+                #     final_file, sandbox_error = self.sandbox_code_repair_modify(
+                #         new_file,
+                #         file_change_request.filename,
+                #         chunk_offset=chunk_offset,
+                #         sandbox=sandbox,
+                #     )
 
                 # proposed_diffs = get_all_diffs(modify_file_response)
                 # proposed_diffs = (
