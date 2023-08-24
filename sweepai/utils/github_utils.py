@@ -390,15 +390,15 @@ def search_snippets(
 def index_full_repository(
     repo_name: str,
     installation_id: int = None,
-    sweep_config: SweepConfig = SweepConfig(),
-):
-    update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
-    num_indexed_docs = update_index.spawn(
-        repo_name=repo_name,
-        installation_id=installation_id,
-        sweep_config=sweep_config,
-    )
-    try:
+    def index_full_repository(
+    ...
+        update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
+        num_indexed_docs = update_index.spawn(
+            repo_name=repo_name,
+            installation_id=installation_id,
+            sweep_config=sweep_config,
+        )
+    ...
         repo = (get_github_client(installation_id)[1]).get_repo(repo_name)
         labels = repo.get_labels()
         label_names = [label.name for label in labels]
