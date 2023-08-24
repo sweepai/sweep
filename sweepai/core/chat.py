@@ -118,9 +118,12 @@ class ChatGPT(BaseModel):
         )
 
     @classmethod
-    def from_system_message_string(cls, prompt_string, **kwargs) -> Self:
+    def from_system_message_string(
+        cls, prompt_string, chat_logger: ChatLogger, **kwargs
+    ) -> Self:
         return cls(
             messages=[Message(role="system", content=prompt_string, key="system")],
+            chat_logger=chat_logger,
             **kwargs,
         )
 

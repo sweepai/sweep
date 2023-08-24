@@ -34,7 +34,7 @@ from sweepai.core.prompts import (
     create_file_prompt,
     modify_file_hallucination_prompt,
     modify_file_prompt_4,
-    code_repair_modify_prompt,
+    sandbox_code_repair_modify_system_prompt,
     sandbox_code_repair_modify_prompt,
     snippet_replacement,
     chunking_prompt,
@@ -432,7 +432,7 @@ class SweepBot(CodeGenBot, GithubBot):
         final_sandbox_error = None
 
         print("self.chat_logger")
-        print(self.chat_Logger)
+        print(self.chat_logger)
 
         for i in range(5):
             logger.info(f"Checking with sandbox for the {i + 1}th time")
@@ -463,7 +463,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     if not line.startswith("[warn]")
                 )
                 code_repairer = ChatGPT.from_system_message_string(
-                    code_repair_modify_prompt,
+                    sandbox_code_repair_modify_system_prompt,
                     chat_logger=self.chat_logger,
                 )
                 new_diffs = code_repairer.chat(
