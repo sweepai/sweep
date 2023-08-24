@@ -1,10 +1,23 @@
 import time
 from sweepai.core.sweep_bot import SweepBot, SweepContext
+from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 def benchmark_modify_file(file_path):
     # Open and read the file
     with open(file_path, 'r') as file:
         file_contents = file.read()
+
+    # Create a HumanMessagePrompt object with placeholder values
+    human_message = HumanMessagePrompt(
+        repo_name="",
+        issue_url="",
+        username="",
+        repo_description="",
+        title="",
+        summary="",
+        snippets=[],
+        tree=[],
+    )
 
     # Record the start time
     start_time = time.time()
