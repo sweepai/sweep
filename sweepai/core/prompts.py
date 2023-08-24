@@ -516,52 +516,42 @@ File Name: {filename}
 
 ---
 
-Request:
+User's request:
 {instructions}
 
 Limit your changes to the request.
 
 Instructions:
 1. Complete the Code Planning step
-2. Complete the Code Generation step
+2. Complete the Code Generation step, remembering to not type ellipses, typing things out in full, and use multiple small hunks.
 """
 
-modify_file_prompt_4 = """\
-File Name: {filename}
+modify_file_system_message = """\
+Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the a file to address a Github issue. When you write code, the code works on the first try, is syntactically perfect and is complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies.
 
-<file>
-{code}
-</file>
-
----
-
-User's Request:
-{instructions}
-
-Limit your changes to the request. Respond in the following format:
+You will respond in the following format:
 
 Code Planning:
 
-Step-by-step thoughts with explanations:
-* Thought 1
-* Thought 2
-...
-
-Detailed plan of modifications:
-* Modification 1
-* Modification 2
+Thoughts and detailed plan of modifications:
+* The requests asks me to change the file from a to b
+* Replace x with y in the section involving z
+* Add a foo method to bar
 ...
 
 Code Modification:
 
-```
-Generate a diff based on the given plan using the search and replace pairs in the format below.
+Generate a diff hunks based on the given plan using the search and replace pairs in the format below.
 * Always prefer the least amount of changes possible, but ensure the solution is complete
 * Prefer multiple small changes over a single large change.
-* DO NOT write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
-* Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
+* Do not edit the same parts multiple times.
+* Add additional lines before and after for disambiguity when replacing repetitive sections
+* NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
 
 The format is as follows:
+
+```
+First hunk's description
 
 <<<< ORIGINAL
 second line before
@@ -576,6 +566,52 @@ new code
 first line after
 second line after
 >>>> UPDATED
+
+Second hunk's description
+
+<<<< ORIGINAL
+second line before
+first line before
+old code
+first line after
+second line after
+====
+second line before
+first line before
+new code
+first line after
+second line after
+>>>> UPDATED
+```\
+"""
+
+modify_file_prompt_4 = """\
+File Name: {filename}
+
+<file>
+{code}
+</file>
+
+---
+
+Modify the file by responding in the following format:
+
+Code Planning:
+
+Step-by-step thoughts with explanations:
+* Thought 1
+* Thought 2
+...
+
+Detailed plan of modifications:
+* Replace x with y
+* Add a foo method to bar
+...
+
+Code Modification:
+
+```
+Generate a diff based on the given instructions using the search and replace pairs in the following format:
 
 <<<< ORIGINAL
 second line before
@@ -594,7 +630,7 @@ second line after
 
 Commit message: "the commit message"
 
-Again, the request is:
+The user's request is:
 {instructions}
 
 Instructions:
@@ -602,105 +638,32 @@ Instructions:
 2. Complete the Code Modification step
 """
 
-code_repair_modify_prompt = """\
-File Name: {filename}
-
-<suggested_new_file>
-{code}
-</suggested_new_file>
-
----
-
-Request: "{instructions}".
-
-This file was edited previously by an inexperienced programmer to complete the users request. First, identify if the request has been completed and there are no any unimplemented or missing classes or functions. Then, identify any errors, other issues. Finally address them by suggesting changes.
-
-Code Planning:
-Step-by-step thoughts with explanations:
-* Thought 1
-* Thought 2
-...
-
-Detailed plan of modifications:
-* Modification 1
-* Modification 2
-...
-
-Code Generation:
-Generate a diff based on the given plan using the search and replace pairs in the following format. Always prefer the least amount of changes possible. Prefer many small edits over few large edits. Always add lines before and after if possible.
-
-```
-<<<< ORIGINAL
-second line before
-first line before
-old code
-first line after
-second line after
-====
-second line before
-first line before
-new code
-first line after
-second line after
->>>> UPDATED
-
-<<<< ORIGINAL
-second line before
-first line before
-old code
-first line after
-second line after
-====
-second line before
-first line before
-new code
-first line after
-second line after
->>>> UPDATED
-```
-
-Again the request was "{instructions}".
-
-Instructions:
-1. Complete the Code Planning step
-2. Complete the Code Generation step
-"""
-
 sandbox_code_repair_modify_system_prompt = """\
 You are to identify the problem from the error logs and fix the code. You will respond in the following format:
 
 Code Planning:
 
-1. What does the error log say?
-2. Where is this occurring?
-3. What is wrong with the code?
-4. What should you do to fix it?
+What does the error log say? Where and what is wrong with the code? What should you do to fix it?
+
+Detailed plan of modifications:
+* Replace x with y
+* Add a foo method to bar
+...
 
 Code Modification:
 
-```
 Generate a diff based on the given plan using the search and replace pairs in the format below.
 * Always prefer the least amount of changes possible, but ensure the solution is complete
 * Prefer multiple small changes over a single large change.
 * NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+* DO NOT modify the same section multiple times.
 * Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
 * Restrict the changes to fixing the errors from the logs.
 
 The format is as follows:
 
-<<<< ORIGINAL
-second line before
-first line before
-old code
-first line after
-second line after
-====
-second line before
-first line before
-new code
-first line after
-second line after
->>>> UPDATED
+```
+Hunk description:
 
 <<<< ORIGINAL
 second line before
@@ -721,9 +684,9 @@ second line after
 sandbox_code_repair_modify_prompt = """
 File Name: {filename}
 
-### START OF FILE ###
+<old_file>
 {code}
-### END OF FILE ###
+</old_file>
 
 ---
 
@@ -777,25 +740,27 @@ Determine whether changes are necessary based on the errors (ignore warnings).
 
 Code Modification:
 
-```
 Generate a diff based on the given plan using the search and replace pairs in the format below.
 * Always prefer the least amount of changes possible, but ensure the solution is complete
 * Prefer multiple small changes over a single large change.
-* DO NOT write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+* NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+* DO NOT modify the same section multiple times.
 * Always add lines before and after. The ORIGINAL section should be at least 5 lines long.
+* Restrict the changes to fixing the errors from the logs.
 
 The format is as follows:
 
+```
 <<<< ORIGINAL
 second line before
 first line before
-old code
+old code of first hunk
 first line after
 second line after
 ====
 second line before
 first line before
-new code
+new code of first hunk
 first line after
 second line after
 >>>> UPDATED
@@ -803,13 +768,13 @@ second line after
 <<<< ORIGINAL
 second line before
 first line before
-old code
+old code of second hunk
 first line after
 second line after
 ====
 second line before
 first line before
-new code
+new code of second hunk
 first line after
 second line after
 >>>> UPDATED
