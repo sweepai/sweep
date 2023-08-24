@@ -371,8 +371,40 @@ class GithubBot(BaseModel):
 
 class SweepBot(CodeGenBot, GithubBot):
     def check_completion(self, new_content: str) -> bool:
-        # Todo: check if the file has unimplemented code
-        return False
+        # GPT-4 generated conditions
+        # Checking for unimplemented Python code with NotImplementedError
+        if "raise NotImplementedError" in new_content:
+            return False
+
+        # Checking for TODO or FIXME comments
+        if "TODO" in new_content or "FIXME" in new_content:
+            return False
+
+        # Checking for Python functions with only a 'pass' statement
+        if "def " in new_content and ":\n    pass\n" in new_content:
+            return False
+
+        # Checking for TypeScript/JavaScript functions that are empty
+        if "function" in new_content and "){}" in new_content:
+            return False
+
+        # Checking for TypeScript/JavaScript arrow functions that are empty
+        if ") => {}" in new_content:
+            return False
+
+        # Checking for abstract methods in TypeScript
+        if "abstract" in new_content and "): void;" in new_content:
+            return False
+
+        # Checking for TypeScript/JavaScript methods that only contain a comment
+        if (
+            "function" in new_content
+            and "){\n    // " in new_content
+            and " \n}" in new_content
+        ):
+            return False
+
+        return True
 
     def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
         file_change: FileCreation | None = None
