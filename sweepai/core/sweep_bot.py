@@ -604,8 +604,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 # final_file = format_contents(final_file, file_markdown)
                 # logger.info("Done validating file change request")
 
-                return final_file, commit_message, sandbox_error
-                # return new_file, commit_message
+                # return final_file, commit_message, sandbox_error
+                return new_file, commit_message, None
             except Exception as e:
                 tb = traceback.format_exc()
                 logger.warning(
