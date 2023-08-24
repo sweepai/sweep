@@ -5,7 +5,12 @@ from sweepai.utils.diff import format_contents
 
 modify_file_function = Function(
     name="modify_file",
-    description="Edits the code in a file. Use start_line and end_line to completely cover the line indexes of code that should be replaced. Indent and format the code in the edits. Output the code in the order it should appear in the file. Make sure start_line and end_line do not overlap between code edits.",
+    description=(
+        "Edits the code in a file. Use start_line and end_line to completely cover the"
+        " line indexes of code that should be replaced. Indent and format the code in"
+        " the edits. Output the code in the order it should appear in the file. Make"
+        " sure start_line and end_line do not overlap between code edits."
+    ),
     parameters={
         "type": "object",
         "properties": {
@@ -20,24 +25,48 @@ modify_file_function = Function(
                     "properties": {
                         "start_line": {
                             "type": "integer",
-                            "description": "The index where the code should start being inserted/replaced.",
+                            "description": (
+                                "The index where the code should start being"
+                                " inserted/replaced."
+                            ),
                         },
                         "end_line": {
                             "type": "integer",
-                            "description": "The index where the code should stop being inserted/replaced. Add 1 to this number to include the line.",
+                            "description": (
+                                "The index where the code should stop being"
+                                " inserted/replaced. Add 1 to this number to include"
+                                " the line."
+                            ),
                         },
                         "inserted_code": {
                             "type": "string",
-                            "description": "Only the new code to insert into the file. Indent and format this code properly using spaces, keeping in mind the entire block will be affected by num_indents. To delete a line, set this to '' (single quoted empty string).",
+                            "description": (
+                                "Only the new code to insert into the file. Indent and"
+                                " format this code properly using spaces, keeping in"
+                                " mind the entire block will be affected by"
+                                " num_indents. To delete a line, set this to '' (single"
+                                " quoted empty string)."
+                            ),
                         },
                         "num_indents": {
                             "type": "integer",
-                            "description": "Use this to indent the entire inserted_code. BE SURE to match the indentation to be inline. There will be two spaces for however many num_indents are set. num_indents can be set to 0, but ONLY IF NEEDED. When it is ambiguous, set as many num_indents as possible. ",
+                            "description": (
+                                "Use this to indent the entire inserted_code. BE SURE"
+                                " to match the indentation to be inline. There will be"
+                                " two spaces for however many num_indents are set."
+                                " num_indents can be set to 0, but ONLY IF NEEDED. When"
+                                " it is ambiguous, set as many num_indents as"
+                                " possible. "
+                            ),
                         },
                     },
                     "required": ["start_line", "end_line", "code", "num_indents"],
                 },
-                "description": "An array of edits. Each `code_edit` represents a slice of the code split by newlines and delimited by `start_line` and `end_line`. Both `start_line` and `end_line` are zero-indexed and inclusive.",
+                "description": (
+                    "An array of edits. Each `code_edit` represents a slice of the code"
+                    " split by newlines and delimited by `start_line` and `end_line`."
+                    " Both `start_line` and `end_line` are zero-indexed and inclusive."
+                ),
             },
         },
         "required": ["file_name", "code_edits"],
@@ -74,7 +103,8 @@ def apply_code_edits(file_contents, code_edits):
             continue
         if end_line > len(lines) - 1:
             logger.error(
-                f"End line {end_line} is greater than the number of lines in the file {len(lines)}"
+                f"End line {end_line} is greater than the number of lines in the file"
+                f" {len(lines)}"
             )
             continue
         # Handle duplicate lines between the existing code and new code

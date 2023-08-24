@@ -95,6 +95,7 @@ def create_pr_changes(
         for (
             file_change_request,
             changed_file,
+            sandbox_error,
         ) in sweep_bot.change_files_in_github_iterator(
             file_change_requests,
             pull_request.branch_name,
@@ -103,7 +104,7 @@ def create_pr_changes(
         ):
             completed_count += changed_file
             logger.info("Completed {}/{} files".format(completed_count, fcr_count))
-            yield file_change_request, changed_file
+            yield file_change_request, changed_file, sandbox_error
         if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")
             posthog.capture(
@@ -129,7 +130,10 @@ def create_pr_changes(
         PR_CHECKOUT_COMMAND = f"To checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
         if issue_number:
             # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)
-            pr_description = f"{pull_request.content}\n\nFixes #{issue_number}.\n\n---\n{PR_CHECKOUT_COMMAND}\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
+            pr_description = (
+                f"{pull_request.content}\n\nFixes"
+                f" #{issue_number}.\n\n---\n{PR_CHECKOUT_COMMAND}\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
+            )
         else:
             pr_description = f"{pull_request.content}\n\n{PR_CHECKOUT_COMMAND}"
         pr_title = pull_request.title
