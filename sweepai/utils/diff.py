@@ -452,8 +452,6 @@ def generate_new_file_from_patch(
         return search_and_replace[1]
 
     for search, replace in matches:
-        print(search)
-        print(replace)
         # Remove trailing tags
         if search.lstrip().startswith("<old_file>") and replace.lstrip().startswith(
             "<old_file>"

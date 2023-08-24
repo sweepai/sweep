@@ -1,7 +1,6 @@
 from sweepai.utils.diff import generate_new_file_from_patch
 
 old_file = r"""
-import React from 'react';
 import {
   Flex,
   Container,
@@ -13,6 +12,7 @@ import {
 import { tsParticles } from "tsparticles";
 import { loadConfettiPreset } from "tsparticles-preset-confetti";
 import { FaDiscord, FaGithub } from "react-icons/fa";
+import { useState } from "react";
 import logo from "../assets/icon.png";
 
 import ExternalLinkWithText from "./ExternalLinkWithText";
@@ -21,28 +21,15 @@ const demo = require("../assets/demo.mp4");
 export default class CallToAction extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { spin: false };
-    this.handleClick = this.handleClick.bind(this);
+    this.state = {
+      spin: false,
+    };
   }
   // const canvas = document.getElementById('canvas3d');
   // const app = new Application(canvas);
   // app.load('https://prod.spline.design/jzV1MbbHCyCmMG7u/scene.splinecode');
-  handleClick = async () => {
-      this.setState({ spin: !this.state.spin });
-      await loadConfettiPreset(tsParticles);
-      await tsParticles.load("tsparticles", {
-        preset: "confetti",
-        particles: {
-          color: {
-            value: ["#800080", "#FFFFFF"],
-          },
-        },
-      });
-    }
-
-    render() {
-      return (
-        <Container maxW={"5xl"}>
+  return (
+    <Container maxW={"5xl"}>
       <Stack
         textAlign={"center"}
         align={"center"}
@@ -120,30 +107,34 @@ export default class CallToAction extends React.Component {
       </Stack>
     </Container>
   );
-}
-}
+};
 """
 
 code_replaces = """
+```
 <<<< ORIGINAL
 export default class CallToAction extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { spin: false };
-    this.handleClick = this.handleClick.bind(this);
+    this.state = {
+      spin: false,
+    };
   }
-  handleClick = async () => {
-      this.setState({ spin: !this.state.spin });
+  return (
+    <Container maxW={"5xl"}>
 ====
-export default class CallToAction extends React.Component<any, {spin: boolean}> {
-  constructor(props: any) {
+export default class CallToAction extends React.Component {
+  constructor(props) {
     super(props);
-    this.state = { spin: false };
-    this.handleClick = this.handleClick.bind(this);
+    this.state = {
+      spin: false,
+    };
   }
-  handleClick = async () => {
-      this.setState({ spin: !this.state.spin });
+  render() {
+    return (
+      <Container maxW={"5xl"}>
 >>>> UPDATED
+```
 """
 
 if __name__ == "__main__":
