@@ -1,4 +1,9 @@
 #!/bin/bash
+# Check if sandbox directory exists, if not clone the repository
+if [ ! -d "./sandbox" ]
+then
+    git clone https://github.com/sweepai/sweep-closed sandbox
+fi
 rm -f poetry.lock
 # Check if poetry is installed
 if ! command -v poetry &> /dev/null
