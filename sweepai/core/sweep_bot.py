@@ -368,7 +368,15 @@ class GithubBot(BaseModel):
 
 
 class SweepBot(CodeGenBot, GithubBot):
-    def check_completion(self, new_content: str) -> bool:
+    def check_completion(self, file_name: str, new_content: str) -> bool:
+        can_check = False
+        for ext in [".js", ".ts", ".jsx", ".tsx", ".py"]:
+            if file_name.endswith(ext):
+                can_check = True
+                break
+        if not can_check:
+            return True
+
         # GPT-4 generated conditions
         # Checking for unimplemented Python code with NotImplementedError
         if "raise NotImplementedError" in new_content:
@@ -458,7 +466,9 @@ class SweepBot(CodeGenBot, GithubBot):
             # logger.info("Done validating file change request")
 
             try:
-                implemented = self.check_completion(file_change.code)
+                implemented = self.check_completion(
+                    file_change_request.filename, file_change.code
+                )
                 if not implemented:
                     discord_log_error(
                         f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
@@ -534,7 +544,9 @@ class SweepBot(CodeGenBot, GithubBot):
 
                 try:
                     for _, replace in get_matches(modify_file_response):
-                        implemented = self.check_completion(replace)
+                        implemented = self.check_completion(
+                            file_change_request.filename, replace
+                        )
                         if not implemented:
                             discord_log_error(
                                 f"{self.sweep_context.issue_url}\nUnimplemented Modify Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
