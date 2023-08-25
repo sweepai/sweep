@@ -17,6 +17,8 @@ echo "Installing robotexclusionrulesparser with pip..."
 pip install robotexclusionrulesparser
 echo "Installing e2b with pip..."
 pip install e2b
+echo "Installing whoosh with pip..."
+pip install whoosh
 echo "Initializing pre-commits"
 pre-commit autoupdate
 pre-commit install
