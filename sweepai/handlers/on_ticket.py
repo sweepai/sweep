@@ -226,10 +226,7 @@ async def on_ticket(
 
     is_paying_user = chat_logger.is_paying_user()
     is_trial_user = chat_logger.is_trial_user()
-    use_faster_model = chat_logger.use_faster_model(g)
-
-    if fast_mode:
-        use_faster_model = True
+    use_faster_model = chat_logger.use_faster_model(g) or fast_mode
 
     sweep_context = SweepContext(issue_url=issue_url, use_faster_model=use_faster_model)
 
