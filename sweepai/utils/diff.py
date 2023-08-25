@@ -357,10 +357,13 @@ def sliding_window_replacement(
             and search_context_before is None
             and len(kwargs) == 0
         ):
-            # import pdb; pdb.set_trace()
-            radix_original = radix_replace(original, search, replace)
-            if radix_original is not None:
-                return radix_original, None, None
+            try:
+                # import pdb; pdb.set_trace()
+                radix_original = radix_replace(original, search, replace)
+                if radix_original is not None:
+                    return radix_original, None, None
+            except Exception as e:
+                print(f"Modify skipped lines error: {e}")
 
         if first_line_idx == 0 and first_line_idx_replace == 0:
             search = search[1:]
