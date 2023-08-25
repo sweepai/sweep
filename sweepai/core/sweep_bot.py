@@ -575,7 +575,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     with open(f"repo/{file_change_request.filename}", "w") as f:
                         f.write(new_file)
                     try:
-                        from sandbox.modal_sandbox import (
+                        from sandbox.modal_sandbox import (  # pylint: disable=E0401
                             sandbox_code_repair_modify,  # pylint: disable=E0401
                         )
 
