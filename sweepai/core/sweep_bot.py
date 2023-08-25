@@ -26,7 +26,7 @@ from sweepai.core.entities import (
     Message,
     MaxTokensExceeded,
 )
-from sweepai.core.modal_sandbox import SandboxError, run_sandbox
+from sandbox.modal_sandbox import SandboxError
 from sweepai.core.prompts import (
     files_to_change_prompt,
     subissues_prompt,
@@ -36,8 +36,6 @@ from sweepai.core.prompts import (
     modify_file_prompt_3,
     modify_file_prompt_4,
     modify_file_system_message,
-    sandbox_code_repair_modify_system_prompt,
-    sandbox_code_repair_modify_prompt,
     snippet_replacement,
     chunking_prompt,
     linting_new_file_prompt,
@@ -478,75 +476,6 @@ class SweepBot(CodeGenBot, GithubBot):
             self.delete_messages_from_chat(key)
         raise Exception("Failed to parse response after 5 attempts.")
 
-    def sandbox_code_repair_modify(
-        self,
-        proposed_file: str,
-        filename: str,
-        chunk_offset: int = 0,
-        sandbox: Sandbox = None,
-    ) -> tuple[str, str | None]:
-        current_file = proposed_file
-        final_sandbox_error = None
-
-        print("self.chat_logger")
-        print(self.chat_logger)
-
-        def clean_logs(logs: str) -> str:
-            return "\n".join(
-                line for line in logs.split("\n") if not line.startswith("[warn]")
-            ).strip()
-
-        for i in range(10):
-            logger.info(f"Checking with sandbox for the {i + 1}th time")
-            try:
-                logger.info(current_file)
-                if sandbox:
-                    run_sandbox(sandbox, filename)
-                logger.info("Sandbox linter success.")
-                return current_file, None
-            except SandboxError as sandbox_error:
-                logger.warning("Sandbox linter failed.")
-                logger.error(sandbox_error)
-
-                final_sandbox_error = sandbox_error
-
-                print(
-                    "Fixing linting errors...\n",
-                    sandbox_error.stdout + "\n\n" + sandbox_error.stderr,
-                )
-                code_repairer = ChatGPT.from_system_message_string(
-                    sandbox_code_repair_modify_system_prompt,
-                    chat_logger=self.chat_logger,
-                )
-                new_diffs = code_repairer.chat(
-                    sandbox_code_repair_modify_prompt.format(
-                        filename=filename,
-                        code=current_file,
-                        stdout=clean_logs(sandbox_error.stdout),
-                        stderr=clean_logs(sandbox_error.stderr),
-                    ),
-                    message_key=filename + "-validation",
-                )
-                print("Tried to fix them\n", new_diffs)
-
-                next_file, _errors = generate_new_file_from_patch(
-                    new_diffs,
-                    current_file,
-                    chunk_offset=chunk_offset,
-                    sweep_context=self.sweep_context,
-                )
-
-                file_markdown = is_markdown(filename)
-                next_file = format_contents(next_file, file_markdown)
-                logger.info("Updated file based on logs")
-                current_file = next_file
-                with open(f"repo/{filename}", "w") as f:
-                    f.write(current_file)
-
-        with open(f"repo/{filename}", "w") as f:
-            f.write(current_file)
-        return current_file, final_sandbox_error
-
     def modify_file(
         self,
         file_change_request: FileChangeRequest,
@@ -633,40 +562,20 @@ class SweepBot(CodeGenBot, GithubBot):
                 if not chunk_offset:
                     with open(f"repo/{file_change_request.filename}", "w") as f:
                         f.write(new_file)
-                    # final_file, sandbox_error = self.sandbox_code_repair_modify(
-                    #     new_file,
-                    #     file_change_request.filename,
-                    #     chunk_offset=chunk_offset,
-                    #     sandbox=sandbox,
-                    # )
-                    # return final_file, commit_message, sandbox_error
+                    try:
+                        from sandbox.modal_sandbox import sandbox_code_repair_modify
 
-                # proposed_diffs = get_all_diffs(modify_file_response)
-                # proposed_diffs = (
-                #     f"<proposed_diffs>\n{proposed_diffs}\n</proposed_diffs>\n\n"
-                #     if proposed_diffs
-                #     else ""
-                # )
-
-                # logger.info("Validating file change request...")
-                # new_diffs = self.chat(
-                #     code_repair_modify_prompt.format(
-                #         filename=file_change_request.filename,
-                #         instructions=file_change_request.instructions,
-                #         code=new_file,
-                #     ),
-                #     message_key=key + "-validation",
-                # )
-
-                # final_file, errors = generate_new_file_from_patch(
-                #     new_diffs,
-                #     new_file,
-                #     chunk_offset=chunk_offset,
-                #     sweep_context=self.sweep_context,
-                # )
-
-                # final_file = format_contents(final_file, file_markdown)
-                # logger.info("Done validating file change request")
+                        final_file, sandbox_error = sandbox_code_repair_modify(
+                            new_file,
+                            file_change_request.filename,
+                            chunk_offset=chunk_offset,
+                            sandbox=sandbox,
+                            chat_logger=self.chat_logger,
+                            sweep_context=self.sweep_context,
+                        )
+                        return final_file, commit_message, sandbox_error
+                    except Exception as e:
+                        logger.error(f"Sandbox error: {e}")
 
                 return new_file, commit_message, sandbox_error
             except Exception as e:
