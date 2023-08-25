@@ -239,35 +239,87 @@ def get_snippet_with_padding(original, index, search):
     return snippet, spaces, strip
 
 
+# Todo: issues with replace being shorter/longer than search
+# def radix_replace(original, search, replace) -> tuple[list[str], bool]:
+#     # remove all whitespaces from all texts for comparison
+#     check_if_span_is_subspan = lambda little_span, big_span: "".join(
+#         [s.strip() for s in little_span]
+#     ) in "".join([s.strip() for s in big_span])
+#     # always anchor on the original line
+#     first_line = search[0]
+#     if first_line not in original:
+#         return None
+#     first_line_idx = original.index(first_line)
+#     # check if the rest of the lines are in the original
+#     for second_pointer in range(
+#         1, len(search)
+#     ):  # when this loop terminates, it becomes a two pointer approach
+#         match_span = search[second_pointer:]
+#         if check_if_span_is_subspan(match_span, original[first_line_idx:]):
+#             # check with whitespace
+#             if match_span[0] not in original:
+#                 continue
+#             # TODO: perhaps we shouldn't match cases like ")" ? but leaving for now
+#             # get the match
+#             end_idx = original.index(match_span[0])
+#             original = (
+#                 original[:first_line_idx]
+#                 + replace
+#                 + original[end_idx + len(match_span) :]
+#             )
+#             return original
+#     return None
+
+
 def radix_replace(original, search, replace) -> tuple[list[str], bool]:
-    # remove all whitespaces from all texts for comparison
-    check_if_span_is_subspan = lambda little_span, big_span: "".join(
-        [s.strip() for s in little_span]
-    ) in "".join([s.strip() for s in big_span])
-    # always anchor on the original line
-    first_line = search[0]
-    if first_line not in original:
-        return None
-    first_line_idx = original.index(first_line)
-    # check if the rest of the lines are in the original
-    for second_pointer in range(
-        1, len(search)
-    ):  # when this loop terminates, it becomes a two pointer approach
-        match_span = search[second_pointer:]
-        if check_if_span_is_subspan(match_span, original[first_line_idx:]):
-            # check with whitespace
-            if match_span[0] not in original:
+    # based on start and end, find the lines that are the same
+    # then, replace the lines in between
+    MAX_RADIX = 20
+
+    # Todo(lukejagg): Make this work for variable length replace
+    # if len(search) != len(replace):
+    #     return None
+
+    for i in range(len(original)):
+        for j in range(i + len(search), len(original) + len(search) + MAX_RADIX + 1):
+            if j >= len(original):
                 continue
-            # TODO: perhaps we shouldn't match cases like ")" ? but leaving for now
-            # get the match
-            end_idx = original.index(match_span[0])
-            original = (
-                original[:first_line_idx]
-                + replace
-                + original[end_idx + len(match_span) :]
-            )
-            return original
-    return None
+            # Match ends
+            match_start = original[i].strip() == search[0].strip()
+            match_end = original[j].strip() == search[-1].strip()
+            if not match_start or not match_end:
+                continue
+
+            # Todo(lukejagg): If replace length is not the same, check the equivalent line in replace and then merge
+            matches = []
+            current_index = i
+            count = 0
+            while current_index <= j:
+                if original[current_index].strip() == search[count].strip():
+                    matches.append(current_index)
+                    count += 1
+                current_index += 1
+
+            if count == len(search):
+                # replace
+                for i, original_index in enumerate(matches):
+                    if i < len(replace):
+                        original[original_index] = replace[i]
+
+                if len(replace) > len(search):
+                    # Add lines after the end of search if replace is longer
+                    original = (
+                        original[: original_index + 1]
+                        + replace[len(search) :]
+                        + original[original_index + 1 :]
+                    )
+                else:
+                    # Remove lines after end of search if replace is shorter
+                    original = (
+                        original[:original_index]
+                        + original[original_index + len(search) - len(replace) :]
+                    )
+                return original
 
 
 def sliding_window_replacement(
