@@ -275,33 +275,32 @@ def radix_replace(original, search, replace) -> tuple[list[str], bool]:
     # based on start and end, find the lines that are the same
     # then, replace the lines in between
     MAX_RADIX = 20
-
-    # Todo(lukejagg): Make this work for variable length replace
-    # if len(search) != len(replace):
-    #     return None
-
+    # Two-pointer approach for string matching
     for i in range(len(original)):
         for j in range(i + len(search), len(original) + len(search) + MAX_RADIX + 1):
+            # If second pointer is out of bounds, continue
             if j >= len(original):
                 continue
+
             # Match ends
             match_start = original[i].strip() == search[0].strip()
             match_end = original[j].strip() == search[-1].strip()
             if not match_start or not match_end:
                 continue
 
-            # Todo(lukejagg): If replace length is not the same, check the equivalent line in replace and then merge
+            # Counts the number of search matches with original code in this snippet (from i to j)
             matches = []
             current_index = i
-            count = 0
+            count = 0  # Number of matches
             while current_index <= j:
                 if original[current_index].strip() == search[count].strip():
                     matches.append(current_index)
                     count += 1
                 current_index += 1
 
+            # If all lines matched in this snippet, then replace
             if count == len(search):
-                # replace
+                # Replace search lines with replace lines
                 for i, original_index in enumerate(matches):
                     if i < len(replace):
                         original[original_index] = replace[i]
