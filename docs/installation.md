@@ -9,6 +9,8 @@ If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?
 ## Create an issue on your own repository
 The issue title should start with `Sweep: ` For issues and PRs, call Sweep using the Sweep label or by prefixing your text with `Sweep: `
 
+For existing GitHub issues, add the `Sweep` label to the issue.
+
 <table>
   <tr>
     <td style="border: 2px solid black;">
