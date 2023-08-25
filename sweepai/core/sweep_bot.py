@@ -26,7 +26,7 @@ from sweepai.core.entities import (
     Message,
     MaxTokensExceeded,
 )
-from sandbox.modal_sandbox import SandboxError
+from sandbox.modal_sandbox import SandboxError  # pylint: disable=E0401
 from sweepai.core.prompts import (
     files_to_change_prompt,
     subissues_prompt,
@@ -563,7 +563,9 @@ class SweepBot(CodeGenBot, GithubBot):
                     with open(f"repo/{file_change_request.filename}", "w") as f:
                         f.write(new_file)
                     try:
-                        from sandbox.modal_sandbox import sandbox_code_repair_modify
+                        from sandbox.modal_sandbox import (
+                            sandbox_code_repair_modify,  # pylint: disable=E0401
+                        )
 
                         final_file, sandbox_error = sandbox_code_repair_modify(
                             new_file,
