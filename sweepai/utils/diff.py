@@ -239,35 +239,86 @@ def get_snippet_with_padding(original, index, search):
     return snippet, spaces, strip
 
 
+# Todo: issues with replace being shorter/longer than search
+# def radix_replace(original, search, replace) -> tuple[list[str], bool]:
+#     # remove all whitespaces from all texts for comparison
+#     check_if_span_is_subspan = lambda little_span, big_span: "".join(
+#         [s.strip() for s in little_span]
+#     ) in "".join([s.strip() for s in big_span])
+#     # always anchor on the original line
+#     first_line = search[0]
+#     if first_line not in original:
+#         return None
+#     first_line_idx = original.index(first_line)
+#     # check if the rest of the lines are in the original
+#     for second_pointer in range(
+#         1, len(search)
+#     ):  # when this loop terminates, it becomes a two pointer approach
+#         match_span = search[second_pointer:]
+#         if check_if_span_is_subspan(match_span, original[first_line_idx:]):
+#             # check with whitespace
+#             if match_span[0] not in original:
+#                 continue
+#             # TODO: perhaps we shouldn't match cases like ")" ? but leaving for now
+#             # get the match
+#             end_idx = original.index(match_span[0])
+#             original = (
+#                 original[:first_line_idx]
+#                 + replace
+#                 + original[end_idx + len(match_span) :]
+#             )
+#             return original
+#     return None
+
+
 def radix_replace(original, search, replace) -> tuple[list[str], bool]:
-    # remove all whitespaces from all texts for comparison
-    check_if_span_is_subspan = lambda little_span, big_span: "".join(
-        [s.strip() for s in little_span]
-    ) in "".join([s.strip() for s in big_span])
-    # always anchor on the original line
-    first_line = search[0]
-    if first_line not in original:
-        return None
-    first_line_idx = original.index(first_line)
-    # check if the rest of the lines are in the original
-    for second_pointer in range(
-        1, len(search)
-    ):  # when this loop terminates, it becomes a two pointer approach
-        match_span = search[second_pointer:]
-        if check_if_span_is_subspan(match_span, original[first_line_idx:]):
-            # check with whitespace
-            if match_span[0] not in original:
+    # based on start and end, find the lines that are the same
+    # then, replace the lines in between
+    MAX_RADIX = 20
+    # Two-pointer approach for string matching
+    for i in range(len(original)):
+        for j in range(i + len(search), len(original) + len(search) + MAX_RADIX + 1):
+            # If second pointer is out of bounds, continue
+            if j >= len(original):
                 continue
-            # TODO: perhaps we shouldn't match cases like ")" ? but leaving for now
-            # get the match
-            end_idx = original.index(match_span[0])
-            original = (
-                original[:first_line_idx]
-                + replace
-                + original[end_idx + len(match_span) :]
-            )
-            return original
-    return None
+
+            # Match ends
+            match_start = original[i].strip() == search[0].strip()
+            match_end = original[j].strip() == search[-1].strip()
+            if not match_start or not match_end:
+                continue
+
+            # Counts the number of search matches with original code in this snippet (from i to j)
+            matches = []
+            current_index = i
+            count = 0  # Number of matches
+            while current_index <= j:
+                if original[current_index].strip() == search[count].strip():
+                    matches.append(current_index)
+                    count += 1
+                current_index += 1
+
+            # If all lines matched in this snippet, then replace
+            if count == len(search):
+                # Replace search lines with replace lines
+                for i, original_index in enumerate(matches):
+                    if i < len(replace):
+                        original[original_index] = replace[i]
+
+                if len(replace) > len(search):
+                    # Add lines after the end of search if replace is longer
+                    original = (
+                        original[: original_index + 1]
+                        + replace[len(search) :]
+                        + original[original_index + 1 :]
+                    )
+                else:
+                    # Remove lines after end of search if replace is shorter
+                    original = (
+                        original[:original_index]
+                        + original[original_index + len(search) - len(replace) :]
+                    )
+                return original
 
 
 def sliding_window_replacement(
@@ -426,6 +477,13 @@ def get_all_diffs(modify_file_response: str) -> str:
     return result
 
 
+def get_matches(modify_file_response):
+    matches = re.findall(
+        r"<<<<.*?\n(.*?)\n====[^\n=]*\n(.*?)\n?>>>>", modify_file_response, re.DOTALL
+    )
+    return matches
+
+
 def generate_new_file_from_patch(
     modify_file_response: str,
     old_file_content: str,
@@ -435,10 +493,7 @@ def generate_new_file_from_patch(
     old_file_lines = old_file_content.split("\n")
 
     # Extract content between <new_file> tags
-    matches = re.findall(
-        r"<<<<.*?\n(.*?)\n====[^\n=]*\n(.*?)\n?>>>>", modify_file_response, re.DOTALL
-    )
-
+    matches = get_matches(modify_file_response)
     errors = []
 
     if not old_file_content.strip():
@@ -475,12 +530,12 @@ def generate_new_file_from_patch(
             discord_log_error(
                 f"{sweep_context.issue_url}\nModify Parsing Errors {'gpt3.5' if sweep_context.use_faster_model else 'gpt4'}: \n"
                 + log,
-                priority=0 if sweep_context.use_faster_model else 1,
+                priority=2 if sweep_context.use_faster_model else 0,
             )
         else:
             discord_log_error(
                 f"Modify Parsing Errors gpt3.5: \n" + log,
-                priority=1,
+                priority=2,
             )
 
     result = "\n".join(old_file_lines)
