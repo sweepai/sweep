@@ -391,7 +391,7 @@ def on_comment(
                     chat_logger=chat_logger,
                 )
             else:
-                file_change_requests, _ = sweep_bot.get_files_to_change(retries=3)
+                file_change_requests, _ = sweep_bot.get_files_to_change(retries=1)
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name
                 )
