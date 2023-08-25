@@ -590,6 +590,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         return final_file, commit_message, sandbox_error
                     except Exception as e:
                         logger.error(f"Sandbox error: {e}")
+                        logger.error(traceback.format_exc())
 
                 return new_file, commit_message, sandbox_error
             except Exception as e:
