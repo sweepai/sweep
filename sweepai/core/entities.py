@@ -216,10 +216,12 @@ class FileCreation(RegexMatchableBaseModel):
 
         if result.code.startswith("```"):
             first_newline = result.code.find("\n")
-            last_newline = result.code.rfind("\n")
             result.code = result.code[first_newline + 1 :]
-            result.code = result.code[:last_newline]
 
+        result.code = result.code.strip()
+        if result.code.endswith("```"):
+            result.code = result.code[: -len("```")]
+            result.code = result.code.strip()
         result.code += "\n"
         return result
 
@@ -307,7 +309,7 @@ class Snippet(BaseModel):
 
     def get_url(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
-        encoded_file_path = quote(self.file_path, safe='/')
+        encoded_file_path = quote(self.file_path, safe="/")
         return f"https://github.com/{repo_name}/blob/{commit_id}/{encoded_file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}"
 
     def get_markdown_link(self, repo_name: str, commit_id: str = "main"):
