@@ -26,7 +26,7 @@ from sweepai.core.entities import (
     Message,
     MaxTokensExceeded,
 )
-from sandbox.modal_sandbox import SandboxError  # pylint: disable=E0401
+
 from sweepai.core.prompts import (
     files_to_change_prompt,
     subissues_prompt,
