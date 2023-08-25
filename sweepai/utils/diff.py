@@ -277,7 +277,9 @@ def radix_replace(original, search, replace) -> tuple[list[str], bool]:
     MAX_RADIX = 20
     # Two-pointer approach for string matching
     for i in range(len(original)):
-        for j in range(i + len(search), len(original) + len(search) + MAX_RADIX + 1):
+        for j in range(
+            i + len(search) - 1, len(original) + len(search) + MAX_RADIX + 1
+        ):
             # If second pointer is out of bounds, continue
             if j >= len(original):
                 continue
@@ -292,11 +294,15 @@ def radix_replace(original, search, replace) -> tuple[list[str], bool]:
             matches = []
             current_index = i
             count = 0  # Number of matches
-            while current_index <= j:
+            while current_index <= j and count < len(search):
                 if original[current_index].strip() == search[count].strip():
                     matches.append(current_index)
                     count += 1
                 current_index += 1
+
+            # If exact match, do not use this algorithm as this is for skipped lines (comments)
+            if j - i == len(search) - 1:
+                return None
 
             # If all lines matched in this snippet, then replace
             if count == len(search):
