@@ -1,7 +1,5 @@
-import modal
-
 from sandbox.modal_sandbox import stub, run_sandbox
-from sweepai.core.sandbox import Sandbox
+from sandbox.sandbox import Sandbox
 
 sandbox = Sandbox(
     install_command="pip install pylint",

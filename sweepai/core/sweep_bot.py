@@ -1,6 +1,3 @@
-import asyncio
-import os
-import shutil
 import traceback
 import re
 from typing import Generator
@@ -11,7 +8,6 @@ from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
-from git import Repo
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.edit_chunk import EditBot
@@ -32,18 +28,13 @@ from sweepai.core.prompts import (
     subissues_prompt,
     pull_request_prompt,
     create_file_prompt,
-    modify_file_hallucination_prompt,
     modify_file_prompt_3,
-    modify_file_prompt_4,
     modify_file_system_message,
     snippet_replacement,
     chunking_prompt,
-    linting_new_file_prompt,
-    linting_modify_prompt,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
-from sweepai.core.sandbox import Sandbox
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import (
     format_contents,
@@ -51,7 +42,6 @@ from sweepai.utils.diff import (
     is_markdown,
     get_matches,
 )
-from sweepai.utils.github_utils import get_github_client
 
 USING_DIFF = True
 

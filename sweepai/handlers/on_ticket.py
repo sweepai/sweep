@@ -9,7 +9,6 @@ import re
 import traceback
 import modal
 import openai
-import asyncio
 
 from github import GithubException
 from loguru import logger
@@ -30,7 +29,7 @@ from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.core.prompts import issue_comment_prompt
-from sweepai.core.sandbox import Sandbox
+from sandbox.sandbox import Sandbox
 from sweepai.handlers.create_pr import (
     create_pr_changes,
     create_config_pr,
