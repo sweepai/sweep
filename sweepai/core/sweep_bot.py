@@ -541,6 +541,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 if not chunk_offset and False:
                     with open(f"repo/{file_change_request.filename}", "w") as f:
                         f.write(new_file)
+
                     try:
                         from sandbox.modal_sandbox import (  # pylint: disable=E0401
                             sandbox_code_repair_modify,  # pylint: disable=E0401
@@ -549,6 +550,8 @@ class SweepBot(CodeGenBot, GithubBot):
                         # Todo(lukejagg): Should this be outside of sandbox?
                         self.delete_messages_from_chat(key)
 
+                        # Formats and lints the file
+                        # (writes the formatted file to repo/filename)
                         final_file, sandbox_error = sandbox_code_repair_modify(
                             new_file,
                             file_change_request.filename,
