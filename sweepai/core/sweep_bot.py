@@ -444,27 +444,6 @@ class SweepBot(CodeGenBot, GithubBot):
 
             self.delete_messages_from_chat(key_to_delete=key)
 
-            # Todo: prompt was updated, and has {stdout} key now
-            # new_diffs = self.chat(
-            #     sandbox_code_repair_modify_prompt.format(
-            #         filename=file_change_request.filename,
-            #         instructions=file_change_request.instructions,
-            #         code=file_change.code,
-            #         diff="",
-            #     ),
-            #     message_key=key + "-validation",
-            # )
-            # final_file, errors = generate_new_file_from_patch(
-            #     new_diffs, file_change.code, sweep_context=self.sweep_context
-            # )
-            #
-            # final_file = format_contents(
-            #     final_file, is_markdown(file_change_request.filename)
-            # )
-            # final_file += "\n"
-            # file_change.code = final_file
-            # logger.info("Done validating file change request")
-
             try:
                 implemented = self.check_completion(
                     file_change_request.filename, file_change.code
@@ -571,7 +550,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 self.delete_messages_from_chat(key)
 
                 sandbox_error = None
-                if not chunk_offset:
+                if not chunk_offset and False:
                     with open(f"repo/{file_change_request.filename}", "w") as f:
                         f.write(new_file)
                     try:
@@ -751,67 +730,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 f" {branch}"
             )
 
-            # if sandbox is not None:
-            #     try:
-            #         # Format file
-            #         loop = asyncio.get_event_loop()
-            #         # run for up to 10 seconds
-            #         file_change.code = loop.run_until_complete(
-            #             asyncio.wait_for(
-            #                 sandbox.run_formatter(
-            #                     file_change_request.filename, file_change.code
-            #                 ),
-            #                 timeout=30,
-            #             )
-            #         )
-
-            #         # Run linter on file
-            #         lint_results = loop.run_until_complete(
-            #             asyncio.wait_for(
-            #                 sandbox.run_linter(
-            #                     file_change_request.filename, file_change.code
-            #                 ),
-            #                 timeout=30,
-            #             )
-            #         )
-
-            #         if lint_results:
-            #             logs = "\n".join([l.line for l in lint_results])
-            #             print("E2B lint output", logs)
-
-            #             # Todo: pass this file to review in sweep_bot
-            #             # Get modifications needed
-            #             fix_message = linting_modify_prompt.format(logs=logs)
-            #             lint_response = self.chat(
-            #                 fix_message,
-            #                 message_key="linting",
-            #             )
-            #             self.delete_messages_from_chat("linting")
-
-            #             new_file, errors = generate_new_file_from_patch(
-            #                 lint_response,
-            #                 file_change.code,
-            #                 sweep_context=self.sweep_context,
-            #             )
-
-            #             # Apply modifications to previous message
-            #             last_msg = self.messages[-1]
-            #             # replace all text between <new_file> and </new_file> with lint_response
-            #             last_msg.content = re.sub(
-            #                 r"<new_file>\n.*?\n?</new_file>",
-            #                 f"<new_file>\n{new_file}\n</new_file>",
-            #                 last_msg.content,
-            #                 flags=re.DOTALL,
-            #             )
-
-            #             file_change.code = new_file
-            #     except Exception as e:
-            #         # print e and print traceback
-            #         print(e)
-            #         print("\n\n")
-            #         print(traceback.format_exc())
-            #         print("OOPS E2B modify")
-
             self.repo.create_file(
                 file_change_request.filename,
                 file_change.commit_message,
@@ -919,71 +837,6 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.debug(
                 f"{file_name}, {commit_message}, {new_file_contents}, {branch}"
             )
-
-            # Format the contents
-            # if sandbox is not None:
-            #     try:
-            #         # Todo(lukejagg): Work with E2B to get this working in Modal stub
-            #         loop = asyncio.get_event_loop()
-            #         new_file_contents = loop.run_until_complete(
-            #             asyncio.wait_for(
-            #                 sandbox.run_formatter(file_name, new_file_contents),
-            #                 timeout=30,
-            #             )
-            #         )
-
-            #         # Todo(lukejagg): Multiple iterations of linting?
-            #         # Run linter on file
-            #         lint_results = loop.run_until_complete(
-            #             asyncio.wait_for(
-            #                 sandbox.run_linter(file_name, new_file_contents),
-            #                 timeout=30,
-            #             )
-            #         )
-
-            #         if lint_results:
-            #             # Todo: pass this file to review in sweep_bot
-
-            #             logs = "\n".join([l.line for l in lint_results])
-            #             print("E2B lint output", logs)
-
-            #             # This prompt must be different from the one in handle_create_file
-            #             # This one uses diffs, so maybe remove the previous messages temporarily and then add them back?
-
-            #             # Todo: pass this file to review in sweep_bot
-            #             # Get modifications needed
-            #             fix_code = linting_new_file_prompt.format(
-            #                 code=new_file_contents
-            #             )
-            #             fix_message = linting_modify_prompt.format(logs=logs)
-            #             lint_response = self.chat(
-            #                 fix_code + fix_message,
-            #                 message_key="linting",
-            #             )
-            #             self.delete_messages_from_chat("linting")
-
-            #             # Apply modifications to previous message
-            #             last_msg = self.messages[-1]
-
-            #             # Todo(lukejagg): add the linted diffs to the message
-            #             # last_msg.content = re.sub(
-            #             #     r"<new_file>\n.*?\n?</new_file>",
-            #             #     f"<new_file>\n{lint_response}\n</new_file>",
-            #             #     last_msg.content,
-            #             #     flags=re.DOTALL,
-            #             # )
-
-            #             new_file_contents, errors = generate_new_file_from_patch(
-            #                 lint_response,
-            #                 new_file_contents,
-            #                 sweep_context=self.sweep_context,
-            #             )
-            #     except Exception as e:
-            #         # print e and print traceback
-            #         print(e)
-            #         print("\n\n")
-            #         print(traceback.format_exc())
-            #         print("OOPS E2B")
 
             # Update the file with the new contents after all chunks have been processed
             try:
