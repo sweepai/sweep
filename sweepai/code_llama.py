@@ -160,62 +160,63 @@ def main():
     )
 
 
-# ## Serve the model
-# Once we deploy this model with `modal deploy text_generation_inference.py`, we can serve it
-# behind an ASGI app front-end. The front-end code (a single file of Alpine.js) is available
-# [here](https://github.com/modal-labs/modal-examples/blob/main/06_gpu_and_ml/llm-frontend/index.html).
-#
-# You can try our deployment [here](https://modal-labs--example-falcon-gptq-get.modal.run/?question=Why%20are%20manhole%20covers%20round?).
+# # ## Serve the model
+# # Once we deploy this model with `modal deploy text_generation_inference.py`, we can serve it
+# # behind an ASGI app front-end. The front-end code (a single file of Alpine.js) is available
+# # [here](https://github.com/modal-labs/modal-examples/blob/main/06_gpu_and_ml/llm-frontend/index.html).
+# #
+# # You can try our deployment [here](https://modal-labs--example-falcon-gptq-get.modal.run/?question=Why%20are%20manhole%20covers%20round?).
 
-frontend_path = Path(__file__).parent / "llm-frontend"
-
-
-@stub.function(
-    mounts=[Mount.from_local_dir(frontend_path, remote_path="/assets")],
-    keep_warm=1,
-    allow_concurrent_inputs=10,
-    timeout=60 * 10,
-)
-@asgi_app(label="tgi-app")
-def app():
-    import json
-
-    import fastapi
-    import fastapi.staticfiles
-    from fastapi.responses import StreamingResponse
-
-    web_app = fastapi.FastAPI()
-
-    @web_app.get("/stats")
-    def stats():
-        stats = Model().generate_stream.get_current_stats()
-        return {
-            "backlog": stats.backlog,
-            "num_total_runners": stats.num_total_runners,
-        }
-
-    @web_app.get("/completion/{question}")
-    def completion(question: str):
-        from urllib.parse import unquote
-
-        def generate():
-            for text in Model().generate_stream.remote(unquote(question)):
-                yield f"data: {json.dumps(dict(text=text), ensure_ascii=False)}\n\n"
-
-        return StreamingResponse(generate(), media_type="text/event-stream")
-
-    web_app.mount("/", fastapi.staticfiles.StaticFiles(directory="/assets", html=True))
-    return web_app
+# frontend_path = Path(__file__).parent / "llm-frontend"
 
 
-# ## Invoke the model from other apps
-# Once the model is deployed, we can invoke inference from other apps, sharing the same pool
-# of GPU containers with all other apps we might need.
-#
-# ```
-# $ python
-# >>> import modal
-# >>> f = modal.Function.lookup("example-tgi-Llama-2-70b-chat-hf", "Model.generate")
-# >>> f.remote("What is the story about the fox and grapes?")
-# 'The story about the fox and grapes ...
-# ```
+# @stub.function(
+#     mounts=[Mount.from_local_dir(frontend_path, remote_path="/assets")],
+#     keep_warm=1,
+#     allow_concurrent_inputs=10,
+#     timeout=60 * 10,
+# )
+# @asgi_app(label="tgi-app")
+# def app():
+#     import json
+
+#     import fastapi
+#     import fastapi.staticfiles
+#     from fastapi.responses import StreamingResponse
+
+#     web_app = fastapi.FastAPI()
+
+#     @web_app.get("/stats")
+#     def stats():
+#         stats = Model().generate_stream.get_current_stats()
+#         return {
+#             "backlog": stats.backlog,
+#             "num_total_runners": stats.num_total_runners,
+#         }
+
+#     @web_app.get("/completion/{question}")
+#     def completion(question: str):
+#         from urllib.parse import unquote
+
+#         def generate():
+#             for text in Model().generate_stream.remote_gen(unquote(question)):
+#                 yield f"data: {json.dumps(dict(text=text), ensure_ascii=False)}\n\n"
+
+#         return StreamingResponse(generate(), media_type="text/event-stream")
+
+#     web_app.mount("/", fastapi.staticfiles.StaticFiles(directory="/assets", html=True))
+#     return web_app
+
+
+# # ## Invoke the model from other apps
+# # Once the model is deployed, we can invoke inference from other apps, sharing the same pool
+# # of GPU containers with all other apps we might need.
+# #
+# # ```
+# # $ python
+# # >>> import modal
+# # >>> f = modal.Function.lookup("example-tgi-Llama-2-70b-chat-hf", "Model.generate")
+# # >>> f.remote("What is the story about the fox and grapes?")
+# # 'The story about the fox and grapes ...
+# # ```
+# #
