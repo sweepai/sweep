@@ -143,6 +143,66 @@ def prepare_index_from_snippets(snippets):
     return ix
 
 
+@dataclass
+class Documentation:
+    url: str
+    content: str
+
+
+def prepare_index_from_docs(docs):
+    all_docs = [Documentation(url, content) for url, content in docs]
+    tokenizer = CodeTokenizer()
+    # An example analyzer for code
+    code_analyzer = tokenizer
+
+    schema = Schema(
+        url=TEXT(stored=True, analyzer=code_analyzer),
+        content=TEXT(stored=True, analyzer=code_analyzer),
+    )
+
+    # Create a directory to store the index
+    if not os.path.exists("indexdir"):
+        os.mkdir("indexdir")
+
+    # Create the index based on the schema
+    ix = index.create_in("indexdir", schema)
+    # writer.cancel()
+    writer = ix.writer()
+    for doc in all_docs:
+        writer.add_document(url=doc.url, content=doc.content)
+
+    writer.commit()
+    return ix
+
+
+def search_docs(query, ix):
+    """Title, score, content"""
+    try:
+        # Create a query parser for the "content" field of the index
+        qp = QueryParser("content", schema=ix.schema, group=OrGroup)
+        q = qp.parse(query)
+
+        # Search the index
+        with ix.searcher() as searcher:
+            results = searcher.search(q, limit=None, terms=True)
+            # return dictionary of content to scores
+            res = {}
+            for hit in results:
+                if hit["url"] not in res:
+                    res[hit["url"]] = hit.score
+                else:
+                    res[hit["url"]] = max(hit.score, res[hit["url"]])
+            # min max normalize scores from 0.5 to 1
+            max_score = max(res.values())
+            min_score = min(res.values()) if min(res.values()) < max_score else 0
+            return {
+                k: (v - min_score) / (max_score - min_score) for k, v in res.items()
+            }
+    except Exception as e:
+        print("Error in search_index", e, traceback.format_exc())
+        return {}
+
+
 def search_index(query, ix):
     """Title, score, content"""
     try:

@@ -206,7 +206,7 @@ def daily_update():
     secrets=secrets,
     keep_warm=1,
 )
-def search_vector_store(doc_url, query, k=5):
+def search_vector_store(doc_url, query, k=100):
     logger.info(f'Searching for "{query}" in {doc_url}')
     idx_name = remove_non_alphanumeric(doc_url)
     vector_store = VectorStore(
@@ -218,5 +218,7 @@ def search_vector_store(doc_url, query, k=5):
     query_embedding = embedding_function(query, cpu=True)
     logger.info("Searching vector store...")
     results = vector_store.search(embedding=query_embedding, k=k)
+    metadatas = results["metadata"]
+    docs = results["text"]
     logger.info("Done searching vector store")
     return results
