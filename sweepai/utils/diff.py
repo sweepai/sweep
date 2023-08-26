@@ -396,7 +396,20 @@ def sliding_window_replacement(
 
     # No changes could be found. Return original code.
     if max_similarity == 0:
+        # If there is only one line, then try to replace it
+        if (
+            len(search) == 1
+            and len(replace) == 1
+            and sum(o.count(search[0]) for o in original) == 1
+        ):
+            # Get index in original that has the search line
+            index = [i for i, o in enumerate(original) if search[0] in o][0]
+            # Replace that line with the replace line
+            original[index] = original[index].replace(search[0], replace[0])
+            return original, index, None
+
         if not ignore_comments:  # In case Sweep decided not to include comments
+            # Todo(lukejagg): Implement ignoring comments
             return sliding_window_replacement(
                 original,
                 search,
