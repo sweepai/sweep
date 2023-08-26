@@ -3,6 +3,19 @@
 if [ ! -d "./sandbox" ]
 then
     git clone https://github.com/sweepai/sweep-closed sandbox
+else
+    if [ -d "./sandbox/.git" ]
+    then
+        echo "Fetching and pulling latest changes from the repository..."
+        cd sandbox
+        {
+            git fetch
+            git pull
+        } || {
+            echo "An error occurred while fetching and pulling the latest changes."
+        }
+        cd ..
+    fi
 fi
 rm -f poetry.lock
 # Check if poetry is installed
