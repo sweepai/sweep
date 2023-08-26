@@ -212,7 +212,7 @@ async def on_ticket(
             "summary": summary,
             "issue_number": issue_number,
             "issue_url": issue_url,
-            "username": username if username.startswith("sweep") else assignee,
+            "username": username if not username.startswith("sweep") else assignee,
             "repo_full_name": repo_full_name,
             "repo_description": repo_description,
             "installation_id": installation_id,
