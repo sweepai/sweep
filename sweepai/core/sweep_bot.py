@@ -537,8 +537,6 @@ class SweepBot(CodeGenBot, GithubBot):
                     commit_message = f"Updated {file_change_request.filename}"
                 commit_message = commit_message[: min(len(commit_message), 50)]
 
-                self.delete_messages_from_chat(key)
-
                 sandbox_error = None
                 if not chunk_offset and False:
                     with open(f"repo/{file_change_request.filename}", "w") as f:
@@ -547,6 +545,9 @@ class SweepBot(CodeGenBot, GithubBot):
                         from sandbox.modal_sandbox import (  # pylint: disable=E0401
                             sandbox_code_repair_modify,  # pylint: disable=E0401
                         )
+
+                        # Todo(lukejagg): Should this be outside of sandbox?
+                        self.delete_messages_from_chat(key)
 
                         final_file, sandbox_error = sandbox_code_repair_modify(
                             new_file,
