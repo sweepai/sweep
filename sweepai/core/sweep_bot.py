@@ -32,6 +32,9 @@ from sweepai.core.prompts import (
     modify_file_system_message,
     snippet_replacement,
     chunking_prompt,
+    REPLACE_LINE_LENGTH,
+    modify_recreate_file_system_message,
+    modify_recreate_file_prompt_3,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
@@ -468,12 +471,14 @@ class SweepBot(CodeGenBot, GithubBot):
         key = f"file_change_modified_{file_change_request.filename}"
         file_markdown = is_markdown(file_change_request.filename)
         # TODO(sweep): edge case at empty file
+        line_count = contents.count("\n") + 1
         message = modify_file_prompt_3.format(
             filename=file_change_request.filename,
             instructions=file_change_request.instructions,
             code=contents_line_numbers,
-            line_count=contents.count("\n") + 1,
+            line_count=line_count,
         )
+        recreate_file = False
         try:
             if chunking:
                 # TODO (sweep): make chunking / streaming better
@@ -484,13 +489,30 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
                 self.delete_messages_from_chat(key)
             else:
-                old_system_message = self.messages[0].content
-                self.messages[0].content = modify_file_system_message
-                modify_file_response = self.chat(
-                    message,
-                    message_key=key,
-                )
-                self.messages[0].content = old_system_message
+                if line_count < REPLACE_LINE_LENGTH:
+                    message = modify_recreate_file_prompt_3.format(
+                        filename=file_change_request.filename,
+                        instructions=file_change_request.instructions,
+                        code=contents_line_numbers,
+                        line_count=line_count,
+                    )
+
+                    old_system_message = self.messages[0].content
+                    self.messages[0].content = modify_recreate_file_system_message
+                    modify_file_response = self.chat(
+                        message,
+                        message_key=key,
+                    )
+                    recreate_file = True
+                    self.messages[0].content = old_system_message
+                else:
+                    old_system_message = self.messages[0].content
+                    self.messages[0].content = modify_file_system_message
+                    modify_file_response = self.chat(
+                        message,
+                        message_key=key,
+                    )
+                    self.messages[0].content = old_system_message
         except Exception as e:  # Check for max tokens error
             if "max tokens" in str(e).lower():
                 logger.error(f"Max tokens exceeded for {file_change_request.filename}")
@@ -500,12 +522,18 @@ class SweepBot(CodeGenBot, GithubBot):
                 f"generate_new_file with contents: {contents} and"
                 f" modify_file_response: {modify_file_response}"
             )
-            new_file, errors = generate_new_file_from_patch(
-                modify_file_response,
-                contents,
-                chunk_offset=chunk_offset,
-                sweep_context=self.sweep_context,
-            )
+            if recreate_file:
+                # Todo(lukejagg): Discord logging on error
+                new_file = re.findall(
+                    r"<new_file>\n(.*?)\n?</new_file>", modify_file_response, re.DOTALL
+                )[0]
+            else:
+                new_file, errors = generate_new_file_from_patch(
+                    modify_file_response,
+                    contents,
+                    chunk_offset=chunk_offset,
+                    sweep_context=self.sweep_context,
+                )
 
             try:
                 for _, replace in get_matches(modify_file_response):
