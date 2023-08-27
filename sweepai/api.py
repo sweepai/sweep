@@ -80,6 +80,7 @@ secrets = [
     modal.Secret.from_name("redis_url"),
     modal.Secret.from_name("e2b"),
     modal.Secret.from_name("gdrp"),
+    modal.Secret.from_name("llama2"),
 ]
 
 FUNCTION_SETTINGS = {
@@ -616,6 +617,18 @@ async def webhook(raw_request: Request):
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
 
+
+@stub.function(**FUNCTION_SETTINGS)
+def run_code_llama_2_locally(parameters: dict):
+    try:
+        # Call the appropriate Code Llama 2 functions
+        results = llama2.run(parameters)
+    except Exception as e:
+        # Handle any errors that may occur
+        logger.error(f"Failed to run Code Llama 2: {e}")
+        return {"success": False, "error": str(e)}
+    # Return the results in a format that is consistent with the rest of the Sweep project
+    return {"success": True, "results": results}
 
 @stub.function(**FUNCTION_SETTINGS)
 def update_sweep_prs(repo_full_name: str, installation_id: int):
