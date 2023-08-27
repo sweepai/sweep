@@ -101,7 +101,9 @@ def extract_relevant_docs(content: str, user_dict: dict, chat_logger: ChatLogger
     for link in links:
         logger.info(f"Fetching docs summary from {link}")
         try:
-            external_searcher = DocumentationSearcher(chat_logger=chat_logger)
+            external_searcher = DocumentationSearcher(
+                chat_logger=chat_logger, model="gpt-3.5-turbo-16k-0613"
+            )
             summary = external_searcher.extract_resources(
                 link, content, user_dict, chat_logger
             )
