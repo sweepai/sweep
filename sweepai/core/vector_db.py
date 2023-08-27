@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import time
+import asyncio
 
 import modal
 from git.repo import Repo
@@ -199,6 +200,10 @@ class ModalEmbeddingFunction:
 
 embedding_function = ModalEmbeddingFunction()
 
+@stub.function()
+def compute_query_embedding(query: str):
+    return embedding_function(query)
+
 
 def get_deeplake_vs_from_repo(
     repo_name: str,
@@ -387,7 +392,7 @@ def get_relevant_snippets(
     lexical=True,
 ):
     logger.info("Getting query embedding...")
-    query_embedding = CPUEmbedding.compute.call(query)  # pylint: disable=no-member
+    query_embedding_future = compute_query_embedding(query)
     logger.info("Starting search by getting vector store...")
     deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
@@ -395,12 +400,9 @@ def get_relevant_snippets(
     content_to_lexical_score = search_index(query, lexical_index)
     logger.info(f"content_to_lexical_score: {content_to_lexical_score}")
     logger.info("Searching for relevant snippets...")
-    results = {"metadata": [], "text": []}
-    try:
-        results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
-    except Exception:
-        pass
+    results_future = asyncio.gather(query_embedding_future, deeplake_vs.search(embedding=query_embedding, k=num_docs))
     logger.info("Fetched relevant snippets...")
+    query_embedding, results = await results_future
     if len(results["text"]) == 0:
         if username is None:
             username = "anonymous"
