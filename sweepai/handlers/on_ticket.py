@@ -586,8 +586,6 @@ async def on_ticket(
     docs_results = extract_relevant_docs(
         title + message_summary, user_dict, chat_logger
     )
-    # Why is there a random exception here?
-    # raise Exception("test")
     if docs_results:
         message_summary += "\n\n" + docs_results
 
@@ -603,7 +601,7 @@ async def on_ticket(
     )
     additional_plan = None
     if slow_mode and not use_faster_model:
-        slow_mode_bot = SlowModeBot()
+        slow_mode_bot = SlowModeBot(chat_logger=chat_logger)
         queries, additional_plan = slow_mode_bot.expand_plan(human_message)
 
         snippets, tree = search_snippets(
