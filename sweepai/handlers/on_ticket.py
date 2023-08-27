@@ -586,7 +586,8 @@ async def on_ticket(
     docs_results = extract_relevant_docs(
         title + message_summary, user_dict, chat_logger
     )
-    raise Exception("test")
+    # Why is there a random exception here?
+    # raise Exception("test")
     if docs_results:
         message_summary += "\n\n" + docs_results
 
