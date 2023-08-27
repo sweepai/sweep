@@ -517,6 +517,11 @@ class SweepBot(CodeGenBot, GithubBot):
             if "max tokens" in str(e).lower():
                 logger.error(f"Max tokens exceeded for {file_change_request.filename}")
                 raise MaxTokensExceeded(file_change_request.filename)
+            else:
+                logger.error(f"Error: {e}")
+                logger.error(traceback.format_exc())
+                self.delete_messages_from_chat(key)
+                raise e
         try:
             logger.info(
                 f"generate_new_file with contents: {contents} and"

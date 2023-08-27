@@ -629,7 +629,7 @@ The format is as follows:
 
 ```
 <new_file>
-{new file content}
+{{new file content}}
 </new_file>
 ```\
 """
