@@ -4,17 +4,22 @@ import requests
 
 # API_URL = "https://bnku6rs12vhhd9x3.us-east-1.aws.endpoints.huggingface.cloud"
 API_URL = "https://u83egzg5ov3y78l9.us-east-1.aws.endpoints.huggingface.cloud"
+# API_URL = "https://bnku6rs12vhhd9x3.us-east-1.aws.endpoints.huggingface.cloud"
+# API_URL = "https://edra7if7othaho7k.us-east-1.aws.endpoints.huggingface.cloud"
 API_TOKEN = os.environ["HUGGING_FACE_HUB_TOKEN"]
 client = InferenceClient(API_URL, token=API_TOKEN)
 headers = {"Authorization": f"Bearer {API_TOKEN}", "Content-Type": "application/json"}
 
 gen_kwargs = dict(
-    max_new_tokens=1500,
-    stop_sequences=["\nUser:", "<|endoftext|>", "</s>"],
+    max_new_tokens=500,
+    stop_sequences=["[/RESP]", "<|endoftext|>", "</s>"],
+    # frequency_penalty=0.0,
 )
 
 prompt = """\
-Below is the old file consisting of the file "src/components/App.tsx".
+Your name is Sweep bot and you are to modify the file to complete the task.
+
+Below is the file "src/components/App.tsx".
 
 ```
 import {
@@ -117,34 +122,241 @@ export const App = () => {
 ```
 
 ### Instructions
-Migrate the function components to class components.
+Fix the following error logs:
+
+'React' is not defined. (no-undef)
 
 **Format**
 
 Respond by indicating which sections you would like to modify and how you would modify them. Write your response in diff hunks.
 
-This will be applied to the original file. Write the least amount of diffs possible to complete the task. Prefer multiple small diff hunks over one large diff hunk, in this format:
+This will be applied to the original file. Write the least amount of diffs possible to complete the task in this format:
+
+First hunk:
 
 ```diff
 line before
-- old code
-+ new code
+- first old code
++ first new code
 line after
 ```
 
-### Response
-
-Here are the diffs:
+Second hunk:
 
 ```diff
+line before
+- second old code
++ second new code
+line after
+```
+
+Write multiple small diff hunks instead of one large diff hunk. Only provide the lines necessary and do not just copy the whole file.
+
+### Response
+
+Here is the first diff hunk:
 """
+
+
+prompt = """\
+[INST]
+I have the following file `src/example.py` that I would like to modify to complete the task.
+
+```
+a = 1
+b = 2
+
+class Example:
+    def foo(self):
+        print("foo")
+    def bar(self):
+        pass
+
+if __name__ == "__main__":
+    Example().foo()
+```
+
+Task: Change "foo" to "bar" and increment a.
+
+Respond
+[/INST]
+
+[RESP]
+Step-by-step thoughts: (max 5 thoughts)
+* b should change from 2 to 3.
+* The string in the print statement should change from "foo" to "bar".
+
+Change b from 2 to 3:
+```
+<<<< ORIGINAL
+a = 1
+b = 2
+====
+a = 1
+b = 3
+>>>> UPDATED
+```
+
+Change "foo" to "bar" in the print statement:
+```
+<<<< ORIGINAL
+class Example:
+    def foo(self):
+        print("foo")
+    def bar(self):
+        pass
+====
+class Example:
+    def foo(self):
+        print("bar")
+    def bar(self):
+        pass
+>>>> UPDATED
+```
+[/RESP]
+
+[INST]
+I have the following file `src/components/App.tsx` that I would like to modify to complete the task.
+
+```
+import {
+  ChakraProvider,
+  Box,
+  extendTheme,
+  useColorMode,
+  ThemeConfig,
+} from "@chakra-ui/react";
+import CallToAction from "./components/CallToAction";
+import { Helmet } from "react-helmet";
+import Navbar from "./components/Navbar";
+import Banner from "./components/Banner";
+import og_image from "./assets/og_image.png";
+import { ColorModeSwitcher } from "./ColorModeSwitcher";
+import { useEffect } from "react";
+import Testimonials from "./components/Testimonials";
+import Users from "./components/Users";
+import AboutUs from "./components/AboutUs";
+import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+
+import circles from "./assets/circles.svg";
+import Features from "./components/Features";
+import Conclusion from "./components/Conclusion";
+
+const config: ThemeConfig = {
+  initialColorMode: "dark",
+  useSystemColorMode: false,
+};
+
+const theme = extendTheme({ config });
+
+function ForceDarkMode(props: { children: JSX.Element }) {
+  const { colorMode, toggleColorMode } = useColorMode();
+
+  useEffect(() => {
+    if (colorMode === "dark") return;
+    toggleColorMode();
+  }, [colorMode, toggleColorMode]);
+
+  return props.children;
+}
+```
+
+Task: Change the following line to use a class component instead of a functional component.
+[/INST]
+
+[RESP]
+"""
+
+"""
+### Response Format
+
+Respond by first thinking step-by-step in the following format:
+
+Step-by-step thoughts: (max 5 thoughts)
+* Thought 1
+* Thought 2
+...
+
+Then indicating which sections you would like to modify and how you would modify them. Write your response in diff hunks. This will be applied to the original file. Write the least amount of diffs possible to complete the task in this format:
+
+Write multiple small diff hunks instead of one large diff hunk. Only provide the lines necessary and do not just copy the whole file.
+
+
+```diff
+line before
+- first old code
++ first new code
+line after
+```
+
+
+### Instructions
+
+Migrate to class components.
+
+
+"""
+
+# prompt = """\
+# ```
+# import {
+#   ChakraProvider,
+#   Box,
+#   extendTheme,
+#   useColorMode,
+#   ThemeConfig,
+# } from "@chakra-ui/react";
+# import CallToAction from "./components/CallToAction";
+# import { Helmet } from "react-helmet";
+# import Navbar from "./components/Navbar";
+# import Banner from "./components/Banner";
+# import og_image from "./assets/og_image.png";
+# import { ColorModeSwitcher } from "./ColorModeSwitcher";
+# import { useEffect } from "react";
+# import Testimonials from "./components/Testimonials";
+# import Users from "./components/Users";
+# import AboutUs from "./components/AboutUs";
+# import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+
+# import circles from "./assets/circles.svg";
+# import Features from "./components/Features";
+# import Conclusion from "./components/Conclusion";
+
+# const config: ThemeConfig = {
+#   initialColorMode: "dark",
+#   useSystemColorMode: false,
+# };
+
+# const theme = extendTheme({ config });
+
+# function ForceDarkMode(props: { children: JSX.Element }) {
+#   const { colorMode, toggleColorMode } = useColorMode();
+
+#   useEffect(() => {
+#     if (colorMode === "dark") return;
+#     toggleColorMode();
+#   }, [colorMode, toggleColorMode]);
+
+#   return props.children;
+# }
+# ```
+
+# ### Instructions
+
+# Rewrite this to use class components:
+
+# ### Response
+# """
+
 
 stream = client.text_generation(prompt, stream=True, details=True, **gen_kwargs)
 
 print(prompt)
-for r in stream:
-    if r.token.special:
+for result in stream:
+    # print(result.token)
+    if result.token.special:
         continue
-    if r.token.text in gen_kwargs["stop_sequences"]:
+    if result.token.text in gen_kwargs["stop_sequences"]:
         break
-    print(r.token.text, end="")
+    print(result.token.text, end="")
+    # print(result.token)

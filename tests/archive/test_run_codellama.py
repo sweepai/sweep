@@ -1,5 +1,6 @@
 import modal
 
+# app_name = "example-tgi-Phind-CodeLlama-34B-v1"
 app_name = "example-tgi-WizardCoder-Python-34B-V1.0"
 
 generate = modal.Function.lookup(app_name, "Model.generate")

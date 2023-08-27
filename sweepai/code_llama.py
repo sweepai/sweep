@@ -25,9 +25,9 @@ from modal import Image, Mount, Secret, Stub, Volume, asgi_app, gpu, method
 N_GPUS = 2
 # MODEL_ID = "meta-llama/Llama-2-70b-chat-hf"
 # MODEL_ID = "codellama/CodeLlama-34b-Instruct-hf"
-MODEL_ID = "WizardLM/WizardCoder-Python-34B-V1.0"
+# MODEL_ID = "WizardLM/WizardCoder-Python-34B-V1.0"
 # MODEL_ID = "replit/replit-code-v1-3b"
-# MODEL_ID = "Phind/Phind-CodeLlama-34B-v1"
+MODEL_ID = "Phind/Phind-CodeLlama-34B-v1"
 # Add `["--quantize", "gptq"]` for TheBloke GPTQ models.
 LAUNCH_FLAGS = ["--model-id", MODEL_ID]
 
