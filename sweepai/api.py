@@ -79,6 +79,7 @@ secrets = [
     modal.Secret.from_name("redis_url"),
     modal.Secret.from_name("e2b"),
     modal.Secret.from_name("gdrp"),
+    modal.Secret.from_name("huggingface"),
 ]
 
 FUNCTION_SETTINGS = {
