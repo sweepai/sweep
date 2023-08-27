@@ -1,4 +1,22 @@
 #!/bin/bash
+# Check if sandbox directory exists, if not clone the repository
+if [ ! -d "./sandbox" ]
+then
+    git clone https://github.com/sweepai/sweep-closed sandbox
+else
+    if [ -d "./sandbox/.git" ]
+    then
+        echo "Fetching and pulling latest changes from the repository..."
+        cd sandbox
+        {
+            git fetch
+            git pull
+        } || {
+            echo "An error occurred while fetching and pulling the latest changes."
+        }
+        cd ..
+    fi
+fi
 rm -f poetry.lock
 # Check if poetry is installed
 if ! command -v poetry &> /dev/null
@@ -17,6 +35,8 @@ echo "Installing robotexclusionrulesparser with pip..."
 pip install robotexclusionrulesparser
 echo "Installing e2b with pip..."
 pip install e2b
+echo "Installing whoosh with pip..."
+pip install whoosh
 echo "Initializing pre-commits"
 pre-commit autoupdate
 pre-commit install
