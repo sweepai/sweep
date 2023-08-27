@@ -2,6 +2,7 @@ import time
 from datetime import datetime
 
 import modal
+import llama2
 from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
@@ -98,7 +99,7 @@ handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
 write_documentation = modal.Function.lookup(DOCS_MODAL_INST_NAME, "write_documentation")
 
 
-@stub.function(**FUNCTION_SETTINGS)
+def run_code_llama_2_locally(parameters: dict):
 def handle_pr_change_request(repo_full_name: str, pr_id: int):
     # TODO: put process ID here and check if it's still running
     # TODO: GHA should have lower precedence than comments
@@ -619,7 +620,6 @@ async def webhook(raw_request: Request):
 
 
 @stub.function(**FUNCTION_SETTINGS)
-def run_code_llama_2_locally(parameters: dict):
     try:
         # Call the appropriate Code Llama 2 functions
         results = llama2.run(parameters)
