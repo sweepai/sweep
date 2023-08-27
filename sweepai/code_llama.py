@@ -116,6 +116,7 @@ class Model:
 
         from text_generation import AsyncClient
 
+        stub.model_cache.reload()
         print("Running ls /data")
         process = subprocess.run("ls /data", shell=True, capture_output=True)
         print(process.stdout.decode())

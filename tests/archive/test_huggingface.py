@@ -12,6 +12,7 @@ headers = {"Authorization": f"Bearer {API_TOKEN}", "Content-Type": "application/
 
 gen_kwargs = dict(
     max_new_tokens=500,
+    temperature=0.01,
     stop_sequences=["[/RESP]", "<|endoftext|>", "</s>"],
     # frequency_penalty=0.0,
 )
@@ -178,23 +179,26 @@ if __name__ == "__main__":
 
 Task: Change "foo" to "bar" and increment a.
 
-Respond
+Respond by writing diff hunks:
+* Write multiple small diff hunks instead of one large diff hunk.
+* Write the LEAST amount of changes to complete the task and NEVER copy the whole file.
+* NEVER modify same section multiple times.
 [/INST]
 
 [RESP]
 Step-by-step thoughts: (max 5 thoughts)
-* b should change from 2 to 3.
-* The string in the print statement should change from "foo" to "bar".
+1. b should change from 2 to 3.
+2. The string in the print statement should change from "foo" to "bar".
 
 Change b from 2 to 3:
 ```
-<<<< ORIGINAL
+<<<<<<< ORIGINAL
 a = 1
 b = 2
 ====
 a = 1
 b = 3
->>>> UPDATED
+>>>>>>> UPDATED
 ```
 
 Change "foo" to "bar" in the print statement:
@@ -249,19 +253,49 @@ const config: ThemeConfig = {
 
 const theme = extendTheme({ config });
 
-function ForceDarkMode(props: { children: JSX.Element }) {
-  const { colorMode, toggleColorMode } = useColorMode();
-
+export const App = () => {
   useEffect(() => {
-    if (colorMode === "dark") return;
-    toggleColorMode();
-  }, [colorMode, toggleColorMode]);
-
-  return props.children;
-}
+    const script = document.createElement("script");
+    script.type = "text/javascript";
+    script.async = true;
+    document.body.appendChild(script);
+  }, []);
+  return (
+    <>
+      <ChakraProvider theme={theme}>
+        <ForceDarkMode>
+          <Box>
+            {false && <ColorModeSwitcher />}
+            <Banner />
+            <Router>
+              <Navbar />
+              <Switch>
+                <Route exact path="/">
+                  <CallToAction />
+                  <Users />
+                  <Features />
+                  <Testimonials />
+                  <Conclusion />
+                </Route>
+                <Route path="/about-us">
+                  <AboutUs />
+                </Route>
+              </Switch>
+            </Router>
+          </Box>
+        </ForceDarkMode>
+      </ChakraProvider>
+    </>
+  );
+};
 ```
 
 Task: Change the following line to use a class component instead of a functional component.
+
+Respond by writing diff hunks:
+* Write multiple small diff hunks instead of one large diff hunk.
+* Write the LEAST amount of changes to complete the task and NEVER copy the whole file.
+* NEVER modify same section multiple times.
 [/INST]
 
 [RESP]
