@@ -131,7 +131,7 @@ def on_check_suite(request: CheckRunCompleted):
     if not logs:
         return None
     logs = clean_logs(logs)
-    extractor = GHAExtractor()
+    extractor = GHAExtractor(chat_logger=None)
     logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
     problematic_logs = extractor.gha_extract(logs)
     if problematic_logs.count("\n") > 15:
