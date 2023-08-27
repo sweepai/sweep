@@ -25,9 +25,9 @@ from modal import Image, Mount, Secret, Stub, Volume, asgi_app, gpu, method
 N_GPUS = 2
 # MODEL_ID = "meta-llama/Llama-2-70b-chat-hf"
 # MODEL_ID = "codellama/CodeLlama-34b-Instruct-hf"
-# MODEL_ID = "WizardLM/WizardCoder-Python-34B-V1.0"
+MODEL_ID = "WizardLM/WizardCoder-Python-34B-V1.0"
 # MODEL_ID = "replit/replit-code-v1-3b"
-MODEL_ID = "Phind/Phind-CodeLlama-34B-v1"
+# MODEL_ID = "Phind/Phind-CodeLlama-34B-v1"
 # Add `["--quantize", "gptq"]` for TheBloke GPTQ models.
 LAUNCH_FLAGS = ["--model-id", MODEL_ID]
 
@@ -75,7 +75,7 @@ image = (
 )
 
 stub = Stub("example-tgi-" + MODEL_ID.split("/")[-1], image=image)
-stub.model_cache = Volume.new()
+stub.volume = Volume.persisted("test-model-cache")
 
 # ## The model class
 #
@@ -105,7 +105,7 @@ stub.model_cache = Volume.new()
     timeout=60 * 60,
     concurrency_limit=1,
     volumes={
-        "/data": stub.model_cache,
+        "/data": stub.volume,
     },
 )
 class Model:
@@ -116,7 +116,7 @@ class Model:
 
         from text_generation import AsyncClient
 
-        stub.model_cache.reload()
+        stub.volume.reload()
         print("Running ls /data")
         process = subprocess.run("ls /data", shell=True, capture_output=True)
         print(process.stdout.decode())
@@ -139,7 +139,7 @@ class Model:
         while not webserver_ready():
             time.sleep(1.0)
 
-        stub.model_cache.commit()
+        stub.volume.commit()
         print("Webserver ready!")
 
     def __exit__(self, _exc_type, _exc_value, _traceback):
