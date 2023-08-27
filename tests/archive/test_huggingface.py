@@ -11,8 +11,8 @@ client = InferenceClient(API_URL, token=API_TOKEN)
 headers = {"Authorization": f"Bearer {API_TOKEN}", "Content-Type": "application/json"}
 
 gen_kwargs = dict(
-    max_new_tokens=500,
-    temperature=0.01,
+    max_new_tokens=1000,
+    temperature=0.1,
     stop_sequences=["[/RESP]", "<|endoftext|>", "</s>"],
     # frequency_penalty=0.0,
 )
@@ -164,9 +164,13 @@ prompt = """\
 I have the following file `src/example.py` that I would like to modify to complete the task.
 
 ```
+import numpy as np
+from dataclasses import dataclass
+
 a = 1
 b = 2
 
+@dataclass
 class Example:
     def foo(self):
         print("foo")
@@ -177,39 +181,31 @@ if __name__ == "__main__":
     Example().foo()
 ```
 
-Task: Change "foo" to "bar" and increment a.
-
-Respond by writing diff hunks:
-* Write multiple small diff hunks instead of one large diff hunk.
-* Write the LEAST amount of changes to complete the task and NEVER copy the whole file.
-* NEVER modify same section multiple times.
+Task:
+Change "foo" to "bar" and increment a.
 [/INST]
 
 [RESP]
-Step-by-step thoughts: (max 5 thoughts)
-1. b should change from 2 to 3.
-2. The string in the print statement should change from "foo" to "bar".
-
-Change b from 2 to 3:
 ```
-<<<<<<< ORIGINAL
+<<<< ORIGINAL
 a = 1
 b = 2
 ====
 a = 1
 b = 3
->>>>>>> UPDATED
+>>>> UPDATED
 ```
 
-Change "foo" to "bar" in the print statement:
 ```
 <<<< ORIGINAL
+@dataclass
 class Example:
     def foo(self):
         print("foo")
     def bar(self):
         pass
 ====
+@dataclass
 class Example:
     def foo(self):
         print("bar")
@@ -253,6 +249,17 @@ const config: ThemeConfig = {
 
 const theme = extendTheme({ config });
 
+function ForceDarkMode(props: { children: JSX.Element }) {
+  const { colorMode, toggleColorMode } = useColorMode();
+
+  useEffect(() => {
+    if (colorMode === "dark") return;
+    toggleColorMode();
+  }, [colorMode, toggleColorMode]);
+
+  return props.children;
+}
+
 export const App = () => {
   useEffect(() => {
     const script = document.createElement("script");
@@ -290,15 +297,122 @@ export const App = () => {
 };
 ```
 
-Task: Change the following line to use a class component instead of a functional component.
+Task:
+Migrate from functional components to class components.
 
-Respond by writing diff hunks:
-* Write multiple small diff hunks instead of one large diff hunk.
-* Write the LEAST amount of changes to complete the task and NEVER copy the whole file.
-* NEVER modify same section multiple times.
+Solve the task by responding with diff hunks:
+* Limit the changes to the requested changes.
+* Only copy a three LINES before and after, NOT the whole file. Skip imports and unchanged code blocks.
+* Write MULTIPLE SMALL HUNKS instead of ONE LARGE HUNK. Modify each section individually.
+* NEVER modify the same section multiple times.
+* Remember to respond by writing diff hunks in the format in the example.
 [/INST]
 
 [RESP]
+"""
+
+prompt = """
+[INST]
+I have the following file `src/components/App.tsx` that I would like to modify to complete the task.
+
+```
+import {
+  ChakraProvider,
+  Box,
+  extendTheme,
+  useColorMode,
+  ThemeConfig,
+} from "@chakra-ui/react";
+import CallToAction from "./components/CallToAction";
+import { Helmet } from "react-helmet";
+import Navbar from "./components/Navbar";
+import Banner from "./components/Banner";
+import og_image from "./assets/og_image.png";
+import { ColorModeSwitcher } from "./ColorModeSwitcher";
+import { useEffect } from "react";
+import Testimonials from "./components/Testimonials";
+import Users from "./components/Users";
+import AboutUs from "./components/AboutUs";
+import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+
+import circles from "./assets/circles.svg";
+import Features from "./components/Features";
+import Conclusion from "./components/Conclusion";
+
+const config: ThemeConfig = {
+  initialColorMode: "dark",
+  useSystemColorMode: false,
+};
+
+const theme = extendTheme({ config });
+
+function ForceDarkMode(props: { children: JSX.Element }) {
+  const { colorMode, toggleColorMode } = useColorMode();
+
+  useEffect(() => {
+    if (colorMode === "dark") return;
+    toggleColorMode();
+  }, [colorMode, toggleColorMode]);
+
+  return props.children;
+}
+
+export const App = () => {
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.type = "text/javascript";
+    script.async = true;
+    document.body.appendChild(script);
+  }, []);
+  return (
+    <>
+      <ChakraProvider theme={theme}>
+        <ForceDarkMode>
+          <Box>
+            {false && <ColorModeSwitcher />}
+            <Banner />
+            <Router>
+              <Navbar />
+              <Switch>
+                <Route exact path="/">
+                  <CallToAction />
+                  <Users />
+                  <Features />
+                  <Testimonials />
+                  <Conclusion />
+                </Route>
+                <Route path="/about-us">
+                  <AboutUs />
+                </Route>
+              </Switch>
+            </Router>
+          </Box>
+        </ForceDarkMode>
+      </ChakraProvider>
+    </>
+  );
+};
+```
+
+Task:
+Migrate from functional components to class components.
+
+Respond in the following format:
+
+Step-by-step thoughts: (max 5 thoughts)
+1. Thought 1
+2. Thought 2
+
+[CODE]
+```
+the code
+```
+[CODE]
+
+Now complete the task.
+[/INST]
+
+[SOLUTION]
 """
 
 """
@@ -385,12 +499,16 @@ Migrate to class components.
 
 stream = client.text_generation(prompt, stream=True, details=True, **gen_kwargs)
 
+import sys
+
 print(prompt)
 for result in stream:
     # print(result.token)
     if result.token.special:
+        print(result.token)
         continue
     if result.token.text in gen_kwargs["stop_sequences"]:
         break
-    print(result.token.text, end="")
+    # print(result.token.text, end="")
+    sys.stdout.write(result.token.text)
     # print(result.token)

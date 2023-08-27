@@ -22,7 +22,7 @@ from modal import Image, Mount, Secret, Stub, Volume, asgi_app, gpu, method
 #
 # Any model supported by TGI can be chosen here.
 
-N_GPUS = 2
+N_GPUS = 4
 # MODEL_ID = "meta-llama/Llama-2-70b-chat-hf"
 # MODEL_ID = "codellama/CodeLlama-34b-Instruct-hf"
 MODEL_ID = "WizardLM/WizardCoder-Python-34B-V1.0"
