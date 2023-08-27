@@ -16,7 +16,7 @@ from loguru import logger
 from tabulate import tabulate
 from tqdm import tqdm
 from sweepai.core.context_pruning import ContextPruning
-from sweepai.core.documentation_searcher import DocumentationSearcher
+from sweepai.core.documentation_searcher import extract_relevant_docs
 
 from sweepai.core.entities import (
     ProposedIssue,
@@ -584,9 +584,10 @@ async def on_ticket(
     if external_results:
         message_summary += "\n\n" + external_results
     user_dict = get_documentation_dict(repo)
-    docs_results = DocumentationSearcher.extract_relevant_docs(
-        title + message_summary, user_dict
+    docs_results = extract_relevant_docs(
+        title + message_summary, user_dict, chat_logger
     )
+    raise Exception("test")
     if docs_results:
         message_summary += "\n\n" + docs_results
 

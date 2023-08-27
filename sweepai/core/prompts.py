@@ -832,6 +832,17 @@ Here are the logs:
 Copy the lines from the logs corresponding to the error and wrap it in ```. Mention the command that failed.
 """
 
+doc_query_rewriter_system_prompt = """\
+You must rewrite the user's github issue to leverage the docs. In this case we want to look at {package}. It's used for: {description}. Using the github issue, write a search query that searches for the potential answer using the documentation. This query will be sent to a documentation search engine with vector and lexical based indexing. Make this query contain keywords relevant to the {package} documentation.
+"""
+
+doc_query_rewriter_prompt = """\
+This is the issue:
+{issue}
+
+Write a comprehensive search query for the answer.
+"""
+
 should_edit_code_system_prompt = """\
 We are processing a large file and trying to make code changes to it.
 The file is definitely relevant, but the section we observe may not be relevant.

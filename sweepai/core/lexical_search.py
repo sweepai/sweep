@@ -4,8 +4,6 @@ import itertools
 import re
 from whoosh.analysis import Tokenizer, Token
 
-from sweepai.utils.utils import chunk_code
-
 
 class CodeTokenizer(Tokenizer):
     def __init__(self, top_words=None):
