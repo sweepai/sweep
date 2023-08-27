@@ -66,6 +66,7 @@ image = (
         "markdownify",
         "geopy",
         "rapidfuzz",
+        "whoosh",
     )
 )
 secrets = [
