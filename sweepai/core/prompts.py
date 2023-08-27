@@ -542,7 +542,7 @@ Limit your changes to the request.
 Format:
 ```
 <new_file>
-{new file content}
+{{new file content}}
 </new_file>
 ```
 
