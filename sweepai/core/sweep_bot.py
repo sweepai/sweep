@@ -32,7 +32,7 @@ from sweepai.core.prompts import (
     modify_file_system_message,
     snippet_replacement,
     chunking_prompt,
-    REPLACE_LINE_LENGTH,
+    RECREATE_LINE_LENGTH,
     modify_recreate_file_system_message,
     modify_recreate_file_prompt_3,
 )
@@ -489,7 +489,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
                 self.delete_messages_from_chat(key)
             else:
-                if line_count < REPLACE_LINE_LENGTH:
+                if line_count < RECREATE_LINE_LENGTH:
                     message = modify_recreate_file_prompt_3.format(
                         filename=file_change_request.filename,
                         instructions=file_change_request.instructions,
