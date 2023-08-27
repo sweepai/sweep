@@ -94,4 +94,10 @@ SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")
 
 WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
 
+# HuggingFace secrets
+HF_WIZARDCODER_URL = os.environ.get("HF_WIZARDCODER_URL")
+HF_WIZARDCODER_KEY = os.environ.get("HF_WIZARDCODER_KEY")
+HF_PHIND_URL = os.environ.get("HF_PHIND_URL")
+HF_PHIND_KEY = os.environ.get("HF_PHIND_KEY")
+
 SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"

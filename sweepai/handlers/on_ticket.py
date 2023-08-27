@@ -9,14 +9,13 @@ import re
 import traceback
 import modal
 import openai
-import asyncio
 
 from github import GithubException
 from loguru import logger
 from tabulate import tabulate
 from tqdm import tqdm
 from sweepai.core.context_pruning import ContextPruning
-from sweepai.core.documentation_searcher import DocumentationSearcher
+from sweepai.core.documentation_searcher import extract_relevant_docs
 
 from sweepai.core.entities import (
     ProposedIssue,
@@ -30,7 +29,7 @@ from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.core.prompts import issue_comment_prompt
-from sweepai.core.sandbox import Sandbox
+from sandbox.sandbox import Sandbox
 from sweepai.handlers.create_pr import (
     create_pr_changes,
     create_config_pr,
@@ -213,7 +212,7 @@ async def on_ticket(
             "summary": summary,
             "issue_number": issue_number,
             "issue_url": issue_url,
-            "username": username if username.startswith("sweep") else assignee,
+            "username": username if not username.startswith("sweep") else assignee,
             "repo_full_name": repo_full_name,
             "repo_description": repo_description,
             "installation_id": installation_id,
@@ -584,8 +583,8 @@ async def on_ticket(
     if external_results:
         message_summary += "\n\n" + external_results
     user_dict = get_documentation_dict(repo)
-    docs_results = DocumentationSearcher.extract_relevant_docs(
-        title + message_summary, user_dict
+    docs_results = extract_relevant_docs(
+        title + message_summary, user_dict, chat_logger
     )
     if docs_results:
         message_summary += "\n\n" + docs_results
@@ -602,7 +601,7 @@ async def on_ticket(
     )
     additional_plan = None
     if slow_mode and not use_faster_model:
-        slow_mode_bot = SlowModeBot()
+        slow_mode_bot = SlowModeBot(chat_logger=chat_logger)
         queries, additional_plan = slow_mode_bot.expand_plan(human_message)
 
         snippets, tree = search_snippets(
