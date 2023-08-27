@@ -14,7 +14,7 @@
 
 from pathlib import Path
 
-from modal import Image, Mount, Secret, Stub, asgi_app, gpu, method
+from modal import Image, Mount, Secret, Stub, Volume, asgi_app, gpu, method
 
 # Next, we set which model to serve, taking care to specify the number of GPUs required
 # to fit the model into VRAM, and the quantization method (`bitsandbytes` or `gptq`) if desired.
@@ -22,9 +22,12 @@ from modal import Image, Mount, Secret, Stub, asgi_app, gpu, method
 #
 # Any model supported by TGI can be chosen here.
 
-N_GPUS = 4
+N_GPUS = 2
 # MODEL_ID = "meta-llama/Llama-2-70b-chat-hf"
-MODEL_ID = "codellama/CodeLlama-34b-Instruct-hf"
+# MODEL_ID = "codellama/CodeLlama-34b-Instruct-hf"
+MODEL_ID = "WizardLM/WizardCoder-Python-34B-V1.0"
+# MODEL_ID = "replit/replit-code-v1-3b"
+# MODEL_ID = "Phind/Phind-CodeLlama-34B-v1"
 # Add `["--quantize", "gptq"]` for TheBloke GPTQ models.
 LAUNCH_FLAGS = ["--model-id", MODEL_ID]
 
@@ -42,10 +45,10 @@ LAUNCH_FLAGS = ["--model-id", MODEL_ID]
 #
 
 
-def download_model():
-    from huggingface_hub import snapshot_download
+# def download_model():
+# import subprocess
 
-    snapshot_download(MODEL_ID, ignore_patterns="*.bin")
+# subprocess.run(["text-generation-server", "download-weights", MODEL_ID])
 
 
 # ### Image definition
@@ -64,14 +67,15 @@ def download_model():
 # Finally, we install the `text-generation` client to interface with TGI's Rust webserver over `localhost`.
 
 image = (
-    Image.from_dockerhub("ghcr.io/huggingface/text-generation-inference:1.0.1")
-    .dockerfile_commands("ENTRYPOINT []")
-    .run_function(download_model, secret=Secret.from_name("huggingface"))
+    Image.from_dockerhub(
+        "ghcr.io/huggingface/text-generation-inference:1.0.1"
+    ).dockerfile_commands("ENTRYPOINT []")
+    # .run_function(download_model, secret=Secret.from_name("huggingface"))
     .pip_install("text-generation")
 )
 
 stub = Stub("example-tgi-" + MODEL_ID.split("/")[-1], image=image)
-
+stub.model_cache = Volume.new()
 
 # ## The model class
 #
@@ -99,6 +103,10 @@ stub = Stub("example-tgi-" + MODEL_ID.split("/")[-1], image=image)
     allow_concurrent_inputs=10,
     container_idle_timeout=60 * 10,
     timeout=60 * 60,
+    concurrency_limit=1,
+    volumes={
+        "/data": stub.model_cache,
+    },
 )
 class Model:
     def __enter__(self):
@@ -108,13 +116,16 @@ class Model:
 
         from text_generation import AsyncClient
 
+        print("Running ls /data")
+        process = subprocess.run("ls /data", shell=True, capture_output=True)
+        print(process.stdout.decode())
         self.launcher = subprocess.Popen(["text-generation-launcher"] + LAUNCH_FLAGS)
         self.client = AsyncClient("http://0.0.0.0:80", timeout=60)
-        self.template = """<s>[INST] <<SYS>>
-{system}
-<</SYS>>
+        #         self.template = """<s>[INST] <<SYS>>
+        # {system}
+        # <</SYS>>
 
-{user} [/INST] """
+        # {user} [/INST] """
 
         # Poll until webserver at 0.0.0.0:80 accepts connections before running inputs.
         def webserver_ready():
@@ -127,23 +138,27 @@ class Model:
         while not webserver_ready():
             time.sleep(1.0)
 
+        stub.model_cache.commit()
         print("Webserver ready!")
 
     def __exit__(self, _exc_type, _exc_value, _traceback):
         self.launcher.terminate()
 
     @method()
-    async def generate(self, question: str):
-        prompt = self.template.format(system="", user=question)
-        result = await self.client.generate(prompt, max_new_tokens=1024)
+    async def generate(self, question: str, max_tokens: int = 1024):
+        # prompt = self.template.format(system="", user=question)
+        prompt = question
+        result = await self.client.generate(prompt, max_new_tokens=max_tokens)
 
         return result.generated_text
 
     @method()
     async def generate_stream(self, question: str):
-        prompt = self.template.format(system="", user=question)
+        # prompt = self.template.format(system="", user=question)
+        prompt = question
 
         async for response in self.client.generate_stream(prompt, max_new_tokens=1024):
+            print(response)
             if not response.token.special:
                 yield response.token.text
 
