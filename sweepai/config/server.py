@@ -1,4 +1,10 @@
 import os
+from dotenv import load_dotenv
+import base64
+
+load_dotenv(dotenv_path=".env.example")
+pem_content_base64 = os.environ.get("GITHUB_APP_PEM_BASE64")
+os.environ["GITHUB_APP_PEM"] = base64.b64decode(pem_content_base64).decode("utf-8")
 
 ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
 
