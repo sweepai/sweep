@@ -39,6 +39,7 @@ pre-commit = "^3.3.3"
 rapidfuzz = "^3.2.0"
 whoosh = "^2.7.4"
 tree-sitter-languages = "^1.7.0"
+python-dotenv = "^1.0.0"
 
 [tool.poetry.dev-dependencies]
 black = "^23.1.0"
