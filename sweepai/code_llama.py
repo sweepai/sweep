@@ -180,97 +180,6 @@ class Model:
                 yield response.token.text
 
 
-code = '''import os
-import json
-
-class BookManager:
-    def __init__(self, filename='books.json'):
-        self.filename = filename
-        self.books = []
-        self.load_books()
-
-    def load_books(self):
-        """Load books from file if it exists."""
-        if os.path.exists(self.filename):
-            with open(self.filename, 'r') as file:
-                self.books = json.load(file)
-        else:
-            self.books = []
-
-    def save_books(self):
-        """Save books to file."""
-        with open(self.filename, 'w') as file:
-            json.dump(self.books, file)
-
-    def list_books(self):
-        """List all books."""
-        if not self.books:
-            print("No books found!")
-            return
-        for book in self.books:
-            print(f"Title: {book['title']}, Author: {book['author']}")
-
-    def add_book(self, title, author):
-        """Add a book."""
-        book = {
-            'title': title,
-            'author': author
-        }
-        self.books.append(book)
-        self.save_books()
-
-    def search_books(self, query):
-        """Search for a book."""
-        found_books = [book for book in self.books if query.lower() in book['title'].lower() or query.lower() in book['author'].lower()]
-        if not found_books:
-            print("No books found!")
-            return
-        for book in found_books:
-            print(f"Title: {book['title']}, Author: {book['author']}")
-
-    def delete_book(self, title):
-        """Delete a book."""
-        self.books = [book for book in self.books if book['title'] != title]
-        self.save_books()
-
-
-def main():
-    manager = BookManager()
-
-    while True:
-        print("\nBook Management System")
-        print("1. List books")
-        print("2. Add book")
-        print("3. Search for a book")
-        print("4. Delete a book")
-        print("5. Exit")
-
-        choice = input("Enter your choice: ")
-
-        if choice == '1':
-            manager.list_books()
-        elif choice == '2':
-            title = input("Enter the title of the book: ")
-            author = input("Enter the author of the book: ")
-            manager.add_book(title, author)
-            print(f"Book '{title}' by {author} added successfully!")
-        elif choice == '3':
-            query = input("Enter search query (title or author): ")
-            manager.search_books(query)
-        elif choice == '4':
-            title = input("Enter the title of the book to delete: ")
-            manager.delete_book(title)
-            print(f"Book '{title}' deleted successfully!")
-        elif choice == '5':
-            print("Goodbye!")
-            break
-        else:
-            print("Invalid choice. Please choose again.")
-
-if __name__ == "__main__":
-    main()
-'''
-
 context = """
 [INST]
 <relevant_snippets_in_repo>
@@ -788,7 +697,7 @@ Step-by-step thoughts with explanations:
 def main():
     print(
         Model().generate.remote(
-            context  # "Write a book manager scripy in python.\n\n---\n\n" + code + "\n---\n\nImplement a Python function to compute the Fibonacci numbers."
+            context  # "Implement a Python function to compute the Fibonacci numbers."
         )
     )
 
