@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+import subprocess
 import time
 
 import github
@@ -236,6 +237,7 @@ def get_num_files_from_repo(repo: Repository, installation_id: str):
     token = get_token(installation_id)
     shutil.rmtree("repo", ignore_errors=True)
     repo_url = f"https://x-access-token:{token}@github.com/{repo.full_name}.git"
+    subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])
     git_repo = Repo.clone_from(repo_url, "repo")
     git_repo.git.checkout(SweepConfig.get_branch(repo))
     file_list = get_file_list("repo")
@@ -330,6 +332,8 @@ def search_snippets(
     token = get_token(installation_id)
     shutil.rmtree("repo", ignore_errors=True)
     repo_url = f"https://x-access-token:{token}@github.com/{repo.full_name}.git"
+    # Set a larger buffer size for large repos
+    subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])
     git_repo = Repo.clone_from(repo_url, "repo")
     git_repo.git.checkout(SweepConfig.get_branch(repo))
     file_list = get_file_list("repo")
