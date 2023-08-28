@@ -1,7 +1,6 @@
 import time
 from datetime import datetime
 
-import modal
 from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
@@ -69,18 +68,6 @@ image = (
         "whoosh",
     )
 )
-secrets = [
-    modal.Secret.from_name("bot-token"),
-    modal.Secret.from_name("github"),
-    modal.Secret.from_name("openai-secret"),
-    modal.Secret.from_name("anthropic"),
-    modal.Secret.from_name("posthog"),
-    modal.Secret.from_name("mongodb"),
-    modal.Secret.from_name("discord"),
-    modal.Secret.from_name("redis_url"),
-    modal.Secret.from_name("e2b"),
-    modal.Secret.from_name("gdrp"),
-]
 
 FUNCTION_SETTINGS = {
     "image": image,
