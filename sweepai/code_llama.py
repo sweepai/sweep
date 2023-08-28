@@ -92,7 +92,7 @@ image = (
 )
 
 stub = Stub("example-tgi-" + MODEL_ID.split("/")[-1], image=image)
-stub.volume = Volume.persisted("test-model-cache")
+stub.volume = Volume.persisted("test2-model-cache")
 
 # ## The model class
 #
@@ -134,9 +134,9 @@ class Model:
 
         from text_generation import AsyncClient
 
-        subprocess.run(["rm", "-rf", "/data/*"])
-        subprocess.run(["text-generation-server", "download-weights", MODEL_ID])
-        stub.volume.commit()
+        # subprocess.run(["rm", "-rf", "/data/*"])
+        # subprocess.run(["text-generation-server", "download-weights", MODEL_ID])
+        # stub.volume.commit()
         stub.volume.reload()
         print("Running ls /data")
         process = subprocess.run("ls /data", shell=True, capture_output=True)
