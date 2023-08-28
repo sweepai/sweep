@@ -673,3 +673,4 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
             logger.error(
                 f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
             )
+            print("hello"
