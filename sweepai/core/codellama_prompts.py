@@ -1,4 +1,4 @@
-recreate_file_user_prompt = """
+recreate_file_prompt = """
 [INST]
 I have the following file `{filename}` that I would like to modify to complete the task.
 
@@ -9,17 +9,17 @@ I have the following file `{filename}` that I would like to modify to complete t
 Task:
 {task}
 
-Respond in the following format:
+Response format:
 
 Step-by-step thoughts: (max 5 thoughts)
 1. Thought 1
 2. Thought 2
 
-[CODE]
+Commit message: "the commit message"
+
 ```
 the code
 ```
-[CODE]
 
 Now complete the task.
 [/INST]

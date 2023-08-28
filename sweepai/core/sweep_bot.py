@@ -1,6 +1,9 @@
 import traceback
+import os
 import re
 from typing import Generator
+
+from huggingface_hub import InferenceClient
 
 import modal
 from github.ContentFile import ContentFile
@@ -49,6 +52,10 @@ from sweepai.utils.diff import (
 USING_DIFF = True
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
+
+API_URL = "https://u83egzg5ov3y78l9.us-east-1.aws.endpoints.huggingface.cloud"
+API_TOKEN = os.environ["HUGGING_FACE_HUB_TOKEN"]
+huggingface_client = InferenceClient(API_URL, token=API_TOKEN)
 
 
 class CodeGenBot(ChatGPT):
