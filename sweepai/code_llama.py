@@ -29,19 +29,22 @@ MODEL_ID = "WizardLM/WizardCoder-Python-34B-V1.0"
 # MODEL_ID = "replit/replit-code-v1-3b"
 # MODEL_ID = "Phind/Phind-CodeLlama-34B-v1"
 # Add `["--quantize", "gptq"]` for TheBloke GPTQ models.
+
+MAX_CONTEXT = 8192
+INITIAL_CONTEXT = 2048
 LAUNCH_FLAGS = [
     "--model-id",
     MODEL_ID,
     "--rope-scaling",
     "dynamic",
     "--max-input-length",
-    "8192",
+    str(MAX_CONTEXT),
     "--max-batch-prefill-tokens",
-    "8192",
+    str(MAX_CONTEXT),
     "--rope-factor",
-    "4",
+    str(MAX_CONTEXT / INITIAL_CONTEXT),
     "--max-total-tokens",
-    "16300",
+    str(MAX_CONTEXT * 2),
 ]
 
 # ## Define a container image
