@@ -1,3 +1,4 @@
+import concurrent.futures
 import glob
 import json
 import os
@@ -250,14 +251,19 @@ def get_deeplake_vs_from_repo(
     # scoring for vector search
     files_to_scores = {}
     score_factors = []
-    for file_path in file_list:
-        score_factor = compute_score(file_path, git_repo)
-        score_factors.append(score_factor)
-    # compute all scores
-    all_scores = get_scores(score_factors)
-    files_to_scores = {
-        file_path: score for file_path, score in zip(file_list, all_scores)
-    }
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        try:
+            score_factors = list(
+                executor.map(compute_score, file_list, [git_repo] * len(file_list))
+            )
+            # compute all scores
+            all_scores = get_scores(score_factors)
+            files_to_scores = {
+                file_path: score for file_path, score in zip(file_list, all_scores)
+            }
+        except Exception as e:
+            logger.error(f"Error occurred during parallel file processing: {e}")
+            # Clean up resources if necessary
     logger.info(f"Found {len(file_list)} files in repository {repo_name}")
 
     documents = []
