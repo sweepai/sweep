@@ -29,7 +29,7 @@ from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.core.prompts import issue_comment_prompt
-from sandbox.sandbox import Sandbox
+from sandbox.sandbox_utils import Sandbox
 from sweepai.handlers.create_pr import (
     create_pr_changes,
     create_config_pr,
@@ -55,6 +55,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     get_github_client,
     get_num_files_from_repo,
+    get_token,
     search_snippets,
 )
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
@@ -548,7 +549,14 @@ async def on_ticket(
 
     # Clone repo and perform local tests (linters, formatters, GHA)
     logger.info("Initializing sandbox...")
-    sandbox = Sandbox.from_token(repo)
+    sandbox_config = {
+        "install": "curl https://get.trunk.io -fsSL | bash",
+        "formatter": "trunk fmt {file}",
+        "linter": "trunk check {file}",
+    }
+    token = get_token(installation_id)
+    repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
+    sandbox = Sandbox.from_token(repo, repo_url, sandbox_config)
 
     logger.info("Fetching relevant files...")
     try:
