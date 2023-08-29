@@ -1,7 +1,23 @@
 spec:
- name: sweep
- services:
- - name: web
-   git:
-     branch: main
-     repo_clone_url: https://github.com/sweepai/sweep.git
+  name: sweep
+  services:
+  - name: web
+    git:
+      branch: main
+      repo_clone_url: https://github.com/sweepai/sweep.git
+    envs:
+    - key: GITHUB_APP_PEM
+      scope: RUN_TIME
+      value:
+    - key: GITHUB_APP_ID
+      scope: RUN_TIME
+      value:
+    - key: GITHUB_BOT_USERNAME
+      scope: RUN_TIME
+      value: sweep-ai
+    - key: OPENAI_API_KEY
+      scope: RUN_TIME
+      value:
+    - key: OPENAI_DO_HAVE_32K_MODEL_ACCESS
+      scope: RUN_TIME
+      value: false
