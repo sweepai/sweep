@@ -984,37 +984,6 @@ async def on_ticket(
         except:
             pass
 
-        # Clone repo and perform local tests (linters, formatters, GHA)
-        # try:
-        #     lint_sandbox = Sandbox.from_token(repo)
-        #     if lint_sandbox is None:
-        #         raise Exception("Sandbox is disabled")
-
-        #     files = [
-        #         f.filename
-        #         for f in file_change_requests
-        #         if (f.filename.endswith(".js") or f.filename.endswith(".ts"))
-        #         and (f.change_type == "create" or f.change_type == "modify")
-        #         and f.new_content is not None
-        #     ]
-        #     lint_output = await lint_sandbox.formatter_workflow(
-        #         branch=pull_request.branch_name, files=files
-        #     )
-
-        #     # Todo(lukejagg): Is this necessary?
-        #     # # Set file content:
-        #     # for f in file_change_requests:
-        #     #     print("E2B DEBUG", f.filename, f.new_content)
-        #     #     if f.new_content is not None:
-        #     #         await lint_sandbox.session.filesystem.write(
-        #     #             f"/home/user/repo/{f.filename}", f.new_content
-        #     #         )
-        #     #         print(f"Wrote {f.filename}")
-
-        # except Exception as e:
-        #     logger.error(traceback.format_exc())
-        #     logger.error(e)
-
         for i in range(1 if not slow_mode else 3):
             try:
                 # Todo(lukejagg): Pass sandbox linter results to review_pr
