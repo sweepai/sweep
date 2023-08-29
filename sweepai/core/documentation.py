@@ -35,10 +35,7 @@ image = (
         "playwright install",
     )
 )
-secrets = [
-    modal.Secret.from_name("activeloop"),
-    modal.Secret.from_name("activeloop_token"),
-]
+
 MODEL_DIR = "/root/cache/model"
 BATCH_SIZE = 128
 SENTENCE_TRANSFORMERS_MODEL = "all-mpnet-base-v2"

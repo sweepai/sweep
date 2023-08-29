@@ -197,7 +197,6 @@ tiktoken_volume = modal.NetworkFileSystem.persisted("tiktoken-models")
 @stub.cls(
     image=tiktoken_image,
     network_file_systems={TIKTOKEN_CACHE_DIR: tiktoken_volume},
-    secret=modal.Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR}),
     keep_warm=5 if ENV == "prod" else 0,
     cpu=0.5,
 )
