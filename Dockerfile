@@ -1,10 +1,11 @@
 FROM python:3.11-slim as base
 
-RUN pip install poetry
-WORKDIR /app
-COPY pyproject.toml ./
-
 RUN apt-get update && apt-get install -y git build-essential
+RUN pip install poetry
+RUN pip install sentence_transformers==2.2.2
+WORKDIR /app
+
+COPY pyproject.toml ./
 RUN poetry export -f requirements.txt --without-hashes -o requirements.txt
 RUN pip install -r requirements.txt
 
