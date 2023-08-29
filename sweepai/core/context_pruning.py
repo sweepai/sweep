@@ -1,13 +1,13 @@
 from loguru import logger
-from sweepai.config.client import get_description
-from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message, ContextToPrune
-from sweepai.core.prompts import (
+from ...sweepai.config.client import get_description
+from ...sweepai.core.chat import ChatGPT
+from ...sweepai.core.entities import Message, ContextToPrune
+from ...sweepai.core.prompts import (
     pruning_prompt,
     system_message_prompt,
     repo_description_prefix_prompt,
 )
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from ...sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 
 class ContextPruning(ChatGPT):

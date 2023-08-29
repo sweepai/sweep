@@ -1,4 +1,4 @@
-from sweepai.utils.ctags import CTags
+from ...sweepai.utils.ctags import CTags
 
 MAX_NUM_TAGS = 5
 

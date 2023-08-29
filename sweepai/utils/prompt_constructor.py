@@ -1,7 +1,7 @@
 from loguru import logger
 from pydantic import BaseModel
 
-from sweepai.core.prompts import (
+from ...sweepai.core.prompts import (
     human_message_prompt,
     human_message_prompt_comment,
     human_message_review_prompt,

@@ -1,8 +1,8 @@
 import difflib
 import re
 
-from sweepai.core.entities import SweepContext
-from sweepai.utils.chat_logger import discord_log_error
+from ...sweepai.core.entities import SweepContext
+from ...sweepai.utils.chat_logger import discord_log_error
 
 
 def diff_contains_dups_or_removals(diff, new_code):

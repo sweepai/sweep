@@ -13,14 +13,14 @@ from redis.retry import Retry
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 from tqdm import tqdm
 
-from sweepai.core.entities import Snippet
-from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
-from sweepai.core.repo_parsing_utils import repo_to_chunks
-from sweepai.utils.event_logger import posthog
-from sweepai.utils.hash import hash_sha256
-from sweepai.utils.scorer import compute_score, get_scores
-from sweepai.config.client import SweepConfig
-from sweepai.config.server import REDIS_URL
+from ...sweepai.core.entities import Snippet
+from ...sweepai.core.lexical_search import prepare_index_from_snippets, search_index
+from ...sweepai.core.repo_parsing_utils import repo_to_chunks
+from ...sweepai.utils.event_logger import posthog
+from ...sweepai.utils.hash import hash_sha256
+from ...sweepai.utils.scorer import compute_score, get_scores
+from ...sweepai.config.client import SweepConfig
+from ...sweepai.config.server import REDIS_URL
 from ..utils.github_utils import get_token
 
 

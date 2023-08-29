@@ -6,10 +6,10 @@ from loguru import logger
 from github.Repository import Repository
 from tqdm import tqdm
 
-from sweepai.config.client import SweepConfig
-from sweepai.core.vector_db import get_relevant_snippets, update_index
-from sweepai.core.entities import Snippet
-from sweepai.utils.github_utils import (
+from ...sweepai.config.client import SweepConfig
+from ...sweepai.core.vector_db import get_relevant_snippets, update_index
+from ...sweepai.core.entities import Snippet
+from ...sweepai.utils.github_utils import (
     get_file_contents,
     get_file_list,
     get_file_names_from_query,
@@ -17,8 +17,8 @@ from sweepai.utils.github_utils import (
     get_token,
     get_tree_and_file_list,
 )
-from sweepai.utils.scorer import merge_and_dedup_snippets
-from sweepai.utils.event_logger import posthog
+from ...sweepai.utils.scorer import merge_and_dedup_snippets
+from ...sweepai.utils.event_logger import posthog
 
 
 def search_snippets(

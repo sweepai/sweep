@@ -8,18 +8,21 @@ import openai
 from loguru import logger
 from pydantic import BaseModel
 
-from sweepai.utils.utils import Tiktoken
-from sweepai.core.entities import Message, Function, SweepContext
-from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
-from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.client import get_description
-from sweepai.config.server import (
+from ...sweepai.utils.utils import Tiktoken
+from ...sweepai.core.entities import Message, Function, SweepContext
+from ...sweepai.core.prompts import (
+    system_message_prompt,
+    repo_description_prefix_prompt,
+)
+from ...sweepai.utils.chat_logger import ChatLogger
+from ...sweepai.config.client import get_description
+from ...sweepai.config.server import (
     UTILS_MODAL_INST_NAME,
     ANTHROPIC_API_KEY,
     OPENAI_DO_HAVE_32K_MODEL_ACCESS,
 )
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.event_logger import posthog
+from ...sweepai.utils.prompt_constructor import HumanMessagePrompt
+from ...sweepai.utils.event_logger import posthog
 
 # TODO: combine anthropic and openai
 
