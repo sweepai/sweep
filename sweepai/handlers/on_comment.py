@@ -18,10 +18,8 @@ from sweepai.config.server import (
     OPENAI_API_KEY,
 )
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import (
-    get_github_client,
-    search_snippets,
-)
+from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.search_utils import search_snippets
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
 
 openai.api_key = OPENAI_API_KEY
