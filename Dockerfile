@@ -14,3 +14,4 @@ COPY sweepai /app/sweepai
 EXPOSE 8000
 
 CMD ["uvicorn", "sweepai.api:app", "--host", "0.0.0.0", "--port", "8000"]
+LABEL org.opencontainers.image.description "Backend for Sweep, an AI-powered junior developer"
