@@ -2,7 +2,7 @@ from loguru import logger
 from sweepai.config.server import DOCS_MODAL_INST_NAME
 
 from sweepai.core.chat import ChatGPT
-from sweepai.core.documentation import DOCS_ENDPOINTS
+from sweepai.core.documentation import DOCS_ENDPOINTS, search_vector_store
 from sweepai.core.entities import Message
 from sweepai.core.prompts import docs_qa_system_prompt, docs_qa_user_prompt
 
@@ -59,7 +59,7 @@ class DocumentationSearcher(ChatGPT):
         self, url: str, content: str, user_dict: dict, chat_logger: ChatLogger
     ) -> str:
         # MVP
-        docs_search = modal.Function.lookup(DOCS_MODAL_INST_NAME, "search_vector_store")
+        docs_search = search_vector_store
         description = ""
         package = ""
         for framework, (package_url, description) in DOCS_ENDPOINTS.items():
@@ -70,7 +70,7 @@ class DocumentationSearcher(ChatGPT):
         rewritten_problem = DocQueryRewriter(
             chat_logger=chat_logger, model="gpt-3.5-turbo-16k-0613"
         ).rewrite_query(package=package, description=description, issue=content)
-        urls, docs = docs_search.call(url, rewritten_problem)
+        urls, docs = docs_search(url, rewritten_problem)
 
         self.messages = [
             Message(
