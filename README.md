@@ -25,7 +25,7 @@
 
 <p align="center">
     <a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/sweepai/sweep/tree/main">
-        <img src="https://www.deploytodo.com/do-btn-blue-ghost.svg" alt="Deploy to DO">
+        <img src="https://www.deploytodo.com/do-btn-white-ghost.svg" alt="Deploy to DO">
     </a>
 <p>
 
