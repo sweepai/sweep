@@ -553,7 +553,8 @@ async def on_ticket(
     }
     token = get_token(installation_id)
     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
-    sandbox = Sandbox.from_token(repo, repo_url, sandbox_config)
+    # sandbox = Sandbox.from_token(repo, repo_url, sandbox_config)
+    sandbox = None
 
     logger.info("Fetching relevant files...")
     try:
