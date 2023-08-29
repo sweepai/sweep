@@ -1,108 +1,84 @@
 # Deploying your own Sweep instance on modal
 
-*Note that Sweep uses the CC-NC license, meaning you may only self-host Sweep for non-commercial purposes. Contact us at team@sweep.dev or use the Intercom bubble in the bottom right if you're interested in self-hosting Sweep.*
+*🎉 We recently changed our license to the Elastic License V2 to allow Sweep for commercial usage.*
 
-## Prerequisites
-Ensure you have the following:
+You can self-host Sweep by deploying our Docker image at https://ghcr.io/sweepai/sweep.
 
-- OpenAI API-key, preferably with access to a 32k context GPT-4 model
-- Network exposed MongoDB and Redis instances
-- Poetry package manager installed on your machine
-- Account on https://modal.com (free-tier)
+## 0. Pre-requisites
 
-> This guide is set for a minimal working setup. Feel free to take a look at `sweepai/config/server.py` and adjust your steps as per requirements.
+You need an OpenAI API key, preferably with GPT-4 32k, and GitHub developer mode.
 
-## Steps
-1. **Clone the sweep repository and install dependencies:**
+## 1. Setting up the GitHub App
 
-    ```bash
-    git clone git@github.com:sweepai/sweep.git
-    cd sweep
-    ./bin/install.sh
-    ```
+Register a new GitHub App, following this [guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) with settings:
 
-2. **Install the modal client, link it to your account:**
+Permissions:
 
-    ```bash
-    pip install modal-client
-    modal token new
-    ```
+```
+actions: read
+check: read
+contents: read & write
+commit statuses: read & write
+issues: read & write
+metadata: read
+pull requests: read & write
+workflows: read & write
+```
 
-3. **Register a new GitHub App:**
+Webhook events:
 
-    Use [this guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) to register a new GitHub App.
+```
+issues
+pull request
+workflow run
+check run
+issue comment
+label
+pull request review
+pull request review comment
+pull request thread
+status
+workflow job
+create
+commit comment
+check suite
+push
+```
 
-    Permissions:
-    ```
-    actions: read
-    check: read
-    contents: read & write
-    commit statuses: read & write
-    issues: read & write
-    metadata: read
-    pull requests: read & write
-    workflows: read & write
-   ```
+Disable the webhook for now. You can use any URL for the homepage (e.g. repository URL). [Install the app](https://docs.github.com/en/apps/using-github-apps/installing-your-own-github-app) on your account or organization and generate a private key as per [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps).
 
-   Webhook events:
+## 2. Running the Webhook
 
-   ```text
-    issues
-    pull request
-    workflow run
-    check run
-    issue comment
-    label
-    pull request review
-    pull request review comment
-    pull request thread
-    status
-    workflow job
-    create
-    commit comment
-    check suite
-    push
-   ```
+Now create the following `.env` file with the new secrets:
 
-   Disable the webhook for now. You can use any URL for the homepage (e.g. repository URL). [Install the app](https://docs.github.com/en/apps/using-github-apps/installing-your-own-github-app) on your account or organization and generate a private key as per [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps).
+```sh
+# Replace all newlines here with \n
+GITHUB_APP_PEM="-----BEGIN RSA PRIVATE KEY-----xxxxxxxx...xxxxxxxx-----END RSA PRIVATE KEY-----"
+# 6 digit ID
+GITHUB_APP_ID=123456
+# The name of your GitHub App
+GITHUB_BOT_USERNAME=github-app-name
 
-4. **Setup modal environment:**
+# Should start with "sk-"
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# Set to true if you have access to 32k model
+OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
+```
 
-   - Navigate to the 'Secrets' tab in Modal.
-   - Create a 'github' secret with the following values:
-    ```cmd
-    GITHUB_APP_ID: Your App ID from general tab in Application settings
-    GITHUB_BOT_USERNAME: Your App name
-    GITHUB_APP_PEM: Your App's private key, make sure to include whitespaces as in original file with pk
-    ```
+Then in the same directory as the `.env`, run
 
-   - Create 'openai-secret' modal secret with following variables:
-    ```cmd
-    OPENAI_API_KEY: Your OpenAI API key
-    OPENAI_DO_HAVE_32K_MODEL_ACCESS: true/false depending on if you have access to 32k model
-    ```
+```bash
+docker run --env-file .env -p 8000:8000 -d ghcr.io/sweepai/sweep:latest
+```
 
-   - Create 'mongodb', and 'redis_url' modal secrets with following variables:
-    ```cmd
-    MONGODB_URI: MongoDB connection URL
-    REDIS_URL: Redis connection URL
-    ```
+## 3. Connecting the Webhook to the App
 
-   - Go to the root of previously cloned project and run the following command:
-    ```bash
-    ./bin/create_optional_secrets.sh
-    ```
+From here, do one of the following and grab the publicly accessible webhook URL:
+* Use [Ngrok](https://ngrok.com/) or a similar reverse proxy tool to redirect `https://127.0.0.1:8000` to something like `https://e5bf90f4a3be.ngrok.app`. This is great for quickly testing locally.
+* Deploy the docker image in production on a service like DigitalOcean or Elastic Container Registry. This is great for a permanent deployment.
 
-5. **Deploy Sweep to modal:**
+If your deployment URL is `https://e5bf90f4a3be.ngrok.app`, your webhook URL is `https://e5bf90f4a3be.ngrok.app/webhook`.
 
-    ```bash
-    poetry shell
-    ./bin/deploy.sh
-    ```
+With the webhook URL, go back to the GitHub Apps settings (`https://github.com/USERNAME/settings/apps/APP_NAME/advanced`) to populate the webhook URL field with this copied URL. Ensure SSL verification remains active.
 
-6. **Setup Github webhook:**
-
-- Head over to https://modal.com and login.
-- Proceed to "Apps", locate your deployed API instance (by default, it is `api`).
-- Search for the webhook function and duplicate the webhook URL.
-- In the GitHub app settings, populate the webhook URL field with this copied URL. Ensure SSL verification remains active.
+*There's additional configurable settings like Redis caching and GPU-accelerated embeddings that we use for our hosted product that we can document further for self-hosting. If this interests you please contact us at https://discord.gg/sweep.*
