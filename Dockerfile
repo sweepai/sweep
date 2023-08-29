@@ -11,6 +11,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml ./
+
+RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
 RUN pip install sentence_transformers --no-cache-dir
 RUN pip install --no-cache-dir poetry \
     && poetry export -f requirements.txt --without-hashes -o requirements.txt \
