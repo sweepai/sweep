@@ -1,6 +1,6 @@
 import traceback
 import re
-from typing import Generator
+from typing import Generator, Any
 
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
@@ -21,7 +21,8 @@ from sweepai.core.entities import (
     Message,
     MaxTokensExceeded,
 )
-from sandbox.modal_sandbox import SandboxError  # pylint: disable=E0401
+
+# from sandbox.modal_sandbox import SandboxError  # pylint: disable=E0401
 from sweepai.core.prompts import (
     files_to_change_prompt,
     subissues_prompt,
@@ -767,7 +768,7 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str,
         commit_message: str = None,
         sandbox=None,
-    ) -> tuple[str, SandboxError]:
+    ) -> tuple[str, Any]:
         CHUNK_SIZE = 800  # Number of lines to process at a time
         sandbox_error = None
         try:
