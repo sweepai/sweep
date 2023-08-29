@@ -7,25 +7,20 @@ from typing import Any
 from tabulate import tabulate
 from github.Repository import Repository
 
-from ...sweepai.config.client import get_blocked_dirs
-from ...sweepai.core.entities import (
-    NoFilesException,
-    Snippet,
-    MockPR,
-    FileChangeRequest,
-)
-from ...sweepai.core.sweep_bot import SweepBot
-from ...sweepai.handlers.on_review import get_pr_diffs
-from ...sweepai.utils.chat_logger import ChatLogger
-from ...sweepai.config.server import (
+from sweepai.config.client import get_blocked_dirs
+from sweepai.core.entities import NoFilesException, Snippet, MockPR, FileChangeRequest
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.handlers.on_review import get_pr_diffs
+from sweepai.utils.chat_logger import ChatLogger
+from sweepai.config.server import (
     GITHUB_BOT_USERNAME,
     ENV,
     OPENAI_API_KEY,
 )
-from ...sweepai.utils.event_logger import posthog
-from ...sweepai.utils.github_utils import get_github_client
-from ...sweepai.utils.search_utils import search_snippets
-from ...sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.search_utils import search_snippets
+from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
 
 openai.api_key = OPENAI_API_KEY
 

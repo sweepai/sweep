@@ -14,14 +14,14 @@ from github.Repository import Repository
 from jwt import encode
 from loguru import logger
 
-from ...sweepai.config.client import SweepConfig
-from ...sweepai.config.server import (
+from sweepai.config.client import SweepConfig
+from sweepai.config.server import (
     GITHUB_APP_ID,
     GITHUB_APP_PEM,
     REDIS_URL,
 )
-from ...sweepai.utils.ctags import CTags
-from ...sweepai.utils.ctags_chunker import get_ctags_for_file, get_ctags_for_search
+from sweepai.utils.ctags import CTags
+from sweepai.utils.ctags_chunker import get_ctags_for_file, get_ctags_for_search
 from rapidfuzz import fuzz
 
 MAX_FILE_COUNT = 50

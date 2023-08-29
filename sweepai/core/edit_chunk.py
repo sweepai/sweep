@@ -1,12 +1,9 @@
 import json
 import subprocess
 
-from ...sweepai.core.chat import ChatGPT
-from ...sweepai.core.entities import Message
-from ...sweepai.core.prompts import (
-    should_edit_code_system_prompt,
-    should_edit_code_prompt,
-)
+from sweepai.core.chat import ChatGPT
+from sweepai.core.entities import Message
+from sweepai.core.prompts import should_edit_code_system_prompt, should_edit_code_prompt
 
 
 class EditBot(ChatGPT):

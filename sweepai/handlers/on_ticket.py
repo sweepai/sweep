@@ -13,10 +13,10 @@ from github import GithubException
 from loguru import logger
 from tabulate import tabulate
 from tqdm import tqdm
-from ...sweepai.core.context_pruning import ContextPruning
-from ...sweepai.core.documentation_searcher import extract_relevant_docs
+from sweepai.core.context_pruning import ContextPruning
+from sweepai.core.documentation_searcher import extract_relevant_docs
 
-from ...sweepai.core.entities import (
+from sweepai.core.entities import (
     ProposedIssue,
     Snippet,
     NoFilesException,
@@ -24,39 +24,39 @@ from ...sweepai.core.entities import (
     MaxTokensExceeded,
     EmptyRepository,
 )
-from ...sweepai.core.external_searcher import ExternalSearcher
-from ...sweepai.core.slow_mode_expand import SlowModeBot
-from ...sweepai.core.sweep_bot import SweepBot
-from ...sweepai.core.prompts import issue_comment_prompt
+from sweepai.core.external_searcher import ExternalSearcher
+from sweepai.core.slow_mode_expand import SlowModeBot
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.core.prompts import issue_comment_prompt
 from sandbox.sandbox_utils import Sandbox
-from ...sweepai.handlers.create_pr import (
+from sweepai.handlers.create_pr import (
     create_pr_changes,
     create_config_pr,
     safe_delete_sweep_branch,
 )
-from ...sweepai.handlers.on_comment import on_comment
-from ...sweepai.handlers.on_review import review_pr
-from ...sweepai.utils.chat_logger import ChatLogger, discord_log_error
-from ...sweepai.config.client import (
+from sweepai.handlers.on_comment import on_comment
+from sweepai.handlers.on_review import review_pr
+from sweepai.utils.chat_logger import ChatLogger, discord_log_error
+from sweepai.config.client import (
     UPDATES_MESSAGE,
     SweepConfig,
     get_documentation_dict,
 )
-from ...sweepai.config.server import (
+from sweepai.config.server import (
     ENV,
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
     WHITELISTED_REPOS,
 )
-from ...sweepai.utils.event_logger import posthog
-from ...sweepai.utils.github_utils import (
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import (
     get_github_client,
     get_num_files_from_repo,
     get_token,
 )
-from ...sweepai.utils.prompt_constructor import HumanMessagePrompt
-from ...sweepai.utils.search_utils import search_snippets
+from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.utils.search_utils import search_snippets
 
 openai.api_key = OPENAI_API_KEY
 

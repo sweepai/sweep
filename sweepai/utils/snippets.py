@@ -1,8 +1,8 @@
-from ...sweepai.utils import chunker
+from sweepai.utils import chunker
 from loguru import logger
 
-from ...sweepai.core.entities import Snippet
-from ...sweepai.config.server import UTILS_MODAL_INST_NAME
+from sweepai.core.entities import Snippet
+from sweepai.config.server import UTILS_MODAL_INST_NAME
 
 
 def format_snippets(snippets: list[Snippet]):
