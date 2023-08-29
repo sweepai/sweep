@@ -4,11 +4,11 @@ from typing import Iterator, Literal, Self
 
 import anthropic
 import backoff
-import modal
 import openai
 from loguru import logger
 from pydantic import BaseModel
 
+from sweepai.utils.utils import Tiktoken
 from sweepai.core.entities import Message, Function, SweepContext
 from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
 from sweepai.utils.chat_logger import ChatLogger
@@ -239,9 +239,9 @@ class ChatGPT(BaseModel):
             model = "gpt-3.5-turbo-16k-0613"
         print(self.chat_logger)
 
-        count_tokens = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Tiktoken.count")
+        count_tokens = Tiktoken().count
         messages_length = sum(
-            [count_tokens.call(message.content or "") for message in self.messages]
+            [count_tokens(message.content or "") for message in self.messages]
         )
         max_tokens = (
             model_to_max_tokens[model] - int(messages_length) - 400
@@ -338,7 +338,7 @@ class ChatGPT(BaseModel):
                         )
                     if self.chat_logger:
                         try:
-                            token_count = count_tokens.call(output)
+                            token_count = count_tokens(output)
                             posthog.capture(
                                 self.chat_logger.data.get("username"),
                                 "call_openai",
@@ -405,7 +405,7 @@ class ChatGPT(BaseModel):
                         )
                     if self.chat_logger:
                         try:
-                            token_count = count_tokens.call(output)
+                            token_count = count_tokens(output)
                             posthog.capture(
                                 self.chat_logger.data.get("username"),
                                 "call_openai",
@@ -436,9 +436,8 @@ class ChatGPT(BaseModel):
     def call_anthropic(self, model: ChatModel | None = None) -> str:
         if model is None:
             model = self.model
-        count_tokens = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Tiktoken.count")
         messages_length = sum(
-            [int(count_tokens.call(message.content) * 1.1) for message in self.messages]
+            [int(count_tokens(message.content) * 1.1) for message in self.messages]
         )
         max_tokens = model_to_max_tokens[model] - int(messages_length) - 1000
         logger.info(f"Number of tokens: {max_tokens}")
@@ -508,9 +507,9 @@ class ChatGPT(BaseModel):
         function_call: dict | None = None,
     ) -> Iterator[dict]:
         model = model or self.model
-        count_tokens = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Tiktoken.count")
+        count_tokens = Tiktoken().count
         messages_length = sum(
-            [count_tokens.call(message.content or "") for message in self.messages]
+            [count_tokens(message.content or "") for message in self.messages]
         )
         max_tokens = (
             model_to_max_tokens[model] - int(messages_length) - 400
