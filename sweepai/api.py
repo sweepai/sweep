@@ -605,7 +605,7 @@ async def webhook(raw_request: Request):
                             request_dict["repository"]["full_name"],
                             installation_id=request_dict["installation"]["id"],
                         )
-                    update_sweep_prs.spawn(
+                    update_sweep_prs(
                         request_dict["repository"]["full_name"],
                         installation_id=request_dict["installation"]["id"],
                     )
