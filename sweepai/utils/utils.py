@@ -217,3 +217,16 @@ class Tiktoken:
     @method()
     def count(self, text: str, model: str = "gpt-4"):
         return len(self.openai_models[model].encode(text, disallowed_special=()))
+
+
+# @stub.cls(
+#     image=tiktoken_image,
+#     network_file_systems={TIKTOKEN_CACHE_DIR: tiktoken_volume},
+#     secret=modal.Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR}),
+#     keep_warm=5 if ENV == "prod" else 0,
+#     cpu=0.5,
+# )
+# class CodeLlamaTokenizer:
+#     from transformers import CodeLlamaTokenizerFast
+#     tokenizer = CodeLlamaTokenizerFast.from_pretrained("hf-internal-testing/llama-tokenizer")
+#     tokenizer.encode("Hello this is a test")
