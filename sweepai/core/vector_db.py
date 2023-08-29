@@ -1,15 +1,12 @@
-import glob
 import json
 import os
 import re
 import shutil
 import time
 
-import modal
 from git.repo import Repo
 from github import Github
 from loguru import logger
-from modal import method
 from redis import Redis
 from redis.backoff import ConstantBackoff
 from redis.retry import Retry
@@ -21,24 +18,16 @@ from sweepai.core.lexical_search import prepare_index_from_snippets, search_inde
 from sweepai.core.repo_parsing_utils import repo_to_chunks
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
-from sweepai.utils.scorer import compute_score, get_factors, get_scores
+from sweepai.utils.scorer import compute_score, get_scores
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import (
-    ENV,
-    DB_MODAL_INST_NAME,
-    UTILS_MODAL_INST_NAME,
-    REDIS_URL,
-    BOT_TOKEN_NAME,
-)
+from sweepai.config.server import REDIS_URL
 from ..utils.github_utils import get_token
 
 
-stub = modal.Stub(DB_MODAL_INST_NAME)
-model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
-MODEL_DIR = "/root/cache/model"
-DEEPLAKE_DIR = "/root/cache/"
-DISKCACHE_DIR = "/root/cache/diskcache/"
-DEEPLAKE_FOLDER = "deeplake/"
+MODEL_DIR = "cache/model"
+DEEPLAKE_DIR = "cache/"
+DISKCACHE_DIR = "cache/diskcache/"
+DEEPLAKE_FOLDER = "cache/deeplake/"
 BATCH_SIZE = 128
 SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-mpnet-base-v2"
 timeout = 60 * 60  # 30 minutes
@@ -55,35 +44,35 @@ def download_models():
     model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
 
 
-image = (
-    modal.Image.debian_slim()
-    .apt_install("git")
-    .pip_install("deeplake==3.6.17", "sentence-transformers")
-    .pip_install(
-        "openai",
-        "PyGithub",
-        "loguru",
-        "docarray",
-        "GitPython",
-        "tqdm",
-        "anthropic",
-        "posthog",
-        "redis",
-        "pyyaml",
-        "rapidfuzz",
-        "whoosh",
-        "tree-sitter-languages",
-    )
-    .run_function(download_models)
-)
-secrets = [
-    modal.Secret.from_name(BOT_TOKEN_NAME),
-    modal.Secret.from_name("github"),
-    modal.Secret.from_name("openai-secret"),
-    modal.Secret.from_name("posthog"),
-    modal.Secret.from_name("redis_url"),
-    modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
-]
+# image = (
+#     modal.Image.debian_slim()
+#     .apt_install("git")
+#     .pip_install("deeplake==3.6.17", "sentence-transformers")
+#     .pip_install(
+#         "openai",
+#         "PyGithub",
+#         "loguru",
+#         "docarray",
+#         "GitPython",
+#         "tqdm",
+#         "anthropic",
+#         "posthog",
+#         "redis",
+#         "pyyaml",
+#         "rapidfuzz",
+#         "whoosh",
+#         "tree-sitter-languages",
+#     )
+#     .run_function(download_models)
+# )
+# secrets = [
+#     modal.Secret.from_name(BOT_TOKEN_NAME),
+#     modal.Secret.from_name("github"),
+#     modal.Secret.from_name("openai-secret"),
+#     modal.Secret.from_name("posthog"),
+#     modal.Secret.from_name("redis_url"),
+#     modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
+# ]
 
 
 def init_deeplake_vs(repo_name):
@@ -104,17 +93,8 @@ def parse_collection_name(name: str) -> str:
     return name
 
 
-@stub.cls(
-    image=image,
-    secrets=secrets,
-    network_file_systems={MODEL_DIR: model_volume},
-    keep_warm=1 if ENV == "prod" else 0,
-    gpu="T4",
-    retries=modal.Retries(max_retries=5, backoff_coefficient=2, initial_delay=5),
-    timeout=timeout,
-)
 class Embedding:
-    def __enter__(self):
+    def __init__(self):
         from sentence_transformers import (  # pylint: disable=import-error
             SentenceTransformer,
         )
@@ -123,7 +103,6 @@ class Embedding:
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
         )
 
-    @method()
     def compute(self, texts: list[str]):
         logger.info(f"Computing embeddings for {len(texts)} texts")
         vector = self.model.encode(
@@ -137,17 +116,8 @@ class Embedding:
         return vector
 
 
-@stub.cls(
-    image=image,
-    secrets=secrets,
-    network_file_systems={MODEL_DIR: model_volume},
-    keep_warm=1,
-    retries=modal.Retries(max_retries=5, backoff_coefficient=2, initial_delay=5),
-    cpu=2,  # this can change later
-    timeout=timeout,
-)
 class CPUEmbedding:
-    def __enter__(self):
+    def __init__(self):
         from sentence_transformers import (  # pylint: disable=import-error
             SentenceTransformer,
         )
@@ -156,7 +126,6 @@ class CPUEmbedding:
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
         )
 
-    @method()
     def compute(self, texts: list[str]) -> list[list[float]]:
         logger.info(f"Computing embeddings for {len(texts)} texts")
         vector = self.model.encode(
@@ -180,7 +149,7 @@ class ModalEmbeddingFunction:
         if len(texts) == 0:
             return []
         if cpu or len(texts) < 10:
-            return CPUEmbedding.compute.call(texts)  # pylint: disable=no-member
+            return CPUEmbedding().compute(texts)  # pylint: disable=no-member
         else:
             batches = [
                 texts[i : i + ModalEmbeddingFunction.batch_size]
@@ -350,14 +319,6 @@ def compute_deeplake_vs(
         return deeplake_vs
 
 
-@stub.function(
-    image=image,
-    secrets=secrets,
-    network_file_systems={DISKCACHE_DIR: model_volume},
-    timeout=timeout,
-    keep_warm=2,
-    cpu=CPU,
-)
 def update_index(
     repo_name,
     installation_id: int,
@@ -369,14 +330,6 @@ def update_index(
     return 0
 
 
-@stub.function(
-    image=image,
-    secrets=secrets,
-    network_file_systems={DEEPLAKE_DIR: model_volume},
-    timeout=timeout,
-    keep_warm=1,
-    cpu=CPU,
-)
 def get_relevant_snippets(
     repo_name: str,
     query: str,
@@ -387,7 +340,7 @@ def get_relevant_snippets(
     lexical=True,
 ):
     logger.info("Getting query embedding...")
-    query_embedding = CPUEmbedding.compute.call(query)  # pylint: disable=no-member
+    query_embedding = CPUEmbedding().compute(query)  # pylint: disable=no-member
     logger.info("Starting search by getting vector store...")
     deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
