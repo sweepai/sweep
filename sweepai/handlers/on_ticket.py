@@ -324,7 +324,6 @@ async def on_ticket(
     daily_ticket_count = (
         2 - chat_logger.get_ticket_count(use_date=True) if not use_faster_model else 0
     )
-    slow_mode = slow_mode and not use_faster_model
 
     model_name = "GPT-3.5" if use_faster_model else "GPT-4"
     payment_link = "https://buy.stripe.com/6oE5npbGVbhC97afZ4"
@@ -347,9 +346,8 @@ async def on_ticket(
             else ""
         )
     )
-    slow_mode_status = " using slow mode" if slow_mode else " "
     payment_message_start = (
-        f"{user_type}: I'm creating this ticket using {model_name}{slow_mode_status}. You have {gpt_tickets_left_message}{daily_message}."
+        f"{user_type}: I'm creating this ticket using {model_name}. You have {gpt_tickets_left_message}{daily_message}."
         + (
             f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})"
             if not is_paying_user
@@ -591,11 +589,17 @@ async def on_ticket(
     if external_results:
         message_summary += "\n\n" + external_results
     user_dict = get_documentation_dict(repo)
-    docs_results = extract_relevant_docs(
-        title + message_summary, user_dict, chat_logger
-    )
-    if docs_results:
-        message_summary += "\n\n" + docs_results
+    docs_succeeded = False
+    docs_results = ""
+    try:
+        docs_results = extract_relevant_docs(
+            title + message_summary, user_dict, chat_logger
+        )
+        if docs_results:
+            message_summary += "\n\n" + docs_results
+        docs_succeeded = True
+    except Exception as e:
+        logger.error(f"Failed to extract docs: {e}")
 
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
@@ -608,29 +612,28 @@ async def on_ticket(
         tree=tree,
     )
     additional_plan = None
-    if slow_mode and not use_faster_model:
-        slow_mode_bot = SlowModeBot(chat_logger=chat_logger)
-        queries, additional_plan = slow_mode_bot.expand_plan(human_message)
+    slow_mode_bot = SlowModeBot(chat_logger=chat_logger)
+    queries, additional_plan = slow_mode_bot.expand_plan(human_message)
 
-        snippets, tree = search_snippets(
-            repo,
-            f"{title}\n{summary}\n{replies_text}",
-            num_files=num_of_snippets_to_query,
-            branch=None,
-            installation_id=installation_id,
-            multi_query=queries,
-        )
-        snippets = post_process_snippets(snippets, max_num_of_snippets=5)
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description,
-            title=title,
-            summary=message_summary + additional_plan,
-            snippets=snippets,
-            tree=tree,
-        )
+    snippets, tree = search_snippets(
+        repo,
+        f"{title}\n{summary}\n{replies_text}",
+        num_files=num_of_snippets_to_query,
+        branch=None,
+        installation_id=installation_id,
+        multi_query=queries,
+    )
+    snippets = post_process_snippets(snippets, max_num_of_snippets=5)
+    human_message = HumanMessagePrompt(
+        repo_name=repo_name,
+        issue_url=issue_url,
+        username=username,
+        repo_description=repo_description,
+        title=title,
+        summary=message_summary + additional_plan,
+        snippets=snippets,
+        tree=tree,
+    )
     try:
         context_pruning = ContextPruning(chat_logger=chat_logger)
         snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
@@ -649,7 +652,7 @@ async def on_ticket(
         )
         logger.info(f"New snippets: {snippets}")
         logger.info(f"New tree: {tree}")
-        if slow_mode and not use_faster_model and additional_plan is not None:
+        if not use_faster_model and additional_plan is not None:
             message_summary += additional_plan
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -984,54 +987,50 @@ async def on_ticket(
         except:
             pass
 
-        for i in range(1 if not slow_mode else 3):
-            try:
-                # Todo(lukejagg): Pass sandbox linter results to review_pr
-                # CODE REVIEW
-                changes_required, review_comment = review_pr(
-                    repo=repo,
-                    pr=pr_changes,
-                    issue_url=issue_url,
-                    username=username,
+        try:
+            # Todo(lukejagg): Pass sandbox linter results to review_pr
+            # CODE REVIEW
+            changes_required, review_comment = review_pr(
+                repo=repo,
+                pr=pr_changes,
+                issue_url=issue_url,
+                username=username,
+                repo_description=repo_description,
+                title=title,
+                summary=summary,
+                replies_text=replies_text,
+                tree=tree,
+                lint_output=lint_output,
+                chat_logger=chat_logger,
+            )
+            # Todo(lukejagg): Execute sandbox after each iteration
+            lint_output = None
+            review_message += (
+                f"Here is the {ordinal(i + 1)} review\n> "
+                + review_comment.replace("\n", "\n> ")
+                + "\n\n"
+            )
+            edit_sweep_comment(
+                review_message + "\n\nI'm currently addressing these suggestions.",
+                5,
+            )
+            logger.info(f"Addressing review comment {review_comment}")
+            if changes_required:
+                on_comment(
+                    repo_full_name=repo_full_name,
                     repo_description=repo_description,
-                    title=title,
-                    summary=summary,
-                    replies_text=replies_text,
-                    tree=tree,
-                    lint_output=lint_output,
+                    comment=review_comment,
+                    username=username,
+                    installation_id=installation_id,
+                    pr_path=None,
+                    pr_line_position=None,
+                    pr_number=None,
+                    pr=pr_changes,
                     chat_logger=chat_logger,
                 )
-                # Todo(lukejagg): Execute sandbox after each iteration
-                lint_output = None
-                review_message += (
-                    f"Here is the {ordinal(i + 1)} review\n> "
-                    + review_comment.replace("\n", "\n> ")
-                    + "\n\n"
-                )
-                edit_sweep_comment(
-                    review_message + "\n\nI'm currently addressing these suggestions.",
-                    5,
-                )
-                logger.info(f"Addressing review comment {review_comment}")
-                if changes_required:
-                    on_comment(
-                        repo_full_name=repo_full_name,
-                        repo_description=repo_description,
-                        comment=review_comment,
-                        username=username,
-                        installation_id=installation_id,
-                        pr_path=None,
-                        pr_line_position=None,
-                        pr_number=None,
-                        pr=pr_changes,
-                        chat_logger=chat_logger,
-                    )
-                else:
-                    break
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
-                break
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
 
         edit_sweep_comment(
             review_message + "\n\nI finished incorporating these changes.", 5
