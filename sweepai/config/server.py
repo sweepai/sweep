@@ -2,12 +2,13 @@ import os
 from dotenv import load_dotenv
 import base64
 
-load_dotenv(dotenv_path=".env.minimal")
+load_dotenv(dotenv_path=".env")
 
 os.environ["GITHUB_APP_PEM"] = os.environ.get(
     "GITHUB_APP_PEM",
     base64.b64decode(os.environ.get("GITHUB_APP_PEM_BASE64")).decode("utf-8"),
 )
+
 os.environ["TRANSFORMERS_CACHE"] = os.environ.get(
     "TRANSFORMERS_CACHE", "cache/model"
 )  # vector_db.py
@@ -36,6 +37,7 @@ DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
 
 # goes under Modal 'github' secret name
 GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID")
+print(GITHUB_APP_ID)
 # deprecated: old logic transfer so upstream can use this
 if GITHUB_APP_ID is None:
     if ENV == "main":
