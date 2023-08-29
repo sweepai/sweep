@@ -50,6 +50,7 @@ model_to_max_tokens = {
     "gpt-4-32k": 32000,
 }
 temperature = 0.0  # Lowered to 0 for mostly deterministic results for reproducibility
+count_tokens = Tiktoken().count
 
 
 def format_for_anthropic(messages: list[Message]) -> str:

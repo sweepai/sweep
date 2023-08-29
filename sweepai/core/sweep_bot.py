@@ -306,7 +306,7 @@ class GithubBot(BaseModel):
         installation_id: str,
         num_snippets: int = 30,
     ) -> list[Snippet]:
-        snippets: list[Snippet] = get_relevant_snippets.call(
+        snippets: list[Snippet] = get_relevant_snippets(
             self.repo.full_name,
             query=query,
             n_results=num_snippets,
