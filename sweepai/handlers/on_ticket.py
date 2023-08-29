@@ -1004,7 +1004,7 @@ async def on_ticket(
             # Todo(lukejagg): Execute sandbox after each iteration
             lint_output = None
             review_message += (
-                f"Here is the {ordinal(i + 1)} review\n> "
+                f"Here is the {ordinal(1)} review\n> "
                 + review_comment.replace("\n", "\n> ")
                 + "\n\n"
             )
