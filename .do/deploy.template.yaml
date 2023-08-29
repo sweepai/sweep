@@ -20,4 +20,4 @@ spec:
       value:
     - key: OPENAI_DO_HAVE_32K_MODEL_ACCESS
       scope: RUN_TIME
-      value: false
+      value: "false"
