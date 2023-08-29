@@ -28,7 +28,7 @@ class ContextPruning(ChatGPT):
                 self.messages.append(Message(**msg))
             self.model = (
                 "gpt-4-32k"
-                if self.chat_logger.is_paying_user()
+                if (self.chat_logger and self.chat_logger.is_paying_user())
                 else "gpt-3.5-turbo-16k"
             )
             response = self.chat(pruning_prompt)
