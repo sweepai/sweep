@@ -1,13 +1,6 @@
 # Deploying your own Sweep instance via Docker
 
-
 *🎉 We recently changed our license to the Elastic License V2 to allow Sweep for commercial usage.*<br/>You can self-host Sweep by deploying our Docker image at https://ghcr.io/sweepai/sweep.
-
-<p style={{marginTop: 32, marginBottom: 32}}>
-    <a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/sweepai/sweep/tree/main">
-        <img src="https://www.deploytodo.com/do-btn-white-ghost.svg" alt="Deploy to DO"/>
-    </a>
-</p>
 
 ## 0. Pre-requisites
 
@@ -77,6 +70,12 @@ docker run --env-file .env -p 8000:8000 -d ghcr.io/sweepai/sweep:latest
 ```
 
 ## 3. Connecting the Webhook to the App
+
+<p style={{marginTop: 16, marginBottom: 32}}>
+    <a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/sweepai/sweep/tree/main">
+        <img src="https://www.deploytodo.com/do-btn-blue-ghost.svg" alt="Deploy to DO"/>
+    </a>
+</p>
 
 From here, do one of the following and grab the publicly accessible webhook URL:
 * Use [Ngrok](https://ngrok.com/) or a similar reverse proxy tool to redirect `https://127.0.0.1:8000` to something like `https://e5bf90f4a3be.ngrok.app`. This is great for quickly testing locally.
