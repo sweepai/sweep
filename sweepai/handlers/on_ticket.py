@@ -7,7 +7,6 @@ On Github ticket, get ChatGPT to deal with it
 import math
 import re
 import traceback
-import modal
 import openai
 
 from github import GithubException
@@ -45,7 +44,6 @@ from sweepai.config.client import (
 )
 from sweepai.config.server import (
     ENV,
-    DB_MODAL_INST_NAME,
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
@@ -56,13 +54,11 @@ from sweepai.utils.github_utils import (
     get_github_client,
     get_num_files_from_repo,
     get_token,
-    search_snippets,
 )
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.utils.search_utils import search_snippets
 
 openai.api_key = OPENAI_API_KEY
-
-update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 sep = "\n---\n"
 bot_suffix_starring = (
