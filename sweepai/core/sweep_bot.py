@@ -565,7 +565,7 @@ class SweepBot(CodeGenBot, GithubBot):
             commit_message = commit_message[: min(len(commit_message), 50)]
 
             sandbox_error = None
-            if not chunk_offset and False:
+            try:
                 with open(f"repo/{file_change_request.filename}", "w") as f:
                     f.write(new_file)
 
@@ -574,7 +574,6 @@ class SweepBot(CodeGenBot, GithubBot):
                         sandbox_code_repair_modify,  # pylint: disable=E0401
                     )
 
-                    # Todo(lukejagg): Should this be outside of sandbox?
                     self.delete_messages_from_chat(key)
 
                     # Formats and lints the file
@@ -591,8 +590,12 @@ class SweepBot(CodeGenBot, GithubBot):
                 except Exception as e:
                     logger.error(f"Sandbox error: {e}")
                     logger.error(traceback.format_exc())
-
-            return new_file, commit_message, sandbox_error
+                    self.delete_messages_from_chat(key)
+                return new_file, commit_message, sandbox_error
+            except:
+                logger.error(f"Error: {e}")
+                logger.error(traceback.format_exc())
+                raise e
         except Exception as e:
             tb = traceback.format_exc()
             logger.warning(f"Failed to parse." f" {e}\n{tb}")
