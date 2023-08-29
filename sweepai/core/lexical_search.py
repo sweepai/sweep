@@ -1,3 +1,4 @@
+import shutil
 import traceback
 from dataclasses import dataclass
 import itertools
@@ -127,8 +128,8 @@ def prepare_index_from_snippets(snippets):
     )
 
     # Create a directory to store the index
-    if not os.path.exists("cache/indexdir"):
-        os.mkdir("cache/indexdir")
+    shutil.rmtree("cache/indexdir", ignore_errors=True)
+    os.mkdir("cache/indexdir")
 
     # Create the index based on the schema
     ix = index.create_in("cache/indexdir", schema)

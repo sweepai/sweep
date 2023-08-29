@@ -82,7 +82,7 @@ class ChatGPT(BaseModel):
     model: ChatModel = (
         "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
     )
-    chat_logger: ChatLogger
+    chat_logger: ChatLogger | None
     human_message: HumanMessagePrompt | None = None
     file_change_paths = []
     sweep_context: SweepContext | None = None
@@ -231,14 +231,16 @@ class ChatGPT(BaseModel):
         functions: list[Function] = [],
         function_name: dict | None = None,
     ):
-        tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
-        tickets_count = self.chat_logger.get_ticket_count()
-        if tickets_count < tickets_allocated:
-            model = model or self.model
-            logger.warning(f"{tickets_count} tickets found in MongoDB, using {model}")
-        else:
-            model = "gpt-3.5-turbo-16k-0613"
-        print(self.chat_logger)
+        if self.chat_logger is not None:
+            tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
+            tickets_count = self.chat_logger.get_ticket_count()
+            if tickets_count < tickets_allocated:
+                model = model or self.model
+                logger.warning(
+                    f"{tickets_count} tickets found in MongoDB, using {model}"
+                )
+            else:
+                model = "gpt-3.5-turbo-16k-0613"
 
         count_tokens = Tiktoken().count
         messages_length = sum(

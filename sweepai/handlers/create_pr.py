@@ -17,6 +17,7 @@ from sweepai.config.server import (
     ENV,
     GITHUB_DEFAULT_CONFIG,
     GITHUB_LABEL_NAME,
+    MONGODB_URI,
     OPENAI_API_KEY,
     DB_MODAL_INST_NAME,
     GITHUB_BOT_USERNAME,
@@ -66,6 +67,8 @@ def create_pr_changes(
                 "issue_url": "",
             }
         )
+        if MONGODB_URI
+        else None
     )
     sweep_bot.chat_logger = chat_logger
     organization, repo_name = sweep_bot.repo.full_name.split("/")
