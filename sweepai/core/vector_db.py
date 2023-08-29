@@ -24,10 +24,10 @@ from sweepai.config.server import REDIS_URL
 from ..utils.github_utils import get_token
 
 
-MODEL_DIR = "/root/cache/model"
-DEEPLAKE_DIR = "/root/cache/"
-DISKCACHE_DIR = "/root/cache/diskcache/"
-DEEPLAKE_FOLDER = "deeplake/"
+MODEL_DIR = "cache/model"
+DEEPLAKE_DIR = "cache/"
+DISKCACHE_DIR = "cache/diskcache/"
+DEEPLAKE_FOLDER = "cache/deeplake/"
 BATCH_SIZE = 128
 SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-mpnet-base-v2"
 timeout = 60 * 60  # 30 minutes
@@ -94,7 +94,7 @@ def parse_collection_name(name: str) -> str:
 
 
 class Embedding:
-    def __enter__(self):
+    def __init__(self):
         from sentence_transformers import (  # pylint: disable=import-error
             SentenceTransformer,
         )
@@ -117,7 +117,7 @@ class Embedding:
 
 
 class CPUEmbedding:
-    def __enter__(self):
+    def __init__(self):
         from sentence_transformers import (  # pylint: disable=import-error
             SentenceTransformer,
         )
@@ -149,7 +149,7 @@ class ModalEmbeddingFunction:
         if len(texts) == 0:
             return []
         if cpu or len(texts) < 10:
-            return CPUEmbedding.compute.call(texts)  # pylint: disable=no-member
+            return CPUEmbedding().compute(texts)  # pylint: disable=no-member
         else:
             batches = [
                 texts[i : i + ModalEmbeddingFunction.batch_size]
@@ -340,7 +340,7 @@ def get_relevant_snippets(
     lexical=True,
 ):
     logger.info("Getting query embedding...")
-    query_embedding = CPUEmbedding.compute.call(query)  # pylint: disable=no-member
+    query_embedding = CPUEmbedding().compute(query)  # pylint: disable=no-member
     logger.info("Starting search by getting vector store...")
     deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config

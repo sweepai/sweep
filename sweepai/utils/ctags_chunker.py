@@ -1,7 +1,3 @@
-import modal
-import subprocess
-import os
-
 from sweepai.utils.ctags import CTags
 
 MAX_NUM_TAGS = 5

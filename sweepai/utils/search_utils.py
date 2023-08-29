@@ -7,15 +7,18 @@ from github.Repository import Repository
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
-from sweepai.core.vector_db import get_relevant_snippets
+from sweepai.core.vector_db import get_relevant_snippets, update_index
 from sweepai.core.entities import Snippet
 from sweepai.utils.github_utils import (
     get_file_contents,
     get_file_list,
     get_file_names_from_query,
+    get_github_client,
     get_token,
     get_tree_and_file_list,
 )
+from sweepai.utils.scorer import merge_and_dedup_snippets
+from sweepai.utils.event_logger import posthog
 
 
 def search_snippets(
@@ -34,7 +37,7 @@ def search_snippets(
         lists_of_snippets = list[list[Snippet]]()
         multi_query = [query] + multi_query
         for query in multi_query:
-            snippets: list[Snippet] = get_relevant_snippets.remote(
+            snippets: list[Snippet] = get_relevant_snippets(
                 repo.full_name, query, num_files, installation_id=installation_id
             )
             logger.info(f"Snippets for query {query}: {snippets}")
@@ -43,7 +46,7 @@ def search_snippets(
         snippets = merge_and_dedup_snippets(lists_of_snippets)
         logger.info(f"Snippets for multi query {multi_query}: {snippets}")
     else:
-        snippets: list[Snippet] = get_relevant_snippets.remote(
+        snippets: list[Snippet] = get_relevant_snippets(
             repo.full_name, query, num_files, installation_id=installation_id
         )
         logger.info(f"Snippets for query {query}: {snippets}")
@@ -128,3 +131,33 @@ def search_snippets(
         return snippets, tree
     else:
         return snippets
+
+
+def index_full_repository(
+    repo_name: str,
+    installation_id: int = None,
+    sweep_config: SweepConfig = SweepConfig(),
+):
+    # update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
+    num_indexed_docs = update_index.spawn(
+        repo_name=repo_name,
+        installation_id=installation_id,
+        sweep_config=sweep_config,
+    )
+    try:
+        repo = (get_github_client(installation_id)[1]).get_repo(repo_name)
+        labels = repo.get_labels()
+        label_names = [label.name for label in labels]
+
+        if "sweep" not in label_names:
+            repo.create_label(
+                name="sweep",
+                color="5320E7",
+                description="Assigns Sweep to an issue or pull request.",
+            )
+    except Exception as e:
+        posthog.capture("index_full_repository", "failed", {"error": str(e)})
+        logger.warning(
+            "Adding label failed, probably because label already."
+        )  # warn that the repo may already be indexed
+    return num_indexed_docs
