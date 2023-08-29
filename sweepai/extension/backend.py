@@ -16,10 +16,6 @@ stub = modal.Stub(ENV + "-ext")
 image = modal.Image.debian_slim().pip_install(
     "requests", "PyGithub", "loguru", "posthog"
 )
-secrets = [
-    modal.Secret.from_name("posthog"),
-    modal.Secret.from_name(BOT_TOKEN_NAME),
-]
 
 FUNCTION_SETTINGS = {
     "image": image,
