@@ -39,8 +39,23 @@ pre-commit = "^3.3.3"
 rapidfuzz = "^3.2.0"
 whoosh = "^2.7.4"
 tree-sitter-languages = "^1.7.0"
+python-dotenv = "^1.0.0"
+redis = "^5.0.0"
+
+# Backend dependencies
+fastapi = "^0.94.1"
+uvicorn = "^0.21.0"
+openai = "^0.27.2"
+pymongo = "^4.4.0"
+anthropic = "^0.2.8"
+tiktoken = "^0.3.2"
+PyJWT = "^2.6.0"
+backoff = "^2.2.1"
+posthog = "^3.0.1"
+tree-sitter = "^0.20.1"
 
 [tool.poetry.dev-dependencies]
+pylint = "^2.17.4"
 black = "^23.1.0"
 commit5 = "^0.1.1"
 jupyter = "^1.0.0"
@@ -49,24 +64,6 @@ build = "^0.10.0"
 flake8 = "^6.0.0"
 nptyping = "^2.5.0"
 pre-commit = "^3.2.0"
-
-# Backend dependencies
-fastapi = "^0.94.1"
-uvicorn = "^0.21.0"
-openai = "^0.27.2"
-slack-bolt = "^1.18.0"
-pymongo = "^4.4.0"
-redis = "^4.5.5"
-google-search-results = "^2.4.2"
-slack-sdk = "^3.21.3"
-modal-client = "^0.51.3182"
-anthropic = "^0.2.8"
-tiktoken = "^0.3.2"
-PyJWT = "^2.6.0"
-backoff = "^2.2.1"
-posthog = "^3.0.1"
-tree-sitter = "^0.20.1"
-pylint = "^2.17.4"
 
 [mypy]
 check_untyped_defs = true
