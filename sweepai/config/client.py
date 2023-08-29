@@ -8,8 +8,8 @@ import yaml
 from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
-from ...sweepai.config.server import ENV
-from ...sweepai.core.entities import EmptyRepository
+from sweepai.config.server import ENV
+from sweepai.core.entities import EmptyRepository
 
 
 class SweepConfig(BaseModel):

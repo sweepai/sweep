@@ -8,7 +8,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
-from ...sweepai.config.server import (
+from sweepai.config.server import (
     MONGODB_URI,
     DISCORD_WEBHOOK_URL,
     SUPPORT_COUNTRY,

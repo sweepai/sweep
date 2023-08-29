@@ -1,7 +1,7 @@
 import glob
 import os
 import itertools
-from ...sweepai.utils.utils import chunk_code
+from sweepai.utils.utils import chunk_code
 
 
 def filter_file(file, sweep_config):
