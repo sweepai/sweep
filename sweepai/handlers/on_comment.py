@@ -15,6 +15,7 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.server import (
     GITHUB_BOT_USERNAME,
     ENV,
+    MONGODB_URI,
     OPENAI_API_KEY,
 )
 from sweepai.utils.event_logger import posthog
@@ -129,6 +130,8 @@ def on_comment(
                     "type": "comment",
                 }
             )
+            if MONGODB_URI
+            else None
         )
     else:
         logger.warning(f"No issue number found in PR body for summary {pr.body}")
