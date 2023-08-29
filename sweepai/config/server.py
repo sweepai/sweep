@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 import base64
 
-load_dotenv(dotenv_path=".env")
+load_dotenv(dotenv_path=".env.minimal")
 
 os.environ["GITHUB_APP_PEM"] = os.environ.get(
     "GITHUB_APP_PEM",

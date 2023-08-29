@@ -187,10 +187,14 @@ def get_tree_and_file_list(
 
     sha = repo.get_branch(repo.default_branch).commit.sha
     retry = Retry(ExponentialBackoff(), 3)
-    cache_inst = Redis.from_url(
-        REDIS_URL,
-        retry=retry,
-        retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
+    cache_inst = (
+        Redis.from_url(
+            REDIS_URL,
+            retry=retry,
+            retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
+        )
+        if REDIS_URL
+        else None
     )
     ctags = CTags(sha=sha, redis_instance=cache_inst)
     all_names = []
