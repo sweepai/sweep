@@ -2,7 +2,6 @@ import traceback
 import re
 from typing import Generator
 
-import modal
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
@@ -38,6 +37,7 @@ from sweepai.core.prompts import (
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
+from sweepai.core.vector_db import get_relevant_snippets
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import (
     format_contents,
@@ -305,9 +305,6 @@ class GithubBot(BaseModel):
         installation_id: str,
         num_snippets: int = 30,
     ) -> list[Snippet]:
-        get_relevant_snippets = modal.Function.lookup(
-            DB_MODAL_INST_NAME, "get_relevant_snippets"
-        )
         snippets: list[Snippet] = get_relevant_snippets.call(
             self.repo.full_name,
             query=query,

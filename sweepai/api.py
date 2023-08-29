@@ -1,5 +1,6 @@
 import time
 from datetime import datetime
+import asyncio
 
 from fastapi import FastAPI, HTTPException, Request
 from loguru import logger
@@ -34,7 +35,8 @@ from sweepai.config.server import (
     BOT_TOKEN_NAME,
 )
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import get_github_client, index_full_repository
+from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.search_utils import index_full_repository
 
 # stub = modal.Stub(API_MODAL_INST_NAME)
 # stub.pr_queues = modal.Dict.new()  # maps (repo_full_name, pull_request_ids) -> queues
@@ -243,7 +245,7 @@ async def webhook(raw_request: Request):
                     # print(issue_locks)
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
-                    process = on_ticket(
+                    process = await on_ticket(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
@@ -342,7 +344,7 @@ async def webhook(raw_request: Request):
                     # stub.issue_lock[
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
-                    on_ticket(
+                    await on_ticket(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,

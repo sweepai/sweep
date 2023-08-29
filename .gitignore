@@ -172,3 +172,6 @@ tests/js_tests
 test_repos
 sandbox/
 .env*
+cache/
+indexdir
+repo

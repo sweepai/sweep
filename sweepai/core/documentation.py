@@ -2,8 +2,6 @@ import asyncio
 import re
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from loguru import logger
-import modal
-from modal import method
 from tqdm import tqdm
 from sweepai.core.lexical_search import prepare_index_from_docs, search_docs
 from sweepai.core.robots import is_url_allowed
@@ -12,45 +10,12 @@ from sweepai.pre_indexed_docs import DOCS_ENDPOINTS
 
 from sweepai.config.server import DOCS_MODAL_INST_NAME, ENV, ORG_ID
 
-stub = modal.Stub(DOCS_MODAL_INST_NAME)
-image = (
-    modal.Image.debian_slim()
-    .pip_install("deeplake==3.6.17", "sentence-transformers")
-    .pip_install(
-        "loguru",
-        "tqdm",
-        "bs4",
-        "markdownify",
-        "lxml",
-        "robotexclusionrulesparser",
-        "whoosh",
-    )
-    .run_commands(
-        "apt-get install -y software-properties-common",
-        "apt-add-repository non-free",
-        "apt-add-repository contrib",
-        "apt-get update",
-        "pip install playwright==1.30.0",
-        "playwright install-deps chromium",
-        "playwright install",
-    )
-)
-
-MODEL_DIR = "/root/cache/model"
+MODEL_DIR = "cache/model"
 BATCH_SIZE = 128
 SENTENCE_TRANSFORMERS_MODEL = "all-mpnet-base-v2"
-model_volume = modal.NetworkFileSystem.persisted(f"{ENV}-storage")
 timeout = 60 * 60  # 30 minutes
 
 
-@stub.cls(
-    image=image,
-    secrets=secrets,
-    network_file_systems={MODEL_DIR: model_volume},
-    gpu="T4",
-    retries=modal.Retries(max_retries=5, backoff_coefficient=2, initial_delay=5),
-    timeout=timeout,
-)
 class Embedding:
     def __enter__(self):
         from sentence_transformers import (  # pylint: disable=import-error
@@ -61,7 +26,6 @@ class Embedding:
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
         )
 
-    @method()
     def compute(self, texts: list[str]):
         logger.info(f"Computing embeddings for {len(texts)} texts")
         vector = self.model.encode(
@@ -104,15 +68,6 @@ class ModalEmbeddingFunction:
 embedding_function = ModalEmbeddingFunction()
 
 
-@stub.cls(
-    image=image,
-    secrets=secrets,
-    network_file_systems={MODEL_DIR: model_volume},
-    keep_warm=1,
-    retries=modal.Retries(max_retries=5, backoff_coefficient=2, initial_delay=5),
-    cpu=2,  # this can change later
-    timeout=timeout,
-)
 class CPUEmbedding:
     def __enter__(self):
         from sentence_transformers import (  # pylint: disable=import-error
@@ -123,7 +78,6 @@ class CPUEmbedding:
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
         )
 
-    @method()
     def compute(self, texts: list[str]) -> list[list[float]]:
         logger.info(f"Computing embeddings for {len(texts)} texts")
         vector = self.model.encode(
@@ -163,12 +117,6 @@ def remove_non_alphanumeric(url):
     return cleaned
 
 
-@stub.function(
-    image=image,
-    secrets=secrets,
-    timeout=timeout,
-    cpu=2,
-)
 def write_documentation(doc_url):
     url_allowed = is_url_allowed(doc_url, user_agent="*")
     if not url_allowed:
@@ -196,21 +144,11 @@ def write_documentation(doc_url):
     return True
 
 
-@stub.function(
-    image=image,
-    secrets=secrets,
-    schedule=modal.Cron("0 9 * * *") if ENV == "prod" else None,
-)
 def daily_update():
     for doc_url in DOCS_ENDPOINTS.values():
         write_documentation.spawn(doc_url)
 
 
-@stub.function(
-    image=image,
-    secrets=secrets,
-    keep_warm=1,
-)
 def search_vector_store(doc_url, query, k=100):
     logger.info(f'Searching for "{query}" in {doc_url}')
     idx_name = remove_non_alphanumeric(doc_url)

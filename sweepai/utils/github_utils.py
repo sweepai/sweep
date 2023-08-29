@@ -4,7 +4,6 @@ import shutil
 import subprocess
 import time
 
-import modal
 from redis import Redis
 from redis.backoff import ExponentialBackoff
 from redis.retry import Retry
@@ -14,19 +13,15 @@ from github import Github
 from github.Repository import Repository
 from jwt import encode
 from loguru import logger
-from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import (
-    DB_MODAL_INST_NAME,
     GITHUB_APP_ID,
     GITHUB_APP_PEM,
     REDIS_URL,
 )
 from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file, get_ctags_for_search
-from sweepai.utils.event_logger import posthog
-from sweepai.utils.scorer import merge_and_dedup_snippets
 from rapidfuzz import fuzz
 
 MAX_FILE_COUNT = 50
@@ -272,33 +267,3 @@ def get_top_match_ctags(repo, file_list, query):
     if len(ctags_score) > 0:
         top_match = ctags_score[0]
         return top_match[1] if top_match[0] > 40 else None
-
-
-def index_full_repository(
-    repo_name: str,
-    installation_id: int = None,
-    sweep_config: SweepConfig = SweepConfig(),
-):
-    update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
-    num_indexed_docs = update_index.spawn(
-        repo_name=repo_name,
-        installation_id=installation_id,
-        sweep_config=sweep_config,
-    )
-    try:
-        repo = (get_github_client(installation_id)[1]).get_repo(repo_name)
-        labels = repo.get_labels()
-        label_names = [label.name for label in labels]
-
-        if "sweep" not in label_names:
-            repo.create_label(
-                name="sweep",
-                color="5320E7",
-                description="Assigns Sweep to an issue or pull request.",
-            )
-    except Exception as e:
-        posthog.capture("index_full_repository", "failed", {"error": str(e)})
-        logger.warning(
-            "Adding label failed, probably because label already."
-        )  # warn that the repo may already be indexed
-    return num_indexed_docs
