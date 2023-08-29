@@ -434,6 +434,7 @@ async def webhook(raw_request: Request):
                                 "pr": pr,
                             },
                         )
+                        on_comment(**pr_change_request.params)
                         # push_to_queue(
                         #     repo_full_name=request.repository.full_name,
                         #     pr_id=request.issue.number,
@@ -469,6 +470,7 @@ async def webhook(raw_request: Request):
                             "pr": pr,
                         },
                     )
+                    on_comment(**pr_change_request.params)
                     # push_to_queue(
                     #     repo_full_name=request.repository.full_name,
                     #     pr_id=request.pull_request.number,
