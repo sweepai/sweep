@@ -23,6 +23,8 @@
 </a>
 </p>
 
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/sweepai/sweep/tree/main)
+
 <b>Sweep</b> is an AI junior developer that transforms bug reports & feature requests into code changes.
 
 🎉 We recently changed our license to the Elastic License V2 to allow Sweep for commercial usage.
