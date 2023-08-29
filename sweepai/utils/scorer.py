@@ -1,7 +1,7 @@
 from datetime import datetime
 from itertools import cycle
 
-from sweepai.core.entities import Snippet
+from ...sweepai.core.entities import Snippet
 
 
 def compute_score(file_path, git_repo):

@@ -1,7 +1,7 @@
 from loguru import logger
 
-from sweepai.core.chat import Function
-from sweepai.utils.diff import format_contents
+from ...sweepai.core.chat import Function
+from ...sweepai.utils.diff import format_contents
 
 modify_file_function = Function(
     name="modify_file",

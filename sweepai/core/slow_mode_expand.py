@@ -1,11 +1,11 @@
 from loguru import logger
-from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import ExpandedPlan, Message
-from sweepai.core.prompts import (
+from ...sweepai.core.chat import ChatGPT
+from ...sweepai.core.entities import ExpandedPlan, Message
+from ...sweepai.core.prompts import (
     slow_mode_system_prompt,
     generate_plan_and_queries_prompt,
 )
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from ...sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 
 class SlowModeBot(ChatGPT):

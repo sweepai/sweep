@@ -1,18 +1,18 @@
 from loguru import logger
-from sweepai.config.server import DOCS_MODAL_INST_NAME
+from ...sweepai.config.server import DOCS_MODAL_INST_NAME
 
-from sweepai.core.chat import ChatGPT
-from sweepai.core.documentation import DOCS_ENDPOINTS
-from sweepai.core.entities import Message
-from sweepai.core.prompts import docs_qa_system_prompt, docs_qa_user_prompt
+from ...sweepai.core.chat import ChatGPT
+from ...sweepai.core.documentation import DOCS_ENDPOINTS
+from ...sweepai.core.entities import Message
+from ...sweepai.core.prompts import docs_qa_system_prompt, docs_qa_user_prompt
 
-from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message
-from sweepai.core.prompts import (
+from ...sweepai.core.chat import ChatGPT
+from ...sweepai.core.entities import Message
+from ...sweepai.core.prompts import (
     doc_query_rewriter_system_prompt,
     doc_query_rewriter_prompt,
 )
-from sweepai.utils.chat_logger import ChatLogger
+from ...sweepai.utils.chat_logger import ChatLogger
 
 DOCS_ENDPOINTS = DOCS_ENDPOINTS
 

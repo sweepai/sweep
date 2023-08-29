@@ -5,11 +5,11 @@ import asyncio
 from fastapi import FastAPI, HTTPException, Request
 from loguru import logger
 from pydantic import ValidationError
-from sweepai.core.documentation import write_documentation
-from sweepai.core.entities import PRChangeRequest
-from sweepai.core.vector_db import update_index
+from ..sweepai.core.documentation import write_documentation
+from ..sweepai.core.entities import PRChangeRequest
+from ..sweepai.core.vector_db import update_index
 
-from sweepai.events import (
+from ..sweepai.events import (
     CheckRunCompleted,
     CommentCreatedRequest,
     InstallationCreatedRequest,
@@ -18,13 +18,13 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
 )
-from sweepai.handlers.create_pr import create_pr_changes, create_gha_pr, safe_delete_sweep_branch  # type: ignore
-from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
-from sweepai.handlers.on_comment import on_comment
-from sweepai.handlers.on_ticket import on_ticket
-from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.client import get_documentation_dict, SweepConfig
-from sweepai.config.server import (
+from ..sweepai.handlers.create_pr import create_pr_changes, create_gha_pr, safe_delete_sweep_branch  # type: ignore
+from ..sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
+from ..sweepai.handlers.on_comment import on_comment
+from ..sweepai.handlers.on_ticket import on_ticket
+from ..sweepai.utils.chat_logger import ChatLogger
+from ..sweepai.config.client import get_documentation_dict, SweepConfig
+from ..sweepai.config.server import (
     DB_MODAL_INST_NAME,
     API_MODAL_INST_NAME,
     DOCS_MODAL_INST_NAME,
@@ -34,9 +34,9 @@ from sweepai.config.server import (
     GITHUB_LABEL_DESCRIPTION,
     BOT_TOKEN_NAME,
 )
-from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import get_github_client
-from sweepai.utils.search_utils import index_full_repository
+from ..sweepai.utils.event_logger import posthog
+from ..sweepai.utils.github_utils import get_github_client
+from ..sweepai.utils.search_utils import index_full_repository
 
 # stub = modal.Stub(API_MODAL_INST_NAME)
 # stub.pr_queues = modal.Dict.new()  # maps (repo_full_name, pull_request_ids) -> queues
