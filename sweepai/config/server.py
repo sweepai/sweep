@@ -3,10 +3,17 @@ from dotenv import load_dotenv
 import base64
 
 load_dotenv(dotenv_path=".env")
-pem_content_base64 = os.environ.get("GITHUB_APP_PEM_BASE64")
-os.environ["GITHUB_APP_PEM"] = base64.b64decode(pem_content_base64).decode("utf-8")
-os.environ["TRANSFORMERS_CACHE"] = "cache/model"  # vector_db.py
-os.environ["TIKTOKEN_CACHE_DIR"] = "cache/tiktoken"  # utils.py
+
+os.environ["GITHUB_APP_PEM"] = os.environ.get(
+    "GITHUB_APP_PEM",
+    base64.b64decode(os.environ.get("GITHUB_APP_PEM_BASE64")).decode("utf-8"),
+)
+os.environ["TRANSFORMERS_CACHE"] = os.environ.get(
+    "TRANSFORMERS_CACHE", "cache/model"
+)  # vector_db.py
+os.environ["TIKTOKEN_CACHE_DIR"] = os.environ.get(
+    "TIKTOKEN_CACHE_DIR", "cache/tiktoken"
+)  # utils.py
 
 ENV = os.environ.get("ENV", "dev")
 # ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
