@@ -146,7 +146,7 @@ def write_documentation(doc_url):
 
 def daily_update():
     for doc_url in DOCS_ENDPOINTS.values():
-        write_documentation.spawn(doc_url)
+        write_documentation(doc_url)
 
 
 def search_vector_store(doc_url, query, k=100):
