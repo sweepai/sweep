@@ -25,6 +25,8 @@
 
 <b>Sweep</b> is an AI junior developer that transforms bug reports & feature requests into code changes.
 
+🎉 We recently changed our license to the Elastic License V2 to allow Sweep for commercial usage.
+
 Describe bugs, small features, and refactors like you would to a junior developer, and Sweep:
 1. Reads your codebase
 2. Plans the changes
@@ -72,79 +74,7 @@ Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep
 
 ## Self-hosting
 
-You can self-shot Sweep using Docker.
-
-### Step 0: Pre-requisites
-
-You need an OpenAI API key, preferably with GPT-4 32k.
-
-### Step 1: Setting up the GitHub App
-
-Register a new GitHub App, following this [guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) with settings:
-
-Permissions:
-
-```
-actions: read
-check: read
-contents: read & write
-commit statuses: read & write
-issues: read & write
-metadata: read
-pull requests: read & write
-workflows: read & write
-```
-
-Webhook events:
-
-```
-issues
-pull request
-workflow run
-check run
-issue comment
-label
-pull request review
-pull request review comment
-pull request thread
-status
-workflow job
-create
-commit comment
-check suite
-push
-```
-
-Disable the webhook for now. You can use any URL for the homepage (e.g. repository URL). [Install the app](https://docs.github.com/en/apps/using-github-apps/installing-your-own-github-app) on your account or organization and generate a private key as per [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps).
-
-### Step 2: Running the Webhook
-
-Now create the following `.env` file with the new secrets:
-
-```env
-GITHUB_APP_PEM="-----BEGIN RSA PRIVATE KEY-----xxxxxxxxxxxxxx...xxxxxxxxxxxxxx-----END RSA PRIVATE KEY-----" # Replace all newlines here with \n
-GITHUB_APP_ID=123456 # 6 digit ID
-GITHUB_BOT_USERNAME: github-app-nam # The name of your GitHub
-
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # Should start with "sk-"
-OPENAI_DO_HAVE_32K_MODEL_ACCESS: true # if you have access to 32k model
-```
-
-Then finally run
-
-```sh
-docker run --env-file .env -p 8000:8000 -d ghcr.io/sweepai/sweep:latest
-```
-
-### Step 3: Connecting the Webhook to the App
-
-From here, do one of the following and grab the publicly accessible webhook URL:
-* Use [Ngrok](https://ngrok.com/) or a similar reverse proxy tool to redirect https://127.0.0.1:8000 to something like https://e5bf90f4a3be.ngrok.app.
-* Deploy the docker image in production on a service like DigitalOcean or Elastic Container Registry
-
-With the webhook URL, go back to the GitHub Apps settings (https://github.com/{USERNAME}/settings/apps/{APP_NAME}/advanced) to populate the webhook URL field with this copied URL. Ensure SSL verification remains active.
-
-*There's additional configurable settings like Redis caching and GPU-accelerated embeddings that we use for our hosted product that we can document further for self-hosting. If this interests you please contact us at https://discord.gg/sweep.*
+You can self-host Sweep with the Docker image (`ghcr.io/sweepai/sweep`). The setup instructions are at [Deployment](https://docs.sweep.dev/usage/deployment).
 
 ## Limitations of Sweep
 
