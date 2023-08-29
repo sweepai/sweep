@@ -7,7 +7,6 @@ On Github ticket, get ChatGPT to deal with it
 import math
 import re
 import traceback
-import modal
 import openai
 
 from github import GithubException
@@ -29,7 +28,8 @@ from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.core.prompts import issue_comment_prompt
-from sandbox.sandbox_utils import Sandbox
+
+# from sandbox.sandbox_utils import Sandbox
 from sweepai.handlers.create_pr import (
     create_pr_changes,
     create_config_pr,
@@ -45,7 +45,6 @@ from sweepai.config.client import (
 )
 from sweepai.config.server import (
     ENV,
-    DB_MODAL_INST_NAME,
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
@@ -56,13 +55,11 @@ from sweepai.utils.github_utils import (
     get_github_client,
     get_num_files_from_repo,
     get_token,
-    search_snippets,
 )
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.utils.search_utils import search_snippets
 
 openai.api_key = OPENAI_API_KEY
-
-update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 sep = "\n---\n"
 bot_suffix_starring = (
@@ -554,7 +551,8 @@ async def on_ticket(
     }
     token = get_token(installation_id)
     repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
-    sandbox = Sandbox.from_token(repo, repo_url, sandbox_config)
+    # sandbox = Sandbox.from_token(repo, repo_url, sandbox_config)
+    sandbox = None
 
     logger.info("Fetching relevant files...")
     try:

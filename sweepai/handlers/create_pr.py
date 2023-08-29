@@ -1,6 +1,5 @@
 from typing import Generator
 
-import modal
 import openai
 from github.Repository import Repository
 from loguru import logger
@@ -27,8 +26,6 @@ from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.event_logger import posthog
 
 openai.api_key = OPENAI_API_KEY
-
-update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5

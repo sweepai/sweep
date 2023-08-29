@@ -127,11 +127,11 @@ def prepare_index_from_snippets(snippets):
     )
 
     # Create a directory to store the index
-    if not os.path.exists("indexdir"):
-        os.mkdir("indexdir")
+    if not os.path.exists("cache/indexdir"):
+        os.mkdir("cache/indexdir")
 
     # Create the index based on the schema
-    ix = index.create_in("indexdir", schema)
+    ix = index.create_in("cache/indexdir", schema)
     # writer.cancel()
     writer = ix.writer()
     for doc in all_docs:
