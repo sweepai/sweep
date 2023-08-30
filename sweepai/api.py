@@ -161,12 +161,12 @@ app = FastAPI()
 issues_lock = {}
 
 
-@app.post("/")
+@app.get("/")
 def home():
-    return 'This is the Sweep webhook\'s root endpoint. To get started, got to /webhook and copy the link into the GitHub App "webhook" field.'
+    return "Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field."
 
 
-@app.post("/webhook")
+@app.post("/")
 async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
     try:
