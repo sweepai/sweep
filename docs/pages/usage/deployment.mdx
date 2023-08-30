@@ -120,7 +120,7 @@ OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
 Then in the same directory as the `.env`, run:
 
 ```bash
-docker run --env-file .env -p 8000:8000 sweepai/sweep:latest
+docker run --env-file .env -p 8080:8080 sweepai/sweep:latest
 ```
 
 ## 3. Connecting the Webhook to the App (10 min)
@@ -133,10 +133,10 @@ docker run --env-file .env -p 8000:8000 sweepai/sweep:latest
 
 From here, you can either deploy the webhook locally or in production. For the rest of this guide, we'll assume you're serving locally using [Ngrok](https://ngrok.com/) for a reverse proxy.
 
-Sign up for an Ngrok account and install the CLI from https://dashboard.ngrok.com/signup. Your terminal must be in the same directory as your ngrok installation. Start the reverse proxy with `./ngrok http 8000`. The second last line should say something like
+Sign up for an Ngrok account and install the CLI from https://dashboard.ngrok.com/signup. Your terminal must be in the same directory as your ngrok installation. Start the reverse proxy with `./ngrok http 8080`. The second last line should say something like
 
 ```sh
-Forwarding  https://4d8d8bf053be.ngrok.app -> http://localhost:8000
+Forwarding  https://4d8d8bf053be.ngrok.app -> http://localhost:8080
 ```
 
 With the webhook URL, go back to the GitHub Apps settings (`https://github.com/USERNAME/settings/apps/APP_NAME/advanced`) and replace the "Webhook URL" field with https://4d8d8bf053be.ngrok.app(your version). Ensure SSL verification remains active.
