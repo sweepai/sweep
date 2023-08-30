@@ -14,8 +14,34 @@ Pull our image from Docker Hub (it may take 5-10 minutes to download the image):
 docker pull sweepai/sweep:latest
 ```
 
-## 1. Setting up the GitHub App (15 min)
+## 1. Setting up the GitHub App (5 min)
 
+### Option a: Automatic Setup (Recommended)
+
+Firstly, you need `npm`. If you don't have it, install [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm).
+
+Then, run the following commands:
+
+```sh
+git clone https://github.com/sweepai/sweep
+cd sweep/self_deploy
+npm install
+npm start
+```
+
+This will start a local server at http://localhost:3000. Then,
+1. Click the "Register GitHub App" button.
+2. Click the green "Create GitHub App for USERNAME" button.
+3. Pick where to install the app and then click the green "Install" button. This will take you to the app settings page.
+4. Click the small "App settings" button.
+
+![image](/deployment/appsettings.png)
+
+Now run `cat sweep/self_deploy/.env` to get a file containing your PEM, named `PRIVATE_KEY` in this file and your app ID, named `APP_ID`. You will need these for step 2.
+
+If you've made it this far, you can skip to step 2. Otherwise, you may have to set it up manually.
+
+### Option b: Manual Setup (15 min)
 Register a new GitHub App, following this [guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) (3 minutes). You should return here after step 16(it's not as bad as it seems, most steps are optional).
 
 Use the below as a reference:
@@ -55,18 +81,22 @@ Set the Repository Permissions (7 selected):
 Put a placeholder url for now (ex: https://github.com/sweepai/sweep/).
 Generate a private key (it should prompt you at the top of the screen, or alternatively follow [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps)) and save it for later. This is your `private-key.pem` for step 2.
 
+![image](/deployment/pem.png)
+
 Click Install App to install it on your account or organization. Point it to a repo which you want to use Sweep on. This repo cannot be empty. If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).
 
 ## 2. Running the Webhook (5 min)
 
-Now create the following `.env` file with the new secrets:
+*Starting here it gets more involved so if you run into issues, please reach out to us on [Discord](https://discord.gg/sweep) or open a GitHub issue (ironic, we know!) at https://github.com/sweepai/sweep/issues. We are online, please ping us @kevin, @william, and @luke.*
 
-Pass your PEM through this script in order to get the base64 encoded version of it. You can also use the `base64` command on Linux and MacOS.
+Now create the following `.env` file with the new secrets.
+
+First, pass your PEM through this script in order to get the base64 encoded version of it. You can also use the `base64` command on Linux and MacOS.
 
 ```
 base64 -i private-key.pem
 ```
-or
+or the Python script
 ```python
 import base64
 with open("private-key.pem", "rb") as f:
@@ -77,7 +107,7 @@ Finally, create a `.env` file with the following contents:
 ```sh
 GITHUB_APP_PEM_BASE64="OUTPUT OF ABOVE SCRIPT"
 # 6 digit ID
-GITHUB_APP_ID=123456 # Replace with your app ID from the below screenshot
+GITHUB_APP_ID=123456 # Replace with your app ID from the .env from the first step if you did option a or the below screenshot
 
 # Should start with "sk-"
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -85,7 +115,7 @@ OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
 ```
 
-If you run into issues, please reach out to us on [Discord](https://discord.gg/sweep) or open a GitHub issue (ironic, we know!) at https://github.com/sweepai/sweep/issues. We are online, please ping us @kevin, @william, and @luke.
+![image](/deployment/appid.png)
 
 Then in the same directory as the `.env`, run:
 

@@ -398,6 +398,9 @@ class MockPR(BaseModel):
 
 
 class SweepContext(BaseModel):
+    class Config:
+        arbitrary_types_allowed = True
+
     username: str
     issue_url: str
     use_faster_model: bool
