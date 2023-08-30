@@ -97,6 +97,11 @@ ordinal = lambda n: str(n) + (
 )
 
 
+# Document and test mode text
+predefined_document_mode = ""
+predefined_test_mode = ""
+
+
 def post_process_snippets(
     snippets: list[Snippet],
     max_num_of_snippets: int = 5,
@@ -142,7 +147,7 @@ def post_process_snippets(
     return result_snippets[:max_num_of_snippets]
 
 
-def strip_sweep(text: str):
+def strip_sweep_title(text: str):
     return (
         re.sub(
             r"^[Ss]weep\s?(\([Ss]low\))?(\([Mm]ap\))?(\([Ff]ast\))?\s?:", "", text
@@ -152,6 +157,15 @@ def strip_sweep(text: str):
         re.search(r"^[Ss]weep\s?\([Ss]ubissues?\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Ss]andbox?\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Ff]ast\)", text) is not None,
+    )
+
+def strip_sweep_summary(text: str):
+    #Sweep(Document)
+    #Sweep(Test)
+    return (
+        re.sub(r"^[Ss]weep\s?(\([Dd]ocument\))?(\([Tt]est\))?\s?", "", text).lstrip(), 
+        re.search(r"^[Ss]weep\s?\([Dd]ocument\)", text) is not None, 
+        re.search(r"^[Ss]weep\s?\([Tt]est\)", text) is not None
     )
 
 
@@ -178,7 +192,14 @@ async def on_ticket(
         subissues_mode,
         sandbox_mode,
         fast_mode,
-    ) = strip_sweep(title)
+    ) = strip_sweep_title(title)
+
+    # Getting summary document_mode and test_mode information
+    (
+        summary,
+        document_mode,
+        test_mode,
+    ) = strip_sweep_summary(summary)
 
     # Flow:
     # 1. Get relevant files
@@ -195,6 +216,14 @@ async def on_ticket(
         flags=re.DOTALL,
     ).strip()
     summary = re.sub("Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL).strip()
+
+
+    #Adding predefined text to summpart
+
+    if document_mode:
+        summary = predefined_document_mode + summary
+    elif test_mode:
+        summary = predefined_test_mode + summary
 
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
