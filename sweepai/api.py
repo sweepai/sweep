@@ -315,7 +315,7 @@ async def webhook(raw_request: Request):
                     # stub.issue_lock[
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
-                    on_ticket(
+                    await on_ticket(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
@@ -399,7 +399,7 @@ async def webhook(raw_request: Request):
                     # stub.issue_lock[
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
-                    on_ticket(
+                    await on_ticket(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
@@ -439,7 +439,7 @@ async def webhook(raw_request: Request):
                                 "pr": pr,
                             },
                         )
-                        on_comment(**pr_change_request.params)
+                        await on_comment(**pr_change_request.params)
                         # push_to_queue(
                         #     repo_full_name=request.repository.full_name,
                         #     pr_id=request.issue.number,
@@ -475,7 +475,7 @@ async def webhook(raw_request: Request):
                             "pr": pr,
                         },
                     )
-                    on_comment(**pr_change_request.params)
+                    await on_comment(**pr_change_request.params)
                     # push_to_queue(
                     #     repo_full_name=request.repository.full_name,
                     #     pr_id=request.pull_request.number,
