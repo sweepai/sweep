@@ -22,6 +22,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.search_utils import search_snippets
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
+from sweepai.core.entities import SweepContext
 
 openai.api_key = OPENAI_API_KEY
 
@@ -139,6 +140,7 @@ def on_comment(
 
     is_paying_user = chat_logger.is_paying_user()
     use_faster_model = chat_logger.use_faster_model(g)
+    sweep_context = SweepContext(issue_url=pr.html_url, use_faster_model=use_faster_model)
     assignee = pr.assignee.login if pr.assignee else None
 
     metadata = {
