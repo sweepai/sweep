@@ -100,14 +100,18 @@ From here, you can either serve the webhook on a server or locally. But first, w
 ```sh
 # The private key from Step 1
 # This should be a single line, replace all newlines with "\n"
-GITHUB_APP_PEM="PRIVATE KEY FROM STEP 1"
+GITHUB_APP_PEM=-----BEGIN RSA PRIVATE KEY-----\nxxxxxxxx...xxxxxxxx==\n-----END RSA PRIVATE KEY-----
 # 6 digit ID
 GITHUB_APP_ID=123456
-
 # Should start with "sk-"
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+### Optional Additional Configs ###
+
 # Set to true if you have access to 32k model
 OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
+# Set to bigger model like sentence-transformers/all-mpnet-base-v2 for better but slower search
+SENTENCE_TRANSFORMERS_MODEL=sentence-transformers/all-MiniLM-L6-v2
 ```
 
 ### Option a: Serving on a DigitalOcean (Recommended)
@@ -148,7 +152,6 @@ Forwarding  https://4d8d8bf053be.ngrok.app -> http://localhost:8080
 ## 3. Using Sweep (1 min)
 
 With the webhook URL, first validate things are working by going to the link, it should say "Sweep is up and running!". Then, go back to the GitHub Apps settings (`https://github.com/USERNAME/settings/apps/APP_NAME/advanced`) and replace the "Webhook URL" field with https://sweep-6fvkz.ondigitalocean.app/ (your version). Ensure SSL verification remains active.
-
 
 Finally, you can use Sweep by creating a new issue with a title prefixed with `Sweep:`, like `Sweep: write unit tests for BaseIndex.tsx` and watch the magic happen!
 
