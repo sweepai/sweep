@@ -456,7 +456,9 @@ class SweepBot(CodeGenBot, GithubBot):
             # Format file
             try:
                 if self.sweep_context.is_paying_user:
-                    from ...sandbox.sandbox_local import run_sandbox
+                    from sandbox.sandbox_local import (
+                        run_sandbox,
+                    )  # pylint: disable=import-outside-toplevel
 
                     output = run_sandbox(
                         self.sweep_context.username,
