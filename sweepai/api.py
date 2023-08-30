@@ -3,6 +3,7 @@ from datetime import datetime
 import asyncio
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from loguru import logger
 from pydantic import ValidationError
 from sweepai.core.documentation import write_documentation
@@ -161,9 +162,9 @@ app = FastAPI()
 issues_lock = {}
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def home():
-    return "Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field."
+    return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
 
 @app.post("/")
