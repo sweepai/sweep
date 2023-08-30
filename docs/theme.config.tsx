@@ -6,6 +6,12 @@ const config: DocsThemeConfig = {
   head: (
     <>
       <link rel="icon" type="image/png" href="./favicon.png" />
+      <link rel="icon" type="image/png" sizes="16x16" href="/final-sweep-wizard_16x16.png" />
+      <link rel="icon" type="image/png" sizes="32x32" href="/final-sweep-wizard_32x32.png" />
+      <link rel="icon" type="image/png" sizes="48x48" href="/final-sweep-wizard_48x48.png" />
+      <link rel="icon" type="image/png" sizes="64x64" href="/final-sweep-wizard_64x64.png" />
+      <link rel="icon" type="image/png" sizes="128x128" href="/final-sweep-wizard_128x128.png" />
+      <link rel="icon" type="image/png" sizes="256x256" href="/final-sweep-wizard_256x256.png" />
       <meta property="og:title" content="Sweep AI Documentation" />
       <meta property="og:description" content="The official documentation for Sweep AI." />
       <meta property="og:image" content="https://docs.sweep.dev/banner.png" />
