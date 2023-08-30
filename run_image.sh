@@ -1,1 +1,1 @@
-docker run --env-file .env -p 8000:8000 sweepai/sweep:latest
+docker run --env-file .env -p 8080:8080 sweepai/sweep:latest
