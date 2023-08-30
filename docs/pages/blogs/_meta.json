@@ -1,4 +1,5 @@
 {
+    "self-hosting": "🏠 Self Hosting an AI Junior Developer",
     "chunking-improvements": "📈 Improving LlamaIndex’s Code Chunker by Cleaning Tree-Sitter CSTs",
     "reading-docs": "🎓 How our AI junior dev reads all of your documentation",
     "sweeps-core-algo": "🧹 Sweep's Core Algorithm",
