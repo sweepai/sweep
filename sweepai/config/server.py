@@ -16,6 +16,10 @@ os.environ["TIKTOKEN_CACHE_DIR"] = os.environ.get(
     "TIKTOKEN_CACHE_DIR", "cache/tiktoken"
 )  # utils.py
 
+SENTENCE_TRANSFORMERS_MODEL = os.environ.get(
+    "SENTENCE_TRANSFORMERS_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
+)
+
 ENV = os.environ.get("ENV", "dev")
 # ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
 
