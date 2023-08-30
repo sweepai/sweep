@@ -8,7 +8,7 @@ spec:
     # dockerfile_path: Dockerfile
     image:
       registry_type: DOCKER_HUB
-      registry: docker.io
+      registry: hub.docker.com
       repository: sweepai/sweep
     envs:
     - key: GITHUB_APP_PEM
