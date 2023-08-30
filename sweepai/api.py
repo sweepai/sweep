@@ -647,7 +647,9 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
         try:
             # make sure it's a sweep ticket
             feature_branch = pr.head.ref
-            if not feature_branch.startswith("sweep/"):
+            if not feature_branch.startswith(
+                "sweep/"
+            ) and not feature_branch.startswith("sweep_"):
                 continue
 
             repo.merge(
