@@ -453,6 +453,24 @@ class SweepBot(CodeGenBot, GithubBot):
             except Exception as e:
                 logger.error(f"Error: {e}")
 
+            # Format file
+            try:
+                if self.sweep_context.is_paying_user:
+                    from ...sandbox.sandbox_local import run_sandbox
+
+                    output = run_sandbox(
+                        self.sweep_context.username,
+                        self.sweep_context.repo.html_url,
+                        file_change_request.filename,
+                        file_change.code,
+                        token=self.sweep_context.token,
+                    )
+                    if output["success"]:
+                        file_change.code = output["updated_content"]
+            except Exception as e:
+                logger.error(f"Sandbox Error: {e}")
+                logger.error(traceback.format_exc())
+
             return file_change
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
