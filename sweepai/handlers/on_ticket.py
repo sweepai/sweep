@@ -1221,7 +1221,7 @@ async def on_ticket(
 
     if delete_branch:
         try:
-            if pull_request.branch_name.startswith("sweep/"):
+            if pull_request.branch_name.startswith("sweep"):
                 repo.get_git_ref(f"heads/{pull_request.branch_name}").delete()
             else:
                 raise Exception(
