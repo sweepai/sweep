@@ -4,15 +4,21 @@
 
 ## 0. Pre-requisites
 
-You need an OpenAI API key, preferably with GPT-4 32k, and [GitHub developer mode](https://github.com/settings/apps).
+You need an OpenAI API key(GPT-4 32k access helps!), and [GitHub developer mode](https://github.com/settings/apps).
 
 You also need to install [Docker](https://docs.docker.com/engine/install/) to host Sweep.
+
+Pull our image from Docker Hub (it may take 5-10 minutes to download the image):
+
+```sh
+docker pull ghcr.io/sweepai/sweep:latest
+```
 
 ## 1. Setting up the GitHub App
 
 Register a new GitHub App, following this [guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) with settings:
 
-Permissions:
+Set the Repository Permissions (example: https://github.com/organizations/{organization}/settings/apps/sweep-ai/permissions):
 
 ```
 actions: read
@@ -28,24 +34,24 @@ workflows: read & write
 Webhook events:
 
 ```
-issues
-pull request
-workflow run
 check run
+check suite
+commit comment
+create
 issue comment
+issues
 label
+pull request
 pull request review
 pull request review comment
 pull request thread
+push
 status
 workflow job
-create
-commit comment
-check suite
-push
+workflow run
 ```
 
-Disable the webhook for now. You can use any URL for the homepage (e.g. repository URL). [Install the app](https://docs.github.com/en/apps/using-github-apps/installing-your-own-github-app) on your account or organization and generate a private key as per [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps).
+[Install the app](https://docs.github.com/en/apps/using-github-apps/installing-your-own-github-app) on your account or organization and generate a private key as per [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps).
 
 ## 2. Running the Webhook
 
@@ -56,8 +62,7 @@ Now create the following `.env` file with the new secrets:
 GITHUB_APP_PEM="-----BEGIN RSA PRIVATE KEY-----xxxxxxxx...xxxxxxxx-----END RSA PRIVATE KEY-----"
 # 6 digit ID
 GITHUB_APP_ID=123456
-# The name of your GitHub App
-GITHUB_BOT_USERNAME=github-app-name
+GITHUB_BOT_USERNAME=sweep-ai
 
 # Should start with "sk-"
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -65,10 +70,10 @@ OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
 ```
 
-Then in the same directory as the `.env`, run
+Then in the same directory as the `.env`, run:
 
 ```bash
-docker run --env-file .env -p 8000:8000 -d ghcr.io/sweepai/sweep:latest
+docker run --env-file .env -p 8000:8000 ghcr.io/sweepai/sweep:latest
 ```
 
 ## 3. Connecting the Webhook to the App
