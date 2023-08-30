@@ -8,6 +8,12 @@ You need an OpenAI API key(GPT-4 32k access helps!), and [GitHub developer mode]
 
 You also need to install [Docker](https://docs.docker.com/engine/install/) to host Sweep.
 
+Pull our image from Docker Hub (it may take 5-10 minutes to download the image):
+
+```sh
+docker pull ghcr.io/sweepai/sweep:latest
+```
+
 ## 1. Setting up the GitHub App
 
 Register a new GitHub App, following this [guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) with settings:
@@ -64,7 +70,7 @@ OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
 ```
 
-Then in the same directory as the `.env`, run
+Then in the same directory as the `.env`, run:
 
 ```bash
 docker run --env-file .env -p 8000:8000 -d ghcr.io/sweepai/sweep:latest
