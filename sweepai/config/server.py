@@ -104,7 +104,9 @@ if not REDIS_URL:
 ORG_ID = os.environ.get("ORG_ID")
 
 # goes under Modal 'posthog' secret name (optional, can leave env var blank)
-POSTHOG_API_KEY = os.environ.get("POSTHOG_API_KEY")
+POSTHOG_API_KEY = os.environ.get(
+    "POSTHOG_API_KEY", "phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n"
+)
 
 E2B_API_KEY = os.environ.get("E2B_API_KEY")
 
