@@ -22,8 +22,8 @@ FROM base as final
 
 COPY sweepai /app/sweepai
 
-EXPOSE 8000
-CMD ["uvicorn", "sweepai.api:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8080
+CMD ["uvicorn", "sweepai.api:app", "--host", "0.0.0.0", "--port", "8080"]
 
 LABEL org.opencontainers.image.description="Backend for Sweep, an AI-powered junior developer"
 LABEL org.opencontainers.image.source="https://github.com/sweepai/sweep"
