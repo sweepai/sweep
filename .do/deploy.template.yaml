@@ -1,11 +1,15 @@
 spec:
   name: sweep
   services:
-  - name: web
-    git:
-      branch: main
-      repo_clone_url: https://github.com/sweepai/sweep.git
-    dockerfile_path: Dockerfile
+  - name: webhook
+    # git:
+    #   branch: main
+    #   repo_clone_url: https://github.com/sweepai/sweep.git
+    # dockerfile_path: Dockerfile
+    image:
+      registry_type: DOCKER_HUB
+      registry: docker.io
+      repository: sweepai/sweep
     envs:
     - key: GITHUB_APP_PEM
       scope: RUN_TIME
