@@ -8,11 +8,13 @@ You need an OpenAI API key (GPT-4 32k access helps!), and [GitHub developer mode
 
 You also need to install [Docker](https://docs.docker.com/engine/install/) to host Sweep.
 
-Pull our image from Docker Hub (it may take 5-10 minutes to download the image):
+Pull our image from Docker Hub:
 
 ```sh
 docker pull sweepai/sweep:latest
 ```
+
+It may take 5-10 minutes to download the image and you can move on to the next step while it's downloading.
 
 ## 1. Setting up the GitHub App (5 min)
 
@@ -83,31 +85,24 @@ Generate a private key (it should prompt you at the top of the screen, or altern
 
 ![image](/deployment/pem.png)
 
+You will also need your app ID, which is the number at the top of the page. This is your `app-id` for step 2.
+
+![image](/deployment/appid.png)
+
 Click Install App to install it on your account or organization. Point it to a repo which you want to use Sweep on. This repo cannot be empty. If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).
 
-## 2. Running the Webhook (5 min)
+## 2. Serving the Webhook (5 min)
 
 *Starting here it gets more involved so if you run into issues, please reach out to us on [Discord](https://discord.gg/sweep) or open a GitHub issue (ironic, we know!) at https://github.com/sweepai/sweep/issues. We are online, please ping us @kevin, @william, and @luke.*
 
-Now create the following `.env` file with the new secrets.
+From here, you can either serve the webhook on a server or locally. But first, we need to prepare a few environment variables.
 
-First, pass your PEM through this script in order to get the base64 encoded version of it. You can also use the `base64` command on Linux and MacOS.
-
-```
-base64 -i private-key.pem
-```
-or the Python script
-```python
-import base64
-with open("private-key.pem", "rb") as f:
-    print(base64.b64encode(f.read()).decode())
-```
-
-Finally, create a `.env` file with the following contents:
 ```sh
-GITHUB_APP_PEM_BASE64="OUTPUT OF ABOVE SCRIPT"
+# The private key from Step 1
+# This should be a single line, replace all newlines with "\n"
+GITHUB_APP_PEM="PRIVATE KEY FROM STEP 1"
 # 6 digit ID
-GITHUB_APP_ID=123456 # Replace with your app ID from the .env from the first step if you did option a or the below screenshot
+GITHUB_APP_ID=123456
 
 # Should start with "sk-"
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -115,23 +110,34 @@ OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
 ```
 
-![image](/deployment/appid.png)
+### Option a: Serving on a DigitalOcean (Recommended)
 
-Then in the same directory as the `.env`, run:
+You can deploy Sweep on DigitalOcean:
+
+1. First click the following link (requires sign in):
+
+<p style={{marginTop: 16, marginBottom: 32}}>
+    <a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/sweepai/sweep/tree/main">
+        <img src="https://www.deploytodo.com/do-btn-blue-ghost.svg" alt="Deploy to DO"/>
+    </a>
+</p>
+
+2. Click next and then click edit on the "Environment Variables" section. Fill in the environment variables from above.
+3. Click next again and finally click create resource. This will take 3 minutes to deploy.
+
+Finally, it should say deployed and you should get a link like https://sweep-6fvkz.ondigitalocean.app/ at the top.
+
+![image](/deployment/do.png)
+
+### Option b: Serving locally (10 min)
+
+First, create a `.env` file with the contents above. Then in the same directory, run:
 
 ```bash
 docker run --env-file .env -p 8080:8080 sweepai/sweep:latest
 ```
 
-## 3. Connecting the Webhook to the App (10 min)
-
-{/* <p style={{marginTop: 16, marginBottom: 32}}>
-    <a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/sweepai/sweep/tree/main">
-        <img src="https://www.deploytodo.com/do-btn-blue-ghost.svg" alt="Deploy to DO"/>
-    </a>
-</p>  */}
-
-From here, you can either deploy the webhook locally or in production. For the rest of this guide, we'll assume you're serving locally using [Ngrok](https://ngrok.com/) for a reverse proxy.
+We're going to use [Ngrok](https://ngrok.com/) for a reverse proxy.
 
 Sign up for an Ngrok account and install the CLI from https://dashboard.ngrok.com/signup. Your terminal must be in the same directory as your ngrok installation. Start the reverse proxy with `./ngrok http 8080`. The second last line should say something like
 
@@ -139,11 +145,12 @@ Sign up for an Ngrok account and install the CLI from https://dashboard.ngrok.co
 Forwarding  https://4d8d8bf053be.ngrok.app -> http://localhost:8080
 ```
 
-With the webhook URL, go back to the GitHub Apps settings (`https://github.com/USERNAME/settings/apps/APP_NAME/advanced`) and replace the "Webhook URL" field with https://4d8d8bf053be.ngrok.app(your version). Ensure SSL verification remains active.
+## 3. Using Sweep (1 min)
 
-## 4. Running Sweep (1 min)
+With the webhook URL, first validate things are working by going to the link, it should say "Sweep is up and running!". Then, go back to the GitHub Apps settings (`https://github.com/USERNAME/settings/apps/APP_NAME/advanced`) and replace the "Webhook URL" field with https://sweep-6fvkz.ondigitalocean.app/ (your version). Ensure SSL verification remains active.
 
-Finally, you can try out Sweep by going to "https://github.com/USERNAME/settings/apps/APP_NAME/installations" to install your repo to the app. You can then try out Sweep by creating a new issue with a title prefixed with `Sweep:`, like `Sweep: write unit tests for BaseIndex.tsx` and watch the magic happen!
+
+Finally, you can use Sweep by creating a new issue with a title prefixed with `Sweep:`, like `Sweep: write unit tests for BaseIndex.tsx` and watch the magic happen!
 
 For more details on using Sweep, see our [tutorial](https://docs.sweep.dev/usage/tutorial) and [advanced usage](https://docs.sweep.dev/usage/advanced) guides.
 
