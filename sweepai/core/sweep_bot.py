@@ -36,7 +36,7 @@ from sweepai.core.prompts import (
     modify_recreate_file_system_message,
     modify_recreate_file_prompt_3,
 )
-from sweepai.config.client import SweepConfig, get_blocked_dirs
+from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
 from sweepai.core.vector_db import get_relevant_snippets
 from sweepai.utils.chat_logger import discord_log_error
@@ -214,7 +214,13 @@ class CodeGenBot(ChatGPT):
             final_branch = pull_request.branch_name[:240]
             final_branch = final_branch.split("/", 1)[-1]
 
-            pull_request.branch_name = "sweep/" + final_branch
+            use_underscores = get_branch_name_config(self.repo)
+            if use_underscores:
+                final_branch = final_branch.replace("/", "_")
+
+            pull_request.branch_name = (
+                "sweep/" if not use_underscores else "sweep_"
+            ) + final_branch
             return pull_request
         raise Exception("Could not generate PR text")
 

@@ -211,7 +211,7 @@ def safe_delete_sweep_branch(
     if (
         len(pr_commit_authors) == 1
         and GITHUB_BOT_USERNAME in pr_commit_authors
-        and pr.head.ref.startswith("sweep/")
+        and pr.head.ref.startswith("sweep")
     ):
         branch = repo.get_git_ref(f"heads/{pr.head.ref}")
         # pr.edit(state='closed')
