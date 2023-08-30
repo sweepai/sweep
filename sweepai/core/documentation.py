@@ -48,7 +48,7 @@ class ModalEmbeddingFunction:
         if len(texts) == 0:
             return []
         if cpu or len(texts) < 10:
-            return CPUEmbedding.compute.call(texts)  # pylint: disable=no-member
+            return CPUEmbedding().compute(texts)  # pylint: disable=no-member
         else:
             batches = [
                 texts[i : i + ModalEmbeddingFunction.batch_size]
@@ -57,7 +57,9 @@ class ModalEmbeddingFunction:
             batches = [batch for batch in batches if len(batch) > 0]
             logger.info([len(batch) for batch in batches])
             results = []
-            for batch in tqdm(Embedding.compute(batches)):  # pylint: disable=no-member
+            for batch in tqdm(
+                Embedding().compute(batches)
+            ):  # pylint: disable=no-member
                 results.extend(batch)
 
             return results
