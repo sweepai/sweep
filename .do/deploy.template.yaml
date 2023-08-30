@@ -8,8 +8,8 @@ spec:
     # dockerfile_path: Dockerfile
     image:
       registry_type: DOCKER_HUB
-      registry: hub.docker.com
-      repository: sweepai/sweep
+      registry: sweepai
+      repository: sweep
     envs:
     - key: GITHUB_APP_PEM
       scope: RUN_TIME
