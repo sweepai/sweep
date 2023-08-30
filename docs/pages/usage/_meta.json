@@ -1,6 +1,5 @@
 {
     "tutorial": "Tutorial",
     "advanced": "Advanced",
-    "config": "Config",
-    "deployment": "Deployment"
+    "config": "Config"
 }
