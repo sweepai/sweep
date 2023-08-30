@@ -31,6 +31,8 @@
 
 *🎉 We recently changed our license to the Elastic License V2 to allow Sweep for commercial usage.*
 
+---
+
 <b>Sweep</b> is an AI junior developer that transforms bug reports & feature requests into code changes.
 
 Describe bugs, small features, and refactors like you would to a junior developer, and Sweep:
