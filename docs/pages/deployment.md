@@ -159,4 +159,11 @@ For more details on using Sweep, see our [tutorial](https://docs.sweep.dev/usage
 
 ---
 
+<details>
+<summary><h2>Header</h2></summary>
+content
+</details>
+
+---
+
 *There's additional configurable settings like Redis caching and GPU-accelerated embeddings that we use for our hosted product that we can document further for self-hosting. If this interests you please contact us at https://discord.gg/sweep.*
