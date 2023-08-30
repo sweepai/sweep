@@ -2,6 +2,8 @@ import os
 import re
 import string
 from typing import ClassVar, Literal, Type, TypeVar, Any
+from github.Repository import Repository
+
 from github.Branch import Branch
 from loguru import logger
 from pydantic import BaseModel
@@ -396,8 +398,12 @@ class MockPR(BaseModel):
 
 
 class SweepContext(BaseModel):
+    username: str
     issue_url: str
     use_faster_model: bool
+    is_paying_user: bool
+    repo: Repository
+    token: str
 
     def __str__(self):
         return f"{self.issue_url}, {self.use_faster_model}"
