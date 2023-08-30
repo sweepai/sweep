@@ -3,7 +3,7 @@ from datetime import datetime
 import asyncio
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from loguru import logger
 from pydantic import ValidationError
 from sweepai.core.documentation import write_documentation
@@ -160,6 +160,11 @@ app = FastAPI()
 #         stub.pr_queues[key] = (call_id, queue)
 
 issues_lock = {}
+
+
+@app.get("/health")
+def health_check():
+    return JSONResponse(status_code=200, content={"status": "UP"})
 
 
 @app.get("/", response_class=HTMLResponse)
