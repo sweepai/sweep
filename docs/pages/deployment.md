@@ -1,28 +1,12 @@
 # Deploying your own Sweep instance via Docker
 
-*🎉 We recently changed our license to the Elastic License V2 to allow Sweep for commercial usage.*<br/>You can self-host Sweep by deploying our Docker image at https://ghcr.io/sweepai/sweep.
-
-## 0. Pre-requisites
-
-You need an OpenAI API key (GPT-4 32k access helps!), and [GitHub developer mode](https://github.com/settings/apps).
-
-You also need to install [Docker](https://docs.docker.com/engine/install/) to host Sweep.
-
-Pull our image from Docker Hub:
-
-```sh
-docker pull sweepai/sweep:latest
-```
-
-It may take 5-10 minutes to download the image and you can move on to the next step while it's downloading.
+*🎉 We recently changed our license to the Elastic License V2 to allow Sweep for commercial usage.*
 
 ## 1. Setting up the GitHub App (5 min)
 
-### Option a: Automatic Setup (Recommended)
+We created an app using `npm` to make it easier to set up the GitHub App. If you do not have it installed, install it [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm). If you would like ot set it up yourself, scroll down to the **Manual GitHub App Setup** section.
 
-Firstly, you need `npm`. If you don't have it, install [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm).
-
-Then, run the following commands:
+First, open a terminal and run the following commands:
 
 ```sh
 git clone https://github.com/sweepai/sweep
@@ -31,7 +15,7 @@ npm install
 npm start
 ```
 
-This will start a local server at http://localhost:3000. Then,
+Second, open http://localhost:3000 in your browser, and:
 1. Click the "Register GitHub App" button.
 2. Click the green "Create GitHub App for USERNAME" button.
 3. Pick where to install the app and then click the green "Install" button. This will take you to the app settings page.
@@ -43,7 +27,11 @@ Now run `cat sweep/self_deploy/.env` to get a file containing your PEM, named `P
 
 If you've made it this far, you can skip to step 2. Otherwise, you may have to set it up manually.
 
-### Option b: Manual Setup (15 min)
+<details>
+<summary><h3>Alternative: Manual GitHub App Setup</h3></summary>
+<i>Only follow this section if you were unable to set up the GitHub App using the above steps.</i>
+
+### Option B: Manual Setup (15 min)
 Register a new GitHub App, following this [guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) (3 minutes). You should return here after step 16(it's not as bad as it seems, most steps are optional).
 
 Use the below as a reference:
@@ -90,6 +78,7 @@ You will also need your app ID, which is the number at the top of the page. This
 ![image](/deployment/appid.png)
 
 Click Install App to install it on your account or organization. Point it to a repo which you want to use Sweep on. This repo cannot be empty. If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).
+</details>
 
 ## 2. Serving the Webhook (5 min)
 
@@ -160,8 +149,24 @@ For more details on using Sweep, see our [tutorial](https://docs.sweep.dev/usage
 ---
 
 <details>
-<summary><h2>Header</h2></summary>
-content
+<summary><h2>Deploying Locally</h2></summary>
+If you do not want to deploy on the cloud and would prefer to deploy on your local machine, you can do so by following the steps below.
+
+### 0. Pre-requisites
+
+You need an OpenAI API key (GPT-4 32k access helps!), and [GitHub developer mode](https://github.com/settings/apps).
+
+You also need to install [Docker](https://docs.docker.com/engine/install/) to host Sweep.
+
+Pull our image from Docker Hub:
+
+```sh
+docker pull sweepai/sweep:latest
+```
+
+It may take 5-10 minutes to download the image and you can move on to the next step while it's downloading.
+
+
 </details>
 
 ---
