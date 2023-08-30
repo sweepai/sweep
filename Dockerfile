@@ -6,9 +6,15 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git build-essential \
+    && apt-get install -y --no-install-recommends git build-essential autoconf automake pkg-config \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://github.com/universal-ctags/ctags.git && \
+    cd ctags && \
+    ./autogen.sh && \
+    ./configure && \
+    make && make install
 
 COPY pyproject.toml ./
 
