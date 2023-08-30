@@ -14,14 +14,14 @@ Pull our image from Docker Hub (it may take 5-10 minutes to download the image):
 docker pull sweepai/sweep:latest
 ```
 
-## 1. Setting up the GitHub App (5 min)
+## 1. Setting up the GitHub App (15 min)
 
 Register a new GitHub App, following this [guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) (3 minutes). You should return here after step 16(it's not as bad as it seems, most steps are optional).
 
 Use the below as a reference:
 
 Set the Repository Permissions (7 selected):
-```
+
 | Scope            | Permissions      |
 |------------------|------------------|
 | actions          | read             |
@@ -32,10 +32,8 @@ Set the Repository Permissions (7 selected):
 | metadata         | read             |
 | pull requests    | read & write     |
 | workflows        | read & write     |
-```
 
 
-```
 | Subscribe to events      |
 |--------------------------|
 | check run                |
@@ -53,10 +51,9 @@ Set the Repository Permissions (7 selected):
 | status                   |
 | workflow job             |
 | workflow run             |
-```
 
 Put a placeholder url for now (ex: https://github.com/sweepai/sweep/).
-Generate a private key (it should prompt you at the top of the screen, or alternatively follow [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps)) and save it for later. We'll use the key later.
+Generate a private key (it should prompt you at the top of the screen, or alternatively follow [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps)) and save it for later. This is your `private-key.pem` for step 2.
 
 Click Install App to install it on your account or organization. Point it to a repo which you want to use Sweep on. This repo cannot be empty. If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).
 
@@ -64,19 +61,23 @@ Click Install App to install it on your account or organization. Point it to a r
 
 Now create the following `.env` file with the new secrets:
 
-Pass your PEM through this script in order to get the base64 encoded version of it. You can also use the `base64` command on Linux.
+Pass your PEM through this script in order to get the base64 encoded version of it. You can also use the `base64` command on Linux and MacOS.
+
+```
+base64 -i private-key.pem
+```
+or
 ```python
 import base64
 with open("private-key.pem", "rb") as f:
     print(base64.b64encode(f.read()).decode())
 ```
 
+Finally, create a `.env` file with the following contents:
 ```sh
-# Replace all newlines here with \n
 GITHUB_APP_PEM_BASE64="OUTPUT OF ABOVE SCRIPT"
 # 6 digit ID
-GITHUB_APP_ID=123456
-GITHUB_BOT_USERNAME=sweep-ai
+GITHUB_APP_ID=123456 # Replace with your app ID from the below screenshot
 
 # Should start with "sk-"
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
