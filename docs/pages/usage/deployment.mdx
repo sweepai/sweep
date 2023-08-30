@@ -6,6 +6,8 @@
 
 You need an OpenAI API key, preferably with GPT-4 32k, and [GitHub developer mode](https://github.com/settings/apps).
 
+You also need to install [Docker](https://docs.docker.com/engine/install/) to host Sweep.
+
 ## 1. Setting up the GitHub App
 
 Register a new GitHub App, following this [guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) with settings:
@@ -71,18 +73,30 @@ docker run --env-file .env -p 8000:8000 -d ghcr.io/sweepai/sweep:latest
 
 ## 3. Connecting the Webhook to the App
 
-<p style={{marginTop: 16, marginBottom: 32}}>
+{/* <p style={{marginTop: 16, marginBottom: 32}}>
     <a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/sweepai/sweep/tree/main">
         <img src="https://www.deploytodo.com/do-btn-blue-ghost.svg" alt="Deploy to DO"/>
     </a>
-</p>
+</p>  */}
 
-From here, do one of the following and grab the publicly accessible webhook URL:
-* Use [Ngrok](https://ngrok.com/) or a similar reverse proxy tool to redirect `https://127.0.0.1:8000` to something like `https://e5bf90f4a3be.ngrok.app`. This is great for quickly testing locally.
-* Deploy the docker image in production on a service like DigitalOcean or Elastic Container Registry. This is great for a permanent deployment.
+From here, you can either deploy the webhook locally or in production. For the rest of this guide, we'll assume you're serving locally using [Ngrok](https://ngrok.com/) for a reverse proxy.
 
-If your deployment URL is `https://e5bf90f4a3be.ngrok.app`, your webhook URL is `https://e5bf90f4a3be.ngrok.app/webhook`.
+Sign up for an Ngrok account and install the CLI from https://dashboard.ngrok.com/signup. Start the reverse proxy with `ngrok http 8000`. The second last line should say something like
+
+```sh
+Forwarding  https://4d8d8bf053be.ngrok.app -> http://localhost:8000
+```
+
+Append `/webhook` to the generate URL. In this case, your webhook URL will be `https://4d8d8bf053be.ngrok.app/webhook`.
 
 With the webhook URL, go back to the GitHub Apps settings (`https://github.com/USERNAME/settings/apps/APP_NAME/advanced`) to populate the webhook URL field with this copied URL. Ensure SSL verification remains active.
+
+## 4. Running Sweep
+
+Finally, you can try out Sweep by going to "https://github.com/USERNAME/settings/apps/APP_NAME/installations" to install your repo to the app. You can then try out Sweep by creating a new issue with a title prefixed with `Sweep:`, like `Sweep: write unit tests for BaseIndex.tsx` and watch the magic happen!
+
+For more details on using Sweep, see our [tutorial](https://docs.sweep.dev/usage/tutorial) and [advanced usage](https://docs.sweep.dev/usage/advanced) guides.
+
+---
 
 *There's additional configurable settings like Redis caching and GPU-accelerated embeddings that we use for our hosted product that we can document further for self-hosting. If this interests you please contact us at https://discord.gg/sweep.*
