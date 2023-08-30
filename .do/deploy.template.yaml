@@ -9,14 +9,12 @@ spec:
     envs:
     - key: GITHUB_APP_PEM
       scope: RUN_TIME
-      type: SECRET
       value:
     - key: GITHUB_APP_ID
       scope: RUN_TIME
       value:
     - key: OPENAI_API_KEY
       scope: RUN_TIME
-      type: SECRET
       value:
     - key: OPENAI_DO_HAVE_32K_MODEL_ACCESS
       scope: RUN_TIME
