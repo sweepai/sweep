@@ -21,7 +21,8 @@ os.environ["TIKTOKEN_CACHE_DIR"] = os.environ.get(
 )  # utils.py
 
 SENTENCE_TRANSFORMERS_MODEL = os.environ.get(
-    "SENTENCE_TRANSFORMERS_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
+    "SENTENCE_TRANSFORMERS_MODEL",
+    "sentence-transformers/all-MiniLM-L6-v2",  # "all-mpnet-base-v2"
 )
 
 ENV = os.environ.get("ENV", "dev")
