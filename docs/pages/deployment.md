@@ -33,7 +33,7 @@ You should see something like this:
 
 ```sh
 WEBHOOK_PROXY_URL=https://smee.io/abcdefg
-APP_ID=1234
+APP_ID=123456
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
 WEBHOOK_SECRET=213921898f9as8f92139128989f
 GITHUB_CLIENT_ID=Iv1.123218f182131
@@ -42,7 +42,7 @@ GITHUB_CLIENT_SECRET=6g626312b212142132121321412
 
 Keep this terminal open, we will need the `PRIVATE_KEY` and `APP_ID` later:
 ```sh
-APP_ID=1234
+APP_ID=123456
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
 ```
 
@@ -50,7 +50,7 @@ PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----
 
 ## 2. OpenAI API Token
 
-Please create an OpenAI API token at https://platform.openai.com/account/api-keys. You will need this later. Also, if you have access to the 32k model, please set `OPENAI_DO_HAVE_32K_MODEL_ACCESS=true`.
+Please create an OpenAI API token at https://platform.openai.com/account/api-keys. You will need this later. Also, if you have access to the 32k model, please set `OPENAI_DO_HAVE_32K_MODEL_ACCESS=true`. If you have a beefier machine and want higher quality search, change the sentence transformers model to `sentence-transformers/all-mpnet-base-v2`.
 ```sh
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
@@ -63,7 +63,8 @@ SENTENCE_TRANSFORMERS_MODEL=sentence-transformers/all-MiniLM-L6-v2
 
 *Starting here it gets more involved so if you run into issues, please reach out to us on [Discord](https://discord.gg/sweep) or open a GitHub issue (ironic, we know!) at https://github.com/sweepai/sweep/issues. We are online, please ping us @kevin, @william, and @luke.*
 
-We will now deploy Sweep as a Digital Ocean app.
+As Sweep is Dockerized, you can deploy this anywhere but for this guide, we will deploy it on Digital Ocean for simplicity.
+
 <p style={{marginTop: 16, marginBottom: 32}}>
     <a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/sweepai/sweep/tree/main">
         <img src="https://www.deploytodo.com/do-btn-blue-ghost.svg" alt="Deploy to DO"/>
