@@ -682,6 +682,7 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                 # Create a new PR to add "gha_enabled: True" to sweep.yaml
                 create_gha_pr(g, repo)
         except Exception as e:
-            logger.error(
-                f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
-            )
+    logger.error(
+        f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
+    )
+    print("hello")
