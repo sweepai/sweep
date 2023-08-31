@@ -55,6 +55,9 @@ def long_task(key):
     print(f"End task {key}")
     return f"Done {key}"
 
+async def background_task(name: str):
+    await asyncio.sleep(10)
+    print(f"Task {name} completed.")
 
 @app.post("/start/{key}")
 async def start_task(key: str):
