@@ -7,6 +7,7 @@ import time
 from git.repo import Repo
 from github import Github
 from loguru import logger
+import numpy as np
 from redis import Redis
 from redis.backoff import ConstantBackoff
 from redis.retry import Retry
@@ -93,29 +94,6 @@ def parse_collection_name(name: str) -> str:
     return name
 
 
-class Embedding:
-    def __init__(self):
-        from sentence_transformers import (  # pylint: disable=import-error
-            SentenceTransformer,
-        )
-
-        self.model = SentenceTransformer(
-            SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-        )
-
-    def compute(self, texts: list[str]):
-        logger.info(f"Computing embeddings for {len(texts)} texts")
-        vector = self.model.encode(
-            texts, show_progress_bar=True, batch_size=BATCH_SIZE
-        ).tolist()
-        try:
-            logger.info(f"{len(vector)}\n{len(vector[0])}")
-        except Exception as e:
-            print(f"oops {e}")
-            pass
-        return vector
-
-
 class CPUEmbedding:
     def __init__(self):
         from sentence_transformers import (  # pylint: disable=import-error
@@ -128,19 +106,15 @@ class CPUEmbedding:
 
     def compute(self, texts: list[str]) -> list[list[float]]:
         logger.info(f"Computing embeddings for {len(texts)} texts")
-        vector = self.model.encode(
-            texts, show_progress_bar=True, batch_size=BATCH_SIZE
-        ).tolist()
-        try:
-            logger.info(f"{len(vector)}\n{len(vector[0])}")
-        except Exception as e:
-            logger.info(f"oops {e}")
-            pass
-        return vector
+        vector = self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE)
+        if vector.shape[0] == 1:
+            return [vector.tolist()]
+        else:
+            return vector.tolist()
 
 
 class ModalEmbeddingFunction:
-    batch_size: int = 4096  # can pick a better constant later
+    batch_size: int = 1024  # can pick a better constant later
 
     def __init__(self):
         pass
@@ -148,22 +122,7 @@ class ModalEmbeddingFunction:
     def __call__(self, texts: list[str], cpu=False):
         if len(texts) == 0:
             return []
-        if cpu or len(texts) < 10:
-            return CPUEmbedding().compute(texts)  # pylint: disable=no-member
-        else:
-            batches = [
-                texts[i : i + ModalEmbeddingFunction.batch_size]
-                for i in range(0, len(texts), ModalEmbeddingFunction.batch_size)
-            ]
-            batches = [batch for batch in batches if len(batch) > 0]
-            logger.info([len(batch) for batch in batches])
-            results = []
-            for batch in tqdm(
-                Embedding().compute(batches)
-            ):  # pylint: disable=no-member
-                results.extend(batch)
-
-            return results
+        return CPUEmbedding().compute(texts)  # pylint: disable=no-member
 
 
 embedding_function = ModalEmbeddingFunction()
@@ -214,6 +173,7 @@ def get_deeplake_vs_from_repo(
     git_repo.git.checkout(branch_name)
 
     snippets, file_list = repo_to_chunks(sweep_config)
+    logger.info(f"Found {len(snippets)} snippets in repository {repo_name}")
     # prepare lexical search
     index = prepare_index_from_snippets(snippets)
     # scoring for vector search
@@ -286,6 +246,7 @@ def compute_deeplake_vs(
 
         logger.info(f"Computing {len(documents_to_compute)} embeddings...")
         computed_embeddings = embedding_function(documents_to_compute)
+        print(np.asarray(computed_embeddings).shape)
         logger.info(f"Computed {len(computed_embeddings)} embeddings")
 
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
@@ -294,13 +255,6 @@ def compute_deeplake_vs(
         logger.info("Adding embeddings to deeplake vector store...")
         deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
         logger.info("Added embeddings to deeplake vector store")
-        if cache_inst and cache_success and len(documents) < 500:
-            cache_inst.set(
-                f"github-{sha}{CACHE_VERSION}",
-                json.dumps(
-                    {"metadatas": metadatas, "ids": ids, "embeddings": embeddings}
-                ),
-            )
         if cache_inst and cache_success and len(documents_to_compute) > 0:
             logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
             cache_keys = [
@@ -346,8 +300,8 @@ def get_relevant_snippets(
         repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
     )
     content_to_lexical_score = search_index(query, lexical_index)
-    logger.info(f"content_to_lexical_score: {content_to_lexical_score}")
-    logger.info("Searching for relevant snippets...")
+    logger.info(f"Searching for relevant snippets... with {num_docs} docs")
+    logger.info(f"Query embedding: {query_embedding}")
     results = {"metadata": [], "text": []}
     try:
         results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
@@ -355,6 +309,8 @@ def get_relevant_snippets(
         pass
     logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
+        logger.info(f"Results query {query} was empty")
+        logger.info(f"Results: {results}")
         if username is None:
             username = "anonymous"
         posthog.capture(
