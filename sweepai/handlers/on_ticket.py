@@ -199,6 +199,7 @@ async def on_ticket(
 
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
+    # GITHUB_BOT_USERNAME = g.get_user().login
     repo = g.get_repo(repo_full_name)
     current_issue = repo.get_issue(number=issue_number)
     assignee = current_issue.assignee.login if current_issue.assignee else None

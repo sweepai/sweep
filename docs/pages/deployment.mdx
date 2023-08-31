@@ -8,7 +8,10 @@
 
 [![Video](http://img.youtube.com/vi/myXAMKZI6Jk/0.jpg)](https://www.youtube.com/watch?v=myXAMKZI6Jk "Deploying Sweep Video Guide")
 
-After finishing the steps in the video, please complete the `Set Webhook URL in GitHub` step once your Digital Ocean instance has finished deploying.
+After finishing the steps in the video, please complete these two steps:
+- Add your GitHub App name to the secrets as `GITHUB_BOT_USERNAME`
+- Complete the `Set Webhook URL in GitHub` step once your Digital Ocean instance has finished deploying.
+
 
 ---
 
@@ -56,6 +59,11 @@ APP_ID=123456
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
 ```
 
+And, please note your GitHub App name:
+```sh
+GITHUB_BOT_USERNAME=sweep-example-name
+```
+
 ---
 
 ## 2. OpenAI API Token
@@ -100,6 +108,7 @@ In the `Environment Variable Editor`, copy and paste the environment variables f
 # These two are from step 1. Rename PRIVATE_KEY to GITHUB_APP_PEM
 APP_ID=1234
 GITHUB_APP_PEM="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
+GITHUB_BOT_USERNAME=sweep-example-name
 
 # These three are from step 2.
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
