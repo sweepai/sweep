@@ -220,6 +220,10 @@ def search_index(query, ix):
             else:
                 res[hit["title"]] = max(hit.score, res[hit["title"]])
         # min max normalize scores from 0.5 to 1
-        max_score = max(res.values())
-        min_score = min(res.values()) if min(res.values()) < max_score else 0
+        if len(res) == 0:
+            max_score = 1
+            min_score = 0
+        else:
+            max_score = max(res.values())
+            min_score = min(res.values()) if min(res.values()) < max_score else 0
         return {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
