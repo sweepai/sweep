@@ -46,6 +46,8 @@ APP_ID=1234
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
 ```
 
+---
+
 ## 2. OpenAI API Token
 
 Please create an OpenAI API token at https://platform.openai.com/account/api-keys. You will need this later. Also, if you have access to the 32k model, please set `OPENAI_DO_HAVE_32K_MODEL_ACCESS=true`.
@@ -55,7 +57,9 @@ OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
 SENTENCE_TRANSFORMERS_MODEL=sentence-transformers/all-MiniLM-L6-v2
 ```
 
-## 2. Deploying Sweep
+---
+
+## 3. Deploying Sweep
 
 *Starting here it gets more involved so if you run into issues, please reach out to us on [Discord](https://discord.gg/sweep) or open a GitHub issue (ironic, we know!) at https://github.com/sweepai/sweep/issues. We are online, please ping us @kevin, @william, and @luke.*
 
@@ -123,7 +127,6 @@ Navigating to this link should look like this:
 2. Go to your GitHub App and paste this link into the `General` tab `Webhook URL` field.  Ensure SSL verification remains active.
 
 <img src="../public/deployment/digitalocean_step9.png" alt="Skip Resources Page" />
-
 
 ---
 
