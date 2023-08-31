@@ -58,7 +58,7 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     return result_snippets[:max_num_of_snippets]
 
 
-def on_comment(
+async def on_comment(
     repo_full_name: str,
     repo_description: str,
     comment: str,
@@ -202,34 +202,19 @@ def on_comment(
             pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
             pr_file_path = pr_path.strip()
 
-        def fetch_file_contents_with_retry():
-            retries = 1
-            error = None
-            for i in range(retries):
-                try:
-                    logger.info(f"Fetching relevant files for the {i}th time...")
-                    return search_snippets(
-                        repo,
-                        f"{comment}\n{pr_title}" + (f"\n{pr_line}" if pr_line else ""),
-                        num_files=30,
-                        branch=branch_name,
-                        installation_id=installation_id,
-                    )
-                except Exception as e:
-                    error = e
-                    continue
-            capture_posthog_event(
-                username, "fetching_failed", properties={"error": error, **metadata}
-            )
-            raise error
-
         if file_comment:
             snippets = []
             tree = ""
         else:
             try:
                 logger.info("Fetching relevant files...")
-                snippets, tree = fetch_file_contents_with_retry()
+                snippets, tree = search_snippets(
+                    repo,
+                    f"{comment}\n{pr_title}" + (f"\n{pr_line}" if pr_line else ""),
+                    num_files=30,
+                    branch=branch_name,
+                    installation_id=installation_id,
+                )
                 assert len(snippets) > 0
             except Exception as e:
                 logger.error(traceback.format_exc())
@@ -392,7 +377,7 @@ def on_comment(
                     chat_logger=chat_logger,
                 )
             else:
-                file_change_requests, _ = sweep_bot.get_files_to_change(retries=1)
+                file_change_requests, _ = await sweep_bot.get_files_to_change(retries=1)
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name
                 )
@@ -428,7 +413,7 @@ def on_comment(
         changes_made = sum(
             [
                 change_made
-                for _, change_made, _ in sweep_bot.change_files_in_github_iterator(
+                async for _, change_made, _ in sweep_bot.change_files_in_github_iterator(
                     file_change_requests, branch_name, blocked_dirs
                 )
             ]

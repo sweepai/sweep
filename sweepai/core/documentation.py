@@ -8,11 +8,16 @@ from sweepai.core.robots import is_url_allowed
 from sweepai.core.webscrape import webscrape
 from sweepai.pre_indexed_docs import DOCS_ENDPOINTS
 
-from sweepai.config.server import DOCS_MODAL_INST_NAME, ENV, ORG_ID
+from sweepai.config.server import (
+    DOCS_MODAL_INST_NAME,
+    ENV,
+    ORG_ID,
+    SENTENCE_TRANSFORMERS_MODEL,
+)
 
 MODEL_DIR = "cache/model"
 BATCH_SIZE = 128
-SENTENCE_TRANSFORMERS_MODEL = "all-mpnet-base-v2"
+# SENTENCE_TRANSFORMERS_MODEL = "all-mpnet-base-v2"
 timeout = 60 * 60  # 30 minutes
 
 
