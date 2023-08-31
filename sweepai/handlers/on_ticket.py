@@ -899,7 +899,7 @@ async def on_ticket(
         logger.info(files_progress)
         edit_sweep_comment(table_message, 4)
         response = {"error": NoFilesException()}
-        for item in generator:
+        async for item in generator:
             if isinstance(item, dict):
                 response = item
                 break

@@ -411,7 +411,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
         return True
 
-    def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
+    async def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
         file_change: FileCreation | None = None
         key = f"file_change_created_{file_change_request.filename}"
         create_file_response = await self.achat(
@@ -747,7 +747,6 @@ class SweepBot(CodeGenBot, GithubBot):
 
             if changed_file:
                 completed += 1
-        return completed, num_fcr
 
     async def handle_create_file(
         self, file_change_request: FileChangeRequest, branch: str, sandbox=None

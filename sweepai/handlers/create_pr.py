@@ -38,7 +38,7 @@ INSTRUCTIONS_FOR_REVIEW = """\
 * Edit the original issue to get Sweep to recreate the PR from scratch"""
 
 
-def create_pr_changes(
+async def create_pr_changes(
     file_change_requests: list[FileChangeRequest],
     pull_request: PullRequest,
     sweep_bot: SweepBot,
@@ -92,7 +92,7 @@ def create_pr_changes(
 
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
 
-        for (
+        async for (
             file_change_request,
             changed_file,
             sandbox_error,
@@ -125,7 +125,7 @@ def create_pr_changes(
                 branch.delete()
                 error_msg = "No changes made. Branch deleted."
 
-            return {"success": False, "error": error_msg}
+            return
         # Include issue number in PR description
         PR_CHECKOUT_COMMAND = f"To checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
         if issue_number:
@@ -192,7 +192,7 @@ def create_pr_changes(
         ),
     }
     yield result  # Doing this because sometiems using StopIteration doesn't work, kinda jank tho tbh
-    return result
+    return
 
 
 def safe_delete_sweep_branch(
