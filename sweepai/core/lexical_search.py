@@ -4,6 +4,11 @@ from dataclasses import dataclass
 import itertools
 import re
 from whoosh.analysis import Tokenizer, Token
+import os
+import random
+import time
+
+random.seed(os.getpid())
 
 
 class CodeTokenizer(Tokenizer):
@@ -20,7 +25,7 @@ class CodeTokenizer(Tokenizer):
         start_pos=0,
         start_char=0,
         mode="",
-        **kwargs
+        **kwargs,
     ):
         pos = start_pos
         for match in re.finditer(r"\w+(?:\w+)*", value):
@@ -128,11 +133,12 @@ def prepare_index_from_snippets(snippets):
     )
 
     # Create a directory to store the index
-    shutil.rmtree("cache/indexdir", ignore_errors=True)
-    os.mkdir("cache/indexdir")
+    pid = random.randint(0, 100)
+    shutil.rmtree(f"cache/indexdir_{pid}", ignore_errors=True)
+    os.mkdir(f"cache/indexdir_{pid}")
 
     # Create the index based on the schema
-    ix = index.create_in("cache/indexdir", schema)
+    ix = index.create_in(f"cache/indexdir_{pid}", schema)
     # writer.cancel()
     writer = ix.writer()
     for doc in all_docs:
@@ -160,11 +166,12 @@ def prepare_index_from_docs(docs):
     )
 
     # Create a directory to store the index
-    if not os.path.exists("indexdir"):
-        os.mkdir("indexdir")
+    pid = random.randint(0, 100)
+    if not os.path.exists(f"indexdir_{pid}"):
+        os.mkdir(f"indexdir_{pid}")
 
     # Create the index based on the schema
-    ix = index.create_in("indexdir", schema)
+    ix = index.create_in("indexdir_{pid}", schema)
     # writer.cancel()
     writer = ix.writer()
     for doc in all_docs:
@@ -176,55 +183,47 @@ def prepare_index_from_docs(docs):
 
 def search_docs(query, ix):
     """Title, score, content"""
-    try:
-        # Create a query parser for the "content" field of the index
-        qp = QueryParser("content", schema=ix.schema, group=OrGroup)
-        q = qp.parse(query)
+    # Create a query parser for the "content" field of the index
+    qp = QueryParser("content", schema=ix.schema, group=OrGroup)
+    q = qp.parse(query)
 
-        # Search the index
-        with ix.searcher() as searcher:
-            results = searcher.search(q, limit=None, terms=True)
-            # return dictionary of content to scores
-            res = {}
-            for hit in results:
-                if hit["url"] not in res:
-                    res[hit["url"]] = hit.score
-                else:
-                    res[hit["url"]] = max(hit.score, res[hit["url"]])
-            # min max normalize scores from 0.5 to 1
-            max_score = max(res.values())
-            min_score = min(res.values()) if min(res.values()) < max_score else 0
-            return {
-                k: (v - min_score) / (max_score - min_score) for k, v in res.items()
-            }
-    except Exception as e:
-        print("Error in search_index", e, traceback.format_exc())
-        return {}
+    # Search the index
+    with ix.searcher() as searcher:
+        results = searcher.search(q, limit=None, terms=True)
+        # return dictionary of content to scores
+        res = {}
+        for hit in results:
+            if hit["url"] not in res:
+                res[hit["url"]] = hit.score
+            else:
+                res[hit["url"]] = max(hit.score, res[hit["url"]])
+        # min max normalize scores from 0.5 to 1
+        max_score = max(res.values())
+        min_score = min(res.values()) if min(res.values()) < max_score else 0
+        return {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
 
 
 def search_index(query, ix):
     """Title, score, content"""
-    try:
-        # Create a query parser for the "content" field of the index
-        qp = QueryParser("content", schema=ix.schema, group=OrGroup)
-        q = qp.parse(query)
+    # Create a query parser for the "content" field of the index
+    qp = QueryParser("content", schema=ix.schema, group=OrGroup)
+    q = qp.parse(query)
 
-        # Search the index
-        with ix.searcher() as searcher:
-            results = searcher.search(q, limit=None, terms=True)
-            # return dictionary of content to scores
-            res = {}
-            for hit in results:
-                if hit["title"] not in res:
-                    res[hit["title"]] = hit.score
-                else:
-                    res[hit["title"]] = max(hit.score, res[hit["title"]])
-            # min max normalize scores from 0.5 to 1
+    # Search the index
+    with ix.searcher() as searcher:
+        results = searcher.search(q, limit=None, terms=True)
+        # return dictionary of content to scores
+        res = {}
+        for hit in results:
+            if hit["title"] not in res:
+                res[hit["title"]] = hit.score
+            else:
+                res[hit["title"]] = max(hit.score, res[hit["title"]])
+        # min max normalize scores from 0.5 to 1
+        if len(res) == 0:
+            max_score = 1
+            min_score = 0
+        else:
             max_score = max(res.values())
             min_score = min(res.values()) if min(res.values()) < max_score else 0
-            return {
-                k: (v - min_score) / (max_score - min_score) for k, v in res.items()
-            }
-    except Exception as e:
-        print("Error in search_index", e, traceback.format_exc())
-        return {}
+        return {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}

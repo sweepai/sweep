@@ -401,8 +401,11 @@ async def on_ticket(
         )
 
     # Find Sweep's previous comment
+    print("USERNAME", GITHUB_BOT_USERNAME)
     for comment in comments:
+        print("COMMENT", comment.user.login)
         if comment.user.login == GITHUB_BOT_USERNAME:
+            print("Found comment")
             issue_comment = comment
             break
 
@@ -605,7 +608,6 @@ async def on_ticket(
             message_summary += "\n\n" + docs_results
     except Exception as e:
         logger.error(f"Failed to extract docs: {e}")
-
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,

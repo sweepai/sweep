@@ -628,7 +628,7 @@ class SweepBot(CodeGenBot, GithubBot):
             self.delete_messages_from_chat(key)
         raise Exception(f"Failed to parse response after 1 attempt.")
 
-    def change_files_in_github(
+    async def change_files_in_github(
         self,
         file_change_requests: list[FileChangeRequest],
         branch: str,
@@ -640,7 +640,7 @@ class SweepBot(CodeGenBot, GithubBot):
         num_fcr = len(file_change_requests)
         completed = 0
 
-        for _, changed_file in self.change_files_in_github_iterator(
+        async for _, changed_file in self.change_files_in_github_iterator(
             file_change_requests, branch, blocked_dirs, sandbox=sandbox
         ):
             if changed_file:
