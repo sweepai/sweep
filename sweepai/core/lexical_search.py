@@ -205,25 +205,32 @@ def search_docs(query, ix):
 
 def search_index(query, ix):
     """Title, score, content"""
-    # Create a query parser for the "content" field of the index
-    qp = QueryParser("content", schema=ix.schema, group=OrGroup)
-    q = qp.parse(query)
+    try:
+        # Create a query parser for the "content" field of the index
+        qp = QueryParser("content", schema=ix.schema, group=OrGroup)
+        q = qp.parse(query)
 
-    # Search the index
-    with ix.searcher() as searcher:
-        results = searcher.search(q, limit=None, terms=True)
-        # return dictionary of content to scores
-        res = {}
-        for hit in results:
-            if hit["title"] not in res:
-                res[hit["title"]] = hit.score
+        # Search the index
+        with ix.searcher() as searcher:
+            results = searcher.search(q, limit=None, terms=True)
+            # return dictionary of content to scores
+            res = {}
+            for hit in results:
+                if hit["title"] not in res:
+                    res[hit["title"]] = hit.score
+                else:
+                    res[hit["title"]] = max(hit.score, res[hit["title"]])
+            # min max normalize scores from 0.5 to 1
+            if len(res) == 0:
+                max_score = 1
+                min_score = 0
             else:
-                res[hit["title"]] = max(hit.score, res[hit["title"]])
-        # min max normalize scores from 0.5 to 1
-        if len(res) == 0:
-            max_score = 1
-            min_score = 0
-        else:
-            max_score = max(res.values())
-            min_score = min(res.values()) if min(res.values()) < max_score else 0
-        return {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
+                max_score = max(res.values())
+                min_score = min(res.values()) if min(res.values()) < max_score else 0
+            return {
+                k: (v - min_score) / (max_score - min_score) for k, v in res.items()
+            }
+    except Exception as e:
+        print(e)
+        traceback.print_exc()
+        return {}
