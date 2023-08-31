@@ -65,6 +65,8 @@ if not GITHUB_BOT_USERNAME:
         GITHUB_BOT_USERNAME = "sweep-nightly[bot]"
     elif ENV == "staging":
         GITHUB_BOT_USERNAME = "sweep-canary[bot]"
+elif not GITHUB_BOT_USERNAME.endswith("[bot]"):
+    GITHUB_BOT_USERNAME = GITHUB_BOT_USERNAME + "[bot]"
 
 GITHUB_LABEL_NAME = os.environ.get("GITHUB_LABEL_NAME", "sweep")
 GITHUB_LABEL_COLOR = os.environ.get("GITHUB_LABEL_COLOR", "9400D3")
