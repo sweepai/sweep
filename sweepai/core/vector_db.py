@@ -20,7 +20,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.scorer import compute_score, get_scores
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import REDIS_URL
+from sweepai.config.server import REDIS_URL, SENTENCE_TRANSFORMERS_MODEL
 from ..utils.github_utils import get_token
 
 
@@ -29,7 +29,7 @@ DEEPLAKE_DIR = "cache/"
 DISKCACHE_DIR = "cache/diskcache/"
 DEEPLAKE_FOLDER = "cache/deeplake/"
 BATCH_SIZE = 128
-SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-mpnet-base-v2"
+# SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-mpnet-base-v2"
 timeout = 60 * 60  # 30 minutes
 CACHE_VERSION = "v1.0.11"
 MAX_FILES = 500
