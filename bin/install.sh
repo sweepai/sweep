@@ -1,4 +1,7 @@
 #!/bin/bash
+# Remove the sandbox directory if it exists
+rm -rf ./sandbox
+
 # Check if sandbox directory exists, if not clone the repository
 if [ ! -d "./sandbox" ]
 then
