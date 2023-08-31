@@ -640,7 +640,7 @@ class SweepBot(CodeGenBot, GithubBot):
         num_fcr = len(file_change_requests)
         completed = 0
 
-        for _, changed_file in self.change_files_in_github_iterator(
+        async for _, changed_file in self.change_files_in_github_iterator(
             file_change_requests, branch, blocked_dirs, sandbox=sandbox
         ):
             if changed_file:
