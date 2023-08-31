@@ -628,7 +628,7 @@ class SweepBot(CodeGenBot, GithubBot):
             self.delete_messages_from_chat(key)
         raise Exception(f"Failed to parse response after 1 attempt.")
 
-    def change_files_in_github(
+    async def change_files_in_github(
         self,
         file_change_requests: list[FileChangeRequest],
         branch: str,
