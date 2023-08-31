@@ -45,7 +45,7 @@ DISCORD_MEDIUM_PRIORITY_URL = os.environ.get("DISCORD_MEDIUM_PRIORITY_URL")
 DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
 
 # goes under Modal 'github' secret name
-GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID")
+GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID", os.environ.get("APP_ID"))
 # deprecated: old logic transfer so upstream can use this
 if GITHUB_APP_ID is None:
     if ENV == "main":
