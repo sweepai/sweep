@@ -172,7 +172,10 @@ tracemalloc.start()
 
 
 def run_ticket(*args, **kwargs):
-    asyncio.run(on_ticket(*args, **kwargs))
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(on_ticket(*args, **kwargs))
+    loop.close()
 
 
 def call_on_ticket(*args, **kwargs):
