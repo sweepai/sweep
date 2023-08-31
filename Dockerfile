@@ -10,7 +10,8 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get install libjansson-dev && \
+RUN apt update && \
+    apt-get install libjansson-dev && \
     git clone https://github.com/universal-ctags/ctags.git && \
     cd ctags && \
     ./autogen.sh && \
