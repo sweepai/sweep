@@ -2,7 +2,7 @@ import time
 from datetime import datetime
 import asyncio
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse
 from loguru import logger
 from pydantic import ValidationError
@@ -163,7 +163,7 @@ app = FastAPI()
 #             ).object_id
 #         stub.pr_queues[key] = (call_id, queue)
 
-issues_lock = {}
+issues_tasks = {}
 
 
 @app.get("/health")
@@ -181,7 +181,7 @@ async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
-        print(issues_lock)
+        print(issues_tasks)
         logger.info(f"Received request: {request_dict.keys()}")
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
@@ -251,28 +251,25 @@ async def webhook(raw_request: Request):
                     # other ways suboptimal
 
                     key = (request.repository.full_name, request.issue.number)
-                    # logger.info(f"Checking if {key} is in {stub.issue_lock}")
-                    # process = stub.issue_lock[key] if key in stub.issue_lock else None
-                    # if process:
-                    #     logger.info("Cancelling process")
-                    #     process.cancel()
-                    # stub.issue_lock[
-                    # print(issue_locks)
-                    #     (request.repository.full_name, request.issue.number)
-                    # ] =
-                    process = await on_ticket(
-                        request.issue.title,
-                        request.issue.body,
-                        request.issue.number,
-                        request.issue.html_url,
-                        request.issue.user.login,
-                        request.repository.full_name,
-                        request.repository.description,
-                        request.installation.id,
-                        request.comment.id,
-                        edited=True,
+                    logger.info(f"Checking if {key} is in {issues_tasks}")
+                    process = issues_tasks.get(key)
+                    if process:
+                        logger.info("Cancelling process")
+                        process.cancel()
+                    issues_tasks[key] = asyncio.create_task(
+                        on_ticket(
+                            request.issue.title,
+                            request.issue.body,
+                            request.issue.number,
+                            request.issue.html_url,
+                            request.issue.user.login,
+                            request.repository.full_name,
+                            request.repository.description,
+                            request.installation.id,
+                            request.comment.id,
+                            edited=True,
+                        )
                     )
-                    issues_lock[key] = process
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
                 ):  # TODO(sweep): set a limit
@@ -317,24 +314,23 @@ async def webhook(raw_request: Request):
                 ):
                     logger.info("New issue edited")
                     key = (request.repository.full_name, request.issue.number)
-                    # logger.info(f"Checking if {key} is in {stub.issue_lock}")
-                    # process = stub.issue_lock[key] if key in stub.issue_lock else None
-                    # if process:
-                    #     logger.info("Cancelling process")
-                    #     process.cancel()
-                    # stub.issue_lock[
-                    #     (request.repository.full_name, request.issue.number)
-                    # ] =
-                    await on_ticket(
-                        request.issue.title,
-                        request.issue.body,
-                        request.issue.number,
-                        request.issue.html_url,
-                        request.issue.user.login,
-                        request.repository.full_name,
-                        request.repository.description,
-                        request.installation.id,
-                        None,
+                    logger.info(f"Checking if {key} is in {issues_tasks}")
+                    process = issues_tasks.get(key)
+                    if process:
+                        logger.info("Cancelling process")
+                        process.cancel()
+                    issues_tasks[key] = asyncio.create_task(
+                        on_ticket(
+                            request.issue.title,
+                            request.issue.body,
+                            request.issue.number,
+                            request.issue.html_url,
+                            request.issue.user.login,
+                            request.repository.full_name,
+                            request.repository.description,
+                            request.installation.id,
+                            None,
+                        )
                     )
                 else:
                     logger.info("Issue edited, but not a sweep issue")
@@ -351,24 +347,23 @@ async def webhook(raw_request: Request):
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
                     key = (request.repository.full_name, request.issue.number)
-                    # logger.info(f"Checking if {key} is in {stub.issue_lock}")
-                    # process = stub.issue_lock[key] if key in stub.issue_lock else None
-                    # if process:
-                    #     logger.info("Cancelling process")
-                    #     process.cancel()
-                    # stub.issue_lock[
-                    #     (request.repository.full_name, request.issue.number)
-                    # ] =
-                    await on_ticket(
-                        request.issue.title,
-                        request.issue.body,
-                        request.issue.number,
-                        request.issue.html_url,
-                        request.issue.user.login,
-                        request.repository.full_name,
-                        request.repository.description,
-                        request.installation.id,
-                        None,
+                    logger.info(f"Checking if {key} is in {issues_tasks}")
+                    process = issues_tasks.get(key)
+                    if process:
+                        logger.info("Cancelling process")
+                        process.cancel()
+                    asyncio.create_task(
+                        on_ticket(
+                            request.issue.title,
+                            request.issue.body,
+                            request.issue.number,
+                            request.issue.html_url,
+                            request.issue.user.login,
+                            request.repository.full_name,
+                            request.repository.description,
+                            request.installation.id,
+                            None,
+                        )
                     )
             case "issue_comment", "created":
                 request = IssueCommentRequest(**request_dict)
@@ -401,24 +396,23 @@ async def webhook(raw_request: Request):
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
                     key = (request.repository.full_name, request.issue.number)
-                    # logger.info(f"Checking if {key} is in {stub.issue_lock}")
-                    # process = stub.issue_lock[key] if key in stub.issue_lock else None
-                    # if process:
-                    #     logger.info("Cancelling process")
-                    #     process.cancel()
-                    # stub.issue_lock[
-                    #     (request.repository.full_name, request.issue.number)
-                    # ] =
-                    await on_ticket(
-                        request.issue.title,
-                        request.issue.body,
-                        request.issue.number,
-                        request.issue.html_url,
-                        request.issue.user.login,
-                        request.repository.full_name,
-                        request.repository.description,
-                        request.installation.id,
-                        request.comment.id,
+                    logger.info(f"Checking if {key} is in {issues_tasks}")
+                    process = issues_tasks.get(key)
+                    if process:
+                        logger.info("Cancelling process")
+                        process.cancel()
+                    issues_tasks[key] = asyncio.create_task(
+                        on_ticket(
+                            request.issue.title,
+                            request.issue.body,
+                            request.issue.number,
+                            request.issue.html_url,
+                            request.issue.user.login,
+                            request.repository.full_name,
+                            request.repository.description,
+                            request.installation.id,
+                            request.comment.id,
+                        )
                     )
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"

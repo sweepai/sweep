@@ -1,4 +1,5 @@
 import asyncio
+from time import sleep
 from fastapi import Body, FastAPI
 from pydantic import BaseModel
 
@@ -7,7 +8,10 @@ tasks = {}
 
 
 async def background_task(name: str):
-    await asyncio.sleep(10)
+    for i in range(1, 10):
+        print(f"Task {name} running ({i}/5)...")
+        # await asyncio.sleep(1)
+        sleep(1)
     print(f"Task {name} completed.")
 
 
