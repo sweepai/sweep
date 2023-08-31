@@ -57,6 +57,8 @@ if GITHUB_APP_ID is None:
 print("GitHub app ID:", GITHUB_APP_ID)
 GITHUB_BOT_USERNAME = os.environ.get("GITHUB_BOT_USERNAME")
 
+print(GITHUB_BOT_USERNAME)
+
 # deprecated: left to support old logic
 if not GITHUB_BOT_USERNAME:
     if ENV == "main":
@@ -67,6 +69,9 @@ if not GITHUB_BOT_USERNAME:
         GITHUB_BOT_USERNAME = "sweep-canary[bot]"
 elif not GITHUB_BOT_USERNAME.endswith("[bot]"):
     GITHUB_BOT_USERNAME = GITHUB_BOT_USERNAME + "[bot]"
+
+print(GITHUB_BOT_USERNAME)
+print("TEST\n\n\n")
 
 GITHUB_LABEL_NAME = os.environ.get("GITHUB_LABEL_NAME", "sweep")
 GITHUB_LABEL_COLOR = os.environ.get("GITHUB_LABEL_COLOR", "9400D3")
