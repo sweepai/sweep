@@ -605,7 +605,6 @@ async def on_ticket(
             message_summary += "\n\n" + docs_results
     except Exception as e:
         logger.error(f"Failed to extract docs: {e}")
-
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
