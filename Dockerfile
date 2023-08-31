@@ -18,7 +18,11 @@ RUN git clone https://github.com/universal-ctags/ctags.git && \
 
 COPY pyproject.toml ./
 
-RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
+RUN if [ "$(uname -m)" = "x86_64" ]; then \
+    pip install torch --index-url https://download.pytorch.org/whl/cpu; \
+  else \
+    pip install torch; \
+  fi
 RUN pip install sentence_transformers --no-cache-dir
 RUN pip install --no-cache-dir poetry \
     && poetry export -f requirements.txt --without-hashes -o requirements.txt \
