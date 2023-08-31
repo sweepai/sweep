@@ -198,15 +198,11 @@ Click Install App to install it on your account or organization. Point it to a r
 </details>
 
 <details>
-<summary><h2>Deploying Locally (Instead of Digital Ocean)</h2></summary>
+<summary><h2>Alternative to 3: Deploying Locally</h2></summary>
 
 If you do not want to deploy on the cloud and would prefer to deploy on your local machine, you can do so by following the steps below.
 
-### 0. Pre-requisites
-
-You need an OpenAI API key (GPT-4 32k access helps!), and [GitHub developer mode](https://github.com/settings/apps).
-
-You also need to install [Docker](https://docs.docker.com/engine/install/) to host Sweep.
+You need to install [Docker](https://docs.docker.com/engine/install/) to host Sweep.
 
 Pull our image from Docker Hub:
 
@@ -216,9 +212,7 @@ docker pull sweepai/sweep:latest
 
 It may take 5-10 minutes to download the image and you can move on to the next step while it's downloading.
 
-### Option b: Serving locally (10 min)
-
-First, create a `.env` file with the contents above. Then in the same directory, run:
+Create a `.env` file with the contents from steps 1 and 2. Then in the same directory, run:
 
 ```bash
 docker run --env-file .env -p 8080:8080 sweepai/sweep:latest
@@ -231,6 +225,8 @@ Sign up for an Ngrok account and install the CLI from https://dashboard.ngrok.co
 ```sh
 Forwarding  https://4d8d8bf053be.ngrok.app -> http://localhost:8080
 ```
+
+Then proceed with step 4.
 
 </details>
 
