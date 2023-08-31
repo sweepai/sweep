@@ -127,6 +127,7 @@ def search_snippets(
             ] + snippets
     snippets = [snippet.expand() for snippet in snippets]
     logger.info(f"Tree: {tree}")
+    logger.info(f"Snippets: {snippets}")
     if include_tree:
         return snippets, tree
     else:

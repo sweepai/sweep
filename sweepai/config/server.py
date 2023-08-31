@@ -46,7 +46,6 @@ DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
 
 # goes under Modal 'github' secret name
 GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID")
-print(GITHUB_APP_ID)
 # deprecated: old logic transfer so upstream can use this
 if GITHUB_APP_ID is None:
     if ENV == "main":
@@ -124,3 +123,5 @@ SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")
 WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
 
 SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"

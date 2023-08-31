@@ -9,14 +9,16 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 
 class SlowModeBot(ChatGPT):
-    def expand_plan(self, human_message: HumanMessagePrompt) -> tuple[list[str], str]:
+    async def expand_plan(
+        self, human_message: HumanMessagePrompt
+    ) -> tuple[list[str], str]:
         try:
             self.messages = [Message(role="system", content=slow_mode_system_prompt)]
             self.model = "gpt-4-32k-0613"
             added_messages = human_message.construct_prompt()
             for msg in added_messages:
                 self.messages.append(Message(**msg))
-            response = self.chat(
+            response = await self.achat(
                 generate_plan_and_queries_prompt, message_key="expanded_plan"
             )
             expanded_plan = ExpandedPlan.from_string(response)
