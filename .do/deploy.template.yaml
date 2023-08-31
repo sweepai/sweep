@@ -1,11 +1,11 @@
 spec:
   name: sweep
   services:
-  - name: web
-    git:
-      branch: main
-      repo_clone_url: https://github.com/sweepai/sweep.git
-    dockerfile_path: Dockerfile
+  - name: webhook
+    image:
+      registry_type: DOCKER_HUB
+      registry: sweepai
+      repository: sweep
     envs:
     - key: GITHUB_APP_PEM
       scope: RUN_TIME
@@ -19,3 +19,6 @@ spec:
     - key: OPENAI_DO_HAVE_32K_MODEL_ACCESS
       scope: RUN_TIME
       value: "false"
+    - key: SENTENCE_TRANSFORMERS_MODEL
+      scope: RUN_TIME
+      value: sentence-transformers/all-MiniLM-L6-v2
