@@ -7,8 +7,6 @@ from sweepai.core.chat import ChatGPT
 app = FastAPI()
 tasks = {}
 
-openai.api_key = "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"
-
 
 async def background_task(name: str):
     print("Starting background task")

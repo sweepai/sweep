@@ -311,7 +311,6 @@ async def on_ticket(
             success = safe_delete_sweep_branch(pr, repo)
 
     eyes_reaction = item_to_react_to.create_reaction("eyes")
-    await asyncio.sleep(0.1)
     # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
     reactions = item_to_react_to.get_reactions()
     for reaction in reactions:
@@ -508,7 +507,6 @@ async def on_ticket(
             ),
             -1,
         )
-    await asyncio.sleep(0.01)
 
     if (
         repo_name.lower() not in WHITELISTED_REPOS
@@ -620,7 +618,7 @@ async def on_ticket(
     )
     additional_plan = None
     slow_mode_bot = SlowModeBot(chat_logger=chat_logger)  # can be async'd
-    queries, additional_plan = slow_mode_bot.expand_plan(human_message)
+    queries, additional_plan = await slow_mode_bot.expand_plan(human_message)
 
     snippets, tree = search_snippets(
         repo,
@@ -698,7 +696,6 @@ async def on_ticket(
             config_pr = create_config_pr(sweep_bot)
             config_pr_url = config_pr.html_url
             edit_sweep_comment(message="", index=-2)
-            await asyncio.sleep(0.01)
         except Exception as e:
             logger.error(
                 "Failed to create new branch for sweep.yaml file.\n",
@@ -740,7 +737,6 @@ async def on_ticket(
             + (f"\n\n{docs_results}\n\n" if docs_results else ""),
             1,
         )
-        await asyncio.sleep(0.01)
 
         if do_map:
             subissues: list[ProposedIssue] = await sweep_bot.generate_subissues()
@@ -754,7 +750,6 @@ async def on_ticket(
                 ),
                 3,
             )
-            await asyncio.sleep(0.01)
             for subissue in tqdm(subissues):
                 subissue.issue_id = repo.create_issue(
                     title="Sweep: " + subissue.title,
@@ -778,7 +773,6 @@ async def on_ticket(
             )
             edit_sweep_comment(f"N/A", 5)
             edit_sweep_comment(f"I finished creating all the subissues.", 6)
-            await asyncio.sleep(0.01)
             return {"success": True}
 
         # COMMENT ON ISSUE
@@ -804,10 +798,9 @@ async def on_ticket(
                     ),
                     -1,
                 )
-            await asyncio.sleep(0.01)
             raise Exception("No files to modify.")
 
-        await sweep_bot.summarize_snippets(plan)
+        await sweep_bot.summarize_snippets()
 
         file_change_requests = sweep_bot.validate_file_change_requests(
             file_change_requests
@@ -830,7 +823,6 @@ async def on_ticket(
             " following modifications:\n\n" + table + "\n\n",
             2,
         )
-        await asyncio.sleep(0.01)
 
         # TODO(lukejagg): Generate PR after modifications are made
         # CREATE PR METADATA
@@ -846,7 +838,6 @@ async def on_ticket(
             ),
             3,
         )
-        await asyncio.sleep(0.01)
 
         logger.info("Making PR...")
 
@@ -907,7 +898,6 @@ async def on_ticket(
         )
         logger.info(files_progress)
         edit_sweep_comment(table_message, 4)
-        await asyncio.sleep(0.01)
         response = {"error": NoFilesException()}
         for item in generator:
             if isinstance(item, dict):
@@ -982,7 +972,6 @@ async def on_ticket(
                 tablefmt="pipe",
             )
             edit_sweep_comment(table_message, 4)
-            await asyncio.sleep(0.01)
         if not response.get("success"):
             raise Exception(f"Failed to create PR: {response.get('error')}")
         pr_changes = response["pull_request"]
@@ -993,7 +982,6 @@ async def on_ticket(
             " completeness.",
             4,
         )
-        await asyncio.sleep(0.01)
 
         review_message = (
             "Here are my self-reviews of my changes at"
@@ -1033,7 +1021,6 @@ async def on_ticket(
                 review_message + "\n\nI'm currently addressing these suggestions.",
                 5,
             )
-            await asyncio.sleep(0.01)
             logger.info(f"Addressing review comment {review_comment}")
             if changes_required:
                 on_comment(
@@ -1055,7 +1042,6 @@ async def on_ticket(
         edit_sweep_comment(
             review_message + "\n\nI finished incorporating these changes.", 5
         )
-        await asyncio.sleep(0.01)
 
         is_draft = config.get("draft", False)
         try:
