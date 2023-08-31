@@ -1,3 +1,4 @@
+import multiprocessing
 import time
 from datetime import datetime
 import asyncio
@@ -165,6 +166,33 @@ app = FastAPI()
 
 issues_lock = {}
 
+import tracemalloc
+
+tracemalloc.start()
+
+
+def run_ticket(*args, **kwargs):
+    asyncio.run(on_ticket(*args, **kwargs))
+
+
+def call_on_ticket(*args, **kwargs):
+    # Check if previous process is running
+    key = (args[5], args[2])
+    print(key)  # Full name, issue number
+    if key in issues_lock:
+        print("Cancelling process")
+        issues_lock[key].terminate()
+        issues_lock[key].join()
+        del issues_lock[key]
+
+        # issues_lock[key].cancel()
+
+    process = multiprocessing.Process(target=run_ticket, args=args, kwargs=kwargs)
+    issues_lock[key] = process
+    process.start()
+
+    # issues_lock[key] = asyncio.create_task(on_ticket(*args, **kwargs))
+
 
 @app.get("/health")
 def health_check():
@@ -260,7 +288,9 @@ async def webhook(raw_request: Request):
                     # print(issue_locks)
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
-                    process = await on_ticket(
+                    #
+
+                    call_on_ticket(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
@@ -272,7 +302,6 @@ async def webhook(raw_request: Request):
                         request.comment.id,
                         edited=True,
                     )
-                    issues_lock[key] = process
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
                 ):  # TODO(sweep): set a limit
@@ -325,7 +354,7 @@ async def webhook(raw_request: Request):
                     # stub.issue_lock[
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
-                    await on_ticket(
+                    call_on_ticket(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
@@ -359,7 +388,7 @@ async def webhook(raw_request: Request):
                     # stub.issue_lock[
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
-                    await on_ticket(
+                    call_on_ticket(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
@@ -409,7 +438,7 @@ async def webhook(raw_request: Request):
                     # stub.issue_lock[
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
-                    await on_ticket(
+                    call_on_ticket(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
