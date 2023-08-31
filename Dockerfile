@@ -13,7 +13,7 @@ RUN apt-get update \
 RUN git clone https://github.com/universal-ctags/ctags.git && \
     cd ctags && \
     ./autogen.sh && \
-    ./configure --prefix=/app/ctags_build && \
+    ./configure && \
     make && make install
 
 COPY pyproject.toml ./
