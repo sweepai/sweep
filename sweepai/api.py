@@ -41,7 +41,12 @@ from sweepai.utils.search_utils import index_full_repository
 
 from sweepai.core.vector_db import download_models
 
+# Startup code
 download_models()
+# run playwright install
+import subprocess
+
+subprocess.run(["playwright", "install-deps", "chromium"])
 
 # stub = modal.Stub(API_MODAL_INST_NAME)
 # stub.pr_queues = modal.Dict.new()  # maps (repo_full_name, pull_request_ids) -> queues
@@ -611,9 +616,10 @@ async def webhook(raw_request: Request):
                         docs = get_documentation_dict(repo)
                         logger.info(f"Sweep.yaml docs: {docs}")
                         # Call the write_documentation function for each of the existing fields in the "docs" mapping
-                        for _, doc_url in docs.items():
+                        for doc_url, _ in docs.values():
                             logger.info(f"Writing documentation for {doc_url}")
-                            write_documentation(doc_url)
+                            await write_documentation(doc_url)
+                        raise Exception("Sweep.yaml changed")
                     # this makes it faster for everyone because the queue doesn't get backed up
                     if chat_logger.is_paying_user():
                         update_index(
