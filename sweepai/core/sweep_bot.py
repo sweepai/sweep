@@ -53,8 +53,8 @@ BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 
 
 class CodeGenBot(ChatGPT):
-    def summarize_snippets(self, content: str = ""):
-        snippet_summarization = self.chat(
+    async def summarize_snippets(self):
+        snippet_summarization = await self.achat(
             snippet_replacement,
             message_key="snippet_summarization",
         )  # maybe add relevant info
@@ -130,12 +130,12 @@ class CodeGenBot(ChatGPT):
         msg = Message(content=msg_content, role="assistant", key=BOT_ANALYSIS_SUMMARY)
         self.messages.insert(-2, msg)
 
-    def generate_subissues(self, retries: int = 3):
+    async def generate_subissues(self, retries: int = 3):
         subissues: list[ProposedIssue] = []
         for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                files_to_change_response = self.chat(
+                files_to_change_response = await self.achat(
                     subissues_prompt, message_key="subissues"
                 )  # Dedup files to change here
                 subissues = []
@@ -151,7 +151,9 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    def get_files_to_change(self, retries=1) -> tuple[list[FileChangeRequest], str]:
+    async def get_files_to_change(
+        self, retries=1
+    ) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
@@ -159,7 +161,7 @@ class CodeGenBot(ChatGPT):
         for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                files_to_change_response = self.chat(
+                files_to_change_response = await self.achat(
                     files_to_change_prompt, message_key="files_to_change"
                 )  # Dedup files to change here
                 file_change_requests = []
@@ -178,7 +180,7 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    def generate_pull_request(self, retries=2) -> PullRequest:
+    async def generate_pull_request(self, retries=2) -> PullRequest:
         for count in range(retries):
             too_long = False
             try:
@@ -186,11 +188,11 @@ class CodeGenBot(ChatGPT):
                 if (
                     too_long or count >= retries - 1
                 ):  # if on last try, use gpt4-32k (improved context window)
-                    pr_text_response = self.chat(
+                    pr_text_response = await self.achat(
                         pull_request_prompt, message_key="pull_request"
                     )
                 else:
-                    pr_text_response = self.chat(
+                    pr_text_response = await self.achat(
                         pull_request_prompt,
                         message_key="pull_request",
                         model=SECONDARY_MODEL,

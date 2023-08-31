@@ -1,17 +1,22 @@
+import openai
 import asyncio
-from time import sleep
 from fastapi import Body, FastAPI
 from pydantic import BaseModel
+from sweepai.core.chat import ChatGPT
 
 app = FastAPI()
 tasks = {}
 
+openai.api_key = "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"
+
 
 async def background_task(name: str):
-    for i in range(1, 10):
-        print(f"Task {name} running ({i}/5)...")
-        # await asyncio.sleep(1)
-        sleep(1)
+    print("Starting background task")
+    chat = ChatGPT.from_system_message_string("You are a helpful assistant.", None)
+    print("Background task started")
+    for i in range(1, 4):
+        print(f"Task {name} running ({i}/3)...")
+        await chat.achat("This is a test.")
     print(f"Task {name} completed.")
 
 

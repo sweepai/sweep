@@ -4,6 +4,7 @@ On Github ticket, get ChatGPT to deal with it
 
 # TODO: Add file validation
 
+import asyncio
 import math
 import re
 import traceback
@@ -310,6 +311,7 @@ async def on_ticket(
             success = safe_delete_sweep_branch(pr, repo)
 
     eyes_reaction = item_to_react_to.create_reaction("eyes")
+    await asyncio.sleep(0.1)
     # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
     reactions = item_to_react_to.get_reactions()
     for reaction in reactions:
@@ -506,6 +508,7 @@ async def on_ticket(
             ),
             -1,
         )
+    await asyncio.sleep(0.01)
 
     if (
         repo_name.lower() not in WHITELISTED_REPOS
@@ -544,27 +547,6 @@ async def on_ticket(
         )
         discord_log_error(content, priority=priority)
 
-    def fetch_file_contents_with_retry():
-        retries = 1
-        error = None
-        for i in range(retries):
-            try:
-                logger.info(f"Fetching relevant files for the {i}th time...")
-                return search_snippets(
-                    repo,
-                    f"{title}\n{summary}\n{replies_text}",
-                    num_files=num_of_snippets_to_query,
-                    branch=None,
-                    installation_id=installation_id,
-                )
-            except Exception as e:
-                error = e
-                continue
-        posthog.capture(
-            username, "fetching_failed", properties={"error": error, **metadata}
-        )
-        raise error
-
     # Clone repo and perform local tests (linters, formatters, GHA)
     logger.info("Initializing sandbox...")
     sandbox_config = {
@@ -579,7 +561,13 @@ async def on_ticket(
 
     logger.info("Fetching relevant files...")
     try:
-        snippets, tree = fetch_file_contents_with_retry()
+        snippets, tree = search_snippets(
+            repo,
+            f"{title}\n{summary}\n{replies_text}",
+            num_files=num_of_snippets_to_query,
+            branch=None,
+            installation_id=installation_id,
+        )
         assert len(snippets) > 0
     except Exception as e:
         trace = traceback.format_exc()
@@ -606,19 +594,17 @@ async def on_ticket(
         repo_description = "No description provided."
 
     message_summary = summary + replies_text
-    external_results = ExternalSearcher.extract_summaries(message_summary)
+    external_results = await ExternalSearcher.extract_summaries(message_summary)
     if external_results:
         message_summary += "\n\n" + external_results
     user_dict = get_documentation_dict(repo)
-    docs_succeeded = False
     docs_results = ""
     try:
-        docs_results = extract_relevant_docs(
+        docs_results = await extract_relevant_docs(
             title + message_summary, user_dict, chat_logger
         )
         if docs_results:
             message_summary += "\n\n" + docs_results
-        docs_succeeded = True
     except Exception as e:
         logger.error(f"Failed to extract docs: {e}")
 
@@ -633,7 +619,7 @@ async def on_ticket(
         tree=tree,
     )
     additional_plan = None
-    slow_mode_bot = SlowModeBot(chat_logger=chat_logger)
+    slow_mode_bot = SlowModeBot(chat_logger=chat_logger)  # can be async'd
     queries, additional_plan = slow_mode_bot.expand_plan(human_message)
 
     snippets, tree = search_snippets(
@@ -645,6 +631,8 @@ async def on_ticket(
         multi_query=queries,
     )
     snippets = post_process_snippets(snippets, max_num_of_snippets=5)
+
+    # TODO: refactor this
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
@@ -657,7 +645,7 @@ async def on_ticket(
     )
     try:
         context_pruning = ContextPruning(chat_logger=chat_logger)
-        snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
+        snippets_to_ignore, directories_to_ignore = await context_pruning.prune_context(
             human_message, repo=repo
         )
         snippets, tree = search_snippets(
@@ -710,6 +698,7 @@ async def on_ticket(
             config_pr = create_config_pr(sweep_bot)
             config_pr_url = config_pr.html_url
             edit_sweep_comment(message="", index=-2)
+            await asyncio.sleep(0.01)
         except Exception as e:
             logger.error(
                 "Failed to create new branch for sweep.yaml file.\n",
@@ -751,9 +740,10 @@ async def on_ticket(
             + (f"\n\n{docs_results}\n\n" if docs_results else ""),
             1,
         )
+        await asyncio.sleep(0.01)
 
         if do_map:
-            subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
+            subissues: list[ProposedIssue] = await sweep_bot.generate_subissues()
             edit_sweep_comment(
                 f"I'm creating the following subissues:\n\n"
                 + "\n\n".join(
@@ -764,6 +754,7 @@ async def on_ticket(
                 ),
                 3,
             )
+            await asyncio.sleep(0.01)
             for subissue in tqdm(subissues):
                 subissue.issue_id = repo.create_issue(
                     title="Sweep: " + subissue.title,
@@ -787,12 +778,13 @@ async def on_ticket(
             )
             edit_sweep_comment(f"N/A", 5)
             edit_sweep_comment(f"I finished creating all the subissues.", 6)
+            await asyncio.sleep(0.01)
             return {"success": True}
 
         # COMMENT ON ISSUE
         # TODO: removed issue commenting here
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan = await sweep_bot.get_files_to_change()
 
         if not file_change_requests:
             if len(title + summary) < 60:
@@ -812,9 +804,10 @@ async def on_ticket(
                     ),
                     -1,
                 )
+            await asyncio.sleep(0.01)
             raise Exception("No files to modify.")
 
-        sweep_bot.summarize_snippets(plan)
+        await sweep_bot.summarize_snippets(plan)
 
         file_change_requests = sweep_bot.validate_file_change_requests(
             file_change_requests
@@ -837,11 +830,12 @@ async def on_ticket(
             " following modifications:\n\n" + table + "\n\n",
             2,
         )
+        await asyncio.sleep(0.01)
 
         # TODO(lukejagg): Generate PR after modifications are made
         # CREATE PR METADATA
         logger.info("Generating PR...")
-        pull_request = sweep_bot.generate_pull_request()
+        pull_request = await sweep_bot.generate_pull_request()
         pull_request_content = pull_request.content.strip().replace("\n", "\n>")
         pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
         edit_sweep_comment(
@@ -852,6 +846,7 @@ async def on_ticket(
             ),
             3,
         )
+        await asyncio.sleep(0.01)
 
         logger.info("Making PR...")
 
@@ -887,7 +882,7 @@ async def on_ticket(
         issue.edit(body=summary + "\n\n" + checkboxes_message)
 
         delete_branch = False
-        generator = create_pr_changes(
+        generator = create_pr_changes(  # make this async later
             file_change_requests,
             pull_request,
             sweep_bot,
@@ -912,6 +907,7 @@ async def on_ticket(
         )
         logger.info(files_progress)
         edit_sweep_comment(table_message, 4)
+        await asyncio.sleep(0.01)
         response = {"error": NoFilesException()}
         for item in generator:
             if isinstance(item, dict):
@@ -986,6 +982,7 @@ async def on_ticket(
                 tablefmt="pipe",
             )
             edit_sweep_comment(table_message, 4)
+            await asyncio.sleep(0.01)
         if not response.get("success"):
             raise Exception(f"Failed to create PR: {response.get('error')}")
         pr_changes = response["pull_request"]
@@ -996,6 +993,7 @@ async def on_ticket(
             " completeness.",
             4,
         )
+        await asyncio.sleep(0.01)
 
         review_message = (
             "Here are my self-reviews of my changes at"
@@ -1035,6 +1033,7 @@ async def on_ticket(
                 review_message + "\n\nI'm currently addressing these suggestions.",
                 5,
             )
+            await asyncio.sleep(0.01)
             logger.info(f"Addressing review comment {review_comment}")
             if changes_required:
                 on_comment(
@@ -1056,6 +1055,7 @@ async def on_ticket(
         edit_sweep_comment(
             review_message + "\n\nI finished incorporating these changes.", 5
         )
+        await asyncio.sleep(0.01)
 
         is_draft = config.get("draft", False)
         try:
