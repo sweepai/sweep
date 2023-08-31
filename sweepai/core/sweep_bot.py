@@ -414,7 +414,7 @@ class SweepBot(CodeGenBot, GithubBot):
     def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
         file_change: FileCreation | None = None
         key = f"file_change_created_{file_change_request.filename}"
-        create_file_response = self.chat(
+        create_file_response = await self.achat(
             create_file_prompt.format(
                 filename=file_change_request.filename,
                 instructions=file_change_request.instructions,
@@ -444,7 +444,7 @@ class SweepBot(CodeGenBot, GithubBot):
             self.delete_messages_from_chat(key_to_delete=key)
 
             try:
-                implemented = self.check_completion(
+                implemented = self.check_completion(  # use async
                     file_change_request.filename, file_change.code
                 )
                 if not implemented:
@@ -484,7 +484,7 @@ class SweepBot(CodeGenBot, GithubBot):
             self.delete_messages_from_chat(key)
         raise Exception("Failed to parse response after 5 attempts.")
 
-    def modify_file(
+    async def modify_file(
         self,
         file_change_request: FileChangeRequest,
         contents: str = "",
@@ -509,7 +509,7 @@ class SweepBot(CodeGenBot, GithubBot):
             if chunking:
                 # TODO (sweep): make chunking / streaming better
                 message = chunking_prompt + message
-                modify_file_response = self.chat(
+                modify_file_response = await self.achat(
                     message,
                     message_key=key,
                 )
@@ -525,7 +525,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
                     old_system_message = self.messages[0].content
                     self.messages[0].content = modify_recreate_file_system_message
-                    modify_file_response = self.chat(
+                    modify_file_response = await self.achat(
                         message,
                         message_key=key,
                     )
@@ -534,7 +534,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 else:
                     old_system_message = self.messages[0].content
                     self.messages[0].content = modify_file_system_message
-                    modify_file_response = self.chat(
+                    modify_file_response = await self.achat(
                         message,
                         message_key=key,
                     )
@@ -568,7 +568,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
             try:
                 for _, replace in get_matches(modify_file_response):
-                    implemented = self.check_completion(
+                    implemented = self.check_completion(  # can use async
                         file_change_request.filename, replace
                     )
                     if not implemented:
@@ -647,7 +647,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 completed += 1
         return completed, num_fcr
 
-    def change_files_in_github_iterator(
+    async def change_files_in_github_iterator(
         self,
         file_change_requests: list[FileChangeRequest],
         branch: str,
@@ -680,24 +680,10 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
                 match file_change_request.change_type:
                     case "create":
-                        # Add example for more consistent generation
-                        # if not added_modify_hallucination:
-                        #     added_modify_hallucination = True
-                        #     # Add hallucinated example for better parsing
-                        #     for message in modify_file_hallucination_prompt:
-                        #         self.messages.append(Message(**message))
-
-                        changed_file, sandbox_error = self.handle_create_file(
+                        changed_file, sandbox_error = await self.handle_create_file(
                             file_change_request, branch, sandbox=sandbox
                         )
                     case "modify":
-                        # Add example for more consistent generation
-                        # if not added_modify_hallucination:
-                        #     added_modify_hallucination = True
-                        #     # Add hallucinated example for better parsing
-                        #     for message in modify_file_hallucination_prompt:
-                        #         self.messages.append(Message(**message))
-
                         # Remove snippets from this file if they exist
                         snippet_msgs = [
                             m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
@@ -714,7 +700,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 flags=re.DOTALL,
                             )
 
-                        changed_file, sandbox_error = self.handle_modify_file(
+                        changed_file, sandbox_error = await self.handle_modify_file(
                             file_change_request, branch, sandbox=sandbox
                         )
                     case "delete":
@@ -763,11 +749,11 @@ class SweepBot(CodeGenBot, GithubBot):
                 completed += 1
         return completed, num_fcr
 
-    def handle_create_file(
+    async def handle_create_file(
         self, file_change_request: FileChangeRequest, branch: str, sandbox=None
     ) -> tuple[bool, None]:
         try:
-            file_change = self.create_file(file_change_request)
+            file_change = await self.create_file(file_change_request)
             file_markdown = is_markdown(file_change_request.filename)
             file_change.code = format_contents(file_change.code, file_markdown)
             logger.debug(
@@ -790,7 +776,7 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.info(f"Error in handle_create_file: {e}")
             return False, None
 
-    def handle_modify_file(
+    async def handle_modify_file(
         self,
         file_change_request: FileChangeRequest,
         branch: str,
@@ -824,7 +810,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             new_file_contents,
                             suggested_commit_message,
                             sandbox_error,
-                        ) = self.modify_file(
+                        ) = await self.modify_file(
                             file_change_request,
                             contents="\n".join(lines),
                             branch=branch,
@@ -853,7 +839,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                     new_chunk,
                                     suggested_commit_message,
                                     sandbox_error,
-                                ) = self.modify_file(
+                                ) = await self.modify_file(
                                     file_change_request,
                                     contents=chunk_contents,
                                     branch=branch,

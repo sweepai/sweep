@@ -511,7 +511,6 @@ class ChatGPT(BaseModel):
                 retry_counter += 1
                 token_sub = retry_counter * 200
                 try:
-                    print("before acreate")
                     output = (
                         (
                             await openai.ChatCompletion.acreate(
@@ -524,7 +523,6 @@ class ChatGPT(BaseModel):
                         .choices[0]
                         .message["content"]
                     )
-                    print("after acreate")
                     if self.chat_logger is not None:
                         self.chat_logger.add_chat(
                             {
