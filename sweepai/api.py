@@ -527,32 +527,39 @@ async def webhook(raw_request: Request):
                 logger.info(f"Handling check suite for {request.repository.full_name}")
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
-                pull_request = repo.get_pull(request.check_run.pull_requests[0].number)
-                if (
-                    len(request.check_run.pull_requests) > 0
-                    and pull_request.user.login.lower().startswith("sweep")
-                    and request.check_run.conclusion == "failure"
-                    and not pull_request.title.startswith("[DRAFT]")
-                    and pull_request.labels
-                    and any(
-                        label.name.lower() == "sweep" for label in pull_request.labels
+                pull_requests = request.check_run.pull_requests
+                if pull_requests:
+                    pull_request = repo.get_pull(
+                        request.check_run.pull_requests[0].number
                     )
-                ):
-                    logger.info("Handling check suite")
-                    pr_change_request = PRChangeRequest(
-                        type="gha", params={"request": request}
-                    )
-                    # push_to_queue(
-                    #     repo_full_name=request.repository.full_name,
-                    #     pr_id=request.check_run.pull_requests[0].number,
-                    #     pr_change_request=pr_change_request,
-                    # )
+                    if (
+                        len(request.check_run.pull_requests) > 0
+                        and pull_request.user.login.lower().startswith("sweep")
+                        and request.check_run.conclusion == "failure"
+                        and not pull_request.title.startswith("[DRAFT]")
+                        and pull_request.labels
+                        and any(
+                            label.name.lower() == "sweep"
+                            for label in pull_request.labels
+                        )
+                    ):
+                        logger.info("Handling check suite")
+                        pr_change_request = PRChangeRequest(
+                            type="gha", params={"request": request}
+                        )
+                        # push_to_queue(
+                        #     repo_full_name=request.repository.full_name,
+                        #     pr_id=request.check_run.pull_requests[0].number,
+                        #     pr_change_request=pr_change_request,
+                        # )
+                    else:
+                        logger.info(
+                            "Skipping check suite for"
+                            f" {request.repository.full_name} because it is not a failure"
+                            " or not from the bot or is a draft"
+                        )
                 else:
-                    logger.info(
-                        "Skipping check suite for"
-                        f" {request.repository.full_name} because it is not a failure"
-                        " or not from the bot or is a draft"
-                    )
+                    logger.info("No pull requests, passing")
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
@@ -645,10 +652,7 @@ async def webhook(raw_request: Request):
                             request_dict["repository"]["full_name"],
                             installation_id=request_dict["installation"]["id"],
                         )
-                        get_deeplake_vs_from_repo(
-                            cloned_repo,
-                            installation_id=request_dict["installation"]["id"],
-                        )
+                        get_deeplake_vs_from_repo(cloned_repo)
                     update_sweep_prs(
                         request_dict["repository"]["full_name"],
                         installation_id=request_dict["installation"]["id"],
