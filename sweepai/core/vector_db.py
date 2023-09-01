@@ -216,16 +216,6 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
         return deeplake_vs
 
 
-def update_index(
-    repo_name,
-    installation_id: int,
-    sweep_config: SweepConfig = SweepConfig(),
-):
-    return get_deeplake_vs_from_repo(
-        repo_name, installation_id, branch_name=None, sweep_config=sweep_config
-    )
-
-
 def get_relevant_snippets(
     cloned_repo: ClonedRepo,
     query: str,
