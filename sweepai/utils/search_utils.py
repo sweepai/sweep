@@ -7,7 +7,11 @@ from github.Repository import Repository
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
-from sweepai.core.vector_db import get_relevant_snippets, update_index
+from sweepai.core.vector_db import (
+    get_deeplake_vs_from_repo,
+    get_relevant_snippets,
+    update_index,
+)
 from sweepai.core.entities import Snippet
 from sweepai.utils.github_utils import (
     ClonedRepo,
@@ -19,13 +23,10 @@ from sweepai.utils.event_logger import posthog
 
 
 def search_snippets(
-    # repo: Repository,
     cloned_repo: ClonedRepo,
     query: str,
-    # installation_id: int,
     num_files: int = 5,
     include_tree: bool = True,
-    # branch: str = None,
     sweep_config: SweepConfig = SweepConfig(),
     multi_query: list[str] = None,
     excluded_directories: list[str] = None,
@@ -36,10 +37,9 @@ def search_snippets(
         multi_query = [query] + multi_query
         for query in multi_query:
             snippets: list[Snippet] = get_relevant_snippets(
-                cloned_repo.repo_full_name,
+                cloned_repo,
                 query,
                 num_files,
-                installation_id=cloned_repo.installation_id,
             )
             logger.info(f"Snippets for query {query}: {snippets}")
             if snippets:
@@ -48,10 +48,9 @@ def search_snippets(
         logger.info(f"Snippets for multi query {multi_query}: {snippets}")
     else:
         snippets: list[Snippet] = get_relevant_snippets(
-            cloned_repo.repo_full_name,
+            cloned_repo,
             query,
             num_files,
-            installation_id=cloned_repo.installation_id,
         )
         logger.info(f"Snippets for query {query}: {snippets}")
     new_snippets = []
@@ -75,17 +74,7 @@ def search_snippets(
     snippets = new_snippets
     from git import Repo
 
-    # token = get_token(cloned_repo.installation_id)
-    # shutil.rmtree("repo", ignore_errors=True)
-    # repo_url = f"https://x-access-token:{token}@github.com/{cloned_repo.repo.full_name}.git"
-    # Set a larger buffer size for large repos
-    # subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])
-    # git_repo = Repo.clone_from(repo_url, "repo")
-    # git_repo.git.checkout(SweepConfig.get_branch(cloned_repo.repo))
-    # file_list = get_file_list("repo")
     file_list = cloned_repo.get_file_list()
-
-    # top_ctags_match = get_top_match_ctags(repo, file_list, query)  # ctags match
     query_file_names = get_file_names_from_query(query)
     query_match_files = []  # files in both query and repo
     for file_path in tqdm(file_list):
@@ -101,22 +90,11 @@ def search_snippets(
             :10
         ]
     snippet_paths = list(set(snippet_paths))
-    # tree = get_tree_and_file_list(
-    #     cloned_repo.repo,
-    #     cloned_repo.installation_id,
-    #     snippet_paths=snippet_paths,
-    #     excluded_directories=excluded_directories,
-    # )
     tree = cloned_repo.get_tree_and_file_list(
         snippet_paths=snippet_paths, excluded_directories=excluded_directories
     )
-    # Add top ctags match to snippets
-    # if top_ctags_match and top_ctags_match not in query_match_files:
-    #     query_match_files = [top_ctags_match] + query_match_files
-    #     print(f"Top ctags match: {top_ctags_match}")
     for file_path in query_match_files:
         try:
-            # file_contents = get_file_contents(cloned_repo.repo, file_path, ref=cloned_repo.branch)
             file_contents = cloned_repo.get_file_contents(
                 file_path, ref=cloned_repo.branch
             )
@@ -153,10 +131,10 @@ def index_full_repository(
     # update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
     _token, client = get_github_client(installation_id)
     repo = client.get_repo(repo_name)
-    num_indexed_docs = update_index(
-        repo_name=repo_name,
-        installation_id=installation_id,
-        sweep_config=SweepConfig.get_config(repo),
+    cloned_repo = ClonedRepo(repo_name, installation_id=installation_id)
+    _, _, num_indexed_docs = get_deeplake_vs_from_repo(
+        cloned_repo=cloned_repo,
+        sweep_config=SweepConfig.get_config(cloned_repo.repo),
     )
     try:
         labels = repo.get_labels()

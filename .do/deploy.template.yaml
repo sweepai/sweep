@@ -19,6 +19,9 @@ spec:
     - key: OPENAI_DO_HAVE_32K_MODEL_ACCESS
       scope: RUN_TIME
       value: "false"
+    - key: WORKERS
+      scope: RUN_TIME
+      value: 3
     - key: SENTENCE_TRANSFORMERS_MODEL
       scope: RUN_TIME
       value: sentence-transformers/all-MiniLM-L6-v2

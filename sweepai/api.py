@@ -633,8 +633,6 @@ async def webhook(raw_request: Request):
                         "sweep.yaml" in request_dict["head_commit"]["added"]
                         or "sweep.yaml" in request_dict["head_commit"]["modified"]
                     ):
-                        import yaml
-
                         _, g = get_github_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
                         docs = get_documentation_dict(repo)
