@@ -602,7 +602,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     logger.error(traceback.format_exc())
                     self.delete_messages_from_chat(key)
                 return new_file, commit_message, sandbox_error
-            except:
+            except Exception as e:
                 logger.error(f"Error: {e}")
                 logger.error(traceback.format_exc())
                 raise e

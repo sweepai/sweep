@@ -1,14 +1,18 @@
+from functools import lru_cache
 import json
 import re
 import time
+import numpy as np
 
 from github import Github
 from loguru import logger
-import numpy as np
 from redis import Redis
 from redis.backoff import ConstantBackoff
 from redis.retry import Retry
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
+from sentence_transformers import (  # pylint: disable=import-error
+    SentenceTransformer,
+)
 
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
@@ -17,7 +21,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.scorer import compute_score, get_scores
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import REDIS_URL, SENTENCE_TRANSFORMERS_MODEL
+from sweepai.config.server import REDIS_URL, SENTENCE_TRANSFORMERS_MODEL, BATCH_SIZE
 from ..utils.github_utils import ClonedRepo, get_token
 
 
@@ -25,12 +29,27 @@ MODEL_DIR = "cache/model"
 DEEPLAKE_DIR = "cache/"
 DISKCACHE_DIR = "cache/diskcache/"
 DEEPLAKE_FOLDER = "cache/deeplake/"
-BATCH_SIZE = 128
-# SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-mpnet-base-v2"
 timeout = 60 * 60  # 30 minutes
-CACHE_VERSION = "v1.0.11"
+CACHE_VERSION = "v1.0.12"
 MAX_FILES = 500
-CPU = 1
+
+cache_inst = None
+
+if REDIS_URL is not None:
+    try:
+        # todo: initialize once
+        retry = Retry(ConstantBackoff(backoff=1), retries=3)
+        cache_inst = Redis.from_url(
+            REDIS_URL,
+            retry=retry,
+            retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
+        )
+        logger.info(f"Successfully connected to redis cache")
+    except:
+        cache_inst = None
+        logger.error(f"Failed to connect to redis cache")
+else:
+    logger.warning(f"REDIS_URL is None, skipping cache")
 
 
 def download_models():
@@ -59,38 +78,23 @@ def parse_collection_name(name: str) -> str:
     return name
 
 
-class CPUEmbedding:
-    def __init__(self):
-        from sentence_transformers import (  # pylint: disable=import-error
-            SentenceTransformer,
-        )
-
-        self.model = SentenceTransformer(
-            SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-        )
-
-    def compute(self, texts: list[str]) -> list[list[float]]:
-        logger.info(f"Computing embeddings for {len(texts)} texts")
-        vector = self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE)
-        if vector.shape[0] == 1:
-            return [vector.tolist()]
-        else:
-            return vector.tolist()
+sentence_transformer_model = SentenceTransformer(
+    SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
+)
 
 
-class ModalEmbeddingFunction:
-    batch_size: int = 1024  # can pick a better constant later
-
-    def __init__(self):
-        pass
-
-    def __call__(self, texts: list[str], cpu=False):
-        if len(texts) == 0:
-            return []
-        return CPUEmbedding().compute(texts)  # pylint: disable=no-member
+@lru_cache(maxsize=16)
+def embed_texts(texts: tuple[str]):
+    logger.info(f"Computing embeddings for {len(texts)} texts")
+    vector = sentence_transformer_model.encode(
+        texts, show_progress_bar=True, batch_size=BATCH_SIZE
+    )
+    return vector.squeeze()
 
 
-embedding_function = ModalEmbeddingFunction()
+def embedding_function(texts: list[str]):
+    # For LRU cache to work
+    return embed_texts(tuple(texts))
 
 
 def get_deeplake_vs_from_repo(
@@ -105,25 +109,6 @@ def get_deeplake_vs_from_repo(
     commits = repo.get_commits()
     commit_hash = commits[0].sha
 
-    cache_success = False
-    cache_inst = None
-
-    if REDIS_URL is not None:
-        try:
-            # todo: initialize once
-            retry = Retry(ConstantBackoff(backoff=1), retries=3)
-            cache_inst = Redis.from_url(
-                REDIS_URL,
-                retry=retry,
-                retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
-            )
-            logger.info(f"Successfully connected to redis cache")
-            cache_success = True
-        except:
-            cache_success = False
-            logger.error(f"Failed to connect to redis cache")
-    else:
-        logger.warning(f"REDIS_URL is None, skipping cache")
     logger.info(f"Downloading repository and indexing for {repo_full_name}...")
     start = time.time()
     logger.info("Recursively getting list of files...")
@@ -168,8 +153,6 @@ def get_deeplake_vs_from_repo(
         compute_deeplake_vs(
             collection_name,
             documents,
-            cache_success,
-            cache_inst,
             ids,
             metadatas,
             commit_hash,
@@ -179,15 +162,13 @@ def get_deeplake_vs_from_repo(
     )
 
 
-def compute_deeplake_vs(
-    collection_name, documents, cache_success, cache_inst, ids, metadatas, sha
-):
+def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
     deeplake_vs = init_deeplake_vs(collection_name)
     if len(documents) > 0:
         logger.info("Computing embeddings...")
         # Check cache here for all documents
         embeddings = [None] * len(documents)
-        if cache_inst and cache_success:
+        if cache_inst:
             cache_keys = [
                 hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION
                 for doc in documents
@@ -195,7 +176,10 @@ def compute_deeplake_vs(
             cache_values = cache_inst.mget(cache_keys)
             for idx, value in enumerate(cache_values):
                 if value is not None:
-                    embeddings[idx] = json.loads(value)
+                    arr = json.loads(value)
+                    if isinstance(arr, list):
+                        embeddings[idx] = np.array(arr, dtype=np.float32)
+
         logger.info(
             f"Found {len([x for x in embeddings if x is not None])} embeddings in cache"
         )
@@ -204,16 +188,17 @@ def compute_deeplake_vs(
 
         logger.info(f"Computing {len(documents_to_compute)} embeddings...")
         computed_embeddings = embedding_function(documents_to_compute)
-        print(np.asarray(computed_embeddings).shape)
         logger.info(f"Computed {len(computed_embeddings)} embeddings")
 
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
 
+        embedding = np.array(embedding, dtype=np.float32)
+
         logger.info("Adding embeddings to deeplake vector store...")
         deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
         logger.info("Added embeddings to deeplake vector store")
-        if cache_inst and cache_success and len(documents_to_compute) > 0:
+        if cache_inst and len(documents_to_compute) > 0:
             logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
             cache_keys = [
                 hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION
@@ -221,8 +206,8 @@ def compute_deeplake_vs(
             ]
             cache_inst.mset(
                 {
-                    key: json.dumps(value)
-                    for key, value in zip(cache_keys, computed_embeddings)
+                    key: json.dumps(embedding.tolist())
+                    for key, embedding in zip(cache_keys, computed_embeddings)
                 }
             )
         return deeplake_vs
@@ -252,7 +237,7 @@ def get_relevant_snippets(
     repo_name = cloned_repo.repo_full_name
     installation_id = cloned_repo.installation_id
     logger.info("Getting query embedding...")
-    query_embedding = CPUEmbedding().compute(query)  # pylint: disable=no-member
+    query_embedding = embedding_function(query)  # pylint: disable=no-member
     logger.info("Starting search by getting vector store...")
     deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
         cloned_repo, sweep_config=sweep_config
@@ -307,7 +292,7 @@ def get_relevant_snippets(
     sorted_list = sorted(combined_list, key=lambda x: x[0], reverse=True)
     sorted_metadatas = [metadata for _, metadata in sorted_list]
     relevant_paths = [metadata["file_path"] for metadata in sorted_metadatas]
-    logger.info("Relevant paths: {}".format(relevant_paths))
+    logger.info("Relevant paths: {}".format(relevant_paths[:5]))
     return [
         Snippet(
             content="",
