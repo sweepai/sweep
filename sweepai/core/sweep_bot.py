@@ -477,7 +477,7 @@ class SweepBot(CodeGenBot, GithubBot):
         chunking: bool = False,
         chunk_offset: int = 0,
         sandbox=None,
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, Any]:
         key = f"file_change_modified_{file_change_request.filename}"
         file_markdown = is_markdown(file_change_request.filename)
         # TODO(sweep): edge case at empty file
@@ -777,6 +777,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 ""
             )
             all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
+            # Todo(lukejagg): Use when only using chunking
             chunk_sizes = [
                 800,
                 600,
