@@ -98,6 +98,15 @@ def embedding_function(texts: list[str]):
     return embed_texts(tuple(texts))
 
 async def compute_query_embedding(query: str):
+    """
+    Asynchronously computes the embedding for a given query.
+
+    Parameters:
+    query (str): The query for which the embedding is to be computed.
+
+    Returns:
+    generator: A generator that yields the computed embedding.
+    """
     yield embedding_function([query])
 
 
