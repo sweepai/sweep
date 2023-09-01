@@ -1,3 +1,4 @@
+import asyncio
 from functools import lru_cache
 import json
 import re
@@ -95,6 +96,9 @@ def embed_texts(texts: tuple[str]):
 def embedding_function(texts: list[str]):
     # For LRU cache to work
     return embed_texts(tuple(texts))
+
+async def compute_query_embedding(query: str):
+    yield embedding_function([query])
 
 
 def get_deeplake_vs_from_repo(
@@ -224,21 +228,22 @@ def get_relevant_snippets(
     sweep_config: SweepConfig = SweepConfig(),
     lexical=True,
 ):
-    repo_name = cloned_repo.repo_full_name
+    repo_name = cloned_repo.full_name
     installation_id = cloned_repo.installation_id
     logger.info("Getting query embedding...")
-    query_embedding = embedding_function(query)  # pylint: disable=no-member
+    query_embedding_future = compute_query_embedding(query)
     logger.info("Starting search by getting vector store...")
     deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
         cloned_repo, sweep_config=sweep_config
     )
     content_to_lexical_score = search_index(query, lexical_index)
     logger.info(f"Searching for relevant snippets... with {num_docs} docs")
-    results = {"metadata": [], "text": []}
+    results_future = asyncio.gather(query_embedding_future, deeplake_vs.search(k=num_docs))
     try:
-        results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
+        query_embedding, results = await results_future
     except Exception as e:
         logger.error(e)
+        return []
     logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
         logger.info(f"Results query {query} was empty")
