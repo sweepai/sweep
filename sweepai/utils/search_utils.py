@@ -12,6 +12,7 @@ from sweepai.core.entities import Snippet
 from sweepai.utils.github_utils import (
     ClonedRepo,
     get_file_names_from_query,
+    get_github_client,
 )
 from sweepai.utils.scorer import merge_and_dedup_snippets
 from sweepai.utils.event_logger import posthog
@@ -146,19 +147,17 @@ def search_snippets(
 
 
 def index_full_repository(
-    # repo_name: str,
-    # installation_id: int = None,
-    cloned_repo: ClonedRepo,
-    sweep_config: SweepConfig = SweepConfig(),
+    repo_name: str,
+    installation_id: int = None,
 ):
     # update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
+    repo = get_github_client(installation_id).get_repo(repo_name)
     num_indexed_docs = update_index(
-        repo_name=cloned_repo.repo_name,
-        installation_id=cloned_repo.installation_id,
-        sweep_config=sweep_config,
+        repo_name=repo_name,
+        installation_id=installation_id,
+        sweep_config=SweepConfig.get_config(repo),
     )
     try:
-        repo = cloned_repo.repo
         labels = repo.get_labels()
         label_names = [label.name for label in labels]
 
