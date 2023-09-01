@@ -234,7 +234,7 @@ async def on_ticket(
     if fast_mode:
         use_faster_model = True
 
-    sweep_context = SweepContext(
+    sweep_context = SweepContext.create(
         username=username,
         issue_url=issue_url,
         use_faster_model=use_faster_model,
