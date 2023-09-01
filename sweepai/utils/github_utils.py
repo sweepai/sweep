@@ -1,4 +1,7 @@
+from dataclasses import dataclass
+from functools import cached_property
 import os
+import hashlib
 import re
 import shutil
 import subprocess
@@ -13,6 +16,7 @@ from github import Github
 from github.Repository import Repository
 from jwt import encode
 from loguru import logger
+import git
 
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import (
@@ -87,24 +91,30 @@ def get_installation_id(username: str):
 
 
 @dataclass
-class GitHubRepo:
+class ClonedRepo:
     repo_full_name: str
-    branch: str
     installation_id: str
+    branch: str | None = None
     token: str | None = None
 
-    @property
+    @cached_property
     def cache_dir(self):
-        return os.path.join("cache/repos", self.repo_full_name)
+        random_bytes = os.urandom(16)
+        hash_obj = hashlib.sha256(random_bytes)
+        hash_hex = hash_obj.hexdigest()
+        return os.path.join("cache/repos", self.repo_full_name, hash_hex)
 
     @property
     def clone_url(self):
-        return f"https://x-access-token:{self.token}@github.com/{self.repo_name}.git"
+        return (
+            f"https://x-access-token:{self.token}@github.com/{self.repo_full_name}.git"
+        )
 
     def clone(self):
         return git.Repo.clone_from(self.clone_url, self.cache_dir)
 
     def __post_init__(self):
+        subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])
         self.token = self.token or get_token(self.installation_id)
         if os.path.exists(self.cache_dir):
             self.git_repo = git.Repo(self.cache_dir)
@@ -115,12 +125,13 @@ class GitHubRepo:
                 self.git_repo = self.clone()
         self.git_repo = self.clone()
         self.repo = Github(self.token).get_repo(self.repo_full_name)
+        self.branch = self.branch or SweepConfig.get_branch(self.repo)
 
     def delete(self):
         shutil.rmtree(self.cache_dir)
 
     def list_directory_tree(
-        root_directory,
+        self,
         included_directories=None,
         excluded_directories: list[str] = None,
         included_files=None,
@@ -133,6 +144,8 @@ class GitHubRepo:
         included_directories -- List of directory paths (relative to the root) to include in the tree. Default to None.
         excluded_directories -- List of directory names to exclude from the tree. Default to None.
         """
+
+        root_directory = self.cache_dir
 
         # Default values if parameters are not provided
         if included_directories is None:
@@ -232,8 +245,7 @@ class GitHubRepo:
         for file in snippet_paths:
             ctags_str, names = get_ctags_for_file(ctags, os.path.join("repo", file))
             all_names.extend(names)
-        tree = list_directory_tree(
-            "repo",
+        tree = self.list_directory_tree(
             included_directories=prefixes,
             included_files=snippet_paths,
             excluded_directories=excluded_directories,
@@ -250,7 +262,7 @@ class GitHubRepo:
 
     def get_num_files_from_repo(self):
         # subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])
-        self.git_repo.git.checkout(SweepConfig.get_branch(self.repo))
+        self.git_repo.git.checkout(self.branch)
         file_list = self.get_file_list()
         return len(file_list)
 
