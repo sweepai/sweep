@@ -9,6 +9,8 @@ from loguru import logger
 from pydantic import BaseModel
 from urllib.parse import quote
 
+from sweepai.utils.event_logger import set_highlight_id
+
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
@@ -415,6 +417,7 @@ class SweepContext(BaseModel):
         sweep_context = cls(**kwargs)
         if SweepContext.static_instance is None:
             SweepContext.static_instance = sweep_context
+            set_highlight_id(sweep_context.issue_url)
         return sweep_context
 
     @staticmethod
