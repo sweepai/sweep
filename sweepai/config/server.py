@@ -111,8 +111,7 @@ REDIS_URL = os.environ.get("REDIS_URL")
 if not REDIS_URL:
     REDIS_URL = os.environ.get("redis_url")
 
-ORG_ID = os.environ.get("ORG_ID")
-
+ORG_ID = os.environ.get("ORG_ID", None)
 # goes under Modal 'posthog' secret name (optional, can leave env var blank)
 POSTHOG_API_KEY = os.environ.get(
     "POSTHOG_API_KEY", "phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n"
@@ -127,3 +126,5 @@ WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
 SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
