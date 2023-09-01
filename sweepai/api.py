@@ -1,3 +1,4 @@
+import multiprocessing
 import time
 from datetime import datetime
 import asyncio
@@ -39,9 +40,6 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.search_utils import index_full_repository
 
-from sweepai.core.vector_db import download_models
-
-download_models()
 
 # stub = modal.Stub(API_MODAL_INST_NAME)
 # stub.pr_queues = modal.Dict.new()  # maps (repo_full_name, pull_request_ids) -> queues
@@ -165,6 +163,36 @@ app = FastAPI()
 
 issues_lock = {}
 
+import tracemalloc
+
+tracemalloc.start()
+
+
+def run_ticket(*args, **kwargs):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(on_ticket(*args, **kwargs))
+    loop.close()
+
+
+def call_on_ticket(*args, **kwargs):
+    # Check if previous process is running
+    key = (args[5], args[2])
+    print(key)  # Full name, issue number
+    if key in issues_lock:
+        print("Cancelling process")
+        issues_lock[key].terminate()
+        issues_lock[key].join()
+        del issues_lock[key]
+
+        # issues_lock[key].cancel()
+
+    process = multiprocessing.Process(target=run_ticket, args=args, kwargs=kwargs)
+    issues_lock[key] = process
+    process.start()
+
+    # issues_lock[key] = asyncio.create_task(on_ticket(*args, **kwargs))
+
 
 @app.get("/health")
 def health_check():
@@ -260,7 +288,9 @@ async def webhook(raw_request: Request):
                     # print(issue_locks)
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
-                    process = await on_ticket(
+                    #
+
+                    call_on_ticket(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
@@ -272,7 +302,6 @@ async def webhook(raw_request: Request):
                         request.comment.id,
                         edited=True,
                     )
-                    issues_lock[key] = process
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
                 ):  # TODO(sweep): set a limit
@@ -325,7 +354,7 @@ async def webhook(raw_request: Request):
                     # stub.issue_lock[
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
-                    await on_ticket(
+                    call_on_ticket(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
@@ -359,7 +388,7 @@ async def webhook(raw_request: Request):
                     # stub.issue_lock[
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
-                    await on_ticket(
+                    call_on_ticket(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
@@ -409,7 +438,7 @@ async def webhook(raw_request: Request):
                     # stub.issue_lock[
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
-                    await on_ticket(
+                    call_on_ticket(
                         request.issue.title,
                         request.issue.body,
                         request.issue.number,
@@ -600,7 +629,7 @@ async def webhook(raw_request: Request):
                     chat_logger = ChatLogger(
                         {"username": request_dict["pusher"]["name"]}
                     )
-                    if (
+                    if request_dict["head_commit"] and (
                         "sweep.yaml" in request_dict["head_commit"]["added"]
                         or "sweep.yaml" in request_dict["head_commit"]["modified"]
                     ):
@@ -611,9 +640,9 @@ async def webhook(raw_request: Request):
                         docs = get_documentation_dict(repo)
                         logger.info(f"Sweep.yaml docs: {docs}")
                         # Call the write_documentation function for each of the existing fields in the "docs" mapping
-                        for _, doc_url in docs.items():
+                        for doc_url, _ in docs.values():
                             logger.info(f"Writing documentation for {doc_url}")
-                            write_documentation(doc_url)
+                            await write_documentation(doc_url)
                     # this makes it faster for everyone because the queue doesn't get backed up
                     if chat_logger.is_paying_user():
                         update_index(

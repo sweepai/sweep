@@ -138,6 +138,3 @@ async def main():
         page = await browser.new_page()
         await scrape_page(page, BASE_URL_PREFIX)
         await browser.close()
-
-
-asyncio.run(main())
