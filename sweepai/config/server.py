@@ -99,6 +99,9 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 OPENAI_DO_HAVE_32K_MODEL_ACCESS = (
     os.environ.get("OPENAI_DO_HAVE_32K_MODEL_ACCESS", "true").lower() == "true"
 )
+OPENAI_USE_3_5_MODEL_ONLY = (
+    os.environ.get("OPENAI_USE_3_5_MODEL_ONLY", "false").lower() == "true"
+)
 
 # goes under Modal 'anthropic' secret name (optional, can leave env var blank)
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
