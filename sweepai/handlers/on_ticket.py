@@ -4,7 +4,6 @@ On Github ticket, get ChatGPT to deal with it
 
 # TODO: Add file validation
 
-import asyncio
 import math
 import re
 import traceback
@@ -53,11 +52,7 @@ from sweepai.config.server import (
     WHITELISTED_REPOS,
 )
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import (
-    get_github_client,
-    get_num_files_from_repo,
-    get_token,
-)
+from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.search_utils import search_snippets
 
@@ -424,7 +419,10 @@ async def on_ticket(
             issue_comment.edit(first_comment)
         return {"success": False}
 
-    num_of_files = get_num_files_from_repo(repo, installation_id)
+    cloned_repo = ClonedRepo(
+        repo_full_name, installation_id=installation_id, token=user_token
+    )
+    num_of_files = cloned_repo.get_num_files_from_repo()
     time_estimate = math.ceil(3 + 5 * num_of_files / 1000)
 
     indexing_message = (
@@ -556,19 +554,18 @@ async def on_ticket(
         "formatter": "trunk fmt {file}",
         "linter": "trunk check {file}",
     }
-    token = get_token(installation_id)
-    repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
+    token = user_token
+    repo_url = cloned_repo.clone_url
     # sandbox = Sandbox.from_token(repo, repo_url, sandbox_config)
     sandbox = None
 
     logger.info("Fetching relevant files...")
     try:
         snippets, tree = search_snippets(
-            repo,
+            # repo,
+            cloned_repo,
             f"{title}\n{summary}\n{replies_text}",
             num_files=num_of_snippets_to_query,
-            branch=None,
-            installation_id=installation_id,
         )
         assert len(snippets) > 0
     except Exception as e:
@@ -624,11 +621,10 @@ async def on_ticket(
     queries, additional_plan = await slow_mode_bot.expand_plan(human_message)
 
     snippets, tree = search_snippets(
-        repo,
+        cloned_repo,
+        # repo,
         f"{title}\n{summary}\n{replies_text}",
         num_files=num_of_snippets_to_query,
-        branch=None,
-        installation_id=installation_id,
         multi_query=queries,
     )
     snippets = post_process_snippets(snippets, max_num_of_snippets=5)
@@ -650,11 +646,12 @@ async def on_ticket(
             human_message, repo=repo
         )
         snippets, tree = search_snippets(
-            repo,
+            # repo,
+            cloned_repo,
             f"{title}\n{summary}\n{replies_text}",
             num_files=num_of_snippets_to_query,
-            branch=None,
-            installation_id=installation_id,
+            # branch=None,
+            # installation_id=installation_id,
             excluded_directories=directories_to_ignore,  # handles the tree
         )
         snippets = post_process_snippets(
@@ -1214,6 +1211,8 @@ async def on_ticket(
             item_to_react_to.create_reaction("rocket")
         except Exception as e:
             logger.error(e)
+    finally:
+        cloned_repo.delete()
 
     if delete_branch:
         try:
