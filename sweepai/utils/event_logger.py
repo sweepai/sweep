@@ -20,7 +20,6 @@ if HIGHLIGHT_API_KEY is not None:
         HIGHLIGHT_API_KEY,
         instrument_logging=False,
         service_name="Sweep Webhook",
-        pid=str(os.getpid()),
     )
 
     logger.add(
