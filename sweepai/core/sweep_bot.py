@@ -576,31 +576,31 @@ class SweepBot(CodeGenBot, GithubBot):
 
             sandbox_error = None
             try:
-                with open(f"repo/{file_change_request.filename}", "w") as f:
-                    f.write(new_file)
+                # with open(f"repo/{file_change_request.filename}", "w") as f:
+                #     f.write(new_file)
 
-                try:
-                    from sandbox.modal_sandbox import (  # pylint: disable=E0401
-                        sandbox_code_repair_modify,  # pylint: disable=E0401
-                    )
+                # try:
+                #     from sandbox.modal_sandbox import (  # pylint: disable=E0401
+                #         sandbox_code_repair_modify,  # pylint: disable=E0401
+                #     )
 
-                    self.delete_messages_from_chat(key)
+                #     self.delete_messages_from_chat(key)
 
-                    # Formats and lints the file
-                    # (writes the formatted file to repo/filename)
-                    final_file, sandbox_error = sandbox_code_repair_modify(
-                        new_file,
-                        file_change_request.filename,
-                        chunk_offset=chunk_offset,
-                        sandbox=sandbox,
-                        chat_logger=self.chat_logger,
-                        sweep_context=self.sweep_context,
-                    )
-                    return final_file, commit_message, sandbox_error
-                except Exception as e:
-                    logger.error(f"Sandbox error: {e}")
-                    logger.error(traceback.format_exc())
-                    self.delete_messages_from_chat(key)
+                #     # Formats and lints the file
+                #     # (writes the formatted file to repo/filename)
+                #     final_file, sandbox_error = sandbox_code_repair_modify(
+                #         new_file,
+                #         file_change_request.filename,
+                #         chunk_offset=chunk_offset,
+                #         sandbox=sandbox,
+                #         chat_logger=self.chat_logger,
+                #         sweep_context=self.sweep_context,
+                #     )
+                #     return final_file, commit_message, sandbox_error
+                # except Exception as e:
+                #     logger.error(f"Sandbox error: {e}")
+                #     logger.error(traceback.format_exc())
+                #     self.delete_messages_from_chat(key)
                 return new_file, commit_message, sandbox_error
             except Exception as e:
                 logger.error(f"Error: {e}")

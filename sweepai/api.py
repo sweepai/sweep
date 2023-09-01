@@ -1,6 +1,4 @@
 import multiprocessing
-import time
-from datetime import datetime
 import asyncio
 
 from fastapi import FastAPI, HTTPException, Request
@@ -9,7 +7,7 @@ from loguru import logger
 from pydantic import ValidationError
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
-from sweepai.core.vector_db import update_index
+from sweepai.core.vector_db import get_deeplake_vs_from_repo
 
 from sweepai.events import (
     CheckRunCompleted,
@@ -37,7 +35,7 @@ from sweepai.config.server import (
     BOT_TOKEN_NAME,
 )
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.search_utils import index_full_repository
 
 
@@ -643,8 +641,12 @@ async def webhook(raw_request: Request):
                             await write_documentation(doc_url)
                     # this makes it faster for everyone because the queue doesn't get backed up
                     if chat_logger.is_paying_user():
-                        update_index(
+                        cloned_repo = ClonedRepo(
                             request_dict["repository"]["full_name"],
+                            installation_id=request_dict["installation"]["id"],
+                        )
+                        get_deeplake_vs_from_repo(
+                            cloned_repo,
                             installation_id=request_dict["installation"]["id"],
                         )
                     update_sweep_prs(
