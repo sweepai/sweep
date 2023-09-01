@@ -418,10 +418,15 @@ class SweepContext(BaseModel):  # type: ignore
         if SweepContext._static_instance is None:
             SweepContext._static_instance = sweep_context
             set_highlight_id(sweep_context.issue_url)
+            logger.bind(**kwargs)
         return sweep_context
 
     @staticmethod
     def log_error(exception, traceback):
+        pass
+
+    @staticmethod
+    def log(message):
         pass
 
     def __str__(self):
