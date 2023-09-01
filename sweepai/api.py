@@ -212,6 +212,7 @@ async def webhook(raw_request: Request):
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
         action = request_dict.get("action", None)
+        logger.bind(event=event, action=action)
         logger.info(f"Received event: {event}, {action}")
         match event, action:
             case "issues", "opened":

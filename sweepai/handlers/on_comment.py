@@ -160,6 +160,7 @@ async def on_comment(
         "comment": comment,
         "issue_number": issue_number if issue_number_match else "",
     }
+    logger.bind(**metadata)
 
     capture_posthog_event(username, "started", properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
