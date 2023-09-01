@@ -410,13 +410,13 @@ class SweepContext(BaseModel):  # type: ignore
     repo: Repository
     token: str
 
-    static_instance: Any = None
+    _static_instance: Any = None
 
     @classmethod
     def create(cls, **kwargs):
         sweep_context = cls(**kwargs)
-        if SweepContext.static_instance is None:
-            SweepContext.static_instance = sweep_context
+        if SweepContext._static_instance is None:
+            SweepContext._static_instance = sweep_context
             set_highlight_id(sweep_context.issue_url)
         return sweep_context
 
