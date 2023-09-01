@@ -399,7 +399,7 @@ class MockPR(BaseModel):
         pass
 
 
-class SweepContext(BaseModel):
+class SweepContext(BaseModel):  # type: ignore
     class Config:
         arbitrary_types_allowed = True
 
@@ -410,7 +410,7 @@ class SweepContext(BaseModel):
     repo: Repository
     token: str
 
-    static_instance = None
+    static_instance: Any = None
 
     @classmethod
     def create(cls, **kwargs):
