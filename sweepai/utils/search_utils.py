@@ -7,11 +7,7 @@ from github.Repository import Repository
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
-from sweepai.core.vector_db import (
-    get_deeplake_vs_from_repo,
-    get_relevant_snippets,
-    update_index,
-)
+from sweepai.core.vector_db import get_deeplake_vs_from_repo, get_relevant_snippets
 from sweepai.core.entities import Snippet
 from sweepai.utils.github_utils import (
     ClonedRepo,

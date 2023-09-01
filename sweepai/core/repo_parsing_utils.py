@@ -37,7 +37,6 @@ def read_file(file_name):
 
 
 def repo_to_chunks(directory, sweep_config):
-    print(f"{directory}/**")
     file_list = glob.iglob(f"{directory}/**", recursive=True)
     file_list = [
         file_name for file_name in file_list if filter_file(file_name, sweep_config)

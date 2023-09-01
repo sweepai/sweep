@@ -5,7 +5,6 @@ from sweepai.core.entities import Snippet
 
 
 def compute_score(relative_file_path, git_repo):
-    print(relative_file_path)
     commits = list(git_repo.iter_commits(paths=relative_file_path))
     score_factor = get_factors(commits)
     return score_factor
