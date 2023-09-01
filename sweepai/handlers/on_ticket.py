@@ -396,8 +396,11 @@ async def on_ticket(
         )
 
     # Find Sweep's previous comment
+    print("USERNAME", GITHUB_BOT_USERNAME)
     for comment in comments:
+        print("COMMENT", comment.user.login)
         if comment.user.login == GITHUB_BOT_USERNAME:
+            print("Found comment")
             issue_comment = comment
             break
 
@@ -496,7 +499,7 @@ async def on_ticket(
             f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{suffix}"
         )
 
-    if len(title + summary) < 20:
+    if False and len(title + summary) < 20:
         logger.info("Issue too short")
         edit_sweep_comment(
             (
@@ -505,6 +508,7 @@ async def on_ticket(
             ),
             -1,
         )
+        return {"success": True}
 
     if (
         repo_name.lower() not in WHITELISTED_REPOS
@@ -602,7 +606,6 @@ async def on_ticket(
             message_summary += "\n\n" + docs_results
     except Exception as e:
         logger.error(f"Failed to extract docs: {e}")
-
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,

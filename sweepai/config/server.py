@@ -45,7 +45,7 @@ DISCORD_MEDIUM_PRIORITY_URL = os.environ.get("DISCORD_MEDIUM_PRIORITY_URL")
 DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
 
 # goes under Modal 'github' secret name
-GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID")
+GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID", os.environ.get("APP_ID"))
 # deprecated: old logic transfer so upstream can use this
 if GITHUB_APP_ID is None:
     if ENV == "main":
@@ -65,6 +65,8 @@ if not GITHUB_BOT_USERNAME:
         GITHUB_BOT_USERNAME = "sweep-nightly[bot]"
     elif ENV == "staging":
         GITHUB_BOT_USERNAME = "sweep-canary[bot]"
+elif not GITHUB_BOT_USERNAME.endswith("[bot]"):
+    GITHUB_BOT_USERNAME = GITHUB_BOT_USERNAME + "[bot]"
 
 GITHUB_LABEL_NAME = os.environ.get("GITHUB_LABEL_NAME", "sweep")
 GITHUB_LABEL_COLOR = os.environ.get("GITHUB_LABEL_COLOR", "9400D3")
@@ -123,3 +125,5 @@ SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")
 WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
 
 SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"

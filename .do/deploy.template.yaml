@@ -2,10 +2,10 @@ spec:
   name: sweep
   services:
   - name: webhook
-    image:
-      registry_type: DOCKER_HUB
-      registry: sweepai
-      repository: sweep
+    github:
+      branch: main
+      deploy_on_push: true
+      repo: sweepai/sweep
     envs:
     - key: GITHUB_APP_PEM
       scope: RUN_TIME

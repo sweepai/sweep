@@ -122,13 +122,13 @@ def remove_non_alphanumeric(url):
     return cleaned
 
 
-def write_documentation(doc_url):
+async def write_documentation(doc_url):
     url_allowed = is_url_allowed(doc_url, user_agent="*")
     if not url_allowed:
         logger.info(f"URL {doc_url} is not allowed")
         return False
     idx_name = remove_non_alphanumeric(doc_url)
-    url_to_documents = asyncio.run(webscrape(doc_url))
+    url_to_documents = await webscrape(doc_url)
     urls, document_chunks = [], []
     for url, document in url_to_documents.items():
         if len(document) == 0:
@@ -149,9 +149,9 @@ def write_documentation(doc_url):
     return True
 
 
-def daily_update():
-    for doc_url in DOCS_ENDPOINTS.values():
-        write_documentation(doc_url)
+async def daily_update():
+    for doc_url, _ in DOCS_ENDPOINTS.values():
+        await write_documentation(doc_url)
 
 
 def search_vector_store(doc_url, query, k=100):
