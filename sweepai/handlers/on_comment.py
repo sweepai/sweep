@@ -19,7 +19,7 @@ from sweepai.config.server import (
     OPENAI_API_KEY,
 )
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import get_github_client
+from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.search_utils import search_snippets
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
 
@@ -193,6 +193,7 @@ async def on_comment(
         branch_name = (
             pr.head.ref if pr_number else pr.pr_head  # pylint: disable=no-member
         )
+        cloned_repo = ClonedRepo(repo_full_name, installation_id, branch=branch_name)
         # This means it's a comment on a file
         if file_comment:
             pr_file = repo.get_contents(
@@ -209,11 +210,9 @@ async def on_comment(
             try:
                 logger.info("Fetching relevant files...")
                 snippets, tree = search_snippets(
-                    repo,
+                    cloned_repo,
                     f"{comment}\n{pr_title}" + (f"\n{pr_line}" if pr_line else ""),
                     num_files=30,
-                    branch=branch_name,
-                    installation_id=installation_id,
                 )
                 assert len(snippets) > 0
             except Exception as e:
