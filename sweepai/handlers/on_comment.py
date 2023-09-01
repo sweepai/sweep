@@ -8,7 +8,13 @@ from tabulate import tabulate
 from github.Repository import Repository
 
 from sweepai.config.client import get_blocked_dirs
-from sweepai.core.entities import NoFilesException, Snippet, MockPR, FileChangeRequest
+from sweepai.core.entities import (
+    NoFilesException,
+    Snippet,
+    MockPR,
+    FileChangeRequest,
+    SweepContext,
+)
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
@@ -141,6 +147,15 @@ async def on_comment(
     use_faster_model = chat_logger.use_faster_model(g)
     assignee = pr.assignee.login if pr.assignee else None
 
+    sweep_context = SweepContext.create(
+        username=username,
+        issue_url=pr.html_url,
+        use_faster_model=use_faster_model,
+        is_paying_user=is_paying_user,
+        repo=repo,
+        token=None,  # Todo(lukejagg): Make this token for sandbox on comments
+    )
+
     metadata = {
         "repo_full_name": repo_full_name,
         "repo_name": repo_name,
@@ -247,6 +262,7 @@ async def on_comment(
             repo=repo,
             chat_logger=chat_logger,
             model="gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4-32k-0613",
+            sweep_context=sweep_context,
         )
     except Exception as e:
         logger.error(traceback.format_exc())
