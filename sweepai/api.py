@@ -629,7 +629,7 @@ async def webhook(raw_request: Request):
                     chat_logger = ChatLogger(
                         {"username": request_dict["pusher"]["name"]}
                     )
-                    if (
+                    if request_dict["head_commit"] and (
                         "sweep.yaml" in request_dict["head_commit"]["added"]
                         or "sweep.yaml" in request_dict["head_commit"]["modified"]
                     ):

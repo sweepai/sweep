@@ -30,23 +30,18 @@ RUN pip install --no-cache-dir poetry \
     && poetry export -f requirements.txt --without-hashes -o requirements.txt \
     && pip install --no-cache-dir -r requirements.txt
 
-# Playwright
-# Manually add Debian-based dependencies for Chromium
-# RUN apt-get install -y software-properties-common
-# RUN apt-add-repository non-free
-# RUN apt-add-repository contrib
-# RUN apt-get update
 RUN pip install lxml
+RUN playwright install
 
 FROM base as final
 
 COPY sweepai /app/sweepai
 
 # Has some startup logic
-RUN python3 sweepai/startup.py
+RUN python sweepai/startup.py
 
 EXPOSE 8080
-CMD ["uvicorn", "sweepai.api:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "sweepai.api:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "3"]
 
 LABEL org.opencontainers.image.description="Backend for Sweep, an AI-powered junior developer"
 LABEL org.opencontainers.image.source="https://github.com/sweepai/sweep"
