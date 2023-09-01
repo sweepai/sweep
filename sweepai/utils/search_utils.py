@@ -151,7 +151,8 @@ def index_full_repository(
     installation_id: int = None,
 ):
     # update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
-    repo = get_github_client(installation_id).get_repo(repo_name)
+    _token, client = get_github_client(installation_id)
+    repo = client.get_repo(repo_name)
     num_indexed_docs = update_index(
         repo_name=repo_name,
         installation_id=installation_id,
