@@ -1,10 +1,7 @@
 import json
-import os
 import re
-import shutil
 import time
 
-from git.repo import Repo
 from github import Github
 from loguru import logger
 import numpy as np
@@ -12,7 +9,6 @@ from redis import Redis
 from redis.backoff import ConstantBackoff
 from redis.retry import Retry
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
-from tqdm import tqdm
 
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
@@ -22,7 +18,7 @@ from sweepai.utils.hash import hash_sha256
 from sweepai.utils.scorer import compute_score, get_scores
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import REDIS_URL, SENTENCE_TRANSFORMERS_MODEL
-from ..utils.github_utils import get_token
+from ..utils.github_utils import ClonedRepo, get_token
 
 
 MODEL_DIR = "cache/model"
@@ -43,37 +39,6 @@ def download_models():
     )
 
     model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
-
-
-# image = (
-#     modal.Image.debian_slim()
-#     .apt_install("git")
-#     .pip_install("deeplake==3.6.17", "sentence-transformers")
-#     .pip_install(
-#         "openai",
-#         "PyGithub",
-#         "loguru",
-#         "docarray",
-#         "GitPython",
-#         "tqdm",
-#         "anthropic",
-#         "posthog",
-#         "redis",
-#         "pyyaml",
-#         "rapidfuzz",
-#         "whoosh",
-#         "tree-sitter-languages",
-#     )
-#     .run_function(download_models)
-# )
-# secrets = [
-#     modal.Secret.from_name(BOT_TOKEN_NAME),
-#     modal.Secret.from_name("github"),
-#     modal.Secret.from_name("openai-secret"),
-#     modal.Secret.from_name("posthog"),
-#     modal.Secret.from_name("redis_url"),
-#     modal.Secret.from_dict({"TRANSFORMERS_CACHE": MODEL_DIR}),
-# ]
 
 
 def init_deeplake_vs(repo_name):
@@ -129,14 +94,14 @@ embedding_function = ModalEmbeddingFunction()
 
 
 def get_deeplake_vs_from_repo(
-    repo_name: str,
-    installation_id: int,
-    branch_name: str | None = None,
+    cloned_repo: ClonedRepo,
     sweep_config: SweepConfig = SweepConfig(),
 ):
+    installation_id = cloned_repo.installation_id
+    repo_full_name = cloned_repo.repo_full_name
     token = get_token(installation_id)
     g = Github(token)
-    repo = g.get_repo(repo_name)
+    repo = g.get_repo(repo_full_name)
     commits = repo.get_commits()
     commit_hash = commits[0].sha
 
@@ -159,35 +124,28 @@ def get_deeplake_vs_from_repo(
             logger.error(f"Failed to connect to redis cache")
     else:
         logger.warning(f"REDIS_URL is None, skipping cache")
-    logger.info(f"Downloading repository and indexing for {repo_name}...")
+    logger.info(f"Downloading repository and indexing for {repo_full_name}...")
     start = time.time()
     logger.info("Recursively getting list of files...")
 
-    repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
-    shutil.rmtree("repo", ignore_errors=True)
-
-    branch_name = SweepConfig.get_branch(repo)
-    if os.path.exists("repo"):
-        shutil.rmtree("repo", ignore_errors=True)
-    git_repo = Repo.clone_from(repo_url, "repo")
-    git_repo.git.checkout(branch_name)
-
-    snippets, file_list = repo_to_chunks(sweep_config)
-    logger.info(f"Found {len(snippets)} snippets in repository {repo_name}")
+    snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
+    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
     # prepare lexical search
     index = prepare_index_from_snippets(snippets)
     # scoring for vector search
     files_to_scores = {}
     score_factors = []
     for file_path in file_list:
-        score_factor = compute_score(file_path, git_repo)
+        score_factor = compute_score(
+            file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+        )
         score_factors.append(score_factor)
     # compute all scores
     all_scores = get_scores(score_factors)
     files_to_scores = {
         file_path: score for file_path, score in zip(file_list, all_scores)
     }
-    logger.info(f"Found {len(file_list)} files in repository {repo_name}")
+    logger.info(f"Found {len(file_list)} files in repository {repo_full_name}")
 
     documents = []
     metadatas = []
@@ -195,7 +153,7 @@ def get_deeplake_vs_from_repo(
     for snippet in snippets:
         documents.append(snippet.content)
         metadata = {
-            "file_path": snippet.file_path[len("repo/") :],
+            "file_path": snippet.file_path[len(cloned_repo.cache_dir) + 1 :],
             "start": snippet.start,
             "end": snippet.end,
             "score": files_to_scores[snippet.file_path],
@@ -204,8 +162,8 @@ def get_deeplake_vs_from_repo(
         gh_file_path = snippet.file_path[len("repo/") :]
         ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")
     logger.info(f"Getting list of all files took {time.time() - start}")
-    logger.info(f"Received {len(documents)} documents from repository {repo_name}")
-    collection_name = parse_collection_name(repo_name)
+    logger.info(f"Received {len(documents)} documents from repository {repo_full_name}")
+    collection_name = parse_collection_name(repo_full_name)
     return (
         compute_deeplake_vs(
             collection_name,
@@ -277,36 +235,35 @@ def update_index(
     repo_name,
     installation_id: int,
     sweep_config: SweepConfig = SweepConfig(),
-) -> int:
-    get_deeplake_vs_from_repo(
+):
+    return get_deeplake_vs_from_repo(
         repo_name, installation_id, branch_name=None, sweep_config=sweep_config
     )
-    return 0
 
 
 def get_relevant_snippets(
-    repo_name: str,
+    cloned_repo: ClonedRepo,
     query: str,
     n_results: int,
-    installation_id: int,
     username: str | None = None,
     sweep_config: SweepConfig = SweepConfig(),
     lexical=True,
 ):
+    repo_name = cloned_repo.repo_full_name
+    installation_id = cloned_repo.installation_id
     logger.info("Getting query embedding...")
     query_embedding = CPUEmbedding().compute(query)  # pylint: disable=no-member
     logger.info("Starting search by getting vector store...")
     deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
-        repo_name=repo_name, installation_id=installation_id, sweep_config=sweep_config
+        cloned_repo, sweep_config=sweep_config
     )
     content_to_lexical_score = search_index(query, lexical_index)
     logger.info(f"Searching for relevant snippets... with {num_docs} docs")
-    logger.info(f"Query embedding: {query_embedding}")
     results = {"metadata": [], "text": []}
     try:
         results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(e)
     logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
         logger.info(f"Results query {query} was empty")
@@ -346,14 +303,8 @@ def get_relevant_snippets(
             code_score + vector_score
             for code_score, vector_score in zip(code_scores, vector_scores)
         ]
-    # Sort by combined scores
-    # Combine the three lists into a single list of tuples
     combined_list = list(zip(combined_scores, metadatas))
-
-    # Sort the combined list based on the combined scores
     sorted_list = sorted(combined_list, key=lambda x: x[0], reverse=True)
-
-    # Extract the sorted metadatas and relevant_paths
     sorted_metadatas = [metadata for _, metadata in sorted_list]
     relevant_paths = [metadata["file_path"] for metadata in sorted_metadatas]
     logger.info("Relevant paths: {}".format(relevant_paths))

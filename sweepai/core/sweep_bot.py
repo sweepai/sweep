@@ -38,7 +38,6 @@ from sweepai.core.prompts import (
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
-from sweepai.core.vector_db import get_relevant_snippets
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import (
     format_contents,
@@ -307,21 +306,6 @@ class GithubBot(BaseModel):
                 ).decoded_content.decode("utf-8")
             except Exception as e:
                 logger.error(snippet)
-
-    def search_snippets(
-        self,
-        query: str,
-        installation_id: str,
-        num_snippets: int = 30,
-    ) -> list[Snippet]:
-        snippets: list[Snippet] = get_relevant_snippets(
-            self.repo.full_name,
-            query=query,
-            n_results=num_snippets,
-            installation_id=installation_id,
-        )
-        self.populate_snippets(snippets)
-        return snippets
 
     @staticmethod
     def is_blocked(file_path: str, blocked_dirs: list[str]):
