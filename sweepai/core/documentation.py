@@ -9,6 +9,7 @@ from sweepai.core.webscrape import webscrape
 from sweepai.pre_indexed_docs import DOCS_ENDPOINTS
 
 from sweepai.config.server import (
+    ACTIVELOOP_TOKEN,
     DOCS_MODAL_INST_NAME,
     ENV,
     ORG_ID,
@@ -21,30 +22,8 @@ BATCH_SIZE = 128
 timeout = 60 * 60  # 30 minutes
 
 
-class Embedding:
-    def __enter__(self):
-        from sentence_transformers import (  # pylint: disable=import-error
-            SentenceTransformer,
-        )
-
-        self.model = SentenceTransformer(
-            SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-        )
-
-    def compute(self, texts: list[str]):
-        logger.info(f"Computing embeddings for {len(texts)} texts")
-        vector = self.model.encode(
-            texts, show_progress_bar=True, batch_size=BATCH_SIZE
-        ).tolist()
-        try:
-            logger.info(f"{len(vector)}\n{len(vector[0])}")
-        except Exception as e:
-            pass
-        return vector
-
-
 class ModalEmbeddingFunction:
-    batch_size: int = 4096  # can pick a better constant later
+    batch_size: int = 1024  # can pick a better constant later
 
     def __init__(self):
         pass
@@ -52,29 +31,14 @@ class ModalEmbeddingFunction:
     def __call__(self, texts: list[str], cpu=False):
         if len(texts) == 0:
             return []
-        if cpu or len(texts) < 10:
-            return CPUEmbedding().compute(texts)  # pylint: disable=no-member
-        else:
-            batches = [
-                texts[i : i + ModalEmbeddingFunction.batch_size]
-                for i in range(0, len(texts), ModalEmbeddingFunction.batch_size)
-            ]
-            batches = [batch for batch in batches if len(batch) > 0]
-            logger.info([len(batch) for batch in batches])
-            results = []
-            for batch in tqdm(
-                Embedding().compute(batches)
-            ):  # pylint: disable=no-member
-                results.extend(batch)
-
-            return results
+        return CPUEmbedding().compute(texts)  # pylint: disable=no-member
 
 
 embedding_function = ModalEmbeddingFunction()
 
 
 class CPUEmbedding:
-    def __enter__(self):
+    def __init__(self):
         from sentence_transformers import (  # pylint: disable=import-error
             SentenceTransformer,
         )
@@ -85,15 +49,11 @@ class CPUEmbedding:
 
     def compute(self, texts: list[str]) -> list[list[float]]:
         logger.info(f"Computing embeddings for {len(texts)} texts")
-        vector = self.model.encode(
-            texts, show_progress_bar=True, batch_size=BATCH_SIZE
-        ).tolist()
-        try:
-            logger.info(f"{len(vector)}\n{len(vector[0])}")
-        except Exception as e:
-            logger.info(f"oops {e}")
-            pass
-        return vector
+        vector = self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE)
+        if vector.shape[0] == 1:
+            return [vector.tolist()]
+        else:
+            return vector.tolist()
 
 
 def chunk_string(s):
@@ -124,6 +84,9 @@ def remove_non_alphanumeric(url):
 
 async def write_documentation(doc_url):
     url_allowed = is_url_allowed(doc_url, user_agent="*")
+    if not ACTIVELOOP_TOKEN:
+        logger.info("No active loop token")
+        return False
     if not url_allowed:
         logger.info(f"URL {doc_url} is not allowed")
         return False
@@ -140,6 +103,7 @@ async def write_documentation(doc_url):
         path=f"hub://{ORG_ID}/{idx_name}",
         runtime={"tensor_db": True},
         overwrite=True,
+        token=ACTIVELOOP_TOKEN,
     )
     vector_store.add(
         text=document_chunks,
@@ -156,11 +120,16 @@ async def daily_update():
 
 def search_vector_store(doc_url, query, k=100):
     logger.info(f'Searching for "{query}" in {doc_url}')
+    if not ACTIVELOOP_TOKEN:
+        logger.info("No active loop token")
+        return [], []
     idx_name = remove_non_alphanumeric(doc_url)
+    print(ACTIVELOOP_TOKEN)
     vector_store = VectorStore(
         path=f"hub://{ORG_ID}/{idx_name}",
         runtime={"tensor_db": True},
         read_only=True,
+        token=ACTIVELOOP_TOKEN,
     )
     logger.info("Embedding query...")
     query_embedding = embedding_function(query, cpu=True)

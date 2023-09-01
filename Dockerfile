@@ -32,54 +32,18 @@ RUN pip install --no-cache-dir poetry \
 
 # Playwright
 # Manually add Debian-based dependencies for Chromium
-RUN apt-get install -y \
-    fonts-liberation \
-    libappindicator3-1 \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libc6 \
-    libcairo2 \
-    libcups2 \
-    libdbus-1-3 \
-    libexpat1 \
-    libfontconfig1 \
-    libgbm1 \
-    libgcc1 \
-    libglib2.0-0 \
-    libgtk-3-0 \
-    libnspr4 \
-    libnss3 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libstdc++6 \
-    libx11-6 \
-    libx11-xcb1 \
-    libxcb1 \
-    libxcomposite1 \
-    libxcursor1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxi6 \
-    libxrandr2 \
-    libxrender1 \
-    libxss1 \
-    libxtst6 \
-    lsb-release \
-    xdg-utils \
-    wget
-RUN apt-get install -y software-properties-common
-RUN apt-add-repository non-free
-RUN apt-add-repository contrib
-RUN apt-get update
-RUN pip install playwright==1.30.0
-RUN playwright install
+# RUN apt-get install -y software-properties-common
+# RUN apt-add-repository non-free
+# RUN apt-add-repository contrib
+# RUN apt-get update
 RUN pip install lxml
 
 FROM base as final
 
 COPY sweepai /app/sweepai
+
+# Has some startup logic
+RUN python3 sweepai/startup.py
 
 EXPOSE 8080
 CMD ["uvicorn", "sweepai.api:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "3"]

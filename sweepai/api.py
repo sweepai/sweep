@@ -40,14 +40,6 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
 from sweepai.utils.search_utils import index_full_repository
 
-from sweepai.core.vector_db import download_models
-
-# Startup code
-download_models()
-# run playwright install
-import subprocess
-
-subprocess.run(["playwright", "install-deps", "chromium"])
 
 # stub = modal.Stub(API_MODAL_INST_NAME)
 # stub.pr_queues = modal.Dict.new()  # maps (repo_full_name, pull_request_ids) -> queues
@@ -651,7 +643,6 @@ async def webhook(raw_request: Request):
                         for doc_url, _ in docs.values():
                             logger.info(f"Writing documentation for {doc_url}")
                             await write_documentation(doc_url)
-                        raise Exception("Sweep.yaml changed")
                     # this makes it faster for everyone because the queue doesn't get backed up
                     if chat_logger.is_paying_user():
                         update_index(
