@@ -625,11 +625,13 @@ async def webhook(raw_request: Request):
                 chat_logger = ChatLogger({"username": merged_by})
                 # this makes it faster for everyone because the queue doesn't get backed up
                 # active users also should not see a delay
-                if chat_logger.is_paying_user():
-                    update_index(
-                        request_dict["repository"]["full_name"],
-                        installation_id=request_dict["installation"]["id"],
-                    )
+
+                # Todo: fix update index for pro users
+                # if chat_logger.is_paying_user():
+                #     update_index(
+                #         request_dict["repository"]["full_name"],
+                #         installation_id=request_dict["installation"]["id"],
+                #     )
             case "push", None:
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
                     chat_logger = ChatLogger(
