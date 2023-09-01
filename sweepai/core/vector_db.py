@@ -31,7 +31,7 @@ DEEPLAKE_DIR = "cache/"
 DISKCACHE_DIR = "cache/diskcache/"
 DEEPLAKE_FOLDER = "cache/deeplake/"
 timeout = 60 * 60  # 30 minutes
-CACHE_VERSION = "v1.0.12"
+CACHE_VERSION = "v1.0.13"
 MAX_FILES = 500
 
 cache_inst = None
