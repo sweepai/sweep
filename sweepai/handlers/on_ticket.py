@@ -234,7 +234,7 @@ async def on_ticket(
     if fast_mode:
         use_faster_model = True
 
-    sweep_context = SweepContext(
+    sweep_context = SweepContext.create(
         username=username,
         issue_url=issue_url,
         use_faster_model=use_faster_model,
@@ -242,8 +242,6 @@ async def on_ticket(
         repo=repo,
         token=user_token,
     )
-    if SweepContext.static_instance is None:
-        SweepContext.static_instance = sweep_context
 
     if not comment_id and not edited and chat_logger:
         chat_logger.add_successful_ticket(

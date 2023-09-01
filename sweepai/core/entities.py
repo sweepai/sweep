@@ -410,6 +410,13 @@ class SweepContext(BaseModel):
 
     static_instance = None
 
+    @classmethod
+    def create(cls, **kwargs):
+        sweep_context = cls(**kwargs)
+        if SweepContext.static_instance is None:
+            SweepContext.static_instance = sweep_context
+        return sweep_context
+
     @staticmethod
     def log_error(exception, traceback):
         pass
