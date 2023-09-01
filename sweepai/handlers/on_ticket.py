@@ -242,6 +242,8 @@ async def on_ticket(
         repo=repo,
         token=user_token,
     )
+    if SweepContext.static_instance is None:
+        SweepContext.static_instance = sweep_context
 
     if not comment_id and not edited and chat_logger:
         chat_logger.add_successful_ticket(

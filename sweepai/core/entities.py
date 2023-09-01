@@ -408,6 +408,12 @@ class SweepContext(BaseModel):
     repo: Repository
     token: str
 
+    static_instance = None
+
+    @staticmethod
+    def log_error(exception, traceback):
+        pass
+
     def __str__(self):
         return f"{self.issue_url}, {self.use_faster_model}"
 

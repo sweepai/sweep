@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from loguru import logger
 from pydantic import ValidationError
 from sweepai.core.documentation import write_documentation
-from sweepai.core.entities import PRChangeRequest
+from sweepai.core.entities import PRChangeRequest, SweepContext
 from sweepai.core.vector_db import get_deeplake_vs_from_repo
 
 from sweepai.events import (
@@ -173,6 +173,13 @@ def run_ticket(*args, **kwargs):
     loop.close()
 
 
+def run_comment(*args, **kwargs):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(on_comment(*args, **kwargs))
+    loop.close()
+
+
 def call_on_ticket(*args, **kwargs):
     # Check if previous process is running
     key = (args[5], args[2])
@@ -184,12 +191,18 @@ def call_on_ticket(*args, **kwargs):
         del issues_lock[key]
 
         # issues_lock[key].cancel()
-
+    SweepContext.static_instance = None
     process = multiprocessing.Process(target=run_ticket, args=args, kwargs=kwargs)
     issues_lock[key] = process
     process.start()
 
     # issues_lock[key] = asyncio.create_task(on_ticket(*args, **kwargs))
+
+
+def call_on_comment(*args, **kwargs):
+    SweepContext.static_instance = None
+    process = multiprocessing.Process(target=run_comment, args=args, kwargs=kwargs)
+    process.start()
 
 
 @app.get("/health")
@@ -477,7 +490,7 @@ async def webhook(raw_request: Request):
                                 "pr": pr,
                             },
                         )
-                        await on_comment(**pr_change_request.params)
+                        call_on_comment(**pr_change_request.params)
                         # push_to_queue(
                         #     repo_full_name=request.repository.full_name,
                         #     pr_id=request.issue.number,
@@ -513,7 +526,7 @@ async def webhook(raw_request: Request):
                             "pr": pr,
                         },
                     )
-                    await on_comment(**pr_change_request.params)
+                    call_on_comment(**pr_change_request.params)
                     # push_to_queue(
                     #     repo_full_name=request.repository.full_name,
                     #     pr_id=request.pull_request.number,
