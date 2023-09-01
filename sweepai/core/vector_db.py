@@ -97,13 +97,33 @@ def embedding_function(texts: list[str]):
     # For LRU cache to work
     return embed_texts(tuple(texts))
 
+async def compute_query_embedding(query: str):
+    """
+    Asynchronously computes the embedding for a given query.
 
+    Parameters:
+    query (str): The query for which the embedding is to be computed.
+
+    Returns:
+    generator: A generator that yields the computed embedding.
+    """
+    yield embedding_function([query])
 
 
 def get_deeplake_vs_from_repo(
     cloned_repo: ClonedRepo,
     sweep_config: SweepConfig = SweepConfig(),
 ):
+    """
+    Downloads a repository, indexes it, and prepares it for search operations.
+
+    Parameters:
+    cloned_repo (ClonedRepo): The repository to be downloaded and indexed.
+    sweep_config (SweepConfig, optional): Configuration for the Sweep system. Defaults to SweepConfig().
+
+    Returns:
+    tuple: A tuple containing a deeplake_vs object, a lexical_index, and the number of documents in the repository.
+    """
     installation_id = cloned_repo.installation_id
     repo_full_name = cloned_repo.repo_full_name
     token = get_token(installation_id)
@@ -230,14 +250,16 @@ def get_relevant_snippets(
     repo_name = cloned_repo.full_name
     installation_id = cloned_repo.installation_id
     logger.info("Getting query embedding...")
-    query_embedding = embedding_function([query])
+    query_embedding_future = compute_query_embedding(query)
     logger.info("Starting search by getting vector store...")
     deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
         cloned_repo, sweep_config=sweep_config
     )
     content_to_lexical_score = search_index(query, lexical_index)
     logger.info(f"Searching for relevant snippets... with {num_docs} docs")
-    results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
+    results_future = asyncio.gather(query_embedding_future, deeplake_vs.search(k=num_docs))
+    try:
+        query_embedding, results = await results_future
     except Exception as e:
         logger.error(e)
         return []
