@@ -264,7 +264,13 @@ async def on_ticket(
         "model": "gpt-3.5" if use_faster_model else "gpt-4",
         "tier": "pro" if is_paying_user else "free",
         "mode": ENV,
+        "slow_mode": slow_mode,
+        "do_map": do_map,
+        "subissues_mode": subissues_mode,
+        "sandbox_mode": sandbox_mode,
+        "fast_mode": fast_mode,
     }
+    logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
 
     logger.info(f"Getting repo {repo_full_name}")

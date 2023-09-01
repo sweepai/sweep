@@ -129,3 +129,5 @@ SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
+
+HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY", None)
