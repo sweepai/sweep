@@ -12,5 +12,6 @@ services:
     environment:
       WORKERS: 1
     command: >
-      sh -c "pip install watchgod &&
-             uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --reload --reload-dir sweepai"
+      sh -c "pip install watchfiles && watchfiles 'uvicorn sweepai.api:app --host 0.0.0.0 --port 8080' sweepai"
+    stdin_open: true
+    tty: true
