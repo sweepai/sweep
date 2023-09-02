@@ -135,7 +135,7 @@ async def create_pr_changes(
                 f" #{issue_number}.\n\n---\n{PR_CHECKOUT_COMMAND}\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
             )
         else:
-            pr_description = f"{pull_request.content}\n\n{PR_CHECKOUT_COMMAND}"
+            pr_description = f"{pull_request.content}\n\nCommit hash: {result['pull_request'].head.sha}\n\n{PR_CHECKOUT_COMMAND}"
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
@@ -188,6 +188,7 @@ async def create_pr_changes(
             base=sweep_bot.repo.get_branch(
                 SweepConfig.get_branch(sweep_bot.repo)
             ).commit,
+            # Make new commit here
             head=sweep_bot.repo.get_branch(pull_request.branch_name).commit,
         ),
     }
