@@ -408,7 +408,7 @@ class SweepContext(BaseModel):  # type: ignore
     use_faster_model: bool
     is_paying_user: bool
     repo: Repository
-    token: str
+    tokne: Any = None
 
     _static_instance: Any = None
 
