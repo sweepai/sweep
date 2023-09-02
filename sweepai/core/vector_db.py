@@ -1,3 +1,4 @@
+import asyncio
 from functools import lru_cache
 import json
 import re
@@ -97,10 +98,22 @@ def embedding_function(texts: list[str]):
     return embed_texts(tuple(texts))
 
 
+
+
 def get_deeplake_vs_from_repo(
     cloned_repo: ClonedRepo,
     sweep_config: SweepConfig = SweepConfig(),
 ):
+    """
+    Downloads a repository, indexes it, and prepares it for search operations.
+
+    Parameters:
+    cloned_repo (ClonedRepo): The repository to be downloaded and indexed.
+    sweep_config (SweepConfig, optional): Configuration for the Sweep system. Defaults to SweepConfig().
+
+    Returns:
+    tuple: A tuple containing a deeplake_vs object, a lexical_index, and the number of documents in the repository.
+    """
     installation_id = cloned_repo.installation_id
     repo_full_name = cloned_repo.repo_full_name
     token = get_token(installation_id)
@@ -235,21 +248,21 @@ def get_relevant_snippets(
     sweep_config: SweepConfig = SweepConfig(),
     lexical=True,
 ):
-    repo_name = cloned_repo.repo_full_name
+    repo_name = cloned_repo.full_name
     installation_id = cloned_repo.installation_id
     logger.info("Getting query embedding...")
-    query_embedding = embedding_function(query)  # pylint: disable=no-member
+    query_embedding = embedding_function([query])
     logger.info("Starting search by getting vector store...")
     deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
         cloned_repo, sweep_config=sweep_config
     )
     content_to_lexical_score = search_index(query, lexical_index)
     logger.info(f"Searching for relevant snippets... with {num_docs} docs")
-    results = {"metadata": [], "text": []}
     try:
         results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
     except Exception as e:
         logger.error(e)
+        return []
     logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
         logger.info(f"Results query {query} was empty")
