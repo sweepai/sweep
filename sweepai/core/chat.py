@@ -678,6 +678,12 @@ class ChatGPT(BaseModel):
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )  # this is for the function tokens
 
+        if OPENAI_USE_3_5_MODEL_ONLY:
+            model = "gpt-3.5-turbo-16k-0613"
+            max_tokens = (
+                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
+            )
+        
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
 
         def generator() -> Iterator[str]:
