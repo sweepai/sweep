@@ -82,7 +82,7 @@ Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep
 
 ## Self-hosting
 
-You can self-host Sweep with the Docker image (`ghcr.io/sweepai/sweep`). The setup instructions are at [Deployment](https://docs.sweep.dev/usage/deployment).
+You can self-host Sweep with the Docker image (`https://hub.docker.com/r/sweepai/sweep`). The setup instructions are at [Deployment](https://docs.sweep.dev/deployment).
 
 ## Limitations of Sweep
 
