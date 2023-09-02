@@ -509,13 +509,13 @@ class ChatGPT(BaseModel):
             )  # this is for the function tokens
         if "gpt-4" in model:
             max_tokens = min(max_tokens, 5000)
-        logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
         # Fix for self hosting where TPM limit is super low for GPT-4
         if OPENAI_USE_3_5_MODEL_ONLY:
             model = "gpt-3.5-turbo-16k-0613"
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )
+        logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
         global retry_counter
         retry_counter = 0
 
