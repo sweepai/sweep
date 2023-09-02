@@ -95,6 +95,33 @@ You can self-host Sweep with the Docker image (`https://hub.docker.com/r/sweepai
 * **Performing actions involving a dashboard**, including fetching API tokens
     * e.g. Set up sign-in using Ethereum
 
+## Development
+
+### Starting the Webhook
+1. Install [poetry](https://python-poetry.org/docs/#installation).
+2. Clone the repo with `git clone https://github.com/sweepai/sweep`.
+3. Install the dependencies with `poetry install` This will take a few minutes, do the new step in the meantime.
+4. Create `.env` according to https://docs.sweep.dev/deployment.
+5. Hop into the environment with `poetry shell` and start the server by running `uvicorn sweepai.api:app --port 8080 --workers 3`. You can tweak the number of workers but it needs to be at least 2.
+
+### Building Docker
+
+To build the docker image, run
+
+```
+docker build -t sweepai/sweep:latest .
+```
+
+Then run `docker run --env-file .env -p 8080:8080 sweepai/sweep:latest`.
+
+If you are on an ARM-based systems like M1/M2 Mac, you need to install docker [buildx](https://github.com/docker/buildx?tab=readme-ov-file#installing) and run
+
+```
+docker buildx build --platform linux/amd64 -t sweepai/sweep:latest .
+```
+
+and execute it with `docker run --platform linux/amd64 --env-file .env -p 8080:8080 sweepai/sweep:latest`.
+
 ---
 
 ## Story
@@ -129,7 +156,17 @@ We plan on rapidly improving Sweep. To see what we're working on, check out our 
 Consider starring us if you're using Sweep so more people hear about us!
 
 ## Contributing
-Contributions are welcome and greatly appreciated! For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
+
+Contributions are welcome and greatly appreciated! To get set up, clone the repo and run
+
+```
+poetry install
+poetry shell
+```
+
+To build the docker image run
+
+For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
 * [Sweep Docs](https://docs.sweep.dev/).
 
 

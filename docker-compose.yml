@@ -1,0 +1,16 @@
+version: '3'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+    volumes:
+      - .:/app
+    ports:
+      - "8080:8080"
+    environment:
+      WORKERS: 1
+    command: >
+      sh -c "pip install watchgod &&
+             uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --reload --reload-dir sweepai"

@@ -39,8 +39,6 @@ from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.redis_client import RedisClient
 from sweepai.utils.search_utils import index_full_repository
 
-RedisClient.start_local()
-
 # stub = modal.Stub(API_MODAL_INST_NAME)
 # stub.pr_queues = modal.Dict.new()  # maps (repo_full_name, pull_request_ids) -> queues
 # stub.issue_lock = modal.Dict.new()  # maps (repo_full_name, issue_number) -> process id
