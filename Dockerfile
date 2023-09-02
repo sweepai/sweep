@@ -7,7 +7,7 @@ ENV WORKERS=3
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git build-essential autoconf automake pkg-config libjansson-dev \
+    && apt-get install -y --no-install-recommends git build-essential autoconf automake pkg-config libjansson-dev docker.io \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -27,8 +27,7 @@ COPY pyproject.toml ./
 
 RUN pip install --no-cache-dir poetry \
     && poetry export -f requirements.txt --without-hashes -o requirements.txt \
-    && pip install --no-cache-dir -r requirements.txt \
-    && pip install lxml
+    && pip install --no-cache-dir -r requirements.txt
 
 RUN playwright install
 

@@ -1,5 +1,8 @@
 from functools import lru_cache
+import hashlib
 import json
+import os
+import pickle
 import re
 import time
 import numpy as np
@@ -13,12 +16,16 @@ from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 from sentence_transformers import (  # pylint: disable=import-error
     SentenceTransformer,
 )
+from deeplake.core.vectorstore.deeplake_vectorstore import (
+    DeepLakeVectorStore,
+)  # pylint: disable=import-error
 
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
 from sweepai.core.repo_parsing_utils import repo_to_chunks
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
+from sweepai.utils.redis_client import RedisClient
 from sweepai.utils.scorer import compute_score, get_scores
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import REDIS_URL, SENTENCE_TRANSFORMERS_MODEL, BATCH_SIZE
@@ -33,23 +40,21 @@ timeout = 60 * 60  # 30 minutes
 CACHE_VERSION = "v1.0.13"
 MAX_FILES = 500
 
-cache_inst = None
+redis_client = RedisClient(REDIS_URL).client
 
-if REDIS_URL is not None:
-    try:
-        # todo: initialize once
-        retry = Retry(ConstantBackoff(backoff=1), retries=3)
-        cache_inst = Redis.from_url(
-            REDIS_URL,
-            retry=retry,
-            retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
-        )
-        logger.info(f"Successfully connected to redis cache")
-    except:
-        cache_inst = None
-        logger.error(f"Failed to connect to redis cache")
-else:
-    logger.warning(f"REDIS_URL is None, skipping cache")
+# if REDIS_URL is not None:
+#     try:
+#         # todo: initialize once
+#         retry = Retry(ConstantBackoff(backoff=1), retries=3)
+#         redis_client = RedisClient(REDIS_URL).client
+#         logger.info(f"Successfully connected to redis cache")
+#     except Exception as e:
+#         logger.error(e)
+#         raise e
+#         redis_client = None
+#         logger.error(f"Failed to connect to redis cache")
+# else:
+#     logger.warning(f"REDIS_URL is None, skipping cache")
 
 
 def download_models():
@@ -61,10 +66,6 @@ def download_models():
 
 
 def init_deeplake_vs(repo_name):
-    from deeplake.core.vectorstore.deeplake_vectorstore import (
-        DeepLakeVectorStore,
-    )  # pylint: disable=import-error
-
     deeplake_repo_path = f"mem://{DEEPLAKE_FOLDER}{repo_name}"
     deeplake_vector_store = DeepLakeVectorStore(path=deeplake_repo_path)
     return deeplake_vector_store
@@ -97,15 +98,23 @@ def embedding_function(texts: list[str]):
     return embed_texts(tuple(texts))
 
 
+def get_cache_key(cloned_repo: ClonedRepo, sweep_config: SweepConfig):
+    params = f"{cloned_repo.repo_full_name}--{cloned_repo.git_repo.head.object.hexsha}--{sweep_config}"
+    return hashlib.sha256(params.encode()).hexdigest()
+
+
 def get_deeplake_vs_from_repo(
     cloned_repo: ClonedRepo,
     sweep_config: SweepConfig = SweepConfig(),
 ):
-    installation_id = cloned_repo.installation_id
+    cache_key = get_cache_key(cloned_repo, sweep_config)
+    deeplake_file_path = os.path.join("cache/deeplake/", cache_key)
+    deeplake_vs = None
+    if os.path.exists(deeplake_file_path):
+        deeplake_vs = DeepLakeVectorStore(deeplake_file_path)
+
     repo_full_name = cloned_repo.repo_full_name
-    token = get_token(installation_id)
-    g = Github(token)
-    repo = g.get_repo(repo_full_name)
+    repo = cloned_repo.repo
     commits = repo.get_commits()
     commit_hash = commits[0].sha
 
@@ -149,31 +158,28 @@ def get_deeplake_vs_from_repo(
     logger.info(f"Getting list of all files took {time.time() - start}")
     logger.info(f"Received {len(documents)} documents from repository {repo_full_name}")
     collection_name = parse_collection_name(repo_full_name)
-    return (
-        compute_deeplake_vs(
-            collection_name,
-            documents,
-            ids,
-            metadatas,
-            commit_hash,
-        ),
-        index,
-        len(documents),
+
+    deeplake_vs = deeplake_vs or compute_deeplake_vs(
+        collection_name, documents, ids, metadatas, commit_hash, deeplake_file_path
     )
 
+    return deeplake_vs, index, len(documents)
 
-def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
-    deeplake_vs = init_deeplake_vs(collection_name)
+
+def compute_deeplake_vs(
+    collection_name, documents, ids, metadatas, sha, vector_db_path
+):
+    deeplake_vs = DeepLakeVectorStore(vector_db_path)
     if len(documents) > 0:
         logger.info("Computing embeddings...")
         # Check cache here for all documents
         embeddings = [None] * len(documents)
-        if cache_inst:
+        if redis_client:
             cache_keys = [
                 hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION
                 for doc in documents
             ]
-            cache_values = cache_inst.mget(cache_keys)
+            cache_values = redis_client.mget(cache_keys)
             for idx, value in enumerate(cache_values):
                 if value is not None:
                     arr = json.loads(value)
@@ -197,13 +203,16 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
             embeddings = np.array(embeddings, dtype=np.float32)
         except:
             print([len(embedding) for embedding in embeddings])
-            logger.error("Failed to convert embeddings to numpy array")
-            raise Exception("Failed to convert embeddings to numpy array")
+            logger.error(
+                "Failed to convert embeddings to numpy array, recomputing all of them"
+            )
+            embeddings = embedding_function(documents)
+            embeddings = np.array(embeddings, dtype=np.float32)
 
         logger.info("Adding embeddings to deeplake vector store...")
         deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
         logger.info("Added embeddings to deeplake vector store")
-        if cache_inst and len(documents_to_compute) > 0:
+        if redis_client and len(documents_to_compute) > 0:
             logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
             cache_keys = [
                 hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION
@@ -215,7 +224,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
                     for key, embedding in zip(cache_keys, computed_embeddings)
                 }
             )
-            cache_inst.mset(
+            redis_client.mset(
                 {
                     key: json.dumps(embedding.tolist())
                     for key, embedding in zip(cache_keys, computed_embeddings)
