@@ -1,7 +1,9 @@
+import json
 import traceback
 import re
 from typing import Generator, Any
 
+import requests
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
@@ -37,7 +39,7 @@ from sweepai.core.prompts import (
     modify_recreate_file_prompt_3,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
+from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL, SANDBOX_URL
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import (
     format_contents,
@@ -442,19 +444,40 @@ class SweepBot(CodeGenBot, GithubBot):
             # Format file
             try:
                 if self.sweep_context.is_paying_user:
-                    from sandbox.sandbox_local import (
-                        run_sandbox,
-                    )  # pylint: disable=import-outside-toplevel
+                    # Todo(lukejagg): Write sandbox function for this
+                    # from sandbox.sandbox_local import (
+                    #     run_sandbox,
+                    # )  # pylint: disable=import-outside-toplevel
 
-                    output = run_sandbox(
-                        self.sweep_context.username,
-                        self.sweep_context.repo.html_url,
-                        file_change_request.filename,
-                        file_change.code,
-                        token=self.sweep_context.token,
-                    )
-                    if output["success"]:
-                        file_change.code = output["updated_content"]
+                    headers = {
+                        "accept": "application/json",
+                        "Content-Type": "application/json",
+                    }
+
+                    data = {
+                        "username": self.sweep_context.username,
+                        "repo_url": self.sweep_context.repo.html_url,
+                        "file_path": file_change_request.filename,
+                        "content": file_change.code,
+                        "token": self.sweep_context.token,
+                    }
+
+                    response = requests.post(SANDBOX_URL, headers=headers, json=data)
+                    data = json.loads(response.text, strict=False)
+
+                    if data["success"]:
+                        print("AMAZING SANDBOX", data, "\n\n\n\n")
+                        file_change.code = data["updated_content"]
+
+                    # output = run_sandbox(
+                    #     self.sweep_context.username,
+                    #     self.sweep_context.repo.html_url,
+                    #     file_change_request.filename,
+                    #     file_change.code,
+                    #     token=self.sweep_context.token,
+                    # )
+                    # if output["success"]:
+                    #     file_change.code = output["updated_content"]
             except Exception as e:
                 logger.error(f"Sandbox Error: {e}")
                 logger.error(traceback.format_exc())
@@ -578,6 +601,33 @@ class SweepBot(CodeGenBot, GithubBot):
             try:
                 # with open(f"repo/{file_change_request.filename}", "w") as f:
                 #     f.write(new_file)
+
+                try:
+                    if self.sweep_context.is_paying_user:
+                        headers = {
+                            "accept": "application/json",
+                            "Content-Type": "application/json",
+                        }
+
+                        data = {
+                            "username": self.sweep_context.username,
+                            "repo_url": self.sweep_context.repo.html_url,
+                            "file_path": file_change_request.filename,
+                            "content": new_file,
+                            "token": self.sweep_context.token,
+                        }
+
+                        response = requests.post(
+                            SANDBOX_URL, headers=headers, json=data
+                        )
+                        data = json.loads(response.text, strict=False)
+
+                        if data["success"]:
+                            print("AMAZING SANDBOX", data, "\n\n\n\n")
+                            new_file = data["updated_content"]
+                except Exception as e:
+                    logger.error(f"Sandbox Error: {e}")
+                    logger.error(traceback.format_exc())
 
                 # try:
                 #     from sandbox.modal_sandbox import (  # pylint: disable=E0401

@@ -134,3 +134,5 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
 
 HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY", None)
+
+SANDBOX_URL = os.environ.get("SANDBOX_URL", None)
