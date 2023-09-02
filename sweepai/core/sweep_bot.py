@@ -397,6 +397,41 @@ class SweepBot(CodeGenBot, GithubBot):
 
         return True
 
+    def sandbox_format(self, file_path: str, content: str) -> str | None:
+        try:
+            if self.sweep_context.is_paying_user:
+                headers = {
+                    "accept": "application/json",
+                    "Content-Type": "application/json",
+                }
+
+                data = {
+                    "username": self.sweep_context.username,
+                    "repo_url": self.sweep_context.repo.html_url,
+                    "file_path": file_path,
+                    "content": content,
+                    "token": self.sweep_context.token,
+                }
+
+                response = requests.post(
+                    SANDBOX_URL,
+                    headers=headers,
+                    json=data,
+                    timeout=300,
+                )
+                data = json.loads(response.text, strict=False)
+
+                if data["success"]:
+                    print("AMAZING SANDBOX", data, "\n\n\n\n")
+                    return data["updated_content"]
+
+        except Exception as e:
+            logger.error(f"Sandbox Error: {e}")
+            logger.error(traceback.format_exc())
+
+        # Formatter did not succeed
+        return None
+
     async def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
         file_change: FileCreation | None = None
         key = f"file_change_created_{file_change_request.filename}"
@@ -442,45 +477,25 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.error(f"Error: {e}")
 
             # Format file
-            try:
-                if self.sweep_context.is_paying_user:
-                    # Todo(lukejagg): Write sandbox function for this
-                    # from sandbox.sandbox_local import (
-                    #     run_sandbox,
-                    # )  # pylint: disable=import-outside-toplevel
+            # from sandbox.sandbox_local import (
+            #     run_sandbox,
+            # )  # pylint: disable=import-outside-toplevel
 
-                    headers = {
-                        "accept": "application/json",
-                        "Content-Type": "application/json",
-                    }
+            formatted_data = self.sandbox_format(
+                file_change_request.filename, file_change.code
+            )
+            if formatted_data is not None:
+                file_change.code = formatted_data
 
-                    data = {
-                        "username": self.sweep_context.username,
-                        "repo_url": self.sweep_context.repo.html_url,
-                        "file_path": file_change_request.filename,
-                        "content": file_change.code,
-                        "token": self.sweep_context.token,
-                    }
-
-                    response = requests.post(SANDBOX_URL, headers=headers, json=data)
-                    data = json.loads(response.text, strict=False)
-
-                    if data["success"]:
-                        print("AMAZING SANDBOX", data, "\n\n\n\n")
-                        file_change.code = data["updated_content"]
-
-                    # output = run_sandbox(
-                    #     self.sweep_context.username,
-                    #     self.sweep_context.repo.html_url,
-                    #     file_change_request.filename,
-                    #     file_change.code,
-                    #     token=self.sweep_context.token,
-                    # )
-                    # if output["success"]:
-                    #     file_change.code = output["updated_content"]
-            except Exception as e:
-                logger.error(f"Sandbox Error: {e}")
-                logger.error(traceback.format_exc())
+            # output = run_sandbox(
+            #     self.sweep_context.username,
+            #     self.sweep_context.repo.html_url,
+            #     file_change_request.filename,
+            #     file_change.code,
+            #     token=self.sweep_context.token,
+            # )
+            # if output["success"]:
+            #     file_change.code = output["updated_content"]
 
             return file_change
         except Exception as e:
@@ -598,64 +613,36 @@ class SweepBot(CodeGenBot, GithubBot):
             commit_message = commit_message[: min(len(commit_message), 50)]
 
             sandbox_error = None
-            try:
-                # with open(f"repo/{file_change_request.filename}", "w") as f:
-                #     f.write(new_file)
+            # with open(f"repo/{file_change_request.filename}", "w") as f:
+            #     f.write(new_file)
+            # try:
+            #     from sandbox.modal_sandbox import (  # pylint: disable=E0401
+            #         sandbox_code_repair_modify,  # pylint: disable=E0401
+            #     )
 
-                try:
-                    if self.sweep_context.is_paying_user:
-                        headers = {
-                            "accept": "application/json",
-                            "Content-Type": "application/json",
-                        }
+            #     self.delete_messages_from_chat(key)
 
-                        data = {
-                            "username": self.sweep_context.username,
-                            "repo_url": self.sweep_context.repo.html_url,
-                            "file_path": file_change_request.filename,
-                            "content": new_file,
-                            "token": self.sweep_context.token,
-                        }
+            #     # Formats and lints the file
+            #     # (writes the formatted file to repo/filename)
+            #     final_file, sandbox_error = sandbox_code_repair_modify(
+            #         new_file,
+            #         file_change_request.filename,
+            #         chunk_offset=chunk_offset,
+            #         sandbox=sandbox,
+            #         chat_logger=self.chat_logger,
+            #         sweep_context=self.sweep_context,
+            #     )
+            #     return final_file, commit_message, sandbox_error
+            # except Exception as e:
+            #     logger.error(f"Sandbox error: {e}")
+            #     logger.error(traceback.format_exc())
+            #     self.delete_messages_from_chat(key)
 
-                        response = requests.post(
-                            SANDBOX_URL, headers=headers, json=data
-                        )
-                        data = json.loads(response.text, strict=False)
+            formatted_data = self.sandbox_format(file_change_request.filename, new_file)
+            if formatted_data is not None:
+                new_file = formatted_data
 
-                        if data["success"]:
-                            print("AMAZING SANDBOX", data, "\n\n\n\n")
-                            new_file = data["updated_content"]
-                except Exception as e:
-                    logger.error(f"Sandbox Error: {e}")
-                    logger.error(traceback.format_exc())
-
-                # try:
-                #     from sandbox.modal_sandbox import (  # pylint: disable=E0401
-                #         sandbox_code_repair_modify,  # pylint: disable=E0401
-                #     )
-
-                #     self.delete_messages_from_chat(key)
-
-                #     # Formats and lints the file
-                #     # (writes the formatted file to repo/filename)
-                #     final_file, sandbox_error = sandbox_code_repair_modify(
-                #         new_file,
-                #         file_change_request.filename,
-                #         chunk_offset=chunk_offset,
-                #         sandbox=sandbox,
-                #         chat_logger=self.chat_logger,
-                #         sweep_context=self.sweep_context,
-                #     )
-                #     return final_file, commit_message, sandbox_error
-                # except Exception as e:
-                #     logger.error(f"Sandbox error: {e}")
-                #     logger.error(traceback.format_exc())
-                #     self.delete_messages_from_chat(key)
-                return new_file, commit_message, sandbox_error
-            except Exception as e:
-                logger.error(f"Error: {e}")
-                logger.error(traceback.format_exc())
-                raise e
+            return new_file, commit_message, sandbox_error
         except Exception as e:
             tb = traceback.format_exc()
             logger.warning(f"Failed to parse." f" {e}\n{tb}")
