@@ -31,7 +31,7 @@ class ContextPruning(ChatGPT):
             self.model = (
                 "gpt-4-32k"
                 if (self.chat_logger and self.chat_logger.is_paying_user())
-                else "gpt-3.5-turbo-16k"
+                else "gpt-3.5-turbo-16k-0613"
             )
             response = await self.achat(pruning_prompt)
             context_to_prune = ContextToPrune.from_string(response)

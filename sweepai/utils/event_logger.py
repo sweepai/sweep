@@ -1,4 +1,3 @@
-import os
 from loguru import logger
 from posthog import Posthog
 import highlight_io
@@ -14,22 +13,6 @@ if POSTHOG_API_KEY is None:
     )
 else:
     posthog = Posthog(project_api_key=POSTHOG_API_KEY, host="https://app.posthog.com")
-
-H = None
-if HIGHLIGHT_API_KEY is not None:
-    H = highlight_io.H(
-        HIGHLIGHT_API_KEY,
-        instrument_logging=False,
-        service_name="Sweep Webhook",
-    )
-
-    logger.add(
-        H.logging_handler,
-        format="{message}",
-        level="INFO",
-        backtrace=True,
-        serialize=True,
-    )
 
 
 def set_highlight_id(id):

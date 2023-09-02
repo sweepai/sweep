@@ -84,7 +84,7 @@ sentence_transformer_model = SentenceTransformer(
 )
 
 
-@lru_cache(maxsize=16)
+@lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
     logger.info(f"Computing embeddings for {len(texts)} texts")
     vector = sentence_transformer_model.encode(
@@ -206,7 +206,12 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
 
-        embeddings = np.array(embeddings, dtype=np.float32)
+        try:
+            embeddings = np.array(embeddings, dtype=np.float32)
+        except:
+            print([len(embedding) for embedding in embeddings])
+            logger.error("Failed to convert embeddings to numpy array")
+            raise Exception("Failed to convert embeddings to numpy array")
 
         logger.info("Adding embeddings to deeplake vector store...")
         deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
@@ -217,6 +222,12 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
                 hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION
                 for doc in documents_to_compute
             ]
+            print(
+                {
+                    key: json.dumps(embedding.tolist())
+                    for key, embedding in zip(cache_keys, computed_embeddings)
+                }
+            )
             cache_inst.mset(
                 {
                     key: json.dumps(embedding.tolist())
