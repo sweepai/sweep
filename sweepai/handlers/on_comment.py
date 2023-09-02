@@ -143,8 +143,13 @@ async def on_comment(
         logger.warning(f"No issue number found in PR body for summary {pr.body}")
         chat_logger = None
 
-    is_paying_user = chat_logger.is_paying_user()
-    use_faster_model = chat_logger.use_faster_model(g)
+    if chat_logger:
+        is_paying_user = chat_logger.is_paying_user()
+        use_faster_model = chat_logger.use_faster_model(g)
+    else:
+        is_paying_user = True
+        use_faster_model = False
+
     assignee = pr.assignee.login if pr.assignee else None
 
     sweep_context = SweepContext.create(
