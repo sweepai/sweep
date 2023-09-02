@@ -1,3 +1,5 @@
+import os
+
 from loguru import logger
 
 from sweepai.core.chat import Function
