@@ -707,30 +707,35 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
     )[:5]
 
     # For each pull request, attempt to merge the changes from the default branch into the pull request branch
-    for pr in pulls:
-        try:
-            # make sure it's a sweep ticket
-            feature_branch = pr.head.ref
-            if not feature_branch.startswith(
-                "sweep/"
-            ) and not feature_branch.startswith("sweep_"):
-                continue
+    try:
+        for pr in pulls:
+            try:
+                # make sure it's a sweep ticket
+                feature_branch = pr.head.ref
+                if not feature_branch.startswith(
+                    "sweep/"
+                ) and not feature_branch.startswith("sweep_"):
+                    continue
 
-            repo.merge(
-                feature_branch, repo.default_branch, f"Merge main into {feature_branch}"
-            )
+                repo.merge(
+                    feature_branch,
+                    repo.default_branch,
+                    f"Merge main into {feature_branch}",
+                )
 
-            # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
-            logger.info(
-                f"Merging changes from default branch into PR #{pr.number} for branch"
-                f" {feature_branch}"
-            )
+                # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
+                logger.info(
+                    f"Merging changes from default branch into PR #{pr.number} for branch"
+                    f" {feature_branch}"
+                )
 
-            # Check if the merged PR is the config PR
-            if pr.title == "Configure Sweep" and pr.merged:
-                # Create a new PR to add "gha_enabled: True" to sweep.yaml
-                create_gha_pr(g, repo)
-        except Exception as e:
-            logger.error(
-                f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
-            )
+                # Check if the merged PR is the config PR
+                if pr.title == "Configure Sweep" and pr.merged:
+                    # Create a new PR to add "gha_enabled: True" to sweep.yaml
+                    create_gha_pr(g, repo)
+            except Exception as e:
+                logger.error(
+                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
+                )
+    except:
+        logger.warning("Failed to update sweep PRs")
