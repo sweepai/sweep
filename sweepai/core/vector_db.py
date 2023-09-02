@@ -193,8 +193,12 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
 
-        print([len(embedding) for embedding in embeddings])
-        embeddings = np.array(embeddings, dtype=np.float32)
+        try:
+            embeddings = np.array(embeddings, dtype=np.float32)
+        except:
+            print([len(embedding) for embedding in embeddings])
+            logger.error("Failed to convert embeddings to numpy array")
+            raise Exception("Failed to convert embeddings to numpy array")
 
         logger.info("Adding embeddings to deeplake vector store...")
         deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)

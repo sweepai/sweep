@@ -7,13 +7,11 @@ ENV WORKERS=3
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git build-essential autoconf automake pkg-config \
+    && apt-get install -y --no-install-recommends git build-essential autoconf automake pkg-config libjansson-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN apt update && \
-    apt-get install libjansson-dev && \
-    git clone https://github.com/universal-ctags/ctags.git && \
+RUN git clone https://github.com/universal-ctags/ctags.git && \
     cd ctags && \
     ./autogen.sh && \
     ./configure && \
@@ -29,9 +27,9 @@ RUN if [ "$(uname -m)" = "x86_64" ]; then \
 RUN pip install sentence_transformers --no-cache-dir
 RUN pip install --no-cache-dir poetry \
     && poetry export -f requirements.txt --without-hashes -o requirements.txt \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip install lxml
 
-RUN pip install lxml
 RUN playwright install
 
 FROM base as final
