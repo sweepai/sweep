@@ -103,6 +103,57 @@ def clean_logs(logs_str: str):
     return "\n".join(cleaned_lines[: min(MAX_LINES, len(cleaned_lines))])
 
 
+import timeit
+import tempfile
+from sweepai.core.sweep_bot import SweepBot
+
+def old_check_completion(file_name: str, new_content: str) -> bool:
+    # Old implementation for benchmarking
+    with open(file_name, "rb") as f:
+        if len(f.read()) > 60000:
+            return False
+    return True
+
+def test_check_completion():
+    # Create a temporary file of known size
+    with tempfile.NamedTemporaryFile(delete=False) as temp:
+        temp.write(b'a' * 50000)
+        temp_name = temp.name
+
+    bot = SweepBot()
+
+    # Test the new implementation
+    assert bot.check_completion(temp_name, "") == True
+
+    # Create a larger file
+    with open(temp_name, "wb") as temp:
+        temp.write(b'a' * 70000)
+
+    # Test the new implementation
+    assert bot.check_completion(temp_name, "") == False
+
+    os.remove(temp_name)
+
+def benchmark():
+    # Create a temporary file of known size
+    with tempfile.NamedTemporaryFile(delete=False) as temp:
+        temp.write(b'a' * 70000)
+        temp_name = temp.name
+
+    bot = SweepBot()
+
+    # Benchmark the old implementation
+    old_time = timeit.timeit(lambda: old_check_completion(temp_name, ""), number=1000)
+    print(f"Old implementation time: {old_time}")
+
+    # Benchmark the new implementation
+    new_time = timeit.timeit(lambda: bot.check_completion(temp_name, ""), number=1000)
+    print(f"New implementation time: {new_time}")
+
+    os.remove(temp_name)
+
 if __name__ == "__main__":
     run_id = 5753755655
     print(clean_logs(download_logs("sweepai/sweep", run_id)))
+    test_check_completion()
+    benchmark()
