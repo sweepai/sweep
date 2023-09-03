@@ -1,4 +1,3 @@
-import multiprocessing
 import asyncio
 
 from fastapi import FastAPI, HTTPException, Request
@@ -38,126 +37,25 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.redis_client import RedisClient
 from sweepai.utils.search_utils import index_full_repository
+from celery import Celery
+from redis import Redis
 
-# stub = modal.Stub(API_MODAL_INST_NAME)
-# stub.pr_queues = modal.Dict.new()  # maps (repo_full_name, pull_request_ids) -> queues
-# stub.issue_lock = modal.Dict.new()  # maps (repo_full_name, issue_number) -> process id
-# image = (
-#     modal.Image.debian_slim()
-#     .apt_install("git", "universal-ctags")
-#     .run_commands('export PATH="/usr/local/bin:$PATH"')
-#     .pip_install(
-#         "openai",
-#         "anthropic",
-#         "PyGithub",
-#         "loguru",
-#         "docarray",
-#         "backoff",
-#         "tiktoken",
-#         "GitPython",
-#         "posthog",
-#         "tqdm",
-#         "pyyaml",
-#         "pymongo",
-#         "tabulate",
-#         "redis",
-#         "llama_index",
-#         "bs4",
-#         # for docs search
-#         "deeplake",
-#         "robotexclusionrulesparser",
-#         "playwright",
-#         "markdownify",
-#         "geopy",
-#         "rapidfuzz",
-#         "whoosh",
-#     )
-# )
-# secrets = [
-#     modal.Secret.from_name("bot-token"),
-#     modal.Secret.from_name("github"),
-#     modal.Secret.from_name("openai-secret"),
-#     modal.Secret.from_name("anthropic"),
-#     modal.Secret.from_name("posthog"),
-#     modal.Secret.from_name("mongodb"),
-#     modal.Secret.from_name("discord"),
-#     modal.Secret.from_name("redis_url"),
-#     modal.Secret.from_name("e2b"),
-#     modal.Secret.from_name("gdrp"),
-# ]
+redis_client = Redis(host='localhost', port=6379, db=2)
 
-# FUNCTION_SETTINGS = {
-#     "image": image,
-#     "secrets": secrets,
-#     "timeout": 60 * 60,
-#     "keep_warm": 1,
-# }
-
-# handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
-# handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
-# handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr_changes)
-# update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
-# handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
-# write_documentation = modal.Function.lookup(DOCS_MODAL_INST_NAME, "write_documentation")
+celery_app = Celery(
+    "sweepai",
+    broker="redis://localhost:6379/0",
+    backend="redis://localhost:6379/1",
+)
 
 app = FastAPI()
 
-# def handle_pr_change_request(repo_full_name: str, pr_id: int):
-#     # TODO: put process ID here and check if it's still running
-#     # TODO: GHA should have lower precedence than comments
-#     try:
-#         call_id, queue = stub.pr_queues[(repo_full_name, pr_id)]
-#         logger.info(f"Current queue: {queue}")
-#         while queue:
-#             # popping
-#             call_id, queue = stub.pr_queues[(repo_full_name, pr_id)]
-#             stub.pr_queues[(repo_full_name, pr_id)] = (call_id, [])
-#             pr_change_request: PRChangeRequest
-#             for pr_change_request in queue:
-#                 if pr_change_request.type == "comment":
-#                     handle_comment.call(**pr_change_request.params)
-#                 elif pr_change_request.type == "gha":
-#                     handle_check_suite.call(**pr_change_request.params)
-#                 else:
-#                     raise Exception(
-#                         f"Unknown PR change request type: {pr_change_request.type}"
-#                     )
-#                 time.sleep(1)
-#             call_id, queue = stub.pr_queues[(repo_full_name, pr_id)]
-#             stub.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
-#     finally:
-#         if (repo_full_name, pr_id) in stub.pr_queues:
-#             del stub.pr_queues[(repo_full_name, pr_id)]
-
-
-# def function_call_is_completed(call_id: str):
-#     if call_id == "0":
-#         return True
-
-#     from modal.functions import FunctionCall
-
-#     function_call = FunctionCall.from_id(call_id)
-#     try:
-#         function_call.get(timeout=0)
-#     except TimeoutError:
-#         return False
-
-#     return True
-
-
-# def push_to_queue(repo_full_name: str, pr_id: int, pr_change_request: PRChangeRequest):
-#     logger.info(f"Pushing to queue: {repo_full_name}, {pr_id}, {pr_change_request}")
-#     key = (repo_full_name, pr_id)
-#     call_id, queue = stub.pr_queues[key] if key in stub.pr_queues else ("0", [])
-#     function_is_completed = function_call_is_completed(call_id)
-#     if pr_change_request.type == "comment" or function_is_completed:
-#         queue = [pr_change_request] + queue
-#         if function_is_completed:
-#             stub.pr_queues[key] = ("0", queue)
-#             call_id = handle_pr_change_request.spawn(
-#                 repo_full_name=repo_full_name, pr_id=pr_id
-#             ).object_id
-#         stub.pr_queues[key] = (call_id, queue)
+@celery_app.task
+def run_ticket_celery(*args, **kwargs):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(on_ticket(*args, **kwargs))
+    loop.close()
 
 issues_lock = {}
 
@@ -166,13 +64,14 @@ import tracemalloc
 tracemalloc.start()
 
 
+@celery_app.task
 def run_ticket(*args, **kwargs):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(on_ticket(*args, **kwargs))
     loop.close()
 
-
+@celery_app.task
 def run_comment(*args, **kwargs):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -181,28 +80,22 @@ def run_comment(*args, **kwargs):
 
 
 def call_on_ticket(*args, **kwargs):
-    # Check if previous process is running
-    key = (args[5], args[2])
-    print(key)  # Full name, issue number
-    if key in issues_lock:
-        print("Cancelling process")
-        issues_lock[key].terminate()
-        issues_lock[key].join()
-        del issues_lock[key]
-
-        # issues_lock[key].cancel()
-    SweepContext.static_instance = None
-    process = multiprocessing.Process(target=run_ticket, args=args, kwargs=kwargs)
-    issues_lock[key] = process
-    process.start()
-
-    # issues_lock[key] = asyncio.create_task(on_ticket(*args, **kwargs))
+    key = f"{args[5]}-{args[2]}"  # Full name, issue number as key
+    
+    # Check if a previous process exists for the same key, cancel it
+    prev_task_id = redis_client.get(key)
+    if prev_task_id:
+        celery_app.control.revoke(prev_task_id, terminate=True)
+    
+    task = run_ticket.apply_async(args=args, kwargs=kwargs)
+    
+    # Save new task id in Redis
+    redis_client.set(key, task.id)
 
 
 def call_on_comment(*args, **kwargs):
     SweepContext.static_instance = None
-    process = multiprocessing.Process(target=run_comment, args=args, kwargs=kwargs)
-    process.start()
+    task = run_comment.apply_async(args=args, kwargs=kwargs)
 
 
 @app.get("/health")
