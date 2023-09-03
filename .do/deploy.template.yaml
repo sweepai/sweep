@@ -22,7 +22,7 @@ spec:
       value: "false"
     - key: WORKERS
       scope: RUN_TIME
-      value: 3
+      value: "3"
     - key: SENTENCE_TRANSFORMERS_MODEL
       scope: RUN_TIME
       value: sentence-transformers/all-MiniLM-L6-v2
