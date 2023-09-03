@@ -33,12 +33,9 @@ def filter_file(file, sweep_config):
             return False
 
     with open(file, "rb") as f:
-        if len(f.read()) > 60000:
+        if os.stat(file).st_size > 60000:
             return False
     return True
-            return f.read()
-    except:
-        return ""
 
 
 def repo_to_chunks(directory, sweep_config):
