@@ -30,10 +30,10 @@ from sweepai.core.entities import (
 from sweepai.core.prompts import (
     files_to_change_prompt,
     subissues_prompt,
-    pull_request_prompt,
-    create_file_prompt,
-    modify_file_hallucination_prompt,
-    modify_file_prompt_3,
+)
+from sandbox.modal_sandbox import SandboxError
+from sweepai.core.sandbox import Sandbox
+from sweepai.utils.chat_logger import discord_log_error
     modify_file_prompt_4,
     modify_file_system_message,
     snippet_replacement,
