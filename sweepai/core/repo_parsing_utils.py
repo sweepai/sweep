@@ -13,7 +13,7 @@ def filter_file(file, sweep_config):
             return False
     if not os.path.isfile(file):
         return False
-    with open(file, "rb") as f:
+if os.stat(file).st_size > 60000:
         is_binary = False
         for block in iter(lambda: f.read(1024), b""):
             if b"\0" in block:
@@ -23,8 +23,7 @@ def filter_file(file, sweep_config):
             return False
 
     with open(file, "rb") as f:
-        if len(f.read()) > 60000:
-            return False
+    return False
     return True
 
 
