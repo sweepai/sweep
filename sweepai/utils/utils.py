@@ -140,7 +140,7 @@ extension_to_language = {
     "c": "cpp",
     "h": "cpp",
     "hpp": "cpp",
-    "cs": "c-sharp",
+    "cs": "cpp",
     "rb": "ruby",
     "md": "markdown",
     "rst": "markdown",
