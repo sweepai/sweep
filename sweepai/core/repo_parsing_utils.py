@@ -1,3 +1,11 @@
+
+def read_file(file_name):
+    try:
+        with open(file_name, "r") as f:
+            return f.read()
+    except:
+        return ""
+
 import glob
 import os
 import itertools
