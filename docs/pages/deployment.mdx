@@ -79,78 +79,63 @@ SENTENCE_TRANSFORMERS_MODEL=sentence-transformers/all-MiniLM-L6-v2
 
 ---
 
-## 3. Deploying Sweep
+## 3. Optimizing the Local Development Workflow on Macs
 
-*Starting here it gets more involved so if you run into issues, please reach out to us on [Discord](https://discord.gg/sweep) or open a GitHub issue (ironic, we know!) at https://github.com/sweepai/sweep/issues. We are online, please ping us @kevin, @william, and @luke.*
+If you are experiencing slowness when running Sweep locally on a Mac, you can try the following suggestions to optimize the local development workflow:
 
-As Sweep is Dockerized, you can deploy this anywhere but for this guide, we will deploy it on Digital Ocean for simplicity. If you would like to run it locally, you can follow the section in the dropdown at the bottom of this guide.
+1. Use Docker Desktop for Mac: Docker Desktop provides a native Docker experience on macOS and can improve the performance of running Docker containers. Install Docker Desktop by following the instructions [here](https://www.docker.com/products/docker-desktop).
 
-First, click the following:
+2. Adjust Docker settings: In Docker Desktop, you can adjust the resource allocation for Docker containers to improve performance. Increase the CPU and memory limits for Docker to allocate more resources to the containers running Sweep. You can access these settings in the Docker Desktop preferences.
 
-<p style={{marginTop: 16, marginBottom: 32}}>
-    <a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/sweepai/sweep/tree/main">
-        <img src="https://www.deploytodo.com/do-btn-blue-ghost.svg" alt="Deploy to DO"/>
-    </a>
-</p>
+## 4. Running Sweep Locally with uvicorn
 
-<details>
-<summary><h3>1. Skip Resources Page</h3></summary>
-<img src="/deployment/digitalocean_step1.png" alt="Skip Resources Page" />
-</details>
+To run Sweep locally without Docker, follow these steps:
 
-<details>
-<summary><h3>2. Set Environment Variables</h3></summary>
-<img src="/deployment/digitalocean_step2.png" alt="Skip Resources Page" />
-<img src="/deployment/digitalocean_step3.png" alt="Skip Resources Page" />
-<img src="/deployment/digitalocean_step4.png" alt="Skip Resources Page" />
-</details>
+1. Install [poetry](https://python-poetry.org/docs/#installation) for managing Python dependencies.
 
-In the `Environment Variable Editor`, copy and paste the environment variables from above like so:
-```yaml
-# These two are from step 1. Rename PRIVATE_KEY to GITHUB_APP_PEM
-APP_ID=1234
-GITHUB_APP_PEM="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
-GITHUB_BOT_USERNAME=sweep-example-name
+2. Clone the Sweep repository by running the following command in your terminal:
+   ```
+   git clone https://github.com/sweepai/sweep
+   ```
 
-# These three are from step 2.
-OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
-SENTENCE_TRANSFORMERS_MODEL=sentence-transformers/all-MiniLM-L6-v2
-```
+3. Navigate to the cloned repository:
+   ```
+   cd sweep
+   ```
 
-Click `Save` to close the Bulk Editor, then click `Save` again to save the varaibles.
+4. Install the project dependencies using poetry:
+   ```
+   poetry install
+   ```
 
-> It is important that you click save twice, otherwise the variables will not be saved.
->
+5. Create a `.env` file in the root directory of the repository and add the following environment variables:
+   ```
+   WEBHOOK_PROXY_URL=https://smee.io/abcdefg
+   APP_ID=123456
+   PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
+   WEBHOOK_SECRET=213921898f9as8f92139128989f
+   GITHUB_CLIENT_ID=Iv1.123218f182131
+   GITHUB_CLIENT_SECRET=6g626312b212142132121321412
+   OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
+   SENTENCE_TRANSFORMERS_MODEL=sentence-transformers/all-MiniLM-L6-v2
+   ```
 
-### 3. Info
+   Replace the values with the appropriate information.
 
-Modify any information as needed, then click `Next`.
+6. Activate the virtual environment by running the following command:
+   ```
+   poetry shell
+   ```
 
-<details>
-<summary><h3>4. Review: Update Instance Resource Size</h3></summary>
-First, click `Edit Plan` in the `Billing` section.
+7. Start the server using uvicorn:
+   ```
+   uvicorn sweepai.api:app --port 8080 --workers 3
+   ```
 
-Then, set the Instance Size.
-<img src="/deployment/digitalocean_step5.png" alt="Skip Resources Page" />
-</details>
+   You can adjust the number of workers as needed, but it should be at least 2.
 
-Please select an instance with at least 2 GB RAM. The default 1 GB RAM instance will not work.
-
-### 5. Create Resources!
-
-### 6. Set Webhook URL in GitHub
-
-Once the resource is created, you should get a link like this:
-<img src="/deployment/digitalocean_step6.png" alt="Skip Resources Page" />
-
-Navigating to this link should look like this:
-<img src="/deployment/digitalocean_step7.png" alt="Skip Resources Page" />
-
-1. Copy this link to your clipboard.
-2. Go to your GitHub App and paste this link into the `General` tab `Webhook URL` field.  Ensure SSL verification remains active.
-
-<img src="/deployment/digitalocean_step9.png" alt="Skip Resources Page" />
+These instructions will allow you to run Sweep locally with uvicorn and optimize the local development workflow on Macs.
 
 ---
 
