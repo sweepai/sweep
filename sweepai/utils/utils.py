@@ -5,8 +5,11 @@ import traceback
 import requests
 from dataclasses import dataclass
 
+from loguru import logger
+import tiktoken
 
 from sweepai.core.entities import Snippet
+from sweepai.config.server import ENV, UTILS_MODAL_INST_NAME
 
 
 def non_whitespace_len(s: str) -> int:  # new len function
@@ -142,9 +145,12 @@ extension_to_language = {
     "md": "markdown",
     "rst": "markdown",
     "txt": "markdown",
-    "erb": "embedded-template",
-    "ejs": "embedded-template",
-    "html": "embedded-template",
+    # "erb": "embedded-template",
+    # "ejs": "embedded-template",
+    # "html": "embedded-template",
+    "erb": "html",
+    "ejs": "html",
+    "html": "html",
     "vue": "vue",
     "php": "php",
 }
@@ -179,41 +185,19 @@ def chunk_code(code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100)
         return []
 
 
-import modal
-from loguru import logger
-from modal import method
-
-from sweepai.config.server import ENV, UTILS_MODAL_INST_NAME
-
-stub = modal.Stub(UTILS_MODAL_INST_NAME)
-tiktoken_image = modal.Image.debian_slim().pip_install(
-    "tiktoken", "loguru", "anthropic", "pyyaml", "PyGithub"
-)
-
-TIKTOKEN_CACHE_DIR = "/root/cache/tiktoken"
-tiktoken_volume = modal.NetworkFileSystem.persisted("tiktoken-models")
+TIKTOKEN_CACHE_DIR = "cache/tiktoken"
 
 
-@stub.cls(
-    image=tiktoken_image,
-    network_file_systems={TIKTOKEN_CACHE_DIR: tiktoken_volume},
-    secret=modal.Secret.from_dict({"TIKTOKEN_CACHE_DIR": TIKTOKEN_CACHE_DIR}),
-    keep_warm=5 if ENV == "prod" else 0,
-    cpu=0.5,
-)
 class Tiktoken:
     openai_models = ["gpt-3.5-turbo", "gpt-4", "gpt-4-32k", "gpt-4-32k-0613"]
     anthropic_models = ["claude-v1", "claude-v1.3-100k", "claude-instant-v1.3-100k"]
     models = openai_models + anthropic_models
 
-    def __enter__(self):
-        import tiktoken
-
+    def __init__(self):
         self.openai_models = {
             model: tiktoken.encoding_for_model(model)
             for model in Tiktoken.openai_models
         }
 
-    @method()
     def count(self, text: str, model: str = "gpt-4"):
         return len(self.openai_models[model].encode(text, disallowed_special=()))

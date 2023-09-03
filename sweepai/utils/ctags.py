@@ -25,7 +25,9 @@ class CTags:
     def run_ctags(self, filename: str) -> list[dict]:
         cmd = self.ctags_cmd + ["--input-encoding=utf-8", filename]
         ctags_cache_key = f"ctags-{self.sha}{filename}-{VERSION}"
-        cache_hit = self.redis_instance.get(ctags_cache_key)
+        cache_hit = (
+            self.redis_instance.get(ctags_cache_key) if self.redis_instance else None
+        )
         if cache_hit:
             logger.info(f"Cache hit for {ctags_cache_key}")
             data = json.loads(cache_hit)
@@ -43,5 +45,7 @@ class CTags:
                 except json.decoder.JSONDecodeError as err:
                     pass
             # set cache
-            self.redis_instance.set(ctags_cache_key, json.dumps(data))
+            self.redis_instance.set(
+                ctags_cache_key, json.dumps(data)
+            ) if self.redis_instance else None
         return data

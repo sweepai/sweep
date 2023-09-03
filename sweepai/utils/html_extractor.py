@@ -1,7 +1,8 @@
 import re
 import requests
 from bs4 import BeautifulSoup
-from llama_index import download_loader
+
+# from llama_index import download_loader
 
 
 def parse_html(html):

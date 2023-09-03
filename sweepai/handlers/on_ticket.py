@@ -7,16 +7,14 @@ On Github ticket, get ChatGPT to deal with it
 import math
 import re
 import traceback
-import modal
 import openai
-import asyncio
 
 from github import GithubException
 from loguru import logger
 from tabulate import tabulate
 from tqdm import tqdm
 from sweepai.core.context_pruning import ContextPruning
-from sweepai.core.documentation_searcher import DocumentationSearcher
+from sweepai.core.documentation_searcher import extract_relevant_docs
 
 from sweepai.core.entities import (
     ProposedIssue,
@@ -30,7 +28,8 @@ from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.core.prompts import issue_comment_prompt
-from sweepai.core.sandbox import Sandbox
+
+# from sandbox.sandbox_utils import Sandbox
 from sweepai.handlers.create_pr import (
     create_pr_changes,
     create_config_pr,
@@ -46,23 +45,18 @@ from sweepai.config.client import (
 )
 from sweepai.config.server import (
     ENV,
-    DB_MODAL_INST_NAME,
+    MONGODB_URI,
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
     WHITELISTED_REPOS,
 )
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import (
-    get_github_client,
-    get_num_files_from_repo,
-    search_snippets,
-)
+from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.utils.search_utils import search_snippets
 
 openai.api_key = OPENAI_API_KEY
-
-update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 sep = "\n---\n"
 bot_suffix_starring = (
@@ -206,34 +200,50 @@ async def on_ticket(
     if assignee is None:
         assignee = current_issue.user.login
 
-    chat_logger = ChatLogger(
-        {
-            "repo_name": repo_name,
-            "title": title,
-            "summary": summary,
-            "issue_number": issue_number,
-            "issue_url": issue_url,
-            "username": username if username.startswith("sweep") else assignee,
-            "repo_full_name": repo_full_name,
-            "repo_description": repo_description,
-            "installation_id": installation_id,
-            "type": "ticket",
-            "mode": ENV,
-            "comment_id": comment_id,
-            "edited": edited,
-        }
+    chat_logger = (
+        ChatLogger(
+            {
+                "repo_name": repo_name,
+                "title": title,
+                "summary": summary,
+                "issue_number": issue_number,
+                "issue_url": issue_url,
+                "username": username if not username.startswith("sweep") else assignee,
+                "repo_full_name": repo_full_name,
+                "repo_description": repo_description,
+                "installation_id": installation_id,
+                "type": "ticket",
+                "mode": ENV,
+                "comment_id": comment_id,
+                "edited": edited,
+            }
+        )
+        if MONGODB_URI
+        else None
     )
 
-    is_paying_user = chat_logger.is_paying_user()
-    is_trial_user = chat_logger.is_trial_user()
-    use_faster_model = chat_logger.use_faster_model(g)
+    if chat_logger:
+        is_paying_user = chat_logger.is_paying_user()
+        is_trial_user = chat_logger.is_trial_user()
+        use_faster_model = chat_logger.use_faster_model(g)
+    else:
+        is_paying_user = True
+        is_trial_user = False
+        use_faster_model = False
 
     if fast_mode:
         use_faster_model = True
 
-    sweep_context = SweepContext(issue_url=issue_url, use_faster_model=use_faster_model)
+    sweep_context = SweepContext.create(
+        username=username,
+        issue_url=issue_url,
+        use_faster_model=use_faster_model,
+        is_paying_user=is_paying_user,
+        repo=repo,
+        token=user_token,
+    )
 
-    if not comment_id and not edited:
+    if not comment_id and not edited and chat_logger:
         chat_logger.add_successful_ticket(
             gpt3=use_faster_model
         )  # moving higher, will increment the issue regardless of whether it's a success or not
@@ -254,7 +264,13 @@ async def on_ticket(
         "model": "gpt-3.5" if use_faster_model else "gpt-4",
         "tier": "pro" if is_paying_user else "free",
         "mode": ENV,
+        "slow_mode": slow_mode,
+        "do_map": do_map,
+        "subissues_mode": subissues_mode,
+        "sandbox_mode": sandbox_mode,
+        "fast_mode": fast_mode,
     }
+    logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
 
     logger.info(f"Getting repo {repo_full_name}")
@@ -320,11 +336,16 @@ async def on_ticket(
         tickets_allocated = 15
     if is_paying_user:
         tickets_allocated = 500
-    ticket_count = max(tickets_allocated - chat_logger.get_ticket_count(), 0)
-    daily_ticket_count = (
-        2 - chat_logger.get_ticket_count(use_date=True) if not use_faster_model else 0
+    ticket_count = (
+        max(tickets_allocated - chat_logger.get_ticket_count(), 0)
+        if chat_logger
+        else 999
     )
-    slow_mode = slow_mode and not use_faster_model
+    daily_ticket_count = (
+        (2 - chat_logger.get_ticket_count(use_date=True) if not use_faster_model else 0)
+        if chat_logger
+        else 999
+    )
 
     model_name = "GPT-3.5" if use_faster_model else "GPT-4"
     payment_link = "https://buy.stripe.com/6oE5npbGVbhC97afZ4"
@@ -347,9 +368,8 @@ async def on_ticket(
             else ""
         )
     )
-    slow_mode_status = " using slow mode" if slow_mode else " "
     payment_message_start = (
-        f"{user_type}: I'm creating this ticket using {model_name}{slow_mode_status}. You have {gpt_tickets_left_message}{daily_message}."
+        f"{user_type}: I'm creating this ticket using {model_name}. You have {gpt_tickets_left_message}{daily_message}."
         + (
             f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})"
             if not is_paying_user
@@ -382,8 +402,11 @@ async def on_ticket(
         )
 
     # Find Sweep's previous comment
+    print("USERNAME", GITHUB_BOT_USERNAME)
     for comment in comments:
+        print("COMMENT", comment.user.login)
         if comment.user.login == GITHUB_BOT_USERNAME:
+            print("Found comment")
             issue_comment = comment
             break
 
@@ -402,7 +425,10 @@ async def on_ticket(
             issue_comment.edit(first_comment)
         return {"success": False}
 
-    num_of_files = get_num_files_from_repo(repo, installation_id)
+    cloned_repo = ClonedRepo(
+        repo_full_name, installation_id=installation_id, token=user_token
+    )
+    num_of_files = cloned_repo.get_num_files_from_repo()
     time_estimate = math.ceil(3 + 5 * num_of_files / 1000)
 
     indexing_message = (
@@ -479,7 +505,7 @@ async def on_ticket(
             f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{suffix}"
         )
 
-    if len(title + summary) < 20:
+    if False and len(title + summary) < 20:
         logger.info("Issue too short")
         edit_sweep_comment(
             (
@@ -488,6 +514,7 @@ async def on_ticket(
             ),
             -1,
         )
+        return {"success": True}
 
     if (
         repo_name.lower() not in WHITELISTED_REPOS
@@ -526,34 +553,26 @@ async def on_ticket(
         )
         discord_log_error(content, priority=priority)
 
-    def fetch_file_contents_with_retry():
-        retries = 1
-        error = None
-        for i in range(retries):
-            try:
-                logger.info(f"Fetching relevant files for the {i}th time...")
-                return search_snippets(
-                    repo,
-                    f"{title}\n{summary}\n{replies_text}",
-                    num_files=num_of_snippets_to_query,
-                    branch=None,
-                    installation_id=installation_id,
-                )
-            except Exception as e:
-                error = e
-                continue
-        posthog.capture(
-            username, "fetching_failed", properties={"error": error, **metadata}
-        )
-        raise error
-
     # Clone repo and perform local tests (linters, formatters, GHA)
     logger.info("Initializing sandbox...")
-    sandbox = Sandbox.from_token(repo)
+    sandbox_config = {
+        "install": "curl https://get.trunk.io -fsSL | bash",
+        "formatter": "trunk fmt {file}",
+        "linter": "trunk check {file}",
+    }
+    token = user_token
+    repo_url = cloned_repo.clone_url
+    # sandbox = Sandbox.from_token(repo, repo_url, sandbox_config)
+    sandbox = None
 
     logger.info("Fetching relevant files...")
     try:
-        snippets, tree = fetch_file_contents_with_retry()
+        snippets, tree = search_snippets(
+            # repo,
+            cloned_repo,
+            f"{title}\n{summary}\n{replies_text}",
+            num_files=num_of_snippets_to_query,
+        )
         assert len(snippets) > 0
     except Exception as e:
         trace = traceback.format_exc()
@@ -580,16 +599,19 @@ async def on_ticket(
         repo_description = "No description provided."
 
     message_summary = summary + replies_text
-    external_results = ExternalSearcher.extract_summaries(message_summary)
+    external_results = await ExternalSearcher.extract_summaries(message_summary)
     if external_results:
         message_summary += "\n\n" + external_results
     user_dict = get_documentation_dict(repo)
-    docs_results = DocumentationSearcher.extract_relevant_docs(
-        title + message_summary, user_dict
-    )
-    if docs_results:
-        message_summary += "\n\n" + docs_results
-
+    docs_results = ""
+    try:
+        docs_results = await extract_relevant_docs(
+            title + message_summary, user_dict, chat_logger
+        )
+        if docs_results:
+            message_summary += "\n\n" + docs_results
+    except Exception as e:
+        logger.error(f"Failed to extract docs: {e}")
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
@@ -601,40 +623,41 @@ async def on_ticket(
         tree=tree,
     )
     additional_plan = None
-    if slow_mode and not use_faster_model:
-        slow_mode_bot = SlowModeBot()
-        queries, additional_plan = slow_mode_bot.expand_plan(human_message)
+    slow_mode_bot = SlowModeBot(chat_logger=chat_logger)  # can be async'd
+    queries, additional_plan = await slow_mode_bot.expand_plan(human_message)
 
-        snippets, tree = search_snippets(
-            repo,
-            f"{title}\n{summary}\n{replies_text}",
-            num_files=num_of_snippets_to_query,
-            branch=None,
-            installation_id=installation_id,
-            multi_query=queries,
-        )
-        snippets = post_process_snippets(snippets, max_num_of_snippets=5)
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description,
-            title=title,
-            summary=message_summary + additional_plan,
-            snippets=snippets,
-            tree=tree,
-        )
+    snippets, tree = search_snippets(
+        cloned_repo,
+        # repo,
+        f"{title}\n{summary}\n{replies_text}",
+        num_files=num_of_snippets_to_query,
+        multi_query=queries,
+    )
+    snippets = post_process_snippets(snippets, max_num_of_snippets=5)
+
+    # TODO: refactor this
+    human_message = HumanMessagePrompt(
+        repo_name=repo_name,
+        issue_url=issue_url,
+        username=username,
+        repo_description=repo_description,
+        title=title,
+        summary=message_summary + additional_plan,
+        snippets=snippets,
+        tree=tree,
+    )
     try:
         context_pruning = ContextPruning(chat_logger=chat_logger)
-        snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
+        snippets_to_ignore, directories_to_ignore = await context_pruning.prune_context(
             human_message, repo=repo
         )
         snippets, tree = search_snippets(
-            repo,
+            # repo,
+            cloned_repo,
             f"{title}\n{summary}\n{replies_text}",
             num_files=num_of_snippets_to_query,
-            branch=None,
-            installation_id=installation_id,
+            # branch=None,
+            # installation_id=installation_id,
             excluded_directories=directories_to_ignore,  # handles the tree
         )
         snippets = post_process_snippets(
@@ -642,7 +665,7 @@ async def on_ticket(
         )
         logger.info(f"New snippets: {snippets}")
         logger.info(f"New tree: {tree}")
-        if slow_mode and not use_faster_model and additional_plan is not None:
+        if not use_faster_model and additional_plan is not None:
             message_summary += additional_plan
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -722,7 +745,7 @@ async def on_ticket(
         )
 
         if do_map:
-            subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
+            subissues: list[ProposedIssue] = await sweep_bot.generate_subissues()
             edit_sweep_comment(
                 f"I'm creating the following subissues:\n\n"
                 + "\n\n".join(
@@ -761,7 +784,7 @@ async def on_ticket(
         # COMMENT ON ISSUE
         # TODO: removed issue commenting here
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan = await sweep_bot.get_files_to_change()
 
         if not file_change_requests:
             if len(title + summary) < 60:
@@ -783,7 +806,7 @@ async def on_ticket(
                 )
             raise Exception("No files to modify.")
 
-        sweep_bot.summarize_snippets(plan)
+        await sweep_bot.summarize_snippets()
 
         file_change_requests = sweep_bot.validate_file_change_requests(
             file_change_requests
@@ -810,7 +833,7 @@ async def on_ticket(
         # TODO(lukejagg): Generate PR after modifications are made
         # CREATE PR METADATA
         logger.info("Generating PR...")
-        pull_request = sweep_bot.generate_pull_request()
+        pull_request = await sweep_bot.generate_pull_request()
         pull_request_content = pull_request.content.strip().replace("\n", "\n>")
         pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
         edit_sweep_comment(
@@ -856,7 +879,7 @@ async def on_ticket(
         issue.edit(body=summary + "\n\n" + checkboxes_message)
 
         delete_branch = False
-        generator = create_pr_changes(
+        generator = create_pr_changes(  # make this async later
             file_change_requests,
             pull_request,
             sweep_bot,
@@ -882,7 +905,7 @@ async def on_ticket(
         logger.info(files_progress)
         edit_sweep_comment(table_message, 4)
         response = {"error": NoFilesException()}
-        for item in generator:
+        async for item in generator:
             if isinstance(item, dict):
                 response = item
                 break
@@ -977,85 +1000,50 @@ async def on_ticket(
         except:
             pass
 
-        # Clone repo and perform local tests (linters, formatters, GHA)
-        # try:
-        #     lint_sandbox = Sandbox.from_token(repo)
-        #     if lint_sandbox is None:
-        #         raise Exception("Sandbox is disabled")
-
-        #     files = [
-        #         f.filename
-        #         for f in file_change_requests
-        #         if (f.filename.endswith(".js") or f.filename.endswith(".ts"))
-        #         and (f.change_type == "create" or f.change_type == "modify")
-        #         and f.new_content is not None
-        #     ]
-        #     lint_output = await lint_sandbox.formatter_workflow(
-        #         branch=pull_request.branch_name, files=files
-        #     )
-
-        #     # Todo(lukejagg): Is this necessary?
-        #     # # Set file content:
-        #     # for f in file_change_requests:
-        #     #     print("E2B DEBUG", f.filename, f.new_content)
-        #     #     if f.new_content is not None:
-        #     #         await lint_sandbox.session.filesystem.write(
-        #     #             f"/home/user/repo/{f.filename}", f.new_content
-        #     #         )
-        #     #         print(f"Wrote {f.filename}")
-
-        # except Exception as e:
-        #     logger.error(traceback.format_exc())
-        #     logger.error(e)
-
-        for i in range(1 if not slow_mode else 3):
-            try:
-                # Todo(lukejagg): Pass sandbox linter results to review_pr
-                # CODE REVIEW
-                changes_required, review_comment = review_pr(
-                    repo=repo,
-                    pr=pr_changes,
-                    issue_url=issue_url,
-                    username=username,
+        try:
+            # Todo(lukejagg): Pass sandbox linter results to review_pr
+            # CODE REVIEW
+            changes_required, review_comment = review_pr(
+                repo=repo,
+                pr=pr_changes,
+                issue_url=issue_url,
+                username=username,
+                repo_description=repo_description,
+                title=title,
+                summary=summary,
+                replies_text=replies_text,
+                tree=tree,
+                lint_output=lint_output,
+                chat_logger=chat_logger,
+            )
+            # Todo(lukejagg): Execute sandbox after each iteration
+            lint_output = None
+            review_message += (
+                f"Here is the {ordinal(1)} review\n> "
+                + review_comment.replace("\n", "\n> ")
+                + "\n\n"
+            )
+            edit_sweep_comment(
+                review_message + "\n\nI'm currently addressing these suggestions.",
+                5,
+            )
+            logger.info(f"Addressing review comment {review_comment}")
+            if changes_required:
+                on_comment(
+                    repo_full_name=repo_full_name,
                     repo_description=repo_description,
-                    title=title,
-                    summary=summary,
-                    replies_text=replies_text,
-                    tree=tree,
-                    lint_output=lint_output,
+                    comment=review_comment,
+                    username=username,
+                    installation_id=installation_id,
+                    pr_path=None,
+                    pr_line_position=None,
+                    pr_number=None,
+                    pr=pr_changes,
                     chat_logger=chat_logger,
                 )
-                # Todo(lukejagg): Execute sandbox after each iteration
-                lint_output = None
-                review_message += (
-                    f"Here is the {ordinal(i + 1)} review\n> "
-                    + review_comment.replace("\n", "\n> ")
-                    + "\n\n"
-                )
-                edit_sweep_comment(
-                    review_message + "\n\nI'm currently addressing these suggestions.",
-                    5,
-                )
-                logger.info(f"Addressing review comment {review_comment}")
-                if changes_required:
-                    on_comment(
-                        repo_full_name=repo_full_name,
-                        repo_description=repo_description,
-                        comment=review_comment,
-                        username=username,
-                        installation_id=installation_id,
-                        pr_path=None,
-                        pr_line_position=None,
-                        pr_number=None,
-                        pr=pr_changes,
-                        chat_logger=chat_logger,
-                    )
-                else:
-                    break
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
-                break
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            logger.error(e)
 
         edit_sweep_comment(
             review_message + "\n\nI finished incorporating these changes.", 5
@@ -1229,10 +1217,12 @@ async def on_ticket(
             item_to_react_to.create_reaction("rocket")
         except Exception as e:
             logger.error(e)
+    finally:
+        cloned_repo.delete()
 
     if delete_branch:
         try:
-            if pull_request.branch_name.startswith("sweep/"):
+            if pull_request.branch_name.startswith("sweep"):
                 repo.get_git_ref(f"heads/{pull_request.branch_name}").delete()
             else:
                 raise Exception(

@@ -1,6 +1,33 @@
 import os
+from dotenv import load_dotenv
+import base64
 
-ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
+load_dotenv(dotenv_path=".env")
+
+os.environ["GITHUB_APP_PEM"] = (
+    os.environ.get(
+        "GITHUB_APP_PEM",
+        base64.b64decode(os.environ.get("GITHUB_APP_PEM_BASE64", "")).decode("utf-8"),
+    )
+    .replace("\\n", "\n")
+    .strip('"')
+)
+
+os.environ["TRANSFORMERS_CACHE"] = os.environ.get(
+    "TRANSFORMERS_CACHE", "cache/model"
+)  # vector_db.py
+os.environ["TIKTOKEN_CACHE_DIR"] = os.environ.get(
+    "TIKTOKEN_CACHE_DIR", "cache/tiktoken"
+)  # utils.py
+
+SENTENCE_TRANSFORMERS_MODEL = os.environ.get(
+    "SENTENCE_TRANSFORMERS_MODEL",
+    "sentence-transformers/all-MiniLM-L6-v2",  # "all-mpnet-base-v2"
+)
+BATCH_SIZE = 32
+
+ENV = os.environ.get("ENV", "dev")
+# ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
 
 print(f"Using environment: {ENV}")
 # ENV = PREFIX
@@ -19,7 +46,7 @@ DISCORD_MEDIUM_PRIORITY_URL = os.environ.get("DISCORD_MEDIUM_PRIORITY_URL")
 DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
 
 # goes under Modal 'github' secret name
-GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID")
+GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID", os.environ.get("APP_ID"))
 # deprecated: old logic transfer so upstream can use this
 if GITHUB_APP_ID is None:
     if ENV == "main":
@@ -39,6 +66,8 @@ if not GITHUB_BOT_USERNAME:
         GITHUB_BOT_USERNAME = "sweep-nightly[bot]"
     elif ENV == "staging":
         GITHUB_BOT_USERNAME = "sweep-canary[bot]"
+elif not GITHUB_BOT_USERNAME.endswith("[bot]"):
+    GITHUB_BOT_USERNAME = GITHUB_BOT_USERNAME + "[bot]"
 
 GITHUB_LABEL_NAME = os.environ.get("GITHUB_LABEL_NAME", "sweep")
 GITHUB_LABEL_COLOR = os.environ.get("GITHUB_LABEL_COLOR", "9400D3")
@@ -70,6 +99,9 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 OPENAI_DO_HAVE_32K_MODEL_ACCESS = (
     os.environ.get("OPENAI_DO_HAVE_32K_MODEL_ACCESS", "true").lower() == "true"
 )
+OPENAI_USE_3_5_MODEL_ONLY = (
+    os.environ.get("OPENAI_USE_3_5_MODEL_ONLY", "false").lower() == "true"
+)
 
 # goes under Modal 'anthropic' secret name (optional, can leave env var blank)
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
@@ -83,10 +115,11 @@ REDIS_URL = os.environ.get("REDIS_URL")
 if not REDIS_URL:
     REDIS_URL = os.environ.get("redis_url")
 
-ORG_ID = os.environ.get("ORG_ID")
-
+ORG_ID = os.environ.get("ORG_ID", None)
 # goes under Modal 'posthog' secret name (optional, can leave env var blank)
-POSTHOG_API_KEY = os.environ.get("POSTHOG_API_KEY")
+POSTHOG_API_KEY = os.environ.get(
+    "POSTHOG_API_KEY", "phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n"
+)
 
 E2B_API_KEY = os.environ.get("E2B_API_KEY")
 
@@ -95,3 +128,9 @@ SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")
 WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
 
 SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
+
+HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY", None)

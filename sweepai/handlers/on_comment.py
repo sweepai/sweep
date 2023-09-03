@@ -8,20 +8,25 @@ from tabulate import tabulate
 from github.Repository import Repository
 
 from sweepai.config.client import get_blocked_dirs
-from sweepai.core.entities import NoFilesException, Snippet, MockPR, FileChangeRequest
+from sweepai.core.entities import (
+    NoFilesException,
+    Snippet,
+    MockPR,
+    FileChangeRequest,
+    SweepContext,
+)
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.server import (
     GITHUB_BOT_USERNAME,
     ENV,
+    MONGODB_URI,
     OPENAI_API_KEY,
 )
 from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import (
-    get_github_client,
-    search_snippets,
-)
+from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.search_utils import search_snippets
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
 
 openai.api_key = OPENAI_API_KEY
@@ -59,7 +64,7 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     return result_snippets[:max_num_of_snippets]
 
 
-def on_comment(
+async def on_comment(
     repo_full_name: str,
     repo_description: str,
     comment: str,
@@ -131,14 +136,30 @@ def on_comment(
                     "type": "comment",
                 }
             )
+            if MONGODB_URI
+            else None
         )
     else:
         logger.warning(f"No issue number found in PR body for summary {pr.body}")
         chat_logger = None
 
-    is_paying_user = chat_logger.is_paying_user()
-    use_faster_model = chat_logger.use_faster_model(g)
+    if chat_logger:
+        is_paying_user = chat_logger.is_paying_user()
+        use_faster_model = chat_logger.use_faster_model(g)
+    else:
+        is_paying_user = True
+        use_faster_model = False
+
     assignee = pr.assignee.login if pr.assignee else None
+
+    sweep_context = SweepContext.create(
+        username=username,
+        issue_url=pr.html_url,
+        use_faster_model=use_faster_model,
+        is_paying_user=is_paying_user,
+        repo=repo,
+        token=None,  # Todo(lukejagg): Make this token for sandbox on comments
+    )
 
     metadata = {
         "repo_full_name": repo_full_name,
@@ -159,6 +180,7 @@ def on_comment(
         "comment": comment,
         "issue_number": issue_number if issue_number_match else "",
     }
+    logger.bind(**metadata)
 
     capture_posthog_event(username, "started", properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
@@ -192,6 +214,7 @@ def on_comment(
         branch_name = (
             pr.head.ref if pr_number else pr.pr_head  # pylint: disable=no-member
         )
+        cloned_repo = ClonedRepo(repo_full_name, installation_id, branch=branch_name)
         # This means it's a comment on a file
         if file_comment:
             pr_file = repo.get_contents(
@@ -201,34 +224,17 @@ def on_comment(
             pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
             pr_file_path = pr_path.strip()
 
-        def fetch_file_contents_with_retry():
-            retries = 1
-            error = None
-            for i in range(retries):
-                try:
-                    logger.info(f"Fetching relevant files for the {i}th time...")
-                    return search_snippets(
-                        repo,
-                        f"{comment}\n{pr_title}" + (f"\n{pr_line}" if pr_line else ""),
-                        num_files=30,
-                        branch=branch_name,
-                        installation_id=installation_id,
-                    )
-                except Exception as e:
-                    error = e
-                    continue
-            capture_posthog_event(
-                username, "fetching_failed", properties={"error": error, **metadata}
-            )
-            raise error
-
         if file_comment:
             snippets = []
             tree = ""
         else:
             try:
                 logger.info("Fetching relevant files...")
-                snippets, tree = fetch_file_contents_with_retry()
+                snippets, tree = search_snippets(
+                    cloned_repo,
+                    f"{comment}\n{pr_title}" + (f"\n{pr_line}" if pr_line else ""),
+                    num_files=30,
+                )
                 assert len(snippets) > 0
             except Exception as e:
                 logger.error(traceback.format_exc())
@@ -261,6 +267,7 @@ def on_comment(
             repo=repo,
             chat_logger=chat_logger,
             model="gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4-32k-0613",
+            sweep_context=sweep_context,
         )
     except Exception as e:
         logger.error(traceback.format_exc())
@@ -391,7 +398,7 @@ def on_comment(
                     chat_logger=chat_logger,
                 )
             else:
-                file_change_requests, _ = sweep_bot.get_files_to_change(retries=3)
+                file_change_requests, _ = await sweep_bot.get_files_to_change(retries=1)
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name
                 )
@@ -427,7 +434,7 @@ def on_comment(
         changes_made = sum(
             [
                 change_made
-                for _, change_made, _ in sweep_bot.change_files_in_github_iterator(
+                async for _, change_made, _ in sweep_bot.change_files_in_github_iterator(
                     file_change_requests, branch_name, blocked_dirs
                 )
             ]

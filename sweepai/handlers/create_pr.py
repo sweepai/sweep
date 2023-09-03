@@ -1,6 +1,5 @@
 from typing import Generator
 
-import modal
 import openai
 from github.Repository import Repository
 from loguru import logger
@@ -18,6 +17,7 @@ from sweepai.config.server import (
     ENV,
     GITHUB_DEFAULT_CONFIG,
     GITHUB_LABEL_NAME,
+    MONGODB_URI,
     OPENAI_API_KEY,
     DB_MODAL_INST_NAME,
     GITHUB_BOT_USERNAME,
@@ -27,8 +27,6 @@ from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.event_logger import posthog
 
 openai.api_key = OPENAI_API_KEY
-
-update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
@@ -40,7 +38,7 @@ INSTRUCTIONS_FOR_REVIEW = """\
 * Edit the original issue to get Sweep to recreate the PR from scratch"""
 
 
-def create_pr_changes(
+async def create_pr_changes(
     file_change_requests: list[FileChangeRequest],
     pull_request: PullRequest,
     sweep_bot: SweepBot,
@@ -69,6 +67,8 @@ def create_pr_changes(
                 "issue_url": "",
             }
         )
+        if MONGODB_URI
+        else None
     )
     sweep_bot.chat_logger = chat_logger
     organization, repo_name = sweep_bot.repo.full_name.split("/")
@@ -92,7 +92,7 @@ def create_pr_changes(
 
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
 
-        for (
+        async for (
             file_change_request,
             changed_file,
             sandbox_error,
@@ -125,7 +125,7 @@ def create_pr_changes(
                 branch.delete()
                 error_msg = "No changes made. Branch deleted."
 
-            return {"success": False, "error": error_msg}
+            return
         # Include issue number in PR description
         PR_CHECKOUT_COMMAND = f"To checkout this PR branch, run the following command in your terminal:\n```zsh\ngit checkout {pull_request.branch_name}\n```"
         if issue_number:
@@ -192,7 +192,7 @@ def create_pr_changes(
         ),
     }
     yield result  # Doing this because sometiems using StopIteration doesn't work, kinda jank tho tbh
-    return result
+    return
 
 
 def safe_delete_sweep_branch(
@@ -211,7 +211,7 @@ def safe_delete_sweep_branch(
     if (
         len(pr_commit_authors) == 1
         and GITHUB_BOT_USERNAME in pr_commit_authors
-        and pr.head.ref.startswith("sweep/")
+        and pr.head.ref.startswith("sweep")
     ):
         branch = repo.get_git_ref(f"heads/{pr.head.ref}")
         # pr.edit(state='closed')

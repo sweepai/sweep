@@ -23,6 +23,16 @@
 </a>
 </p>
 
+<p align="center">
+    <a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/sweepai/sweep/tree/main">
+        <img src="https://www.deploytodo.com/do-btn-white-ghost.svg" alt="Deploy to DO">
+    </a>
+<p>
+
+*🎉 We recently changed our license to the Elastic License V2 to allow Sweep for commercial usage.*
+
+---
+
 <b>Sweep</b> is an AI junior developer that transforms bug reports & feature requests into code changes.
 
 Describe bugs, small features, and refactors like you would to a junior developer, and Sweep:
@@ -70,6 +80,10 @@ Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep
 
 * We support all languages GPT-4 supports, including Python, JS/TS, Rust, Go, Java, C# and C++.
 
+## Self-hosting
+
+You can self-host Sweep with the Docker image (`https://hub.docker.com/r/sweepai/sweep`). The setup instructions are at [Deployment](https://docs.sweep.dev/deployment).
+
 ## Limitations of Sweep
 
 * **Large-scale refactors**: >3 files or >150 lines of code changes (we're working on this!)
@@ -80,6 +94,33 @@ Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep
 
 * **Performing actions involving a dashboard**, including fetching API tokens
     * e.g. Set up sign-in using Ethereum
+
+## Development
+
+### Starting the Webhook
+1. Install [poetry](https://python-poetry.org/docs/#installation).
+2. Clone the repo with `git clone https://github.com/sweepai/sweep`.
+3. Install the dependencies with `poetry install` This will take a few minutes, do the new step in the meantime.
+4. Create `.env` according to https://docs.sweep.dev/deployment.
+5. Hop into the environment with `poetry shell` and start the server by running `uvicorn sweepai.api:app --port 8080 --workers 3`. You can tweak the number of workers but it needs to be at least 2.
+
+### Building Docker
+
+To build the docker image, run
+
+```
+docker build -t sweepai/sweep:latest .
+```
+
+Then run `docker run --env-file .env -p 8080:8080 sweepai/sweep:latest`.
+
+If you are on an ARM-based systems like M1/M2 Mac, you need to install docker [buildx](https://github.com/docker/buildx?tab=readme-ov-file#installing) and run
+
+```
+docker buildx build --platform linux/amd64 -t sweepai/sweep:latest .
+```
+
+and execute it with `docker run --platform linux/amd64 --env-file .env -p 8080:8080 sweepai/sweep:latest`.
 
 ---
 
@@ -106,9 +147,6 @@ For professionals who want more tickets and priority support/feature requests, c
 ## Roadmap
 We plan on rapidly improving Sweep. To see what we're working on, check out our [Roadmap](https://docs.sweep.dev/roadmap).
 
-## Self-hosting 
-Bare-metal self-hosting is currently not available due to tight integration with Modal infrastructure. However, if you want to deploy a private instance of Sweep for testing or development purposes, check out our [Modal Deployment](https://docs.sweep.dev/usage/deployment) page.
-
 ---
 
 ## Star History
@@ -118,7 +156,17 @@ Bare-metal self-hosting is currently not available due to tight integration with
 Consider starring us if you're using Sweep so more people hear about us!
 
 ## Contributing
-Contributions are welcome and greatly appreciated! For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
+
+Contributions are welcome and greatly appreciated! To get set up, clone the repo and run
+
+```
+poetry install
+poetry shell
+```
+
+To build the docker image run
+
+For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
 * [Sweep Docs](https://docs.sweep.dev/).
 
 

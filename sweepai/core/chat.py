@@ -1,19 +1,21 @@
 import json
 from copy import deepcopy
+import time
 from typing import Iterator, Literal, Self
 
 import anthropic
 import backoff
-import modal
 import openai
 from loguru import logger
 from pydantic import BaseModel
 
+from sweepai.utils.utils import Tiktoken
 from sweepai.core.entities import Message, Function, SweepContext
 from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import get_description
 from sweepai.config.server import (
+    OPENAI_USE_3_5_MODEL_ONLY,
     UTILS_MODAL_INST_NAME,
     ANTHROPIC_API_KEY,
     OPENAI_DO_HAVE_32K_MODEL_ACCESS,
@@ -32,6 +34,7 @@ OpenAIModel = (
     Literal["gpt-3.5-turbo"]
     | Literal["gpt-4"]
     | Literal["gpt-4-0613"]
+    | Literal["gpt-3.5-turbo-16k"]
     | Literal["gpt-3.5-turbo-16k-0613"]
     | Literal["gpt-4-32k"]
     | Literal["gpt-4-32k-0613"]
@@ -50,6 +53,7 @@ model_to_max_tokens = {
     "gpt-4-32k": 32000,
 }
 temperature = 0.0  # Lowered to 0 for mostly deterministic results for reproducibility
+count_tokens = Tiktoken().count
 
 
 def format_for_anthropic(messages: list[Message]) -> str:
@@ -81,7 +85,7 @@ class ChatGPT(BaseModel):
     model: ChatModel = (
         "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
     )
-    chat_logger: ChatLogger
+    chat_logger: ChatLogger | None
     human_message: HumanMessagePrompt | None = None
     file_change_paths = []
     sweep_context: SweepContext | None = None
@@ -230,18 +234,20 @@ class ChatGPT(BaseModel):
         functions: list[Function] = [],
         function_name: dict | None = None,
     ):
-        tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
-        tickets_count = self.chat_logger.get_ticket_count()
-        if tickets_count < tickets_allocated:
-            model = model or self.model
-            logger.warning(f"{tickets_count} tickets found in MongoDB, using {model}")
-        else:
-            model = "gpt-3.5-turbo-16k-0613"
-        print(self.chat_logger)
+        if self.chat_logger is not None:
+            tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
+            tickets_count = self.chat_logger.get_ticket_count()
+            if tickets_count < tickets_allocated:
+                model = model or self.model
+                logger.warning(
+                    f"{tickets_count} tickets found in MongoDB, using {model}"
+                )
+            else:
+                model = "gpt-3.5-turbo-16k-0613"
 
-        count_tokens = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Tiktoken.count")
+        count_tokens = Tiktoken().count
         messages_length = sum(
-            [count_tokens.call(message.content or "") for message in self.messages]
+            [count_tokens(message.content or "") for message in self.messages]
         )
         max_tokens = (
             model_to_max_tokens[model] - int(messages_length) - 400
@@ -273,6 +279,12 @@ class ChatGPT(BaseModel):
             )  # this is for the function tokens
         if "gpt-4" in model:
             max_tokens = min(max_tokens, 5000)
+        # Fix for self hosting where TPM limit is super low for GPT-4
+        if OPENAI_USE_3_5_MODEL_ONLY:
+            model = "gpt-3.5-turbo-16k-0613"
+            max_tokens = (
+                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
+            )
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
         global retry_counter
         retry_counter = 0
@@ -338,7 +350,7 @@ class ChatGPT(BaseModel):
                         )
                     if self.chat_logger:
                         try:
-                            token_count = count_tokens.call(output)
+                            token_count = count_tokens(output)
                             posthog.capture(
                                 self.chat_logger.data.get("username"),
                                 "call_openai",
@@ -405,7 +417,7 @@ class ChatGPT(BaseModel):
                         )
                     if self.chat_logger:
                         try:
-                            token_count = count_tokens.call(output)
+                            token_count = count_tokens(output)
                             posthog.capture(
                                 self.chat_logger.data.get("username"),
                                 "call_openai",
@@ -433,12 +445,143 @@ class ChatGPT(BaseModel):
             logger.info(f"Output to call openai:\n{result}")
             return result
 
+    async def achat(
+        self,
+        content: str,
+        model: ChatModel | None = None,
+        message_key: str | None = None,
+    ):
+        self.messages.append(Message(role="user", content=content, key=message_key))
+        model = model or self.model
+        response = await self.acall_openai(model=model)
+        self.messages.append(
+            Message(role="assistant", content=response, key=message_key)
+        )
+        self.prev_message_states.append(self.messages)
+        return self.messages[-1].content
+
+    async def acall_openai(
+        self,
+        model: ChatModel | None = None,
+    ):
+        if self.chat_logger is not None:
+            tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
+            tickets_count = self.chat_logger.get_ticket_count()
+            if tickets_count < tickets_allocated:
+                model = model or self.model
+                logger.warning(
+                    f"{tickets_count} tickets found in MongoDB, using {model}"
+                )
+            else:
+                model = "gpt-3.5-turbo-16k-0613"
+
+        count_tokens = Tiktoken().count
+        messages_length = sum(
+            [count_tokens(message.content or "") for message in self.messages]
+        )
+        max_tokens = (
+            model_to_max_tokens[model] - int(messages_length) - 400
+        )  # this is for the function tokens
+        # TODO: Add a check to see if the message is too long
+        logger.info("file_change_paths" + str(self.file_change_paths))
+        if len(self.file_change_paths) > 0:
+            self.file_change_paths.remove(self.file_change_paths[0])
+        if max_tokens < 0:
+            if len(self.file_change_paths) > 0:
+                pass
+            else:
+                logger.error(f"Input to OpenAI:\n{self.messages_dicts}")
+                raise ValueError(f"Message is too long, max tokens is {max_tokens}")
+        messages_raw = "\n".join([(message.content or "") for message in self.messages])
+        logger.info(f"Input to call openai:\n{messages_raw}")
+
+        messages_dicts = [self.messages_dicts[0]]
+        for message_dict in self.messages_dicts[:1]:
+            if message_dict["role"] == messages_dicts[-1]["role"]:
+                messages_dicts[-1]["content"] += "\n" + message_dict["content"]
+            messages_dicts.append(message_dict)
+
+        gpt_4_buffer = 800
+        if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
+            model = "gpt-4-0613"
+            max_tokens = (
+                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
+            )  # this is for the function tokens
+        if "gpt-4" in model:
+            max_tokens = min(max_tokens, 5000)
+        # Fix for self hosting where TPM limit is super low for GPT-4
+        if OPENAI_USE_3_5_MODEL_ONLY:
+            model = "gpt-3.5-turbo-16k-0613"
+            max_tokens = (
+                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
+            )
+        logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
+        global retry_counter
+        retry_counter = 0
+
+        async def fetch():
+            for time_to_sleep in [10, 10, 20, 30, 60]:
+                global retry_counter
+                retry_counter += 1
+                token_sub = retry_counter * 200
+                try:
+                    output = (
+                        (
+                            await openai.ChatCompletion.acreate(
+                                model=model,
+                                messages=self.messages_dicts,
+                                max_tokens=max_tokens - token_sub,
+                                temperature=temperature,
+                            )
+                        )
+                        .choices[0]
+                        .message["content"]
+                    )
+                    if self.chat_logger is not None:
+                        self.chat_logger.add_chat(
+                            {
+                                "model": model,
+                                "messages": self.messages_dicts,
+                                "max_tokens": max_tokens - token_sub,
+                                "temperature": temperature,
+                                "output": output,
+                            }
+                        )
+                    if self.chat_logger:
+                        try:
+                            token_count = count_tokens(output)
+                            posthog.capture(
+                                self.chat_logger.data.get("username"),
+                                "call_openai",
+                                {
+                                    "model": model,
+                                    "max_tokens": max_tokens - token_sub,
+                                    "input_tokens": messages_length,
+                                    "output_tokens": token_count,
+                                    "repo_full_name": self.chat_logger.data.get(
+                                        "repo_full_name"
+                                    ),
+                                    "username": self.chat_logger.data.get("username"),
+                                    "pr_number": self.chat_logger.data.get("pr_number"),
+                                    "issue_url": self.chat_logger.data.get("issue_url"),
+                                },
+                            )
+                        except Exception as e:
+                            logger.warning(e)
+                    return output
+                except Exception as e:
+                    logger.warning(e)
+                    time.sleep(time_to_sleep + backoff.random_jitter(5))
+
+        result = await fetch()
+        logger.info(f"Output to call openai:\n{result}")
+        return result
+
     def call_anthropic(self, model: ChatModel | None = None) -> str:
         if model is None:
             model = self.model
-        count_tokens = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Tiktoken.count")
         messages_length = sum(
-            [int(count_tokens.call(message.content) * 1.1) for message in self.messages]
+            [int(count_tokens(message.content) * 1.1) for message in self.messages]
         )
         max_tokens = model_to_max_tokens[model] - int(messages_length) - 1000
         logger.info(f"Number of tokens: {max_tokens}")
@@ -508,9 +651,9 @@ class ChatGPT(BaseModel):
         function_call: dict | None = None,
     ) -> Iterator[dict]:
         model = model or self.model
-        count_tokens = modal.Function.lookup(UTILS_MODAL_INST_NAME, "Tiktoken.count")
+        count_tokens = Tiktoken().count
         messages_length = sum(
-            [count_tokens.call(message.content or "") for message in self.messages]
+            [count_tokens(message.content or "") for message in self.messages]
         )
         max_tokens = (
             model_to_max_tokens[model] - int(messages_length) - 400
@@ -535,6 +678,12 @@ class ChatGPT(BaseModel):
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )  # this is for the function tokens
 
+        if OPENAI_USE_3_5_MODEL_ONLY:
+            model = "gpt-3.5-turbo-16k-0613"
+            max_tokens = (
+                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
+            )
+        
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
 
         def generator() -> Iterator[str]:

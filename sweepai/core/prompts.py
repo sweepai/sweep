@@ -526,6 +526,31 @@ Instructions:
 2. Complete the Code Modification step, remembering to NOT write ellipses, code things out in full, and use multiple small hunks.\
 """
 
+modify_recreate_file_prompt_3 = """\
+File Name: {filename}
+<old_file>
+{code}
+</old_file>
+
+---
+
+User's request:
+{instructions}
+
+Limit your changes to the request.
+
+Format:
+```
+<new_file>
+{{new file content}}
+</new_file>
+```
+
+Instructions:
+1. Complete the Code Planning step
+2. Complete the Code Modification step, remembering to NOT write ellipses, code things out in full, and use multiple small hunks.\
+"""
+
 modify_file_system_message = """\
 Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the file to address a Github issue. When you write code, the code works on the first try and is syntactically perfect and complete. You have the utmost care for your code, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies.
 
@@ -574,6 +599,38 @@ new code
 first line after
 second line after
 >>>> UPDATED
+```\
+"""
+
+RECREATE_LINE_LENGTH = -1
+modify_recreate_file_system_message = """\
+Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the file to address a Github issue. When you write code, the code works on the first try and is syntactically perfect and complete. You have the utmost care for your code, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies.
+
+You will respond in the following format:
+
+Code Planning:
+
+Thoughts and detailed plan of modifications:
+* The request asks me to change the file from a to b
+* Replace x with y in the section involving z
+* Add a foo method to bar
+...
+
+Code Modification:
+
+Generate a new file based on your plan. Regenerate the entire file completely.
+* Always prefer the least amount of changes possible, but ensure the solution is complete
+* Prefer multiple small changes over a single large change.
+* Do not edit the same parts multiple times.
+* Add additional lines before and after to disambiguate when replacing repetitive sections
+* NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+
+The format is as follows:
+
+```
+<new_file>
+{{new file content}}
+</new_file>
 ```\
 """
 
@@ -830,6 +887,17 @@ Here are the logs:
 {gha_logs}
 
 Copy the lines from the logs corresponding to the error and wrap it in ```. Mention the command that failed.
+"""
+
+doc_query_rewriter_system_prompt = """\
+You must rewrite the user's github issue to leverage the docs. In this case we want to look at {package}. It's used for: {description}. Using the github issue, write a search query that searches for the potential answer using the documentation. This query will be sent to a documentation search engine with vector and lexical based indexing. Make this query contain keywords relevant to the {package} documentation.
+"""
+
+doc_query_rewriter_prompt = """\
+This is the issue:
+{issue}
+
+Write a comprehensive search query for the answer.
 """
 
 should_edit_code_system_prompt = """\

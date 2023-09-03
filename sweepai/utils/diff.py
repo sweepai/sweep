@@ -277,7 +277,9 @@ def radix_replace(original, search, replace) -> tuple[list[str], bool]:
     MAX_RADIX = 20
     # Two-pointer approach for string matching
     for i in range(len(original)):
-        for j in range(i + len(search), len(original) + len(search) + MAX_RADIX + 1):
+        for j in range(
+            i + len(search) - 1, len(original) + len(search) + MAX_RADIX + 1
+        ):
             # If second pointer is out of bounds, continue
             if j >= len(original):
                 continue
@@ -292,11 +294,15 @@ def radix_replace(original, search, replace) -> tuple[list[str], bool]:
             matches = []
             current_index = i
             count = 0  # Number of matches
-            while current_index <= j:
+            while current_index <= j and count < len(search):
                 if original[current_index].strip() == search[count].strip():
                     matches.append(current_index)
                     count += 1
                 current_index += 1
+
+            # If exact match, do not use this algorithm as this is for skipped lines (comments)
+            if j - i == len(search) - 1:
+                return None
 
             # If all lines matched in this snippet, then replace
             if count == len(search):
@@ -351,10 +357,13 @@ def sliding_window_replacement(
             and search_context_before is None
             and len(kwargs) == 0
         ):
-            # import pdb; pdb.set_trace()
-            radix_original = radix_replace(original, search, replace)
-            if radix_original is not None:
-                return radix_original, None, None
+            try:
+                # import pdb; pdb.set_trace()
+                radix_original = radix_replace(original, search, replace)
+                if radix_original is not None:
+                    return radix_original, None, None
+            except Exception as e:
+                print(f"Modify skipped lines error: {e}")
 
         if first_line_idx == 0 and first_line_idx_replace == 0:
             search = search[1:]
@@ -387,7 +396,20 @@ def sliding_window_replacement(
 
     # No changes could be found. Return original code.
     if max_similarity == 0:
+        # If there is only one line, then try to replace it
+        if (
+            len(search) == 1
+            and len(replace) == 1
+            and sum(o.count(search[0]) for o in original) == 1
+        ):
+            # Get index in original that has the search line
+            index = [i for i, o in enumerate(original) if search[0] in o][0]
+            # Replace that line with the replace line
+            original[index] = original[index].replace(search[0], replace[0])
+            return original, index, None
+
         if not ignore_comments:  # In case Sweep decided not to include comments
+            # Todo(lukejagg): Implement ignoring comments
             return sliding_window_replacement(
                 original,
                 search,

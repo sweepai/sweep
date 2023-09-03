@@ -2,12 +2,12 @@
 Take a PR and provide an AI generated review of the PR.
 """
 from loguru import logger
+from sweepai.config.server import MONGODB_URI
 
 from sweepai.core.entities import DiffSummarization, PullRequestComment
 from sweepai.core.prompts import review_prompt
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.github_utils import get_file_contents
 from sweepai.utils.prompt_constructor import (
     HumanMessageFinalPRComment,
     HumanMessagePromptReview,
@@ -97,6 +97,8 @@ def review_pr(
                 "type": "review",
             }
         )
+        if MONGODB_URI
+        else None
     )
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,

@@ -7,24 +7,76 @@
 # "React JS" is good, "React" is not.
 # The url should be the root of the docs, not a specific page. We will scrape all pages under this root.
 # "https://react.dev/" is good, "https://react.dev/docs/getting-started" is not.
+# Write a natural language description of what the package is and how it's used to help Sweep.
 
 DOCS_ENDPOINTS = {
-    "Modal Labs": "https://modal.com/docs/guide",
-    "Llama Index": "https://gpt-index.readthedocs.io/en/latest/",
-    "Llama Index TS": "https://ts.llamaindex.ai/",
-    "Langchain": "https://python.langchain.com/docs/",
-    "Langchain JS": "https://js.langchain.com/docs/",
-    "React JS": "https://react.dev/",
-    "Docusaurus": "https://docusaurus.io/docs",
-    "OpenAI": "https://platform.openai.com/docs/",
-    "Anthropic": "https://docs.anthropic.com/claude/docs",
-    "PyGitHub": "https://pygithub.readthedocs.io/en/stable/",
-    "Laravel": "https://laravel.com/docs",
-    "Django": "https://django.readthedocs.io/en/stable/",
-    "Django Rest Framework": "https://www.django-rest-framework.org",
-    "Celery": "https://docs.celeryq.dev/en/stable/",
-    "NumPy": "https://numpy.org/doc/stable/",
-    "Jest": "https://jestjs.io/",
-    "Nucypher TS": "https://github.com/nucypher/nucypher-ts",
-    "NuCypher": "https://github.com/nucypher/nucypher",
+    "Modal Labs": (
+        "https://modal.com/docs/guide",
+        "Modal is a platform for building and deploying serverless applications.",
+    ),
+    "Llama Index": (
+        "https://gpt-index.readthedocs.io/en/latest/",
+        "Llama Index is a framework for allowing large language models to use external context.",
+    ),
+    "Llama Index TS": (
+        "https://ts.llamaindex.ai/",
+        "Llama Index is a framework for allowing large language models to use external context.",
+    ),
+    "Langchain": (
+        "https://python.langchain.com/docs/",
+        "Langchain is a framework for building and deploying apps using large language models.",
+    ),
+    "Langchain JS": (
+        "https://js.langchain.com/docs/",
+        "Langchain is a framework for building and deploying apps using large language models.",
+    ),
+    "React JS": (
+        "https://react.dev/",
+        "React is a JavaScript library for building user interfaces.",
+    ),
+    "Docusaurus": (
+        "https://docusaurus.io/docs",
+        "Docusaurus is a modern static website generator.",
+    ),
+    "OpenAI": (
+        "https://platform.openai.com/docs/",
+        "OpenAI is a client for the OpenAI API.",
+    ),
+    "Anthropic": (
+        "https://docs.anthropic.com/claude/docs",
+        "Anthropic is a client for the Anthropic API.",
+    ),
+    "PyGitHub": (
+        "https://pygithub.readthedocs.io/en/stable/",
+        "PyGitHub is a client for the GitHub API.",
+    ),
+    "Laravel": (
+        "https://laravel.com/docs",
+        "Laravel is a PHP framework for building web apps.",
+    ),
+    "Django": (
+        "https://django.readthedocs.io/en/stable/",
+        "Django is a Python framework for building web apps.",
+    ),
+    "Django Rest Framework": (
+        "https://www.django-rest-framework.org",
+        "Django Rest Framework is a Python framework for building REST APIs.",
+    ),
+    "Celery": (
+        "https://docs.celeryq.dev/en/stable/",
+        "Celery is a Python framework for building distributed task queues.",
+    ),
+    "NumPy": (
+        "https://numpy.org/doc/stable/",
+        "NumPy is a Python library for scientific computing.",
+    ),
+    "Jest": ("https://jestjs.io/", "Jest is a JavaScript testing framework."),
+    "Nucypher TS": (
+        "https://github.com/nucypher/nucypher-ts",
+        "NuCypher is a TypeScript library for building privacy-preserving applications.",
+    ),
+    "NuCypher": (
+        "https://github.com/nucypher/nucypher",
+        "NuCypher is a Python library for building privacy-preserving applications.",
+    ),
 }

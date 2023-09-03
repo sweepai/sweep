@@ -171,3 +171,9 @@ node_modules
 tests/js_tests
 test_repos
 sandbox/
+.env*
+cache/
+indexdir
+repo
+tests/example_webhook.json
+tests/test_run_example_webhook.py

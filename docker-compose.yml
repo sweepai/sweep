@@ -1,0 +1,18 @@
+version: '3'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+    volumes:
+      - .:/app
+    ports:
+      - "8080:8080"
+    environment:
+      WORKERS: 3
+      WATCHFILES_FORCE_POLLING: true
+    command: >
+      sh -c "uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --reload-dir '/app/sweepai' --reload"
+    stdin_open: true
+    tty: true

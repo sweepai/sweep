@@ -2,10 +2,14 @@ import os
 import re
 import string
 from typing import ClassVar, Literal, Type, TypeVar, Any
+from github.Repository import Repository
+
 from github.Branch import Branch
 from loguru import logger
 from pydantic import BaseModel
 from urllib.parse import quote
+
+from sweepai.utils.event_logger import set_highlight_id
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
@@ -395,9 +399,35 @@ class MockPR(BaseModel):
         pass
 
 
-class SweepContext(BaseModel):
+class SweepContext(BaseModel):  # type: ignore
+    class Config:
+        arbitrary_types_allowed = True
+
+    username: str
     issue_url: str
     use_faster_model: bool
+    is_paying_user: bool
+    repo: Repository
+    tokne: Any = None
+
+    _static_instance: Any = None
+
+    @classmethod
+    def create(cls, **kwargs):
+        sweep_context = cls(**kwargs)
+        if SweepContext._static_instance is None:
+            SweepContext._static_instance = sweep_context
+            set_highlight_id(sweep_context.issue_url)
+            logger.bind(**kwargs)
+        return sweep_context
+
+    @staticmethod
+    def log_error(exception, traceback):
+        pass
+
+    @staticmethod
+    def log(message):
+        pass
 
     def __str__(self):
         return f"{self.issue_url}, {self.use_faster_model}"
