@@ -103,6 +103,23 @@ def clean_logs(logs_str: str):
     return "\n".join(cleaned_lines[: min(MAX_LINES, len(cleaned_lines))])
 
 
+import tempfile
+
+def test_os_stat():
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(delete=False) as temp:
+        # Write more than 60000 bytes to it
+        temp.write(b'0' * 60001)
+        temp.close()
+        
+        # Check if the os.stat() method correctly identifies its size
+        assert os.stat(temp.name).st_size == 60001
+
+        # Clean up the temporary file
+        os.remove(temp.name)
+
 if __name__ == "__main__":
     run_id = 5753755655
     print(clean_logs(download_logs("sweepai/sweep", run_id)))
+    # Run the new test
+    test_os_stat()
