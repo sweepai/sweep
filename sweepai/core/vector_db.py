@@ -208,7 +208,7 @@ def compute_deeplake_vs(
             )
             embeddings = embedding_function(documents)
             embeddings = np.array(embeddings, dtype=np.float32)
-
+        
         logger.info("Adding embeddings to deeplake vector store...")
         deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
         logger.info("Added embeddings to deeplake vector store")
@@ -247,7 +247,7 @@ def get_relevant_snippets(
     repo_name = cloned_repo.repo_full_name
     installation_id = cloned_repo.installation_id
     logger.info("Getting query embedding...")
-    query_embedding = embedding_function(query)  # pylint: disable=no-member
+    query_embedding = embedding_function([query])  # pylint: disable=no-member
     logger.info("Starting search by getting vector store...")
     deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
         cloned_repo, sweep_config=sweep_config
