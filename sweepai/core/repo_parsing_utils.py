@@ -33,7 +33,7 @@ def filter_file(file, sweep_config):
             return False
 
     with open(file, "rb") as f:
-        if os.stat(file).st_size > 60000:
+        if len(f.read()) > 60000:
             return False
     return True
             return f.read()
