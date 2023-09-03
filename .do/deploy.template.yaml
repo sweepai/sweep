@@ -6,6 +6,7 @@ spec:
       branch: main
       deploy_on_push: true
       repo: sweepai/sweep
+    dockerfile_path: Dockerfile
     envs:
     - key: GITHUB_APP_PEM
       scope: RUN_TIME
