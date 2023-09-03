@@ -49,13 +49,26 @@
 from fastapi import FastAPI
 import multiprocessing
 import time
+import os
 
 app = FastAPI()
 processes_dict = {}
 
+def test_file_size_check():
+    # Create a file of known size
+    with open('test_file', 'w') as f:
+        f.write('a' * 1000)
 
-def long_task(key):
-    for i in range(100):
+    # Call the function that checks the file size
+    file_size = os.stat('test_file').st_size
+
+    # Assert that the returned size matches the known size
+    assert file_size == 1000
+
+...
+@app.post("/cancel/{key}")
+async def cancel_task_endpoint(key: str):
+    return cancel_task(key)
         print(f"{key}", i)
         time.sleep(1)
 
