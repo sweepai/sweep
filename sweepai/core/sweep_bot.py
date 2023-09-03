@@ -31,15 +31,11 @@ from sweepai.core.prompts import (
     files_to_change_prompt,
     subissues_prompt,
 )
-from sandbox.modal_sandbox import SandboxError
-from sweepai.core.sandbox import Sandbox
-from sweepai.utils.chat_logger import discord_log_error
-    modify_file_prompt_4,
-    modify_file_system_message,
-    snippet_replacement,
-    chunking_prompt,
-    linting_new_file_prompt,
-    linting_modify_prompt,
+from sandbox.modal_sandbox import SandboxError  # pylint: disable=E0401
+    pull_request_prompt,
+    create_file_prompt,
+    modify_file_hallucination_prompt,
+    modify_file_prompt_3,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
