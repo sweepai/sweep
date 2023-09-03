@@ -37,7 +37,6 @@ def filter_file(file, sweep_config):
             return False
     return True
 
-
 def repo_to_chunks(directory, sweep_config):
     file_list = glob.iglob(f"{directory}/**", recursive=True)
     file_list = [
