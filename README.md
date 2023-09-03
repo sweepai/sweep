@@ -70,57 +70,59 @@ Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the 
 
 ---
 
-## Getting Started
+## Development Workflow
 
-Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep-ai) to your desired repositories.
+To start developing with Sweep locally, follow these steps:
 
-* For more details, visit our [Installation](docs/installation.md) page.
+1. Clone the repository by running the following command in your terminal:
+   ```
+   git clone https://github.com/sweepai/sweep
+   ```
 
-* Note: Sweep only considers issues with the "Sweep:" title on creation and not on update. If you want Sweep to pick up an issue after it has been created, you can add the "Sweep" label to the issue.
+2. Install the project dependencies by navigating to the cloned repository and running the following command:
+   ```
+   poetry install
+   ```
 
-* We support all languages GPT-4 supports, including Python, JS/TS, Rust, Go, Java, C# and C++.
+3. Create a `.env` file according to the instructions provided in the [Deployment](https://docs.sweep.dev/deployment) guide.
 
-## Self-hosting
+4. Activate the virtual environment by running the following command:
+   ```
+   poetry shell
+   ```
 
-You can self-host Sweep with the Docker image (`https://hub.docker.com/r/sweepai/sweep`). The setup instructions are at [Deployment](https://docs.sweep.dev/deployment).
+5. Start the server by running the following command:
+   ```
+   uvicorn sweepai.api:app --port 8080 --workers 3
+   ```
 
-## Limitations of Sweep
+   Note: You can adjust the number of workers as needed, but it should be at least 2.
 
-* **Large-scale refactors**: >3 files or >150 lines of code changes (we're working on this!)
-    * e.g. Refactor the entire codebase from TensorFlow to PyTorch
+### Running with Docker
 
-* **Editing images** and other non-text assets
-    * e.g. Use the logo to create favicons for our landing page
+If you prefer to use Docker for local development, follow these steps:
 
-* **Performing actions involving a dashboard**, including fetching API tokens
-    * e.g. Set up sign-in using Ethereum
+1. Build the Docker image by running the following command:
+   ```
+   docker build -t sweepai/sweep:latest .
+   ```
 
-## Development
+   If you are on an ARM-based system like M1/M2 Mac, you will need to install Docker [buildx](https://github.com/docker/buildx?tab=readme-ov-file#installing) and run the following command instead:
+   ```
+   docker buildx build --platform linux/amd64 -t sweepai/sweep:latest .
+   ```
 
-### Starting the Webhook
-1. Install [poetry](https://python-poetry.org/docs/#installation).
-2. Clone the repo with `git clone https://github.com/sweepai/sweep`.
-3. Install the dependencies with `poetry install` This will take a few minutes, do the new step in the meantime.
-4. Create `.env` according to https://docs.sweep.dev/deployment.
-5. Hop into the environment with `poetry shell` and start the server by running `uvicorn sweepai.api:app --port 8080 --workers 3`. You can tweak the number of workers but it needs to be at least 2.
+2. Run the Docker container with the following command:
+   ```
+   docker run --env-file .env -p 8080:8080 sweepai/sweep:latest
+   ```
 
-### Building Docker
+   If you are on an ARM-based system, use the following command instead:
+   ```
+   docker run --platform linux/amd64 --env-file .env -p 8080:8080 sweepai/sweep:latest
+   ```
 
-To build the docker image, run
-
-```
-docker build -t sweepai/sweep:latest .
-```
-
-Then run `docker run --env-file .env -p 8080:8080 sweepai/sweep:latest`.
-
-If you are on an ARM-based systems like M1/M2 Mac, you need to install docker [buildx](https://github.com/docker/buildx?tab=readme-ov-file#installing) and run
-
-```
-docker buildx build --platform linux/amd64 -t sweepai/sweep:latest .
-```
-
-and execute it with `docker run --platform linux/amd64 --env-file .env -p 8080:8080 sweepai/sweep:latest`.
+These instructions will set up the development environment for Sweep and allow you to start making code changes locally.
 
 ---
 
