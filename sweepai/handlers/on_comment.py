@@ -79,14 +79,6 @@ async def on_comment(
     pr: Any = None,  # Uses PRFileChanges type too
     chat_logger: Any = None,
 ):
-    # Check if the comment is "REVERT"
-    if comment.strip().upper() == "REVERT":
-        rollback_file(repo_full_name, pr_path, installation_id, pr_number)
-        return {
-            "success": True,
-            "message": "File has been reverted to the previous commit.",
-        }
-
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -289,8 +281,10 @@ async def on_comment(
                 )
             ]
         else:
-            if comment.strip().lower().startswith("sweep: regenerate"):
-                logger.info("Running regenerate...")
+            regenerate = comment.strip().lower().startswith("sweep: regenerate")
+            reset = comment.strip().lower().startswith("sweep: reset")
+            if regenerate or reset:
+                logger.info(f"Running {'regenerate' if regenerate else 'reset'}...")
 
                 file_paths = comment.strip().split(" ")[2:]
 
@@ -328,7 +322,11 @@ async def on_comment(
                             sha=current_content.sha,
                             branch=branch_name,
                         )
-
+                if reset:
+                    return {
+                        "success": True,
+                        "message": "Files have been reset to their original state.",
+                    }
                 file_change_requests = []
                 if original_issue:
                     content = original_issue.body
@@ -505,52 +503,3 @@ async def on_comment(
 
 def capture_posthog_event(username, event, properties):
     posthog.capture(username, event, properties=properties)
-
-
-def rollback_file(repo_full_name, pr_path, installation_id, pr_number):
-    _, g = get_github_client(installation_id)
-    repo = g.get_repo(repo_full_name)
-    pr = repo.get_pull(pr_number)
-    branch_name = pr.head.ref
-
-    # Get the file's content from the previous commit
-    commits = repo.get_commits(sha=branch_name)
-    if commits.totalCount < 2:
-        current_file = repo.get_contents(pr_path, ref=commits[0].sha)
-        current_file_sha = current_file.sha
-        previous_content = repo.get_contents(pr_path, ref=repo.default_branch)
-        previous_file_content = previous_content.decoded_content.decode("utf-8")
-        repo.update_file(
-            pr_path,
-            "Revert file to previous commit",
-            previous_file_content,
-            current_file_sha,
-            branch=branch_name,
-        )
-        return
-    previous_commit = commits[1]
-
-    # Get current file SHA
-    current_file = repo.get_contents(pr_path, ref=commits[0].sha)
-    current_file_sha = current_file.sha
-
-    # Check if the file exists in the previous commit
-    try:
-        previous_content = repo.get_contents(pr_path, ref=previous_commit.sha)
-        previous_file_content = previous_content.decoded_content.decode("utf-8")
-        # Create a new commit with the previous file content
-        repo.update_file(
-            pr_path,
-            "Revert file to previous commit",
-            previous_file_content,
-            current_file_sha,
-            branch=branch_name,
-        )
-    except Exception as e:
-        logger.error(traceback.format_exc())
-        if e.status == 404:  # pylint: disable=no-member
-            logger.warning(
-                f"File {pr_path} was not found in previous commit {previous_commit.sha}"
-            )
-        else:
-            raise e
