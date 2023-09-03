@@ -125,7 +125,7 @@ def get_deeplake_vs_from_repo(
     snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
     logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
     # prepare lexical search
-    index = prepare_index_from_snippets(snippets)
+    index = prepare_index_from_snippets(snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1)
     # scoring for vector search
     files_to_scores = {}
     score_factors = []
@@ -253,6 +253,7 @@ def get_relevant_snippets(
         cloned_repo, sweep_config=sweep_config
     )
     content_to_lexical_score = search_index(query, lexical_index)
+    logger.info(f"Found {len(content_to_lexical_score)} lexical results")
     logger.info(f"Searching for relevant snippets... with {num_docs} docs")
     results = {"metadata": [], "text": []}
     try:
@@ -284,20 +285,14 @@ def get_relevant_snippets(
         if metadata["file_path"] in content_to_lexical_score:
             lexical_scores.append(content_to_lexical_score[metadata["file_path"]])
         else:
-            lexical_scores.append(0.75)
+            lexical_scores.append(0.3)
     vector_scores = results["score"]
-    if lexical:
-        combined_scores = [
-            code_score + vector_score * lexical_score
-            for code_score, vector_score, lexical_score in zip(
-                code_scores, vector_scores, lexical_scores
-            )
-        ]
-    else:
-        combined_scores = [
-            code_score + vector_score
-            for code_score, vector_score in zip(code_scores, vector_scores)
-        ]
+    combined_scores = [
+        code_score + vector_score + lexical_score
+        for code_score, vector_score, lexical_score in zip(
+            code_scores, vector_scores, lexical_scores
+        )
+    ]
     combined_list = list(zip(combined_scores, metadatas))
     sorted_list = sorted(combined_list, key=lambda x: x[0], reverse=True)
     sorted_metadatas = [metadata for _, metadata in sorted_list]
