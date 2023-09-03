@@ -27,48 +27,47 @@ class CodeTokenizer(Tokenizer):
         mode="",
         **kwargs,
     ):
-        pos = start_pos
-        for match in re.finditer(r"\w+(?:\w+)*", value):
-            t_text = match.group()
-            if not self.top_words or t_text.lower() not in self.top_words:
-                yield Token(
-                    text=t_text.lower(),
-                    pos=pos,
-                    start_char=match.start(),
-                    end_pos=pos + 1,
-                    end_char=match.end(),
-                )
+        def tokenize_call(code):
+            def check_valid_token(token):
+                in_top_words = False
+                if self.top_words:
+                    in_top_words = token in self.top_words
+                return token and len(token) > 1 and not in_top_words
+            matches = re.finditer(r'\b\w+\b', code)
+            pos = 0
+            valid_tokens = []
+            for m in matches:
+                text = m.group()
+                span_start = m.start()
+                span_end = m.end()
 
-            # Handle snake_case
-            if "_" in t_text:
-                for part in t_text.split("_"):
-                    if len(part) > 1:  # Same condition here
+                if '_' in text: # snakecase
+                    offset = 0
+                    for part in text.split('_'):
+                        if check_valid_token(part):
+                            valid_tokens.append(Token(text=part.lower(), pos=pos, startchar=span_start + offset,
+                                end_pos=pos+1, endchar=span_start + len(part) + offset))
+                            pos += 1
+                        offset += len(part) + 1
+                elif re.search(r'[A-Z][a-z]|[a-z][A-Z]', text): # pascal and camelcase
+                    parts = re.findall(r'([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))', text) # first one "MyVariable" second one "myVariable" third one "MYVariable"
+                    offset = 0
+                    for part in parts:
+                        if check_valid_token(part):
+                            valid_tokens.append(Token(text=part.lower(), pos=pos, startchar=span_start + offset,
+                                end_pos=pos+1, endchar=span_start + len(part) + offset))
+                            pos += 1
+                        offset += len(part)
+                else: # everything else
+                    if check_valid_token(text):
+                        valid_tokens.append(Token(text=text.lower(), pos=pos, startchar=span_start,
+                                end_pos=pos+1, endchar=span_start + len(text)))
                         pos += 1
-                        if not self.top_words or part.lower() not in self.top_words:
-                            yield Token(
-                                text=part.lower(),
-                                pos=pos,
-                                start_char=match.start(),
-                                end_pos=pos + 1,
-                                end_char=match.end(),
-                            )
-
-            # Handle PascalCase and camelCase
-            if re.search(r"[A-Z][a-z]|[a-z][A-Z]|[0-9]", t_text):
-                parts = re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$)", t_text)
-                for part in parts:
-                    if len(part) > 1:  # And here
-                        pos += 1
-                        if not self.top_words or part.lower() not in self.top_words:
-                            yield Token(
-                                text=part.lower(),
-                                pos=pos,
-                                start_char=match.start(),
-                                end_pos=pos + 1,
-                                end_char=match.end(),
-                            )
-
-            pos += 1
+            return valid_tokens
+        tokens = tokenize_call(value)
+        for token in tokens:
+          if token.text and token.startchar:
+            yield token
 
 
 @dataclass
