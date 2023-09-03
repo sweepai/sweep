@@ -537,6 +537,14 @@ def generate_new_file_from_patch(
         ):
             search = search.rstrip()[: -len("</old_file>")]
             replace = replace.rstrip()[: -len("</old_file>")]
+        if replace.lstrip().startswith("<new_file>"):
+            replace = replace.lstrip()[len("<new_file>") :]
+        elif replace.lstrip().startswith("<updated_file>"):
+            replace = replace.lstrip()[len("<updated_file>") :]
+        if replace.rstrip().endswith("</new_file>"):
+            replace = replace.rstrip()[: -len("</new_file>")]
+        elif replace.rstrip().endswith("</updated_file>"):
+            replace = replace.rstrip()[: -len("</updated_file>")]
         old_file_lines, replace_index, status = sliding_window_replacement(
             old_file_lines, search.split("\n"), replace.split("\n")
         )
