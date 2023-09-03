@@ -1,17 +1,12 @@
-import asyncio
-import os
-import shutil
 import traceback
 import re
-from typing import Generator
+from typing import Generator, Any
 
-import modal
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from loguru import logger
 from pydantic import BaseModel
-from git import Repo
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.edit_chunk import EditBot
@@ -27,19 +22,22 @@ from sweepai.core.entities import (
     MaxTokensExceeded,
 )
 
+# from sandbox.modal_sandbox import SandboxError  # pylint: disable=E0401
 from sweepai.core.prompts import (
     files_to_change_prompt,
     subissues_prompt,
-)
-from sandbox.modal_sandbox import SandboxError  # pylint: disable=E0401
     pull_request_prompt,
     create_file_prompt,
-    modify_file_hallucination_prompt,
     modify_file_prompt_3,
+    modify_file_system_message,
+    snippet_replacement,
+    chunking_prompt,
+    RECREATE_LINE_LENGTH,
+    modify_recreate_file_system_message,
+    modify_recreate_file_prompt_3,
 )
-from sweepai.config.client import SweepConfig, get_blocked_dirs
+from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
-from sweepai.core.sandbox import Sandbox
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import (
     format_contents,
@@ -47,7 +45,6 @@ from sweepai.utils.diff import (
     is_markdown,
     get_matches,
 )
-from sweepai.utils.github_utils import get_github_client
 
 USING_DIFF = True
 
@@ -55,8 +52,8 @@ BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 
 
 class CodeGenBot(ChatGPT):
-    def summarize_snippets(self, content: str = ""):
-        snippet_summarization = self.chat(
+    async def summarize_snippets(self):
+        snippet_summarization = await self.achat(
             snippet_replacement,
             message_key="snippet_summarization",
         )  # maybe add relevant info
@@ -132,12 +129,12 @@ class CodeGenBot(ChatGPT):
         msg = Message(content=msg_content, role="assistant", key=BOT_ANALYSIS_SUMMARY)
         self.messages.insert(-2, msg)
 
-    def generate_subissues(self, retries: int = 3):
+    async def generate_subissues(self, retries: int = 3):
         subissues: list[ProposedIssue] = []
         for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                files_to_change_response = self.chat(
+                files_to_change_response = await self.achat(
                     subissues_prompt, message_key="subissues"
                 )  # Dedup files to change here
                 subissues = []
@@ -153,7 +150,9 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    def get_files_to_change(self, retries=1) -> tuple[list[FileChangeRequest], str]:
+    async def get_files_to_change(
+        self, retries=1
+    ) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
@@ -161,7 +160,7 @@ class CodeGenBot(ChatGPT):
         for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                files_to_change_response = self.chat(
+                files_to_change_response = await self.achat(
                     files_to_change_prompt, message_key="files_to_change"
                 )  # Dedup files to change here
                 file_change_requests = []
@@ -180,7 +179,7 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    def generate_pull_request(self, retries=2) -> PullRequest:
+    async def generate_pull_request(self, retries=2) -> PullRequest:
         for count in range(retries):
             too_long = False
             try:
@@ -188,11 +187,11 @@ class CodeGenBot(ChatGPT):
                 if (
                     too_long or count >= retries - 1
                 ):  # if on last try, use gpt4-32k (improved context window)
-                    pr_text_response = self.chat(
+                    pr_text_response = await self.achat(
                         pull_request_prompt, message_key="pull_request"
                     )
                 else:
-                    pr_text_response = self.chat(
+                    pr_text_response = await self.achat(
                         pull_request_prompt,
                         message_key="pull_request",
                         model=SECONDARY_MODEL,
@@ -216,7 +215,13 @@ class CodeGenBot(ChatGPT):
             final_branch = pull_request.branch_name[:240]
             final_branch = final_branch.split("/", 1)[-1]
 
-            pull_request.branch_name = "sweep/" + final_branch
+            use_underscores = get_branch_name_config(self.repo)
+            if use_underscores:
+                final_branch = final_branch.replace("/", "_")
+
+            pull_request.branch_name = (
+                "sweep/" if not use_underscores else "sweep_"
+            ) + final_branch
             return pull_request
         raise Exception("Could not generate PR text")
 
@@ -301,24 +306,6 @@ class GithubBot(BaseModel):
                 ).decoded_content.decode("utf-8")
             except Exception as e:
                 logger.error(snippet)
-
-    def search_snippets(
-        self,
-        query: str,
-        installation_id: str,
-        num_snippets: int = 30,
-    ) -> list[Snippet]:
-        get_relevant_snippets = modal.Function.lookup(
-            DB_MODAL_INST_NAME, "get_relevant_snippets"
-        )
-        snippets: list[Snippet] = get_relevant_snippets.call(
-            self.repo.full_name,
-            query=query,
-            n_results=num_snippets,
-            installation_id=installation_id,
-        )
-        self.populate_snippets(snippets)
-        return snippets
 
     @staticmethod
     def is_blocked(file_path: str, blocked_dirs: list[str]):
@@ -408,10 +395,10 @@ class SweepBot(CodeGenBot, GithubBot):
 
         return True
 
-    def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
+    async def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
         file_change: FileCreation | None = None
         key = f"file_change_created_{file_change_request.filename}"
-        create_file_response = self.chat(
+        create_file_response = await self.achat(
             create_file_prompt.format(
                 filename=file_change_request.filename,
                 instructions=file_change_request.instructions,
@@ -440,29 +427,8 @@ class SweepBot(CodeGenBot, GithubBot):
 
             self.delete_messages_from_chat(key_to_delete=key)
 
-            # Todo: prompt was updated, and has {stdout} key now
-            # new_diffs = self.chat(
-            #     sandbox_code_repair_modify_prompt.format(
-            #         filename=file_change_request.filename,
-            #         instructions=file_change_request.instructions,
-            #         code=file_change.code,
-            #         diff="",
-            #     ),
-            #     message_key=key + "-validation",
-            # )
-            # final_file, errors = generate_new_file_from_patch(
-            #     new_diffs, file_change.code, sweep_context=self.sweep_context
-            # )
-            #
-            # final_file = format_contents(
-            #     final_file, is_markdown(file_change_request.filename)
-            # )
-            # final_file += "\n"
-            # file_change.code = final_file
-            # logger.info("Done validating file change request")
-
             try:
-                implemented = self.check_completion(
+                implemented = self.check_completion(  # use async
                     file_change_request.filename, file_change.code
                 )
                 if not implemented:
@@ -473,6 +439,26 @@ class SweepBot(CodeGenBot, GithubBot):
             except Exception as e:
                 logger.error(f"Error: {e}")
 
+            # Format file
+            try:
+                if self.sweep_context.is_paying_user:
+                    from sandbox.sandbox_local import (
+                        run_sandbox,
+                    )  # pylint: disable=import-outside-toplevel
+
+                    output = run_sandbox(
+                        self.sweep_context.username,
+                        self.sweep_context.repo.html_url,
+                        file_change_request.filename,
+                        file_change.code,
+                        token=self.sweep_context.token,
+                    )
+                    if output["success"]:
+                        file_change.code = output["updated_content"]
+            except Exception as e:
+                logger.error(f"Sandbox Error: {e}")
+                logger.error(traceback.format_exc())
+
             return file_change
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
@@ -482,7 +468,7 @@ class SweepBot(CodeGenBot, GithubBot):
             self.delete_messages_from_chat(key)
         raise Exception("Failed to parse response after 5 attempts.")
 
-    def modify_file(
+    async def modify_file(
         self,
         file_change_request: FileChangeRequest,
         contents: str = "",
@@ -490,47 +476,73 @@ class SweepBot(CodeGenBot, GithubBot):
         branch=None,
         chunking: bool = False,
         chunk_offset: int = 0,
-        retries: int = 1,
         sandbox=None,
-    ) -> tuple[str, str]:
-        for count in range(retries):
-            key = f"file_change_modified_{file_change_request.filename}"
-            file_markdown = is_markdown(file_change_request.filename)
-            # TODO(sweep): edge case at empty file
-            message = modify_file_prompt_3.format(
-                filename=file_change_request.filename,
-                instructions=file_change_request.instructions,
-                code=contents_line_numbers,
-                line_count=contents.count("\n") + 1,
-            )
-            try:
-                if chunking:
-                    # TODO (sweep): make chunking / streaming better
-                    message = chunking_prompt + message
-                    modify_file_response = self.chat(
+    ) -> tuple[str, str, Any]:
+        key = f"file_change_modified_{file_change_request.filename}"
+        file_markdown = is_markdown(file_change_request.filename)
+        # TODO(sweep): edge case at empty file
+        line_count = contents.count("\n") + 1
+        message = modify_file_prompt_3.format(
+            filename=file_change_request.filename,
+            instructions=file_change_request.instructions,
+            code=contents_line_numbers,
+            line_count=line_count,
+        )
+        recreate_file = False
+        try:
+            if chunking:
+                # TODO (sweep): make chunking / streaming better
+                message = chunking_prompt + message
+                modify_file_response = await self.achat(
+                    message,
+                    message_key=key,
+                )
+                self.delete_messages_from_chat(key)
+            else:
+                if line_count < RECREATE_LINE_LENGTH:
+                    message = modify_recreate_file_prompt_3.format(
+                        filename=file_change_request.filename,
+                        instructions=file_change_request.instructions,
+                        code=contents_line_numbers,
+                        line_count=line_count,
+                    )
+
+                    old_system_message = self.messages[0].content
+                    self.messages[0].content = modify_recreate_file_system_message
+                    modify_file_response = await self.achat(
                         message,
                         message_key=key,
                     )
-                    self.delete_messages_from_chat(key)
+                    recreate_file = True
+                    self.messages[0].content = old_system_message
                 else:
                     old_system_message = self.messages[0].content
                     self.messages[0].content = modify_file_system_message
-                    modify_file_response = self.chat(
+                    modify_file_response = await self.achat(
                         message,
                         message_key=key,
                     )
                     self.messages[0].content = old_system_message
-            except Exception as e:  # Check for max tokens error
-                if "max tokens" in str(e).lower():
-                    logger.error(
-                        f"Max tokens exceeded for {file_change_request.filename}"
-                    )
-                    raise MaxTokensExceeded(file_change_request.filename)
-            try:
-                logger.info(
-                    f"generate_new_file with contents: {contents} and"
-                    f" modify_file_response: {modify_file_response}"
-                )
+        except Exception as e:  # Check for max tokens error
+            if "max tokens" in str(e).lower():
+                logger.error(f"Max tokens exceeded for {file_change_request.filename}")
+                raise MaxTokensExceeded(file_change_request.filename)
+            else:
+                logger.error(f"Error: {e}")
+                logger.error(traceback.format_exc())
+                self.delete_messages_from_chat(key)
+                raise e
+        try:
+            logger.info(
+                f"generate_new_file with contents: {contents} and"
+                f" modify_file_response: {modify_file_response}"
+            )
+            if recreate_file:
+                # Todo(lukejagg): Discord logging on error
+                new_file = re.findall(
+                    r"<new_file>\n(.*?)\n?</new_file>", modify_file_response, re.DOTALL
+                )[0]
+            else:
                 new_file, errors = generate_new_file_from_patch(
                     modify_file_response,
                     contents,
@@ -538,67 +550,69 @@ class SweepBot(CodeGenBot, GithubBot):
                     sweep_context=self.sweep_context,
                 )
 
-                try:
-                    for _, replace in get_matches(modify_file_response):
-                        implemented = self.check_completion(
-                            file_change_request.filename, replace
+            try:
+                for _, replace in get_matches(modify_file_response):
+                    implemented = self.check_completion(  # can use async
+                        file_change_request.filename, replace
+                    )
+                    if not implemented:
+                        discord_log_error(
+                            f"{self.sweep_context.issue_url}\nUnimplemented Modify Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
+                            priority=2 if self.sweep_context.use_faster_model else 0,
                         )
-                        if not implemented:
-                            discord_log_error(
-                                f"{self.sweep_context.issue_url}\nUnimplemented Modify Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
-                                priority=2
-                                if self.sweep_context.use_faster_model
-                                else 0,
-                            )
-                except Exception as e:
-                    logger.error(f"Error: {e}")
+            except Exception as e:
+                logger.error(f"Error: {e}")
 
-                new_file = format_contents(new_file, file_markdown)
+            new_file = format_contents(new_file, file_markdown)
 
-                commit_message_match = re.search(
-                    'Commit message: "(?P<commit_message>.*)"', modify_file_response
-                )
-                if commit_message_match:
-                    commit_message = commit_message_match.group("commit_message")
-                else:
-                    commit_message = f"Updated {file_change_request.filename}"
-                commit_message = commit_message[: min(len(commit_message), 50)]
+            commit_message_match = re.search(
+                'Commit message: "(?P<commit_message>.*)"', modify_file_response
+            )
+            if commit_message_match:
+                commit_message = commit_message_match.group("commit_message")
+            else:
+                commit_message = f"Updated {file_change_request.filename}"
+            commit_message = commit_message[: min(len(commit_message), 50)]
 
-                self.delete_messages_from_chat(key)
+            sandbox_error = None
+            try:
+                # with open(f"repo/{file_change_request.filename}", "w") as f:
+                #     f.write(new_file)
 
-                sandbox_error = None
-                if not chunk_offset:
-                    with open(f"repo/{file_change_request.filename}", "w") as f:
-                        f.write(new_file)
-                    try:
-                        from sandbox.modal_sandbox import (
-                            sandbox_code_repair_modify,  # pylint: disable=E0401
-                        )
+                # try:
+                #     from sandbox.modal_sandbox import (  # pylint: disable=E0401
+                #         sandbox_code_repair_modify,  # pylint: disable=E0401
+                #     )
 
-                        final_file, sandbox_error = sandbox_code_repair_modify(
-                            new_file,
-                            file_change_request.filename,
-                            chunk_offset=chunk_offset,
-                            sandbox=sandbox,
-                            chat_logger=self.chat_logger,
-                            sweep_context=self.sweep_context,
-                        )
-                        return final_file, commit_message, sandbox_error
-                    except Exception as e:
-                        logger.error(f"Sandbox error: {e}")
+                #     self.delete_messages_from_chat(key)
 
+                #     # Formats and lints the file
+                #     # (writes the formatted file to repo/filename)
+                #     final_file, sandbox_error = sandbox_code_repair_modify(
+                #         new_file,
+                #         file_change_request.filename,
+                #         chunk_offset=chunk_offset,
+                #         sandbox=sandbox,
+                #         chat_logger=self.chat_logger,
+                #         sweep_context=self.sweep_context,
+                #     )
+                #     return final_file, commit_message, sandbox_error
+                # except Exception as e:
+                #     logger.error(f"Sandbox error: {e}")
+                #     logger.error(traceback.format_exc())
+                #     self.delete_messages_from_chat(key)
                 return new_file, commit_message, sandbox_error
             except Exception as e:
-                tb = traceback.format_exc()
-                logger.warning(
-                    f"Failed to parse. Retrying for the {count}th time. Received error"
-                    f" {e}\n{tb}"
-                )
-                self.delete_messages_from_chat(key)
-                continue
-        raise Exception(f"Failed to parse response after {retries} attempts.")
+                logger.error(f"Error: {e}")
+                logger.error(traceback.format_exc())
+                raise e
+        except Exception as e:
+            tb = traceback.format_exc()
+            logger.warning(f"Failed to parse." f" {e}\n{tb}")
+            self.delete_messages_from_chat(key)
+        raise Exception(f"Failed to parse response after 1 attempt.")
 
-    def change_files_in_github(
+    async def change_files_in_github(
         self,
         file_change_requests: list[FileChangeRequest],
         branch: str,
@@ -610,14 +624,14 @@ class SweepBot(CodeGenBot, GithubBot):
         num_fcr = len(file_change_requests)
         completed = 0
 
-        for _, changed_file in self.change_files_in_github_iterator(
+        async for _, changed_file in self.change_files_in_github_iterator(
             file_change_requests, branch, blocked_dirs, sandbox=sandbox
         ):
             if changed_file:
                 completed += 1
         return completed, num_fcr
 
-    def change_files_in_github_iterator(
+    async def change_files_in_github_iterator(
         self,
         file_change_requests: list[FileChangeRequest],
         branch: str,
@@ -650,24 +664,10 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
                 match file_change_request.change_type:
                     case "create":
-                        # Add example for more consistent generation
-                        # if not added_modify_hallucination:
-                        #     added_modify_hallucination = True
-                        #     # Add hallucinated example for better parsing
-                        #     for message in modify_file_hallucination_prompt:
-                        #         self.messages.append(Message(**message))
-
-                        changed_file, sandbox_error = self.handle_create_file(
+                        changed_file, sandbox_error = await self.handle_create_file(
                             file_change_request, branch, sandbox=sandbox
                         )
                     case "modify":
-                        # Add example for more consistent generation
-                        # if not added_modify_hallucination:
-                        #     added_modify_hallucination = True
-                        #     # Add hallucinated example for better parsing
-                        #     for message in modify_file_hallucination_prompt:
-                        #         self.messages.append(Message(**message))
-
                         # Remove snippets from this file if they exist
                         snippet_msgs = [
                             m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
@@ -684,7 +684,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 flags=re.DOTALL,
                             )
 
-                        changed_file, sandbox_error = self.handle_modify_file(
+                        changed_file, sandbox_error = await self.handle_modify_file(
                             file_change_request, branch, sandbox=sandbox
                         )
                     case "delete":
@@ -731,13 +731,12 @@ class SweepBot(CodeGenBot, GithubBot):
 
             if changed_file:
                 completed += 1
-        return completed, num_fcr
 
-    def handle_create_file(
+    async def handle_create_file(
         self, file_change_request: FileChangeRequest, branch: str, sandbox=None
     ) -> tuple[bool, None]:
         try:
-            file_change = self.create_file(file_change_request)
+            file_change = await self.create_file(file_change_request)
             file_markdown = is_markdown(file_change_request.filename)
             file_change.code = format_contents(file_change.code, file_markdown)
             logger.debug(
@@ -745,67 +744,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 f" {f'Create {file_change_request.filename}'}, {file_change.code},"
                 f" {branch}"
             )
-
-            # if sandbox is not None:
-            #     try:
-            #         # Format file
-            #         loop = asyncio.get_event_loop()
-            #         # run for up to 10 seconds
-            #         file_change.code = loop.run_until_complete(
-            #             asyncio.wait_for(
-            #                 sandbox.run_formatter(
-            #                     file_change_request.filename, file_change.code
-            #                 ),
-            #                 timeout=30,
-            #             )
-            #         )
-
-            #         # Run linter on file
-            #         lint_results = loop.run_until_complete(
-            #             asyncio.wait_for(
-            #                 sandbox.run_linter(
-            #                     file_change_request.filename, file_change.code
-            #                 ),
-            #                 timeout=30,
-            #             )
-            #         )
-
-            #         if lint_results:
-            #             logs = "\n".join([l.line for l in lint_results])
-            #             print("E2B lint output", logs)
-
-            #             # Todo: pass this file to review in sweep_bot
-            #             # Get modifications needed
-            #             fix_message = linting_modify_prompt.format(logs=logs)
-            #             lint_response = self.chat(
-            #                 fix_message,
-            #                 message_key="linting",
-            #             )
-            #             self.delete_messages_from_chat("linting")
-
-            #             new_file, errors = generate_new_file_from_patch(
-            #                 lint_response,
-            #                 file_change.code,
-            #                 sweep_context=self.sweep_context,
-            #             )
-
-            #             # Apply modifications to previous message
-            #             last_msg = self.messages[-1]
-            #             # replace all text between <new_file> and </new_file> with lint_response
-            #             last_msg.content = re.sub(
-            #                 r"<new_file>\n.*?\n?</new_file>",
-            #                 f"<new_file>\n{new_file}\n</new_file>",
-            #                 last_msg.content,
-            #                 flags=re.DOTALL,
-            #             )
-
-            #             file_change.code = new_file
-            #     except Exception as e:
-            #         # print e and print traceback
-            #         print(e)
-            #         print("\n\n")
-            #         print(traceback.format_exc())
-            #         print("OOPS E2B modify")
 
             self.repo.create_file(
                 file_change_request.filename,
@@ -821,13 +759,13 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.info(f"Error in handle_create_file: {e}")
             return False, None
 
-    def handle_modify_file(
+    async def handle_modify_file(
         self,
         file_change_request: FileChangeRequest,
         branch: str,
         commit_message: str = None,
         sandbox=None,
-    ) -> tuple[str, SandboxError]:
+    ) -> tuple[str, Any]:
         CHUNK_SIZE = 800  # Number of lines to process at a time
         sandbox_error = None
         try:
@@ -839,6 +777,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 ""
             )
             all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
+            # Todo(lukejagg): Use when only using chunking
             chunk_sizes = [
                 800,
                 600,
@@ -855,7 +794,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             new_file_contents,
                             suggested_commit_message,
                             sandbox_error,
-                        ) = self.modify_file(
+                        ) = await self.modify_file(
                             file_change_request,
                             contents="\n".join(lines),
                             branch=branch,
@@ -884,7 +823,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                     new_chunk,
                                     suggested_commit_message,
                                     sandbox_error,
-                                ) = self.modify_file(
+                                ) = await self.modify_file(
                                     file_change_request,
                                     contents=chunk_contents,
                                     branch=branch,
@@ -914,71 +853,6 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.debug(
                 f"{file_name}, {commit_message}, {new_file_contents}, {branch}"
             )
-
-            # Format the contents
-            # if sandbox is not None:
-            #     try:
-            #         # Todo(lukejagg): Work with E2B to get this working in Modal stub
-            #         loop = asyncio.get_event_loop()
-            #         new_file_contents = loop.run_until_complete(
-            #             asyncio.wait_for(
-            #                 sandbox.run_formatter(file_name, new_file_contents),
-            #                 timeout=30,
-            #             )
-            #         )
-
-            #         # Todo(lukejagg): Multiple iterations of linting?
-            #         # Run linter on file
-            #         lint_results = loop.run_until_complete(
-            #             asyncio.wait_for(
-            #                 sandbox.run_linter(file_name, new_file_contents),
-            #                 timeout=30,
-            #             )
-            #         )
-
-            #         if lint_results:
-            #             # Todo: pass this file to review in sweep_bot
-
-            #             logs = "\n".join([l.line for l in lint_results])
-            #             print("E2B lint output", logs)
-
-            #             # This prompt must be different from the one in handle_create_file
-            #             # This one uses diffs, so maybe remove the previous messages temporarily and then add them back?
-
-            #             # Todo: pass this file to review in sweep_bot
-            #             # Get modifications needed
-            #             fix_code = linting_new_file_prompt.format(
-            #                 code=new_file_contents
-            #             )
-            #             fix_message = linting_modify_prompt.format(logs=logs)
-            #             lint_response = self.chat(
-            #                 fix_code + fix_message,
-            #                 message_key="linting",
-            #             )
-            #             self.delete_messages_from_chat("linting")
-
-            #             # Apply modifications to previous message
-            #             last_msg = self.messages[-1]
-
-            #             # Todo(lukejagg): add the linted diffs to the message
-            #             # last_msg.content = re.sub(
-            #             #     r"<new_file>\n.*?\n?</new_file>",
-            #             #     f"<new_file>\n{lint_response}\n</new_file>",
-            #             #     last_msg.content,
-            #             #     flags=re.DOTALL,
-            #             # )
-
-            #             new_file_contents, errors = generate_new_file_from_patch(
-            #                 lint_response,
-            #                 new_file_contents,
-            #                 sweep_context=self.sweep_context,
-            #             )
-            #     except Exception as e:
-            #         # print e and print traceback
-            #         print(e)
-            #         print("\n\n")
-            #         print(traceback.format_exc())
-            #         print("OOPS E2B")
 
             # Update the file with the new contents after all chunks have been processed
             try:
