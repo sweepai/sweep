@@ -350,6 +350,8 @@ class GithubBot(BaseModel):
         return file_change_requests
 
 
+import os
+
 class SweepBot(CodeGenBot, GithubBot):
     def check_completion(self, file_name: str, new_content: str) -> bool:
         can_check = False
@@ -391,6 +393,10 @@ class SweepBot(CodeGenBot, GithubBot):
             and "){\n    // " in new_content
             and " \n}" in new_content
         ):
+            return False
+
+        # Checking for large files
+        if os.stat(file_name).st_size > 60000:
             return False
 
         return True
