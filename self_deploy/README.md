@@ -5,22 +5,31 @@
 ## Setup
 
 ```sh
-# Install dependencies
-npm install
+# Clone the repo
+git clone https://github.com/sweepai/sweep
 
-# Run the bot
-npm start
+# Build and run sweep locally
+docker compose up
 ```
 
 ## Docker
 
 ```sh
-# 1. Build container
-docker build -t sweep-self-deploy .
-
-# 2. Start container
-docker run -e APP_ID=<app-id> -e PRIVATE_KEY=<pem-value> sweep-self-deploy
+# Build and run sweep locally
+docker compose up
 ```
+
+This command will build and run sweep locally, binding your directory and hot-reloading the docker image every time your local code changes.
+
+Note: This process can be slow on Macs. We're open to suggestions here! An alternative is to run uvicorn directly, which is faster but doesn't reflect the docker image. You can do this with the following command:
+
+```
+uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --reload-dir '/app/sweepai' --reload
+```
+
+## Testing on Mac
+
+To test the new workflow on a Mac, follow the updated instructions for setup and Docker. Monitor the performance and make any necessary adjustments based on your results.
 
 ## Contributing
 
