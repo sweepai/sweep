@@ -91,6 +91,14 @@ You can self-host Sweep with the Docker image (`https://hub.docker.com/r/sweepai
 
 ## Development
 
+### Local Development Workflow
+
+To build and run sweep locally, you can clone the latest version and then run docker compose up. This binds your directory and hot-reloads the docker image every time your local code changes. However, this process can be slow on Macs. As an alternative, you can run the application locally using uvicorn directly with the following command:
+
+```sh
+uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --reload-dir '/app/sweepai' --reload
+```
+
 ### Starting the Webhook
 1. Install [poetry](https://python-poetry.org/docs/#installation).
 2. Clone the repo with `git clone https://github.com/sweepai/sweep`.
