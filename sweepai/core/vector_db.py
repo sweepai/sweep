@@ -8,24 +8,26 @@ from functools import lru_cache
 from typing import Generator, List
 
 import numpy as np
-from deeplake.core.vectorstore.deeplake_vectorstore import \
-    DeepLakeVectorStore  # pylint: disable=import-error
+from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
+    DeepLakeVectorStore,
+)
 from github import Github
 from loguru import logger
 from redis import Redis
 from redis.backoff import ConstantBackoff
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 from redis.retry import Retry
-from sentence_transformers import \
-    SentenceTransformer  # pylint: disable=import-error
+from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
 
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import (BATCH_SIZE, REDIS_URL,
-                                   SENTENCE_TRANSFORMERS_MODEL,
-                                   VECTOR_EMBEDDING_SOURCE)
+from sweepai.config.server import (
+    BATCH_SIZE,
+    REDIS_URL,
+    SENTENCE_TRANSFORMERS_MODEL,
+    VECTOR_EMBEDDING_SOURCE,
+)
 from sweepai.core.entities import Snippet
-from sweepai.core.lexical_search import (prepare_index_from_snippets,
-                                         search_index)
+from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
 from sweepai.core.repo_parsing_utils import repo_to_chunks
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
@@ -60,8 +62,9 @@ redis_client = RedisClient(REDIS_URL).client
 
 
 def download_models():
-    from sentence_transformers import \
-        SentenceTransformer  # pylint: disable=import-error
+    from sentence_transformers import (  # pylint: disable=import-error
+        SentenceTransformer,
+    )
 
     model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
 
@@ -139,7 +142,9 @@ def get_deeplake_vs_from_repo(
     snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
     logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
     # prepare lexical search
-    index = prepare_index_from_snippets(snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1)
+    index = prepare_index_from_snippets(
+        snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
+    )
     # scoring for vector search
     files_to_scores = {}
     score_factors = []
@@ -222,7 +227,7 @@ def compute_deeplake_vs(
             )
             embeddings = embedding_function(documents)
             embeddings = np.array(embeddings, dtype=np.float32)
-        
+
         logger.info("Adding embeddings to deeplake vector store...")
         deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
         logger.info("Added embeddings to deeplake vector store")
@@ -322,18 +327,22 @@ def get_relevant_snippets(
         for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ][: min(num_docs, 25)]
 
+
 def chunk(texts: List[str], batch_size: int) -> Generator[List[str], None, None]:
     """
     Split a list of texts into batches of a given size for embed_texts.
 
     Args:
+    ----
         texts (List[str]): A list of texts to be chunked into batches.
         batch_size (int): The maximum number of texts in each batch.
 
     Yields:
+    ------
         Generator[List[str], None, None]: A generator that yields batches of texts as lists.
 
     Example:
+    -------
         texts = ["text1", "text2", "text3", "text4", "text5"]
         batch_size = 2
         for batch in chunk(texts, batch_size):
