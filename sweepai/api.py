@@ -1,14 +1,25 @@
-import multiprocessing
 import asyncio
+import multiprocessing
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from loguru import logger
 from pydantic import ValidationError
+
+from sweepai.config.client import SweepConfig, get_documentation_dict
+from sweepai.config.server import (
+    API_MODAL_INST_NAME,
+    BOT_TOKEN_NAME,
+    DB_MODAL_INST_NAME,
+    DOCS_MODAL_INST_NAME,
+    GITHUB_BOT_USERNAME,
+    GITHUB_LABEL_COLOR,
+    GITHUB_LABEL_DESCRIPTION,
+    GITHUB_LABEL_NAME,
+)
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest, SweepContext
 from sweepai.core.vector_db import get_deeplake_vs_from_repo
-
 from sweepai.events import (
     CheckRunCompleted,
     CommentCreatedRequest,
@@ -18,22 +29,15 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
 )
-from sweepai.handlers.create_pr import create_pr_changes, create_gha_pr, safe_delete_sweep_branch  # type: ignore
+from sweepai.handlers.create_pr import (  # type: ignore
+    create_gha_pr,
+    create_pr_changes,
+    safe_delete_sweep_branch,
+)
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.client import get_documentation_dict, SweepConfig
-from sweepai.config.server import (
-    DB_MODAL_INST_NAME,
-    API_MODAL_INST_NAME,
-    DOCS_MODAL_INST_NAME,
-    GITHUB_BOT_USERNAME,
-    GITHUB_LABEL_NAME,
-    GITHUB_LABEL_COLOR,
-    GITHUB_LABEL_DESCRIPTION,
-    BOT_TOKEN_NAME,
-)
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.redis_client import RedisClient
