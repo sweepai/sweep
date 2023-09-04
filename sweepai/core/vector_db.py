@@ -28,9 +28,14 @@ from sweepai.utils.hash import hash_sha256
 from sweepai.utils.redis_client import RedisClient
 from sweepai.utils.scorer import compute_score, get_scores
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import REDIS_URL, SENTENCE_TRANSFORMERS_MODEL, BATCH_SIZE
+from sweepai.config.server import (
+    REDIS_URL,
+    SENTENCE_TRANSFORMERS_MODEL,
+    BATCH_SIZE,
+    VECTOR_EMBEDDING_MODE,
+)
 from ..utils.github_utils import ClonedRepo, get_token
-
+from typing import List, Generator
 
 MODEL_DIR = "cache/model"
 DEEPLAKE_DIR = "cache/"
@@ -79,18 +84,31 @@ def parse_collection_name(name: str) -> str:
     return name
 
 
-sentence_transformer_model = SentenceTransformer(
-    SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-)
-
-
 @lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
     logger.info(f"Computing embeddings for {len(texts)} texts")
-    vector = sentence_transformer_model.encode(
-        texts, show_progress_bar=True, batch_size=BATCH_SIZE
-    )
-    return vector.squeeze()
+    match VECTOR_EMBEDDING_MODE:
+        case "sentence-transformers":
+            sentence_transformer_model = SentenceTransformer(
+                SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
+            )
+            vector = sentence_transformer_model.encode(
+                texts, show_progress_bar=True, batch_size=BATCH_SIZE
+            )
+            return vector.squeeze()
+        case "openai":
+            import openai
+            from tqdm import tqdm
+
+            embeddings = []
+            for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+                response = openai.Embedding.create(
+                    input=batch, model="text-embedding-ada-002"
+                )
+                embeddings.extend([r["embedding"] for r in response["data"]])
+            return embeddings
+        case _:
+            raise Exception("Invalid vector embedding mode")
 
 
 def embedding_function(texts: list[str]):
@@ -307,3 +325,28 @@ def get_relevant_snippets(
         )
         for metadata, file_path in zip(sorted_metadatas, relevant_paths)
     ][: min(num_docs, 25)]
+
+def chunk(texts: List[str], batch_size: int) -> Generator[List[str], None, None]:
+    """
+    This function takes a list of texts and splits them into batches of a given size
+    for embed_texts()
+
+    Args:
+        texts (List[str]): A list of texts to be chunked into batches.
+        batch_size (int): The maximum number of texts in each batch.
+
+    Yields:
+        Generator[List[str], None, None]: A generator that yields batches of texts as lists.
+
+    Example:
+        texts = ["text1", "text2", "text3", "text4", "text5"]
+        batch_size = 2
+        for batch in chunk(texts, batch_size):
+            print(batch)
+        # Output:
+        # ['text1', 'text2']
+        # ['text3', 'text4']
+        # ['text5']
+    """
+    for i in range(0, len(texts), batch_size):
+        yield texts[i : i + batch_size]
