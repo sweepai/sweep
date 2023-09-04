@@ -1,5 +1,7 @@
 # Welcome to Sweep - GitHub App installed successfully! 🎉
 
+## Local Development Workflow
+To build and run sweep locally, clone the latest version and then run `docker compose up`. This binds your directory and hot-reloads the docker image every time your local code changes. However, this method can be slow on Macs. As an alternative, you can run uvicorn directly, which is faster but doesn't reflect the docker image. Use the following command: `uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --reload-dir '/app/sweepai' --reload`.
 
 ⚠️ Be sure to follow these instructions in your own repository. Sweep works best with real repositories and real issues; empty or test repositories will break Sweep. *If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).*
 
