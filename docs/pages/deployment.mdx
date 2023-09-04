@@ -237,6 +237,8 @@ Create a `.env` file with the contents from steps 1 and 2. Then in the same dire
 
 ```bash
 docker run --env-file .env -p 8080:8080 sweepai/sweep:latest
+Alternatively, you can run the following command for a faster execution, especially on Macs: `uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --reload-dir '/app/sweepai' --reload`.
+Note: The local development workflow can be slow on Macs. If you experience this, consider using the above uvicorn command as an alternative.
 ```
 
 We're going to use [Ngrok](https://ngrok.com/) for a reverse proxy.
