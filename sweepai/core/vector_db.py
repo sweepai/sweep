@@ -1,41 +1,38 @@
-from functools import lru_cache
 import hashlib
 import json
 import os
 import pickle
 import re
 import time
-import numpy as np
+from functools import lru_cache
+from typing import Generator, List
 
+import numpy as np
+from deeplake.core.vectorstore.deeplake_vectorstore import \
+    DeepLakeVectorStore  # pylint: disable=import-error
 from github import Github
 from loguru import logger
 from redis import Redis
 from redis.backoff import ConstantBackoff
-from redis.retry import Retry
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
-from sentence_transformers import (  # pylint: disable=import-error
-    SentenceTransformer,
-)
-from deeplake.core.vectorstore.deeplake_vectorstore import (
-    DeepLakeVectorStore,
-)  # pylint: disable=import-error
+from redis.retry import Retry
+from sentence_transformers import \
+    SentenceTransformer  # pylint: disable=import-error
 
+from sweepai.config.client import SweepConfig
+from sweepai.config.server import (BATCH_SIZE, REDIS_URL,
+                                   SENTENCE_TRANSFORMERS_MODEL,
+                                   VECTOR_EMBEDDING_SOURCE)
 from sweepai.core.entities import Snippet
-from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
+from sweepai.core.lexical_search import (prepare_index_from_snippets,
+                                         search_index)
 from sweepai.core.repo_parsing_utils import repo_to_chunks
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.redis_client import RedisClient
 from sweepai.utils.scorer import compute_score, get_scores
-from sweepai.config.client import SweepConfig
-from sweepai.config.server import (
-    REDIS_URL,
-    SENTENCE_TRANSFORMERS_MODEL,
-    BATCH_SIZE,
-    VECTOR_EMBEDDING_SOURCE,
-)
+
 from ..utils.github_utils import ClonedRepo, get_token
-from typing import List, Generator
 
 MODEL_DIR = "cache/model"
 DEEPLAKE_DIR = "cache/"
@@ -63,9 +60,8 @@ redis_client = RedisClient(REDIS_URL).client
 
 
 def download_models():
-    from sentence_transformers import (  # pylint: disable=import-error
-        SentenceTransformer,
-    )
+    from sentence_transformers import \
+        SentenceTransformer  # pylint: disable=import-error
 
     model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
 
@@ -328,8 +324,7 @@ def get_relevant_snippets(
 
 def chunk(texts: List[str], batch_size: int) -> Generator[List[str], None, None]:
     """
-    This function takes a list of texts and splits them into batches of a given size
-    for embed_texts()
+    Split a list of texts into batches of a given size for embed_texts.
 
     Args:
         texts (List[str]): A list of texts to be chunked into batches.
