@@ -135,4 +135,4 @@ ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
 
 HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY", None)
 
-VECTOR_EMBEDDING_MODE = os.environ.get("VECTOR_EMBEDDING_MODE", "sentence-transformers") # Alternate option is openai
+VECTOR_EMBEDDING_SOURCE = os.environ.get("VECTOR_EMBEDDING_SOURCE", "sentence-transformers") # Alternate option is openai

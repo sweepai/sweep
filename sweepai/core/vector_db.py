@@ -32,7 +32,7 @@ from sweepai.config.server import (
     REDIS_URL,
     SENTENCE_TRANSFORMERS_MODEL,
     BATCH_SIZE,
-    VECTOR_EMBEDDING_MODE,
+    VECTOR_EMBEDDING_SOURCE,
 )
 from ..utils.github_utils import ClonedRepo, get_token
 from typing import List, Generator
@@ -87,7 +87,7 @@ def parse_collection_name(name: str) -> str:
 @lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
     logger.info(f"Computing embeddings for {len(texts)} texts")
-    match VECTOR_EMBEDDING_MODE:
+    match VECTOR_EMBEDDING_SOURCE:
         case "sentence-transformers":
             sentence_transformer_model = SentenceTransformer(
                 SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
