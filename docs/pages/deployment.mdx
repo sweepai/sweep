@@ -160,6 +160,12 @@ Finally, you can use Sweep by creating a new issue with a title prefixed with `S
 
 For more details on using Sweep, see our [tutorial](https://docs.sweep.dev/usage/tutorial) and [advanced usage](https://docs.sweep.dev/usage/advanced) guides.
 
+## Local Development Workflow
+
+To build and run sweep locally, clone the latest version and then run `docker compose up`. This binds your directory and hot-reloads the docker image every time your local code changes. Please note that this workflow is slow on Macs, and we're open to suggestions to improve this.
+
+Alternatively, you can run uvicorn directly, which is faster but doesn't reflect the docker image. Use the following command for this: `uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --reload-dir '/app/sweepai' --reload`.
+
 ---
 
 Alternate steps:
