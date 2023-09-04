@@ -133,6 +133,9 @@ SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
+SANDBOX_URL = os.environ.get("SANDBOX_URL", None)
+if SANDBOX_URL is not None:
+    print(f"Using Sandbox URL: {SANDBOX_URL}")
 
 HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY", None)
 
