@@ -19,31 +19,67 @@ export default class CallToAction extends React.Component {
       <Stack
 """
 
+old_file = r"""
+def filter_file(file, sweep_config):
+    for ext in sweep_config.exclude_exts:
+        if file.endswith(ext):
+            return False
+    for dir_name in sweep_config.exclude_dirs:
+        if file[len("repo/") :].startswith(dir_name):
+            return False
+    if not os.path.isfile(file):
+        return False
+    with open(file, "rb") as f:
+        is_binary = False
+        for block in iter(lambda: f.read(1024), b""):
+            if b"\0" in block:
+                is_binary = True
+                break
+        if is_binary:
+            return False
+
+    with open(file, "rb") as f:
+        if len(f.read()) > 60000:
+            return False
+    return True
+"""
+
+# code_replaces = """
+# ```
+# <<<< ORIGINAL
+# export default class CallToAction extends React.Component {
+#   constructor(props) {
+#     super(props);
+#     this.state = {
+#       spin: false,
+#     };
+#   }
+#   return (
+#     <Container maxW={"5xl"}>
+# ====
+# export default class CallToAction extends React.Component {
+#   constructor(props) {
+#     super(props);
+#     this.state = {
+#       spin: false,
+#     };
+#   }
+#   render() {
+#     return (
+#       <Container maxW={"5xl"}>
+# >>>> UPDATED
+# ```
+# """
+
 code_replaces = """
-```
 <<<< ORIGINAL
-export default class CallToAction extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      spin: false,
-    };
-  }
-  return (
-    <Container maxW={"5xl"}>
+with open(file, "rb") as f:
+    if len(f.read()) > 60000:
+        return False
 ====
-export default class CallToAction extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      spin: false,
-    };
-  }
-  render() {
-    return (
-      <Container maxW={"5xl"}>
+if os.stat(file).st_size > 60000:
+    return False
 >>>> UPDATED
-```
 """
 
 if __name__ == "__main__":
