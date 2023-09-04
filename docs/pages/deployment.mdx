@@ -4,6 +4,28 @@
 
 This is the guide for self-deploying Sweep. If you would like to use our hosted version, please visit https://sweep.ai. If you would like to develop on Sweep, check out [development](https://github.com/sweepai/sweep?tab=readme-ov-file#development).
 
+To build and run Sweep locally, you can use Docker Compose or uvicorn.
+
+## Docker Compose
+
+Run the following command:
+
+```
+docker compose up
+```
+
+This command binds your directory and hot-reloads the Docker image every time your local code changes. Note that this method may be slow on Macs.
+
+## Uvicorn
+
+Alternatively, you can run the application directly with uvicorn using the following command:
+
+```
+uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --reload-dir '/app/sweepai' --reload
+```
+
+This method is faster but doesn't reflect the Docker image.
+
 ---
 
 ## Video Guide (3 min 26 seconds)
