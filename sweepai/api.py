@@ -40,7 +40,7 @@ from sweepai.utils.search_utils import index_full_repository
 from celery import Celery
 from redis import Redis
 
-redis_client = Redis(host='localhost', port=6379, db=2)
+redis_client = Redis(host='redis', port=6379, db=2)
 
 celery_app = Celery(
     "sweepai",
@@ -66,17 +66,11 @@ tracemalloc.start()
 
 @celery_app.task
 def run_ticket(*args, **kwargs):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(on_ticket(*args, **kwargs))
-    loop.close()
+    on_ticket(*args, **kwargs)
 
 @celery_app.task
 def run_comment(*args, **kwargs):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(on_comment(*args, **kwargs))
-    loop.close()
+    on_comment(*args, **kwargs)
 
 
 def call_on_ticket(*args, **kwargs):
@@ -85,18 +79,28 @@ def call_on_ticket(*args, **kwargs):
     # Check if a previous process exists for the same key, cancel it
     prev_task_id = redis_client.get(key)
     if prev_task_id:
+        logger.info(f"Found previous task id: {prev_task_id} and cancelling it")
         celery_app.control.revoke(prev_task_id, terminate=True)
     
     task = run_ticket.apply_async(args=args, kwargs=kwargs)
     
     # Save new task id in Redis
+    print(f"Saving task id {task.id} for key {key}")
     redis_client.set(key, task.id)
 
 
 def call_on_comment(*args, **kwargs):
-    SweepContext.static_instance = None
+    key = f"{args[5]}-{args[2]}"  # Create a unique key like in call_on_ticket
+
+    prev_task_id = redis_client.get(key)
+    if prev_task_id:
+        logger.info(f"Found previous task id: {prev_task_id} and cancelling it")
+        celery_app.control.revoke(prev_task_id, terminate=True)
+    
     task = run_comment.apply_async(args=args, kwargs=kwargs)
 
+    print(f"Saving task id {task.id} for key {key}")
+    redis_client.set(key, task.id)
 
 @app.get("/health")
 def health_check():
@@ -113,7 +117,6 @@ async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
-        print(issues_lock)
         logger.info(f"Received request: {request_dict.keys()}")
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None

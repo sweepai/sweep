@@ -64,7 +64,7 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     return result_snippets[:max_num_of_snippets]
 
 
-async def on_comment(
+def on_comment(
     repo_full_name: str,
     repo_description: str,
     comment: str,
@@ -396,7 +396,7 @@ async def on_comment(
                     chat_logger=chat_logger,
                 )
             else:
-                file_change_requests, _ = await sweep_bot.get_files_to_change(retries=1)
+                file_change_requests, _ = sweep_bot.get_files_to_change(retries=1)
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name
                 )
@@ -432,7 +432,7 @@ async def on_comment(
         changes_made = sum(
             [
                 change_made
-                async for _, change_made, _ in sweep_bot.change_files_in_github_iterator(
+                for _, change_made, _ in sweep_bot.change_files_in_github_iterator(
                     file_change_requests, branch_name, blocked_dirs
                 )
             ]
