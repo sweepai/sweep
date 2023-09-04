@@ -230,6 +230,12 @@ def create_config_pr(
     branch_name = sweep_bot.create_branch(branch_name, retry=False)
     try:
         sweep_bot.repo.create_file(
+            "sweep.yaml",
+            "Create sweep.yaml",
+            GITHUB_DEFAULT_CONFIG,
+            branch=branch_name,
+        )
+        sweep_bot.repo.create_file(
             ".github/ISSUE_TEMPLATE/sweep-template.yml",
             "Create sweep template",
             SWEEP_TEMPLATE,

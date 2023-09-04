@@ -16,3 +16,4 @@ services:
       sh -c "uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --reload-dir '/app/sweepai' --reload"
     stdin_open: true
     tty: true
+    image: sweepai/sweep:latest
