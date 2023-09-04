@@ -97,6 +97,8 @@ You can self-host Sweep with the Docker image (`https://hub.docker.com/r/sweepai
 3. Install the dependencies with `poetry install` This will take a few minutes, do the new step in the meantime.
 4. Create `.env` according to https://docs.sweep.dev/deployment.
 5. Hop into the environment with `poetry shell` and start the server by running `uvicorn sweepai.api:app --port 8080 --workers 3`. You can tweak the number of workers but it needs to be at least 2.
+Alternatively, you can run the following command for a faster execution, especially on Macs: `uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --reload-dir '/app/sweepai' --reload`.
+Note: The local development workflow can be slow on Macs. If you experience this, consider using the above uvicorn command as an alternative.
 
 ### Building Docker
 
