@@ -38,7 +38,7 @@ INSTRUCTIONS_FOR_REVIEW = """\
 * Edit the original issue to get Sweep to recreate the PR from scratch"""
 
 
-async def create_pr_changes(
+def create_pr_changes(
     file_change_requests: list[FileChangeRequest],
     pull_request: PullRequest,
     sweep_bot: SweepBot,
@@ -92,7 +92,7 @@ async def create_pr_changes(
 
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
 
-        async for (
+        for (
             file_change_request,
             changed_file,
             sandbox_error,

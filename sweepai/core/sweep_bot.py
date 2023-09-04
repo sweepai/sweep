@@ -52,8 +52,8 @@ BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 
 
 class CodeGenBot(ChatGPT):
-    async def summarize_snippets(self):
-        snippet_summarization = await self.achat(
+    def summarize_snippets(self):
+        snippet_summarization = self.chat(
             snippet_replacement,
             message_key="snippet_summarization",
         )  # maybe add relevant info
@@ -129,12 +129,12 @@ class CodeGenBot(ChatGPT):
         msg = Message(content=msg_content, role="assistant", key=BOT_ANALYSIS_SUMMARY)
         self.messages.insert(-2, msg)
 
-    async def generate_subissues(self, retries: int = 3):
+    def generate_subissues(self, retries: int = 3):
         subissues: list[ProposedIssue] = []
         for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                files_to_change_response = await self.achat(
+                files_to_change_response = self.chat(
                     subissues_prompt, message_key="subissues"
                 )  # Dedup files to change here
                 subissues = []
@@ -150,7 +150,7 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    async def get_files_to_change(
+    def get_files_to_change(
         self, retries=1
     ) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
@@ -160,7 +160,7 @@ class CodeGenBot(ChatGPT):
         for count in range(retries):
             try:
                 logger.info(f"Generating for the {count}th time...")
-                files_to_change_response = await self.achat(
+                files_to_change_response = self.chat(
                     files_to_change_prompt, message_key="files_to_change"
                 )  # Dedup files to change here
                 file_change_requests = []
@@ -179,7 +179,7 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    async def generate_pull_request(self, retries=2) -> PullRequest:
+    def generate_pull_request(self, retries=2) -> PullRequest:
         for count in range(retries):
             too_long = False
             try:
@@ -187,11 +187,11 @@ class CodeGenBot(ChatGPT):
                 if (
                     too_long or count >= retries - 1
                 ):  # if on last try, use gpt4-32k (improved context window)
-                    pr_text_response = await self.achat(
+                    pr_text_response = self.chat(
                         pull_request_prompt, message_key="pull_request"
                     )
                 else:
-                    pr_text_response = await self.achat(
+                    pr_text_response = self.chat(
                         pull_request_prompt,
                         message_key="pull_request",
                         model=SECONDARY_MODEL,
@@ -395,10 +395,10 @@ class SweepBot(CodeGenBot, GithubBot):
 
         return True
 
-    async def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
+    def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
         file_change: FileCreation | None = None
         key = f"file_change_created_{file_change_request.filename}"
-        create_file_response = await self.achat(
+        create_file_response = self.chat(
             create_file_prompt.format(
                 filename=file_change_request.filename,
                 instructions=file_change_request.instructions,
@@ -468,7 +468,7 @@ class SweepBot(CodeGenBot, GithubBot):
             self.delete_messages_from_chat(key)
         raise Exception("Failed to parse response after 5 attempts.")
 
-    async def modify_file(
+    def modify_file(
         self,
         file_change_request: FileChangeRequest,
         contents: str = "",
@@ -493,7 +493,7 @@ class SweepBot(CodeGenBot, GithubBot):
             if chunking:
                 # TODO (sweep): make chunking / streaming better
                 message = chunking_prompt + message
-                modify_file_response = await self.achat(
+                modify_file_response = self.chat(
                     message,
                     message_key=key,
                 )
@@ -509,7 +509,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
                     old_system_message = self.messages[0].content
                     self.messages[0].content = modify_recreate_file_system_message
-                    modify_file_response = await self.achat(
+                    modify_file_response = self.chat(
                         message,
                         message_key=key,
                     )
@@ -518,7 +518,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 else:
                     old_system_message = self.messages[0].content
                     self.messages[0].content = modify_file_system_message
-                    modify_file_response = await self.achat(
+                    modify_file_response = self.chat(
                         message,
                         message_key=key,
                     )
@@ -612,7 +612,7 @@ class SweepBot(CodeGenBot, GithubBot):
             self.delete_messages_from_chat(key)
         raise Exception(f"Failed to parse response after 1 attempt.")
 
-    async def change_files_in_github(
+    def change_files_in_github(
         self,
         file_change_requests: list[FileChangeRequest],
         branch: str,
@@ -624,14 +624,14 @@ class SweepBot(CodeGenBot, GithubBot):
         num_fcr = len(file_change_requests)
         completed = 0
 
-        async for _, changed_file in self.change_files_in_github_iterator(
+        for _, changed_file in self.change_files_in_github_iterator(
             file_change_requests, branch, blocked_dirs, sandbox=sandbox
         ):
             if changed_file:
                 completed += 1
         return completed, num_fcr
 
-    async def change_files_in_github_iterator(
+    def change_files_in_github_iterator(
         self,
         file_change_requests: list[FileChangeRequest],
         branch: str,
@@ -664,7 +664,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
                 match file_change_request.change_type:
                     case "create":
-                        changed_file, sandbox_error = await self.handle_create_file(
+                        changed_file, sandbox_error = self.handle_create_file(
                             file_change_request, branch, sandbox=sandbox
                         )
                     case "modify":
@@ -684,7 +684,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 flags=re.DOTALL,
                             )
 
-                        changed_file, sandbox_error = await self.handle_modify_file(
+                        changed_file, sandbox_error = self.handle_modify_file(
                             file_change_request, branch, sandbox=sandbox
                         )
                     case "delete":
@@ -732,11 +732,11 @@ class SweepBot(CodeGenBot, GithubBot):
             if changed_file:
                 completed += 1
 
-    async def handle_create_file(
+    def handle_create_file(
         self, file_change_request: FileChangeRequest, branch: str, sandbox=None
     ) -> tuple[bool, None]:
         try:
-            file_change = await self.create_file(file_change_request)
+            file_change = self.create_file(file_change_request)
             file_markdown = is_markdown(file_change_request.filename)
             file_change.code = format_contents(file_change.code, file_markdown)
             logger.debug(
@@ -759,7 +759,7 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.info(f"Error in handle_create_file: {e}")
             return False, None
 
-    async def handle_modify_file(
+    def handle_modify_file(
         self,
         file_change_request: FileChangeRequest,
         branch: str,
@@ -794,7 +794,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             new_file_contents,
                             suggested_commit_message,
                             sandbox_error,
-                        ) = await self.modify_file(
+                        ) = self.modify_file(
                             file_change_request,
                             contents="\n".join(lines),
                             branch=branch,
@@ -823,7 +823,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                     new_chunk,
                                     suggested_commit_message,
                                     sandbox_error,
-                                ) = await self.modify_file(
+                                ) = self.modify_file(
                                     file_change_request,
                                     contents=chunk_contents,
                                     branch=branch,

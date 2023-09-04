@@ -243,7 +243,7 @@ class ClonedRepo:
         ctags = CTags(sha=sha, redis_instance=cache_inst)
         all_names = []
         for file in snippet_paths:
-            ctags_str, names = get_ctags_for_file(ctags, os.path.join("repo", file))
+            _, names = get_ctags_for_file(ctags, os.path.join("repo", file))
             all_names.extend(names)
         tree = self.list_directory_tree(
             included_directories=prefixes,

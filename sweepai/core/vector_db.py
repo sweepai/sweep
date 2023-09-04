@@ -31,7 +31,6 @@ from sweepai.config.client import SweepConfig
 from sweepai.config.server import REDIS_URL, SENTENCE_TRANSFORMERS_MODEL, BATCH_SIZE
 from ..utils.github_utils import ClonedRepo, get_token
 
-
 MODEL_DIR = "cache/model"
 DEEPLAKE_DIR = "cache/"
 DISKCACHE_DIR = "cache/diskcache/"
@@ -84,7 +83,6 @@ sentence_transformer_model = SentenceTransformer(
 )
 
 
-@lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
     logger.info(f"Computing embeddings for {len(texts)} texts")
     vector = sentence_transformer_model.encode(

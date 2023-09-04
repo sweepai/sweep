@@ -19,7 +19,7 @@ DOCS_ENDPOINTS = DOCS_ENDPOINTS
 
 class DocQueryRewriter(ChatGPT):
     # rewrite the query to be more relevant to the docs
-    async def rewrite_query(self, package: str, description: str, issue: str) -> str:
+    def rewrite_query(self, package: str, description: str, issue: str) -> str:
         self.messages = [
             Message(
                 role="system",
@@ -29,7 +29,7 @@ class DocQueryRewriter(ChatGPT):
             )
         ]
         self.model = "gpt-3.5-turbo-16k-0613"  # can be optimized
-        response = await self.achat(doc_query_rewriter_prompt.format(issue=issue))
+        response = self.chat(doc_query_rewriter_prompt.format(issue=issue))
         self.undo()
         return response.strip() + "\n"
 
@@ -55,7 +55,7 @@ class DocumentationSearcher(ChatGPT):
     # TODO: refactor to avoid code duplication
     # no but seriously, refactor this
 
-    async def extract_resources(
+    def extract_resources(
         self, url: str, content: str, user_dict: dict, chat_logger: ChatLogger
     ) -> str:
         # MVP
@@ -67,7 +67,7 @@ class DocumentationSearcher(ChatGPT):
                 package = framework
                 description = description
                 break
-        rewritten_problem = await DocQueryRewriter(
+        rewritten_problem = DocQueryRewriter(
             chat_logger=chat_logger, model="gpt-3.5-turbo-16k-0613"
         ).rewrite_query(package=package, description=description, issue=content)
         urls, docs = docs_search(url, rewritten_problem)
@@ -78,7 +78,7 @@ class DocumentationSearcher(ChatGPT):
                 content=docs_qa_system_prompt,
             ),
         ]
-        answer = await self.achat(
+        answer = self.chat(
             docs_qa_user_prompt.format(
                 snippets="\n\n".join(
                     [f"**{url}:**\n\n{doc}" for url, doc in zip(urls, docs)]
@@ -92,7 +92,7 @@ class DocumentationSearcher(ChatGPT):
         )
 
 
-async def extract_relevant_docs(content: str, user_dict: dict, chat_logger: ChatLogger):
+def extract_relevant_docs(content: str, user_dict: dict, chat_logger: ChatLogger):
     links = extract_docs_links(content, user_dict)
     if not links:
         return ""
@@ -103,7 +103,7 @@ async def extract_relevant_docs(content: str, user_dict: dict, chat_logger: Chat
             external_searcher = DocumentationSearcher(
                 chat_logger=chat_logger, model="gpt-3.5-turbo-16k-0613"
             )
-            summary = await external_searcher.extract_resources(
+            summary = external_searcher.extract_resources(
                 link, content, user_dict, chat_logger
             )
             result += "> " + summary.replace("\n", "\n> ") + "\n\n"

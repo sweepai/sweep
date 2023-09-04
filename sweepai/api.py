@@ -1,5 +1,3 @@
-import asyncio
-
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from loguru import logger
@@ -37,70 +35,56 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.redis_client import RedisClient
 from sweepai.utils.search_utils import index_full_repository
-from celery import Celery
-from redis import Redis
-
-redis_client = Redis(host='redis', port=6379, db=2)
-
-celery_app = Celery(
-    "sweepai",
-    broker="redis://localhost:6379/0",
-    backend="redis://localhost:6379/1",
-)
+from sweepai.celery import celery_app, redis_client
 
 app = FastAPI()
-
-@celery_app.task
-def run_ticket_celery(*args, **kwargs):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(on_ticket(*args, **kwargs))
-    loop.close()
-
-issues_lock = {}
 
 import tracemalloc
 
 tracemalloc.start()
 
-
-@celery_app.task
-def run_ticket(*args, **kwargs):
+@celery_app.task(bind=True)
+def run_ticket(self, *args, **kwargs):
+    logger.info(f"Running on_ticket Task ID: {self.request.id}")
     on_ticket(*args, **kwargs)
-
-@celery_app.task
-def run_comment(*args, **kwargs):
-    on_comment(*args, **kwargs)
-
+    logger.info("Done with on_ticket")
 
 def call_on_ticket(*args, **kwargs):
     key = f"{args[5]}-{args[2]}"  # Full name, issue number as key
-    
+
     # Check if a previous process exists for the same key, cancel it
     prev_task_id = redis_client.get(key)
+    prev_task_id = prev_task_id.decode('utf-8') if prev_task_id else None
+    i = celery_app.control.inspect()
+    # To get a list of active tasks:
+    active_tasks = i.active()
+    logger.info(f"Active tasks: {active_tasks}")
     if prev_task_id:
         logger.info(f"Found previous task id: {prev_task_id} and cancelling it")
-        celery_app.control.revoke(prev_task_id, terminate=True)
-    
-    task = run_ticket.apply_async(args=args, kwargs=kwargs)
-    
-    # Save new task id in Redis
-    print(f"Saving task id {task.id} for key {key}")
+        result = celery_app.control.revoke(prev_task_id, terminate=True, signal='SIGKILL')  # Decoding bytes to string
+        logger.info(f"Result of cancelling: {result}")
+        redis_client.delete(key)
+    else:
+        logger.info(f"No previous task id found for key {key}")
+    task = celery_app.send_task('sweepai.api.run_ticket', args=args, kwargs=kwargs)
+    logger.info(f"Saving task id {task.id} for key {key}")
     redis_client.set(key, task.id)
-
+    active_tasks = i.active()
+    logger.info(f"Active tasks: {active_tasks}")
 
 def call_on_comment(*args, **kwargs):
-    key = f"{args[5]}-{args[2]}"  # Create a unique key like in call_on_ticket
+    # key = f"{args[5]}-{args[2]}"  # Create a unique key like in call_on_ticket
 
-    prev_task_id = redis_client.get(key)
-    if prev_task_id:
-        logger.info(f"Found previous task id: {prev_task_id} and cancelling it")
-        celery_app.control.revoke(prev_task_id, terminate=True)
+    # prev_task_id = redis_client.get(key)
+    # if prev_task_id:
+    #     logger.info(f"Found previous task id: {prev_task_id} and cancelling it")
+    #     celery_app.control.revoke(prev_task_id, terminate=True)
     
-    task = run_comment.apply_async(args=args, kwargs=kwargs)
+    # task = run_comment.apply_async(args=args, kwargs=kwargs)
 
-    print(f"Saving task id {task.id} for key {key}")
-    redis_client.set(key, task.id)
+    # print(f"Saving task id {task.id} for key {key}")
+    # redis_client.set(key, task.id)
+    pass
 
 @app.get("/health")
 def health_check():
@@ -557,7 +541,7 @@ async def webhook(raw_request: Request):
                         # Call the write_documentation function for each of the existing fields in the "docs" mapping
                         for doc_url, _ in docs.values():
                             logger.info(f"Writing documentation for {doc_url}")
-                            await write_documentation(doc_url)
+                            write_documentation(doc_url)
                     # this makes it faster for everyone because the queue doesn't get backed up
                     if chat_logger.is_paying_user():
                         cloned_repo = ClonedRepo(

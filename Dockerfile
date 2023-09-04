@@ -30,6 +30,7 @@ RUN pip install --no-cache-dir poetry \
     && pip install --no-cache-dir -r requirements.txt
 
 RUN playwright install
+RUN apt-get update && apt-get install -y screen
 
 FROM base as final
 
