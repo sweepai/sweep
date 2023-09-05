@@ -1,11 +1,12 @@
 import requests
+import json
 from functools import lru_cache
 import hashlib
-import json
 import os
 import pickle
 import re
 import time
+import numpy as np
 import numpy as np
 
 from github import Github
@@ -72,9 +73,15 @@ sentence_transformer_model = SentenceTransformer(
 
 def embed_texts(texts: tuple[str]):
     HUGGINGFACE_URL = os.getenv('HUGGINGFACE_URL')
+    HUGGINGFACE_TOKEN = os.getenv('HUGGINGFACE_TOKEN')
     if HUGGINGFACE_URL:
         try:
-            response = requests.post(HUGGINGFACE_URL, data={'texts': texts})
+            headers = {
+                "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
+                "Content-Type": "application/json"
+            }
+            data = json.dumps({"inputs": " ".join(texts)})
+            response = requests.post(HUGGINGFACE_URL, headers=headers, data=data)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
