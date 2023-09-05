@@ -440,7 +440,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.error(f"Error: {e}")
 
             # Format file
-            if self.sweep_context.is_paying_user and SANDBOX_URL:
+            if SANDBOX_URL:
                 try:
                     print("Running Sandbox for create file...")
                     print(file_change.code)
@@ -579,7 +579,7 @@ class SweepBot(CodeGenBot, GithubBot):
             commit_message = commit_message[: min(len(commit_message), 50)]
 
             sandbox_error = None
-            if self.sweep_context.is_paying_user and SANDBOX_URL:
+            if SANDBOX_URL:
                 try:
                     print("Running Sandbox for modify file...")
                     logger.info(f"New file {new_file}")
