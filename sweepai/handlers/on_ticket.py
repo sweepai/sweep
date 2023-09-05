@@ -242,6 +242,7 @@ def on_ticket(
         repo=repo,
         token=user_token,
     )
+    print(sweep_context)
 
     if not comment_id and not edited and chat_logger:
         chat_logger.add_successful_ticket(

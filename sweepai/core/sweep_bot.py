@@ -1,5 +1,6 @@
 import traceback
 import re
+import requests
 from typing import Generator, Any
 
 from github.ContentFile import ContentFile
@@ -37,7 +38,7 @@ from sweepai.core.prompts import (
     modify_recreate_file_prompt_3,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import DB_MODAL_INST_NAME, SECONDARY_MODEL
+from sweepai.config.server import DB_MODAL_INST_NAME, SANDBOX_URL, SECONDARY_MODEL
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import (
     format_contents,
@@ -402,7 +403,6 @@ class SweepBot(CodeGenBot, GithubBot):
             create_file_prompt.format(
                 filename=file_change_request.filename,
                 instructions=file_change_request.instructions,
-                # commit_message=f"Create {file_change_request.filename}"
             ),
             message_key=key,
         )
@@ -440,24 +440,26 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.error(f"Error: {e}")
 
             # Format file
-            try:
-                if self.sweep_context.is_paying_user:
-                    from sandbox.sandbox_local import (
-                        run_sandbox,
-                    )  # pylint: disable=import-outside-toplevel
-
-                    output = run_sandbox(
-                        self.sweep_context.username,
-                        self.sweep_context.repo.html_url,
-                        file_change_request.filename,
-                        file_change.code,
-                        token=self.sweep_context.token,
-                    )
+            if SANDBOX_URL:
+                try:
+                    print("Running Sandbox for create file...")
+                    print(file_change.code)
+                    print(self.sweep_context)
+                    output = requests.post(
+                        SANDBOX_URL,
+                        json={
+                            "token": self.sweep_context.token,
+                            "repo_url": self.repo.html_url,
+                            "file_path": file_change_request.filename,
+                            "content": file_change.code,
+                        },
+                    ).json()
+                    print(output)
                     if output["success"]:
                         file_change.code = output["updated_content"]
-            except Exception as e:
-                logger.error(f"Sandbox Error: {e}")
-                logger.error(traceback.format_exc())
+                except Exception as e:
+                    logger.error(f"Sandbox Error: {e}")
+                    logger.error(traceback.format_exc())
 
             return file_change
         except Exception as e:
@@ -549,6 +551,8 @@ class SweepBot(CodeGenBot, GithubBot):
                     chunk_offset=chunk_offset,
                     sweep_context=self.sweep_context,
                 )
+                if errors:
+                    logger.error(errors)
 
             try:
                 for _, replace in get_matches(modify_file_response):
@@ -575,37 +579,27 @@ class SweepBot(CodeGenBot, GithubBot):
             commit_message = commit_message[: min(len(commit_message), 50)]
 
             sandbox_error = None
-            try:
-                # with open(f"repo/{file_change_request.filename}", "w") as f:
-                #     f.write(new_file)
-
-                # try:
-                #     from sandbox.modal_sandbox import (  # pylint: disable=E0401
-                #         sandbox_code_repair_modify,  # pylint: disable=E0401
-                #     )
-
-                #     self.delete_messages_from_chat(key)
-
-                #     # Formats and lints the file
-                #     # (writes the formatted file to repo/filename)
-                #     final_file, sandbox_error = sandbox_code_repair_modify(
-                #         new_file,
-                #         file_change_request.filename,
-                #         chunk_offset=chunk_offset,
-                #         sandbox=sandbox,
-                #         chat_logger=self.chat_logger,
-                #         sweep_context=self.sweep_context,
-                #     )
-                #     return final_file, commit_message, sandbox_error
-                # except Exception as e:
-                #     logger.error(f"Sandbox error: {e}")
-                #     logger.error(traceback.format_exc())
-                #     self.delete_messages_from_chat(key)
-                return new_file, commit_message, sandbox_error
-            except Exception as e:
-                logger.error(f"Error: {e}")
-                logger.error(traceback.format_exc())
-                raise e
+            if SANDBOX_URL:
+                try:
+                    print("Running Sandbox for modify file...")
+                    logger.info(f"New file {new_file}")
+                    logger.info(f"Sweep context: {self.sweep_context}")
+                    output = requests.post(
+                        SANDBOX_URL,
+                        json={
+                            "token": self.sweep_context.token,
+                            "repo_url": self.repo.html_url,
+                            "file_path": file_change_request.filename,
+                            "content": new_file,
+                        },
+                    ).json()
+                    logger.info(f"Output: {output}")
+                    if output["success"]:
+                        new_file = output["updated_content"]
+                except Exception as e:
+                    logger.error(f"Sandbox Error: {e}")
+                    logger.error(traceback.format_exc())
+            return new_file, commit_message, sandbox_error
         except Exception as e:
             tb = traceback.format_exc()
             logger.warning(f"Failed to parse." f" {e}\n{tb}")
