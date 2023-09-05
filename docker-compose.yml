@@ -13,10 +13,6 @@ services:
       WORKERS: 3
       WATCHFILES_FORCE_POLLING: true
     command: >
-      sh -c "screen -dmS uvicorn_screen uvicorn sweepai.api:app --host 0.0.0.0 --port 8080; celery -A sweepai.celery_init worker --loglevel=debug --pool=eventlet -c 4"
+      sh -c "screen -dmS redis_screen redis-server --bind 0.0.0.0 --port 6379; screen -dmS uvicorn_screen uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 && celery -A sweepai.celery_init worker --loglevel=debug --pool=eventlet -c 4"
     stdin_open: true
     tty: true
-  redis:
-    image: redis:latest
-    ports:
-      - "6379:6379"

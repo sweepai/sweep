@@ -31,6 +31,7 @@ RUN pip install --no-cache-dir poetry \
 
 RUN playwright install
 RUN apt-get update && apt-get install -y screen
+RUN apt-get update && apt-get install -y redis-server
 
 FROM base as final
 
@@ -40,7 +41,7 @@ COPY sweepai /app/sweepai
 RUN python sweepai/startup.py
 
 EXPOSE 8080
-CMD ["sh", "-c", "screen -dmS uvicorn_screen uvicorn sweepai.api:app --host 0.0.0.0 --port 8080; celery -A sweepai.celery_init worker --loglevel=info --pool=eventlet -c 4"]
+CMD ["sh", "-c", "screen -dmS redis_screen redis-server --bind 0.0.0.0 --port 6379; screen -dmS uvicorn_screen uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 && celery -A sweepai.celery_init worker --loglevel=debug --pool=eventlet -c 4"]
 
 LABEL org.opencontainers.image.description="Backend for Sweep, an AI-powered junior developer"
 LABEL org.opencontainers.image.source="https://github.com/sweepai/sweep"
