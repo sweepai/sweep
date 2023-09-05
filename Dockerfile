@@ -37,6 +37,7 @@ FROM base as final
 
 COPY sweepai /app/sweepai
 COPY bin/startup.sh /app/startup.sh
+RUN chmod u+x /app/startup.sh
 
 # Has some startup logic
 RUN python sweepai/startup.py
