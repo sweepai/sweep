@@ -155,7 +155,7 @@ def test_mode(issue):
     sandbox_logs = ""
 
 
-async def on_ticket(
+def on_ticket(
     title: str,
     summary: str,
     issue_number: int,
@@ -600,13 +600,13 @@ async def on_ticket(
         repo_description = "No description provided."
 
     message_summary = summary + replies_text
-    external_results = await ExternalSearcher.extract_summaries(message_summary)
+    external_results = ExternalSearcher.extract_summaries(message_summary)
     if external_results:
         message_summary += "\n\n" + external_results
     user_dict = get_documentation_dict(repo)
     docs_results = ""
     try:
-        docs_results = await extract_relevant_docs(
+        docs_results = extract_relevant_docs(
             title + message_summary, user_dict, chat_logger
         )
         if docs_results:
@@ -625,7 +625,7 @@ async def on_ticket(
     )
     additional_plan = None
     slow_mode_bot = SlowModeBot(chat_logger=chat_logger)  # can be async'd
-    queries, additional_plan = await slow_mode_bot.expand_plan(human_message)
+    queries, additional_plan = slow_mode_bot.expand_plan(human_message)
 
     snippets, tree = search_snippets(
         cloned_repo,
@@ -649,7 +649,7 @@ async def on_ticket(
     )
     try:
         context_pruning = ContextPruning(chat_logger=chat_logger)
-        snippets_to_ignore, directories_to_ignore = await context_pruning.prune_context(
+        snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
             human_message, repo=repo
         )
         snippets, tree = search_snippets(
@@ -746,7 +746,7 @@ async def on_ticket(
         )
 
         if do_map:
-            subissues: list[ProposedIssue] = await sweep_bot.generate_subissues()
+            subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
             edit_sweep_comment(
                 f"I'm creating the following subissues:\n\n"
                 + "\n\n".join(
@@ -785,7 +785,7 @@ async def on_ticket(
         # COMMENT ON ISSUE
         # TODO: removed issue commenting here
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = await sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change()
 
         if not file_change_requests:
             if len(title + summary) < 60:
@@ -807,7 +807,7 @@ async def on_ticket(
                 )
             raise Exception("No files to modify.")
 
-        await sweep_bot.summarize_snippets()
+        sweep_bot.summarize_snippets()
 
         file_change_requests = sweep_bot.validate_file_change_requests(
             file_change_requests
@@ -834,7 +834,7 @@ async def on_ticket(
         # TODO(lukejagg): Generate PR after modifications are made
         # CREATE PR METADATA
         logger.info("Generating PR...")
-        pull_request = await sweep_bot.generate_pull_request()
+        pull_request = sweep_bot.generate_pull_request()
         pull_request_content = pull_request.content.strip().replace("\n", "\n>")
         pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
         edit_sweep_comment(
@@ -906,7 +906,7 @@ async def on_ticket(
         logger.info(files_progress)
         edit_sweep_comment(table_message, 4)
         response = {"error": NoFilesException()}
-        async for item in generator:
+        for item in generator:
             if isinstance(item, dict):
                 response = item
                 break
@@ -1091,7 +1091,7 @@ async def on_ticket(
         # Close sandbox
         # try:
         #     if sandbox is not None:
-        #         await asyncio.wait_for(sandbox.close(), timeout=10)
+        #         asyncio.wait_for(sandbox.close(), timeout=10)
         #         logger.info("Closed e2b sandbox")
         # except Exception as e:
         #     logger.error(e)

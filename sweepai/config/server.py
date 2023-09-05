@@ -113,7 +113,7 @@ MONGODB_URI = os.environ.get("MONGODB_URI")
 REDIS_URL = os.environ.get("REDIS_URL")
 # deprecated: old logic transfer so upstream can use this
 if not REDIS_URL:
-    REDIS_URL = os.environ.get("redis_url")
+    REDIS_URL = os.environ.get("redis_url", "redis://localhost:6379/0")
 
 ORG_ID = os.environ.get("ORG_ID", None)
 # goes under Modal 'posthog' secret name (optional, can leave env var blank)
