@@ -110,7 +110,7 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 MONGODB_URI = os.environ.get("MONGODB_URI")
 
 # goes under Modal 'redis_url' secret name (optional, can leave env var blank)
-REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
+REDIS_URL = os.environ.get("REDIS_URL")
 # deprecated: old logic transfer so upstream can use this
 if not REDIS_URL:
     REDIS_URL = os.environ.get("redis_url", "redis://redis:6379/0")

@@ -34,7 +34,8 @@ from sweepai.config.server import (
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.search_utils import index_full_repository
-from sweepai.celery import celery_app, redis_client
+from sweepai.celery_init import celery_app
+from sweepai.redis_init import redis_client
 
 app = FastAPI()
 
