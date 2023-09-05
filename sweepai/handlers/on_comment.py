@@ -74,9 +74,6 @@ def on_comment(
     installation_id: int,
     pr_number: int = None,
     comment_id: int | None = None,
-    g: None = None,
-    repo: Repository = None,
-    pr: Any = None,  # Uses PRFileChanges type too
     chat_logger: Any = None,
 ):
     # Flow:
@@ -91,9 +88,9 @@ def on_comment(
     )
     organization, repo_name = repo_full_name.split("/")
 
-    g = (get_github_client(installation_id))[1] if not g else g
-    repo = g.get_repo(repo_full_name) if not repo else repo
-    pr = repo.get_pull(pr_number) if not pr else pr
+    _, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    pr = repo.get_pull(pr_number)
     pr_title = pr.title
     pr_body = pr.body or ""
     pr_file_path = None

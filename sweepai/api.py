@@ -40,6 +40,7 @@ from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.search_utils import index_full_repository
 from sweepai.celery_init import celery_app
 from sweepai.redis_init import redis_client
+from celery.result import AsyncResult
 
 app = FastAPI()
 
@@ -53,9 +54,14 @@ def run_ticket(self, *args, **kwargs):
     on_ticket(*args, **kwargs)
     logger.info("Done with on_ticket")
 
+@celery_app.task(bind=True)
+def run_comment(self, *args, **kwargs):
+    logger.info(f"Running on_comment Task ID: {self.request.id}")
+    on_comment(*args, **kwargs)
+    logger.info("Done with on_comment")
+
 def call_on_ticket(*args, **kwargs):
     key = f"{args[5]}-{args[2]}"  # Full name, issue number as key
-
     # Check if a previous process exists for the same key, cancel it
     prev_task_id = redis_client.get(key)
     prev_task_id = prev_task_id.decode('utf-8') if prev_task_id else None
@@ -77,18 +83,32 @@ def call_on_ticket(*args, **kwargs):
     logger.info(f"Active tasks: {active_tasks}")
 
 def call_on_comment(*args, **kwargs):
-    # key = f"{args[5]}-{args[2]}"  # Create a unique key like in call_on_ticket
-
-    # prev_task_id = redis_client.get(key)
-    # if prev_task_id:
-    #     logger.info(f"Found previous task id: {prev_task_id} and cancelling it")
-    #     celery_app.control.revoke(prev_task_id, terminate=True)
+    repo_full_name = kwargs["repo_full_name"]
+    pr_id = kwargs["pr_number"]
+    key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
     
-    # task = run_comment.apply_async(args=args, kwargs=kwargs)
+    i = celery_app.control.inspect()
+    active_tasks = i.active()
+    logger.info(f"Active tasks: {active_tasks}")
+    
+    # Get previous task IDs for the same key, if any
+    prev_task_ids = redis_client.lrange(key, 0, -1)
+    prev_task_ids = [task_id.decode('utf-8') for task_id in prev_task_ids] if prev_task_ids else []
+    
+    # If previous tasks are pending, don't enqueue new task
+    for prev_task_id in prev_task_ids:
+        task_status = AsyncResult(prev_task_id, app=celery_app).status
+        if task_status not in ('SUCCESS', 'FAILURE'):
+            logger.info(f"Previous task id {prev_task_id} still pending. Not enqueuing new task.")
+            return
+    
+    # Enqueue new task and save task ID
+    task = celery_app.send_task('sweepai.api.run_comment', args=args, kwargs=kwargs)
+    logger.info(f"Enqueuing new task id {task.id} for key {key}")
+    
+    # Save the new task ID to the list
+    redis_client.rpush(key, task.id)
 
-    # print(f"Saving task id {task.id} for key {key}")
-    # redis_client.set(key, task.id)
-    pass
 
 @app.get("/health")
 def health_check():
@@ -224,7 +244,6 @@ async def webhook(raw_request: Request):
                                 "comment_id": request.comment.id,
                                 "g": g,
                                 "repo": repo,
-                                "pr": pr,
                             },
                         )
                         # push_to_queue(
@@ -369,9 +388,6 @@ async def webhook(raw_request: Request):
                                 "installation_id": request.installation.id,
                                 "pr_number": request.issue.number,
                                 "comment_id": request.comment.id,
-                                "g": g,
-                                "repo": repo,
-                                "pr": pr,
                             },
                         )
                         call_on_comment(**pr_change_request.params)
@@ -405,9 +421,6 @@ async def webhook(raw_request: Request):
                             "installation_id": request.installation.id,
                             "pr_number": request.pull_request.number,
                             "comment_id": request.comment.id,
-                            "g": g,
-                            "repo": repo,
-                            "pr": pr,
                         },
                     )
                     call_on_comment(**pr_change_request.params)
