@@ -40,7 +40,7 @@ COPY sweepai /app/sweepai
 RUN python sweepai/startup.py
 
 EXPOSE 8080
-CMD ["sh", "-c", "uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --workers $WORKERS"]
+CMD ["sh", "-c", "screen -dmS uvicorn_screen uvicorn sweepai.api:app --host 0.0.0.0 --port 8080; celery -A sweepai.celery worker --loglevel=info --pool=eventlet -c 4"]
 
 LABEL org.opencontainers.image.description="Backend for Sweep, an AI-powered junior developer"
 LABEL org.opencontainers.image.source="https://github.com/sweepai/sweep"
