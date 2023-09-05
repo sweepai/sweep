@@ -1,7 +1,6 @@
-from sweepai.utils.diff import generate_new_file_from_patch
+from sweepai.utils.search_and_replace import find_best_match
 
-old_file = r"""
-import { EmailIcon, HamburgerIcon } from "@chakra-ui/icons";
+old_file = r"""\
 import {
   Box,
   Button,
@@ -129,22 +128,22 @@ export default function NavBar() {
 }
 """
 
-code_replaces = r"""
-```
-<<<< ORIGINAL
-  ))}
-</ButtonGroup>
-<Menu>
-  <MenuButton
-====
-  ))}
-</ButtonGroup>
-<Menu>
-  <MenuButton
->>>> UPDATED
-```
+
+target = """\
+    display={menuDisplay}
+  />
+  <MenuList\
 """
 
-if __name__ == "__main__":
-    print(generate_new_file_from_patch(code_replaces, old_file)[0])
-    # generate_new_file_from_patch(code_replaces, old_file)[0]
+target = """\
+  >
+    {navItems.map((item) => (\
+"""
+
+target = """\
+</ButtonGroup>
+<Menu>
+  <MenuButton"""
+
+best_match = find_best_match(target, old_file)
+print(old_file.splitlines()[best_match.start:best_match.end + 1])

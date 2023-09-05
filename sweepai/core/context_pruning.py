@@ -11,7 +11,7 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 
 class ContextPruning(ChatGPT):
-    async def prune_context(
+    def prune_context(
         self, human_message: HumanMessagePrompt, **kwargs
     ) -> list[str]:
         try:
@@ -33,7 +33,7 @@ class ContextPruning(ChatGPT):
                 if (self.chat_logger and self.chat_logger.is_paying_user())
                 else "gpt-3.5-turbo-16k-0613"
             )
-            response = await self.achat(pruning_prompt)
+            response = self.chat(pruning_prompt)
             context_to_prune = ContextToPrune.from_string(response)
             return context_to_prune.excluded_snippets, context_to_prune.excluded_dirs
         except Exception as e:

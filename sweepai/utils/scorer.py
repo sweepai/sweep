@@ -12,11 +12,12 @@ def compute_score(relative_file_path, git_repo):
 
 def get_factors(commits):
     commit_count = len(commits) + 1
-    earliest_commit = commits[0].committed_datetime
+    earliest_commit = commits[0].committed_datetime if commits else datetime.now()
     current_time = datetime.now()
     tz_info = earliest_commit.astimezone().tzinfo
     if tz_info:
         current_time = datetime.now().astimezone(tz_info)
+        earliest_commit = earliest_commit.astimezone(tz_info)
     days_since_last_modified = (
         max(
             ((current_time - earliest_commit).total_seconds() // 3600),
