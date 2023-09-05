@@ -4,26 +4,26 @@ import openai
 from github.Repository import Repository
 from loguru import logger
 
-from sweepai.core.entities import (
-    ProposedIssue,
-    PullRequest,
-    MockPR,
-    MaxTokensExceeded,
-    FileChangeRequest,
-)
-from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.client import SweepConfig, get_blocked_dirs, UPDATES_MESSAGE
+from sweepai.config.client import UPDATES_MESSAGE, SweepConfig, get_blocked_dirs
 from sweepai.config.server import (
+    DB_MODAL_INST_NAME,
     ENV,
+    GITHUB_BOT_USERNAME,
+    GITHUB_CONFIG_BRANCH,
     GITHUB_DEFAULT_CONFIG,
     GITHUB_LABEL_NAME,
     MONGODB_URI,
     OPENAI_API_KEY,
-    DB_MODAL_INST_NAME,
-    GITHUB_BOT_USERNAME,
-    GITHUB_CONFIG_BRANCH,
+)
+from sweepai.core.entities import (
+    FileChangeRequest,
+    MaxTokensExceeded,
+    MockPR,
+    ProposedIssue,
+    PullRequest,
 )
 from sweepai.core.sweep_bot import SweepBot
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 
 openai.api_key = OPENAI_API_KEY
@@ -38,7 +38,7 @@ INSTRUCTIONS_FOR_REVIEW = """\
 * Edit the original issue to get Sweep to recreate the PR from scratch"""
 
 
-async def create_pr_changes(
+def create_pr_changes(
     file_change_requests: list[FileChangeRequest],
     pull_request: PullRequest,
     sweep_bot: SweepBot,
@@ -92,7 +92,7 @@ async def create_pr_changes(
 
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
 
-        async for (
+        for (
             file_change_request,
             changed_file,
             sandbox_error,
@@ -232,7 +232,7 @@ def create_config_pr(
         sweep_bot.repo.create_file(
             "sweep.yaml",
             "Create sweep.yaml",
-            GITHUB_DEFAULT_CONFIG,
+            GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
             branch=branch_name,
         )
         sweep_bot.repo.create_file(

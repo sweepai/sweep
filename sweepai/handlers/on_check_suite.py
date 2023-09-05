@@ -170,6 +170,5 @@ def on_check_suite(request: CheckRunCompleted):
         installation_id=request.installation.id,
         pr_number=request.check_run.pull_requests[0].number,
         comment_id=comment.id,
-        repo=repo,
     )
     return {"success": True}

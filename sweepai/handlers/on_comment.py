@@ -64,7 +64,7 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     return result_snippets[:max_num_of_snippets]
 
 
-async def on_comment(
+def on_comment(
     repo_full_name: str,
     repo_description: str,
     comment: str,
@@ -74,10 +74,8 @@ async def on_comment(
     installation_id: int,
     pr_number: int = None,
     comment_id: int | None = None,
-    g: None = None,
-    repo: Repository = None,
-    pr: Any = None,  # Uses PRFileChanges type too
     chat_logger: Any = None,
+    pr: MockPR = None,  # For on_comment calls before PR is created
 ):
     # Flow:
     # 1. Get relevant files
@@ -91,9 +89,10 @@ async def on_comment(
     )
     organization, repo_name = repo_full_name.split("/")
 
-    g = (get_github_client(installation_id))[1] if not g else g
-    repo = g.get_repo(repo_full_name) if not repo else repo
-    pr = repo.get_pull(pr_number) if not pr else pr
+    if pr is None:
+        _, g = get_github_client(installation_id)
+        repo = g.get_repo(repo_full_name)
+        pr = repo.get_pull(pr_number)
     pr_title = pr.title
     pr_body = pr.body or ""
     pr_file_path = None
@@ -139,6 +138,7 @@ async def on_comment(
         is_paying_user = chat_logger.is_paying_user()
         use_faster_model = chat_logger.use_faster_model(g)
     else:
+        # Todo: chat_logger is None for MockPRs, which will cause all comments to use GPT-4
         is_paying_user = True
         use_faster_model = False
 
@@ -396,7 +396,7 @@ async def on_comment(
                     chat_logger=chat_logger,
                 )
             else:
-                file_change_requests, _ = await sweep_bot.get_files_to_change(retries=1)
+                file_change_requests, _ = sweep_bot.get_files_to_change(retries=1)
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name
                 )
@@ -432,7 +432,7 @@ async def on_comment(
         changes_made = sum(
             [
                 change_made
-                async for _, change_made, _ in sweep_bot.change_files_in_github_iterator(
+                for _, change_made, _ in sweep_bot.change_files_in_github_iterator(
                     file_change_requests, branch_name, blocked_dirs
                 )
             ]
