@@ -1,14 +1,22 @@
-import multiprocessing
-import asyncio
-
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from loguru import logger
 from pydantic import ValidationError
+
+from sweepai.config.client import SweepConfig, get_documentation_dict
+from sweepai.config.server import (
+    API_MODAL_INST_NAME,
+    BOT_TOKEN_NAME,
+    DB_MODAL_INST_NAME,
+    DOCS_MODAL_INST_NAME,
+    GITHUB_BOT_USERNAME,
+    GITHUB_LABEL_COLOR,
+    GITHUB_LABEL_DESCRIPTION,
+    GITHUB_LABEL_NAME,
+)
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest, SweepContext
 from sweepai.core.vector_db import get_deeplake_vs_from_repo
-
 from sweepai.events import (
     CheckRunCompleted,
     CommentCreatedRequest,
@@ -18,191 +26,87 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
 )
-from sweepai.handlers.create_pr import create_pr_changes, create_gha_pr, safe_delete_sweep_branch  # type: ignore
+from sweepai.handlers.create_pr import (  # type: ignore
+    create_gha_pr,
+    create_pr_changes,
+    safe_delete_sweep_branch,
+)
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.client import get_documentation_dict, SweepConfig
-from sweepai.config.server import (
-    DB_MODAL_INST_NAME,
-    API_MODAL_INST_NAME,
-    DOCS_MODAL_INST_NAME,
-    GITHUB_BOT_USERNAME,
-    GITHUB_LABEL_NAME,
-    GITHUB_LABEL_COLOR,
-    GITHUB_LABEL_DESCRIPTION,
-    BOT_TOKEN_NAME,
-)
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
-from sweepai.utils.redis_client import RedisClient
 from sweepai.utils.search_utils import index_full_repository
-
-# stub = modal.Stub(API_MODAL_INST_NAME)
-# stub.pr_queues = modal.Dict.new()  # maps (repo_full_name, pull_request_ids) -> queues
-# stub.issue_lock = modal.Dict.new()  # maps (repo_full_name, issue_number) -> process id
-# image = (
-#     modal.Image.debian_slim()
-#     .apt_install("git", "universal-ctags")
-#     .run_commands('export PATH="/usr/local/bin:$PATH"')
-#     .pip_install(
-#         "openai",
-#         "anthropic",
-#         "PyGithub",
-#         "loguru",
-#         "docarray",
-#         "backoff",
-#         "tiktoken",
-#         "GitPython",
-#         "posthog",
-#         "tqdm",
-#         "pyyaml",
-#         "pymongo",
-#         "tabulate",
-#         "redis",
-#         "llama_index",
-#         "bs4",
-#         # for docs search
-#         "deeplake",
-#         "robotexclusionrulesparser",
-#         "playwright",
-#         "markdownify",
-#         "geopy",
-#         "rapidfuzz",
-#         "whoosh",
-#     )
-# )
-# secrets = [
-#     modal.Secret.from_name("bot-token"),
-#     modal.Secret.from_name("github"),
-#     modal.Secret.from_name("openai-secret"),
-#     modal.Secret.from_name("anthropic"),
-#     modal.Secret.from_name("posthog"),
-#     modal.Secret.from_name("mongodb"),
-#     modal.Secret.from_name("discord"),
-#     modal.Secret.from_name("redis_url"),
-#     modal.Secret.from_name("e2b"),
-#     modal.Secret.from_name("gdrp"),
-# ]
-
-# FUNCTION_SETTINGS = {
-#     "image": image,
-#     "secrets": secrets,
-#     "timeout": 60 * 60,
-#     "keep_warm": 1,
-# }
-
-# handle_ticket = stub.function(**FUNCTION_SETTINGS)(on_ticket)
-# handle_comment = stub.function(**FUNCTION_SETTINGS)(on_comment)
-# handle_pr = stub.function(**FUNCTION_SETTINGS)(create_pr_changes)
-# update_index = modal.Function.lookup(DB_MODAL_INST_NAME, "update_index")
-# handle_check_suite = stub.function(**FUNCTION_SETTINGS)(on_check_suite)
-# write_documentation = modal.Function.lookup(DOCS_MODAL_INST_NAME, "write_documentation")
+from sweepai.celery_init import celery_app
+from sweepai.redis_init import redis_client
+from celery.result import AsyncResult
 
 app = FastAPI()
-
-# def handle_pr_change_request(repo_full_name: str, pr_id: int):
-#     # TODO: put process ID here and check if it's still running
-#     # TODO: GHA should have lower precedence than comments
-#     try:
-#         call_id, queue = stub.pr_queues[(repo_full_name, pr_id)]
-#         logger.info(f"Current queue: {queue}")
-#         while queue:
-#             # popping
-#             call_id, queue = stub.pr_queues[(repo_full_name, pr_id)]
-#             stub.pr_queues[(repo_full_name, pr_id)] = (call_id, [])
-#             pr_change_request: PRChangeRequest
-#             for pr_change_request in queue:
-#                 if pr_change_request.type == "comment":
-#                     handle_comment.call(**pr_change_request.params)
-#                 elif pr_change_request.type == "gha":
-#                     handle_check_suite.call(**pr_change_request.params)
-#                 else:
-#                     raise Exception(
-#                         f"Unknown PR change request type: {pr_change_request.type}"
-#                     )
-#                 time.sleep(1)
-#             call_id, queue = stub.pr_queues[(repo_full_name, pr_id)]
-#             stub.pr_queues[(repo_full_name, pr_id)] = (call_id, queue)
-#     finally:
-#         if (repo_full_name, pr_id) in stub.pr_queues:
-#             del stub.pr_queues[(repo_full_name, pr_id)]
-
-
-# def function_call_is_completed(call_id: str):
-#     if call_id == "0":
-#         return True
-
-#     from modal.functions import FunctionCall
-
-#     function_call = FunctionCall.from_id(call_id)
-#     try:
-#         function_call.get(timeout=0)
-#     except TimeoutError:
-#         return False
-
-#     return True
-
-
-# def push_to_queue(repo_full_name: str, pr_id: int, pr_change_request: PRChangeRequest):
-#     logger.info(f"Pushing to queue: {repo_full_name}, {pr_id}, {pr_change_request}")
-#     key = (repo_full_name, pr_id)
-#     call_id, queue = stub.pr_queues[key] if key in stub.pr_queues else ("0", [])
-#     function_is_completed = function_call_is_completed(call_id)
-#     if pr_change_request.type == "comment" or function_is_completed:
-#         queue = [pr_change_request] + queue
-#         if function_is_completed:
-#             stub.pr_queues[key] = ("0", queue)
-#             call_id = handle_pr_change_request.spawn(
-#                 repo_full_name=repo_full_name, pr_id=pr_id
-#             ).object_id
-#         stub.pr_queues[key] = (call_id, queue)
-
-issues_lock = {}
 
 import tracemalloc
 
 tracemalloc.start()
 
+@celery_app.task(bind=True)
+def run_ticket(self, *args, **kwargs):
+    logger.info(f"Running on_ticket Task ID: {self.request.id}")
+    on_ticket(*args, **kwargs)
+    logger.info("Done with on_ticket")
 
-def run_ticket(*args, **kwargs):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(on_ticket(*args, **kwargs))
-    loop.close()
-
-
-def run_comment(*args, **kwargs):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(on_comment(*args, **kwargs))
-    loop.close()
-
+@celery_app.task(bind=True)
+def run_comment(self, *args, **kwargs):
+    logger.info(f"Running on_comment Task ID: {self.request.id}")
+    on_comment(*args, **kwargs)
+    logger.info("Done with on_comment")
 
 def call_on_ticket(*args, **kwargs):
-    # Check if previous process is running
-    key = (args[5], args[2])
-    print(key)  # Full name, issue number
-    if key in issues_lock:
-        print("Cancelling process")
-        issues_lock[key].terminate()
-        issues_lock[key].join()
-        del issues_lock[key]
-
-        # issues_lock[key].cancel()
-    SweepContext.static_instance = None
-    process = multiprocessing.Process(target=run_ticket, args=args, kwargs=kwargs)
-    issues_lock[key] = process
-    process.start()
-
-    # issues_lock[key] = asyncio.create_task(on_ticket(*args, **kwargs))
-
+    key = f"{args[5]}-{args[2]}"  # Full name, issue number as key
+    # Check if a previous process exists for the same key, cancel it
+    prev_task_id = redis_client.get(key)
+    prev_task_id = prev_task_id.decode('utf-8') if prev_task_id else None
+    i = celery_app.control.inspect()
+    # To get a list of active tasks:
+    active_tasks = i.active()
+    logger.info(f"Active tasks: {active_tasks}")
+    if prev_task_id:
+        logger.info(f"Found previous task id: {prev_task_id} and cancelling it")
+        result = celery_app.control.revoke(prev_task_id)  # Decoding bytes to string
+        logger.info(f"Result of cancelling: {result}")
+        redis_client.delete(key)
+    else:
+        logger.info(f"No previous task id found for key {key}")
+    task = celery_app.send_task('sweepai.api.run_ticket', args=args, kwargs=kwargs)
+    logger.info(f"Saving task id {task.id} for key {key}")
+    redis_client.set(key, task.id)
+    active_tasks = i.active()
+    logger.info(f"Active tasks: {active_tasks}")
 
 def call_on_comment(*args, **kwargs):
-    SweepContext.static_instance = None
-    process = multiprocessing.Process(target=run_comment, args=args, kwargs=kwargs)
-    process.start()
+    repo_full_name = kwargs["repo_full_name"]
+    pr_id = kwargs["pr_number"]
+    key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
+    
+    i = celery_app.control.inspect()
+    active_tasks = i.active()
+    logger.info(f"Active tasks: {active_tasks}")
+    
+    # Get previous task IDs for the same key, if any
+    prev_task_ids = redis_client.lrange(key, 0, -1)
+    prev_task_ids = [task_id.decode('utf-8') for task_id in prev_task_ids] if prev_task_ids else []
+    
+    # If previous tasks are pending, don't enqueue new task
+    for prev_task_id in prev_task_ids:
+        task_status = AsyncResult(prev_task_id, app=celery_app).status
+        if task_status not in ('SUCCESS', 'FAILURE'):
+            logger.info(f"Previous task id {prev_task_id} still pending. Not enqueuing new task.")
+    
+    # Enqueue new task and save task ID
+    task = celery_app.send_task('sweepai.api.run_comment', args=args, kwargs=kwargs)
+    logger.info(f"Enqueuing new task id {task.id} for key {key}")
+    
+    # Save the new task ID to the list
+    redis_client.rpush(key, task.id)
 
 
 @app.get("/health")
@@ -220,7 +124,6 @@ async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
-        print(issues_lock)
         logger.info(f"Received request: {request_dict.keys()}")
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
@@ -340,7 +243,6 @@ async def webhook(raw_request: Request):
                                 "comment_id": request.comment.id,
                                 "g": g,
                                 "repo": repo,
-                                "pr": pr,
                             },
                         )
                         # push_to_queue(
@@ -485,9 +387,6 @@ async def webhook(raw_request: Request):
                                 "installation_id": request.installation.id,
                                 "pr_number": request.issue.number,
                                 "comment_id": request.comment.id,
-                                "g": g,
-                                "repo": repo,
-                                "pr": pr,
                             },
                         )
                         call_on_comment(**pr_change_request.params)
@@ -521,9 +420,6 @@ async def webhook(raw_request: Request):
                             "installation_id": request.installation.id,
                             "pr_number": request.pull_request.number,
                             "comment_id": request.comment.id,
-                            "g": g,
-                            "repo": repo,
-                            "pr": pr,
                         },
                     )
                     call_on_comment(**pr_change_request.params)
@@ -661,7 +557,7 @@ async def webhook(raw_request: Request):
                         # Call the write_documentation function for each of the existing fields in the "docs" mapping
                         for doc_url, _ in docs.values():
                             logger.info(f"Writing documentation for {doc_url}")
-                            await write_documentation(doc_url)
+                            write_documentation(doc_url)
                     # this makes it faster for everyone because the queue doesn't get backed up
                     if chat_logger.is_paying_user():
                         cloned_repo = ClonedRepo(
