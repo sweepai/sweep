@@ -25,12 +25,11 @@ from sweepai.core.lexical_search import prepare_index_from_snippets, search_inde
 from sweepai.core.repo_parsing_utils import repo_to_chunks
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
-from sweepai.utils.redis_client import RedisClient
+from redis import Redis
 from sweepai.utils.scorer import compute_score, get_scores
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import REDIS_URL, SENTENCE_TRANSFORMERS_MODEL, BATCH_SIZE
 from ..utils.github_utils import ClonedRepo, get_token
-
 
 MODEL_DIR = "cache/model"
 DEEPLAKE_DIR = "cache/"
@@ -40,21 +39,7 @@ timeout = 60 * 60  # 30 minutes
 CACHE_VERSION = "v1.0.13"
 MAX_FILES = 500
 
-redis_client = RedisClient(REDIS_URL).client
-
-# if REDIS_URL is not None:
-#     try:
-#         # todo: initialize once
-#         retry = Retry(ConstantBackoff(backoff=1), retries=3)
-#         redis_client = RedisClient(REDIS_URL).client
-#         logger.info(f"Successfully connected to redis cache")
-#     except Exception as e:
-#         logger.error(e)
-#         raise e
-#         redis_client = None
-#         logger.error(f"Failed to connect to redis cache")
-# else:
-#     logger.warning(f"REDIS_URL is None, skipping cache")
+redis_client = Redis.from_url(REDIS_URL)
 
 
 def download_models():
@@ -84,7 +69,6 @@ sentence_transformer_model = SentenceTransformer(
 )
 
 
-@lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
     logger.info(f"Computing embeddings for {len(texts)} texts")
     vector = sentence_transformer_model.encode(
