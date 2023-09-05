@@ -20,7 +20,6 @@ def set_highlight_id(id):
         H = highlight_io.H(
             HIGHLIGHT_API_KEY,
             instrument_logging=False,
-            service_name="Sweep Webhook",
         )
 
         logger.add(

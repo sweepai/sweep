@@ -3,6 +3,7 @@ import re
 
 from sweepai.core.entities import SweepContext
 from sweepai.utils.chat_logger import discord_log_error
+from sweepai.utils.search_and_replace import find_best_match
 
 
 def diff_contains_dups_or_removals(diff, new_code):
@@ -172,43 +173,45 @@ MULTIPLE_HITS = "MULTIPLE_HITS"
 INCOMPLETE_MATCH = "INCOMPLETE_MATCH"
 
 
-def match_string(
-    original, search, start_index=None, exact_match=False, ignore_comments=False
-):
-    index = -1
-    max_similarity = 0
-    current_hits = 0
-    # sliding window comparison from original to search
-    # Todo: 2 pointer approach (find start, then find end)
-    # Todo: use rapidfuzz to compute fuzzy similarity over code
-    for i in range(start_index or 0, len(original)):
-        count = 0
-        for j in range(len(search)):
-            if i + j >= len(original):
-                continue
-            original_line = original[i + j]
-            if ignore_comments:
-                # Remove comments
-                original_line = original_line.rsplit("#")[0].rsplit("//")[0]
+# def match_string(
+#     original, search, start_index=None, exact_match=False, ignore_comments=False
+# ):
+#     best_match = find_best_match(original, search)
+#     return best_match.start, best_match.end, best_match.match
+    # index = -1
+    # max_similarity = 0
+    # current_hits = 0
+    # # sliding window comparison from original to search
+    # # Todo: 2 pointer approach (find start, then find end)
+    # # Todo: use rapidfuzz to compute fuzzy similarity over code
+    # for i in range(start_index or 0, len(original)):
+    #     count = 0
+    #     for j in range(len(search)):
+    #         if i + j >= len(original):
+    #             continue
+    #         original_line = original[i + j]
+    #         if ignore_comments:
+    #             # Remove comments
+    #             original_line = original_line.rsplit("#")[0].rsplit("//")[0]
 
-            match = (
-                search[j] == original_line
-                if exact_match
-                else search[j].strip() == original_line.strip()
-            )
-            if match:
-                count += 1
+    #         match = (
+    #             search[j] == original_line
+    #             if exact_match
+    #             else search[j].strip() == original_line.strip()
+    #         )
+    #         if match:
+    #             count += 1
 
-                # If searching for previous snippet (like regex)
-                if start_index is not None and search[j] == original[i + j]:
-                    count += 0.001
-        if count > max_similarity:
-            index = i
-            max_similarity = count
-            current_hits = 1
-        elif count == max_similarity:
-            current_hits += 1
-    return index, max_similarity, current_hits
+    #             # If searching for previous snippet (like regex)
+    #             if start_index is not None and search[j] == original[i + j]:
+    #                 count += 0.001
+    #     if count > max_similarity:
+    #         index = i
+    #         max_similarity = count
+    #         current_hits = 1
+    #     elif count == max_similarity:
+    #         current_hits += 1
+    # return index, max_similarity, current_hits
 
 
 def lstrip_max(s, chars, max_count):
@@ -221,8 +224,8 @@ def lstrip_max(s, chars, max_count):
     return s[count:]
 
 
-def get_snippet_with_padding(original, index, search):
-    snippet = original[index : index + len(search)]
+def get_snippet_with_padding(original, best_match, search):
+    snippet = original[best_match.start : best_match.end]
 
     # Fix whitespace
     if len(search[0]) - len(search[0].lstrip()) == 0:
@@ -274,62 +277,75 @@ def get_snippet_with_padding(original, index, search):
 def radix_replace(original, search, replace) -> tuple[list[str], bool]:
     # based on start and end, find the lines that are the same
     # then, replace the lines in between
-    MAX_RADIX = 20
+
+    best_match = find_best_match("\n".join(search), "\n".join(original))
+    # print(best_match)
+    original = original[: best_match.start] + replace + original[best_match.end + 1 :]
+    # MAX_RADIX = 20
     # Two-pointer approach for string matching
-    for i in range(len(original)):
-        for j in range(
-            i + len(search) - 1, len(original) + len(search) + MAX_RADIX + 1
-        ):
-            # If second pointer is out of bounds, continue
-            if j >= len(original):
-                continue
+    # for i in range(len(original)):
+    #     for j in range(
+    #         i + len(search) - 1, len(original) + len(search) + MAX_RADIX + 1
+    #     ):
+    #         # If second pointer is out of bounds, continue
+    #         if j >= len(original):
+    #             continue
 
-            # Match ends
-            match_start = original[i].strip() == search[0].strip()
-            match_end = original[j].strip() == search[-1].strip()
-            if not match_start or not match_end:
-                continue
+    #         # Match ends
+    #         match_start = original[i].strip() == search[0].strip()
+    #         match_end = original[j].strip() == search[-1].strip()
+    #         if not match_start or not match_end:
+    #             continue
 
-            # Counts the number of search matches with original code in this snippet (from i to j)
-            matches = []
-            current_index = i
-            count = 0  # Number of matches
-            while current_index <= j and count < len(search):
-                if original[current_index].strip() == search[count].strip():
-                    matches.append(current_index)
-                    count += 1
-                current_index += 1
+    #         # Counts the number of search matches with original code in this snippet (from i to j)
+    #         matches = []
+    #         current_index = i
+    #         count = 0  # Number of matches
+    #         while current_index <= j and count < len(search):
+    #             if original[current_index].strip() == search[count].strip():
+    #                 matches.append(current_index)
+    #                 count += 1
+    #             current_index += 1
 
-            # If exact match, do not use this algorithm as this is for skipped lines (comments)
-            if j - i == len(search) - 1:
-                return None
+    #         # If exact match, do not use this algorithm as this is for skipped lines (comments)
+    #         if j - i == len(search) - 1:
+    #             return None
 
-            # If all lines matched in this snippet, then replace
-            if count == len(search):
-                # Replace search lines with replace lines
-                for i, original_index in enumerate(matches):
-                    if i < len(replace):
-                        original[original_index] = replace[i]
+    #         # If all lines matched in this snippet, then replace
+    #         if count == len(search):
+    #             # Replace search lines with replace lines
+    #             for i, original_index in enumerate(matches):
+    #                 if i < len(replace):
+    #                     original[original_index] = replace[i]
 
-                if len(replace) > len(search):
-                    # Add lines after the end of search if replace is longer
-                    original = (
-                        original[: original_index + 1]
-                        + replace[len(search) :]
-                        + original[original_index + 1 :]
-                    )
-                else:
-                    # Remove lines after end of search if replace is shorter
-                    original = (
-                        original[:original_index]
-                        + original[original_index + len(search) - len(replace) :]
-                    )
-                return original
+    #             if len(replace) > len(search):
+    #                 # Add lines after the end of search if replace is longer
+    #                 original = (
+    #                     original[: original_index + 1]
+    #                     + replace[len(search) :]
+    #                     + original[original_index + 1 :]
+    #                 )
+    #             else:
+    #                 # Remove lines after end of search if replace is shorter
+    #                 original = (
+    #                     original[:original_index]
+    #                     + original[original_index + len(search) - len(replace) :]
+    #                 )
+    return original
 
 
 def sliding_window_replacement(
     original, search, replace, search_context_before=None, **kwargs
 ):
+    # for line in original:
+    #     print(line)
+    # print("\n\n")
+    # for line in search:
+    #     print(line)
+    # print("\n\n")
+    # for line in replace:
+    #     print(line)
+    # print("\n\n")
     status, replace_index = None, None
     # First, do check for "..." (example: define method, then put ... to ignore initial lines)
     canDoDotCheck = not any(
@@ -357,13 +373,13 @@ def sliding_window_replacement(
             and search_context_before is None
             and len(kwargs) == 0
         ):
-            try:
-                # import pdb; pdb.set_trace()
-                radix_original = radix_replace(original, search, replace)
-                if radix_original is not None:
-                    return radix_original, None, None
-            except Exception as e:
-                print(f"Modify skipped lines error: {e}")
+            # try:
+            # import pdb; pdb.set_trace()
+            radix_original = radix_replace(original, search, replace)
+            if radix_original is not None:
+                return radix_original, None, None
+            # except Exception as e:
+            #     print(f"Modify skipped lines error: {e}")
 
         if first_line_idx == 0 and first_line_idx_replace == 0:
             search = search[1:]
@@ -378,7 +394,7 @@ def sliding_window_replacement(
             # SPLIT INTO TWO PARTS
             # TODO(lukejagg): pass in the first and last lines as context for matching (so ambiguous ... can be matched)
             search_context_before = search[:first_line_idx]
-            original, replace_index, status = sliding_window_replacement(
+            original, best_match, status = sliding_window_replacement(
                 original,
                 search[first_line_idx + 1 :],
                 replace[first_line_idx_replace + 1 :],
@@ -388,94 +404,102 @@ def sliding_window_replacement(
             search = search[:first_line_idx]
             replace = replace[:first_line_idx_replace]
 
-    exact_match = kwargs.get("exact_match", False)
-    ignore_comments = kwargs.get("ignore_comments", False)
-    index, max_similarity, current_hits = match_string(
-        original, search, exact_match=exact_match, ignore_comments=ignore_comments
-    )
+    # exact_match = kwargs.get("exact_match", False)
+    # ignore_comments = kwargs.get("ignore_comments", False)
+    # index, max_similarity, current_hits = match_string(
+    #     original, search, exact_match=exact_match, ignore_comments=ignore_comments
+    # )
+    best_match = find_best_match("\n".join(search), "\n".join(original))
+    print(best_match)
+    max_similarity = best_match.score
+    # index = best_match.start
 
     # No changes could be found. Return original code.
     if max_similarity == 0:
-        # If there is only one line, then try to replace it
-        if (
-            len(search) == 1
-            and len(replace) == 1
-            and sum(o.count(search[0]) for o in original) == 1
-        ):
-            # Get index in original that has the search line
-            index = [i for i, o in enumerate(original) if search[0] in o][0]
-            # Replace that line with the replace line
-            original[index] = original[index].replace(search[0], replace[0])
-            return original, index, None
+        # # If there is only one line, then try to replace it
+        # if (
+        #     len(search) == 1
+        #     and len(replace) == 1
+        #     and sum(o.count(search[0]) for o in original) == 1
+        # ):
+        #     # Get index in original that has the search line
+        #     index = [i for i, o in enumerate(original) if search[0] in o][0]
+        #     # Replace that line with the replace line
+        #     original[index] = original[index].replace(search[0], replace[0])
+        #     return original, index, None
 
-        if not ignore_comments:  # In case Sweep decided not to include comments
-            # Todo(lukejagg): Implement ignoring comments
-            return sliding_window_replacement(
-                original,
-                search,
-                replace,
-                ignore_comments=True,
-                **{k: v for k, v in kwargs.items() if k != "ignore_comments"},
-            )
-        print("WARNING: No identical lines")
-        return original, None, IDENTICAL_LINES
+        # if not ignore_comments:  # In case Sweep decided not to include comments
+        #     # Todo(lukejagg): Implement ignoring comments
+        #     return sliding_window_replacement(
+        #         original,
+        #         search,
+        #         replace,
+        #         ignore_comments=True,
+        #         **{k: v for k, v in kwargs.items() if k != "ignore_comments"},
+        #     )
+        # print("WARNING: No identical lines")
+        # return original, None, IDENTICAL_LINES
+        raise Exception("No identical lines")
+    
+    if max_similarity < 0.5:
+        print(f"Low similarity: {max_similarity}")
 
-    if current_hits > 1:
-        success = False
-        if search_context_before:
-            old_index, _, current_hits = match_string(
-                original,
-                search_context_before,
-                exact_match=exact_match,
-            )
-            _, old_spaces, _ = get_snippet_with_padding(
-                original, old_index, search_context_before
-            )
+    # if current_hits > 1:
+    #     success = False
+    #     if search_context_before:
+    #         old_index, _, current_hits = match_string(
+    #             original,
+    #             search_context_before,
+    #             exact_match=exact_match,
+    #         )
+    #         _, old_spaces, _ = get_snippet_with_padding(
+    #             original, old_index, search_context_before
+    #         )
 
-            if current_hits == 1:
-                index, max_similarity, current_hits = match_string(
-                    original,
-                    [old_spaces + s for s in search],
-                    start_index=old_index + 1,
-                    exact_match=exact_match,
-                )
-                current_hits = 1  # Ignore multiple hits, use first complete comparison
-                success = True
+    #         if current_hits == 1:
+    #             index, max_similarity, current_hits = match_string(
+    #                 original,
+    #                 [old_spaces + s for s in search],
+    #                 start_index=old_index + 1,
+    #                 exact_match=exact_match,
+    #             )
+    #             current_hits = 1  # Ignore multiple hits, use first complete comparison
+    #             success = True
 
-        if not success:
-            if (
-                len(replace) == 1 and not replace[0] and not search_context_before
-            ):  # Backup 1: independent line matches
-                exact_matches = [line for line in original if line in search]
-                # If there are no duplicates and all lines have a match
-                if len(set(exact_matches)) == len(search):
-                    # Remove all of those corresponding lines in the content
-                    original = [line for line in original if line not in search]
-                    return original, None, None
+    #     if not success:
+    #         if (
+    #             len(replace) == 1 and not replace[0] and not search_context_before
+    #         ):  # Backup 1: independent line matches
+    #             exact_matches = [line for line in original if line in search]
+    #             # If there are no duplicates and all lines have a match
+    #             if len(set(exact_matches)) == len(search):
+    #                 # Remove all of those corresponding lines in the content
+    #                 original = [line for line in original if line not in search]
+    #                 return original, None, None
 
-            if not exact_match:  # Backup 2: exact line matches
-                return sliding_window_replacement(
-                    original,
-                    search,
-                    replace,
-                    exact_match=True,
-                    **{k: v for k, v in kwargs.items() if k != "exact_match"},
-                )
+    #         if not exact_match:  # Backup 2: exact line matches
+    #             return sliding_window_replacement(
+    #                 original,
+    #                 search,
+    #                 replace,
+    #                 exact_match=True,
+    #                 **{k: v for k, v in kwargs.items() if k != "exact_match"},
+    #             )
 
-            print("WARNING: Multiple hits")
-            return original, None, MULTIPLE_HITS
+    #         print("WARNING: Multiple hits")
+    #         return original, None, MULTIPLE_HITS
 
     # Todo(lukejagg): Remove unreachable code
-    if index == -1:
-        # First, try matching beginning of search
-        return original, None, NOT_FOUND
+    # if index == -1:
+    #     # First, try matching beginning of search
+    #     return original, None, NOT_FOUND
 
     # Todo(lukejagg): this doesn't seem to work, add later
     # if int(max_similarity) != len(search):
     #     return original, None, INCOMPLETE_MATCH
 
     # if max_similarity != len(search):
-    snippet, spaces, strip = get_snippet_with_padding(original, index, search)
+    snippet, spaces, strip = get_snippet_with_padding(original, best_match, search)
     if strip:
         # Todo: What if whitespace in search is incorrect
         first_line_spaces = min([len(s) - len(s.lstrip()) for s in search])
@@ -487,8 +511,8 @@ def sliding_window_replacement(
         modified = [spaces + line for line in replace]
 
     # replaced original with modified
-    original = original[:index] + modified + original[index + len(search) :]
-    return original, index, None
+    original = original[:best_match.start] + modified + original[best_match.end + 1:]
+    return original, best_match, None
 
 
 def get_all_diffs(modify_file_response: str) -> str:
@@ -545,7 +569,7 @@ def generate_new_file_from_patch(
             replace = replace.rstrip()[: -len("</new_file>")]
         elif replace.rstrip().endswith("</updated_file>"):
             replace = replace.rstrip()[: -len("</updated_file>")]
-        old_file_lines, replace_index, status = sliding_window_replacement(
+        old_file_lines, best_match, status = sliding_window_replacement(
             old_file_lines, search.split("\n"), replace.split("\n")
         )
 
