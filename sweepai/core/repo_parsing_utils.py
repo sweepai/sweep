@@ -1,6 +1,6 @@
 import glob
-import itertools
 import os
+import itertools
 
 from sweepai.utils.utils import chunk_code
 
