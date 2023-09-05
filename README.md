@@ -78,6 +78,22 @@ Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep
 
 You can self-host Sweep with the Docker image (`https://hub.docker.com/r/sweepai/sweep`). The setup instructions are at [Deployment](https://docs.sweep.dev/deployment).
 
+## Local Development Workflow
+
+To build and run Sweep locally, you can use Docker Compose. This binds your directory and hot-reloads the Docker image every time your local code changes. Here is the command:
+
+```
+docker-compose up
+```
+
+Please note that Docker Compose can be slow on Macs. If you're experiencing performance issues, you can run uvicorn directly for faster performance. However, this doesn't reflect the Docker image. Here is the command:
+
+```
+uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --reload-dir '/app/sweepai' --reload
+```
+
+For solutions or suggestions regarding the performance issues with Docker Compose on Macs, please refer to the local development guide.
+
 ## Limitations of Sweep
 
 * **Large-scale refactors**: >3 files or >150 lines of code changes (we're working on this!)
