@@ -1,3 +1,4 @@
+import requests
 from functools import lru_cache
 import hashlib
 import json
@@ -70,11 +71,21 @@ sentence_transformer_model = SentenceTransformer(
 
 
 def embed_texts(texts: tuple[str]):
-    logger.info(f"Computing embeddings for {len(texts)} texts")
-    vector = sentence_transformer_model.encode(
-        texts, show_progress_bar=True, batch_size=BATCH_SIZE
-    )
-    return vector.squeeze()
+    HUGGINGFACE_URL = os.getenv('HUGGINGFACE_URL')
+    if HUGGINGFACE_URL:
+        try:
+            response = requests.post(HUGGINGFACE_URL, data={'texts': texts})
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error occurred when sending request to Hugging Face endpoint: {e}")
+            raise
+    else:
+        logger.info(f"Computing embeddings for {len(texts)} texts")
+        vector = sentence_transformer_model.encode(
+            texts, show_progress_bar=True, batch_size=BATCH_SIZE
+        )
+        return vector.squeeze()
 
 
 def embedding_function(texts: list[str]):
