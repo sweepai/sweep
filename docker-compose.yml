@@ -10,6 +10,6 @@ services:
     ports:
       - "8080:8080"
     command: >
-      sh -c "screen -dmS redis_screen redis-server --bind 0.0.0.0 --port 6379; screen -dmS uvicorn_screen uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 && celery -A sweepai.celery_init worker --loglevel=debug --pool=eventlet -c 4"
+      sh -c "screen -dmS redis_screen redis-server --bind 0.0.0.0 --port 6379 && screen -dmS uvicorn_screen uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 && celery -A sweepai.celery_init worker --loglevel=debug --pool=eventlet -c 4"
     stdin_open: true
     tty: true
