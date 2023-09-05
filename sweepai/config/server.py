@@ -49,7 +49,7 @@ DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
 GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID", os.environ.get("APP_ID"))
 # deprecated: old logic transfer so upstream can use this
 if GITHUB_APP_ID is None:
-    if ENV == "main":
+    if ENV == "prod":
         GITHUB_APP_ID = "307814"
     elif ENV == "dev":
         GITHUB_APP_ID = "324098"
@@ -60,7 +60,7 @@ GITHUB_BOT_USERNAME = os.environ.get("GITHUB_BOT_USERNAME")
 
 # deprecated: left to support old logic
 if not GITHUB_BOT_USERNAME:
-    if ENV == "main":
+    if ENV == "prod":
         GITHUB_BOT_USERNAME = "sweep-ai[bot]"
     elif ENV == "dev":
         GITHUB_BOT_USERNAME = "sweep-nightly[bot]"
