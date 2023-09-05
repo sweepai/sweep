@@ -71,7 +71,7 @@ def call_on_ticket(*args, **kwargs):
     logger.info(f"Active tasks: {active_tasks}")
     if prev_task_id:
         logger.info(f"Found previous task id: {prev_task_id} and cancelling it")
-        result = celery_app.control.revoke(prev_task_id, terminate=True, signal='SIGKILL')  # Decoding bytes to string
+        result = celery_app.control.revoke(prev_task_id)  # Decoding bytes to string
         logger.info(f"Result of cancelling: {result}")
         redis_client.delete(key)
     else:
@@ -100,7 +100,6 @@ def call_on_comment(*args, **kwargs):
         task_status = AsyncResult(prev_task_id, app=celery_app).status
         if task_status not in ('SUCCESS', 'FAILURE'):
             logger.info(f"Previous task id {prev_task_id} still pending. Not enqueuing new task.")
-            return
     
     # Enqueue new task and save task ID
     task = celery_app.send_task('sweepai.api.run_comment', args=args, kwargs=kwargs)
