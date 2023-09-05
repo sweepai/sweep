@@ -2,6 +2,8 @@ from dataclasses import dataclass
 import re
 from fuzzywuzzy import fuzz
 
+from tqdm import tqdm
+
 
 def score_line(str1: str, str2: str) -> float:
     if str1 == str2:
@@ -21,7 +23,6 @@ def score_line(str1: str, str2: str) -> float:
 
     score = 70 * (levenshtein_ratio / 100)
     return max(score, 0)
-
 
 def match_without_whitespace(str1: str, str2: str) -> bool:
     return str1.strip() == str2.strip()
@@ -69,7 +70,7 @@ def score_multiline(query: list[str], target: list[str]) -> float:
             q += 1
             t += 2
             scores.append((90, weight))
-        elif q_line.strip() == "...":
+        elif "..." in q_line:
             # Case 3: ellipsis wildcard
             lines_matched = 1
             t += 1
@@ -128,24 +129,31 @@ def get_indent_type(content: str):
 
     return "  " if two_spaces > four_spaces else "    "
 
+def get_max_indent(content: str, indent_type: str):
+    return max(len(line) - len(line.lstrip()) for line in content.split("\n")) // len(indent_type)
 
 def find_best_match(query: str, code_file: str):
     best_match = Match(-1, -1, 0)
 
-    lines = code_file.split("\n")
+    code_file_lines = code_file.split("\n")
     query_lines = query.split("\n")
     indent = get_indent_type(code_file)
+    max_indents = get_max_indent(code_file, indent)
 
     top_matches = []
 
-    for num_indents in range(0, 5):
+    for num_indents in range(0, min(max_indents + 1, 20)):
+        # Optimize later by using radix
         indented_query_lines = [indent * num_indents + line for line in query_lines]
 
-        for i in range(len(lines)):
-            for j in range(i + len(indented_query_lines), len(lines) + 1):
-                candidate = lines[i:j]
+        start_indices = [i for i, line in enumerate(code_file_lines) if score_line(line, indented_query_lines[0]) > 50]
+        start_indices = start_indices or range(len(code_file_lines) + 1)
+        
+        for i in start_indices:
+            for j in range(i + len(indented_query_lines), len(code_file_lines) + 1):
+                candidate = code_file_lines[i:j]
                 score = score_multiline(indented_query_lines, candidate) * (
-                    1 - num_indents * 0.05
+                    1 - num_indents * 0.01
                 )
                 current_match = Match(i, j - 1, score, indent * num_indents)
 
@@ -155,16 +163,15 @@ def find_best_match(query: str, code_file: str):
                     best_match = current_match
 
     unique_top_matches = []
+    unique_spans = set()
     for top_match in sorted(top_matches, reverse=True):
-        if not any(
-            top_match.start == match.start and top_match.end == match.end
-            for match in unique_top_matches
-        ):
+        if (top_match.start, top_match.end) not in unique_spans:
             unique_top_matches.append(top_match)
-    for top_match in unique_top_matches[:10]:
+            unique_spans.add((top_match.start, top_match.end))
+    for top_match in unique_top_matches[:5]:
         print(top_match)
 
-    return best_match
+    return unique_top_matches[0]
 
 
 code_file = """

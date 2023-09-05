@@ -442,8 +442,8 @@ class SweepBot(CodeGenBot, GithubBot):
             # Format file
             if self.sweep_context.is_paying_user and SANDBOX_URL:
                 try:
+                    print("Running Sandbox for create file...")
                     print(file_change.code)
-                    print("Here!!!!!")
                     print(self.sweep_context)
                     output = requests.post(
                         SANDBOX_URL,
@@ -454,7 +454,6 @@ class SweepBot(CodeGenBot, GithubBot):
                             "content": file_change.code,
                         },
                     ).json()
-                    print("Here!!!!!!!!!")
                     print(output)
                     if output["success"]:
                         file_change.code = output["updated_content"]
@@ -582,6 +581,7 @@ class SweepBot(CodeGenBot, GithubBot):
             sandbox_error = None
             if self.sweep_context.is_paying_user and SANDBOX_URL:
                 try:
+                    print("Running Sandbox for modify file...")
                     logger.info(f"New file {new_file}")
                     logger.info(f"Sweep context: {self.sweep_context}")
                     output = requests.post(
