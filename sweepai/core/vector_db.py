@@ -6,6 +6,7 @@ import pickle
 import re
 import time
 import numpy as np
+import requests
 
 from github import Github
 from loguru import logger
@@ -70,12 +71,22 @@ sentence_transformer_model = SentenceTransformer(
 
 
 def embed_texts(texts: tuple[str]):
-    logger.info(f"Computing embeddings for {len(texts)} texts")
-    vector = sentence_transformer_model.encode(
-        texts, show_progress_bar=True, batch_size=BATCH_SIZE
-    )
-    # return vector.squeeze()
-    return vector
+    huggingface_url = os.environ.get('HUGGINGFACE_URL')
+    if huggingface_url:
+        try:
+            response = requests.post(huggingface_url, json={"inputs": texts})
+            response.raise_for_status()
+            embeddings = response.json()
+            return embeddings
+        except Exception as e:
+            logger.error(f"Error occurred while making request to HuggingFace Inference API: {e}")
+            return []
+    else:
+        logger.info(f"Computing embeddings for {len(texts)} texts")
+        vector = sentence_transformer_model.encode(
+            texts, show_progress_bar=True, batch_size=BATCH_SIZE
+        )
+        return vector
 
 
 def embedding_function(texts: list[str]):
