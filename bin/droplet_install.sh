@@ -23,6 +23,7 @@ echo 'eval "$(pyenv init -)"'
 sed -i '1i\
 export PATH="/root/.local/bin:$PATH"\
 eval "$(pyenv virtualenv-init -)"\
+alias activate="source $(poetry env info --path)/bin/activate"\
 ' ~/.bashrc
 source ~/.bash_profile
 source ~/.bashrc
@@ -43,3 +44,6 @@ poetry shell
 # Afterwards, run:
 # - poetry install
 # - ngrok config (https://dashboard.ngrok.com/get-started/setup)
+# - copy .envs
+
+# To get into poetry shell, run `activate` from the sweep directory.
