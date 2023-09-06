@@ -74,7 +74,8 @@ def embed_texts(texts: tuple[str]):
     vector = sentence_transformer_model.encode(
         texts, show_progress_bar=True, batch_size=BATCH_SIZE
     )
-    return vector.squeeze()
+    # return vector.squeeze()
+    return vector
 
 
 def embedding_function(texts: list[str]):
@@ -109,7 +110,9 @@ def get_deeplake_vs_from_repo(
     snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
     logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
     # prepare lexical search
-    index = prepare_index_from_snippets(snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1)
+    index = prepare_index_from_snippets(
+        snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
+    )
     # scoring for vector search
     files_to_scores = {}
     score_factors = []
@@ -192,7 +195,7 @@ def compute_deeplake_vs(
             )
             embeddings = embedding_function(documents)
             embeddings = np.array(embeddings, dtype=np.float32)
-        
+
         logger.info("Adding embeddings to deeplake vector store...")
         deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
         logger.info("Added embeddings to deeplake vector store")
