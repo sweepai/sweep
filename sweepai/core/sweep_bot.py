@@ -358,6 +358,9 @@ class SweepBot(CodeGenBot, GithubBot):
         token: str,
         only_lint: bool = False,
     ) -> Dict:
+        if not SANDBOX_URL:
+            return {"success": False}
+
         output = requests.post(
             SANDBOX_URL,
             json={
