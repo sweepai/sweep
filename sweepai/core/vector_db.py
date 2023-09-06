@@ -1,7 +1,8 @@
+import os
+import requests
 from functools import lru_cache
 import hashlib
 import json
-import os
 import pickle
 import re
 import time
@@ -71,9 +72,14 @@ sentence_transformer_model = SentenceTransformer(
 
 def embed_texts(texts: tuple[str]):
     logger.info(f"Computing embeddings for {len(texts)} texts")
-    vector = sentence_transformer_model.encode(
-        texts, show_progress_bar=True, batch_size=BATCH_SIZE
-    )
+    huggingface_url = os.getenv('HUGGINGFACE_URL')
+    if huggingface_url:
+        response = requests.post(huggingface_url, json={'inputs': texts})
+        vector = np.array(response.json()['outputs'])
+    else:
+        vector = sentence_transformer_model.encode(
+            texts, show_progress_bar=True, batch_size=BATCH_SIZE
+        )
     return vector.squeeze()
 
 
