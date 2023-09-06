@@ -1,3 +1,11 @@
+sudo apt update
+sudo apt install -y gcc g++
+sudo apt install -y apt-transport-https ca-certificates curl software-properties-common -y && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" && sudo apt update && sudo apt install docker-ce -y && sudo systemctl enable docker && sudo systemctl start docker && sudo usermod -aG docker ${USER}
+
+sudo apt-get install -y build-essential libssl-dev zlib1g-dev libbz2-dev \
+libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
+xz-utils tk-dev libffi-dev liblzma-dev python3-openssl git
+
 curl https://pyenv.run | bash
 {
 echo 'export PYENV_ROOT="$HOME/.pyenv"'
@@ -11,13 +19,10 @@ eval "$(pyenv virtualenv-init -)"\
 source ~/.bash_profile
 source ~/.bashrc
 
-# install to bashrc and bash_profile
+# Attempt to install again if it failed
 sudo apt-get install -y build-essential libssl-dev zlib1g-dev libbz2-dev \
 libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
 xz-utils tk-dev libffi-dev liblzma-dev python3-openssl git
-sudo apt update
-sudo apt install -y gcc g++
-sudo apt install -y apt-transport-https ca-certificates curl software-properties-common -y && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" && sudo apt update && sudo apt install docker-ce -y && sudo systemctl enable docker && sudo systemctl start docker && sudo usermod -aG docker ${USER}
 
 # Install python 3.11.5
 pyenv install 3.11.5
@@ -37,5 +42,5 @@ sudo systemctl stop redis
 # Install ngrok for deployment
 snap install ngrok
 
-# Install with:
+# Install with this command, pressing only enter when prompted:
 # git clone https://github.com/sweepai/sweep ~/sweep && . sweep/bin/droplet_install.sh
