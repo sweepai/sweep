@@ -35,3 +35,6 @@ sudo systemctl stop redis
 
 # Install ngrok for deployment
 snap install ngrok
+
+# Install with:
+# git clone https://github.com/sweepai/sweep ~/sweep && . sweep/bin/droplet_install.sh
