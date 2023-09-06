@@ -38,3 +38,7 @@ poetry shell
 
 # Install with this command, pressing only enter when prompted:
 # git clone https://github.com/sweepai/sweep ~/sweep && . sweep/bin/droplet_install.sh
+
+# Afterwards, run:
+# - poetry install
+# - ngrok config (https://dashboard.ngrok.com/get-started/setup)
