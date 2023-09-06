@@ -94,7 +94,7 @@ def embed_texts(texts: tuple[str]):
             vector = sentence_transformer_model.encode(
                 texts, show_progress_bar=True, batch_size=BATCH_SIZE
             )
-            return vector.squeeze()
+            return vector
         case "openai":
             import openai
 
