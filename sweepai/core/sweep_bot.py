@@ -1,7 +1,7 @@
 import traceback
 import re
 import requests
-from typing import Generator, Any
+from typing import Generator, Any, Dict
 
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
@@ -151,9 +151,7 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    def get_files_to_change(
-        self, retries=1
-    ) -> tuple[list[FileChangeRequest], str]:
+    def get_files_to_change(self, retries=1) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
@@ -352,6 +350,26 @@ class GithubBot(BaseModel):
 
 
 class SweepBot(CodeGenBot, GithubBot):
+    @staticmethod
+    def run_sandbox(
+        repo_url: str,
+        file_path: str,
+        content: str | None,
+        token: str,
+        only_lint: bool = False,
+    ) -> Dict:
+        output = requests.post(
+            SANDBOX_URL,
+            json={
+                "token": token,
+                "repo_url": repo_url,
+                "file_path": file_path,
+                "content": content,
+                "only_lint": only_lint,
+            },
+        ).json()
+        return output
+
     def check_completion(self, file_name: str, new_content: str) -> bool:
         can_check = False
         for ext in [".js", ".ts", ".jsx", ".tsx", ".py"]:
@@ -445,15 +463,12 @@ class SweepBot(CodeGenBot, GithubBot):
                     print("Running Sandbox for create file...")
                     print(file_change.code)
                     print(self.sweep_context)
-                    output = requests.post(
-                        SANDBOX_URL,
-                        json={
-                            "token": self.sweep_context.token,
-                            "repo_url": self.repo.html_url,
-                            "file_path": file_change_request.filename,
-                            "content": file_change.code,
-                        },
-                    ).json()
+                    output = SweepBot.run_sandbox(
+                        token=self.sweep_context.token,
+                        repo_url=self.repo.html_url,
+                        file_path=file_change_request.filename,
+                        content=file_change.code,
+                    )
                     print(output)
                     if output["success"]:
                         file_change.code = output["updated_content"]
@@ -584,15 +599,12 @@ class SweepBot(CodeGenBot, GithubBot):
                     print("Running Sandbox for modify file...")
                     logger.info(f"New file {new_file}")
                     logger.info(f"Sweep context: {self.sweep_context}")
-                    output = requests.post(
-                        SANDBOX_URL,
-                        json={
-                            "token": self.sweep_context.token,
-                            "repo_url": self.repo.html_url,
-                            "file_path": file_change_request.filename,
-                            "content": new_file,
-                        },
-                    ).json()
+                    output = SweepBot.run_sandbox(
+                        token=self.sweep_context.token,
+                        repo_url=self.repo.html_url,
+                        file_path=file_change_request.filename,
+                        content=new_file,
+                    )
                     logger.info(f"Output: {output}")
                     if output["success"]:
                         new_file = output["updated_content"]
