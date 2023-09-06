@@ -572,6 +572,8 @@ def on_ticket(
         # Get files to change
         # Create new branch
         # Send request to endpoint
+        for file_path in []:
+            SweepBot.run_sandbox(repo.html_url, file_path, None, token, only_lint=True)
         # Create PR
         pass
 
