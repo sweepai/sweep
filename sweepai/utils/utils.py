@@ -142,9 +142,9 @@ extension_to_language = {
     "hpp": "cpp",
     "cs": "cpp",
     "rb": "ruby",
-    "md": "markdown",
-    "rst": "markdown",
-    "txt": "markdown",
+    # "md": "markdown",
+    # "rst": "markdown",
+    # "txt": "markdown",
     # "erb": "embedded-template",
     # "ejs": "embedded-template",
     # "html": "embedded-template",
@@ -155,6 +155,20 @@ extension_to_language = {
     "php": "php",
 }
 
+def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
+    lines = code.split('\n')
+    total_lines = len(lines)
+    chunks = []
+    
+    start = 0
+    while start < total_lines:
+        end = min(start + line_count, total_lines)
+        chunk = '\n'.join(lines[start:end])
+        chunks.append(chunk)
+        start = end - overlap
+    
+    return chunks
+
 
 def chunk_code(code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100):
     from tree_sitter_languages import get_parser
@@ -163,7 +177,17 @@ def chunk_code(code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100)
     if ext in extension_to_language:
         language = extension_to_language[ext]
     else:
-        language = "python"
+        # Fallback to naive chunking if tree_sitter fails
+        chunks = naive_chunker(code)
+        snippets = []
+        for idx, chunk in enumerate(chunks):
+            new_snippet = Snippet(
+                content=chunk,
+                start=idx * 30,
+                end=(idx + 1) * 30,
+                file_path=path,
+            )
+        snippets.append(new_snippet)
     try:
         parser = get_parser(language)
         tree = parser.parse(code.encode("utf-8"))
