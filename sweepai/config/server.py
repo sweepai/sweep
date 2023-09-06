@@ -142,3 +142,6 @@ HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY", None)
 VECTOR_EMBEDDING_SOURCE = os.environ.get(
     "VECTOR_EMBEDDING_SOURCE", "sentence-transformers"
 )  # Alternate option is openai
+
+HUGGINGFACE_URL = os.environ.get("HUGGINGFACE_URL", None)
+HUGGINGFACE_TOKEN = os.environ.get("HUGGINGFACE_TOKEN", None)

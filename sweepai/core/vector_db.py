@@ -17,11 +17,14 @@ from redis import Redis
 from redis.backoff import ConstantBackoff
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 from redis.retry import Retry
+import requests
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
-
+from tqdm import tqdm
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import (
     BATCH_SIZE,
+    HUGGINGFACE_TOKEN,
+    HUGGINGFACE_URL,
     REDIS_URL,
     SENTENCE_TRANSFORMERS_MODEL,
     VECTOR_EMBEDDING_SOURCE,
@@ -34,6 +37,7 @@ from sweepai.utils.hash import hash_sha256
 from redis import Redis
 from sweepai.utils.scorer import compute_score, get_scores
 from ..utils.github_utils import ClonedRepo, get_token
+import openai
 
 MODEL_DIR = "cache/model"
 DEEPLAKE_DIR = "cache/"
@@ -67,10 +71,20 @@ def parse_collection_name(name: str) -> str:
     name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
     return name
 
+def embed_huggingface(texts):
+    """Embeds a list of texts using Hugging Face's API."""
+    try:
+        headers = {
+            "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        response = requests.post(HUGGINGFACE_URL, headers=headers, json={"inputs": texts})
+        return response.json()["embeddings"]
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error occurred when sending request to Hugging Face endpoint: {e}")
   
-@lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
-    logger.info(f"Computing embeddings for {len(texts)} texts")
+    logger.info(f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}...")
     match VECTOR_EMBEDDING_SOURCE:
         case "sentence-transformers":
             sentence_transformer_model = SentenceTransformer(
@@ -82,15 +96,25 @@ def embed_texts(texts: tuple[str]):
             return vector.squeeze()
         case "openai":
             import openai
-            from tqdm import tqdm
 
             embeddings = []
             for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-                response = openai.Embedding.create(
-                    input=batch, model="text-embedding-ada-002"
-                )
-                embeddings.extend([r["embedding"] for r in response["data"]])
+                try:
+                    response = openai.Embedding.create(
+                        input=batch, model="text-embedding-ada-002"
+                    )
+                    embeddings.extend([r["embedding"] for r in response["data"]])
+                except Exception as e:
+                    logger.error(e)
+                    logger.error(f"Failed to get embeddings for {batch}")
             return embeddings
+        case "huggingface": 
+            if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
+                embeddings = []
+                for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+                    embeddings.extend(embed_huggingface(texts))
+            else:
+                raise Exception("Hugging Face URL and token not set")
         case _:
             raise Exception("Invalid vector embedding mode")
 
@@ -175,12 +199,12 @@ def compute_deeplake_vs(
 ):
     deeplake_vs = DeepLakeVectorStore(vector_db_path)
     if len(documents) > 0:
-        logger.info("Computing embeddings...")
+        logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
         # Check cache here for all documents
         embeddings = [None] * len(documents)
         if redis_client:
             cache_keys = [
-                hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION
+                hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + VECTOR_EMBEDDING_SOURCE + CACHE_VERSION
                 for doc in documents
             ]
             cache_values = redis_client.mget(cache_keys)
@@ -219,18 +243,12 @@ def compute_deeplake_vs(
         if redis_client and len(documents_to_compute) > 0:
             logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
             cache_keys = [
-                hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + CACHE_VERSION
+                hash_sha256(doc) + SENTENCE_TRANSFORMERS_MODEL + VECTOR_EMBEDDING_SOURCE + CACHE_VERSION
                 for doc in documents_to_compute
             ]
-            print(
-                {
-                    key: json.dumps(embedding.tolist())
-                    for key, embedding in zip(cache_keys, computed_embeddings)
-                }
-            )
             redis_client.mset(
                 {
-                    key: json.dumps(embedding.tolist())
+                    key: json.dumps(embedding.tolist() if isinstance(embedding, np.ndarray) else embedding)
                     for key, embedding in zip(cache_keys, computed_embeddings)
                 }
             )
@@ -337,5 +355,9 @@ def chunk(texts: List[str], batch_size: int) -> Generator[List[str], None, None]
         # ['text3', 'text4']
         # ['text5']
     """
+    texts = [text[:4096] if text else ' ' for text in texts]
+    for text in texts:
+        assert isinstance(text, str), f"Expected str, got {type(text)}"
+        assert len(text) <= 4096, f"Expected text length <= 4096, got {len(text)}"
     for i in range(0, len(texts), batch_size):
-        yield texts[i : i + batch_size]
+        yield texts[i : i + batch_size] if i + batch_size < len(texts) else texts[i:]
