@@ -1,6 +1,7 @@
-import os
-from dotenv import load_dotenv
 import base64
+import os
+
+from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=".env")
 
@@ -24,7 +25,7 @@ SENTENCE_TRANSFORMERS_MODEL = os.environ.get(
     "SENTENCE_TRANSFORMERS_MODEL",
     "sentence-transformers/all-MiniLM-L6-v2",  # "all-mpnet-base-v2"
 )
-BATCH_SIZE = 32
+BATCH_SIZE = 32 # Tune this to 32 for sentence-transformers/all-MiniLM-L6-v2 on CPU
 
 ENV = os.environ.get("ENV", "dev")
 # ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
@@ -137,3 +138,10 @@ if SANDBOX_URL is not None:
     print(f"Using Sandbox URL: {SANDBOX_URL}")
 
 HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY", None)
+
+VECTOR_EMBEDDING_SOURCE = os.environ.get(
+    "VECTOR_EMBEDDING_SOURCE", "sentence-transformers"
+)  # Alternate option is openai or huggingface and set the corresponding env vars
+
+HUGGINGFACE_URL = os.environ.get("HUGGINGFACE_URL", None)
+HUGGINGFACE_TOKEN = os.environ.get("HUGGINGFACE_TOKEN", None)

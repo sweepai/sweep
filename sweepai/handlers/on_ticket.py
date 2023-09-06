@@ -148,6 +148,7 @@ def strip_sweep(text: str):
         re.search(r"^[Ss]weep\s?\([Ss]ubissues?\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Ss]andbox?\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Ff]ast\)", text) is not None,
+        re.search(r"^[Ss]weep\s?\([Ll]int\)", text) is not None,
     )
 
 
@@ -174,6 +175,7 @@ def on_ticket(
         subissues_mode,
         sandbox_mode,
         fast_mode,
+        lint_mode,
     ) = strip_sweep(title)
 
     # Flow:
@@ -565,6 +567,13 @@ def on_ticket(
     repo_url = cloned_repo.clone_url
     # sandbox = Sandbox.from_token(repo, repo_url, sandbox_config)
     sandbox = None
+
+    if lint_mode:
+        # Get files to change
+        # Create new branch
+        # Send request to endpoint
+        # Create PR
+        pass
 
     logger.info("Fetching relevant files...")
     try:
