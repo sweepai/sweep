@@ -1,3 +1,4 @@
+import requests
 from functools import lru_cache
 import hashlib
 import json
@@ -70,10 +71,17 @@ sentence_transformer_model = SentenceTransformer(
 
 
 def embed_texts(texts: tuple[str]):
-    logger.info(f"Computing embeddings for {len(texts)} texts")
-    vector = sentence_transformer_model.encode(
-        texts, show_progress_bar=True, batch_size=BATCH_SIZE
-    )
+    huggingface_url = os.getenv('HUGGINGFACE_URL')
+    if huggingface_url:
+        logger.info(f"Computing embeddings for {len(texts)} texts using HuggingFace endpoint")
+        response = requests.post(huggingface_url, json={"inputs": texts})
+        response.raise_for_status()
+        vector = np.array(response.json()['outputs'])
+    else:
+        logger.info(f"Computing embeddings for {len(texts)} texts")
+        vector = sentence_transformer_model.encode(
+            texts, show_progress_bar=True, batch_size=BATCH_SIZE
+        )
     return vector.squeeze()
 
 
