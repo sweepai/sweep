@@ -73,15 +73,16 @@ def parse_collection_name(name: str) -> str:
 
 def embed_huggingface(texts):
     """Embeds a list of texts using Hugging Face's API."""
-    try:
-        headers = {
-            "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
-            "Content-Type": "application/json"
-        }
-        response = requests.post(HUGGINGFACE_URL, headers=headers, json={"inputs": texts})
-        return response.json()["embeddings"]
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error occurred when sending request to Hugging Face endpoint: {e}")
+    for i in range(3):
+        try:
+            headers = {
+                "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
+                "Content-Type": "application/json"
+            }
+            response = requests.post(HUGGINGFACE_URL, headers=headers, json={"inputs": texts})
+            return response.json()["embeddings"]
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error occurred when sending request to Hugging Face endpoint: {e}")
   
 def embed_texts(texts: tuple[str]):
     logger.info(f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}...")
@@ -113,6 +114,7 @@ def embed_texts(texts: tuple[str]):
                 embeddings = []
                 for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
                     embeddings.extend(embed_huggingface(texts))
+                return embeddings
             else:
                 raise Exception("Hugging Face URL and token not set")
         case _:
