@@ -149,9 +149,7 @@ def clean_instructions(instructions: str):
 class FileChangeRequest(RegexMatchableBaseModel):
     filename: str
     instructions: str
-    change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal[
-        "rename"
-    ]
+    change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal["rename"] | Literal["rewrite"]
     _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\">(?P<instructions>.*?)<\/\1>"""
     new_content: str | None = None
 
@@ -228,6 +226,30 @@ class FileCreation(RegexMatchableBaseModel):
             result.code = result.code.strip()
         result.code += "\n"
         return result
+
+class SectionRewrite(RegexMatchableBaseModel):
+    section: str
+    _regex = r"""<section>(?P<section>.*)</section>"""
+
+    @classmethod
+    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
+        result = super().from_string(string, **kwargs)
+
+        if len(result.section) == 1:
+            result.section = result.section.replace("```", "")
+            return result.section + "\n"
+
+        if result.section.startswith("```"):
+            first_newline = result.section.find("\n")
+            result.section = result.section[first_newline + 1 :]
+
+        result.section = result.section.strip()
+        if result.section.endswith("```"):
+            result.section = result.section[: -len("```")]
+            result.section = result.section.strip()
+        result.section += "\n"
+        return result
+
 
 
 class PullRequest(RegexMatchableBaseModel):

@@ -687,6 +687,32 @@ Instructions:
 2. Complete the Code Modification step
 """
 
+rewrite_file_system_prompt = "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the file to address a Github issue. When you write code, the code works on the first try and is syntactically perfect and complete. You have the utmost care for your code, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies."
+
+rewrite_file_prompt = """\
+File Name: {filename}
+<old_file>
+{code}
+</old_file>
+
+---
+
+User's request:
+{instructions}
+
+Limit your changes to the request.
+
+Rewrite the following section from the old_file to handle this request.
+
+<section>
+
+{section}
+
+</section>
+
+Think step-by-step on what to modify, then wrap the final answer in the brackets <section></section> XML tags. Only rewrite the section and do not close hanging parentheses and tags.\
+"""
+
 sandbox_code_repair_modify_prompt_2 = """
 File Name: {filename}
 

@@ -17,6 +17,7 @@ from sweepai.core.entities import (
     FileChangeRequest,
     PullRequest,
     RegexMatchError,
+    SectionRewrite,
     Snippet,
     NoFilesException,
     Message,
@@ -605,6 +606,45 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.warning(f"Failed to parse." f" {e}\n{tb}")
             self.delete_messages_from_chat(key)
         raise Exception(f"Failed to parse response after 1 attempt.")
+    
+
+    def rewrite_section(self, file_change_request: FileChangeRequest) -> FileCreation:
+        section_rewrite: SectionRewrite | None = None
+        key = f"file_change_created_{file_change_request.filename}"
+        rewrite_section_response = self.chat(
+            rewrite_section_response.format(
+                filename=file_change_request.filename,
+                code=file_change_request.code,
+                instructions=file_change_request.instructions,
+                section=file_change_request.section,
+            ),
+            message_key=key,
+        )
+        self.file_change_paths.append(file_change_request.filename)
+        try:
+            section_rewrite = SectionRewrite.from_string(rewrite_section_response)
+            self.delete_messages_from_chat(key_to_delete=key)
+
+            try:
+                implemented = self.check_completion(  # use async
+                    file_change_request.filename, section_rewrite.code
+                )
+                if not implemented:
+                    discord_log_error(
+                        f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
+                        priority=2 if self.sweep_context.use_faster_model else 0,
+                    )
+            except Exception as e:
+                logger.error(f"Error: {e}")
+            
+            return section_rewrite
+        except Exception as e:
+            # Todo: should we undo appending to file_change_paths?
+            logger.info(traceback.format_exc())
+            logger.warning(e)
+            logger.warning(f"Failed to parse. Retrying for the 1st time...")
+            self.delete_messages_from_chat(key)
+        raise Exception("Failed to parse response after 5 attempts.")
 
     def change_files_in_github(
         self,
