@@ -156,6 +156,9 @@ extension_to_language = {
 }
 
 def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
+    if overlap >= line_count:
+        raise ValueError("Overlap should be smaller than line_count.")
+        
     lines = code.split('\n')
     total_lines = len(lines)
     chunks = []
@@ -165,10 +168,9 @@ def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
         end = min(start + line_count, total_lines)
         chunk = '\n'.join(lines[start:end])
         chunks.append(chunk)
-        start = end - overlap
+        start += line_count - overlap
     
     return chunks
-
 
 def chunk_code(code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100):
     from tree_sitter_languages import get_parser
@@ -188,6 +190,7 @@ def chunk_code(code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100)
                 file_path=path,
             )
         snippets.append(new_snippet)
+        return snippets
     try:
         parser = get_parser(language)
         tree = parser.parse(code.encode("utf-8"))
