@@ -55,7 +55,7 @@
       "closed_at": null,
       "author_association": "CONTRIBUTOR",
       "active_lock_reason": null,
-      "body": "### Details\n\n_No response_",
+      "body": "Use pr_line in on_comment.py",
       "reactions": {
         "url": "https://api.github.com/repos/sweepai/sweep/issues/1457/reactions",
         "total_count": 0,
