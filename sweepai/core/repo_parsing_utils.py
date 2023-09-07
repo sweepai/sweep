@@ -1,9 +1,5 @@
 
-def read_file(file_name):
-    try:
-        with open(file_name, "r") as f:
-            return f.read()
-    except:
+
         return ""
 
 import glob
@@ -61,9 +57,14 @@ def repo_to_chunks(directory, sweep_config):
     ]
     all_chunks = []
     for file_path in file_list:
-        file_contents = read_file(file_path)
+        try:
+            with open(file_path, "r") as f:
+                file_contents = f.read()
+        except:
+            file_contents = ""
         chunks = chunk_code(file_contents, path=file_path)
         all_chunks.extend(chunks)
+    return all_chunks, file_list
     return all_chunks, file_list
         sweep_config (SweepConfig): The configuration object.
 
