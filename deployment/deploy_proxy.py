@@ -1,26 +1,56 @@
-from time import time
-from fastapi import FastAPI, Request, HTTPException
-from starlette.responses import Response, JSONResponse, HTMLResponse
-import httpx
+import socket
 import subprocess
+import threading
+import time
+
+import httpx
+from fastapi import FastAPI, HTTPException, Request
+from starlette.responses import HTMLResponse, JSONResponse, Response
 
 app = FastAPI()
 
 TARGET_SERVER = (
-    "http://0.0.0.0:8080"  # Replace with the URL of the server you want to forward to
+    "http://0.0.0.0:{port}"  # Replace with the URL of the server you want to forward to
 )
 
+port_offset = 9000
 screen_prefix = "sweep"
+current_port = None
+
 current_index = 0
+used_indices = []
 
 kill_flag_times = {}
-max_time = 0.2 * 60  # 20 minutes
+max_time = 5  # 20 minutes
+
+
+def is_port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(1)
+        try:
+            s.bind(("0.0.0.0", port))
+            return False
+        except socket.error:
+            return True
+
+
+def get_next_port():
+    global current_index
+    while is_port_in_use(port_offset + current_index):
+        current_index += 1
+
+
+get_next_port()
 
 
 def kill_old_server(index):
     # Signal the old server to stop
-    print("Stopping", f"{screen_prefix}{current_index}")
-    kill_flag_times[index] = time()
+    global used_indices
+    print(index, used_indices, index in used_indices)
+    if index in used_indices:
+        print("Flagged for deletion:", f"{screen_prefix}{index}.run")
+        kill_flag_times[index] = time.time()
+        used_indices.remove(index)
 
 
 def check_killed_servers():
@@ -28,9 +58,15 @@ def check_killed_servers():
     keys_to_remove = []
 
     for index, kill_time in kill_flag_times.items():
-        if time() - kill_time > max_time:
+        if time.time() - kill_time > max_time:
             print("Killing", f"{screen_prefix}{index}")
-            subprocess.run(["screen", "-S", f"{screen_prefix}{index}", "-X", "quit"])
+            subprocess.run(
+                ["screen", "-S", f"{screen_prefix}{index}.run", "-X", "stuff", "\003"]
+            )
+            time.sleep(30)
+            subprocess.run(
+                ["screen", "-S", f"{screen_prefix}{index}.run", "-X", "quit"]
+            )
             keys_to_remove.append(index)
 
     # Remove the collected keys from the dictionary
@@ -38,39 +74,66 @@ def check_killed_servers():
         kill_flag_times.pop(key, None)
 
 
+def update_port(new_port):
+    # Thread sleep
+    import time
+
+    time.sleep(5)
+    global current_port
+    current_port = new_port
+    print("New port has been updated:", current_port)
+
+
 def start_server():
     print("STARTING")
 
-    global current_index
-    past_index = current_index
-    current_index += 1
+    global current_index, current_port, used_indices
+    new_port = port_offset + current_index
     subprocess.run(
         [
             "screen",
             "-S",
-            f"{screen_prefix}{current_index}",
+            f"{screen_prefix}{current_index}.run",
             "-d",
             "-m",
             "bash",
             "-c",
-            "echo 'hi' && sleep 1000",
+            f"uvicorn hello_world:app --port {new_port}",
         ]
     )
     kill_old_server(past_index)
     check_killed_servers()
+    used_indices.append(current_index)
+    update_port(new_port)
 
 
 # screen -S hi -d -m bash -c "sleep 10; echo hi"
 @app.get("/proxy_start")
 async def start_endpoint():
-    start_server()
+    # Create new asyncio loop
+    global current_index
+    past_index = current_index
+    current_index += 1
+    get_next_port()
+
+    threading.Thread(target=start_server).start()
+    return {
+        "session": f"{screen_prefix}{current_index}.run",
+        "port": port_offset + current_index,
+    }
 
 
 @app.middleware("http")
 async def reroute_request(request: Request, call_next):
+    global current_port
     # Reroute to proxy controls
     if "/proxy_" in request.url.path:
         return await call_next(request)
+
+    if current_port is None:
+        return Response(
+            content="Server is starting up", media_type="text/plain", status_code=503
+        )
 
     async with httpx.AsyncClient() as client:
         # Capture original request data
@@ -86,7 +149,7 @@ async def reroute_request(request: Request, call_next):
             # Forward the request to the target server
             response = await client.request(
                 request.method,
-                f"{TARGET_SERVER}{request.url.path}",
+                f"{TARGET_SERVER.format(port=current_port)}{request.url.path}",
                 data=data,
                 headers=headers,
                 params=request.query_params,
@@ -109,4 +172,4 @@ async def reroute_request(request: Request, call_next):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
