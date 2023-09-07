@@ -23,11 +23,11 @@ class HumanMessagePrompt(BaseModel):
     repo_description: str = ""
 
     def delete_file(self, file_path):
-        # super unoptimized
-        if file_path in [snippet.file_path for snippet in self.snippets]:
-            for snippet in self.snippets:
-                if snippet.file_path == file_path:
-                    self.snippets.remove(snippet)
+        # Create a list of snippets to remove
+        snippets_to_remove = [snippet for snippet in self.snippets if snippet.file_path == file_path]
+        
+        # Remove the snippets from the main list
+        self.snippets = [snippet for snippet in self.snippets if snippet.file_path != file_path]
 
     def get_relevant_directories(self):
         deduped_paths = []
