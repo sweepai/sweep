@@ -153,7 +153,12 @@ def find_best_match(query: str, code_file: str):
 
         start_indices = [i for i, line in enumerate(code_file_lines) if score_line(line, indented_query_lines[0]) > 50]
         start_indices = [i for i in start_indices if score_multiline(indented_query_lines[:2], code_file_lines[i:i+2]) > 50]
-        start_indices = start_indices or range(len(code_file_lines) + 1)
+
+        if not start_indices:
+            start_pairs = [(i, score_line(line, indented_query_lines[0])) for i, line in enumerate(code_file_lines)]
+            start_pairs.sort(key=lambda x: x[1], reverse=True)
+            start_pairs = start_pairs[:min(20, len(start_pairs) // 10)]
+            start_indices = sorted([i for i, _ in start_pairs])
         
         for i in tqdm(start_indices):
             for j in range(i + len(indented_query_lines), min(len(code_file_lines) + 1, i + 2 * len(indented_query_lines) + 100)):
