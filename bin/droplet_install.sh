@@ -7,7 +7,7 @@ run_until_success() {
 }
 
 run_until_success "sudo apt update"
-run_until_success "sudo apt install -y gcc g++"
+run_until_success "sudo apt install -y gcc g++ curl"
 run_until_success "sudo apt-get update"
 run_until_success "sudo apt-get install -y redis build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev python3-openssl git"
 run_until_success "sudo systemctl stop redis"
@@ -19,11 +19,12 @@ curl https://pyenv.run | bash
 echo 'export PYENV_ROOT="$HOME/.pyenv"'
 echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"'
 echo 'eval "$(pyenv init -)"'
+echo '. ~/.bashrc'
 } > ~/.bash_profile
 sed -i '1i\
 export PATH="/root/.local/bin:$PATH"\
 eval "$(pyenv virtualenv-init -)"\
-alias activate="source $(poetry env info --path)/bin/activate"\
+alias activate='\''source $(poetry env info --path)/bin/activate'\''\
 ' ~/.bashrc
 source ~/.bash_profile
 source ~/.bashrc

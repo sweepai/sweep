@@ -1,3 +1,4 @@
+import datetime
 from typing import Generator
 
 import openai
@@ -23,8 +24,10 @@ from sweepai.core.entities import (
     PullRequest,
 )
 from sweepai.core.sweep_bot import SweepBot
+from sweepai.events import InstallationCreatedRequest
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import get_github_client
 
 openai.api_key = OPENAI_API_KEY
 
@@ -222,39 +225,72 @@ def safe_delete_sweep_branch(
         return False
 
 
-def create_config_pr(
-    sweep_bot: SweepBot,
-):
+def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
     title = "Configure Sweep"
     branch_name = GITHUB_CONFIG_BRANCH
-    branch_name = sweep_bot.create_branch(branch_name, retry=False)
-    try:
-        sweep_bot.repo.create_file(
-            "sweep.yaml",
-            "Create sweep.yaml",
-            GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
-            branch=branch_name,
+    if sweep_bot is not None:
+        branch_name = sweep_bot.create_branch(branch_name, retry=False)
+        try:
+            sweep_bot.repo.create_file(
+                "sweep.yaml",
+                "Create sweep.yaml",
+                GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
+                branch=branch_name,
+            )
+            sweep_bot.repo.create_file(
+                ".github/ISSUE_TEMPLATE/sweep-template.yml",
+                "Create sweep template",
+                SWEEP_TEMPLATE,
+                branch=branch_name,
+            )
+            sweep_bot.repo.create_file(
+                ".github/ISSUE_TEMPLATE/sweep-slow-template.yml",
+                "Create sweep slow template",
+                SWEEP_SLOW_TEMPLATE,
+                branch=branch_name,
+            )
+            sweep_bot.repo.create_file(
+                ".github/ISSUE_TEMPLATE/sweep-fast-template.yml",
+                "Create sweep fast template",
+                SWEEP_FAST_TEMPLATE,
+                branch=branch_name,
+            )
+        except Exception as e:
+            logger.error(e)
+    else:
+        # Create branch based on default branch
+        branch = repo.create_git_ref(
+            ref=f"refs/heads/{branch_name}",
+            sha=repo.get_branch(repo.default_branch).commit.sha,
         )
-        sweep_bot.repo.create_file(
-            ".github/ISSUE_TEMPLATE/sweep-template.yml",
-            "Create sweep template",
-            SWEEP_TEMPLATE,
-            branch=branch_name,
-        )
-        sweep_bot.repo.create_file(
-            ".github/ISSUE_TEMPLATE/sweep-slow-template.yml",
-            "Create sweep slow template",
-            SWEEP_SLOW_TEMPLATE,
-            branch=branch_name,
-        )
-        sweep_bot.repo.create_file(
-            ".github/ISSUE_TEMPLATE/sweep-fast-template.yml",
-            "Create sweep fast template",
-            SWEEP_FAST_TEMPLATE,
-            branch=branch_name,
-        )
-    except Exception as e:
-        logger.error(e)
+
+        try:
+            repo.create_file(
+                "sweep.yaml",
+                "Create sweep.yaml",
+                GITHUB_DEFAULT_CONFIG.format(branch=repo.default_branch),
+                branch=branch_name,
+            )
+            repo.create_file(
+                ".github/ISSUE_TEMPLATE/sweep-template.yml",
+                "Create sweep template",
+                SWEEP_TEMPLATE,
+                branch=branch_name,
+            )
+            repo.create_file(
+                ".github/ISSUE_TEMPLATE/sweep-slow-template.yml",
+                "Create sweep slow template",
+                SWEEP_SLOW_TEMPLATE,
+                branch=branch_name,
+            )
+            repo.create_file(
+                ".github/ISSUE_TEMPLATE/sweep-fast-template.yml",
+                "Create sweep fast template",
+                SWEEP_FAST_TEMPLATE,
+                branch=branch_name,
+            )
+        except Exception as e:
+            logger.error(e)
 
     # Check if the pull request from this branch to main already exists.
     # If it does, then we don't need to create a new one.
@@ -286,6 +322,38 @@ def create_config_pr(
     )
     pr.add_to_labels(GITHUB_LABEL_NAME)
     return pr
+
+
+def add_config_to_top_repos(request: InstallationCreatedRequest, max_repos=3):
+    user_token, g = get_github_client(request.installation.id)
+
+    repo_activity = {}
+    for repo_entity in request.repositories:
+        repo = g.get_repo(repo_entity.full_name)
+        # instead of using total count, use the date of the latest commit
+        commits = repo.get_commits(
+            author=request.installation.account.login,
+            since=datetime.datetime.now() - datetime.timedelta(days=30),
+        )
+        # get latest commit date
+        commit_date = datetime.datetime.now() - datetime.timedelta(days=30)
+        for commit in commits:
+            if commit.commit.author.date > commit_date:
+                commit_date = commit.commit.author.date
+
+        # since_date = datetime.datetime.now() - datetime.timedelta(days=30)
+        # commits = repo.get_commits(since=since_date, author="lukejagg")
+        repo_activity[repo] = commit_date
+        # print(repo, commits.totalCount)
+        print(repo, commit_date)
+
+    sorted_repos = sorted(repo_activity, key=repo_activity.get, reverse=True)
+    sorted_repos = sorted_repos[:max_repos]
+
+    # For each repo, create a branch based on main branch, then create PR to main branch
+    for repo in sorted_repos:
+        print("Creating config for", repo.full_name)
+        create_config_pr(None, repo=repo)
 
 
 def create_gha_pr(g, repo):

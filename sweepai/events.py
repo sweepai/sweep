@@ -3,8 +3,15 @@ from typing import Literal
 from pydantic import BaseModel
 
 
+class Account(BaseModel):
+    id: int
+    login: str
+    type: str
+
+
 class Installation(BaseModel):
     id: str
+    account: Account
 
 
 class InstallationCreatedRequest(BaseModel):
