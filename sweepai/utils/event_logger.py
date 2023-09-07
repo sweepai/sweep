@@ -4,7 +4,7 @@ import highlight_io
 
 from sweepai.config.server import POSTHOG_API_KEY, HIGHLIGHT_API_KEY
 
-if POSTHOG_API_KEY is None:
+if POSTHOG_API_KEY is None or POSTHOG_API_KEY.lower() == "none":
     posthog = Posthog(
         project_api_key="none", disabled=True, host="https://app.posthog.com"
     )
