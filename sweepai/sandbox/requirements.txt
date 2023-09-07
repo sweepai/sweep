@@ -1,0 +1,7 @@
+click==8.1.7; python_version >= "3.8"
+colorama==0.4.6; python_version >= "3.8" and python_full_version < "3.0.0" and sys_platform == "win32" and platform_system == "Windows" or sys_platform == "win32" and python_version >= "3.8" and python_full_version >= "3.7.0" and platform_system == "Windows"
+h11==0.14.0; python_version >= "3.8"
+loguru==0.7.0; python_version >= "3.5"
+typing-extensions==4.7.1; python_version < "3.11" and python_version >= "3.8"
+uvicorn==0.23.2; python_version >= "3.8"
+win32-setctime==1.1.0; sys_platform == "win32" and python_version >= "3.5"

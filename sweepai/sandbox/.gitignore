@@ -170,9 +170,4 @@ scraped_docs
 node_modules
 tests/js_tests
 test_repos
-.env*
-cache/
-indexdir
-repo
-dump.rdb
-depot.json
+sandbox/*

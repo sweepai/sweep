@@ -229,11 +229,6 @@ User pull request review: "{comment}" """,
     },
 ]
 
-comment_line_prompt = """\
-The user made the review in this file: {pr_file_path}
-and on this line: {pr_line}
-"""
-
 cot_retrieval_prompt = """
 Gather information to solve the problem. Use "finish" when you feel like you have sufficient information.
 """
@@ -554,10 +549,10 @@ Thoughts and detailed plan of modifications:
 Code Modification:
 
 Generate diff hunks based on the given plan using the search and replace pairs in the format below.
-* Always prefer the least amount of changes possible, but ensure the solution is complete
+* Always prefer the least amount of changes possible, but ensure the solution is complete.
 * Prefer multiple small changes over a single large change.
 * Do not edit the same parts multiple times.
-* Add additional lines before and after to disambiguate when replacing repetitive sections
+* Make sure to add additional lines before and after the original and updated code to disambiguate code when replacing repetitive sections.
 * NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
 
 The format is as follows:
@@ -606,10 +601,10 @@ Thoughts and detailed plan of modifications:
 Code Modification:
 
 Generate a new file based on your plan. Regenerate the entire file completely.
-* Always prefer the least amount of changes possible, but ensure the solution is complete
+* Always prefer the least amount of changes possible, but ensure the solution is complete.
 * Prefer multiple small changes over a single large change.
 * Do not edit the same parts multiple times.
-* Add additional lines before and after to disambiguate when replacing repetitive sections
+* Make sure to add additional lines before and after the original and updated code to disambiguate code when replacing repetitive sections.
 * NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
 
 The format is as follows:
