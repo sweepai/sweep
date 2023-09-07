@@ -15,15 +15,27 @@ from sweepai.core.prompts import system_message_prompt, repo_description_prefix_
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import get_description
 from sweepai.config.server import (
+    OPENAI_API_KEY,
     OPENAI_USE_3_5_MODEL_ONLY,
     UTILS_MODAL_INST_NAME,
     ANTHROPIC_API_KEY,
     OPENAI_DO_HAVE_32K_MODEL_ACCESS,
+    OPENAI_API_TYPE,
+    OPENAI_API_BASE,
+    OPENAI_API_VERSION,
+    OPENAI_API_ENGINE,
 )
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.event_logger import posthog
 
-# TODO: combine anthropic and openai
+
+if OPENAI_API_TYPE == 'azure':
+    openai.api_key = OPENAI_API_KEY
+    openai.api_type = OPENAI_API_TYPE
+    openai.api_base = OPENAI_API_BASE
+    openai.api_version = OPENAI_API_VERSION
+
+
 
 AnthropicModel = (
     Literal["claude-v1"]
@@ -181,50 +193,14 @@ class ChatGPT(BaseModel):
         content: str,
         model: ChatModel | None = None,
         message_key: str | None = None,
-        functions: list[Function] = [],
-        function_name: dict | None = None,
     ):
-        if self.messages[-1].function_call is None:
-            self.messages.append(Message(role="user", content=content, key=message_key))
-        else:
-            name = self.messages[-1].function_call["name"]
-            self.messages.append(
-                Message(role="function", content=content, key=message_key, name=name)
-            )
+        self.messages.append(Message(role="user", content=content, key=message_key))
         model = model or self.model
-        is_function_call = False
-        if model in [args.__args__[0] for args in OpenAIModel.__args__]:
-            # might be a bug here in all of this
-            if len(functions) > 0:
-                response = self.call_openai(
-                    model=model, functions=functions, function_name=function_name
-                )
-                response, is_function_call = response
-                if is_function_call:
-                    self.messages.append(
-                        Message(
-                            role="assistant",
-                            content=None,
-                            function_call=response,
-                            key=message_key,
-                        )
-                    )
-                    self.prev_message_states.append(self.messages)
-                    return self.messages[-1].function_call
-                else:
-                    self.messages.append(
-                        Message(role="assistant", content=response, key=message_key)
-                    )
-            else:
-                response = self.call_openai(model=model, functions=functions)
-                self.messages.append(
-                    Message(role="assistant", content=response, key=message_key)
-                )
-        else:
-            response = self.call_anthropic(model=model)
-            self.messages.append(
-                Message(role="assistant", content=response, key=message_key)
-            )
+        self.messages.append(
+            Message(role="assistant", content=self.call_openai(
+                model=model, 
+            ), key=message_key)
+        )
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 
@@ -305,6 +281,7 @@ class ChatGPT(BaseModel):
                     if function_name:
                         output = (
                             openai.ChatCompletion.create(
+                                engine=OPENAI_API_ENGINE if OPENAI_API_TYPE == 'azure' else None,
                                 model=model,
                                 messages=messages_dicts,
                                 max_tokens=max_tokens - token_sub,
@@ -321,6 +298,7 @@ class ChatGPT(BaseModel):
                     else:
                         output = (
                             openai.ChatCompletion.create(
+                                engine=OPENAI_API_ENGINE if OPENAI_API_TYPE == 'azure' else None,
                                 model=model,
                                 messages=messages_dicts,
                                 max_tokens=max_tokens - token_sub,
@@ -397,6 +375,7 @@ class ChatGPT(BaseModel):
                 try:
                     output = (
                         openai.ChatCompletion.create(
+                            engine=OPENAI_API_ENGINE if OPENAI_API_TYPE == 'azure' else None,
                             model=model,
                             messages=self.messages_dicts,
                             max_tokens=max_tokens - token_sub,
@@ -689,6 +668,7 @@ class ChatGPT(BaseModel):
         def generator() -> Iterator[str]:
             stream = (
                 openai.ChatCompletion.create(
+                    engine=OPENAI_API_ENGINE if OPENAI_API_TYPE == 'azure' else None,
                     model=model,
                     messages=self.messages_dicts,
                     temperature=temperature,
@@ -698,6 +678,7 @@ class ChatGPT(BaseModel):
                 )
                 if functions
                 else openai.ChatCompletion.create(
+                    engine=OPENAI_API_ENGINE if OPENAI_API_TYPE == 'azure' else None,
                     model=model,
                     messages=self.messages_dicts,
                     temperature=temperature,

@@ -149,9 +149,7 @@ def clean_instructions(instructions: str):
 class FileChangeRequest(RegexMatchableBaseModel):
     filename: str
     instructions: str
-    change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal[
-        "rename"
-    ]
+    change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal["rename"] | Literal["rewrite"]
     _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\">(?P<instructions>.*?)<\/\1>"""
     new_content: str | None = None
 
@@ -229,6 +227,30 @@ class FileCreation(RegexMatchableBaseModel):
         result.code += "\n"
         return result
 
+class SectionRewrite(RegexMatchableBaseModel):
+    section: str
+    _regex = r"""<section>(?P<section>.*)</section>"""
+
+    @classmethod
+    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
+        result = super().from_string(string, **kwargs)
+
+        if len(result.section) == 1:
+            result.section = result.section.replace("```", "")
+            return result.section + "\n"
+
+        if result.section.startswith("```"):
+            first_newline = result.section.find("\n")
+            result.section = result.section[first_newline + 1 :]
+
+        result.section = result.section.strip()
+        if result.section.endswith("```"):
+            result.section = result.section[: -len("```")]
+            result.section = result.section.strip()
+        result.section += "\n"
+        return result
+
+
 
 class PullRequest(RegexMatchableBaseModel):
     title: str
@@ -266,15 +288,16 @@ class Snippet(BaseModel):
     def __hash__(self):
         return hash((self.file_path, self.start, self.end))
 
-    def get_snippet(self):
+    def get_snippet(self, add_ellipsis: bool = True, add_lines: bool = True):
         lines = self.content.splitlines()
         snippet = "\n".join(
-            f"{i+1}: {line}" for i, line in enumerate(lines[self.start : self.end])
+            (f"{i+1}: {line}" if add_lines else line) for i, line in enumerate(lines[self.start : self.end])
         )
-        if self.start > 1:
-            snippet = "...\n" + snippet
-        if self.end < self.content.count("\n") + 1:
-            snippet = snippet + "\n..."
+        if add_ellipsis:
+            if self.start > 1:
+                snippet = "...\n" + snippet
+            if self.end < self.content.count("\n") + 1:
+                snippet = snippet + "\n..."
         return snippet
 
     def __add__(self, other):

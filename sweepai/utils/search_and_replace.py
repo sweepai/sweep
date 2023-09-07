@@ -146,11 +146,22 @@ def find_best_match(query: str, code_file: str):
         # Optimize later by using radix
         indented_query_lines = [indent * num_indents + line for line in query_lines]
 
+        # for line in code_file_lines:
+        #     if score_line(line, indented_query_lines[0]) > 50:
+        #         print(line)
+        #         print(score_line(line, indented_query_lines[0]))
+
         start_indices = [i for i, line in enumerate(code_file_lines) if score_line(line, indented_query_lines[0]) > 50]
-        start_indices = start_indices or range(len(code_file_lines) + 1)
+        start_indices = [i for i in start_indices if score_multiline(indented_query_lines[:2], code_file_lines[i:i+2]) > 50]
+
+        if not start_indices:
+            start_pairs = [(i, score_line(line, indented_query_lines[0])) for i, line in enumerate(code_file_lines)]
+            start_pairs.sort(key=lambda x: x[1], reverse=True)
+            start_pairs = start_pairs[:min(20, len(start_pairs) // 10)]
+            start_indices = sorted([i for i, _ in start_pairs])
         
-        for i in start_indices:
-            for j in range(i + len(indented_query_lines), len(code_file_lines) + 1):
+        for i in tqdm(start_indices):
+            for j in range(i + len(indented_query_lines), min(len(code_file_lines) + 1, i + 2 * len(indented_query_lines) + 100)):
                 candidate = code_file_lines[i:j]
                 score = score_multiline(indented_query_lines, candidate) * (
                     1 - num_indents * 0.01

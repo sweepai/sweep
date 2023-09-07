@@ -49,6 +49,7 @@ from sweepai.config.server import (
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
+    OPENAI_USE_3_5_MODEL_ONLY,
     WHITELISTED_REPOS,
 )
 from sweepai.utils.event_logger import posthog
@@ -148,6 +149,7 @@ def strip_sweep(text: str):
         re.search(r"^[Ss]weep\s?\([Ss]ubissues?\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Ss]andbox?\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Ff]ast\)", text) is not None,
+        re.search(r"^[Ss]weep\s?\([Ll]int\)", text) is not None,
     )
 
 
@@ -174,6 +176,7 @@ def on_ticket(
         subissues_mode,
         sandbox_mode,
         fast_mode,
+        lint_mode,
     ) = strip_sweep(title)
 
     # Flow:
@@ -225,7 +228,7 @@ def on_ticket(
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
         is_trial_user = chat_logger.is_trial_user()
-        use_faster_model = chat_logger.use_faster_model(g)
+        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
     else:
         is_paying_user = True
         is_trial_user = False
@@ -566,6 +569,15 @@ def on_ticket(
     # sandbox = Sandbox.from_token(repo, repo_url, sandbox_config)
     sandbox = None
 
+    if lint_mode:
+        # Get files to change
+        # Create new branch
+        # Send request to endpoint
+        for file_path in []:
+            SweepBot.run_sandbox(repo.html_url, file_path, None, token, only_lint=True)
+        # Create PR
+        pass
+
     logger.info("Fetching relevant files...")
     try:
         snippets, tree = search_snippets(
@@ -648,36 +660,37 @@ def on_ticket(
         tree=tree,
     )
     try:
-        context_pruning = ContextPruning(chat_logger=chat_logger)
-        snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
-            human_message, repo=repo
-        )
-        snippets, tree = search_snippets(
-            # repo,
-            cloned_repo,
-            f"{title}\n{summary}\n{replies_text}",
-            num_files=num_of_snippets_to_query,
-            # branch=None,
-            # installation_id=installation_id,
-            excluded_directories=directories_to_ignore,  # handles the tree
-        )
-        snippets = post_process_snippets(
-            snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
-        )
-        logger.info(f"New snippets: {snippets}")
-        logger.info(f"New tree: {tree}")
-        if not use_faster_model and additional_plan is not None:
-            message_summary += additional_plan
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description,
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-        )
+        if not use_faster_model: # Don't do this for OPENAI_USE_3_5_MODEL_ONLY
+            context_pruning = ContextPruning(chat_logger=chat_logger)
+            snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
+                human_message, repo=repo
+            )
+            snippets, tree = search_snippets(
+                # repo,
+                cloned_repo,
+                f"{title}\n{summary}\n{replies_text}",
+                num_files=num_of_snippets_to_query,
+                # branch=None,
+                # installation_id=installation_id,
+                excluded_directories=directories_to_ignore,  # handles the tree
+            )
+            snippets = post_process_snippets(
+                snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
+            )
+            logger.info(f"New snippets: {snippets}")
+            logger.info(f"New tree: {tree}")
+            if not use_faster_model and additional_plan is not None:
+                message_summary += additional_plan
+            human_message = HumanMessagePrompt(
+                repo_name=repo_name,
+                issue_url=issue_url,
+                username=username,
+                repo_description=repo_description,
+                title=title,
+                summary=message_summary,
+                snippets=snippets,
+                tree=tree,
+            )
     except Exception as e:
         logger.error(f"Failed to prune context: {e}")
 
@@ -848,7 +861,7 @@ def on_ticket(
 
         logger.info("Making PR...")
 
-        files_progress = [
+        files_progress: list[tuple[str, str, str, str]] = [
             (
                 file_change_request.filename,
                 file_change_request.instructions_display,
@@ -987,7 +1000,7 @@ def on_ticket(
             table_message
             + "I have finished coding the issue. I am now reviewing it for"
             " completeness.",
-            4,
+            5,
         )
 
         review_message = (
@@ -1041,6 +1054,7 @@ def on_ticket(
                     pr_number=None,
                     pr=pr_changes,
                     chat_logger=chat_logger,
+                    repo=repo,
                 )
         except Exception as e:
             logger.error(traceback.format_exc())

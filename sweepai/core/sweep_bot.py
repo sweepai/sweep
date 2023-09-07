@@ -1,7 +1,7 @@
 import traceback
 import re
 import requests
-from typing import Generator, Any
+from typing import Generator, Any, Dict
 
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
@@ -17,6 +17,7 @@ from sweepai.core.entities import (
     FileChangeRequest,
     PullRequest,
     RegexMatchError,
+    SectionRewrite,
     Snippet,
     NoFilesException,
     Message,
@@ -36,6 +37,8 @@ from sweepai.core.prompts import (
     RECREATE_LINE_LENGTH,
     modify_recreate_file_system_message,
     modify_recreate_file_prompt_3,
+    rewrite_file_prompt,
+    rewrite_file_system_prompt,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DB_MODAL_INST_NAME, SANDBOX_URL, SECONDARY_MODEL
@@ -46,6 +49,7 @@ from sweepai.utils.diff import (
     is_markdown,
     get_matches,
 )
+from sweepai.utils.utils import chunk_code
 
 USING_DIFF = True
 
@@ -151,9 +155,7 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    def get_files_to_change(
-        self, retries=1
-    ) -> tuple[list[FileChangeRequest], str]:
+    def get_files_to_change(self, retries=1) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
@@ -352,6 +354,29 @@ class GithubBot(BaseModel):
 
 
 class SweepBot(CodeGenBot, GithubBot):
+    @staticmethod
+    def run_sandbox(
+        repo_url: str,
+        file_path: str,
+        content: str | None,
+        token: str,
+        only_lint: bool = False,
+    ) -> Dict:
+        if not SANDBOX_URL:
+            return {"success": False}
+
+        output = requests.post(
+            SANDBOX_URL,
+            json={
+                "token": token,
+                "repo_url": repo_url,
+                "file_path": file_path,
+                "content": content,
+                "only_lint": only_lint,
+            },
+        ).json()
+        return output
+
     def check_completion(self, file_name: str, new_content: str) -> bool:
         can_check = False
         for ext in [".js", ".ts", ".jsx", ".tsx", ".py"]:
@@ -445,15 +470,12 @@ class SweepBot(CodeGenBot, GithubBot):
                     print("Running Sandbox for create file...")
                     print(file_change.code)
                     print(self.sweep_context)
-                    output = requests.post(
-                        SANDBOX_URL,
-                        json={
-                            "token": self.sweep_context.token,
-                            "repo_url": self.repo.html_url,
-                            "file_path": file_change_request.filename,
-                            "content": file_change.code,
-                        },
-                    ).json()
+                    output = SweepBot.run_sandbox(
+                        token=self.sweep_context.token,
+                        repo_url=self.repo.html_url,
+                        file_path=file_change_request.filename,
+                        content=file_change.code,
+                    )
                     print(output)
                     if output["success"]:
                         file_change.code = output["updated_content"]
@@ -584,15 +606,12 @@ class SweepBot(CodeGenBot, GithubBot):
                     print("Running Sandbox for modify file...")
                     logger.info(f"New file {new_file}")
                     logger.info(f"Sweep context: {self.sweep_context}")
-                    output = requests.post(
-                        SANDBOX_URL,
-                        json={
-                            "token": self.sweep_context.token,
-                            "repo_url": self.repo.html_url,
-                            "file_path": file_change_request.filename,
-                            "content": new_file,
-                        },
-                    ).json()
+                    output = SweepBot.run_sandbox(
+                        token=self.sweep_context.token,
+                        repo_url=self.repo.html_url,
+                        file_path=file_change_request.filename,
+                        content=new_file,
+                    )
                     logger.info(f"Output: {output}")
                     if output["success"]:
                         new_file = output["updated_content"]
@@ -605,6 +624,87 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.warning(f"Failed to parse." f" {e}\n{tb}")
             self.delete_messages_from_chat(key)
         raise Exception(f"Failed to parse response after 1 attempt.")
+
+    def rewrite_section(
+        self,
+        file_change_request: FileChangeRequest,
+        contents: str,
+        section: str,
+    ) -> FileCreation:
+        section_rewrite: SectionRewrite | None = None
+        key = f"file_change_created_{file_change_request.filename}"
+        old_system_message = self.messages[0].content
+        self.messages[0].content = rewrite_file_system_prompt
+        rewrite_section_response = self.chat(
+            rewrite_file_prompt.format(
+                filename=file_change_request.filename,
+                code=contents,
+                instructions=file_change_request.instructions,
+                section=section,
+            ),
+            message_key=key,
+        )
+        self.messages[0].content = old_system_message
+        self.file_change_paths.append(file_change_request.filename)
+        try:
+            section_rewrite = SectionRewrite.from_string(rewrite_section_response)
+            self.delete_messages_from_chat(key_to_delete=key)
+
+            try:
+                implemented = self.check_completion(  # use async
+                    file_change_request.filename, section_rewrite.section
+                )
+                if not implemented:
+                    discord_log_error(
+                        f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
+                        priority=2 if self.sweep_context.use_faster_model else 0,
+                    )
+            except Exception as e:
+                logger.error(f"Error: {e}")
+
+            return section_rewrite
+        except Exception as e:
+            # Todo: should we undo appending to file_change_paths?
+            logger.info(traceback.format_exc())
+            logger.warning(e)
+            logger.warning(f"Failed to parse. Retrying for the 1st time...")
+            self.delete_messages_from_chat(key)
+        raise Exception("Failed to parse response after 5 attempts.")
+
+    def rewrite_file(
+        self,
+        file_change_request: FileChangeRequest,
+        branch: str,
+    ) -> FileCreation:
+        chunks = []
+        original_file = self.repo.get_contents(
+            file_change_request.filename, branch=branch
+        )
+        original_contents = original_file.decoded_content.decode("utf-8")
+        contents = original_contents
+        for snippet in chunk_code(
+            contents, file_change_request.filename, MAX_CHARS=2300, coalesce=200
+        ):
+            chunks.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
+        for i, chunk in enumerate(chunks):
+            section_rewrite = self.rewrite_section(file_change_request, contents, chunk)
+            chunks[i] = section_rewrite.section
+            contents = "\n".join(chunks)
+
+        commit_message = (
+            f"Rewrote {file_change_request.filename} to do "
+            + file_change_request.instructions[
+                : min(len(file_change_request.instructions), 30)
+            ]
+        )
+        self.repo.update_file(
+            file_change_request.filename,
+            commit_message,
+            contents,
+            sha=original_file.sha,
+            branch=branch,
+        )
+        return contents != original_contents
 
     def change_files_in_github(
         self,
@@ -681,6 +781,24 @@ class SweepBot(CodeGenBot, GithubBot):
                         changed_file, sandbox_error = self.handle_modify_file(
                             file_change_request, branch, sandbox=sandbox
                         )
+                    case "rewrite":
+                        # Remove snippets from this file if they exist
+                        snippet_msgs = [
+                            m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
+                        ]
+                        if len(snippet_msgs) > 0:  # Should always be true
+                            snippet_msg = snippet_msgs[0]
+                            # Use regex to remove this snippet from the message
+                            file = re.escape(file_change_request.filename)
+                            regex = rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
+                            snippet_msg.content = re.sub(
+                                regex,
+                                "",
+                                snippet_msg.content,
+                                flags=re.DOTALL,
+                            )
+
+                        changed_file = self.rewrite_file(file_change_request, branch)
                     case "delete":
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch

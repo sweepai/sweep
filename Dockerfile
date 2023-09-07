@@ -3,6 +3,7 @@ FROM python:3.11-slim as base
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 ENV WORKERS=3
+ENV PORT=${PORT:-8080}
 
 WORKDIR /app
 
@@ -37,6 +38,7 @@ FROM base as final
 
 COPY sweepai /app/sweepai
 COPY bin/startup.sh /app/startup.sh
+COPY redis.conf /app/redis.conf
 RUN chmod u+x /app/startup.sh
 
 # Has some startup logic

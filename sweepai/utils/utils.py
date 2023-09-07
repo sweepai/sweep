@@ -121,6 +121,12 @@ def chunk_tree(
 
     # 5. Eliminating empty chunks
     line_chunks = [chunk for chunk in line_chunks if len(chunk) > 0]
+
+    # 6. Coalescing last chunk if it's too small
+    if line_chunks and len(line_chunks[-1]) < coalesce:
+        line_chunks[-2] += line_chunks[-1]
+        line_chunks.pop()
+
     return line_chunks
 
 
@@ -142,9 +148,9 @@ extension_to_language = {
     "hpp": "cpp",
     "cs": "cpp",
     "rb": "ruby",
-    "md": "markdown",
-    "rst": "markdown",
-    "txt": "markdown",
+    # "md": "markdown",
+    # "rst": "markdown",
+    # "txt": "markdown",
     # "erb": "embedded-template",
     # "ejs": "embedded-template",
     # "html": "embedded-template",
@@ -155,15 +161,42 @@ extension_to_language = {
     "php": "php",
 }
 
+def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
+    if overlap >= line_count:
+        raise ValueError("Overlap should be smaller than line_count.")
+        
+    lines = code.split('\n')
+    total_lines = len(lines)
+    chunks = []
+    
+    start = 0
+    while start < total_lines:
+        end = min(start + line_count, total_lines)
+        chunk = '\n'.join(lines[start:end])
+        chunks.append(chunk)
+        start += line_count - overlap
+    
+    return chunks
 
-def chunk_code(code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100):
+def chunk_code(code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100) -> list[Snippet]:
     from tree_sitter_languages import get_parser
 
     ext = path.split(".")[-1]
     if ext in extension_to_language:
         language = extension_to_language[ext]
     else:
-        language = "python"
+        # Fallback to naive chunking if tree_sitter fails
+        chunks = naive_chunker(code)
+        snippets = []
+        for idx, chunk in enumerate(chunks):
+            new_snippet = Snippet(
+                content=chunk,
+                start=idx * 30,
+                end=(idx + 1) * 30,
+                file_path=path,
+            )
+            snippets.append(new_snippet)
+        return snippets
     try:
         parser = get_parser(language)
         tree = parser.parse(code.encode("utf-8"))
