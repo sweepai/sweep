@@ -214,7 +214,13 @@ def on_comment(
                 pr_path, ref=branch_name
             ).decoded_content.decode("utf-8")
             pr_lines = pr_file.splitlines()
-            pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
+            def fetch_code_chunk(line_number: int, file: str, width: int = 20) -> str:
+                lines = file.splitlines()
+                start = max(0, line_number - width // 2)
+                end = min(len(lines), start + width)
+                return "\n".join(lines[start:end])
+            
+            pr_line = fetch_code_chunk(pr_line_position, pr_file)
             pr_file_path = pr_path.strip()
 
         if file_comment:
