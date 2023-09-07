@@ -38,7 +38,7 @@ from sweepai.core.prompts import (
     modify_recreate_file_system_message,
     modify_recreate_file_prompt_3,
     rewrite_file_prompt,
-    rewrite_file_system_prompt
+    rewrite_file_system_prompt,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DB_MODAL_INST_NAME, SANDBOX_URL, SECONDARY_MODEL
@@ -624,10 +624,9 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.warning(f"Failed to parse." f" {e}\n{tb}")
             self.delete_messages_from_chat(key)
         raise Exception(f"Failed to parse response after 1 attempt.")
-    
 
     def rewrite_section(
-        self, 
+        self,
         file_change_request: FileChangeRequest,
         contents: str,
         section: str,
@@ -662,7 +661,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
             except Exception as e:
                 logger.error(f"Error: {e}")
-            
+
             return section_rewrite
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
@@ -673,22 +672,31 @@ class SweepBot(CodeGenBot, GithubBot):
         raise Exception("Failed to parse response after 5 attempts.")
 
     def rewrite_file(
-        self, 
+        self,
         file_change_request: FileChangeRequest,
         branch: str,
     ) -> FileCreation:
         chunks = []
-        original_file = self.repo.get_contents(file_change_request.filename, branch=branch)
+        original_file = self.repo.get_contents(
+            file_change_request.filename, branch=branch
+        )
         original_contents = original_file.decoded_content.decode("utf-8")
         contents = original_contents
-        for snippet in chunk_code(contents, file_change_request.filename, MAX_CHARS=2300, coalesce=200):
+        for snippet in chunk_code(
+            contents, file_change_request.filename, MAX_CHARS=2300, coalesce=200
+        ):
             chunks.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
         for i, chunk in enumerate(chunks):
             section_rewrite = self.rewrite_section(file_change_request, contents, chunk)
             chunks[i] = section_rewrite.section
-            contents = "\n".join(chunks) 
-        
-        commit_message = f"Rewrote {file_change_request.filename} to do " + file_change_request.instructions[: min(len(file_change_request.instructions), 30)]
+            contents = "\n".join(chunks)
+
+        commit_message = (
+            f"Rewrote {file_change_request.filename} to do "
+            + file_change_request.instructions[
+                : min(len(file_change_request.instructions), 30)
+            ]
+        )
         self.repo.update_file(
             file_change_request.filename,
             commit_message,
@@ -790,9 +798,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 flags=re.DOTALL,
                             )
 
-                        changed_file = self.rewrite_file(
-                            file_change_request, branch, sandbox=sandbox
-                        )
+                        changed_file = self.rewrite_file(file_change_request, branch)
                     case "delete":
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch
