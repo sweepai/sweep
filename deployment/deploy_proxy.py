@@ -10,17 +10,30 @@ from starlette.responses import HTMLResponse, JSONResponse, Response
 
 def start_redis():
     # redis-server /app/redis.conf --bind 0.0.0.0 --port 6379 &
-    subprocess.run(
-        [
-            "redis-server",
-            "redis.conf",
-            "--bind",
-            "0.0.0.0",
-            "--port",
-            "6379",
-            "&",
-        ]
-    )
+    import subprocess
+
+    # Check if a screen session named 'redis' already exists
+    result = subprocess.run(["screen", "-list"], capture_output=True, text=True)
+    if "redis" not in result.stdout:
+        # If the session doesn't exist, start redis-server in a new screen session named 'redis'
+        subprocess.run(
+            [
+                "screen",
+                "-S",
+                "redis",
+                "-d",
+                "-m",
+                "redis-server",
+                "redis.conf",
+                "--bind",
+                "0.0.0.0",
+                "--port",
+                "6379",
+            ]
+        )
+        print("Started redis server")
+    else:
+        print("A screen session with the name 'redis' already exists.")
 
 
 start_redis()
