@@ -173,9 +173,7 @@ MULTIPLE_HITS = "MULTIPLE_HITS"
 INCOMPLETE_MATCH = "INCOMPLETE_MATCH"
 
 
-def match_string(
-    original, search, start_index=None, exact_match=False
-) -> Match:
+def match_string(original, search, start_index=None, exact_match=False) -> Match:
     index = -1
     line_matches = 0
     num_hits = 0
@@ -208,7 +206,7 @@ def match_string(
             num_hits = 1
         elif count == line_matches:
             num_hits += 1
-    
+
     if num_hits != 1 or line_matches / len(search) < 0.8:
         return find_best_match("\n".join(search), "\n".join(original))
     else:
@@ -230,14 +228,31 @@ def get_snippet_with_padding(original, best_match, search):
 
     # Fix whitespace
     if len(search[0]) - len(search[0].lstrip()) == 0:
-        spaces = " " * (len(snippet[0]) - len(snippet[0].lstrip()))
+        num_whitespace = len(snippet[0]) - len(snippet[0].lstrip())
+        if num_whitespace > 0:
+            spaces = (
+                snippet[0][0] * num_whitespace
+            )  # Use first character (tab or space)
+        else:
+            spaces = ""
         strip = False
     else:  # Do diff between snippet and search
         # Todo(lukejagg): This might need to be more robust.
 
         # Check multiple lines for their whitespace
         min_whitespace = min([len(s) - len(s.lstrip()) for s in search])
-        spaces = " " * min_whitespace
+        # Rewrite min as for loop
+        min_whitespace = None
+        character = " "
+        for line in search:
+            if (
+                min_whitespace is None
+                or len(line) - len(line.lstrip()) < min_whitespace
+            ):
+                min_whitespace = len(line) - len(line.lstrip())
+                if min_whitespace > 0:
+                    character = line[0]
+        spaces = character * min_whitespace
         strip = True
 
     return snippet, spaces, strip
@@ -277,7 +292,7 @@ def get_snippet_with_padding(original, best_match, search):
 # def detect_indent(code_str):
 #     indents = re.findall(r'^(\s+)\S', code_str, re.MULTILINE)
 #     counts = {'  ': 0, '    ': 0, '\t': 0}
-    
+
 #     for indent in indents:
 #         if indent.startswith('    '):
 #             counts['    '] += 1
@@ -289,9 +304,9 @@ def get_snippet_with_padding(original, best_match, search):
 #     return max(counts, key=counts.get) if counts else '    '
 
 # def indent_replace(
-#     old_lines: list[str], 
-#     search: list[str], 
-#     replace: list[str], 
+#     old_lines: list[str],
+#     search: list[str],
+#     replace: list[str],
 #     indent="    "
 # ):
 #     search_indent = (len(search[0]) - len(search[0].lstrip())) // len(indent)
@@ -313,57 +328,57 @@ def get_snippet_with_padding(original, best_match, search):
 #     old_lines = original[best_match.start : best_match.end]
 #     indent = detect_indent("\n".join(original))
 #     original = original[: best_match.start] + indent_replace(old_lines, search, replace, indent) + original[best_match.end + 1 :]
-    # MAX_RADIX = 20
-    # Two-pointer approach for string matching
-    # for i in range(len(original)):
-    #     for j in range(
-    #         i + len(search) - 1, len(original) + len(search) + MAX_RADIX + 1
-    #     ):
-    #         # If second pointer is out of bounds, continue
-    #         if j >= len(original):
-    #             continue
+# MAX_RADIX = 20
+# Two-pointer approach for string matching
+# for i in range(len(original)):
+#     for j in range(
+#         i + len(search) - 1, len(original) + len(search) + MAX_RADIX + 1
+#     ):
+#         # If second pointer is out of bounds, continue
+#         if j >= len(original):
+#             continue
 
-    #         # Match ends
-    #         match_start = original[i].strip() == search[0].strip()
-    #         match_end = original[j].strip() == search[-1].strip()
-    #         if not match_start or not match_end:
-    #             continue
+#         # Match ends
+#         match_start = original[i].strip() == search[0].strip()
+#         match_end = original[j].strip() == search[-1].strip()
+#         if not match_start or not match_end:
+#             continue
 
-    #         # Counts the number of search matches with original code in this snippet (from i to j)
-    #         matches = []
-    #         current_index = i
-    #         count = 0  # Number of matches
-    #         while current_index <= j and count < len(search):
-    #             if original[current_index].strip() == search[count].strip():
-    #                 matches.append(current_index)
-    #                 count += 1
-    #             current_index += 1
+#         # Counts the number of search matches with original code in this snippet (from i to j)
+#         matches = []
+#         current_index = i
+#         count = 0  # Number of matches
+#         while current_index <= j and count < len(search):
+#             if original[current_index].strip() == search[count].strip():
+#                 matches.append(current_index)
+#                 count += 1
+#             current_index += 1
 
-    #         # If exact match, do not use this algorithm as this is for skipped lines (comments)
-    #         if j - i == len(search) - 1:
-    #             return None
+#         # If exact match, do not use this algorithm as this is for skipped lines (comments)
+#         if j - i == len(search) - 1:
+#             return None
 
-    #         # If all lines matched in this snippet, then replace
-    #         if count == len(search):
-    #             # Replace search lines with replace lines
-    #             for i, original_index in enumerate(matches):
-    #                 if i < len(replace):
-    #                     original[original_index] = replace[i]
+#         # If all lines matched in this snippet, then replace
+#         if count == len(search):
+#             # Replace search lines with replace lines
+#             for i, original_index in enumerate(matches):
+#                 if i < len(replace):
+#                     original[original_index] = replace[i]
 
-    #             if len(replace) > len(search):
-    #                 # Add lines after the end of search if replace is longer
-    #                 original = (
-    #                     original[: original_index + 1]
-    #                     + replace[len(search) :]
-    #                     + original[original_index + 1 :]
-    #                 )
-    #             else:
-    #                 # Remove lines after end of search if replace is shorter
-    #                 original = (
-    #                     original[:original_index]
-    #                     + original[original_index + len(search) - len(replace) :]
-    #                 )
-    # return original
+#             if len(replace) > len(search):
+#                 # Add lines after the end of search if replace is longer
+#                 original = (
+#                     original[: original_index + 1]
+#                     + replace[len(search) :]
+#                     + original[original_index + 1 :]
+#                 )
+#             else:
+#                 # Remove lines after end of search if replace is shorter
+#                 original = (
+#                     original[:original_index]
+#                     + original[original_index + len(search) - len(replace) :]
+#                 )
+# return original
 
 
 def sliding_window_replacement(
@@ -447,7 +462,7 @@ def sliding_window_replacement(
         # print("WARNING: No identical lines")
         # return original, None, IDENTICAL_LINES
         raise Exception("No identical lines")
-    
+
     if max_similarity < 0.5:
         print(f"Low similarity: {max_similarity}")
 
@@ -511,14 +526,15 @@ def sliding_window_replacement(
         # Todo: What if whitespace in search is incorrect
         first_line_spaces = min([len(s) - len(s.lstrip()) for s in search])
         modified = [
-            spaces + (lstrip_max(line, [" "], first_line_spaces) if strip else line)
+            spaces
+            + (lstrip_max(line, [" ", "\t"], first_line_spaces) if strip else line)
             for line in replace
         ]
     else:
         modified = [spaces + line for line in replace]
 
     # replaced original with modified
-    original = original[:best_match.start] + modified + original[best_match.end:]
+    original = original[: best_match.start] + modified + original[best_match.end :]
     return original, best_match, None
 
 
