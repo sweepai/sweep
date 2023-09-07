@@ -7,7 +7,7 @@ run_until_success() {
 }
 
 run_until_success "sudo apt update"
-run_until_success "sudo apt install -y gcc g++"
+run_until_success "sudo apt install -y gcc g++ curl"
 run_until_success "sudo apt-get update"
 run_until_success "sudo apt-get install -y redis build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev python3-openssl git"
 run_until_success "sudo systemctl stop redis"
