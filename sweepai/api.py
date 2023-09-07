@@ -41,13 +41,11 @@ from sweepai.utils.search_utils import index_full_repository
 from sweepai.celery_init import celery_app
 from sweepai.redis_init import redis_client
 from celery.result import AsyncResult
-
-app = FastAPI()
-
-import tracemalloc
-
-tracemalloc.start()
-
+def fetch_code_chunk(file_path: str, line_number: int, width: int) -> str:
+    # Fetch the chunk of code
+    code_chunk = ""
+    # Code to fetch the chunk of code
+    return code_chunk
 @celery_app.task(bind=True)
 def run_ticket(self, *args, **kwargs):
     logger.info(f"Running on_ticket Task ID: {self.request.id}")
@@ -104,11 +102,10 @@ def call_on_comment(*args, **kwargs):
     # Enqueue new task and save task ID
     task = celery_app.send_task('sweepai.api.run_comment', args=args, kwargs=kwargs)
     logger.info(f"Enqueuing new task id {task.id} for key {key}")
-    
-    # Save the new task ID to the list
-    redis_client.rpush(key, task.id)
-
-
+def fetch_file_comment(file_path: str, line_number: int) -> str:
+    # Fetch the chunk of code
+    code_chunk = fetch_code_chunk(file_path, line_number, width=20)
+    return code_chunk
 @app.get("/health")
 def health_check():
     return JSONResponse(status_code=200, content={"status": "UP"})
