@@ -1,3 +1,4 @@
+import fnmatch
 import os
 import yaml
 import shlex
@@ -7,20 +8,28 @@ import typer
 from pathlib import Path
 from rich import print
 
-from sandbox.src.sandbox_local import SandboxContainer
-from sandbox.src.sandbox_utils import Sandbox
+from sweepai.sandbox.src.sandbox_local import SandboxContainer
+from sweepai.sandbox.src.sandbox_utils import Sandbox
+
+app = typer.Typer(name="sweep-sandbox")
 
 client = docker.from_env()
 
 def copy_to(container):
-    tar = tarfile.open("repo.tar", mode='w')
     try:
-        tar.add(".")
-    finally:
-        tar.close()
+        git_ignore_patterns = open('.gitignore').read().splitlines()
+    except FileNotFoundError:
+        git_ignore_patterns = []
+    all_files = set(os.listdir('.'))
+    files_to_copy = {f for f in all_files if not any(fnmatch.fnmatch(f, pat) for pat in git_ignore_patterns)}
+
+    with tarfile.open('repo.tar', 'w') as tar:
+        for f in files_to_copy:
+            tar.add(f)
 
     data = open('repo.tar', 'rb').read()
     container.put_archive(".", data)
+    os.remove("repo.tar")
 
 def get_sandbox_from_config():
     if os.path.exists("sweep.yaml"):
@@ -29,18 +38,19 @@ def get_sandbox_from_config():
     else:
         return Sandbox()
 
-
-app = typer.Typer(name="sweep-sandbox")
-
 @app.command()
 def sandbox(file_path: Path):
     sandbox = get_sandbox_from_config()
     with SandboxContainer() as container:
+        # print(container)
+        # print(container.exec_run("bash -c trunk"))
+        # return
         copy_to(container)
         print("Running sandbox...")
 
         def wrap_command(command):
             command = shlex.quote(command.format(file_path=file_path))
+            print(command)
             return f"bash -c {command}"
         
         def run_command(command):
