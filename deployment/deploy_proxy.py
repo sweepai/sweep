@@ -7,6 +7,24 @@ import httpx
 from fastapi import FastAPI, HTTPException, Request
 from starlette.responses import HTMLResponse, JSONResponse, Response
 
+
+def start_redis():
+    # redis-server /app/redis.conf --bind 0.0.0.0 --port 6379 &
+    subprocess.run(
+        [
+            "redis-server",
+            "redis.conf",
+            "--bind",
+            "0.0.0.0",
+            "--port",
+            "6379",
+            "&",
+        ]
+    )
+
+
+start_redis()
+
 app = FastAPI()
 
 TARGET_SERVER = (
@@ -84,7 +102,7 @@ def update_port(new_port):
     print("New port has been updated:", current_port)
 
 
-def start_server():
+def start_server(past_index):
     print("STARTING")
 
     global current_index, current_port, used_indices
@@ -98,7 +116,7 @@ def start_server():
             "-m",
             "bash",
             "-c",
-            f"uvicorn hello_world:app --port {new_port}",
+            f"export PORT={new_port}\ndocker compose up",
         ]
     )
     kill_old_server(past_index)
@@ -116,7 +134,7 @@ async def start_endpoint():
     current_index += 1
     get_next_port()
 
-    threading.Thread(target=start_server).start()
+    threading.Thread(target=start_server, args=(past_index,)).start()
     return {
         "session": f"{screen_prefix}{current_index}.run",
         "port": port_offset + current_index,
