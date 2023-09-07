@@ -1052,6 +1052,7 @@ def on_ticket(
                     pr_number=None,
                     pr=pr_changes,
                     chat_logger=chat_logger,
+                    repo=repo,
                 )
         except Exception as e:
             logger.error(traceback.format_exc())
