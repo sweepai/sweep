@@ -98,7 +98,7 @@ def on_comment(
     pr_body = pr.body or ""
     pr_file_path = None
     diffs = get_pr_diffs(repo, pr)
-    pr_line = None
+    pr_chunk = None
 
     issue_number_match = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body)
     original_issue = None
@@ -116,7 +116,7 @@ def on_comment(
                     "title": "(Comment) " + pr_title,
                     "issue_url": pr.html_url,
                     "pr_file_path": pr_file_path,  # may be None
-                    "pr_line": pr_line,  # may be None
+                    "pr_chunk": pr_chunk,  # may be None
                     "repo_full_name": repo_full_name,
                     "repo_description": repo_description,
                     "comment": comment,
@@ -214,9 +214,12 @@ def on_comment(
                 pr_path, ref=branch_name
             ).decoded_content.decode("utf-8")
             pr_lines = pr_file.splitlines()
-            pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
+            start = max(0, pr_line_position - 11)
+            end = min(len(pr_lines), pr_line_position + 10)
+            original_line = pr_lines[pr_line_position - 1]
+            pr_chunk = "\n".join(pr_lines[start:end])
             pr_file_path = pr_path.strip()
-
+            formatted_pr_chunk = "\n".join([line + f" <-- {comment}" if line == original_line else line for line in pr_lines[start:end]])
         if file_comment:
             snippets = []
             tree = ""
@@ -225,7 +228,7 @@ def on_comment(
                 logger.info("Fetching relevant files...")
                 snippets, tree = search_snippets(
                     cloned_repo,
-                    f"{comment}\n{pr_title}" + (f"\n{pr_line}" if pr_line else ""),
+                    f"{comment}\n{pr_title}" + (f"\n{pr_chunk}" if pr_chunk else ""),
                     num_files=30,
                 )
                 assert len(snippets) > 0
@@ -250,7 +253,8 @@ def on_comment(
             summary=pr_body,
             snippets=snippets,
             pr_file_path=pr_file_path,  # may be None
-            pr_line=pr_line,  # may be None
+            pr_chunk=formatted_pr_chunk,  # may be None
+            original_line=original_line if pr_chunk else None,
         )
         logger.info(f"Human prompt{human_message.construct_prompt()}")
 
@@ -277,7 +281,7 @@ def on_comment(
             file_change_requests = [
                 FileChangeRequest(
                     filename=pr_file_path,
-                    instructions=f"{comment}\n\nCommented on this line: {pr_line}",
+                    instructions=f"The user left a comment in this chunk of code:\n<review_code_chunk>{formatted_pr_chunk}</review_code_chunk>\n. Resolve their comment.",
                     change_type="modify",
                 )
             ]
@@ -387,7 +391,8 @@ def on_comment(
                     summary=pr_body,
                     snippets=snippets,
                     pr_file_path=pr_file_path,  # may be None
-                    pr_line=pr_line,  # may be None
+                    pr_chunk=pr_chunk,  # may be None
+                    original_line=original_line if pr_chunk else None,
                 )
 
                 logger.info(f"Human prompt{human_message.construct_prompt()}")
