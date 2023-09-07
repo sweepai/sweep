@@ -998,7 +998,7 @@ def on_ticket(
             table_message
             + "I have finished coding the issue. I am now reviewing it for"
             " completeness.",
-            4,
+            5,
         )
 
         review_message = (
