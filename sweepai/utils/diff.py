@@ -3,7 +3,7 @@ import re
 
 from sweepai.core.entities import SweepContext
 from sweepai.utils.chat_logger import discord_log_error
-from sweepai.utils.search_and_replace import find_best_match
+from sweepai.utils.search_and_replace import Match, find_best_match
 
 
 def diff_contains_dups_or_removals(diff, new_code):
@@ -173,45 +173,46 @@ MULTIPLE_HITS = "MULTIPLE_HITS"
 INCOMPLETE_MATCH = "INCOMPLETE_MATCH"
 
 
-# def match_string(
-#     original, search, start_index=None, exact_match=False, ignore_comments=False
-# ):
-#     best_match = find_best_match(original, search)
-#     return best_match.start, best_match.end, best_match.match
-    # index = -1
-    # max_similarity = 0
-    # current_hits = 0
-    # # sliding window comparison from original to search
-    # # Todo: 2 pointer approach (find start, then find end)
-    # # Todo: use rapidfuzz to compute fuzzy similarity over code
-    # for i in range(start_index or 0, len(original)):
-    #     count = 0
-    #     for j in range(len(search)):
-    #         if i + j >= len(original):
-    #             continue
-    #         original_line = original[i + j]
-    #         if ignore_comments:
-    #             # Remove comments
-    #             original_line = original_line.rsplit("#")[0].rsplit("//")[0]
+def match_string(
+    original, search, start_index=None, exact_match=False
+) -> Match:
+    index = -1
+    line_matches = 0
+    num_hits = 0
 
-    #         match = (
-    #             search[j] == original_line
-    #             if exact_match
-    #             else search[j].strip() == original_line.strip()
-    #         )
-    #         if match:
-    #             count += 1
+    # sliding window comparison from original to search
+    # Todo: 2 pointer approach (find start, then find end)
+    # Todo: use rapidfuzz to compute fuzzy similarity over code
+    for i in range(start_index or 0, len(original)):
+        count = 0
+        for j in range(len(search)):
+            if i + j >= len(original):
+                continue
+            original_line = original[i + j]
+            original_line = original_line.rsplit("#")[0].rsplit("//")[0]
 
-    #             # If searching for previous snippet (like regex)
-    #             if start_index is not None and search[j] == original[i + j]:
-    #                 count += 0.001
-    #     if count > max_similarity:
-    #         index = i
-    #         max_similarity = count
-    #         current_hits = 1
-    #     elif count == max_similarity:
-    #         current_hits += 1
-    # return index, max_similarity, current_hits
+            match = (
+                search[j] == original_line
+                if exact_match
+                else search[j].strip() == original_line.strip()
+            )
+            if match:
+                count += 1
+
+                # If searching for previous snippet (like regex)
+                if start_index is not None and search[j] == original[i + j]:
+                    count += 0.001
+        if count > line_matches:
+            index = i
+            line_matches = count
+            num_hits = 1
+        elif count == line_matches:
+            num_hits += 1
+    
+    if num_hits != 1 or line_matches / len(search) < 0.8:
+        return find_best_match("\n".join(search), "\n".join(original))
+    else:
+        return Match(index, index + line_matches, score=100)
 
 
 def lstrip_max(s, chars, max_count):
@@ -273,14 +274,45 @@ def get_snippet_with_padding(original, best_match, search):
 #             return original
 #     return None
 
+# def detect_indent(code_str):
+#     indents = re.findall(r'^(\s+)\S', code_str, re.MULTILINE)
+#     counts = {'  ': 0, '    ': 0, '\t': 0}
+    
+#     for indent in indents:
+#         if indent.startswith('    '):
+#             counts['    '] += 1
+#         elif indent.startswith('  '):
+#             counts['  '] += 1
+#         elif indent.startswith('\t'):
+#             counts['\t'] += 1
 
-def radix_replace(original, search, replace) -> tuple[list[str], bool]:
-    # based on start and end, find the lines that are the same
-    # then, replace the lines in between
+#     return max(counts, key=counts.get) if counts else '    '
 
-    best_match = find_best_match("\n".join(search), "\n".join(original))
-    # print(best_match)
-    original = original[: best_match.start] + replace + original[best_match.end + 1 :]
+# def indent_replace(
+#     old_lines: list[str], 
+#     search: list[str], 
+#     replace: list[str], 
+#     indent="    "
+# ):
+#     search_indent = (len(search[0]) - len(search[0].lstrip())) // len(indent)
+#     replace_indent = (len(replace[0]) - len(replace[0].lstrip())) // len(indent)
+#     indent_diff = replace_indent - search_indent
+#     if indent_diff > 0:
+#         # add indent
+#         replace = [indent * indent_diff + line for line in replace]
+#     elif indent_diff < 0:
+#         # remove indent
+#         replace = [line[-indent_diff:] for line in replace]
+#     return replace
+
+# def radix_replace(original, search, replace) -> tuple[list[str], bool]:
+#     # based on start and end, find the lines that are the same
+#     # then, replace the lines in between
+
+#     best_match = match_string(original, search)
+#     old_lines = original[best_match.start : best_match.end]
+#     indent = detect_indent("\n".join(original))
+#     original = original[: best_match.start] + indent_replace(old_lines, search, replace, indent) + original[best_match.end + 1 :]
     # MAX_RADIX = 20
     # Two-pointer approach for string matching
     # for i in range(len(original)):
@@ -331,21 +363,12 @@ def radix_replace(original, search, replace) -> tuple[list[str], bool]:
     #                     original[:original_index]
     #                     + original[original_index + len(search) - len(replace) :]
     #                 )
-    return original
+    # return original
 
 
 def sliding_window_replacement(
     original, search, replace, search_context_before=None, **kwargs
 ):
-    # for line in original:
-    #     print(line)
-    # print("\n\n")
-    # for line in search:
-    #     print(line)
-    # print("\n\n")
-    # for line in replace:
-    #     print(line)
-    # print("\n\n")
     status, replace_index = None, None
     # First, do check for "..." (example: define method, then put ... to ignore initial lines)
     canDoDotCheck = not any(
@@ -365,22 +388,6 @@ def sliding_window_replacement(
             if replace[i].strip() == "...":
                 first_line_idx_replace = i
                 break
-
-        # if no ...'s, then use radix_replace
-        if (
-            first_line_idx == -1
-            and first_line_idx_replace == -1
-            and search_context_before is None
-            and len(kwargs) == 0
-        ):
-            # try:
-            # import pdb; pdb.set_trace()
-            radix_original = radix_replace(original, search, replace)
-            if radix_original is not None:
-                return radix_original, None, None
-            # except Exception as e:
-            #     print(f"Modify skipped lines error: {e}")
-
         if first_line_idx == 0 and first_line_idx_replace == 0:
             search = search[1:]
             replace = replace[1:]
@@ -409,7 +416,7 @@ def sliding_window_replacement(
     # index, max_similarity, current_hits = match_string(
     #     original, search, exact_match=exact_match, ignore_comments=ignore_comments
     # )
-    best_match = find_best_match("\n".join(search), "\n".join(original))
+    best_match = match_string(original, search)
     print(best_match)
     max_similarity = best_match.score
     # index = best_match.start
@@ -511,7 +518,7 @@ def sliding_window_replacement(
         modified = [spaces + line for line in replace]
 
     # replaced original with modified
-    original = original[:best_match.start] + modified + original[best_match.end + 1:]
+    original = original[:best_match.start] + modified + original[best_match.end:]
     return original, best_match, None
 
 
