@@ -23,9 +23,6 @@ class HumanMessagePrompt(BaseModel):
     repo_description: str = ""
 
     def delete_file(self, file_path):
-        # Create a list of snippets to remove
-        snippets_to_remove = [snippet for snippet in self.snippets if snippet.file_path == file_path]
-        
         # Remove the snippets from the main list
         self.snippets = [snippet for snippet in self.snippets if snippet.file_path != file_path]
 
