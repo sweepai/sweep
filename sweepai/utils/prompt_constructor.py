@@ -8,7 +8,6 @@ from sweepai.core.prompts import (
     diff_section_prompt,
     review_follow_up_prompt,
     final_review_prompt,
-    comment_line_prompt,
 )
 
 
@@ -114,7 +113,8 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
     comment: str
     diffs: list
     pr_file_path: str | None
-    pr_line: str | None
+    pr_chunk: str | None
+    original_line: str | None
 
     def format_diffs(self):
         formatted_diffs = []
@@ -154,16 +154,8 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
             for msg in human_message_prompt_comment
         ]
 
-        if self.pr_file_path and self.pr_line:
+        if self.pr_file_path and self.pr_chunk and self.original_line:
             logger.info(f"Review Comment {self.comment}")
-            human_messages.append(
-                {
-                    "role": "user",
-                    "content": comment_line_prompt.format(
-                        pr_file_path=self.pr_file_path, pr_line=self.pr_line
-                    ),
-                }
-            )
         else:
             logger.info(f"General Comment {self.comment}")
 
