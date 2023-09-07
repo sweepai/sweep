@@ -130,7 +130,7 @@ def start_server(past_index):
             "-m",
             "bash",
             "-c",
-            f"export PORT={new_port} && docker compose up",
+            f"export PORT={new_port} && docker compose -p sweep{new_port} up",
         ]
     )
     kill_old_server(past_index)
