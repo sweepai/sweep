@@ -52,7 +52,7 @@ current_index = 0
 used_indices = []
 
 kill_flag_times = {}
-max_time = 5  # 20 minutes
+max_time = 30 * 60  # 20 minutes
 
 
 def is_port_in_use(port):
