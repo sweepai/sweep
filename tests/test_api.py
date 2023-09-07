@@ -49,9 +49,24 @@
 from fastapi import FastAPI
 import multiprocessing
 import time
+import pytest
+from sweepai.handlers.on_comment import fetch_code_chunk
 
 app = FastAPI()
 processes_dict = {}
+
+def test_fetch_code_chunk():
+    # Create a mock file
+    file = "\n".join([f"line {i}" for i in range(1, 101)])
+
+    # Call the fetch_code_chunk method with a given line number
+    chunk = fetch_code_chunk(50, file)
+
+    # Assert that the returned chunk of code is correct
+    expected_chunk = "\n".join([f"line {i}" for i in range(40, 61)])
+    assert chunk == expected_chunk
+
+pytest.main(["-v", "tests/test_api.py"])
 
 
 def long_task(key):
