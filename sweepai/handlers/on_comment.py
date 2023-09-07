@@ -76,6 +76,7 @@ def on_comment(
     comment_id: int | None = None,
     chat_logger: Any = None,
     pr: MockPR = None,  # For on_comment calls before PR is created
+    repo: Any = None,
 ):
     # Flow:
     # 1. Get relevant files
