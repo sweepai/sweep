@@ -663,14 +663,25 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str,
     ) -> FileCreation:
         chunks = []
-        contents = self.repo.get_contents(file_change_request.filename, branch=branch).decoded_content.decode("utf-8")
+        original_file = self.repo.get_contents(file_change_request.filename, branch=branch)
+        original_contents = original_file.decoded_content.decode("utf-8")
+        contents = original_contents
         for snippet in chunk_code(contents, file_change_request.filename, MAX_CHARS=2300, coalesce=200):
             chunks.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
         for i, chunk in enumerate(chunks):
             section_rewrite = self.rewrite_section(file_change_request, contents, chunk)
             chunks[i] = section_rewrite.section
             contents = "\n".join(chunks) 
-        return contents
+        
+        commit_message = f"Rewrote {file_change_request.filename} to do " + file_change_request.instructions[: min(len(file_change_request.instructions), 30)]
+        self.repo.update_file(
+            file_change_request.filename,
+            commit_message,
+            contents,
+            sha=original_file.sha,
+            branch=branch,
+        )
+        return contents != original_contents
 
     def change_files_in_github(
         self,
