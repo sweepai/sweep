@@ -146,10 +146,10 @@ def find_best_match(query: str, code_file: str):
         # Optimize later by using radix
         indented_query_lines = [indent * num_indents + line for line in query_lines]
 
-        for line in code_file_lines:
-            if score_line(line, indented_query_lines[0]) > 50:
-                print(line)
-                print(score_line(line, indented_query_lines[0]))
+        # for line in code_file_lines:
+        #     if score_line(line, indented_query_lines[0]) > 50:
+        #         print(line)
+        #         print(score_line(line, indented_query_lines[0]))
 
         start_indices = [i for i, line in enumerate(code_file_lines) if score_line(line, indented_query_lines[0]) > 50]
         start_indices = [i for i in start_indices if score_multiline(indented_query_lines[:2], code_file_lines[i:i+2]) > 50]
