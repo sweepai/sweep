@@ -532,6 +532,7 @@ def sliding_window_replacement(
         ]
     else:
         modified = [spaces + line for line in replace]
+    print("here!")
 
     # replaced original with modified
     original = original[: best_match.start] + modified + original[best_match.end :]
