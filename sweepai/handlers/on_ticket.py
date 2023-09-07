@@ -49,6 +49,7 @@ from sweepai.config.server import (
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
+    OPENAI_USE_3_5_MODEL_ONLY,
     WHITELISTED_REPOS,
 )
 from sweepai.utils.event_logger import posthog
@@ -227,7 +228,7 @@ def on_ticket(
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
         is_trial_user = chat_logger.is_trial_user()
-        use_faster_model = chat_logger.use_faster_model(g)
+        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
     else:
         is_paying_user = True
         is_trial_user = False
@@ -659,36 +660,37 @@ def on_ticket(
         tree=tree,
     )
     try:
-        context_pruning = ContextPruning(chat_logger=chat_logger)
-        snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
-            human_message, repo=repo
-        )
-        snippets, tree = search_snippets(
-            # repo,
-            cloned_repo,
-            f"{title}\n{summary}\n{replies_text}",
-            num_files=num_of_snippets_to_query,
-            # branch=None,
-            # installation_id=installation_id,
-            excluded_directories=directories_to_ignore,  # handles the tree
-        )
-        snippets = post_process_snippets(
-            snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
-        )
-        logger.info(f"New snippets: {snippets}")
-        logger.info(f"New tree: {tree}")
-        if not use_faster_model and additional_plan is not None:
-            message_summary += additional_plan
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description,
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-        )
+        if not use_faster_model: # Don't do this for OPENAI_USE_3_5_MODEL_ONLY
+            context_pruning = ContextPruning(chat_logger=chat_logger)
+            snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
+                human_message, repo=repo
+            )
+            snippets, tree = search_snippets(
+                # repo,
+                cloned_repo,
+                f"{title}\n{summary}\n{replies_text}",
+                num_files=num_of_snippets_to_query,
+                # branch=None,
+                # installation_id=installation_id,
+                excluded_directories=directories_to_ignore,  # handles the tree
+            )
+            snippets = post_process_snippets(
+                snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
+            )
+            logger.info(f"New snippets: {snippets}")
+            logger.info(f"New tree: {tree}")
+            if not use_faster_model and additional_plan is not None:
+                message_summary += additional_plan
+            human_message = HumanMessagePrompt(
+                repo_name=repo_name,
+                issue_url=issue_url,
+                username=username,
+                repo_description=repo_description,
+                title=title,
+                summary=message_summary,
+                snippets=snippets,
+                tree=tree,
+            )
     except Exception as e:
         logger.error(f"Failed to prune context: {e}")
 
