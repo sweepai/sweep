@@ -2,7 +2,6 @@ import socket
 import subprocess
 import threading
 import time
-import requests
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -53,7 +52,7 @@ current_index = 0
 used_indices = []
 
 kill_flag_times = {}
-max_time = 5  # 20 minutes
+max_time = 30 * 60  # 20 minutes
 
 
 def is_port_in_use(port):
@@ -73,6 +72,7 @@ def get_next_port():
 
 
 get_next_port()
+print("Starting on port:", port_offset + current_index)
 
 
 def kill_old_server(index):
@@ -106,26 +106,11 @@ def check_killed_servers():
         kill_flag_times.pop(key, None)
 
 
-def is_port_up(port):
-    """
-    Check if the port's health status is UP.
-    """
-    url = f"http://0.0.0.0:{port}/health"
-    try:
-        response = requests.get(url, timeout=1)  # timeout in 1 second
-        if response.status_code == 200 and response.json().get("status") == "UP":
-            return True
-    except requests.ConnectionError:
-        pass  # connection failed, might be because the service is not yet up
-    return False
-
-
 def update_port(new_port):
     # Thread sleep
-    while not is_port_up(new_port):
-        print("Waiting for port...")
-        time.sleep(1)  # check every second
+    import time
 
+    time.sleep(15)
     global current_port
     current_port = new_port
     print("New port has been updated:", current_port)
@@ -145,7 +130,7 @@ def start_server(past_index):
             "-m",
             "bash",
             "-c",
-            f"export PORT={new_port} && docker compose up",
+            f"export PORT={new_port} && docker compose -p sweep{new_port} up",
         ]
     )
     kill_old_server(past_index)
