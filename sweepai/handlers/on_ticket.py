@@ -646,7 +646,7 @@ def on_ticket(
         num_files=num_of_snippets_to_query,
         multi_query=queries,
     )
-    snippets = post_process_snippets(snippets, max_num_of_snippets=5)
+    snippets = post_process_snippets(snippets, max_num_of_snippets=5 if not use_faster_model else 2)
 
     # TODO: refactor this
     human_message = HumanMessagePrompt(
