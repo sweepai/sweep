@@ -49,6 +49,7 @@ from sweepai.config.server import (
     OPENAI_API_KEY,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
+    OPENAI_USE_3_5_MODEL_ONLY,
     WHITELISTED_REPOS,
 )
 from sweepai.utils.event_logger import posthog
@@ -227,7 +228,7 @@ def on_ticket(
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
         is_trial_user = chat_logger.is_trial_user()
-        use_faster_model = chat_logger.use_faster_model(g)
+        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
     else:
         is_paying_user = True
         is_trial_user = False
