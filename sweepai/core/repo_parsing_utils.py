@@ -1,7 +1,5 @@
 
 
-        return ""
-
 import glob
 import os
 import itertools
