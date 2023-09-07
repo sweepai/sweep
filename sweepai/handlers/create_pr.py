@@ -324,15 +324,28 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
     return pr
 
 
-def add_config_to_top_repos(installation: InstallationCreatedRequest, max_repos=3):
-    user_token, g = get_github_client(installation.installation.id)
+def add_config_to_top_repos(request: InstallationCreatedRequest, max_repos=3):
+    user_token, g = get_github_client(request.installation.id)
 
     repo_activity = {}
-    for repo in installation.repositories:
-        since_date = datetime.datetime.now() - datetime.timedelta(days=30 * 6)
-        commits = repo.get_commits(since=since_date, author="lukejagg")
-        repo_activity[repo] = commits.totalCount
+    for repo_entity in request.repositories:
+        repo = g.get_repo(repo_entity.full_name)
+        # instead of using total count, use the date of the latest commit
+        commits = repo.get_commits(
+            author=request.installation.account.login,
+            since=datetime.datetime.now() - datetime.timedelta(days=30),
+        )
+        # get latest commit date
+        commit_date = datetime.datetime.now() - datetime.timedelta(days=30)
+        for commit in commits:
+            if commit.commit.author.date > commit_date:
+                commit_date = commit.commit.author.date
+
+        # since_date = datetime.datetime.now() - datetime.timedelta(days=30)
+        # commits = repo.get_commits(since=since_date, author="lukejagg")
+        repo_activity[repo] = commit_date
         # print(repo, commits.totalCount)
+        print(repo, commit_date)
 
     sorted_repos = sorted(repo_activity, key=repo_activity.get, reverse=True)
     sorted_repos = sorted_repos[:max_repos]
