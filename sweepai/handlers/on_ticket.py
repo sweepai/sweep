@@ -866,12 +866,13 @@ def on_ticket(
                 file_change_request.filename,
                 file_change_request.instructions_display,
                 "⏳ In Progress",
+                ""
             )
             for file_change_request in file_change_requests
         ]
 
         checkboxes_progress = [
-            (file_change_request.filename, file_change_request.instructions, " ")
+            (file_change_request.filename, file_change_request.instructions, " ", "")
             for file_change_request in file_change_requests
         ]
         checkboxes_contents = "\n".join(
@@ -946,15 +947,15 @@ def on_ticket(
                     for filename, instructions, progress in checkboxes_progress
                 ]
                 checkboxes_contents = "\n".join(
-                        [
-                            checkbox_template.format(
-                                check=check,
-                                filename=filename,
-                                instructions=instructions.replace("\n", "\n> "),
-                            )
-                            for filename, instructions, check in checkboxes_progress
-                        ]
-                    )
+                    [
+                        checkbox_template.format(
+                            check=check,
+                            filename=filename,
+                            instructions=instructions.replace("\n", "\n> "),
+                        )
+                        for filename, instructions, check in checkboxes_progress
+                    ]
+                )
                 checkboxes_collapsible = collapsible_template.format(
                     summary="Checklist",
                     body=checkboxes_contents,
@@ -963,12 +964,28 @@ def on_ticket(
                 issue = repo.get_issue(number=issue_number)
                 issue.edit(body=summary + "\n\n" + checkboxes_collapsible)
             else:
-                files_progress = [
-                    (file, instructions, "❌ Failed", error_log)
-                    if file_change_request.filename == file
-                    else (file, instructions, progress, error_log)
-                    for file, instructions, progress, error_log in files_progress
+                error_logs = ("\n\n" + sandbox_execution.error_messages[-1]) if sandbox_execution else ""
+                checkboxes_progress = [
+                    (filename + f" ❌ Failed", instructions + error_logs, "X")
+                    if file_change_request.filename == filename
+                    else (filename, instructions, progress)
+                    for filename, instructions, progress in checkboxes_progress
                 ]
+                checkboxes_contents = "\n".join(
+                    [
+                        checkbox_template.format(
+                            check=check,
+                            filename=filename,
+                            instructions=instructions.replace("\n", "\n> "),
+                        )
+                        for filename, instructions, check in checkboxes_progress
+                    ]
+                )
+                checkboxes_collapsible = collapsible_template.format(
+                    summary="Checklist",
+                    body=checkboxes_contents,
+                    opened="open",
+                )
             logger.info(files_progress)
             logger.info(f"Edited {file_change_request.filename}")
             edit_sweep_comment(checkboxes_contents, 4)
