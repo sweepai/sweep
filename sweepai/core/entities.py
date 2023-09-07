@@ -455,6 +455,12 @@ class SweepContext(BaseModel):  # type: ignore
     def __str__(self):
         return f"{self.issue_url}, {self.use_faster_model}"
 
+class SandboxExecution(BaseModel):
+    success: bool
+    error_messages: list[str]
+    updated_content: str
+    sandbox: dict
+
 
 class MaxTokensExceeded(Exception):
     def __init__(self, filename):

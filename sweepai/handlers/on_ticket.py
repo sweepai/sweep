@@ -866,7 +866,6 @@ def on_ticket(
                 file_change_request.filename,
                 file_change_request.instructions_display,
                 "⏳ In Progress",
-                "``` ```",
             )
             for file_change_request in file_change_requests
         ]
@@ -875,9 +874,7 @@ def on_ticket(
             (file_change_request.filename, file_change_request.instructions, " ")
             for file_change_request in file_change_requests
         ]
-        checkboxes_message = collapsible_template.format(
-            summary="Checklist",
-            body="\n".join(
+        checkboxes_contents = "\n".join(
                 [
                     checkbox_template.format(
                         check=check,
@@ -886,11 +883,14 @@ def on_ticket(
                     )
                     for filename, instructions, check in checkboxes_progress
                 ]
-            ),
+            )
+        checkboxes_collapsible = collapsible_template.format(
+            summary="Checklist",
+            body=checkboxes_contents,
             opened="open",
         )
         issue = repo.get_issue(number=issue_number)
-        issue.edit(body=summary + "\n\n" + checkboxes_message)
+        issue.edit(body=summary + "\n\n" + checkboxes_collapsible)
 
         delete_branch = False
         generator = create_pr_changes(  # make this async later
@@ -903,59 +903,49 @@ def on_ticket(
             sandbox=sandbox,
             chat_logger=chat_logger,
         )
-        table_message = tabulate(
-            [
-                (
-                    f"`{filename}`",
-                    instructions.replace("\n", "<br/>"),
-                    progress,
-                    error_logs,
-                )
-                for filename, instructions, progress, error_logs in files_progress
-            ],
-            headers=["File", "Instructions", "Progress", "Error logs"],
-            tablefmt="pipe",
-        )
-        logger.info(files_progress)
-        edit_sweep_comment(table_message, 4)
+        # table_message = tabulate(
+        #     [
+        #         (
+        #             f"`{filename}`",
+        #             instructions.replace("\n", "<br/>"),
+        #             progress,
+        #             error_logs,
+        #         )
+        #         for filename, instructions, progress, error_logs in files_progress
+        #     ],
+        #     headers=["File", "Instructions", "Progress", "Error logs"],
+        #     tablefmt="pipe",
+        # )
+        # logger.info(files_progress)
+        edit_sweep_comment(checkboxes_contents, 4)
         response = {"error": NoFilesException()}
         for item in generator:
             if isinstance(item, dict):
                 response = item
                 break
-            file_change_request, changed_file, sandbox_error = item
+            file_change_request, changed_file, sandbox_execution = item
             if changed_file:
                 commit_hash = repo.get_branch(pull_request.branch_name).commit.sha
                 commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
-                files_progress = [
-                    (
-                        file,
-                        instructions,
-                        f"✅ Commit [`{commit_hash[:7]}`]({commit_url})",
-                        (
-                            "```"
-                            + sandbox_error.stdout
-                            + "\n\n"
-                            + sandbox_error.stderr
-                            + "```"
-                        )
-                        if sandbox_error
-                        else "No errors.",
-                    )
-                    if file_change_request.filename == file
-                    else (file, instructions, progress, error_log)
-                    for file, instructions, progress, error_log in files_progress
-                ]
+                # files_progress = [
+                #     (
+                #         file,
+                #         instructions,
+                #         f"✅ Commit [`{commit_hash[:7]}`]({commit_url})"
+                #     )
+                #     if file_change_request.filename == file
+                #     else (file, instructions, progress)
+                #     for file, instructions, progress in files_progress
+                # ]
 
+                error_logs = ("\n\n" + sandbox_execution.error_messages[-1]) if sandbox_execution else ""
                 checkboxes_progress = [
-                    (file, instructions, "X")
-                    if file_change_request.filename == file
-                    else (file, instructions, progress)
-                    for file, instructions, progress in checkboxes_progress
+                    (filename + f" ✅ Commit [`{commit_hash[:7]}`]({commit_url})", instructions + error_logs, "X")
+                    if file_change_request.filename == filename
+                    else (filename, instructions, progress)
+                    for filename, instructions, progress in checkboxes_progress
                 ]
-                checkboxes_message = collapsible_template.format(
-                    summary="Checklist",
-                    body="\n".join(
+                checkboxes_contents = "\n".join(
                         [
                             checkbox_template.format(
                                 check=check,
@@ -964,11 +954,14 @@ def on_ticket(
                             )
                             for filename, instructions, check in checkboxes_progress
                         ]
-                    ),
+                    )
+                checkboxes_collapsible = collapsible_template.format(
+                    summary="Checklist",
+                    body=checkboxes_contents,
                     opened="open",
                 )
                 issue = repo.get_issue(number=issue_number)
-                issue.edit(body=summary + "\n\n" + checkboxes_message)
+                issue.edit(body=summary + "\n\n" + checkboxes_collapsible)
             else:
                 files_progress = [
                     (file, instructions, "❌ Failed", error_log)
@@ -978,26 +971,13 @@ def on_ticket(
                 ]
             logger.info(files_progress)
             logger.info(f"Edited {file_change_request.filename}")
-            table_message = tabulate(
-                [
-                    (
-                        f"`{filename}`",
-                        instructions.replace("\n", "<br/>"),
-                        progress,
-                        error_log,
-                    )
-                    for filename, instructions, progress, error_log in files_progress
-                ],
-                headers=["File", "Instructions", "Progress", "Error logs"],
-                tablefmt="pipe",
-            )
-            edit_sweep_comment(table_message, 4)
+            edit_sweep_comment(checkboxes_contents, 4)
         if not response.get("success"):
             raise Exception(f"Failed to create PR: {response.get('error')}")
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
-            table_message
+            checkboxes_contents
             + "I have finished coding the issue. I am now reviewing it for"
             " completeness.",
             5,

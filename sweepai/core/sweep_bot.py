@@ -17,6 +17,7 @@ from sweepai.core.entities import (
     FileChangeRequest,
     PullRequest,
     RegexMatchError,
+    SandboxExecution,
     SectionRewrite,
     Snippet,
     NoFilesException,
@@ -420,8 +421,35 @@ class SweepBot(CodeGenBot, GithubBot):
             return False
 
         return True
+    
+    def check_sandbox(
+        self,
+        file_path: str,
+        content: str,
+    ):
+        # Format file
+        sandbox_execution: SandboxExecution | None = None
+        if SANDBOX_URL:
+            try:
+                print("Running Sandbox for create file...")
+                print(content)
+                print(self.sweep_context)
+                output = SweepBot.run_sandbox(
+                    token=self.sweep_context.token,
+                    repo_url=self.repo.html_url,
+                    file_path=file_path,
+                    content=content,
+                )
+                print(output)
+                sandbox_execution = SandboxExecution(**output)
+                if output["success"]:
+                    content = output["updated_content"]
+            except Exception as e:
+                logger.error(f"Sandbox Error: {e}")
+                logger.error(traceback.format_exc())
+        return content, sandbox_execution
 
-    def create_file(self, file_change_request: FileChangeRequest) -> FileCreation:
+    def create_file(self, file_change_request: FileChangeRequest):
         file_change: FileCreation | None = None
         key = f"file_change_created_{file_change_request.filename}"
         create_file_response = self.chat(
@@ -464,26 +492,9 @@ class SweepBot(CodeGenBot, GithubBot):
             except Exception as e:
                 logger.error(f"Error: {e}")
 
-            # Format file
-            if SANDBOX_URL:
-                try:
-                    print("Running Sandbox for create file...")
-                    print(file_change.code)
-                    print(self.sweep_context)
-                    output = SweepBot.run_sandbox(
-                        token=self.sweep_context.token,
-                        repo_url=self.repo.html_url,
-                        file_path=file_change_request.filename,
-                        content=file_change.code,
-                    )
-                    print(output)
-                    if output["success"]:
-                        file_change.code = output["updated_content"]
-                except Exception as e:
-                    logger.error(f"Sandbox Error: {e}")
-                    logger.error(traceback.format_exc())
+            file_change.code, sandbox_execution = self.check_sandbox(file_change_request.filename, file_change.code)
 
-            return file_change
+            return file_change, sandbox_execution
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
             logger.info(traceback.format_exc())
@@ -501,7 +512,7 @@ class SweepBot(CodeGenBot, GithubBot):
         chunking: bool = False,
         chunk_offset: int = 0,
         sandbox=None,
-    ) -> tuple[str, str, Any]:
+    ):
         key = f"file_change_modified_{file_change_request.filename}"
         file_markdown = is_markdown(file_change_request.filename)
         # TODO(sweep): edge case at empty file
@@ -600,25 +611,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 commit_message = f"Updated {file_change_request.filename}"
             commit_message = commit_message[: min(len(commit_message), 50)]
 
-            sandbox_error = None
-            if SANDBOX_URL:
-                try:
-                    print("Running Sandbox for modify file...")
-                    logger.info(f"New file {new_file}")
-                    logger.info(f"Sweep context: {self.sweep_context}")
-                    output = SweepBot.run_sandbox(
-                        token=self.sweep_context.token,
-                        repo_url=self.repo.html_url,
-                        file_path=file_change_request.filename,
-                        content=new_file,
-                    )
-                    logger.info(f"Output: {output}")
-                    if output["success"]:
-                        new_file = output["updated_content"]
-                except Exception as e:
-                    logger.error(f"Sandbox Error: {e}")
-                    logger.error(traceback.format_exc())
-            return new_file, commit_message, sandbox_error
+            new_file, sandbox_execution = self.check_sandbox(file_change_request.filename, new_file)
+            return new_file, commit_message, sandbox_execution
         except Exception as e:
             tb = traceback.format_exc()
             logger.warning(f"Failed to parse." f" {e}\n{tb}")
@@ -736,7 +730,7 @@ class SweepBot(CodeGenBot, GithubBot):
         logger.debug(file_change_requests)
         num_fcr = len(file_change_requests)
         completed = 0
-        sandbox_error = None
+        sandbox_execution = None
 
         added_modify_hallucination = False
 
@@ -758,7 +752,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
                 match file_change_request.change_type:
                     case "create":
-                        changed_file, sandbox_error = self.handle_create_file(
+                        changed_file, sandbox_execution = self.handle_create_file(
                             file_change_request, branch, sandbox=sandbox
                         )
                     case "modify":
@@ -778,7 +772,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 flags=re.DOTALL,
                             )
 
-                        changed_file, sandbox_error = self.handle_modify_file(
+                        changed_file, sandbox_execution = self.handle_modify_file(
                             file_change_request, branch, sandbox=sandbox
                         )
                     case "rewrite":
@@ -835,7 +829,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             f"Unknown change type {file_change_request.change_type}"
                         )
                 print(f"Done processing {file_change_request.filename}.")
-                yield file_change_request, changed_file, sandbox_error
+                yield file_change_request, changed_file, sandbox_execution
             except MaxTokensExceeded as e:
                 raise e
             except Exception as e:
@@ -848,7 +842,7 @@ class SweepBot(CodeGenBot, GithubBot):
         self, file_change_request: FileChangeRequest, branch: str, sandbox=None
     ) -> tuple[bool, None]:
         try:
-            file_change = self.create_file(file_change_request)
+            file_change, sandbox_execution = self.create_file(file_change_request)
             file_markdown = is_markdown(file_change_request.filename)
             file_change.code = format_contents(file_change.code, file_markdown)
             logger.debug(
@@ -866,7 +860,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
             file_change_request.new_content = file_change.code
 
-            return True, None
+            return True, sandbox_execution
         except Exception as e:
             logger.info(f"Error in handle_create_file: {e}")
             return False, None
