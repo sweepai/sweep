@@ -72,6 +72,7 @@ def get_next_port():
 
 
 get_next_port()
+print("Starting on port:", port_offset + current_index)
 
 
 def kill_old_server(index):
