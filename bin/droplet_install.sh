@@ -18,13 +18,13 @@ curl https://pyenv.run | bash
 {
 echo 'export PYENV_ROOT="$HOME/.pyenv"'
 echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"'
-echo 'eval "$(pyenv init -)"
-. ~/.bashrc'
+echo 'eval "$(pyenv init -)"'
+echo '. ~/.bashrc'
 } > ~/.bash_profile
 sed -i '1i\
 export PATH="/root/.local/bin:$PATH"\
 eval "$(pyenv virtualenv-init -)"\
-alias activate='\source $(poetry env info --path)/bin/activate\'\
+alias activate='\''source $(poetry env info --path)/bin/activate'\''\
 ' ~/.bashrc
 source ~/.bash_profile
 source ~/.bashrc
