@@ -145,3 +145,9 @@ VECTOR_EMBEDDING_SOURCE = os.environ.get(
 
 HUGGINGFACE_URL = os.environ.get("HUGGINGFACE_URL", None)
 HUGGINGFACE_TOKEN = os.environ.get("HUGGINGFACE_TOKEN", None)
+
+# Azure settings, only checked if OPENAI_API_TYPE == "azure"
+OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", None)
+OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", None)
+OPENAI_API_VERSION = os.environ.get("OPENAI_API_VERSION", None)
+OPENAI_API_ENGINE = os.environ.get("OPENAI_API_ENGINE", None)
