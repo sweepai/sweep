@@ -44,6 +44,9 @@ func parseCommand(s string) (*command, error) {
     }
 """
 
+diff = """
+"""
+
 indent = detect_indent(code)
 
 # print(len(detect_indent(code)))
