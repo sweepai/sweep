@@ -30,7 +30,7 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
 )
-from sweepai.handlers.create_pr import create_gha_pr  # type: ignore
+from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  # type: ignore
 from sweepai.handlers.create_pr import create_pr_changes, safe_delete_sweep_branch
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
@@ -509,6 +509,13 @@ async def webhook(raw_request: Request):
                     )
             case "installation", "created":
                 repos_added_request = InstallationCreatedRequest(**request_dict)
+
+                try:
+                    add_config_to_top_repos(repos_added_request)
+                except Exception as e:
+                    logger.error(f"Failed to add config to top repos: {e}")
+
+                # Index all repos
                 for repo in repos_added_request.repositories:
                     index_full_repository(
                         repo.full_name,
