@@ -37,6 +37,8 @@ from sweepai.core.prompts import (
     RECREATE_LINE_LENGTH,
     modify_recreate_file_system_message,
     modify_recreate_file_prompt_3,
+    rewrite_file_prompt,
+    rewrite_file_system_prompt
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DB_MODAL_INST_NAME, SANDBOX_URL, SECONDARY_MODEL
@@ -47,6 +49,7 @@ from sweepai.utils.diff import (
     is_markdown,
     get_matches,
 )
+from sweepai.utils.utils import chunk_code
 
 USING_DIFF = True
 
@@ -608,18 +611,26 @@ class SweepBot(CodeGenBot, GithubBot):
         raise Exception(f"Failed to parse response after 1 attempt.")
     
 
-    def rewrite_section(self, file_change_request: FileChangeRequest) -> FileCreation:
+    def rewrite_section(
+        self, 
+        file_change_request: FileChangeRequest,
+        contents: str,
+        section: str,
+    ) -> FileCreation:
         section_rewrite: SectionRewrite | None = None
         key = f"file_change_created_{file_change_request.filename}"
+        old_system_message = self.messages[0].content
+        self.messages[0].content = rewrite_file_system_prompt
         rewrite_section_response = self.chat(
-            rewrite_section_response.format(
+            rewrite_file_prompt.format(
                 filename=file_change_request.filename,
-                code=file_change_request.code,
+                code=contents,
                 instructions=file_change_request.instructions,
-                section=file_change_request.section,
+                section=section,
             ),
             message_key=key,
         )
+        self.messages[0].content = old_system_message
         self.file_change_paths.append(file_change_request.filename)
         try:
             section_rewrite = SectionRewrite.from_string(rewrite_section_response)
@@ -627,7 +638,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
             try:
                 implemented = self.check_completion(  # use async
-                    file_change_request.filename, section_rewrite.code
+                    file_change_request.filename, section_rewrite.section
                 )
                 if not implemented:
                     discord_log_error(
@@ -645,6 +656,21 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.warning(f"Failed to parse. Retrying for the 1st time...")
             self.delete_messages_from_chat(key)
         raise Exception("Failed to parse response after 5 attempts.")
+
+    def rewrite_file(
+        self, 
+        file_change_request: FileChangeRequest,
+        branch: str,
+    ) -> FileCreation:
+        chunks = []
+        contents = self.repo.get_contents(file_change_request.filename, branch=branch).decoded_content.decode("utf-8")
+        for snippet in chunk_code(contents, file_change_request.filename, MAX_CHARS=2300, coalesce=200):
+            chunks.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
+        for i, chunk in enumerate(chunks):
+            section_rewrite = self.rewrite_section(file_change_request, contents, chunk)
+            chunks[i] = section_rewrite.section
+            contents = "\n".join(chunks) 
+        return contents
 
     def change_files_in_github(
         self,
@@ -719,6 +745,26 @@ class SweepBot(CodeGenBot, GithubBot):
                             )
 
                         changed_file, sandbox_error = self.handle_modify_file(
+                            file_change_request, branch, sandbox=sandbox
+                        )
+                    case "rewrite":
+                        # Remove snippets from this file if they exist
+                        snippet_msgs = [
+                            m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
+                        ]
+                        if len(snippet_msgs) > 0:  # Should always be true
+                            snippet_msg = snippet_msgs[0]
+                            # Use regex to remove this snippet from the message
+                            file = re.escape(file_change_request.filename)
+                            regex = rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
+                            snippet_msg.content = re.sub(
+                                regex,
+                                "",
+                                snippet_msg.content,
+                                flags=re.DOTALL,
+                            )
+
+                        changed_file = self.rewrite_file(
                             file_change_request, branch, sandbox=sandbox
                         )
                     case "delete":

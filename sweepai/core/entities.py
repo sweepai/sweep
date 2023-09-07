@@ -288,15 +288,16 @@ class Snippet(BaseModel):
     def __hash__(self):
         return hash((self.file_path, self.start, self.end))
 
-    def get_snippet(self):
+    def get_snippet(self, add_ellipsis: bool = True, add_lines: bool = True):
         lines = self.content.splitlines()
         snippet = "\n".join(
-            f"{i+1}: {line}" for i, line in enumerate(lines[self.start : self.end])
+            (f"{i+1}: {line}" if add_lines else line) for i, line in enumerate(lines[self.start : self.end])
         )
-        if self.start > 1:
-            snippet = "...\n" + snippet
-        if self.end < self.content.count("\n") + 1:
-            snippet = snippet + "\n..."
+        if add_ellipsis:
+            if self.start > 1:
+                snippet = "...\n" + snippet
+            if self.end < self.content.count("\n") + 1:
+                snippet = snippet + "\n..."
         return snippet
 
     def __add__(self, other):

@@ -1,7 +1,8 @@
-from sweepai.core.entities import FileChangeRequest
-from sweepai.core.sweep_bot import SweepBot
+import github
 
-sweep_bot = SweepBot()
+from sweepai.core.entities import FileChangeRequest, Message
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.utils.chat_logger import ChatLogger
 
 old_file = """\
 import React from "react";
@@ -164,10 +165,83 @@ export default function NavBar() {
   ];\
 """
 
-print(sweep_bot.rewrite_section(
+sweep_bot = SweepBot.from_system_message_string(
+  "", 
+  repo=github.Github().get_repo("sweepai/sweep"),
+  chat_logger=ChatLogger(data={"username": "kevinlu1248"})
+)
+
+sweep_bot.messages.extend([
+  Message(
+    role="assistant",
+    content="""
+Contextual thoughts: 
+* The Navbar component in src/components/Navbar.tsx is currently a functional component. I need to understand its current structure and functionality in order to refactor it into a class component.
+* The useBreakpointValue hook is being used in the Navbar component. I need to understand how it's being used in order to replace it with this.state and this.setState in the class component.
+* The current unit tests in src/App.test.tsx provide a starting point for writing the new unit tests for the refactored component. I need to understand what functionality they're testing.
+
+
+Relevant snippets:
+
+
+
+
+<snippet source="src/App.test.tsx:1-11">
+ import { screen } from "@testing-library/react"
+ import { render } from "./test-utils"
+ import { App } from "./App"
+ 
+ test("renders learn react link", () => {
+   render(<App />)
+   const linkElement = screen.getByText(/learn chakra/i)
+   expect(linkElement).toBeInTheDocument()
+ })
+</snippet>"""
+  ),
+  Message(
+    role="user",
+    content="""# Repo & Issue Metadata
+Repo: landing-page: No description provided.
+Issue Url: https://github.com/sweepai/landing-page/issues/420
+Username: sweep-nightly[bot]
+Issue Title: Refactor Navbar to class component
+Issue Description: * In src/components/Navbar.tsx, define a class Navbar that extends React.Component.
+* In src/components/Navbar.tsx, implement a render method that returns the same JSX as the functional component.
+* In src/components/Navbar.tsx, replace the use of useBreakpointValue with this.state and this.setState.
+* In src/components/Navbar.tsx, write unit tests for the refactored component and run them to verify that they pass.
+
+
+Parent issue: #335
+
+
+Additional instructions:
+* In src/components/Navbar.tsx, define a class Navbar that extends React.Component. The class should have a constructor that initializes the state and binds any necessary methods.
+* In the render method of the Navbar class, return the same JSX as the functional component. Make sure to replace any hooks with their class component equivalents.
+* Replace the use of useBreakpointValue with this.state and this.setState. This may involve adding a resize event listener in componentDidMount and componentWillUnmount to update the state when the window size changes.
+* Write unit tests for the Navbar class in a new file, src/components/Navbar.test.tsx. The tests should cover the same functionality as the existing tests for the functional component, as well as any new functionality introduced by the refactoring.
+* Run the tests using the command `npm test` to verify that they pass."""
+  )
+])
+
+# print(
+#   sweep_bot.rewrite_section(
+#     FileChangeRequest(
+#         filename="main.py",
+#         instructions="Rewrite as class component",
+#         change_type="rewrite",
+#     ),
+#     old_file,
+#     section,
+#   ).section
+# )
+
+print(
+  sweep_bot.rewrite_file(
     FileChangeRequest(
-        filename="main.py",
-        content=old_file,
-        instructions="Change to goodbye"
-    )
-))
+        filename="index.js",
+        instructions="Rewrite as class component",
+        change_type="rewrite",
+    ),
+    old_file,
+  )
+)

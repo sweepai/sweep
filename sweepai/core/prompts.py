@@ -243,10 +243,11 @@ files_to_change_abstract_prompt = """Write an abstract minimum plan to address t
 files_to_change_prompt = """
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
 Then, provide a list of files you would like to modify, abiding by the following:
-* You may only create, modify, delete and rename files
+* You may only create, modify, rewrite, delete and rename files
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
 * Prefer modifying existing files over creating new files
 * Only modify or create files that DEFINITELY need to be touched
+* Modify means to tweak existing code (adding logs, typing, docstrings, etc) whereas rewrite means to rewrite the entire file (migration, changing frameworks etc)
 * Use detailed, natural language instructions on what to modify regarding business logic, and do not add low-level details like imports
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
 * Create/modify up to 5 FILES
@@ -269,33 +270,21 @@ Step-by-step thoughts with explanations:
 ...
 </create>
 
-<create file="file_path_2">
-* Instruction 1 for file_path_2
-* Instruction 2 for file_path_2
-...
-</create>
-
-...
-
 <modify file="file_path_3">
 * Instruction 1 for file_path_3
 * Instruction 2 for file_path_3
 ...
 </modify>
 
-<modify file="file_path_4">
-* Instruction 1 for file_path_4
-* Instruction 2 for file_path_4
+<rewrite file="file_path_3">
+* Instruction 1 for file_path_3
+* Instruction 2 for file_path_3
 ...
-</modify>
+</rewrite>
 
-...
+<delete file="file_path_4"></delete>
 
-<delete file="file_path_5"></delete>
-
-...
-
-<rename file="file_path_6">new full path for file path 6</rename>
+<rename file="file_path_5">new full path for file path 6</rename>
 
 ...
 </plan>
