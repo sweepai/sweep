@@ -116,8 +116,8 @@ def get_stopwords(snippets):
     # Count the frequency of each word
     word_counts = Counter(tokens)
 
-    # Identify the top 100 most frequent words
-    top_words = {word for word, _ in word_counts.most_common(25)}
+    # Identify the top 10 most frequent words
+    top_words = {word for word, _ in word_counts.most_common(10)}
     return top_words
 
 
@@ -138,16 +138,17 @@ def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
     )
 
     # Create a directory to store the index
-    pid = random.randint(0, 100)
-    shutil.rmtree(f"cache/indexdir_{pid}", ignore_errors=True)
-    os.mkdir(f"cache/indexdir_{pid}")
+    pid = random.randint(0, 1000)
+    shutil.rmtree(f"cache/indices/indexdir_{pid}", ignore_errors=True)
+    os.makedirs(f"cache/indices", exist_ok=True)
+    os.mkdir(f"cache/indices/indexdir_{pid}")
 
     # Create the index based on the schema
-    ix = index.create_in(f"cache/indexdir_{pid}", schema)
+    ix = index.create_in(f"cache/indices/indexdir_{pid}", schema)
     # writer.cancel()
     writer = ix.writer()
     for doc in all_docs:
-        writer.add_document(title=doc.title, content=doc.content)
+        writer.add_document(title=doc.title, content=doc.content, start=doc.start, end=doc.end)
 
     writer.commit()
     return ix
@@ -220,10 +221,9 @@ def search_index(query, ix):
             # return dictionary of content to scores
             res = {}
             for hit in results:
-                if hit["title"] not in res:
-                    res[hit["title"]] = hit.score
-                else:
-                    res[hit["title"]] = max(hit.score, res[hit["title"]])
+                key = f"{hit['title']}:{str(hit['start'])}:{str(hit['end'])}"
+                if key not in res:
+                    res[key] = hit.score
             # min max normalize scores from 0.5 to 1
             if len(res) == 0:
                 max_score = 1

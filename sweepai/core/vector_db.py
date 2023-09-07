@@ -83,7 +83,8 @@ def embed_huggingface(texts):
             return response.json()["embeddings"]
         except requests.exceptions.RequestException as e:
             logger.error(f"Error occurred when sending request to Hugging Face endpoint: {e}")
-  
+
+@lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
     logger.info(f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}...")
     match VECTOR_EMBEDDING_SOURCE:
@@ -306,8 +307,9 @@ def get_relevant_snippets(
     code_scores = [metadata["score"] for metadata in metadatas]
     lexical_scores = []
     for metadata in metadatas:
-        if metadata["file_path"] in content_to_lexical_score:
-            lexical_scores.append(content_to_lexical_score[metadata["file_path"]])
+        key = f"{metadata['file_path']}:{str(metadata['start'])}:{str(metadata['end'])}"
+        if key in content_to_lexical_score:
+            lexical_scores.append(content_to_lexical_score[key])
         else:
             lexical_scores.append(0.3)
     vector_scores = results["score"]
