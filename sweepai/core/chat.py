@@ -193,50 +193,14 @@ class ChatGPT(BaseModel):
         content: str,
         model: ChatModel | None = None,
         message_key: str | None = None,
-        functions: list[Function] = [],
-        function_name: dict | None = None,
     ):
-        if self.messages[-1].function_call is None:
-            self.messages.append(Message(role="user", content=content, key=message_key))
-        else:
-            name = self.messages[-1].function_call["name"]
-            self.messages.append(
-                Message(role="function", content=content, key=message_key, name=name)
-            )
+        self.messages.append(Message(role="user", content=content, key=message_key))
         model = model or self.model
-        is_function_call = False
-        if model in [args.__args__[0] for args in OpenAIModel.__args__]:
-            # might be a bug here in all of this
-            if len(functions) > 0:
-                response = self.call_openai(
-                    model=model, functions=functions, function_name=function_name
-                )
-                response, is_function_call = response
-                if is_function_call:
-                    self.messages.append(
-                        Message(
-                            role="assistant",
-                            content=None,
-                            function_call=response,
-                            key=message_key,
-                        )
-                    )
-                    self.prev_message_states.append(self.messages)
-                    return self.messages[-1].function_call
-                else:
-                    self.messages.append(
-                        Message(role="assistant", content=response, key=message_key)
-                    )
-            else:
-                response = self.call_openai(model=model, functions=functions)
-                self.messages.append(
-                    Message(role="assistant", content=response, key=message_key)
-                )
-        else:
-            response = self.call_anthropic(model=model)
-            self.messages.append(
-                Message(role="assistant", content=response, key=message_key)
-            )
+        self.messages.append(
+            Message(role="assistant", content=self.call_openai(
+                model=model, 
+            ), key=message_key)
+        )
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 

@@ -1,8 +1,12 @@
+import sys
+
+from celery.result import AsyncResult
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from loguru import logger
 from pydantic import ValidationError
 
+from sweepai.celery_init import celery_app
 from sweepai.config.client import SweepConfig, get_documentation_dict
 from sweepai.config.server import (
     API_MODAL_INST_NAME,
@@ -26,21 +30,16 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
 )
-from sweepai.handlers.create_pr import (  # type: ignore
-    create_gha_pr,
-    create_pr_changes,
-    safe_delete_sweep_branch,
-)
+from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  # type: ignore
+from sweepai.handlers.create_pr import create_pr_changes, safe_delete_sweep_branch
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
+from sweepai.redis_init import redis_client
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.search_utils import index_full_repository
-from sweepai.celery_init import celery_app
-from sweepai.redis_init import redis_client
-from celery.result import AsyncResult
 
 app = FastAPI()
 
@@ -48,11 +47,13 @@ import tracemalloc
 
 tracemalloc.start()
 
+
 @celery_app.task(bind=True)
 def run_ticket(self, *args, **kwargs):
     logger.info(f"Running on_ticket Task ID: {self.request.id}")
     on_ticket(*args, **kwargs)
     logger.info("Done with on_ticket")
+
 
 @celery_app.task(bind=True)
 def run_comment(self, *args, **kwargs):
@@ -60,11 +61,12 @@ def run_comment(self, *args, **kwargs):
     on_comment(*args, **kwargs)
     logger.info("Done with on_comment")
 
+
 def call_on_ticket(*args, **kwargs):
     key = f"{args[5]}-{args[2]}"  # Full name, issue number as key
     # Check if a previous process exists for the same key, cancel it
     prev_task_id = redis_client.get(key)
-    prev_task_id = prev_task_id.decode('utf-8') if prev_task_id else None
+    prev_task_id = prev_task_id.decode("utf-8") if prev_task_id else None
     i = celery_app.control.inspect()
     # To get a list of active tasks:
     active_tasks = i.active()
@@ -76,42 +78,50 @@ def call_on_ticket(*args, **kwargs):
         redis_client.delete(key)
     else:
         logger.info(f"No previous task id found for key {key}")
-    task = celery_app.send_task('sweepai.api.run_ticket', args=args, kwargs=kwargs)
+    task = celery_app.send_task("sweepai.api.run_ticket", args=args, kwargs=kwargs)
     logger.info(f"Saving task id {task.id} for key {key}")
     redis_client.set(key, task.id)
     active_tasks = i.active()
     logger.info(f"Active tasks: {active_tasks}")
 
+
 def call_on_comment(*args, **kwargs):
     repo_full_name = kwargs["repo_full_name"]
     pr_id = kwargs["pr_number"]
     key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
-    
+
     i = celery_app.control.inspect()
     active_tasks = i.active()
     logger.info(f"Active tasks: {active_tasks}")
-    
+
     # Get previous task IDs for the same key, if any
     prev_task_ids = redis_client.lrange(key, 0, -1)
-    prev_task_ids = [task_id.decode('utf-8') for task_id in prev_task_ids] if prev_task_ids else []
-    
+    prev_task_ids = (
+        [task_id.decode("utf-8") for task_id in prev_task_ids] if prev_task_ids else []
+    )
+
     # If previous tasks are pending, don't enqueue new task
     for prev_task_id in prev_task_ids:
         task_status = AsyncResult(prev_task_id, app=celery_app).status
-        if task_status not in ('SUCCESS', 'FAILURE'):
-            logger.info(f"Previous task id {prev_task_id} still pending. Not enqueuing new task.")
-    
+        if task_status not in ("SUCCESS", "FAILURE"):
+            logger.info(
+                f"Previous task id {prev_task_id} still pending. Not enqueuing new task."
+            )
+
     # Enqueue new task and save task ID
-    task = celery_app.send_task('sweepai.api.run_comment', args=args, kwargs=kwargs)
+    task = celery_app.send_task("sweepai.api.run_comment", args=args, kwargs=kwargs)
     logger.info(f"Enqueuing new task id {task.id} for key {key}")
-    
+
     # Save the new task ID to the list
     redis_client.rpush(key, task.id)
 
 
 @app.get("/health")
 def health_check():
-    return JSONResponse(status_code=200, content={"status": "UP"})
+    return JSONResponse(
+        status_code=200,
+        content={"status": "UP", "port": sys.argv[-1] if len(sys.argv) > 0 else -1},
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -499,6 +509,13 @@ async def webhook(raw_request: Request):
                     )
             case "installation", "created":
                 repos_added_request = InstallationCreatedRequest(**request_dict)
+
+                try:
+                    add_config_to_top_repos(repos_added_request)
+                except Exception as e:
+                    logger.error(f"Failed to add config to top repos: {e}")
+
+                # Index all repos
                 for repo in repos_added_request.repositories:
                     index_full_repository(
                         repo.full_name,
