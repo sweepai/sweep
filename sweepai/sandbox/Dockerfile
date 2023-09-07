@@ -1,0 +1,33 @@
+FROM ubuntu:latest
+
+# Install common packages
+RUN apt-get update && apt-get install -y git curl wget coreutils python3 python3-pip
+
+# Specify VERSION and BINARY for yq (or directly put them into the wget command)
+ARG VERSION="v4.9.6"
+ARG BINARY="yq_linux_amd64"
+# Install yq
+RUN wget https://github.com/mikefarah/yq/releases/download/v4.9.6/yq_linux_amd64 -O /usr/bin/yq &&\
+    chmod +x /usr/bin/yq
+
+RUN bash -c 'curl https://get.trunk.io -fsSL | bash -s -- -y'
+
+
+# Install node
+ENV NODE_VERSION=18.17.0
+RUN apt install -y curl
+RUN curl https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash
+ENV NVM_DIR=/root/.nvm
+RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
+RUN . "$NVM_DIR/nvm.sh" && nvm use v${NODE_VERSION}
+RUN . "$NVM_DIR/nvm.sh" && nvm alias default v${NODE_VERSION}
+ENV PATH="/root/.nvm/versions/node/v${NODE_VERSION}/bin/:${PATH}"
+RUN npm install --global yarn
+RUN node --version
+RUN npm --version
+
+
+# Python stuff
+RUN pip install black isort
+
+# docker build -t sandbox .
