@@ -1,5 +1,3 @@
-
-
 import glob
 import os
 import itertools
@@ -51,8 +49,6 @@ def read_file(file_name):
         return ""
 
 FILE_THRESHOLD = 100
-
-
 
 def repo_to_chunks(directory, sweep_config):
     dir_file_count = {}
