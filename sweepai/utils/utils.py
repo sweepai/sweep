@@ -121,6 +121,12 @@ def chunk_tree(
 
     # 5. Eliminating empty chunks
     line_chunks = [chunk for chunk in line_chunks if len(chunk) > 0]
+
+    # 6. Coalescing last chunk if it's too small
+    if line_chunks and len(line_chunks[-1]) < coalesce:
+        line_chunks[-2] += line_chunks[-1]
+        line_chunks.pop()
+
     return line_chunks
 
 
@@ -172,7 +178,7 @@ def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
     
     return chunks
 
-def chunk_code(code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100):
+def chunk_code(code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100) -> list[Snippet]:
     from tree_sitter_languages import get_parser
 
     ext = path.split(".")[-1]
@@ -189,7 +195,7 @@ def chunk_code(code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100)
                 end=(idx + 1) * 30,
                 file_path=path,
             )
-        snippets.append(new_snippet)
+            snippets.append(new_snippet)
         return snippets
     try:
         parser = get_parser(language)
