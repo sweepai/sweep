@@ -214,7 +214,9 @@ def on_comment(
                 pr_path, ref=branch_name
             ).decoded_content.decode("utf-8")
             pr_lines = pr_file.splitlines()
-            pr_line = pr_lines[min(len(pr_lines), pr_line_position) - 1]
+            start = max(0, pr_line_position - 11)
+            end = min(len(pr_lines), pr_line_position + 10)
+            pr_line = "\n".join(pr_lines[start:end])
             pr_file_path = pr_path.strip()
 
         if file_comment:
