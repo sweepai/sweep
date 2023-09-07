@@ -861,7 +861,7 @@ def on_ticket(
 
         logger.info("Making PR...")
 
-        files_progress = [
+        files_progress: list[tuple[str, str, str, str]] = [
             (
                 file_change_request.filename,
                 file_change_request.instructions_display,
