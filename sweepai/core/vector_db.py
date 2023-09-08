@@ -128,10 +128,9 @@ def embed_texts(texts: tuple[str]):
                 raise Exception("Hugging Face URL and token not set")
         case "replicate": 
             if REPLICATE_API_KEY:
-                # embeddings = []
-                embeddings = embed_replicate(texts)
-                # for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-                #     embeddings.extend(embed_replicate(texts))
+                embeddings = []
+                for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE)):
+                    embeddings.extend(embed_replicate(batch))
                 return embeddings
             else:
                 raise Exception("Replicate URL and token not set")
