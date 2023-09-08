@@ -151,3 +151,6 @@ OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", None)
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", None)
 OPENAI_API_VERSION = os.environ.get("OPENAI_API_VERSION", None)
 OPENAI_API_ENGINE = os.environ.get("OPENAI_API_ENGINE", None)
+
+REPLICATE_API_KEY = os.environ.get("REPLICATE_API_KEY", None)
+REPLICATE_URL = os.environ.get("REPLICATE_URL", None)
