@@ -366,7 +366,7 @@ class SweepBot(CodeGenBot, GithubBot):
         if not SANDBOX_URL:
             return {"success": False}
 
-        output = requests.post(
+        response = requests.post(
             SANDBOX_URL,
             json={
                 "token": token,
@@ -375,7 +375,10 @@ class SweepBot(CodeGenBot, GithubBot):
                 "content": content,
                 "only_lint": only_lint,
             },
-        ).json()
+            timeout=(5, 600)
+        )
+        response.raise_for_status()
+        output = response.json()
         return output
 
     def check_completion(self, file_name: str, new_content: str) -> bool:
