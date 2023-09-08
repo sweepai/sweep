@@ -7,6 +7,7 @@ import time
 from functools import lru_cache
 from typing import Generator, List
 
+import replicate
 import numpy as np
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     DeepLakeVectorStore,
@@ -28,6 +29,8 @@ from sweepai.config.server import (
     REDIS_URL,
     SENTENCE_TRANSFORMERS_MODEL,
     VECTOR_EMBEDDING_SOURCE,
+    REPLICATE_API_KEY,
+    REPLICATE_URL
 )
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
@@ -84,6 +87,11 @@ def embed_huggingface(texts):
         except requests.exceptions.RequestException as e:
             logger.error(f"Error occurred when sending request to Hugging Face endpoint: {e}")
 
+def embed_replicate(texts):
+    client = replicate.Client(api_token=REPLICATE_API_KEY)
+    outputs = client.run(REPLICATE_URL, input={"text_batch": json.dumps(texts)})
+    return [output["embedding"] for output in outputs]
+
 @lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
     logger.info(f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}...")
@@ -118,6 +126,15 @@ def embed_texts(texts: tuple[str]):
                 return embeddings
             else:
                 raise Exception("Hugging Face URL and token not set")
+        case "replicate": 
+            if REPLICATE_API_KEY:
+                # embeddings = []
+                embeddings = embed_replicate(texts)
+                # for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+                #     embeddings.extend(embed_replicate(texts))
+                return embeddings
+            else:
+                raise Exception("Replicate URL and token not set")
         case _:
             raise Exception("Invalid vector embedding mode")
 
