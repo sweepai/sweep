@@ -25,7 +25,7 @@ SENTENCE_TRANSFORMERS_MODEL = os.environ.get(
     "SENTENCE_TRANSFORMERS_MODEL",
     "sentence-transformers/all-MiniLM-L6-v2",  # "all-mpnet-base-v2"
 )
-BATCH_SIZE = 32 # Tune this to 32 for sentence-transformers/all-MiniLM-L6-v2 on CPU
+BATCH_SIZE = os.environ.get("BATCH_SIZE", 32) # Tune this to 32 for sentence-transformers/all-MiniLM-L6-v2 on CPU
 
 ENV = os.environ.get("ENV", "dev")
 # ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
@@ -143,14 +143,16 @@ VECTOR_EMBEDDING_SOURCE = os.environ.get(
     "VECTOR_EMBEDDING_SOURCE", "sentence-transformers"
 )  # Alternate option is openai or huggingface and set the corresponding env vars
 
+# Huggingface settings, only checked if VECTOR_EMBEDDING_SOURCE == "huggingface"
 HUGGINGFACE_URL = os.environ.get("HUGGINGFACE_URL", None)
 HUGGINGFACE_TOKEN = os.environ.get("HUGGINGFACE_TOKEN", None)
+
+# Replicate settings, only checked if VECTOR_EMBEDDING_SOURCE == "replicate"
+REPLICATE_API_KEY = os.environ.get("REPLICATE_API_KEY", None)
+REPLICATE_URL = os.environ.get("REPLICATE_URL", None)
 
 # Azure settings, only checked if OPENAI_API_TYPE == "azure"
 OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", None)
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", None)
 OPENAI_API_VERSION = os.environ.get("OPENAI_API_VERSION", None)
 OPENAI_API_ENGINE = os.environ.get("OPENAI_API_ENGINE", None)
-
-REPLICATE_API_KEY = os.environ.get("REPLICATE_API_KEY", None)
-REPLICATE_URL = os.environ.get("REPLICATE_URL", None)
