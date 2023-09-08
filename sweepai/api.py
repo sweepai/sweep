@@ -129,6 +129,30 @@ def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
 
+"""
+def push_to_queue(repo_full_name: str, pr_id: int, pr_change_request: PRChangeRequest):
+    logger.info(f"Pushing to queue: {repo_full_name}, {pr_id}, {pr_change_request}")
+    key = (repo_full_name, pr_id)
+    call_id, queue = stub.pr_queues[key] if key in stub.pr_queues else ("0", [])
+    function_is_completed = function_call_is_completed(call_id)
+    if pr_change_request.type == "comment" or function_is_completed:
+        queue = [pr_change_request] + queue
+        if function_is_completed:
+            stub.pr_queues[key] = ("0", queue)
+            call_id = handle_pr_change_request.spawn(
+                repo_full_name=repo_full_name, pr_id=pr_id
+            ).object_id
+        stub.pr_queues[key] = (call_id, queue)
+"""
+
+
+def push_to_queue(repo_full_name: str, pr_id: int, pr_change_request: PRChangeRequest):
+    key = f"{repo_full_name}-{pr_id}"  # Full name, issue number as key
+    # Check if a previous process exists for the same key, cancel it
+
+    pass
+
+
 @app.post("/")
 async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
@@ -255,11 +279,11 @@ async def webhook(raw_request: Request):
                                 "repo": repo,
                             },
                         )
-                        # push_to_queue(
-                        #     repo_full_name=request.repository.full_name,
-                        #     pr_id=request.issue.number,
-                        #     pr_change_request=pr_change_request,
-                        # )
+                        push_to_queue(
+                            repo_full_name=request.repository.full_name,
+                            pr_id=request.issue.number,
+                            pr_change_request=pr_change_request,
+                        )
             case "issues", "edited":
                 request = IssueRequest(**request_dict)
                 if (
@@ -400,11 +424,11 @@ async def webhook(raw_request: Request):
                             },
                         )
                         call_on_comment(**pr_change_request.params)
-                        # push_to_queue(
-                        #     repo_full_name=request.repository.full_name,
-                        #     pr_id=request.issue.number,
-                        #     pr_change_request=pr_change_request,
-                        # )
+                        push_to_queue(
+                            repo_full_name=request.repository.full_name,
+                            pr_id=request.issue.number,
+                            pr_change_request=pr_change_request,
+                        )
             case "pull_request_review_comment", "created":
                 # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
@@ -433,11 +457,11 @@ async def webhook(raw_request: Request):
                         },
                     )
                     call_on_comment(**pr_change_request.params)
-                    # push_to_queue(
-                    #     repo_full_name=request.repository.full_name,
-                    #     pr_id=request.pull_request.number,
-                    #     pr_change_request=pr_change_request,
-                    # )
+                    push_to_queue(
+                        repo_full_name=request.repository.full_name,
+                        pr_id=request.pull_request.number,
+                        pr_change_request=pr_change_request,
+                    )
                 # Todo: update index on comments
             case "pull_request_review", "submitted":
                 # request = ReviewSubmittedRequest(**request_dict)
@@ -467,11 +491,11 @@ async def webhook(raw_request: Request):
                         pr_change_request = PRChangeRequest(
                             type="gha", params={"request": request}
                         )
-                        # push_to_queue(
-                        #     repo_full_name=request.repository.full_name,
-                        #     pr_id=request.check_run.pull_requests[0].number,
-                        #     pr_change_request=pr_change_request,
-                        # )
+                        push_to_queue(
+                            repo_full_name=request.repository.full_name,
+                            pr_id=request.check_run.pull_requests[0].number,
+                            pr_change_request=pr_change_request,
+                        )
                     else:
                         logger.info(
                             "Skipping check suite for"
