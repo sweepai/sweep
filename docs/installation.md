@@ -1,14 +1,16 @@
-# Welcome to Sweep - GitHub App installed successfully! 🎉
+# Welcome to Sweep - GitHub and GitLab App installed successfully! 🎉
 
 
 ⚠️ Be sure to follow these instructions in your own repository. Sweep works best with real repositories and real issues; empty or test repositories will break Sweep. *If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).*
 
 
 If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?v=fr5V5EWVcyM&lc=UgxM_ZzFiFYfjo1ADU54AaABAg)
+If you prefer video, [check out our demo (2 min)](https://www.youtube.com/watch?v=fr5V5EWVcyM&lc=UgxM_ZzFiFYfjo1ADU54AaABAg)
 
 ## Create an issue on your own repository
 The issue title should start with `Sweep: ` For issues and PRs, call Sweep using the Sweep label or by prefixing your text with `Sweep: `
 
+For existing GitHub or GitLab issues, add the `Sweep` label to the issue.
 For existing GitHub issues, add the `Sweep` label to the issue.
 
 <table>
@@ -65,6 +67,19 @@ This video provides advanced tips and tricks for using Sweep and controlling fee
     * We can't do this - "Use the logo to create favicons for our landing page"
 
 * ⤵️ **Accessing external APIs**, including fetching API tokens
+    * We can't do this - "Set up sign-in using Ethereum"
+
+## Configuring GitLab API Integration
+
+To configure the GitLab API integration, you will need to obtain a GitLab API token. You can do this by following the instructions in the [GitLab documentation](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html).
+
+Once you have your GitLab API token, add it to your Sweep configuration file. The configuration file is located at `~/.sweep/config.yaml`. Add a new line to the file with the following format:
+
+```
+gitlab_api_token: YOUR_GITLAB_API_TOKEN
+```
+
+Replace `YOUR_GITLAB_API_TOKEN` with your actual GitLab API token. Save the file and restart Sweep for the changes to take effect.
     * We can't do this - "Set up sign-in using Ethereum"
 
 ## Pricing
