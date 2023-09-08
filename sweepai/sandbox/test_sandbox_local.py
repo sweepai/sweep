@@ -276,7 +276,7 @@ file_path = "src/test.js"
 
 # url = "http://localhost:8081/sandbox/"
 # url = "http://164.92.94.50:8080/sandbox/"
-url = "http://24.199.73.199:8081/sandbox/"
+url = "http://24.199.73.199:8080/sandbox/"
 # url = "http://0.0.0.0:8080/sandbox/"
 
 headers = {
@@ -290,7 +290,7 @@ data = {
     "content": bad_file_contents,
 }
 
-response = requests.post(url, json=data)
+response = requests.post(url, json=data, timeout=(5, 600))
 
 # Printing the response to see the result
 print(response.text)
