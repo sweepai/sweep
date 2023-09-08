@@ -21,6 +21,9 @@ After finishing the steps in the video, please complete these two steps:
 
 We created an app using `npm` to make it easier to set up the GitHub App. If you do not have it installed, install it [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm). If you would like ot set it up yourself, scroll down to the **Manual GitHub App Setup** section.
 
+> Run this GitHub App locally! This tool is only used for creating the GitHub App, not hosting Sweep.
+>
+
 First, open a terminal and run the following commands:
 
 ```sh
@@ -123,9 +126,11 @@ Click `Save` to close the Bulk Editor, then click `Save` again to save the varai
 > It is important that you click save twice, otherwise the variables will not be saved.
 >
 
-### 3. Info
+<details>
+<summary><h3>### 3. Info</h3></summary>
 
 Modify any information as needed, then click `Next`.
+</details>
 
 <details>
 <summary><h3>4. Review: Update Instance Resource Size</h3></summary>
@@ -137,9 +142,14 @@ Then, set the Instance Size.
 
 Please select an instance with at least 2 GB RAM. The default 1 GB RAM instance will not work.
 
-### 5. Create Resources!
+<details>
+<summary><h3>### 5. Create Resources!</h3></summary>
 
-### 6. Set Webhook URL in GitHub
+Simply click the button to create the instance.
+</details>
+
+<details>
+<summary><h3>### 6. Set Webhook URL in GitHub (Important)</h3></summary>
 
 Once the resource is created, you should get a link like this:
 <img src="/deployment/digitalocean_step6.png" alt="Skip Resources Page" />
@@ -151,6 +161,7 @@ Navigating to this link should look like this:
 2. Go to your GitHub App and paste this link into the `General` tab `Webhook URL` field.  Ensure SSL verification remains active.
 
 <img src="/deployment/digitalocean_step9.png" alt="Skip Resources Page" />
+</details>
 
 ---
 
