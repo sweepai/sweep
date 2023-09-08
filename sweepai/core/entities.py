@@ -172,6 +172,10 @@ class FileChangeRequest(RegexMatchableBaseModel):
             return f"Create {self.filename} with contents:\n{self.instructions}"
         elif self.change_type == "modify":
             return f"Modify {self.filename} with contents:\n{self.instructions}"
+        elif self.change_type == "rewrite":
+            return f"Rewrite {self.filename} with contents:\n{self.instructions}"
+        else:
+            raise ValueError(f"Unknown change type {self.change_type}")
 
 
 class FileCreation(RegexMatchableBaseModel):

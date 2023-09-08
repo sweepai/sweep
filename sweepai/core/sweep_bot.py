@@ -431,7 +431,7 @@ class SweepBot(CodeGenBot, GithubBot):
         sandbox_execution: SandboxExecution | None = None
         if SANDBOX_URL:
             try:
-                print("Running Sandbox for create file...")
+                print("Running Sandbox...")
                 print(content)
                 print(self.sweep_context)
                 output = SweepBot.run_sandbox(
@@ -698,7 +698,8 @@ class SweepBot(CodeGenBot, GithubBot):
             sha=original_file.sha,
             branch=branch,
         )
-        return contents != original_contents
+        final_contents, sandbox_execution = self.check_sandbox(file_change_request.filename, contents)
+        return final_contents != original_contents, sandbox_execution
 
     def change_files_in_github(
         self,
@@ -792,7 +793,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 flags=re.DOTALL,
                             )
 
-                        changed_file = self.rewrite_file(file_change_request, branch)
+                        changed_file, sandbox_execution = self.rewrite_file(file_change_request, branch)
                     case "delete":
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch

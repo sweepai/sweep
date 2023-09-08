@@ -7,7 +7,7 @@ port = "http://0.0.0.0:8080"
 
 response = requests.post(
     port,
-    json=json.load(open("tests/comment_webhook.json", "r")),
-    headers={"X-GitHub-Event": "pull_request_review_comment"},
+    json=json.load(open("tests/landing_page_issue_webhook.json", "r")),
+    headers={"X-GitHub-Event": "issues"},
 )
 print(response)
