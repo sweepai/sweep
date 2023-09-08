@@ -226,6 +226,14 @@ def safe_delete_sweep_branch(
 
 
 def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
+    if repo is not None:
+        # Check if file exists in repo
+        try:
+            repo.get_contents("sweep.yaml")
+            return
+        except Exception as e:
+            pass
+
     title = "Configure Sweep"
     branch_name = GITHUB_CONFIG_BRANCH
     if sweep_bot is not None:
@@ -329,15 +337,15 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
     return pr
 
 
-def add_config_to_top_repos(request: InstallationCreatedRequest, max_repos=3):
-    user_token, g = get_github_client(request.installation.id)
+def add_config_to_top_repos(installation_id, username, repositories, max_repos=3):
+    user_token, g = get_github_client(installation_id)
 
     repo_activity = {}
-    for repo_entity in request.repositories:
+    for repo_entity in repositories:
         repo = g.get_repo(repo_entity.full_name)
         # instead of using total count, use the date of the latest commit
         commits = repo.get_commits(
-            author=request.installation.account.login,
+            author=username,
             since=datetime.datetime.now() - datetime.timedelta(days=30),
         )
         # get latest commit date

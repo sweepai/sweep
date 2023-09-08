@@ -518,6 +518,16 @@ async def webhook(raw_request: Request):
                         for repo in repos_added_request.repositories_added
                     ],
                 }
+
+                try:
+                    add_config_to_top_repos(
+                        repos_added_request.installation.id,
+                        repos_added_request.installation.account.login,
+                        repos_added_request.repositories_added,
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to add config to top repos: {e}")
+
                 posthog.capture(
                     "installation_repositories", "started", properties={**metadata}
                 )
@@ -540,7 +550,11 @@ async def webhook(raw_request: Request):
                 repos_added_request = InstallationCreatedRequest(**request_dict)
 
                 try:
-                    add_config_to_top_repos(repos_added_request)
+                    add_config_to_top_repos(
+                        repos_added_request.installation.id,
+                        repos_added_request.installation.account.login,
+                        repos_added_request.repositories,
+                    )
                 except Exception as e:
                     logger.error(f"Failed to add config to top repos: {e}")
 
