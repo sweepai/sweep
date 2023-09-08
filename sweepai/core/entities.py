@@ -463,7 +463,7 @@ class SandboxExecution(BaseModel):
     success: bool
     error_messages: list[str]
     updated_content: str
-    sandbox: dict
+    # sandbox: dict
 
 
 class MaxTokensExceeded(Exception):

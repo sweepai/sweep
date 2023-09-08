@@ -92,7 +92,8 @@ def on_comment(
 
     _token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
-    pr = repo.get_pull(pr_number)
+    if pr is None:
+        pr = repo.get_pull(pr_number)
     pr_title = pr.title
     pr_body = pr.body or ""
     pr_file_path = None

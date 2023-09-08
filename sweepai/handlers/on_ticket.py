@@ -18,6 +18,7 @@ from sweepai.core.documentation_searcher import extract_relevant_docs
 
 from sweepai.core.entities import (
     ProposedIssue,
+    SandboxExecution,
     Snippet,
     NoFilesException,
     SweepContext,
@@ -908,6 +909,7 @@ def on_ticket(
             if isinstance(item, dict):
                 response = item
                 break
+            sandbox_execution: SandboxExecution
             file_change_request, changed_file, sandbox_execution = item
             error_logs = ("\n\n" + sandbox_execution.error_messages[-1]) if sandbox_execution else ""
             if changed_file:
