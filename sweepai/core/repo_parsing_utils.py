@@ -8,6 +8,16 @@ from sweepai.utils.utils import chunk_code
 
 
 def filter_file(file, sweep_config):
+    """
+    Check if a file should be filtered based on its size and other criteria.
+
+    Args:
+        file (str): The path to the file.
+        sweep_config (SweepConfig): The configuration object.
+
+    Returns:
+        bool: True if the file should be included, False otherwise.
+    """
     for ext in sweep_config.exclude_exts:
         if file.endswith(ext):
             return False
@@ -26,7 +36,7 @@ def filter_file(file, sweep_config):
             return False
 
     with open(file, "rb") as f:
-        if len(f.read()) > 60000:
+        if os.stat(file).st_size > 60000:
             return False
     return True
 

@@ -1,4 +1,4 @@
-version: '3'
+version: '2'
 services:
   app:
     build:
@@ -9,7 +9,10 @@ services:
       - .:/app
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
+    mem_limit: 48g
     command: >
-      sh bin/startup.sh
+      sh -c "echo PORT: ${PORT:-8080} && . bin/startup.sh"
     stdin_open: true
     tty: true
+    environment:
+      - PORT=${PORT:-8080}
