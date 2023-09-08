@@ -473,35 +473,42 @@ async def webhook(raw_request: Request):
                 repo = g.get_repo(request.repository.full_name)
                 pull_requests = request.check_run.pull_requests
                 if pull_requests:
-                    pull_request = repo.get_pull(
-                        request.check_run.pull_requests[0].number
-                    )
-                    if (
-                        len(request.check_run.pull_requests) > 0
-                        and pull_request.user.login.lower().startswith("sweep")
-                        and request.check_run.conclusion == "failure"
-                        and not pull_request.title.startswith("[DRAFT]")
-                        and pull_request.labels
-                        and any(
-                            label.name.lower() == "sweep"
-                            for label in pull_request.labels
+                    # TODO: why does this error? try/catch to handle github requests
+                    try:
+                        pull_request = repo.get_pull(
+                            request.check_run.pull_requests[0].number
                         )
-                    ):
-                        logger.info("Handling check suite")
-                        pr_change_request = PRChangeRequest(
-                            type="gha", params={"request": request}
-                        )
-                        push_to_queue(
-                            repo_full_name=request.repository.full_name,
-                            pr_id=request.check_run.pull_requests[0].number,
-                            pr_change_request=pr_change_request,
-                        )
-                    else:
-                        logger.info(
-                            "Skipping check suite for"
-                            f" {request.repository.full_name} because it is not a failure"
-                            " or not from the bot or is a draft"
-                        )
+                        if (
+                            len(request.check_run.pull_requests) > 0
+                            and pull_request.user.login.lower().startswith("sweep")
+                            and request.check_run.conclusion == "failure"
+                            and not pull_request.title.startswith("[DRAFT]")
+                            and pull_request.labels
+                            and any(
+                                label.name.lower() == "sweep"
+                                for label in pull_request.labels
+                            )
+                        ):
+                            logger.info("Handling check suite")
+                            pr_change_request = PRChangeRequest(
+                                type="gha", params={"request": request}
+                            )
+                            push_to_queue(
+                                repo_full_name=request.repository.full_name,
+                                pr_id=request.check_run.pull_requests[0].number,
+                                pr_change_request=pr_change_request,
+                            )
+                        else:
+                            logger.info(
+                                "Skipping check suite for"
+                                f" {request.repository.full_name} because it is not a failure"
+                                " or not from the bot or is a draft"
+                            )
+                    except Exception as e:
+                        print("FAILED check_run completed")
+                        logger.error(f"Failed to handle check suite: {e}")
+                        # print traceback
+                        logger.error(str(e), exc_info=True)
                 else:
                     logger.info("No pull requests, passing")
             case "installation_repositories", "added":
