@@ -25,7 +25,7 @@ SENTENCE_TRANSFORMERS_MODEL = os.environ.get(
     "SENTENCE_TRANSFORMERS_MODEL",
     "sentence-transformers/all-MiniLM-L6-v2",  # "all-mpnet-base-v2"
 )
-BATCH_SIZE = os.environ.get("BATCH_SIZE", 32) # Tune this to 32 for sentence-transformers/all-MiniLM-L6-v2 on CPU
+BATCH_SIZE = int(os.environ.get("BATCH_SIZE", 32)) # Tune this to 32 for sentence-transformers/all-MiniLM-L6-v2 on CPU
 
 ENV = os.environ.get("ENV", "dev")
 # ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
