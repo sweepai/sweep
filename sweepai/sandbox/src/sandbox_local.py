@@ -11,9 +11,9 @@ from fastapi import FastAPI, Request
 from pydantic import BaseModel
 import docker
 
-from sweepai.config.server import DISCORD_WEBHOOK_URL
-from sweepai.sandbox.src.chat import fix_file
-from sweepai.sandbox.src.sandbox_utils import Sandbox
+# from sweepai.config.server import DISCORD_WEBHOOK_URL
+from src.chat import fix_file
+from src.sandbox_utils import Sandbox
 
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi import FastAPI, Request
@@ -84,6 +84,7 @@ def discord_log_error(content, priority=0):
     """
     priority: 0 (high), 1 (medium), 2 (low)
     """
+    DISCORD_WEBHOOK_URL = None
     if DISCORD_WEBHOOK_URL:
         try:
             data = {"content": content}
@@ -159,6 +160,7 @@ async def run_sandbox(request: Request):
                     raise Exception(output)
                 return output
 
+            run_command("ls")
             # Install dependencies
             run_command(sandbox.install_command)
 
