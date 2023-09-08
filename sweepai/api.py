@@ -507,8 +507,6 @@ async def webhook(raw_request: Request):
                     except Exception as e:
                         print("FAILED check_run completed")
                         logger.error(f"Failed to handle check suite: {e}")
-                        # print traceback
-                        logger.error(str(e), exc_info=True)
                 else:
                     logger.info("No pull requests, passing")
             case "installation_repositories", "added":

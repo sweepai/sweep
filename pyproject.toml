@@ -61,6 +61,7 @@ posthog = "^3.0.1"
 tree-sitter = "^0.20.1"
 tree-sitter-languages = "^1.7.0"
 eventlet = "^0.33.3"
+replicate = "^0.11.0"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.17.4"
