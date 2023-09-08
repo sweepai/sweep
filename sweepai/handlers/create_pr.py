@@ -352,8 +352,11 @@ def add_config_to_top_repos(request: InstallationCreatedRequest, max_repos=3):
 
     # For each repo, create a branch based on main branch, then create PR to main branch
     for repo in sorted_repos:
-        print("Creating config for", repo.full_name)
-        create_config_pr(None, repo=repo)
+        try:
+            print("Creating config for", repo.full_name)
+            create_config_pr(None, repo=repo)
+        except Exception as e:
+            print(e)
 
 
 def create_gha_pr(g, repo):
