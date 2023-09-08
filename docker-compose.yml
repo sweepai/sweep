@@ -1,4 +1,4 @@
-version: '3'
+version: '2'
 services:
   app:
     build:
@@ -9,6 +9,7 @@ services:
       - .:/app
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
+    mem_limit: 16g
     command: >
       sh -c "echo PORT: ${PORT:-8080} && . bin/startup.sh"
     stdin_open: true
