@@ -134,7 +134,7 @@ def start_server(past_index):
         ]
     )
     kill_old_server(past_index)
-    check_killed_servers()
+    threading.Thread(target=check_killed_servers).start()
     used_indices.append(current_index)
     update_port(new_port)
 
