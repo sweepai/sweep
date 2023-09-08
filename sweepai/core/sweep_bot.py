@@ -671,9 +671,7 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str,
     ) -> FileCreation:
         chunks = []
-        original_file = self.repo.get_contents(
-            file_change_request.filename, branch=branch
-        )
+        original_file = self.repo.get_contents(file_change_request.filename, ref=branch)
         original_contents = original_file.decoded_content.decode("utf-8")
         contents = original_contents
         for snippet in chunk_code(
@@ -691,14 +689,14 @@ class SweepBot(CodeGenBot, GithubBot):
                 : min(len(file_change_request.instructions), 30)
             ]
         )
+        final_contents, sandbox_execution = self.check_sandbox(file_change_request.filename, contents)
         self.repo.update_file(
             file_change_request.filename,
             commit_message,
-            contents,
+            final_contents,
             sha=original_file.sha,
             branch=branch,
         )
-        final_contents, sandbox_execution = self.check_sandbox(file_change_request.filename, contents)
         return final_contents != original_contents, sandbox_execution
 
     def change_files_in_github(
@@ -736,6 +734,7 @@ class SweepBot(CodeGenBot, GithubBot):
         added_modify_hallucination = False
 
         for file_change_request in file_change_requests:
+            print(file_change_request.change_type, file_change_request.filename)
             changed_file = False
             try:
                 if self.is_blocked(file_change_request.filename, blocked_dirs)[

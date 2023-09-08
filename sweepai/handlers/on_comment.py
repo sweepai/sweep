@@ -90,10 +90,9 @@ def on_comment(
     )
     organization, repo_name = repo_full_name.split("/")
 
-    if pr is None:
-        _, g = get_github_client(installation_id)
-        repo = g.get_repo(repo_full_name)
-        pr = repo.get_pull(pr_number)
+    _token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    pr = repo.get_pull(pr_number)
     pr_title = pr.title
     pr_body = pr.body or ""
     pr_file_path = None
@@ -137,7 +136,7 @@ def on_comment(
 
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
-        use_faster_model = chat_logger.use_faster_model(g)
+        use_faster_model = chat_logger.use_faster_model()
     else:
         # Todo: chat_logger is None for MockPRs, which will cause all comments to use GPT-4
         is_paying_user = True

@@ -325,8 +325,8 @@ def on_ticket(
     progress_headers = [
         None,
         "Step 1: 🔍 Code Search",
-        "Step 2: 🧐 Snippet Analysis",
-        "Step 3: 📝 Planning",
+        "Step 2: 📍 Planning",
+        "Step 3: 📝 Summary",
         "Step 4: ⌨️ Coding",
         "Step 5: 🔁 Code Review",
     ]
@@ -911,6 +911,7 @@ def on_ticket(
             file_change_request, changed_file, sandbox_execution = item
             error_logs = ("\n\n" + sandbox_execution.error_messages[-1]) if sandbox_execution else ""
             if changed_file:
+                print("Changed File!")
                 commit_hash = repo.get_branch(pull_request.branch_name).commit.sha
                 commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
                 checkboxes_progress = [
@@ -921,6 +922,7 @@ def on_ticket(
                     ) for filename, instructions, progress in checkboxes_progress
                 ]
             else:
+                print("Didn't change file!")
                 checkboxes_progress = [
                     (
                         (f"`{filename}` ❌ Failed", instructions + error_logs, "X")

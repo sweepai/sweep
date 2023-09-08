@@ -12,9 +12,8 @@ from pydantic import BaseModel
 import docker
 
 from sweepai.config.server import DISCORD_WEBHOOK_URL
-
-from src.chat import fix_file
-from src.sandbox_utils import Sandbox
+from sweepai.sandbox.src.chat import fix_file
+from sweepai.sandbox.src.sandbox_utils import Sandbox
 
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi import FastAPI, Request
@@ -128,6 +127,7 @@ async def run_sandbox(request: Request):
             correct_key = key
             break
     sandbox = sandboxes.get(correct_key, Sandbox())
+    success, error_messages, updated_content = False, [], ""
     
     try:
         if sandbox_request.token:
@@ -143,7 +143,6 @@ async def run_sandbox(request: Request):
 
             print("Running sandbox...")
             error_message = ""
-            success, error_messages, updated_content = False, [], ""
 
             def wrap_command(command):
                 command = shlex.quote("cd repo && " + command.format(file_path=sandbox_request.file_path))
@@ -196,7 +195,6 @@ async def run_sandbox(request: Request):
     except Exception as e:
         error_message = str(e)
         discord_log_error(f"Error in {sandbox_request.repo_url}:\nfile: {sandbox_request.file_path}\ncontents: {sandbox_request.content}\n\nError messages:\n{error_message}")
-        raise e
 
     return {
         "success": success, 
