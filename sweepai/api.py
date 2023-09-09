@@ -30,6 +30,7 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
 )
+from sweepai.gitlab_api import GitLabAPI
 from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  # type: ignore
 from sweepai.handlers.create_pr import create_pr_changes, safe_delete_sweep_branch
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
@@ -44,6 +45,8 @@ from sweepai.utils.search_utils import index_full_repository
 app = FastAPI()
 
 import tracemalloc
+
+tracemalloc.start()
 
 tracemalloc.start()
 
@@ -155,11 +158,11 @@ def push_to_queue(repo_full_name: str, pr_id: int, pr_change_request: PRChangeRe
 
 @app.post("/")
 async def webhook(raw_request: Request):
-    """Handle a webhook request from GitHub."""
+    """Handle a webhook request from GitHub or GitLab."""
     try:
         request_dict = await raw_request.json()
         logger.info(f"Received request: {request_dict.keys()}")
-        event = raw_request.headers.get("X-GitHub-Event")
+        event = raw_request.headers.get("X-GitHub-Event") or raw_request.headers.get("X-GitLab-Event")
         assert event is not None
         action = request_dict.get("action", None)
         logger.bind(event=event, action=action)
@@ -172,7 +175,7 @@ async def webhook(raw_request: Request):
                     issue_title_lower.startswith("sweep")
                     or "sweep:" in issue_title_lower
                 ):
-                    _, g = get_github_client(request.installation.id)
+                    _, g = get_github_client(request.installation.id) if "X-GitHub-Event" in raw_request.headers else GitLabAPI(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
 
                     labels = repo.get_labels()
@@ -187,6 +190,14 @@ async def webhook(raw_request: Request):
                     # TODO(sweep): figure out why this is breaking
                     # else:
                     #     label = repo.get_label(LABEL_NAME)
+                    #     label.edit(
+                    #         name=LABEL_NAME,
+                    #         color=LABEL_COLOR,
+                    #         description=LABEL_DESCRIPTION
+                    #     )
+
+                    current_issue = repo.get_issue(number=request.issue.number)
+                    current_issue.add_to_labels(GITHUB_LABEL_NAME)
                     #     label.edit(
                     #         name=LABEL_NAME,
                     #         color=LABEL_COLOR,
