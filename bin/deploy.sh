@@ -14,6 +14,8 @@ while is_port_free $PORT; do
     ((PORT++))
 done
 
+echo "Found open port: $PORT"
+
 # Start new docker container
 docker pull sweepai/sweep:latest
 docker run --env-file .env -p $PORT:8080 -d sweepai/sweep:latest
@@ -34,4 +36,6 @@ echo $SESSION_EXISTS
 # Send the ngrok command to the "ngrok" screen session
 screen -S ngrok -X stuff $'\003 ngrok http --domain=sweep-prod.ngrok.dev '$PORT$'\n'
 
+echo
 echo "Command sent to screen session on port: $PORT"
+echo "To view the ngrok logs, run: screen -r ngrok"
