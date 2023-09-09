@@ -121,14 +121,14 @@ async def run_sandbox(request: Request):
     data = await request.json()
     sandbox_request = SandboxRequest(**data)
     print(sandbox_request.repo_url, sandbox_request.file_path, sandbox_request.token)
-    correct_key = None
-    repo_full_name = "/".join(sandbox_request.repo_url.split('/')[-2:])
-    for key in sandboxes.keys():
-        if repo_full_name.startswith(key):
-            correct_key = key
-            break
-    sandbox = sandboxes.get(correct_key, Sandbox())
-    success, error_messages, updated_content = False, [], ""
+    # correct_key = None
+    # repo_full_name = "/".join(sandbox_request.repo_url.split('/')[-2:])
+    # for key in sandboxes.keys():
+    #     if repo_full_name.startswith(key):
+    #         correct_key = key
+    #         break
+    # sandbox = sandboxes.get(correct_key, Sandbox())
+    success, outputs, error_messages, updated_content = False, [], [], ""
     
     try:
         if sandbox_request.token:
@@ -141,6 +141,10 @@ async def run_sandbox(request: Request):
             write_file(container, f'repo/{sandbox_request.file_path}', sandbox_request.content)
             print(f"Git Clone - Exit Code: {exit_code}")
             print(output.decode('utf-8'))
+
+            exit_code, output = container.exec_run(f"cat repo/sweep.yaml")
+            sandbox = Sandbox.from_yaml(output) if exit_code == 0 else Sandbox()
+            print(f"Running sandbox: {sandbox}")
 
             print("Running sandbox...")
             error_message = ""
@@ -163,16 +167,17 @@ async def run_sandbox(request: Request):
                 if exit_code != 0 and not ("prettier" in command and exit_code == 2):
                     raise Exception(output)
                 return output
-
-            # Install dependencies
-            run_command(sandbox.install_command)
+            
+            for command in sandbox.install:
+                print(command)
+                outputs.append(run_command(command))
 
             num_iterations = 15
             for i in range(1, num_iterations + 1):
                 try:
                     print(f"Trying to lint for the {i}/{num_iterations}th time")
-                    for command in sandbox.linter_command:
-                        run_command(command)
+                    for command in sandbox.check:
+                        outputs.append(run_command(command))
                 except Exception as e:
                     error_message = str(e)
                     if len(error_messages) >= 2 and error_message == error_messages[-1] and error_message == error_messages[-2]:
@@ -189,21 +194,19 @@ async def run_sandbox(request: Request):
             else:
                 raise Exception("Failed to fix the code")
 
-            print("Success!")
-            run_command(sandbox.format_command)
-            success = True
-
             # Read formatted file
+            success = True
             updated_content = read_file(container, f'repo/{sandbox_request.file_path}')
             print(f"Updated Contents:\n```\n{updated_content}\n```")
 
     except Exception as e:
         error_message = str(e)
-        discord_log_error(f"Error in {sandbox_request.repo_url}:\nfile: {sandbox_request.file_path}\ncontents: {sandbox_request.content}\n\nError messages:\n{error_message}")
+        discord_log_error(f"Error in {sandbox_request.repo_url}:\nFile: {sandbox_request.file_path}\nContents: {sandbox_request.content}\n\nError messages:\n{error_message}")
 
     return {
         "success": success, 
         "error_messages": error_messages,
+        "outputs": outputs,
         "updated_content": updated_content,
         "sandbox": sandbox.dict(),
     }

@@ -910,7 +910,7 @@ def on_ticket(
                 response = item
                 break
             file_change_request, changed_file, sandbox_execution = item
-            error_logs = ("\n\n" + sandbox_execution.error_messages[-1]) if sandbox_execution else ""
+            error_logs = ("\n\n" + sandbox_execution.outputs[-1]) if sandbox_execution else ""
             if changed_file:
                 print("Changed File!")
                 commit_hash = repo.get_branch(pull_request.branch_name).commit.sha

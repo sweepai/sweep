@@ -30,3 +30,4 @@ urllib3==2.0.4
 uvicorn==0.23.2
 websocket-client==1.6.2
 yarl==1.9.2
+pyyaml==6.0.1

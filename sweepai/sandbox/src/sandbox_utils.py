@@ -1,3 +1,6 @@
+import os
+
+import yaml
 from loguru import logger
 from pydantic import BaseModel
 from typing import Type, TypeVar, Any
@@ -70,6 +73,18 @@ class Sandbox(BaseModel):
     install: list[str] = ["trunk init"]
     check: list[str] = ["trunk check {file_path}", "trunk fmt {file_path}"]
 
+    @classmethod
+    def from_yaml(cls, yaml_string: str):
+        config = yaml.load(yaml_string, Loader=yaml.FullLoader)
+        return cls(**config.get("sandbox", {}))
+
+    @classmethod
+    def from_config(cls, path: str = "sweep.yaml"):
+        if os.path.exists(path):
+            return cls.from_yaml(open(path).read())
+        else:
+            return cls()
+    
 # class Sandbox(BaseModel):
 #     # Make these multi-command
 #     install_command: str = None
