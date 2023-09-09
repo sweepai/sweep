@@ -1,6 +1,6 @@
 # Deploying your own Sweep instance via Docker
 
-*🎉 We recently changed our license to the Elastic License V2 to allow Sweep for commercial usage.*
+_🎉 We recently changed our license to the Elastic License V2 to allow Sweep for commercial usage._
 
 This is the guide for self-deploying Sweep. If you would like to use our hosted version, please visit https://sweep.ai. If you would like to develop on Sweep, check out [development](https://github.com/sweepai/sweep?tab=readme-ov-file#development).
 
@@ -11,18 +11,13 @@ This is the guide for self-deploying Sweep. If you would like to use our hosted 
 [![Video](http://img.youtube.com/vi/myXAMKZI6Jk/0.jpg)](https://www.youtube.com/watch?v=myXAMKZI6Jk "Deploying Sweep Video Guide")
 
 After finishing the steps in the video, please complete these two steps:
+
 - Add your GitHub App name to the secrets as `GITHUB_BOT_USERNAME`
-- Complete the `Set Webhook URL in GitHub` step once your Digital Ocean instance has finished deploying.
-
-
----
-
-## 1. Create GitHub App - Run Locally (5 min)
+  If you would like to set it up yourself, scroll down to the Manual GitHub App Setup section.
 
 We created an app using `npm` to make it easier to set up the GitHub App. If you do not have it installed, install it [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm). If you would like ot set it up yourself, scroll down to the **Manual GitHub App Setup** section.
 
 > Run this GitHub App locally! This tool is only used for creating the GitHub App, not hosting Sweep.
->
 
 First, open a terminal and run the following commands:
 
@@ -34,6 +29,7 @@ npm start
 ```
 
 Second, open http://localhost:3000 in your browser, and:
+
 1. Click the "Register GitHub App" button.
 2. Click the green "Create GitHub App for USERNAME" button.
 3. Pick where to install the app and then click the green "Install" button. This will take you to the app settings page.
@@ -59,12 +55,14 @@ GITHUB_CLIENT_SECRET=6g626312b212142132121321412
 ```
 
 Keep this terminal open, we will need the `PRIVATE_KEY` and `APP_ID` later:
+
 ```sh
 APP_ID=123456
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
 ```
 
 And, please note your GitHub App name:
+
 ```sh
 GITHUB_BOT_USERNAME=sweep-example-name
 ```
@@ -74,6 +72,7 @@ GITHUB_BOT_USERNAME=sweep-example-name
 ## 2. OpenAI API Token
 
 Please create an OpenAI API token at https://platform.openai.com/account/api-keys. You will need this later. Also, if you have access to the 32k model, please set `OPENAI_DO_HAVE_32K_MODEL_ACCESS=true`. If you have a beefier machine and want higher quality search, change the sentence transformers model to `sentence-transformers/all-mpnet-base-v2`.
+
 ```sh
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
@@ -84,21 +83,26 @@ SENTENCE_TRANSFORMERS_MODEL=sentence-transformers/all-MiniLM-L6-v2
 
 ## 3. Deploying Sweep
 
-*Starting here it gets more involved so if you run into issues, please reach out to us on [Discord](https://discord.gg/sweep) or open a GitHub issue (ironic, we know!) at https://github.com/sweepai/sweep/issues. We are online, please ping us @kevin, @william, and @luke.*
+_Starting here it gets more involved so if you run into issues, please reach out to us on [Discord](https://discord.gg/sweep) or open a GitHub issue (ironic, we know!) at https://github.com/sweepai/sweep/issues. We are online, please ping us @kevin, @william, and @luke._
 
 As Sweep is Dockerized, you can deploy this anywhere but for this guide, we will deploy it on Digital Ocean for simplicity. If you would like to run it locally, you can follow the section in the dropdown at the bottom of this guide.
 
 First, click the following:
 
-<p style={{marginTop: 16, marginBottom: 32}}>
-    <a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/sweepai/sweep/tree/main">
-        <img src="https://www.deploytodo.com/do-btn-blue-ghost.svg" alt="Deploy to DO"/>
-    </a>
+<p style={{ marginTop: 16, marginBottom: 32 }}>
+  <a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/sweepai/sweep/tree/main">
+    <img
+      src="https://www.deploytodo.com/do-btn-blue-ghost.svg"
+      alt="Deploy to DO"
+    />
+  </a>
 </p>
 
 <details>
-<summary><h3>1. Skip Resources Page</h3></summary>
-<img src="/deployment/digitalocean_step1.png" alt="Skip Resources Page" />
+  <summary>
+    <h3>1. Skip Resources Page</h3>
+  </summary>
+  <img src="/deployment/digitalocean_step1.png" alt="Skip Resources Page" />
 </details>
 
 <details>
@@ -114,7 +118,6 @@ In the `Environment Variable Editor`, copy and paste the environment variables f
 Click `Save` to close the Bulk Editor, then click `Save` again to save the varaibles.
 
 > It is important that you click save twice, otherwise the variables will not be saved.
->
 
 </details>
 
@@ -134,6 +137,7 @@ SENTENCE_TRANSFORMERS_MODEL=sentence-transformers/all-MiniLM-L6-v2
 <summary><h3>3. Info</h3></summary>
 
 Modify any information as needed, then click `Next`.
+
 </details>
 
 <details>
@@ -141,6 +145,7 @@ Modify any information as needed, then click `Next`.
 First, click `Edit Plan` in the `Billing` section.
 
 Then, set the Instance Size.
+
 <img src="/deployment/digitalocean_step5.png" alt="Skip Resources Page" />
 
 Please select an instance with at least 2 GB RAM. The default 1 GB RAM instance will not work.
@@ -151,19 +156,22 @@ Please select an instance with at least 2 GB RAM. The default 1 GB RAM instance 
 <summary><h3>5. Create Resources!</h3></summary>
 
 Simply click the button to create the instance.
+
 </details>
 
 <details>
 <summary><h3>6. Set Webhook URL in GitHub (Important)</h3></summary>
 
 Once the resource is created, you should get a link like this:
+
 <img src="/deployment/digitalocean_step6.png" alt="Skip Resources Page" />
 
 Navigating to this link should look like this:
+
 <img src="/deployment/digitalocean_step7.png" alt="Skip Resources Page" />
 
 1. Copy this link to your clipboard.
-2. Go to your GitHub App and paste this link into the `General` tab `Webhook URL` field.  Ensure SSL verification remains active.
+2. Go to your GitHub App and paste this link into the `General` tab `Webhook URL` field. Ensure SSL verification remains active.
 
 <img src="/deployment/digitalocean_step9.png" alt="Skip Resources Page" />
 </details>
@@ -185,44 +193,47 @@ If you were unable to set up the GitHub App using the above steps, you can follo
 <details>
 <summary><h2>Alternative to 1: Manual GitHub App Setup</h2></summary>
 
-<i>Only follow this section if you were unable to set up the GitHub App using the above steps.</i>
+<i>
+  Only follow this section if you were unable to set up the GitHub App using the
+  above steps.
+</i>
 
 ### Option B: Manual Setup (15 min)
+
 Register a new GitHub App, following this [guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) (3 minutes). You should return here after step 16(it's not as bad as it seems, most steps are optional).
 
 Use the below as a reference:
 
 Set the Repository Permissions (7 selected):
 
-| Scope            | Permissions      |
-|------------------|------------------|
-| actions          | read             |
-| checks           | read             |
-| contents         | read & write     |
-| commit statuses  | read & write     |
-| issues           | read & write     |
-| metadata         | read             |
-| pull requests    | read & write     |
-| workflows        | read & write     |
+| Scope           | Permissions  |
+| --------------- | ------------ |
+| actions         | read         |
+| checks          | read         |
+| contents        | read & write |
+| commit statuses | read & write |
+| issues          | read & write |
+| metadata        | read         |
+| pull requests   | read & write |
+| workflows       | read & write |
 
-
-| Subscribe to events      |
-|--------------------------|
-| check run                |
-| check suite              |
-| commit comment           |
-| create                   |
-| issue comment            |
-| issues                   |
-| label                    |
-| pull request             |
-| pull request review      |
-| pull request review comment|
-| pull request thread      |
-| push                     |
-| status                   |
-| workflow job             |
-| workflow run             |
+| Subscribe to events         |
+| --------------------------- |
+| check run                   |
+| check suite                 |
+| commit comment              |
+| create                      |
+| issue comment               |
+| issues                      |
+| label                       |
+| pull request                |
+| pull request review         |
+| pull request review comment |
+| pull request thread         |
+| push                        |
+| status                      |
+| workflow job                |
+| workflow run                |
 
 Put a placeholder url for now (ex: https://github.com/sweepai/sweep/).
 Generate a private key (it should prompt you at the top of the screen, or alternatively follow [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps)) and save it for later. This is your `private-key.pem` for step 2.
@@ -234,6 +245,7 @@ You will also need your app ID, which is the number at the top of the page. This
 ![image](/deployment/appid.png)
 
 Click Install App to install it on your account or organization. Point it to a repo which you want to use Sweep on. This repo cannot be empty. If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).
+
 </details>
 
 <details>
@@ -271,4 +283,4 @@ Then proceed with step 4.
 
 ---
 
-*There's additional configurable settings like Redis caching and GPU-accelerated embeddings that we use for our hosted product that we can document further for self-hosting. If this interests you please contact us at https://discord.gg/sweep.*
+_There's additional configurable settings like Redis caching and GPU-accelerated embeddings that we use for our hosted product that we can document further for self-hosting. If this interests you please contact us at https://discord.gg/sweep._
