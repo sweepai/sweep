@@ -303,18 +303,21 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
     repo = sweep_bot.repo if sweep_bot is not None else repo
     # Check if the pull request from this branch to main already exists.
     # If it does, then we don't need to create a new one.
-    pull_requests = repo.get_pulls(
-        state="open",
-        sort="created",
-        base=SweepConfig.get_branch(repo)
-        if sweep_bot is not None
-        else repo.default_branch,
-        head=branch_name,
-    )
-    for pr in pull_requests:
-        if pr.title == title:
-            return pr
+    if repo is not None:
+        pull_requests = repo.get_pulls(
+            state="open",
+            sort="created",
+            base=SweepConfig.get_branch(repo)
+            if sweep_bot is not None
+            else repo.default_branch,
+            head=branch_name,
+        )
+        for pr in pull_requests:
+            if pr.title == title:
+                return pr
 
+    print("Default branch", repo.default_branch)
+    print("New branch", branch_name)
     pr = repo.create_pull(
         title=title,
         body="""🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
@@ -370,6 +373,7 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
             create_config_pr(None, repo=repo)
         except Exception as e:
             print(e)
+    print("Finished creating configs for top repos")
 
 
 def create_gha_pr(g, repo):
