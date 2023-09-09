@@ -143,6 +143,10 @@ VECTOR_EMBEDDING_SOURCE = os.environ.get(
     "VECTOR_EMBEDDING_SOURCE", "sentence-transformers"
 )  # Alternate option is openai or huggingface and set the corresponding env vars
 
+# specific setting for sweep to hit 32k first
+TRY_AZURE_FIRST_FOR_32K = os.environ.get("TRY_AZURE_FIRST_FOR_32K", "false").lower() == "true"
+ALT_OPENAI_KEY = os.environ.get("ALT_OPENAI_KEY", None)
+
 # Huggingface settings, only checked if VECTOR_EMBEDDING_SOURCE == "huggingface"
 HUGGINGFACE_URL = os.environ.get("HUGGINGFACE_URL", None)
 HUGGINGFACE_TOKEN = os.environ.get("HUGGINGFACE_TOKEN", None)
