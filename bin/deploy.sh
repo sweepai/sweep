@@ -34,7 +34,9 @@ fi
 echo $SESSION_EXISTS
 
 # Send the ngrok command to the "ngrok" screen session
-screen -S ngrok -X stuff $'\003 ngrok http --domain=sweep-prod.ngrok.dev '$PORT$'\n'
+screen -S ngrok -X stuff $'\003'
+sleep 1
+screen -S ngrok -X stuff $'ngrok http --domain=sweep-prod.ngrok.dev '$PORT$'\n'
 
 echo
 echo "Command sent to screen session on port: $PORT"
