@@ -1,6 +1,5 @@
 #!/bin/bash
 
-cd ~/sweep
 PORT=8080
 
 # Function to check if a port is free
@@ -17,7 +16,8 @@ done
 echo "Found open port: $PORT"
 
 # Start new docker container
-docker pull sweepai/sweep:latest
+cd ~/sweep
+docker build -t sweepai/sweep:latest .
 docker run --env-file .env -p $PORT:8080 -d sweepai/sweep:latest
 
 # Check if the "ngrok" screen session exists
