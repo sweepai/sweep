@@ -64,9 +64,11 @@ LINT_CONFIG = """module.exports = {
 
 class Sandbox(BaseModel):
     # Make these multi-command
-    install_command: str = "trunk init"
-    linter_command: list[str] = ["trunk check {file_path}"]
-    format_command: str = "trunk fmt {file_path}"
+    # install_command: str = "trunk init"
+    # linter_command: list[str] = ["trunk check {file_path}"]
+    # format_command: str = "trunk fmt {file_path}"
+    install: list[str] = ["trunk init"]
+    check: list[str] = ["trunk check {file_path}", "trunk fmt {file_path}"]
 
 # class Sandbox(BaseModel):
 #     # Make these multi-command

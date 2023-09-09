@@ -148,19 +148,22 @@ async def run_sandbox(request: Request):
             def wrap_command(command):
                 command = shlex.quote("cd repo && " + command.format(file_path=sandbox_request.file_path))
                 return f"bash -c {command}"
+
+            def summarize_logs(logs):
+                output_lines = logs.split('\n')
+                if len(output_lines) > 10:
+                    return "\n".join(output_lines[:5]) + "\n...\n" + "\n".join(output_lines[-5:])
+                return logs
             
             def run_command(command):
                 print(f"\n\n### Running {command} ###\n")
                 exit_code, output = container.exec_run(wrap_command(command), stderr=True)
                 output = output.decode('utf-8')
-                # print(output)
-                output_lines = output.split('\n')
-                print("\n".join(output_lines[:5]) + "\n...\n" + "\n".join(output_lines[-5:]))
+                print(summarize_logs(output))
                 if exit_code != 0 and not ("prettier" in command and exit_code == 2):
                     raise Exception(output)
                 return output
 
-            run_command("ls")
             # Install dependencies
             run_command(sandbox.install_command)
 
