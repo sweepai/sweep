@@ -25,12 +25,9 @@ echo "Found open port: $PORT"
 # Start new docker container
 cd ~/sweep
 
-docker compose up webhook sandbox-web --build
-# docker run --name sandbox-web --env-file .env -v /var/run/docker.sock:/var/run/docker.sock -p 8081:8080 -d sweepai/sandbox-web
-
-# docker compose doesn't seem to build the sweepai/sweep image properly
-# docker build -t sweepai/sweep:latest .
-# docker run --env-file .env -p $PORT:8080 -d sweepai/sweep:latest
+docker compose up webhook -d --build
+docker compose kill sandbox-web
+docker compose up sandbox-web -d --build
 
 # Check if the "ngrok" screen session exists
 screen -list | grep -q "\bngrok\b"
