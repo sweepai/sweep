@@ -52,7 +52,42 @@ def tokenize_call(code, top_words=None):
 
 def construct_query(query, top_words=None):
     terms = tokenize_call(query, top_words)
+    bigrams = construct_bigrams(terms)
+    trigrams = construct_trigrams(terms)
+    terms.extend(bigrams); terms.extend(trigrams)
     return Or([Term("content", term.text) for term in terms])
+
+def construct_bigrams(tokens):
+    res = []
+    prev_token = None
+    for token in tokens:
+        if prev_token:
+            joined_token = Token(text=prev_token.text + "_" + token.text, 
+                                pos=prev_token.pos, 
+                                startchar=prev_token.startchar,
+                                end_pos=token.end_pos,
+                                endchar=token.endchar,
+                                )
+            res.append(joined_token)
+        prev_token = token
+    return res
+
+def construct_trigrams(tokens):
+    res = []
+    prev_prev_token = None
+    prev_token = None
+    for token in tokens:
+        if prev_token and prev_prev_token:
+            joined_token = Token(text=prev_prev_token.text + "_" + prev_token.text + "_" + token.text, 
+                                pos=prev_prev_token.pos, 
+                                startchar=prev_prev_token.startchar,
+                                end_pos=token.end_pos,
+                                endchar=token.endchar,
+                                )
+            res.append(joined_token)
+        prev_prev_token = prev_token
+        prev_token = token
+    return res
 
 class CodeTokenizer(Tokenizer):
     def __init__(self, top_words=None):
@@ -72,6 +107,9 @@ class CodeTokenizer(Tokenizer):
     ):
 
         tokens = tokenize_call(value, self.top_words)
+        bigrams = construct_bigrams(tokens)
+        trigrams = construct_trigrams(tokens)
+        tokens.extend(bigrams); tokens.extend(trigrams)
         for token in tokens:
             yield token
 

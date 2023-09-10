@@ -36,13 +36,13 @@ RUN apt-get update && apt-get install -y redis-server
 
 FROM base as final
 
+COPY sweepai/startup.py /app/sweepai/startup.py
+RUN python sweepai/startup.py
+
 COPY sweepai /app/sweepai
 COPY bin/startup.sh /app/startup.sh
 COPY redis.conf /app/redis.conf
 RUN chmod u+x /app/startup.sh
-
-# Has some startup logic
-RUN python sweepai/startup.py
 
 EXPOSE 8080
 CMD ["/app/startup.sh"]
