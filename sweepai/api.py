@@ -1,7 +1,7 @@
 import ctypes
-from queue import Queue
 import sys
 import threading
+from queue import Queue
 
 from celery.result import AsyncResult
 from fastapi import FastAPI, HTTPException, Request
@@ -33,8 +33,12 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
 )
-from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  # type: ignore
-from sweepai.handlers.create_pr import create_pr_changes, safe_delete_sweep_branch
+from sweepai.handlers.create_pr import (  # type: ignore
+    add_config_to_top_repos,
+    create_gha_pr,
+    create_pr_changes,
+    safe_delete_sweep_branch,
+)
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_ticket import on_ticket
@@ -79,14 +83,16 @@ def run_ticket(*args, **kwargs):
     on_ticket(*args, **kwargs)
     logger.info("Done with on_ticket")
 
+
 def run_on_check_suite(*args, **kwargs):
     request = kwargs["request"]
     pr_change_request = on_check_suite(request)
-    if pr_change_request: 
+    if pr_change_request:
         call_on_comment(**pr_change_request.params)
         logger.info("Done with on_check_suite")
     else:
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
+
 
 def run_comment(*args, **kwargs):
     on_comment(*args, **kwargs)
@@ -108,14 +114,18 @@ def call_on_ticket(*args, **kwargs):
     on_ticket_events[key] = thread
     thread.start()
 
+
 def call_on_check_suite(*args, **kwargs):
-    repo_full_name = kwargs['request'].repository.full_name
-    pr_number = kwargs['request'].check_run.pull_requests[0].number
+    repo_full_name = kwargs["request"].repository.full_name
+    pr_number = kwargs["request"].check_run.pull_requests[0].number
     key = f"{repo_full_name}-{pr_number}"
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
-def call_on_comment(*args, **kwargs): # TODO: if its a GHA delete all previous GHA and append to the end
+
+def call_on_comment(
+    *args, **kwargs
+):  # TODO: if its a GHA delete all previous GHA and append to the end
     global events
     repo_full_name = kwargs["repo_full_name"]
     pr_id = kwargs["pr_number"]
@@ -130,11 +140,14 @@ def call_on_comment(*args, **kwargs): # TODO: if its a GHA delete all previous G
             run_comment(*task_args, **task_kwargs)
 
     events[key].put((args, kwargs))
-    
+
     # If a thread isn't running, start one
-    if not any(thread.name == key and thread.is_alive() for thread in threading.enumerate()):
+    if not any(
+        thread.name == key and thread.is_alive() for thread in threading.enumerate()
+    ):
         thread = threading.Thread(target=worker, name=key)
         thread.start()
+
 
 @app.get("/health")
 def health_check():
@@ -147,6 +160,7 @@ def health_check():
 @app.get("/", response_class=HTMLResponse)
 def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
+
 
 @app.post("/")
 async def webhook(raw_request: Request):
@@ -584,6 +598,11 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
     repo = g.get_repo(repo_full_name)
     config = SweepConfig.get_config(repo)
 
+    # Function to create issues from diffs
+    def create_issues_from_diffs(diff_before_merge, diff_after_merge):
+        # TODO: Implement the function to create GitHub issues based on the diffs
+        pass
+
     try:
         branch_ttl = int(config.get("branch_ttl", 7))
     except:
@@ -606,11 +625,24 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                 ) and not feature_branch.startswith("sweep_"):
                     continue
 
+                # Get the diff before the merge
+                diff_before_merge = repo.compare(
+                    base=repo.default_branch, head=feature_branch
+                ).diff
+
                 repo.merge(
                     feature_branch,
                     repo.default_branch,
                     f"Merge main into {feature_branch}",
                 )
+
+                # Get the diff after the merge
+                diff_after_merge = repo.compare(
+                    base=repo.default_branch, head=feature_branch
+                ).diff
+
+                # Create issues from the diffs
+                create_issues_from_diffs(diff_before_merge, diff_after_merge)
 
                 # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
                 logger.info(
