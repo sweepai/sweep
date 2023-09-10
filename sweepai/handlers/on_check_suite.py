@@ -6,6 +6,7 @@ import openai
 import requests
 from loguru import logger
 
+from sweepai.core.entities import PRChangeRequest
 from sweepai.core.gha_extraction import GHAExtractor
 from sweepai.events import CheckRunCompleted
 from sweepai.handlers.on_comment import on_comment
@@ -156,19 +157,23 @@ def on_check_suite(request: CheckRunCompleted):
             " on fixing this PR."
         )
         logger.warning("Skipping logs because it is duplicated")
-        return {"error": "Duplicate error logs"}
+        return None
     comment = pr.as_issue().create_comment(
         log_message.format(error_logs=problematic_logs)
     )
-    on_comment(
-        repo_full_name=request.repository.full_name,
-        repo_description=request.repository.description,
-        comment=problematic_logs,
-        pr_path=None,
-        pr_line_position=None,
-        username=request.sender.login,
-        installation_id=request.installation.id,
-        pr_number=request.check_run.pull_requests[0].number,
-        comment_id=comment.id,
-    )
-    return {"success": True}
+    pr_change_request = PRChangeRequest(
+                type="comment",
+                params={
+                    "repo_full_name": request.repository.full_name,
+                    "repo_description": request.repository.description,
+                    "comment": problematic_logs,
+                    "pr_path": None,
+                    "pr_line_position": None,
+                    "username": request.sender.login,
+                    "installation_id": request.installation.id,
+                    "pr_number": request.check_run.pull_requests[0].number,
+                    "comment_id": comment.id,
+                },
+            )
+    return pr_change_request
+    
