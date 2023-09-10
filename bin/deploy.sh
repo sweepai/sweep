@@ -26,7 +26,7 @@ echo "Found open port: $PORT"
 cd ~/sweep
 # docker build -t sweepai/sweep:latest .
 docker compose build
-docker run --env-file .env -p 8081:8080 -d sweepai/sandbox-web
+docker run --name sandbox-web --env-file .env -v /var/run/docker.sock:/var/run/docker.sock -p 8081:8080 -d sweepai/sandbox-web
 docker run --env-file .env -p $PORT:8080 -d sweepai/sweep:latest
 
 # Check if the "ngrok" screen session exists
