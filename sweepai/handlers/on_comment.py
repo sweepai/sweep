@@ -219,7 +219,7 @@ def on_comment(
             original_line = pr_lines[pr_line_position - 1]
             pr_chunk = "\n".join(pr_lines[start:end])
             pr_file_path = pr_path.strip()
-            formatted_pr_chunk = "\n".join([line + f" <-- {comment}" if line == original_line else line for line in pr_lines[start:end]])
+            formatted_pr_chunk = "\n".join(pr_lines[start:pr_line_position - 1]) + f"{pr_lines[pr_line_position - 1]} <-- {comment}" + "\n".join(pr_lines[pr_line_position:end])
         if file_comment:
             snippets = []
             tree = ""
@@ -281,7 +281,7 @@ def on_comment(
             file_change_requests = [
                 FileChangeRequest(
                     filename=pr_file_path,
-                    instructions=f"The user left a comment in this chunk of code:\n<review_code_chunk>{formatted_pr_chunk}</review_code_chunk>\n. Resolve their comment.",
+                    instructions=f"The user left a comment in this chunk of code:\n<review_code_chunk>{formatted_pr_chunk}\n</review_code_chunk>\n. Resolve their comment.",
                     change_type="modify",
                 )
             ]
