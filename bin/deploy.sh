@@ -1,5 +1,10 @@
 #!/bin/bash
 
+echo "Removing old docker runs"
+echo `echo `docker ps``
+echo Removed `docker ps -q | awk 'NR>4'`
+docker ps -q | awk 'NR>4' | xargs docker rm -f
+
 PORT=8080
 
 # Function to check if a port is free
@@ -13,6 +18,7 @@ while is_port_free $PORT; do
     ((PORT++))
 done
 
+echo
 echo "Found open port: $PORT"
 
 # Start new docker container
