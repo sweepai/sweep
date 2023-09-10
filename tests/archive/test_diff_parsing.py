@@ -1,146 +1,32 @@
 from sweepai.utils.diff import generate_new_file_from_patch
 
 old_file = r"""
-import { EmailIcon, HamburgerIcon } from "@chakra-ui/icons";
-import {
-  Box,
-  Button,
-  ButtonGroup,
-  Flex,
-  HStack,
-  IconButton,
-  Image,
-  Menu,
-  MenuButton,
-  MenuItem,
-  MenuList,
-  useBreakpointValue,
-} from "@chakra-ui/react";
-import { Link } from 'react-router-dom';
-import { FaDiscord, FaGithub, FaTwitter } from "react-icons/fa";
-import logo from "../assets/icon.png";
+## August 5, 2023
 
-export default function NavBar() {
-  const listDisplay = useBreakpointValue({ base: "none", lg: "flex" });
-  const menuDisplay = useBreakpointValue({ base: "flex", lg: "none" });
-  const navItems = [
-    {
-      label: "Twitter",
-      icon: <FaTwitter />,
-      link: "https://twitter.com/sweep__ai",
-    },
-    {
-      label: "Github",
-      icon: <FaGithub />,
-      link: "https://github.com/sweepai/sweep",
-    },
-    {
-      label: "Discord",
-      icon: <FaDiscord />,
-      link: "https://discord.gg/sweep",
-    },
-    {
-      label: "Email",
-      icon: <EmailIcon />,
-      link: "mailto:team@sweep.dev",
-    },
-    // {
-    //   label: "Buy Sweep Pro",
-    //   icon: <p>Buy Sweep Pro</p>,
-    //   link: "https://buy.stripe.com/fZe03512h99u0AE6os",
-    // },
-  ];
-
-  return (
-    <Box as="nav" bg="bg-surface" boxShadow="sm" width="full" p={4}>
-      <HStack spacing="10" justify="space-between">
-        <Flex justify="space-between" flex="1">
-          <HStack>
-            <Link to="/">
-              <Button variant="ghost">
-                <Image src={logo} alt="logo" width={10} borderRadius={12} />
-                Sweep AI
-              </Button>
-            </Link>
-            <Button variant="ghost" onClick={() => window.open("https://docs.sweep.dev", "_blank")}>
-              Documentation
-            </Button>
-            <Link to="/about-us">
-              <Button variant="ghost">
-                About Us
-              </Button>
-            </Link>
-            {/* Removed conditional rendering of PricingModal */}
-          </HStack>
-<ButtonGroup variant="link" display={listDisplay}>
-  {navItems.map((item) => (
-    <IconButton
-      key={item.label}
-      icon={item.icon}
-      variant="ghost"
-      aria-label={item.label}
-      onClick={() => {
-        window.open(item.link, "_blank");
-      }}
-      px={2}
-    />
-  ))}
-            {/* Added PricingModal to always be displayed */}
-  <Link to="/pricing">
-    <Button variant="ghost">
-      Pricing
-    </Button>
-  </Link>
-</ButtonGroup>
-          <Menu>
-            <MenuButton
-              as={IconButton}
-              aria-label='Options'
-              icon={<HamburgerIcon />}
-              variant='outline'
-              display={menuDisplay}
-            />
-            <MenuList
-              backgroundColor="#333"
-            >
-              {navItems.map((item) => (
-                <MenuItem backgroundColor="#333">
-                  {item.label}
-                  {
-                    item.label !== "Buy Sweep Pro" &&
-                    <IconButton
-                      key={item.label}
-                      icon={item.icon}
-                      variant="ghost"
-                      aria-label={item.label}
-                      onClick={() => {
-                        window.open(item.link, "_blank");
-                      }}
-                    />
-                  }
-                </MenuItem>
-              ))}
-            </MenuList>
-          </Menu>
-        </Flex>
-      </HStack>
-    </Box>
-  );
-}
+- William: @[Alerts: Minor Updates] ⏩ We just pushed fixes that should speed up Sweep's first step by a lot, especially for large repos (could have taken 5 minutes+, should now be sub 1 minute). Sweep was slow because of a hotfix we pushed due to our infra provider having issues. Now that Sweep is working reliably, we're working on getting the speed back 🚤
+- William: Just pushed an improvement that should really improve latency. We were previously updating the cache for inactive users, which slows everything down. We now only do this for active and Sweep Pro users. :sweeping:
+- Kevin: @[Alerts: Minor Updates] 🎉 More exciting features from this evening:
+  🔴 Sweep live updates when coding to indicate which files are done by Sweep (see screenshot).
+  🔄 Review comments are now moved to the issues thread to not clutter the PR, and the PR is only generated when the self-review is done. Further, prefixing with "sweep (slow):" gives you up to 3 self-reviews, though it can take up to 10 minutes to run.
+- William: Hey everyone, we have some issues with modifying files (you'll see this error at 60%). Apologies, I'm on this now.
+- William: @[Alerts: Minor Updates] ⏩ We just pushed fixes that should speed up Sweep's first step by a lot, especially for large repos (could have taken 5 minutes+, should now be sub 1 minute). Sweep was slow because of a hotfix we pushed due to our infra provider having issues. Now that Sweep is working reliably, we're working on getting the speed back 🚤
+- Kevin: The erroneous GitHub Actions logs should be mostly fixed now. Let me know if you still get a GitHub Action with the wrong logs.
+- @[Alerts: Minor Updates] 🎊 Some new features from this evening:
+  Sweep's errors rate during execution should be greatly reduced: we improved how Sweep determines what to keep in context and what to delete
+  Sweep handles long discussions better: Sweep now cleans long conversations and rewrites issue content internally
+- Kevin: ⚡ We just released further optimization for search! We noticed that the queue times recently have been very long so for small updates on repos we use CPU to re-embed the new files, which is faster than the queue times!
 """
 
 code_replaces = r"""
 ```
 <<<< ORIGINAL
-  ))}
-</ButtonGroup>
-<Menu>
-  <MenuButton
+## August 5, 2023
+
+- William: @[Alerts: Minor Updates] ⏩ We just pushed fixes that should speed up Sweep's first step by a lot, especially for large repos (could have taken 5 minutes+, should now be sub 1 minute). Sweep was slow because of a hotfix we pushed due to our infra provider having issues. Now that Sweep is working reliably, we're working on getting the speed back 🚤
 ====
-  ))}
-</ButtonGroup>
-<Menu>
-  <MenuButton
+## August 5, 2023
+
+- William: ⏩ We just pushed fixes that should speed up Sweep's first step by a lot, especially for large repos (could have taken 5 minutes+, should now be sub 1 minute). Sweep was slow because of a hotfix we pushed due to our infra provider having issues. Now that Sweep is working reliably, we're working on getting the speed back 🚤
 >>>> UPDATED
 ```
 """
@@ -148,3 +34,4 @@ code_replaces = r"""
 if __name__ == "__main__":
     print(generate_new_file_from_patch(code_replaces, old_file)[0])
     # generate_new_file_from_patch(code_replaces, old_file)[0]
+  
