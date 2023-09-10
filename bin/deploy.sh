@@ -4,6 +4,7 @@ echo "Removing old docker runs"
 echo `echo `docker ps``
 echo Removed `docker ps -q --filter ancestor=sweepai/sweep | awk 'NR>4'`
 docker ps -q --filter ancestor=sweepai/sweep | awk 'NR>4' | xargs docker rm -f
+docker ps -q --filter ancestor=sweepai/sandbox-web | awk 'NR>4' | xargs docker rm -f
 
 # Start on 8082 to not overlap with sandbox
 PORT=8082
@@ -25,9 +26,7 @@ echo "Found open port: $PORT"
 # Start new docker container
 cd ~/sweep
 
-docker compose up webhook -d --build
-docker compose kill sandbox-web
-docker compose up sandbox-web -d --build
+docker compose up webhook sandbox-web -d --build
 
 # Check if the "ngrok" screen session exists
 screen -list | grep -q "\bngrok\b"
