@@ -266,11 +266,11 @@ async def webhook(raw_request: Request):
                                 "repo": repo,
                             },
                         )
-                        push_to_queue(
-                            repo_full_name=request.repository.full_name,
-                            pr_id=request.issue.number,
-                            pr_change_request=pr_change_request,
-                        )
+                        # push_to_queue(
+                        #     repo_full_name=request.repository.full_name,
+                        #     pr_id=request.issue.number,
+                        #     pr_change_request=pr_change_request,
+                        # )
             case "issues", "edited":
                 request = IssueRequest(**request_dict)
                 if (
