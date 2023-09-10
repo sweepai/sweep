@@ -175,3 +175,5 @@ cache/
 indexdir
 repo
 dump.rdb
+depot.json
+repo.tar

@@ -9,9 +9,7 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 
 class SlowModeBot(ChatGPT):
-    def expand_plan(
-        self, human_message: HumanMessagePrompt
-    ) -> tuple[list[str], str]:
+    def expand_plan(self, human_message: HumanMessagePrompt) -> tuple[list[str], str]:
         try:
             self.messages = [Message(role="system", content=slow_mode_system_prompt)]
             self.model = "gpt-4-32k-0613"

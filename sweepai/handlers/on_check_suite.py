@@ -162,18 +162,17 @@ def on_check_suite(request: CheckRunCompleted):
         log_message.format(error_logs=problematic_logs)
     )
     pr_change_request = PRChangeRequest(
-                type="comment",
-                params={
-                    "repo_full_name": request.repository.full_name,
-                    "repo_description": request.repository.description,
-                    "comment": problematic_logs,
-                    "pr_path": None,
-                    "pr_line_position": None,
-                    "username": request.sender.login,
-                    "installation_id": request.installation.id,
-                    "pr_number": request.check_run.pull_requests[0].number,
-                    "comment_id": comment.id,
-                },
-            )
+        type="comment",
+        params={
+            "repo_full_name": request.repository.full_name,
+            "repo_description": request.repository.description,
+            "comment": problematic_logs,
+            "pr_path": None,
+            "pr_line_position": None,
+            "username": request.sender.login,
+            "installation_id": request.installation.id,
+            "pr_number": request.check_run.pull_requests[0].number,
+            "comment_id": comment.id,
+        },
+    )
     return pr_change_request
-    

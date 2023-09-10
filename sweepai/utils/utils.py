@@ -161,24 +161,28 @@ extension_to_language = {
     "php": "php",
 }
 
+
 def naive_chunker(code: str, line_count: int = 30, overlap: int = 15):
     if overlap >= line_count:
         raise ValueError("Overlap should be smaller than line_count.")
-        
-    lines = code.split('\n')
+
+    lines = code.split("\n")
     total_lines = len(lines)
     chunks = []
-    
+
     start = 0
     while start < total_lines:
         end = min(start + line_count, total_lines)
-        chunk = '\n'.join(lines[start:end])
+        chunk = "\n".join(lines[start:end])
         chunks.append(chunk)
         start += line_count - overlap
-    
+
     return chunks
 
-def chunk_code(code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100) -> list[Snippet]:
+
+def chunk_code(
+    code: str, path: str, MAX_CHARS: int = 1500, coalesce: int = 100
+) -> list[Snippet]:
     from tree_sitter_languages import get_parser
 
     ext = path.split(".")[-1]
