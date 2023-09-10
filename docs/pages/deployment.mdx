@@ -17,14 +17,19 @@ After finishing the steps in the video, please complete these two steps:
 
 ---
 
-## 1. Create GitHub App - Run Locally (5 min)
+## 1. Create GitHub App
+
+<details>
+<summary><h3>Personal Use</h3></summary>
+
+Personal use refers to using Sweep on your personal repositories under your username. If you would like to use Sweep on an organization, please follow the "Organizational Use" section.
 
 We created an app using `npm` to make it easier to set up the GitHub App. If you do not have it installed, install it [here](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm). If you would like ot set it up yourself, scroll down to the **Manual GitHub App Setup** section.
 
 > Run this GitHub App locally! This tool is only used for creating the GitHub App, not hosting Sweep.
 >
 
-First, open a terminal and run the following commands:
+First, open a terminal and run the following commands (RUN LOCALLY):
 
 ```sh
 git clone https://github.com/sweepai/sweep
@@ -68,6 +73,61 @@ And, please note your GitHub App username. This is not auto-generated in the abo
 ```sh
 GITHUB_BOT_USERNAME=sweep-example-name
 ```
+</details>
+
+<details>
+<summary><h3>Organizational Use</h3></summary>
+
+If you would like to use Sweep on GitHub organizations, please follow the steps below.
+
+Register a new GitHub App, following this [guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) (3 minutes). You should return here after step 16(it's not as bad as it seems, most steps are optional).
+
+Use the below as a reference:
+
+Set the Repository Permissions (7 selected):
+
+| Scope            | Permissions      |
+|------------------|------------------|
+| actions          | read             |
+| checks           | read             |
+| contents         | read & write     |
+| commit statuses  | read & write     |
+| issues           | read & write     |
+| metadata         | read             |
+| pull requests    | read & write     |
+| workflows        | read & write     |
+
+
+| Subscribe to events      |
+|--------------------------|
+| check run                |
+| check suite              |
+| commit comment           |
+| create                   |
+| issue comment            |
+| issues                   |
+| label                    |
+| pull request             |
+| pull request review      |
+| pull request review comment|
+| pull request thread      |
+| push                     |
+| status                   |
+| workflow job             |
+| workflow run             |
+
+Put a placeholder url for now (ex: https://github.com/sweepai/sweep/).
+Generate a private key (it should prompt you at the top of the screen, or alternatively follow [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps)) and save it for later. This is your `private-key.pem` for step 2.
+
+![image](/deployment/pem.png)
+
+You will also need your app ID, which is the number at the top of the page. This is your `app-id` for step 2.
+
+![image](/deployment/appid.png)
+
+Click Install App to install it on your account or organization. Point it to a repo which you want to use Sweep on. This repo cannot be empty. If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).
+
+</details>
 
 ---
 
@@ -163,62 +223,6 @@ For more details on using Sweep, see our [tutorial](https://docs.sweep.dev/usage
 ---
 
 Alternate steps:
-
-If you were unable to set up the GitHub App using the above steps, you can follow the manual setup below.
-
-<details>
-<summary><h2>Alternative to 1: Manual GitHub App Setup</h2></summary>
-
-<i>Only follow this section if you were unable to set up the GitHub App using the above steps.</i>
-
-### Option B: Manual Setup (15 min)
-Register a new GitHub App, following this [guide](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/registering-a-github-app) (3 minutes). You should return here after step 16(it's not as bad as it seems, most steps are optional).
-
-Use the below as a reference:
-
-Set the Repository Permissions (7 selected):
-
-| Scope            | Permissions      |
-|------------------|------------------|
-| actions          | read             |
-| checks           | read             |
-| contents         | read & write     |
-| commit statuses  | read & write     |
-| issues           | read & write     |
-| metadata         | read             |
-| pull requests    | read & write     |
-| workflows        | read & write     |
-
-
-| Subscribe to events      |
-|--------------------------|
-| check run                |
-| check suite              |
-| commit comment           |
-| create                   |
-| issue comment            |
-| issues                   |
-| label                    |
-| pull request             |
-| pull request review      |
-| pull request review comment|
-| pull request thread      |
-| push                     |
-| status                   |
-| workflow job             |
-| workflow run             |
-
-Put a placeholder url for now (ex: https://github.com/sweepai/sweep/).
-Generate a private key (it should prompt you at the top of the screen, or alternatively follow [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps)) and save it for later. This is your `private-key.pem` for step 2.
-
-![image](/deployment/pem.png)
-
-You will also need your app ID, which is the number at the top of the page. This is your `app-id` for step 2.
-
-![image](/deployment/appid.png)
-
-Click Install App to install it on your account or organization. Point it to a repo which you want to use Sweep on. This repo cannot be empty. If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).
-</details>
 
 <details>
 <summary><h2>Alternative to 3: Deploy DigitalOcean App</h2></summary>
