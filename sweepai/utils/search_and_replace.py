@@ -166,7 +166,7 @@ def find_best_match(query: str, code_file: str):
                 score = score_multiline(indented_query_lines, candidate) * (
                     1 - num_indents * 0.01
                 )
-                current_match = Match(i, j - 1, score, indent * num_indents)
+                current_match = Match(i, j, score, indent * num_indents)
 
                 top_matches.append(current_match)
 
