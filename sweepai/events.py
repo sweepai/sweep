@@ -11,7 +11,7 @@ class Account(BaseModel):
 
 class Installation(BaseModel):
     id: str
-    account: Account | None = None
+    account: Account | None
 
 
 class InstallationCreatedRequest(BaseModel):

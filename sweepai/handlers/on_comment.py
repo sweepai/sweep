@@ -90,9 +90,9 @@ def on_comment(
     )
     organization, repo_name = repo_full_name.split("/")
 
+    _token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
     if pr is None:
-        _, g = get_github_client(installation_id)
-        repo = g.get_repo(repo_full_name)
         pr = repo.get_pull(pr_number)
     pr_title = pr.title
     pr_body = pr.body or ""
@@ -220,7 +220,13 @@ def on_comment(
             original_line = pr_lines[pr_line_position - 1]
             pr_chunk = "\n".join(pr_lines[start:end])
             pr_file_path = pr_path.strip()
-            formatted_pr_chunk = "\n".join(pr_lines[start:pr_line_position - 1]) + f"\n{pr_lines[pr_line_position - 1]} <-- {comment}" + "\n".join(pr_lines[pr_line_position:end])
+            formatted_pr_chunk = (
+                "\n".join(pr_lines[start : pr_line_position - 1])
+                + f"\n{pr_lines[pr_line_position - 1]} <-- {comment}"
+                + "\n".join(pr_lines[pr_line_position:end])
+            )
+        else:
+            formatted_pr_chunk = "\n".join(pr_lines)
         if file_comment:
             snippets = []
             tree = ""

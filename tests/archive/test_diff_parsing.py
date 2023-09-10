@@ -34,4 +34,3 @@ code_replaces = r"""
 if __name__ == "__main__":
     print(generate_new_file_from_patch(code_replaces, old_file)[0])
     # generate_new_file_from_patch(code_replaces, old_file)[0]
-  

@@ -14,11 +14,15 @@ def embed_huggingface(texts):
     try:
         headers = {
             "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
         imports = {"inputs": texts}
-        response = requests.post(HUGGINGFACE_URL, headers=headers, json={"inputs": texts})
+        response = requests.post(
+            HUGGINGFACE_URL, headers=headers, json={"inputs": texts}
+        )
         response.raise_for_status()
         return response.json()["embeddings"]
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error occurred when sending request to Hugging Face endpoint: {e}")
+        logger.error(
+            f"Error occurred when sending request to Hugging Face endpoint: {e}"
+        )

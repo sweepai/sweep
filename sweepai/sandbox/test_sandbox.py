@@ -11,9 +11,11 @@ token = get_token(installation_id)
 # repo_name = "sweepai/landing-page"
 repo_name = "sweepai/sweep"
 repo = g.get_repo(repo_name)
-sandbox_config = {'install': "",
-                  'formatter': "trunk fmt {file}",
-                  'linter': "trunk check {file}"}
+sandbox_config = {
+    "install": "",
+    "formatter": "trunk fmt {file}",
+    "linter": "trunk check {file}",
+}
 repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
 sandbox = Sandbox.from_token(repo, repo_url, sandbox_config)
 # change a file to have a syntax error

@@ -3,7 +3,7 @@ from redis.retry import Retry
 from sweepai.config.server import REDIS_URL
 
 # try:
-    # Attempt to connect using the provided REDIS_URL
+# Attempt to connect using the provided REDIS_URL
 redis_client = Redis.from_url(REDIS_URL)
 # except ConnectionError:
 #     raise RuntimeError(f"Failed to establish Redis connection to provided URL {REDIS_URL}. \

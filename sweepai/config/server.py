@@ -25,7 +25,9 @@ SENTENCE_TRANSFORMERS_MODEL = os.environ.get(
     "SENTENCE_TRANSFORMERS_MODEL",
     "sentence-transformers/all-MiniLM-L6-v2",  # "all-mpnet-base-v2"
 )
-BATCH_SIZE = int(os.environ.get("BATCH_SIZE", 32)) # Tune this to 32 for sentence-transformers/all-MiniLM-L6-v2 on CPU
+BATCH_SIZE = int(
+    os.environ.get("BATCH_SIZE", 32)
+)  # Tune this to 32 for sentence-transformers/all-MiniLM-L6-v2 on CPU
 
 ENV = os.environ.get("ENV", "dev")
 # ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
@@ -133,7 +135,7 @@ SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
-SANDBOX_URL = os.environ.get("SANDBOX_URL", None)
+SANDBOX_URL = os.environ.get("SANDBOX_URL", "http://sandbox-web:8080")
 if SANDBOX_URL is not None:
     print(f"Using Sandbox URL: {SANDBOX_URL}")
 
