@@ -114,7 +114,9 @@ class SweepConfig(BaseModel):
                 )
                 return branch_name
         except Exception as e:
-            logger.info(f"Error when getting branch: {e}, falling back to default branch")
+            logger.info(
+                f"Error when getting branch: {e}, falling back to default branch"
+            )
             return default_branch
 
     @staticmethod

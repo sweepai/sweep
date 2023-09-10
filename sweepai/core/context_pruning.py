@@ -11,9 +11,7 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 
 
 class ContextPruning(ChatGPT):
-    def prune_context(
-        self, human_message: HumanMessagePrompt, **kwargs
-    ) -> list[str]:
+    def prune_context(self, human_message: HumanMessagePrompt, **kwargs) -> list[str]:
         try:
             content = system_message_prompt
             repo = kwargs.get("repo")

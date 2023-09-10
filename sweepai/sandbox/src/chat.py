@@ -10,11 +10,16 @@ from pydantic import BaseModel
 import tiktoken
 
 from src.diff import format_contents, generate_new_file_from_patch, is_markdown
-from src.prompts import sandbox_code_repair_modify_system_prompt, sandbox_code_repair_modify_prompt
+from src.prompts import (
+    sandbox_code_repair_modify_system_prompt,
+    sandbox_code_repair_modify_prompt,
+)
 
 import os
 import openai
+
 openai.api_key = os.getenv("OPENAI_API_KEY")
+
 
 class Message(BaseModel):
     role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal[
@@ -69,6 +74,7 @@ temperature = 0.0  # Lowered to 0 for mostly deterministic results for reproduci
 
 tiktoken_model = tiktoken.encoding_for_model("gpt-4")
 
+
 def count_tokens(text: str):
     return len(tiktoken_model.encode(text, disallowed_special=()))
 
@@ -97,10 +103,7 @@ class ChatGPT(BaseModel):
         )
         return self.messages[-1].content
 
-    def call_openai(
-        self,
-        model: OpenAIModel | None = None
-    ):
+    def call_openai(self, model: OpenAIModel | None = None):
         messages_length = sum(
             [count_tokens(message.content or "") for message in self.messages]
         )
@@ -286,22 +289,18 @@ class ChatGPT(BaseModel):
             self.messages = self.prev_message_states.pop()
         return self.messages
 
+
 def clean_logs(logs: str) -> str:
     return "\n".join(
         line for line in logs.split("\n") if not line.startswith("[warn]")
     ).strip()
 
-def fix_file(
-    filename: str,
-    code: str,
-    stdout: str
-):
+
+def fix_file(filename: str, code: str, stdout: str):
     chat = ChatGPT()
     response = chat.chat(
         sandbox_code_repair_modify_prompt.format(
-            filename=filename,
-            code=code,
-            stdout=stdout
+            filename=filename, code=code, stdout=stdout
         )
     )
     updated_file, _errors = generate_new_file_from_patch(response, code)
@@ -310,6 +309,7 @@ def fix_file(
     updated_file = format_contents(updated_file, file_markdown)
     logger.info("Updated file based on logs")
     return updated_file
+
 
 test_stdout = """
 $ /repo/node_modules/.bin/eslint test1/test2.js
@@ -323,8 +323,4 @@ error Command failed with exit code 1.
 """
 
 if __name__ == "__main__":
-    print(fix_file(
-        "test1/test2.js",
-        "print('hello world')",
-        test_stdout
-    ))
+    print(fix_file("test1/test2.js", "print('hello world')", test_stdout))

@@ -280,10 +280,7 @@ file_path = "src/test.js"
 # url = "http://24.199.73.199:8080/sandbox/"
 url = "http://0.0.0.0:8081/sandbox/"
 
-headers = {
-    "accept": "application/json",
-    "Content-Type": "application/json"
-}
+headers = {"accept": "application/json", "Content-Type": "application/json"}
 
 data = {
     "repo_url": "https://github.com/sweepai/landing-page",

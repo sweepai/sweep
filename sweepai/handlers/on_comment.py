@@ -220,7 +220,11 @@ def on_comment(
             original_line = pr_lines[pr_line_position - 1]
             pr_chunk = "\n".join(pr_lines[start:end])
             pr_file_path = pr_path.strip()
-            formatted_pr_chunk = "\n".join(pr_lines[start:pr_line_position - 1]) + f"\n{pr_lines[pr_line_position - 1]} <-- {comment}" + "\n".join(pr_lines[pr_line_position:end])
+            formatted_pr_chunk = (
+                "\n".join(pr_lines[start : pr_line_position - 1])
+                + f"\n{pr_lines[pr_line_position - 1]} <-- {comment}"
+                + "\n".join(pr_lines[pr_line_position:end])
+            )
         else:
             formatted_pr_chunk = "\n".join(pr_lines)
         if file_comment:

@@ -65,6 +65,7 @@ LINT_CONFIG = """module.exports = {
 }
 """
 
+
 class Sandbox(BaseModel):
     # Make these multi-command
     # install_command: str = "trunk init"
@@ -84,7 +85,8 @@ class Sandbox(BaseModel):
             return cls.from_yaml(open(path).read())
         else:
             return cls()
-    
+
+
 # class Sandbox(BaseModel):
 #     # Make these multi-command
 #     install_command: str = None

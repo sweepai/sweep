@@ -27,4 +27,3 @@ RUN npm --version
 
 # Python stuff
 RUN pip install black isort
-

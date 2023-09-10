@@ -375,7 +375,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 "content": content,
                 "only_lint": only_lint,
             },
-            timeout=(5, 600)
+            timeout=(5, 600),
         )
         response.raise_for_status()
         output = response.json()
@@ -424,7 +424,7 @@ class SweepBot(CodeGenBot, GithubBot):
             return False
 
         return True
-    
+
     def check_sandbox(
         self,
         file_path: str,
@@ -495,7 +495,9 @@ class SweepBot(CodeGenBot, GithubBot):
             except Exception as e:
                 logger.error(f"Error: {e}")
 
-            file_change.code, sandbox_execution = self.check_sandbox(file_change_request.filename, file_change.code)
+            file_change.code, sandbox_execution = self.check_sandbox(
+                file_change_request.filename, file_change.code
+            )
 
             return file_change, sandbox_execution
         except Exception as e:
@@ -614,7 +616,9 @@ class SweepBot(CodeGenBot, GithubBot):
                 commit_message = f"Updated {file_change_request.filename}"
             commit_message = commit_message[: min(len(commit_message), 50)]
 
-            new_file, sandbox_execution = self.check_sandbox(file_change_request.filename, new_file)
+            new_file, sandbox_execution = self.check_sandbox(
+                file_change_request.filename, new_file
+            )
             return new_file, commit_message, sandbox_execution
         except Exception as e:
             tb = traceback.format_exc()
@@ -692,7 +696,9 @@ class SweepBot(CodeGenBot, GithubBot):
                 : min(len(file_change_request.instructions), 30)
             ]
         )
-        final_contents, sandbox_execution = self.check_sandbox(file_change_request.filename, contents)
+        final_contents, sandbox_execution = self.check_sandbox(
+            file_change_request.filename, contents
+        )
         self.repo.update_file(
             file_change_request.filename,
             commit_message,
@@ -795,7 +801,9 @@ class SweepBot(CodeGenBot, GithubBot):
                                 flags=re.DOTALL,
                             )
 
-                        changed_file, sandbox_execution = self.rewrite_file(file_change_request, branch)
+                        changed_file, sandbox_execution = self.rewrite_file(
+                            file_change_request, branch
+                        )
                     case "delete":
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch

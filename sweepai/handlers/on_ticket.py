@@ -141,18 +141,22 @@ def post_process_snippets(
         result_snippets.append(snippet)
     return result_snippets[:max_num_of_snippets]
 
+
 def create_collapsible(summary: str, body: str, opened: bool = False):
     return collapsible_template.format(
         summary=summary, body=body, opened="open" if opened else ""
     )
 
+
 def blockquote(text: str):
     return "> " + text.replace("\n", "\n> ") if text else ""
+
 
 def create_checkbox(title: str, body: str, checked: bool = False):
     return checkbox_template.format(
         check="X" if checked else " ", filename=title, instructions=body
     )
+
 
 def strip_sweep(text: str):
     return (
@@ -656,7 +660,9 @@ def on_ticket(
             num_files=num_of_snippets_to_query,
             multi_query=queries,
         )
-        snippets = post_process_snippets(snippets, max_num_of_snippets=5 if not use_faster_model else 2)
+        snippets = post_process_snippets(
+            snippets, max_num_of_snippets=5 if not use_faster_model else 2
+        )
 
     # TODO: refactor this
     human_message = HumanMessagePrompt(
@@ -665,11 +671,15 @@ def on_ticket(
         username=username,
         repo_description=repo_description,
         title=title,
-        summary=message_summary + additional_plan if additional_plan else message_summary,
+        summary=message_summary + additional_plan
+        if additional_plan
+        else message_summary,
         snippets=snippets,
         tree=tree,
     )
-    if SLOW_MODE and not use_faster_model: # Don't do this for OPENAI_USE_3_5_MODEL_ONLY
+    if (
+        SLOW_MODE and not use_faster_model
+    ):  # Don't do this for OPENAI_USE_3_5_MODEL_ONLY
         context_pruning = ContextPruning(chat_logger=chat_logger)
         snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
             human_message, repo=repo
@@ -748,7 +758,7 @@ def on_ticket(
                         f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
                         for snippet in snippets
                     ]
-                )
+                ),
             )
             + (
                 "I also found the following external resources that might be"
@@ -868,7 +878,7 @@ def on_ticket(
                 file_change_request.filename,
                 file_change_request.instructions_display,
                 "⏳ In Progress",
-                ""
+                "",
             )
             for file_change_request in file_change_requests
         ]
@@ -877,11 +887,15 @@ def on_ticket(
             (file_change_request.filename, file_change_request.instructions, " ")
             for file_change_request in file_change_requests
         ]
-        checkboxes_contents = "\n".join([
-            create_checkbox(f"`{filename}`", blockquote(instructions), check == "X")
-            for filename, instructions, check in checkboxes_progress
-        ])
-        checkboxes_collapsible = create_collapsible("Checklist", checkboxes_contents, opened=True)
+        checkboxes_contents = "\n".join(
+            [
+                create_checkbox(f"`{filename}`", blockquote(instructions), check == "X")
+                for filename, instructions, check in checkboxes_progress
+            ]
+        )
+        checkboxes_collapsible = create_collapsible(
+            "Checklist", checkboxes_contents, opened=True
+        )
         issue = repo.get_issue(number=issue_number)
         issue.edit(body=summary + "\n\n" + checkboxes_collapsible)
 
@@ -910,36 +924,55 @@ def on_ticket(
             #         i == len(sandbox_execution.outputs) - 1
             #     ) for i, output in enumerate(sandbox_execution.outputs)
             # ])) if sandbox_execution else ""
-            error_logs = (create_collapsible(
-                "Sandbox Execution Logs",
-                "\n\n".join([
+            error_logs = (
+                (
                     create_collapsible(
-                        f"Sandbox logs {i + 1}/{len(sandbox_execution.outputs)}",
-                        f"```{output}```",
-                        i == len(sandbox_execution.outputs) - 1
-                    ) for i, output in enumerate(sandbox_execution.outputs)
-                ]),
-                opened=True
-            )) if sandbox_execution else ""
+                        "Sandbox Execution Logs",
+                        "\n\n".join(
+                            [
+                                create_collapsible(
+                                    f"Sandbox logs {i + 1}/{len(sandbox_execution.outputs)}",
+                                    f"```{output}```",
+                                    i == len(sandbox_execution.outputs) - 1,
+                                )
+                                for i, output in enumerate(sandbox_execution.outputs)
+                            ]
+                        ),
+                        opened=True,
+                    )
+                )
+                if sandbox_execution
+                else ""
+            )
             if changed_file:
                 print("Changed File!")
                 commit_hash = repo.get_branch(pull_request.branch_name).commit.sha
                 commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
                 checkboxes_progress = [
                     (
-                        (f"`{filename}` ✅ Commit [`{commit_hash[:7]}`]({commit_url})", blockquote(instructions + error_logs), "X")
+                        (
+                            f"`{filename}` ✅ Commit [`{commit_hash[:7]}`]({commit_url})",
+                            blockquote(instructions + error_logs),
+                            "X",
+                        )
                         if file_change_request.filename == filename
                         else (filename, instructions, progress)
-                    ) for filename, instructions, progress in checkboxes_progress
+                    )
+                    for filename, instructions, progress in checkboxes_progress
                 ]
             else:
                 print("Didn't change file!")
                 checkboxes_progress = [
                     (
-                        (f"`{filename}` ❌ Failed", blockquote(instructions + error_logs), "X")
+                        (
+                            f"`{filename}` ❌ Failed",
+                            blockquote(instructions + error_logs),
+                            "X",
+                        )
                         if file_change_request.filename == filename
                         else (filename, instructions, progress)
-                    ) for filename, instructions, progress in checkboxes_progress
+                    )
+                    for filename, instructions, progress in checkboxes_progress
                 ]
             checkboxes_contents = "\n".join(
                 [

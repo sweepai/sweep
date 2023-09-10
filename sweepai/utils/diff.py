@@ -186,7 +186,7 @@ def match_string(original, search, start_index=None, exact_match=False) -> Match
     #     for j in range(len(search)):
     #         if i + j >= len(original):
     #             continue
-            
+
     #         original_line = original[i + j]
     #         original_line = original_line.rsplit("#")[0].rsplit("//")[0]
 
@@ -204,7 +204,6 @@ def match_string(original, search, start_index=None, exact_match=False) -> Match
     #         num_hits = 1
     #     elif count == line_matches:
     #         num_hits += 1
-    
 
     # if num_hits != 1 or line_matches / len(search) < 0.8:
     # if False:

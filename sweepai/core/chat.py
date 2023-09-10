@@ -29,12 +29,11 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.event_logger import posthog
 
 
-if OPENAI_API_TYPE == 'azure':
+if OPENAI_API_TYPE == "azure":
     openai.api_key = OPENAI_API_KEY
     openai.api_type = OPENAI_API_TYPE
     openai.api_base = OPENAI_API_BASE
     openai.api_version = OPENAI_API_VERSION
-
 
 
 AnthropicModel = (
@@ -197,9 +196,13 @@ class ChatGPT(BaseModel):
         self.messages.append(Message(role="user", content=content, key=message_key))
         model = model or self.model
         self.messages.append(
-            Message(role="assistant", content=self.call_openai(
-                model=model, 
-            ), key=message_key)
+            Message(
+                role="assistant",
+                content=self.call_openai(
+                    model=model,
+                ),
+                key=message_key,
+            )
         )
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
@@ -281,7 +284,9 @@ class ChatGPT(BaseModel):
                     if function_name:
                         output = (
                             openai.ChatCompletion.create(
-                                engine=OPENAI_API_ENGINE if OPENAI_API_TYPE == 'azure' else None,
+                                engine=OPENAI_API_ENGINE
+                                if OPENAI_API_TYPE == "azure"
+                                else None,
                                 model=model,
                                 messages=messages_dicts,
                                 max_tokens=max_tokens - token_sub,
@@ -298,7 +303,9 @@ class ChatGPT(BaseModel):
                     else:
                         output = (
                             openai.ChatCompletion.create(
-                                engine=OPENAI_API_ENGINE if OPENAI_API_TYPE == 'azure' else None,
+                                engine=OPENAI_API_ENGINE
+                                if OPENAI_API_TYPE == "azure"
+                                else None,
                                 model=model,
                                 messages=messages_dicts,
                                 max_tokens=max_tokens - token_sub,
@@ -375,7 +382,9 @@ class ChatGPT(BaseModel):
                 try:
                     output = (
                         openai.ChatCompletion.create(
-                            engine=OPENAI_API_ENGINE if OPENAI_API_TYPE == 'azure' else None,
+                            engine=OPENAI_API_ENGINE
+                            if OPENAI_API_TYPE == "azure"
+                            else None,
                             model=model,
                             messages=self.messages_dicts,
                             max_tokens=max_tokens - token_sub,
@@ -662,13 +671,13 @@ class ChatGPT(BaseModel):
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )
-        
+
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
 
         def generator() -> Iterator[str]:
             stream = (
                 openai.ChatCompletion.create(
-                    engine=OPENAI_API_ENGINE if OPENAI_API_TYPE == 'azure' else None,
+                    engine=OPENAI_API_ENGINE if OPENAI_API_TYPE == "azure" else None,
                     model=model,
                     messages=self.messages_dicts,
                     temperature=temperature,
@@ -678,7 +687,7 @@ class ChatGPT(BaseModel):
                 )
                 if functions
                 else openai.ChatCompletion.create(
-                    engine=OPENAI_API_ENGINE if OPENAI_API_TYPE == 'azure' else None,
+                    engine=OPENAI_API_ENGINE if OPENAI_API_TYPE == "azure" else None,
                     model=model,
                     messages=self.messages_dicts,
                     temperature=temperature,

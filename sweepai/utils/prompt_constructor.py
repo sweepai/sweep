@@ -23,7 +23,9 @@ class HumanMessagePrompt(BaseModel):
 
     def delete_file(self, file_path):
         # Remove the snippets from the main list
-        self.snippets = [snippet for snippet in self.snippets if snippet.file_path != file_path]
+        self.snippets = [
+            snippet for snippet in self.snippets if snippet.file_path != file_path
+        ]
 
     def get_relevant_directories(self):
         deduped_paths = []

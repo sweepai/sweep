@@ -18,7 +18,8 @@ def tokenize_call(code, top_words=None):
         if top_words:
             in_top_words = token in top_words
         return token and len(token) > 1 and not in_top_words
-    matches = re.finditer(r'\b\w+\b', code)
+
+    matches = re.finditer(r"\b\w+\b", code)
     pos = 0
     valid_tokens = []
     for m in matches:
@@ -26,51 +27,79 @@ def tokenize_call(code, top_words=None):
         span_start = m.start()
         span_end = m.end()
 
-        if '_' in text: # snakecase
+        if "_" in text:  # snakecase
             offset = 0
-            for part in text.split('_'):
+            for part in text.split("_"):
                 if check_valid_token(part):
-                    valid_tokens.append(Token(text=part.lower(), pos=pos, startchar=span_start + offset,
-                        end_pos=pos+1, endchar=span_start + len(part) + offset))
+                    valid_tokens.append(
+                        Token(
+                            text=part.lower(),
+                            pos=pos,
+                            startchar=span_start + offset,
+                            end_pos=pos + 1,
+                            endchar=span_start + len(part) + offset,
+                        )
+                    )
                     pos += 1
                 offset += len(part) + 1
-        elif re.search(r'[A-Z][a-z]|[a-z][A-Z]', text): # pascal and camelcase
-            parts = re.findall(r'([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))', text) # first one "MyVariable" second one "myVariable" third one "MYVariable"
+        elif re.search(r"[A-Z][a-z]|[a-z][A-Z]", text):  # pascal and camelcase
+            parts = re.findall(
+                r"([A-Z][a-z]+|[a-z]+|[A-Z]+(?=[A-Z]|$))", text
+            )  # first one "MyVariable" second one "myVariable" third one "MYVariable"
             offset = 0
             for part in parts:
                 if check_valid_token(part):
-                    valid_tokens.append(Token(text=part.lower(), pos=pos, startchar=span_start + offset,
-                        end_pos=pos+1, endchar=span_start + len(part) + offset))
+                    valid_tokens.append(
+                        Token(
+                            text=part.lower(),
+                            pos=pos,
+                            startchar=span_start + offset,
+                            end_pos=pos + 1,
+                            endchar=span_start + len(part) + offset,
+                        )
+                    )
                     pos += 1
                 offset += len(part)
-        else: # everything else
+        else:  # everything else
             if check_valid_token(text):
-                valid_tokens.append(Token(text=text.lower(), pos=pos, startchar=span_start,
-                        end_pos=pos+1, endchar=span_start + len(text)))
+                valid_tokens.append(
+                    Token(
+                        text=text.lower(),
+                        pos=pos,
+                        startchar=span_start,
+                        end_pos=pos + 1,
+                        endchar=span_start + len(text),
+                    )
+                )
                 pos += 1
     return valid_tokens
+
 
 def construct_query(query, top_words=None):
     terms = tokenize_call(query, top_words)
     bigrams = construct_bigrams(terms)
     trigrams = construct_trigrams(terms)
-    terms.extend(bigrams); terms.extend(trigrams)
+    terms.extend(bigrams)
+    terms.extend(trigrams)
     return Or([Term("content", term.text) for term in terms])
+
 
 def construct_bigrams(tokens):
     res = []
     prev_token = None
     for token in tokens:
         if prev_token:
-            joined_token = Token(text=prev_token.text + "_" + token.text, 
-                                pos=prev_token.pos, 
-                                startchar=prev_token.startchar,
-                                end_pos=token.end_pos,
-                                endchar=token.endchar,
-                                )
+            joined_token = Token(
+                text=prev_token.text + "_" + token.text,
+                pos=prev_token.pos,
+                startchar=prev_token.startchar,
+                end_pos=token.end_pos,
+                endchar=token.endchar,
+            )
             res.append(joined_token)
         prev_token = token
     return res
+
 
 def construct_trigrams(tokens):
     res = []
@@ -78,16 +107,18 @@ def construct_trigrams(tokens):
     prev_token = None
     for token in tokens:
         if prev_token and prev_prev_token:
-            joined_token = Token(text=prev_prev_token.text + "_" + prev_token.text + "_" + token.text, 
-                                pos=prev_prev_token.pos, 
-                                startchar=prev_prev_token.startchar,
-                                end_pos=token.end_pos,
-                                endchar=token.endchar,
-                                )
+            joined_token = Token(
+                text=prev_prev_token.text + "_" + prev_token.text + "_" + token.text,
+                pos=prev_prev_token.pos,
+                startchar=prev_prev_token.startchar,
+                end_pos=token.end_pos,
+                endchar=token.endchar,
+            )
             res.append(joined_token)
         prev_prev_token = prev_token
         prev_token = token
     return res
+
 
 class CodeTokenizer(Tokenizer):
     def __init__(self, top_words=None):
@@ -105,11 +136,11 @@ class CodeTokenizer(Tokenizer):
         mode="",
         **kwargs,
     ):
-
         tokens = tokenize_call(value, self.top_words)
         bigrams = construct_bigrams(tokens)
         trigrams = construct_trigrams(tokens)
-        tokens.extend(bigrams); tokens.extend(trigrams)
+        tokens.extend(bigrams)
+        tokens.extend(trigrams)
         for token in tokens:
             yield token
 
@@ -186,7 +217,9 @@ def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
     # writer.cancel()
     writer = ix.writer()
     for doc in all_docs:
-        writer.add_document(title=doc.title, content=doc.content, start=doc.start, end=doc.end)
+        writer.add_document(
+            title=doc.title, content=doc.content, start=doc.start, end=doc.end
+        )
 
     writer.commit()
     return ix
@@ -223,7 +256,6 @@ def prepare_index_from_docs(docs):
 
     writer.commit()
     return ix
-
 
 
 def search_docs(query, ix):
