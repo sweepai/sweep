@@ -1,9 +1,11 @@
 # instantiate a modal sandbox
 from modal import Stub
-from sandbox.src.sandbox_utils import Sandbox
-from sandbox.modal_sandbox import run_sandbox, stub
-from sweepai.utils.github_utils import get_github_client, get_token
 
+from sweepai.sandbox.modal_sandbox import run_sandbox, stub
+
+# Correct the import paths for 'sandbox.src.sandbox_utils' and 'sandbox.modal_sandbox'
+from sweepai.sandbox.src.sandbox_utils import Sandbox
+from sweepai.utils.github_utils import get_github_client, get_token
 
 _, g = get_github_client(installation_id=36855882)
 installation_id = 36855882
@@ -11,9 +13,11 @@ token = get_token(installation_id)
 # repo_name = "sweepai/landing-page"
 repo_name = "sweepai/sweep"
 repo = g.get_repo(repo_name)
-sandbox_config = {'install': "",
-                  'formatter': "trunk fmt {file}",
-                  'linter': "trunk check {file}"}
+sandbox_config = {
+    "install": "",
+    "formatter": "trunk fmt {file}",
+    "linter": "trunk check {file}",
+}
 repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
 sandbox = Sandbox.from_token(repo, repo_url, sandbox_config)
 # change a file to have a syntax error
