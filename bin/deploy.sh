@@ -25,7 +25,7 @@ echo "Found open port: $PORT"
 # Start new docker container
 cd ~/sweep
 
-docker compose webhook sandbox-web --build
+docker compose up webhook sandbox-web --build
 # docker run --name sandbox-web --env-file .env -v /var/run/docker.sock:/var/run/docker.sock -p 8081:8080 -d sweepai/sandbox-web
 
 # docker compose doesn't seem to build the sweepai/sweep image properly
