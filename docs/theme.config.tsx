@@ -33,7 +33,7 @@ const config: DocsThemeConfig = {
   chat: {
     link: 'https://discord.gg/sweep',
   },
-  docsRepositoryBase: 'https://github.com/sweepai/sweep',
+  docsRepositoryBase: 'https://github.com/sweepai/sweep/docs',
   darkMode: false,
   nextThemes: {
     forcedTheme: 'dark',
