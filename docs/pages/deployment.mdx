@@ -64,7 +64,7 @@ APP_ID=123456
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
 ```
 
-And, please note your GitHub App name:
+And, please note your GitHub App username. This is not auto-generated in the above file, so you must write it down yourself.
 ```sh
 GITHUB_BOT_USERNAME=sweep-example-name
 ```
@@ -82,13 +82,9 @@ SENTENCE_TRANSFORMERS_MODEL=sentence-transformers/all-MiniLM-L6-v2
 
 ---
 
-## 3. Deploying Sweep
+## 3. Deploying Sweep on AWS/GCP/Azure Instance
 
 *Starting here it gets more involved so if you run into issues, please reach out to us on [Discord](https://discord.gg/sweep) or open a GitHub issue (ironic, we know!) at https://github.com/sweepai/sweep/issues. We are online, please ping us @kevin, @william, and @luke.*
-
-## Deploy on AWS/GCP/Azure Instance
-
-If you would like to deploy on AWS/GCP/Azure, you can do so by following the steps below.
 
 <details>
 <summary><h3>1. Create Instance</h3></summary>
@@ -121,9 +117,8 @@ touch .env
 
 Then, using your favorite text editor, add the following to the `.env` file from the previous step:
 ```yaml
-# These two are from step 1. Rename PRIVATE_KEY to GITHUB_APP_PEM
 APP_ID=1234
-GITHUB_APP_PEM="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
+PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
 GITHUB_BOT_USERNAME=sweep-example-name
 
 # These three are from step 2.
@@ -260,9 +255,8 @@ Click `Save` to close the Bulk Editor, then click `Save` again to save the varai
 </details>
 
 ```yaml
-# These two are from step 1. Rename PRIVATE_KEY to GITHUB_APP_PEM
 APP_ID=1234
-GITHUB_APP_PEM="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
+PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
 GITHUB_BOT_USERNAME=sweep-example-name
 
 # These three are from step 2.

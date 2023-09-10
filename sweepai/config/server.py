@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=".env")
 
+GITHUB_APP_PEM = os.environ.get("GITHUB_APP_PEM", os.environ.get("PRIVATE_KEY"))
 os.environ["GITHUB_APP_PEM"] = (
     os.environ.get(
         "GITHUB_APP_PEM",
@@ -77,7 +78,6 @@ GITHUB_LABEL_COLOR = os.environ.get("GITHUB_LABEL_COLOR", "9400D3")
 GITHUB_LABEL_DESCRIPTION = os.environ.get(
     "GITHUB_LABEL_DESCRIPTION", "Sweep your software chores"
 )
-GITHUB_APP_PEM = os.environ.get("GITHUB_APP_PEM")
 GITHUB_CONFIG_BRANCH = os.environ.get("GITHUB_CONFIG_BRANCH", "sweep/add-sweep-config")
 GITHUB_DEFAULT_CONFIG = os.environ.get(
     "GITHUB_DEFAULT_CONFIG",
