@@ -1,4 +1,6 @@
+import ctypes
 import sys
+import threading
 
 from celery.result import AsyncResult
 from fastapi import FastAPI, HTTPException, Request
@@ -47,73 +49,122 @@ import tracemalloc
 
 tracemalloc.start()
 
+events = {}
+on_ticket_events = {}
 
-@celery_app.task(bind=True)
-def run_ticket(self, *args, **kwargs):
-    logger.info(f"Running on_ticket Task ID: {self.request.id}")
+
+def terminate_thread(thread):
+    """Terminate a python threading.Thread."""
+    # Todo(lukejagg): for multiprocessing, see if .terminate is catched in try/catch
+    try:
+        if not thread.is_alive():
+            return
+
+        exc = ctypes.py_object(SystemExit)
+        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+            ctypes.c_long(thread.ident), exc
+        )
+        if res == 0:
+            raise ValueError("Invalid thread ID")
+        elif res != 1:
+            # Call with exception set to 0 is needed to cleanup properly.
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
+            raise SystemError("PyThreadState_SetAsyncExc failed")
+    except Exception as e:
+        logger.error(f"Failed to terminate thread: {e}")
+
+
+# @celery_app.task(bind=True)
+def run_ticket(*args, **kwargs):
+    # logger.info(f"Running on_ticket Task ID: {self.request.id}")
     on_ticket(*args, **kwargs)
     logger.info("Done with on_ticket")
 
 
-@celery_app.task(bind=True)
-def run_comment(self, *args, **kwargs):
-    logger.info(f"Running on_comment Task ID: {self.request.id}")
+# @celery_app.task(bind=True)
+def run_comment(*args, **kwargs):
+    # logger.info(f"Running on_comment Task ID: {self.request.id}")
     on_comment(*args, **kwargs)
     logger.info("Done with on_comment")
 
 
 def call_on_ticket(*args, **kwargs):
+    global on_ticket_events
     key = f"{args[5]}-{args[2]}"  # Full name, issue number as key
+
+    # Use multithreading
     # Check if a previous process exists for the same key, cancel it
-    prev_task_id = redis_client.get(key)
-    prev_task_id = prev_task_id.decode("utf-8") if prev_task_id else None
-    i = celery_app.control.inspect()
-    # To get a list of active tasks:
-    active_tasks = i.active()
-    logger.info(f"Active tasks: {active_tasks}")
-    if prev_task_id:
-        logger.info(f"Found previous task id: {prev_task_id} and cancelling it")
-        result = celery_app.control.revoke(prev_task_id)  # Decoding bytes to string
-        logger.info(f"Result of cancelling: {result}")
-        redis_client.delete(key)
-    else:
-        logger.info(f"No previous task id found for key {key}")
-    task = celery_app.send_task("sweepai.api.run_ticket", args=args, kwargs=kwargs)
-    logger.info(f"Saving task id {task.id} for key {key}")
-    redis_client.set(key, task.id)
-    active_tasks = i.active()
-    logger.info(f"Active tasks: {active_tasks}")
+    e = on_ticket_events.get(key, None)
+    if e:
+        logger.info(f"Found previous thread for key {key} and cancelling it")
+        terminate_thread(e)
+
+    thread = threading.Thread(target=run_ticket, args=args, kwargs=kwargs)
+    on_ticket_events[key] = thread
+    thread.start()
+
+    # Check if a previous process exists for the same key, cancel it
+    # prev_task_id = redis_client.get(key)
+    # prev_task_id = prev_task_id.decode("utf-8") if prev_task_id else None
+    # i = celery_app.control.inspect()
+    # # To get a list of active tasks:
+    # active_tasks = i.active()
+    # logger.info(f"Active tasks: {active_tasks}")
+    # if prev_task_id:
+    #     logger.info(f"Found previous task id: {prev_task_id} and cancelling it")
+    #     result = celery_app.control.revoke(prev_task_id)  # Decoding bytes to string
+    #     logger.info(f"Result of cancelling: {result}")
+    #     redis_client.delete(key)
+    # else:
+    #     logger.info(f"No previous task id found for key {key}")
+    # task = celery_app.send_task("sweepai.api.run_ticket", args=args, kwargs=kwargs)
+    # logger.info(f"Saving task id {task.id} for key {key}")
+    # redis_client.set(key, task.id)
+    # active_tasks = i.active()
+    # logger.info(f"Active tasks: {active_tasks}")
 
 
 def call_on_comment(*args, **kwargs):
+    global events
     repo_full_name = kwargs["repo_full_name"]
     pr_id = kwargs["pr_number"]
     key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
 
-    i = celery_app.control.inspect()
-    active_tasks = i.active()
-    logger.info(f"Active tasks: {active_tasks}")
+    # Use multithreading
+    # Check if a previous process exists for the same key, cancel it
+    e = events.get(key, None)
+    if e:
+        logger.info(f"Found previous thread for key {key} and cancelling it")
+        terminate_thread(e)
 
-    # Get previous task IDs for the same key, if any
-    prev_task_ids = redis_client.lrange(key, 0, -1)
-    prev_task_ids = (
-        [task_id.decode("utf-8") for task_id in prev_task_ids] if prev_task_ids else []
-    )
+    thread = threading.Thread(target=run_comment, args=args, kwargs=kwargs)
+    events[key] = thread
+    thread.start()
 
-    # If previous tasks are pending, don't enqueue new task
-    for prev_task_id in prev_task_ids:
-        task_status = AsyncResult(prev_task_id, app=celery_app).status
-        if task_status not in ("SUCCESS", "FAILURE"):
-            logger.info(
-                f"Previous task id {prev_task_id} still pending. Not enqueuing new task."
-            )
-
-    # Enqueue new task and save task ID
-    task = celery_app.send_task("sweepai.api.run_comment", args=args, kwargs=kwargs)
-    logger.info(f"Enqueuing new task id {task.id} for key {key}")
-
-    # Save the new task ID to the list
-    redis_client.rpush(key, task.id)
+    # i = celery_app.control.inspect()
+    # active_tasks = i.active()
+    # logger.info(f"Active tasks: {active_tasks}")
+    #
+    # # Get previous task IDs for the same key, if any
+    # prev_task_ids = redis_client.lrange(key, 0, -1)
+    # prev_task_ids = (
+    #     [task_id.decode("utf-8") for task_id in prev_task_ids] if prev_task_ids else []
+    # )
+    #
+    # # If previous tasks are pending, don't enqueue new task
+    # for prev_task_id in prev_task_ids:
+    #     task_status = AsyncResult(prev_task_id, app=celery_app).status
+    #     if task_status not in ("SUCCESS", "FAILURE"):
+    #         logger.info(
+    #             f"Previous task id {prev_task_id} still pending. Not enqueuing new task."
+    #         )
+    #
+    # # Enqueue new task and save task ID
+    # task = celery_app.send_task("sweepai.api.run_comment", args=args, kwargs=kwargs)
+    # logger.info(f"Enqueuing new task id {task.id} for key {key}")
+    #
+    # # Save the new task ID to the list
+    # redis_client.rpush(key, task.id)
 
 
 @app.get("/health")
@@ -507,8 +558,6 @@ async def webhook(raw_request: Request):
                     except Exception as e:
                         print("FAILED check_run completed")
                         logger.error(f"Failed to handle check suite: {e}")
-                        # print traceback
-                        logger.error(str(e), exc_info=True)
                 else:
                     logger.info("No pull requests, passing")
             case "installation_repositories", "added":
@@ -520,6 +569,16 @@ async def webhook(raw_request: Request):
                         for repo in repos_added_request.repositories_added
                     ],
                 }
+
+                try:
+                    add_config_to_top_repos(
+                        repos_added_request.installation.id,
+                        repos_added_request.installation.account.login,
+                        repos_added_request.repositories_added,
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to add config to top repos: {e}")
+
                 posthog.capture(
                     "installation_repositories", "started", properties={**metadata}
                 )
@@ -542,7 +601,11 @@ async def webhook(raw_request: Request):
                 repos_added_request = InstallationCreatedRequest(**request_dict)
 
                 try:
-                    add_config_to_top_repos(repos_added_request)
+                    add_config_to_top_repos(
+                        repos_added_request.installation.id,
+                        repos_added_request.installation.account.login,
+                        repos_added_request.repositories,
+                    )
                 except Exception as e:
                     logger.error(f"Failed to add config to top repos: {e}")
 
