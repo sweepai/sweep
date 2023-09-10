@@ -23,13 +23,11 @@ services:
     build:
       context: sweepai/sandbox
       dockerfile: Dockerfile.sandbox
-      target: base
     image: sweepai/sandbox
   sandbox-web:
     build:
       context: sweepai/sandbox
       dockerfile: Dockerfile.web
-      target: base
     image: sweepai/sandbox-web
     ports:
       - 8081:8080
