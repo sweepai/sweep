@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from loguru import logger
 from pydantic import ValidationError
+import requests
 
 from sweepai.celery_init import celery_app
 from sweepai.config.client import SweepConfig, get_documentation_dict
@@ -50,6 +51,11 @@ import tracemalloc
 
 tracemalloc.start()
 
+<<<<<<< HEAD
+@celery_app.task(bind=True)
+def run_ticket(self, *args, **kwargs):
+    logger.info(f"Running on_ticket Task ID: {self.request.id}")
+=======
 events = {}
 on_ticket_events = {}
 
@@ -76,13 +82,14 @@ def terminate_thread(thread):
 
 
 def run_ticket(*args, **kwargs):
+>>>>>>> origin/main
     on_ticket(*args, **kwargs)
     logger.info("Done with on_ticket")
 
 def run_on_check_suite(*args, **kwargs):
     request = kwargs["request"]
     pr_change_request = on_check_suite(request)
-    if pr_change_request: 
+    if pr_change_request:
         call_on_comment(**pr_change_request.params)
         logger.info("Done with on_check_suite")
     else:
@@ -130,7 +137,7 @@ def call_on_comment(*args, **kwargs): # TODO: if its a GHA delete all previous G
             run_comment(*task_args, **task_kwargs)
 
     events[key].put((args, kwargs))
-    
+
     # If a thread isn't running, start one
     if not any(thread.name == key and thread.is_alive() for thread in threading.enumerate()):
         thread = threading.Thread(target=worker, name=key)

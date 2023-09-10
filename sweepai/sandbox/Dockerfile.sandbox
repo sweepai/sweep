@@ -12,11 +12,10 @@ RUN wget https://github.com/mikefarah/yq/releases/download/v4.9.6/yq_linux_amd64
 
 RUN bash -c 'curl https://get.trunk.io -fsSL | bash -s -- -y'
 
-
 # Install node
 ENV NODE_VERSION=18.17.0
 RUN apt install -y curl
-RUN curl https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash
+RUN curl https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash -s -- -y
 ENV NVM_DIR=/root/.nvm
 RUN . "$NVM_DIR/nvm.sh" && nvm install ${NODE_VERSION}
 RUN . "$NVM_DIR/nvm.sh" && nvm use v${NODE_VERSION}
@@ -26,8 +25,5 @@ RUN npm install --global yarn
 RUN node --version
 RUN npm --version
 
-
 # Python stuff
 RUN pip install black isort
-
-# docker build -t sandbox .

@@ -18,6 +18,7 @@ from sweepai.core.documentation_searcher import extract_relevant_docs
 
 from sweepai.core.entities import (
     ProposedIssue,
+    SandboxExecution,
     Snippet,
     NoFilesException,
     SweepContext,
@@ -83,7 +84,7 @@ collapsible_template = """
 </details>
 """
 
-checkbox_template = "- [{check}] `{filename}`\n> {instructions}\n"
+checkbox_template = "- [{check}] {filename}\n{instructions}\n"
 
 num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
@@ -92,6 +93,8 @@ num_full_files = 2
 ordinal = lambda n: str(n) + (
     "th" if 4 <= n <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
 )
+
+SLOW_MODE = True
 
 
 def post_process_snippets(
@@ -139,6 +142,22 @@ def post_process_snippets(
     return result_snippets[:max_num_of_snippets]
 
 
+def create_collapsible(summary: str, body: str, opened: bool = False):
+    return collapsible_template.format(
+        summary=summary, body=body, opened="open" if opened else ""
+    )
+
+
+def blockquote(text: str):
+    return "> " + text.replace("\n", "\n> ") if text else ""
+
+
+def create_checkbox(title: str, body: str, checked: bool = False):
+    return checkbox_template.format(
+        check="X" if checked else " ", filename=title, instructions=body
+    )
+
+
 def strip_sweep(text: str):
     return (
         re.sub(
@@ -151,10 +170,6 @@ def strip_sweep(text: str):
         re.search(r"^[Ss]weep\s?\([Ff]ast\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Ll]int\)", text) is not None,
     )
-
-
-def test_mode(issue):
-    sandbox_logs = ""
 
 
 def on_ticket(
@@ -325,8 +340,8 @@ def on_ticket(
     progress_headers = [
         None,
         "Step 1: 🔍 Code Search",
-        "Step 2: 🧐 Snippet Analysis",
-        "Step 3: 📝 Planning",
+        "Step 2: 📍 Planning",
+        "Step 3: 📝 Summary",
         "Step 4: ⌨️ Coding",
         "Step 5: 🔁 Code Review",
     ]
@@ -412,7 +427,6 @@ def on_ticket(
         if comment.user.login == GITHUB_BOT_USERNAME:
             print("Found comment")
             issue_comment = comment
-            break
 
     try:
         config = SweepConfig.get_config(repo)
@@ -559,13 +573,13 @@ def on_ticket(
 
     # Clone repo and perform local tests (linters, formatters, GHA)
     logger.info("Initializing sandbox...")
-    sandbox_config = {
-        "install": "curl https://get.trunk.io -fsSL | bash",
-        "formatter": "trunk fmt {file}",
-        "linter": "trunk check {file}",
-    }
+    # sandbox_config = {
+    #     "install": "curl https://get.trunk.io -fsSL | bash",
+    #     "formatter": "trunk fmt {file}",
+    #     "linter": "trunk check {file}",
+    # }
     token = user_token
-    repo_url = cloned_repo.clone_url
+    # repo_url = cloned_repo.clone_url
     # sandbox = Sandbox.from_token(repo, repo_url, sandbox_config)
     sandbox = None
 
@@ -581,7 +595,6 @@ def on_ticket(
     logger.info("Fetching relevant files...")
     try:
         snippets, tree = search_snippets(
-            # repo,
             cloned_repo,
             f"{title}\n{summary}\n{replies_text}",
             num_files=num_of_snippets_to_query,
@@ -636,17 +649,20 @@ def on_ticket(
         tree=tree,
     )
     additional_plan = None
-    slow_mode_bot = SlowModeBot(chat_logger=chat_logger)  # can be async'd
-    queries, additional_plan = slow_mode_bot.expand_plan(human_message)
+    if SLOW_MODE:
+        slow_mode_bot = SlowModeBot(chat_logger=chat_logger)  # can be async'd
+        queries, additional_plan = slow_mode_bot.expand_plan(human_message)
 
-    snippets, tree = search_snippets(
-        cloned_repo,
-        # repo,
-        f"{title}\n{summary}\n{replies_text}",
-        num_files=num_of_snippets_to_query,
-        multi_query=queries,
-    )
-    snippets = post_process_snippets(snippets, max_num_of_snippets=5 if not use_faster_model else 2)
+        snippets, tree = search_snippets(
+            cloned_repo,
+            # repo,
+            f"{title}\n{summary}\n{replies_text}",
+            num_files=num_of_snippets_to_query,
+            multi_query=queries,
+        )
+        snippets = post_process_snippets(
+            snippets, max_num_of_snippets=5 if not use_faster_model else 2
+        )
 
     # TODO: refactor this
     human_message = HumanMessagePrompt(
@@ -655,44 +671,45 @@ def on_ticket(
         username=username,
         repo_description=repo_description,
         title=title,
-        summary=message_summary + additional_plan,
+        summary=message_summary + additional_plan
+        if additional_plan
+        else message_summary,
         snippets=snippets,
         tree=tree,
     )
-    try:
-        if not use_faster_model: # Don't do this for OPENAI_USE_3_5_MODEL_ONLY
-            context_pruning = ContextPruning(chat_logger=chat_logger)
-            snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
-                human_message, repo=repo
-            )
-            snippets, tree = search_snippets(
-                # repo,
-                cloned_repo,
-                f"{title}\n{summary}\n{replies_text}",
-                num_files=num_of_snippets_to_query,
-                # branch=None,
-                # installation_id=installation_id,
-                excluded_directories=directories_to_ignore,  # handles the tree
-            )
-            snippets = post_process_snippets(
-                snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
-            )
-            logger.info(f"New snippets: {snippets}")
-            logger.info(f"New tree: {tree}")
-            if not use_faster_model and additional_plan is not None:
-                message_summary += additional_plan
-            human_message = HumanMessagePrompt(
-                repo_name=repo_name,
-                issue_url=issue_url,
-                username=username,
-                repo_description=repo_description,
-                title=title,
-                summary=message_summary,
-                snippets=snippets,
-                tree=tree,
-            )
-    except Exception as e:
-        logger.error(f"Failed to prune context: {e}")
+    if (
+        SLOW_MODE and not use_faster_model
+    ):  # Don't do this for OPENAI_USE_3_5_MODEL_ONLY
+        context_pruning = ContextPruning(chat_logger=chat_logger)
+        snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
+            human_message, repo=repo
+        )
+        snippets, tree = search_snippets(
+            # repo,
+            cloned_repo,
+            f"{title}\n{summary}\n{replies_text}",
+            num_files=num_of_snippets_to_query,
+            # branch=None,
+            # installation_id=installation_id,
+            excluded_directories=directories_to_ignore,  # handles the tree
+        )
+        snippets = post_process_snippets(
+            snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
+        )
+        logger.info(f"New snippets: {snippets}")
+        logger.info(f"New tree: {tree}")
+        if not use_faster_model and additional_plan is not None:
+            message_summary += additional_plan
+        human_message = HumanMessagePrompt(
+            repo_name=repo_name,
+            issue_url=issue_url,
+            username=username,
+            repo_description=repo_description,
+            title=title,
+            summary=message_summary,
+            snippets=snippets,
+            tree=tree,
+        )
 
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
@@ -727,26 +744,21 @@ def on_ticket(
 
     try:
         # ANALYZE SNIPPETS
-        logger.info("Did not execute CoT retrieval...")
-
         newline = "\n"
         edit_sweep_comment(
             "I found the following snippets in your repository. I will now analyze"
             " these snippets and come up with a plan."
             + "\n\n"
-            + collapsible_template.format(
-                summary=(
-                    "Some code snippets I looked at (click to expand). If some file is"
-                    " missing from here, you can mention the path in the ticket"
-                    " description."
-                ),
-                body="\n".join(
+            + create_collapsible(
+                "Some code snippets I looked at (click to expand). If some file is"
+                " missing from here, you can mention the path in the ticket"
+                " description.",
+                "\n".join(
                     [
                         f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
                         for snippet in snippets
                     ]
                 ),
-                opened="",
             )
             + (
                 "I also found the following external resources that might be"
@@ -764,7 +776,7 @@ def on_ticket(
                 f"I'm creating the following subissues:\n\n"
                 + "\n\n".join(
                     [
-                        f"#{subissue.title}:\n> " + subissue.body.replace("\n", "\n> ")
+                        f"#{subissue.title}:\n" + blockquote(subissue.body)
                         for subissue in subissues
                     ]
                 ),
@@ -778,8 +790,8 @@ def on_ticket(
                 ).number
             subissues_checklist = "\n\n".join(
                 [
-                    f"- [ ] #{subissue.issue_id}\n\n> "
-                    + f"**{subissue.title}**\n{subissue.body}".replace("\n", "\n> ")
+                    f"- [ ] #{subissue.issue_id}\n\n"
+                    + blockquote(f"**{subissue.title}**\n{subissue.body}")
                     for subissue in subissues
                 ]
             )
@@ -866,31 +878,26 @@ def on_ticket(
                 file_change_request.filename,
                 file_change_request.instructions_display,
                 "⏳ In Progress",
-                "``` ```",
+                "",
             )
             for file_change_request in file_change_requests
         ]
 
-        checkboxes_progress = [
+        checkboxes_progress: list[tuple[str, str, str]] = [
             (file_change_request.filename, file_change_request.instructions, " ")
             for file_change_request in file_change_requests
         ]
-        checkboxes_message = collapsible_template.format(
-            summary="Checklist",
-            body="\n".join(
-                [
-                    checkbox_template.format(
-                        check=check,
-                        filename=filename,
-                        instructions=instructions.replace("\n", "\n> "),
-                    )
-                    for filename, instructions, check in checkboxes_progress
-                ]
-            ),
-            opened="open",
+        checkboxes_contents = "\n".join(
+            [
+                create_checkbox(f"`{filename}`", blockquote(instructions), check == "X")
+                for filename, instructions, check in checkboxes_progress
+            ]
+        )
+        checkboxes_collapsible = create_collapsible(
+            "Checklist", checkboxes_contents, opened=True
         )
         issue = repo.get_issue(number=issue_number)
-        issue.edit(body=summary + "\n\n" + checkboxes_message)
+        issue.edit(body=summary + "\n\n" + checkboxes_collapsible)
 
         delete_branch = False
         generator = create_pr_changes(  # make this async later
@@ -903,103 +910,97 @@ def on_ticket(
             sandbox=sandbox,
             chat_logger=chat_logger,
         )
-        table_message = tabulate(
-            [
-                (
-                    f"`{filename}`",
-                    instructions.replace("\n", "<br/>"),
-                    progress,
-                    error_logs,
-                )
-                for filename, instructions, progress, error_logs in files_progress
-            ],
-            headers=["File", "Instructions", "Progress", "Error logs"],
-            tablefmt="pipe",
-        )
-        logger.info(files_progress)
-        edit_sweep_comment(table_message, 4)
+        edit_sweep_comment(checkboxes_contents, 4)
         response = {"error": NoFilesException()}
         for item in generator:
             if isinstance(item, dict):
                 response = item
                 break
-            file_change_request, changed_file, sandbox_error = item
+            file_change_request, changed_file, sandbox_execution = item
+            # error_logs = ("## Sandbox Execution Logs:\n" + "\n\n".join([
+            #     create_collapsible(
+            #         f"Sandbox logs {i + 1}/{len(sandbox_execution.outputs)}",
+            #         f"```{output}```",
+            #         i == len(sandbox_execution.outputs) - 1
+            #     ) for i, output in enumerate(sandbox_execution.outputs)
+            # ])) if sandbox_execution else ""
+            error_logs = (
+                (
+                    create_collapsible(
+                        "Sandbox Execution Logs",
+                        "\n\n".join(
+                            [
+                                create_collapsible(
+                                    f"Sandbox logs {i + 1}/{len(sandbox_execution.outputs)}",
+                                    f"```{output}```",
+                                    i == len(sandbox_execution.outputs) - 1,
+                                )
+                                for i, output in enumerate(sandbox_execution.outputs)
+                            ]
+                        ),
+                        opened=True,
+                    )
+                )
+                if sandbox_execution
+                else ""
+            )
             if changed_file:
+                print("Changed File!")
                 commit_hash = repo.get_branch(pull_request.branch_name).commit.sha
                 commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
-                files_progress = [
-                    (
-                        file,
-                        instructions,
-                        f"✅ Commit [`{commit_hash[:7]}`]({commit_url})",
-                        (
-                            "```"
-                            + sandbox_error.stdout
-                            + "\n\n"
-                            + sandbox_error.stderr
-                            + "```"
-                        )
-                        if sandbox_error
-                        else "No errors.",
-                    )
-                    if file_change_request.filename == file
-                    else (file, instructions, progress, error_log)
-                    for file, instructions, progress, error_log in files_progress
-                ]
-
                 checkboxes_progress = [
-                    (file, instructions, "X")
-                    if file_change_request.filename == file
-                    else (file, instructions, progress)
-                    for file, instructions, progress in checkboxes_progress
+                    (
+                        (
+                            f"`{filename}` ✅ Commit [`{commit_hash[:7]}`]({commit_url})",
+                            blockquote(instructions + error_logs),
+                            "X",
+                        )
+                        if file_change_request.filename == filename
+                        else (filename, instructions, progress)
+                    )
+                    for filename, instructions, progress in checkboxes_progress
                 ]
-                checkboxes_message = collapsible_template.format(
-                    summary="Checklist",
-                    body="\n".join(
-                        [
-                            checkbox_template.format(
-                                check=check,
-                                filename=filename,
-                                instructions=instructions.replace("\n", "\n> "),
-                            )
-                            for filename, instructions, check in checkboxes_progress
-                        ]
-                    ),
-                    opened="open",
-                )
-                issue = repo.get_issue(number=issue_number)
-                issue.edit(body=summary + "\n\n" + checkboxes_message)
             else:
-                files_progress = [
-                    (file, instructions, "❌ Failed", error_log)
-                    if file_change_request.filename == file
-                    else (file, instructions, progress, error_log)
-                    for file, instructions, progress, error_log in files_progress
+                print("Didn't change file!")
+                checkboxes_progress = [
+                    (
+                        (
+                            f"`{filename}` ❌ Failed",
+                            blockquote(instructions + error_logs),
+                            "X",
+                        )
+                        if file_change_request.filename == filename
+                        else (filename, instructions, progress)
+                    )
+                    for filename, instructions, progress in checkboxes_progress
                 ]
+            checkboxes_contents = "\n".join(
+                [
+                    checkbox_template.format(
+                        check=check,
+                        filename=filename,
+                        instructions=instructions,
+                    )
+                    for filename, instructions, check in checkboxes_progress
+                ]
+            )
+            checkboxes_collapsible = collapsible_template.format(
+                summary="Checklist",
+                body=checkboxes_contents,
+                opened="open",
+            )
+            issue = repo.get_issue(number=issue_number)
+            issue.edit(body=summary + "\n\n" + checkboxes_collapsible)
+
             logger.info(files_progress)
             logger.info(f"Edited {file_change_request.filename}")
-            table_message = tabulate(
-                [
-                    (
-                        f"`{filename}`",
-                        instructions.replace("\n", "<br/>"),
-                        progress,
-                        error_log,
-                    )
-                    for filename, instructions, progress, error_log in files_progress
-                ],
-                headers=["File", "Instructions", "Progress", "Error logs"],
-                tablefmt="pipe",
-            )
-            edit_sweep_comment(table_message, 4)
+            edit_sweep_comment(checkboxes_contents, 4)
         if not response.get("success"):
             raise Exception(f"Failed to create PR: {response.get('error')}")
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
-            table_message
-            + "I have finished coding the issue. I am now reviewing it for"
-            " completeness.",
+            "I have finished coding the issue. I am now reviewing it for completeness.",
             5,
         )
 
@@ -1033,8 +1034,8 @@ def on_ticket(
             # Todo(lukejagg): Execute sandbox after each iteration
             lint_output = None
             review_message += (
-                f"Here is the {ordinal(1)} review\n> "
-                + review_comment.replace("\n", "\n> ")
+                f"Here is the {ordinal(1)} review\n"
+                + blockquote(review_comment)
                 + "\n\n"
             )
             edit_sweep_comment(
@@ -1083,9 +1084,6 @@ def on_ticket(
                 draft=is_draft,
             )
 
-        # Get the branch (SweepConfig.get_branch(repo))'s sha
-        sha = repo.get_branch(SweepConfig.get_branch(repo)).commit.sha
-
         pr.add_to_labels(GITHUB_LABEL_NAME)
         current_issue.create_reaction("rocket")
 
@@ -1101,15 +1099,6 @@ def on_ticket(
                     check_run.rerequest()
         except Exception as e:
             logger.error(e)
-
-        # Close sandbox
-        # try:
-        #     if sandbox is not None:
-        #         asyncio.wait_for(sandbox.close(), timeout=10)
-        #         logger.info("Closed e2b sandbox")
-        # except Exception as e:
-        #     logger.error(e)
-        #     logger.info("Failed to close e2b sandbox")
 
         # Completed code review
         edit_sweep_comment(

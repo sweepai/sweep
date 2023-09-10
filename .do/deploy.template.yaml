@@ -25,4 +25,4 @@ spec:
       value: "3"
     - key: SENTENCE_TRANSFORMERS_MODEL
       scope: RUN_TIME
-      value: sentence-transformers/all-MiniLM-L6-v2  
+      value: sentence-transformers/all-MiniLM-L6-v2
