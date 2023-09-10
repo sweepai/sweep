@@ -220,6 +220,8 @@ def on_comment(
             pr_chunk = "\n".join(pr_lines[start:end])
             pr_file_path = pr_path.strip()
             formatted_pr_chunk = "\n".join([line + f" <-- {comment}" if line == original_line else line for line in pr_lines[start:end]])
+        else:
+            formatted_pr_chunk = "\n".join(pr_lines)
         if file_comment:
             snippets = []
             tree = ""

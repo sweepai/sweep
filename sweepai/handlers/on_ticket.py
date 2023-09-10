@@ -84,7 +84,7 @@ collapsible_template = """
 </details>
 """
 
-checkbox_template = "- [{check}] {filename}\n> {instructions}\n"
+checkbox_template = "- [{check}] {filename}\n{instructions}\n"
 
 num_of_snippets_to_query = 30
 total_number_of_snippet_tokens = 15_000
@@ -146,9 +146,12 @@ def create_collapsible(summary: str, body: str, opened: bool = False):
         summary=summary, body=body, opened="open" if opened else ""
     )
 
+def blockquote(text: str):
+    return "> " + text.replace("\n", "\n> ") if text else ""
+
 def create_checkbox(title: str, body: str, checked: bool = False):
     return checkbox_template.format(
-        check="X" if checked else " ", filename=title, instructions="> " + body.replace("\n", "\n> ") if body else ""
+        check="X" if checked else " ", filename=title, instructions=body
     )
 
 def strip_sweep(text: str):
@@ -763,7 +766,7 @@ def on_ticket(
                 f"I'm creating the following subissues:\n\n"
                 + "\n\n".join(
                     [
-                        f"#{subissue.title}:\n> " + subissue.body.replace("\n", "\n> ")
+                        f"#{subissue.title}:\n" + blockquote(subissue.body)
                         for subissue in subissues
                     ]
                 ),
@@ -777,8 +780,8 @@ def on_ticket(
                 ).number
             subissues_checklist = "\n\n".join(
                 [
-                    f"- [ ] #{subissue.issue_id}\n\n> "
-                    + f"**{subissue.title}**\n{subissue.body}".replace("\n", "\n> ")
+                    f"- [ ] #{subissue.issue_id}\n\n"
+                    + blockquote(f"**{subissue.title}**\n{subissue.body}")
                     for subissue in subissues
                 ]
             )
@@ -875,7 +878,7 @@ def on_ticket(
             for file_change_request in file_change_requests
         ]
         checkboxes_contents = "\n".join([
-            create_checkbox(f"`{filename}`", instructions, check == "X")
+            create_checkbox(f"`{filename}`", blockquote(instructions), check == "X")
             for filename, instructions, check in checkboxes_progress
         ])
         checkboxes_collapsible = create_collapsible("Checklist", checkboxes_contents, opened=True)
@@ -900,14 +903,31 @@ def on_ticket(
                 response = item
                 break
             file_change_request, changed_file, sandbox_execution = item
-            error_logs = ("\n\n" + sandbox_execution.outputs[-1]) if sandbox_execution else ""
+            # error_logs = ("## Sandbox Execution Logs:\n" + "\n\n".join([
+            #     create_collapsible(
+            #         f"Sandbox logs {i + 1}/{len(sandbox_execution.outputs)}",
+            #         f"```{output}```",
+            #         i == len(sandbox_execution.outputs) - 1
+            #     ) for i, output in enumerate(sandbox_execution.outputs)
+            # ])) if sandbox_execution else ""
+            error_logs = (create_collapsible(
+                "Sandbox Execution Logs",
+                "\n\n".join([
+                    create_collapsible(
+                        f"Sandbox logs {i + 1}/{len(sandbox_execution.outputs)}",
+                        f"```{output}```",
+                        i == len(sandbox_execution.outputs) - 1
+                    ) for i, output in enumerate(sandbox_execution.outputs)
+                ]),
+                opened=True
+            )) if sandbox_execution else ""
             if changed_file:
                 print("Changed File!")
                 commit_hash = repo.get_branch(pull_request.branch_name).commit.sha
                 commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
                 checkboxes_progress = [
                     (
-                        (f"`{filename}` ✅ Commit [`{commit_hash[:7]}`]({commit_url})", instructions + error_logs, "X")
+                        (f"`{filename}` ✅ Commit [`{commit_hash[:7]}`]({commit_url})", blockquote(instructions + error_logs), "X")
                         if file_change_request.filename == filename
                         else (filename, instructions, progress)
                     ) for filename, instructions, progress in checkboxes_progress
@@ -916,7 +936,7 @@ def on_ticket(
                 print("Didn't change file!")
                 checkboxes_progress = [
                     (
-                        (f"`{filename}` ❌ Failed", instructions + error_logs, "X")
+                        (f"`{filename}` ❌ Failed", blockquote(instructions + error_logs), "X")
                         if file_change_request.filename == filename
                         else (filename, instructions, progress)
                     ) for filename, instructions, progress in checkboxes_progress
@@ -926,7 +946,7 @@ def on_ticket(
                     checkbox_template.format(
                         check=check,
                         filename=filename,
-                        instructions=instructions.replace("\n", "\n> "),
+                        instructions=instructions,
                     )
                     for filename, instructions, check in checkboxes_progress
                 ]
@@ -947,9 +967,7 @@ def on_ticket(
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
-            checkboxes_contents
-            + "I have finished coding the issue. I am now reviewing it for"
-            " completeness.",
+            "I have finished coding the issue. I am now reviewing it for completeness.",
             5,
         )
 
@@ -983,8 +1001,8 @@ def on_ticket(
             # Todo(lukejagg): Execute sandbox after each iteration
             lint_output = None
             review_message += (
-                f"Here is the {ordinal(1)} review\n> "
-                + review_comment.replace("\n", "\n> ")
+                f"Here is the {ordinal(1)} review\n"
+                + blockquote(review_comment)
                 + "\n\n"
             )
             edit_sweep_comment(

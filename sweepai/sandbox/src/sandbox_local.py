@@ -164,7 +164,7 @@ async def run_sandbox(request: Request):
                 exit_code, output = container.exec_run(wrap_command(command), stderr=True)
                 output = output.decode('utf-8')
                 print(summarize_logs(output))
-                if exit_code != 0 and not ("prettier" in command and exit_code == 2):
+                if exit_code != 0 and not ("prettier" in command and exit_code == 1):
                     raise Exception(output)
                 return output
             
@@ -172,7 +172,7 @@ async def run_sandbox(request: Request):
                 print(command)
                 outputs.append(run_command(command))
 
-            num_iterations = 5
+            num_iterations = 15
             for i in range(1, num_iterations + 1):
                 try:
                     print(f"Trying to lint for the {i}/{num_iterations}th time")

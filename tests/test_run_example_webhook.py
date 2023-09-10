@@ -11,9 +11,10 @@ for i in range(30):
         if response.status_code == 200:
             break
     except:
-        print(f"Waiting for server to start {i+1}/20...")
+        print(f"Waiting for server to start ({i+1}s)" + "." * (i % 4), end="\r")
         time.sleep(1)
         continue
+print(f"Waiting for server to start ({i+1}s)")
 
 response = requests.post(
     host,
