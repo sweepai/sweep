@@ -3,7 +3,6 @@
 ## August 8, 2023
 
 - We just launched external documentation search! 📚 For example, if you want Sweep to use the OpenAI docs, you can mention “openai” in your issue and Sweep will search over the OpenAI docs for you. 👀
-- [Alerts: Minor Updates] We just launched external documentation search! 📚 For example, if you want Sweep to use the OpenAI docs, you can mention “openai” in your issue and Sweep will search over the OpenAI docs for you. 👀
 
 Right now we’ve manually indexed the documentation for frameworks like Langchain, ReactJS, and Docusaurus here: https://github.com/sweepai/sweep/blob/main/sweepai/core/documentation.py#L37-L47. You can mention those now to start using them!
 
