@@ -5,7 +5,8 @@ echo `echo `docker ps``
 echo Removed `docker ps -q | awk 'NR>4'`
 docker ps -q | awk 'NR>4' | xargs docker rm -f
 
-PORT=8080
+# Start on 8082 to not overlap with sandbox
+PORT=8082
 
 # Function to check if a port is free
 is_port_free() {
@@ -25,8 +26,8 @@ echo "Found open port: $PORT"
 cd ~/sweep
 # docker build -t sweepai/sweep:latest .
 docker compose build
-docker run --env-file .env -p $PORT:8080 -d sweepai/sweep:latest
 docker run --env-file .env -p 8081:8080 -d sweepai/sandbox-web
+docker run --env-file .env -p $PORT:8080 -d sweepai/sweep:latest
 
 # Check if the "ngrok" screen session exists
 screen -list | grep -q "\bngrok\b"
