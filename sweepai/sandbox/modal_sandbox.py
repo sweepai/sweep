@@ -1,16 +1,21 @@
-from dataclasses import dataclass
 import os
 import re
 import shutil
 import subprocess
+from dataclasses import dataclass
+
 import git
-from loguru import logger
 import modal
+from loguru import logger
+from sandbox.src.sandbox_utils import Sandbox
+
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import SweepContext
-
-from sandbox.src.sandbox_utils import Sandbox
-from sweepai.utils.diff import format_contents, generate_new_file_from_patch, is_markdown
+from sweepai.utils.diff import (
+    format_contents,
+    generate_new_file_from_patch,
+    is_markdown,
+)
 
 stub = modal.Stub("api")
 
@@ -26,9 +31,7 @@ god_image = (
         "curl -fsSL https://deb.nodesource.com/setup_18.x | bash -",
         "apt install nodejs",
     )
-    .run_commands(
-        "curl https://get.trunk.io -fsSL | bash -s -- -y"
-    )
+    .run_commands("curl https://get.trunk.io -fsSL | bash -s -- -y")
     .run_commands(
         # Install yarn
         "curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -",
@@ -53,6 +56,7 @@ class SandboxError(Exception):
     stdout: str
     stderr: str
 
+
 def run_sandbox(
     sandbox: Sandbox,
     file_path: str,
@@ -76,10 +80,11 @@ def run_sandbox(
         "bash",
         "-c",
         cmd_string,
-        image=god_image
-            .copy_mount(modal.Mount.from_local_dir("repo")) # Copying repo
-            .run_commands(f"cd repo && rm -rf .trunk && trunk init") # Re-initializing trunk
-            .run_commands(f"cd repo && {write_file_cmd}"), # Writing changed file
+        image=god_image.copy_mount(modal.Mount.from_local_dir("repo"))  # Copying repo
+        .run_commands(
+            f"cd repo && rm -rf .trunk && trunk init"
+        )  # Re-initializing trunk
+        .run_commands(f"cd repo && {write_file_cmd}"),  # Writing changed file
         timeout=timeout,
         cpu=cpu,
         memory=memory,
@@ -94,26 +99,27 @@ def run_sandbox(
     err = sb.stderr.read()
 
     def clean_ansi_codes(raw_string: bytes) -> str:
-        res = re.sub(r'\x1b\[.*?[@-~]', '', raw_string).strip()
+        res = re.sub(r"\x1b\[.*?[@-~]", "", raw_string).strip()
         # delete all duplicate whitespaces
-        res = re.sub(r'\s+', ' ', res)
+        res = re.sub(r"\s+", " ", res)
         return res
-    
-    stdout = '\n'.join(stdout.split("\n")[-17:]) # truncate for trunk
+
+    stdout = "\n".join(stdout.split("\n")[-17:])  # truncate for trunk
     stdout = clean_ansi_codes(stdout)
     if sb.returncode != 0:  # If no error message, don't raise
         raise SandboxError(stdout, err)
     else:
         return stdout
 
+
 def sandbox_code_repair_modify(
-        proposed_file: str,
-        filename: str,
-        chunk_offset: int = 0,
-        sandbox: Sandbox = None,
-        chat_logger = None,
-        sweep_context: SweepContext | None = {},
-    ) -> tuple[str, str | None]:
+    proposed_file: str,
+    filename: str,
+    chunk_offset: int = 0,
+    sandbox: Sandbox = None,
+    chat_logger=None,
+    sweep_context: SweepContext | None = {},
+) -> tuple[str, str | None]:
     # Run formatter commands
     # formatted_file = run_format(sandbox, filename)
     # if formatted_file is not None:
@@ -149,6 +155,11 @@ def sandbox_code_repair_modify(
                 "Fixing linting errors...\n",
                 sandbox_error.stdout + "\n\n" + sandbox_error.stderr,
             )
+            # Declare or import the 'sandbox_code_repair_modify_system_prompt' and 'sandbox_code_repair_modify_prompt' variables correctly
+            sandbox_code_repair_modify_system_prompt = (
+                "system prompt for sandbox code repair modify"
+            )
+            sandbox_code_repair_modify_prompt = "prompt for sandbox code repair modify"
             code_repairer = ChatGPT.from_system_message_string(
                 sandbox_code_repair_modify_system_prompt,
                 chat_logger=chat_logger,
