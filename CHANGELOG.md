@@ -2,6 +2,7 @@
 
 ## August 8, 2023
 
+- We just launched external documentation search! 📚 For example, if you want Sweep to use the OpenAI docs, you can mention “openai” in your issue and Sweep will search over the OpenAI docs for you. 👀
 - [Alerts: Minor Updates] We just launched external documentation search! 📚 For example, if you want Sweep to use the OpenAI docs, you can mention “openai” in your issue and Sweep will search over the OpenAI docs for you. 👀
 
 Right now we’ve manually indexed the documentation for frameworks like Langchain, ReactJS, and Docusaurus here: https://github.com/sweepai/sweep/blob/main/sweepai/core/documentation.py#L37-L47. You can mention those now to start using them!
@@ -32,6 +33,7 @@ The page is a pull request on GitHub titled "Create JavaScript/TypeScript client
 
 ## August 5, 2023
 
+- William: ⏩ We just pushed fixes that should speed up Sweep's first step by a lot, especially for large repos (could have taken 5 minutes+, should now be sub 1 minute). Sweep was slow because of a hotfix we pushed due to our infra provider having issues. Now that Sweep is working reliably, we're working on getting the speed back 🚤
 - William: @[Alerts: Minor Updates] ⏩ We just pushed fixes that should speed up Sweep's first step by a lot, especially for large repos (could have taken 5 minutes+, should now be sub 1 minute). Sweep was slow because of a hotfix we pushed due to our infra provider having issues. Now that Sweep is working reliably, we're working on getting the speed back 🚤
 - William: Just pushed an improvement that should really improve latency. We were previously updating the cache for inactive users, which slows everything down. We now only do this for active and Sweep Pro users. :sweeping:
 - Kevin: @[Alerts: Minor Updates] 🎉 More exciting features from this evening:
