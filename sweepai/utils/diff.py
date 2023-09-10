@@ -178,39 +178,43 @@ def match_string(original, search, start_index=None, exact_match=False) -> Match
     line_matches = 0
     num_hits = 0
 
-    # sliding window comparison from original to search
-    # Todo: 2 pointer approach (find start, then find end)
-    # Todo: use rapidfuzz to compute fuzzy similarity over code
-    for i in range(start_index or 0, len(original)):
-        count = 0
-        for j in range(len(search)):
-            if i + j >= len(original):
-                continue
-            original_line = original[i + j]
-            original_line = original_line.rsplit("#")[0].rsplit("//")[0]
+    # # sliding window comparison from original to search
+    # # Todo: 2 pointer approach (find start, then find end)
+    # # Todo: use rapidfuzz to compute fuzzy similarity over code
+    # for i in range(start_index or 0, len(original)):
+    #     count = 0
+    #     for j in range(len(search)):
+    #         if i + j >= len(original):
+    #             continue
+            
+    #         original_line = original[i + j]
+    #         original_line = original_line.rsplit("#")[0].rsplit("//")[0]
 
-            match = (
-                search[j] == original_line
-                if exact_match
-                else search[j].strip() == original_line.strip()
-            )
-            if match:
-                count += 1
+    #         match = (
+    #             search[j] == original_line
+    #             if exact_match
+    #             else search[j].strip() == original_line.strip()
+    #         )
+    #         if match:
+    #             count += 1
+    #     if count > line_matches:
+    #         index = i
+    #         print("line_matches: ", line_matches)
+    #         line_matches = count
+    #         num_hits = 1
+    #     elif count == line_matches:
+    #         num_hits += 1
+    
 
-                # If searching for previous snippet (like regex)
-                if start_index is not None and search[j] == original[i + j]:
-                    count += 0.001
-        if count > line_matches:
-            index = i
-            line_matches = count
-            num_hits = 1
-        elif count == line_matches:
-            num_hits += 1
-
-    if num_hits != 1 or line_matches / len(search) < 0.8:
-        return find_best_match("\n".join(search), "\n".join(original))
-    else:
-        return Match(index, index + line_matches, score=100)
+    # if num_hits != 1 or line_matches / len(search) < 0.8:
+    # if False:
+    # if True:
+    best_match = find_best_match("\n".join(search), "\n".join(original))
+    # else:
+    #     import pdb; pdb.set_trace()
+    #     best_match = Match(index, index + line_matches, score=100)
+    print(best_match)
+    return best_match
 
 
 def lstrip_max(s, chars, max_count):
@@ -532,7 +536,6 @@ def sliding_window_replacement(
         ]
     else:
         modified = [spaces + line for line in replace]
-    print("here!")
 
     # replaced original with modified
     original = original[: best_match.start] + modified + original[best_match.end :]
