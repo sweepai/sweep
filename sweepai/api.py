@@ -148,25 +148,21 @@ def call_on_comment(
         thread = threading.Thread(target=worker, name=key)
         thread.start()
 
-
-@app.get("/health")
-def health_check():
-    return JSONResponse(
-        status_code=200,
-        content={"status": "UP", "port": sys.argv[-1] if len(sys.argv) > 0 else -1},
+    pr_change_request = PRChangeRequest(
+        type="comment",
+        params={
+            "repo_full_name": request.repository.full_name,
+            "repo_description": request.repository.description,
+            "comment": request.comment.body,
+            "pr_path": None,
+            "pr_line_position": None,
+            "username": request.comment.user.login,
+            "installation_id": request.installation.id,
+            "pr_number": request.issue.number,
+            "comment_id": request.comment.id,
+        },
     )
-
-
-@app.get("/", response_class=HTMLResponse)
-def home():
-    return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
-
-
-@app.post("/")
-async def webhook(raw_request: Request):
-    """Handle a webhook request from GitHub."""
-    try:
-        request_dict = await raw_request.json()
+    # Define the 'push_to_queue' function or import it if it's defined in another module
         logger.info(f"Received request: {request_dict.keys()}")
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
@@ -626,6 +622,7 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                     continue
 
                 # Get the diff before the merge
+                # Check the 'Comparison' class and ensure 'diff' is a member
                 diff_before_merge = repo.compare(
                     base=repo.default_branch, head=feature_branch
                 ).diff
@@ -637,6 +634,7 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                 )
 
                 # Get the diff after the merge
+                # Check the 'Comparison' class and ensure 'diff' is a member
                 diff_after_merge = repo.compare(
                     base=repo.default_branch, head=feature_branch
                 ).diff
