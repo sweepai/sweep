@@ -48,23 +48,27 @@ def read_file(file_name):
     except:
         return ""
 
+
 FILE_THRESHOLD = 100
+
 
 def repo_to_chunks(directory, sweep_config):
     dir_file_count = {}
-    
+
     def is_dir_too_big(file_name):
-        dir_name = os.path.dirname(file_name) 
+        dir_name = os.path.dirname(file_name)
         if file_name == "node_modules" or file_name == "venv":
             return True
         if dir_name not in dir_file_count:
             dir_file_count[dir_name] = len(os.listdir(dir_name))
         return dir_file_count[dir_name] > FILE_THRESHOLD
+
     logger.info(f"Reading files from {directory}")
 
     file_list = glob.iglob(f"{directory}/**", recursive=True)
     file_list = [
-        file_name for file_name in file_list 
+        file_name
+        for file_name in file_list
         if filter_file(file_name, sweep_config) and not is_dir_too_big(file_name)
     ]
     logger.info(f"Found {len(file_list)} files")

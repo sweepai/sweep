@@ -1,10 +1,11 @@
 version: '2'
 services:
-  app:
+  webhook:
     build:
       context: .
       dockerfile: Dockerfile
       target: base
+    image: sweepai/sweep
     volumes:
       - .:/app
     ports:
@@ -16,3 +17,23 @@ services:
     tty: true
     environment:
       - PORT=${PORT:-8080}
+    env_file:
+      - .env
+  sandbox:
+    build:
+      context: sweepai/sandbox
+      dockerfile: Dockerfile.sandbox
+      target: base
+    image: sweepai/sandbox
+  sandbox-web:
+    build:
+      context: sweepai/sandbox
+      dockerfile: Dockerfile.web
+      target: base
+    image: sweepai/sandbox-web
+    ports:
+      - 8081:8080
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - .env
