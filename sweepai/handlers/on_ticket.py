@@ -94,7 +94,7 @@ ordinal = lambda n: str(n) + (
     "th" if 4 <= n <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
 )
 
-SLOW_MODE = False
+SLOW_MODE = True
 
 
 def post_process_snippets(
