@@ -80,14 +80,16 @@ def run_ticket(*args, **kwargs):
     on_ticket(*args, **kwargs)
     logger.info("Done with on_ticket")
 
+
 def run_on_check_suite(*args, **kwargs):
     request = kwargs["request"]
     pr_change_request = on_check_suite(request)
-    if pr_change_request: 
+    if pr_change_request:
         call_on_comment(**pr_change_request.params)
         logger.info("Done with on_check_suite")
     else:
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
+
 
 def run_comment(*args, **kwargs):
     on_comment(*args, **kwargs)
@@ -109,14 +111,18 @@ def call_on_ticket(*args, **kwargs):
     on_ticket_events[key] = thread
     thread.start()
 
+
 def call_on_check_suite(*args, **kwargs):
-    repo_full_name = kwargs['request'].repository.full_name
-    pr_number = kwargs['request'].check_run.pull_requests[0].number
+    repo_full_name = kwargs["request"].repository.full_name
+    pr_number = kwargs["request"].check_run.pull_requests[0].number
     key = f"{repo_full_name}-{pr_number}"
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
-def call_on_comment(*args, **kwargs): # TODO: if its a GHA delete all previous GHA and append to the end
+
+def call_on_comment(
+    *args, **kwargs
+):  # TODO: if its a GHA delete all previous GHA and append to the end
     global events
     repo_full_name = kwargs["repo_full_name"]
     pr_id = kwargs["pr_number"]
@@ -131,11 +137,14 @@ def call_on_comment(*args, **kwargs): # TODO: if its a GHA delete all previous G
             run_comment(*task_args, **task_kwargs)
 
     events[key].put((args, kwargs))
-    
+
     # If a thread isn't running, start one
-    if not any(thread.name == key and thread.is_alive() for thread in threading.enumerate()):
+    if not any(
+        thread.name == key and thread.is_alive() for thread in threading.enumerate()
+    ):
         thread = threading.Thread(target=worker, name=key)
         thread.start()
+
 
 @app.get("/health")
 def health_check():
@@ -148,6 +157,7 @@ def health_check():
 @app.get("/", response_class=HTMLResponse)
 def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
+
 
 @app.post("/")
 async def webhook(raw_request: Request):
@@ -440,7 +450,9 @@ async def webhook(raw_request: Request):
                 repo = g.get_repo(request.repository.full_name)
                 pull_requests = request.check_run.pull_requests
                 if pull_requests:
-                    call_on_check_suite(request=request)
+                    pr = repo.get_pull(pull_requests[0].number)
+                    if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
+                        call_on_check_suite(request=request)
                 else:
                     logger.info("No pull requests, passing")
             case "installation_repositories", "added":
