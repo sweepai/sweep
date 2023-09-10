@@ -99,6 +99,7 @@ def on_comment(
     pr_file_path = None
     diffs = get_pr_diffs(repo, pr)
     pr_chunk = None
+    formatted_pr_chunk = None
 
     issue_number_match = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body)
     original_issue = None
@@ -219,7 +220,7 @@ def on_comment(
             original_line = pr_lines[pr_line_position - 1]
             pr_chunk = "\n".join(pr_lines[start:end])
             pr_file_path = pr_path.strip()
-            formatted_pr_chunk = "\n".join(pr_lines[start:pr_line_position - 1]) + f"{pr_lines[pr_line_position - 1]} <-- {comment}" + "\n".join(pr_lines[pr_line_position:end])
+            formatted_pr_chunk = "\n".join(pr_lines[start:pr_line_position - 1]) + f"\n{pr_lines[pr_line_position - 1]} <-- {comment}" + "\n".join(pr_lines[pr_line_position:end])
         if file_comment:
             snippets = []
             tree = ""
