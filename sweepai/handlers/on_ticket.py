@@ -94,6 +94,8 @@ ordinal = lambda n: str(n) + (
     "th" if 4 <= n <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
 )
 
+SLOW_MODE = False
+
 
 def post_process_snippets(
     snippets: list[Snippet],
@@ -139,6 +141,15 @@ def post_process_snippets(
         result_snippets.append(snippet)
     return result_snippets[:max_num_of_snippets]
 
+def create_collapsible(summary: str, body: str, opened: bool = False):
+    return collapsible_template.format(
+        summary=summary, body=body, opened="open" if opened else ""
+    )
+
+def create_checkbox(title: str, body: str, checked: bool = False):
+    return checkbox_template.format(
+        check="X" if checked else " ", filename=title, instructions="> " + body.replace("\n", "\n> ") if body else ""
+    )
 
 def strip_sweep(text: str):
     return (
@@ -152,10 +163,6 @@ def strip_sweep(text: str):
         re.search(r"^[Ss]weep\s?\([Ff]ast\)", text) is not None,
         re.search(r"^[Ss]weep\s?\([Ll]int\)", text) is not None,
     )
-
-
-def test_mode(issue):
-    sandbox_logs = ""
 
 
 def on_ticket(
@@ -413,7 +420,6 @@ def on_ticket(
         if comment.user.login == GITHUB_BOT_USERNAME:
             print("Found comment")
             issue_comment = comment
-            break
 
     try:
         config = SweepConfig.get_config(repo)
@@ -560,13 +566,13 @@ def on_ticket(
 
     # Clone repo and perform local tests (linters, formatters, GHA)
     logger.info("Initializing sandbox...")
-    sandbox_config = {
-        "install": "curl https://get.trunk.io -fsSL | bash",
-        "formatter": "trunk fmt {file}",
-        "linter": "trunk check {file}",
-    }
+    # sandbox_config = {
+    #     "install": "curl https://get.trunk.io -fsSL | bash",
+    #     "formatter": "trunk fmt {file}",
+    #     "linter": "trunk check {file}",
+    # }
     token = user_token
-    repo_url = cloned_repo.clone_url
+    # repo_url = cloned_repo.clone_url
     # sandbox = Sandbox.from_token(repo, repo_url, sandbox_config)
     sandbox = None
 
@@ -582,7 +588,6 @@ def on_ticket(
     logger.info("Fetching relevant files...")
     try:
         snippets, tree = search_snippets(
-            # repo,
             cloned_repo,
             f"{title}\n{summary}\n{replies_text}",
             num_files=num_of_snippets_to_query,
@@ -637,17 +642,18 @@ def on_ticket(
         tree=tree,
     )
     additional_plan = None
-    slow_mode_bot = SlowModeBot(chat_logger=chat_logger)  # can be async'd
-    queries, additional_plan = slow_mode_bot.expand_plan(human_message)
+    if SLOW_MODE:
+        slow_mode_bot = SlowModeBot(chat_logger=chat_logger)  # can be async'd
+        queries, additional_plan = slow_mode_bot.expand_plan(human_message)
 
-    snippets, tree = search_snippets(
-        cloned_repo,
-        # repo,
-        f"{title}\n{summary}\n{replies_text}",
-        num_files=num_of_snippets_to_query,
-        multi_query=queries,
-    )
-    snippets = post_process_snippets(snippets, max_num_of_snippets=5 if not use_faster_model else 2)
+        snippets, tree = search_snippets(
+            cloned_repo,
+            # repo,
+            f"{title}\n{summary}\n{replies_text}",
+            num_files=num_of_snippets_to_query,
+            multi_query=queries,
+        )
+        snippets = post_process_snippets(snippets, max_num_of_snippets=5 if not use_faster_model else 2)
 
     # TODO: refactor this
     human_message = HumanMessagePrompt(
@@ -656,44 +662,41 @@ def on_ticket(
         username=username,
         repo_description=repo_description,
         title=title,
-        summary=message_summary + additional_plan,
+        summary=message_summary + additional_plan if additional_plan else message_summary,
         snippets=snippets,
         tree=tree,
     )
-    try:
-        if not use_faster_model: # Don't do this for OPENAI_USE_3_5_MODEL_ONLY
-            context_pruning = ContextPruning(chat_logger=chat_logger)
-            snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
-                human_message, repo=repo
-            )
-            snippets, tree = search_snippets(
-                # repo,
-                cloned_repo,
-                f"{title}\n{summary}\n{replies_text}",
-                num_files=num_of_snippets_to_query,
-                # branch=None,
-                # installation_id=installation_id,
-                excluded_directories=directories_to_ignore,  # handles the tree
-            )
-            snippets = post_process_snippets(
-                snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
-            )
-            logger.info(f"New snippets: {snippets}")
-            logger.info(f"New tree: {tree}")
-            if not use_faster_model and additional_plan is not None:
-                message_summary += additional_plan
-            human_message = HumanMessagePrompt(
-                repo_name=repo_name,
-                issue_url=issue_url,
-                username=username,
-                repo_description=repo_description,
-                title=title,
-                summary=message_summary,
-                snippets=snippets,
-                tree=tree,
-            )
-    except Exception as e:
-        logger.error(f"Failed to prune context: {e}")
+    if SLOW_MODE and not use_faster_model: # Don't do this for OPENAI_USE_3_5_MODEL_ONLY
+        context_pruning = ContextPruning(chat_logger=chat_logger)
+        snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
+            human_message, repo=repo
+        )
+        snippets, tree = search_snippets(
+            # repo,
+            cloned_repo,
+            f"{title}\n{summary}\n{replies_text}",
+            num_files=num_of_snippets_to_query,
+            # branch=None,
+            # installation_id=installation_id,
+            excluded_directories=directories_to_ignore,  # handles the tree
+        )
+        snippets = post_process_snippets(
+            snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
+        )
+        logger.info(f"New snippets: {snippets}")
+        logger.info(f"New tree: {tree}")
+        if not use_faster_model and additional_plan is not None:
+            message_summary += additional_plan
+        human_message = HumanMessagePrompt(
+            repo_name=repo_name,
+            issue_url=issue_url,
+            username=username,
+            repo_description=repo_description,
+            title=title,
+            summary=message_summary,
+            snippets=snippets,
+            tree=tree,
+        )
 
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
@@ -728,26 +731,21 @@ def on_ticket(
 
     try:
         # ANALYZE SNIPPETS
-        logger.info("Did not execute CoT retrieval...")
-
         newline = "\n"
         edit_sweep_comment(
             "I found the following snippets in your repository. I will now analyze"
             " these snippets and come up with a plan."
             + "\n\n"
-            + collapsible_template.format(
-                summary=(
-                    "Some code snippets I looked at (click to expand). If some file is"
-                    " missing from here, you can mention the path in the ticket"
-                    " description."
-                ),
-                body="\n".join(
+            + create_collapsible(
+                "Some code snippets I looked at (click to expand). If some file is"
+                " missing from here, you can mention the path in the ticket"
+                " description.",
+                "\n".join(
                     [
                         f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
                         for snippet in snippets
                     ]
-                ),
-                opened="",
+                )
             )
             + (
                 "I also found the following external resources that might be"
@@ -877,18 +875,10 @@ def on_ticket(
             for file_change_request in file_change_requests
         ]
         checkboxes_contents = "\n".join([
-            checkbox_template.format(
-                check=check,
-                filename=filename,
-                instructions=instructions.replace("\n", "\n> "),
-            )
+            create_checkbox(f"`{filename}`", instructions, check == "X")
             for filename, instructions, check in checkboxes_progress
         ])
-        checkboxes_collapsible = collapsible_template.format(
-            summary="Checklist",
-            body=checkboxes_contents,
-            opened="open",
-        )
+        checkboxes_collapsible = create_collapsible("Checklist", checkboxes_contents, opened=True)
         issue = repo.get_issue(number=issue_number)
         issue.edit(body=summary + "\n\n" + checkboxes_collapsible)
 
@@ -1043,9 +1033,6 @@ def on_ticket(
                 draft=is_draft,
             )
 
-        # Get the branch (SweepConfig.get_branch(repo))'s sha
-        sha = repo.get_branch(SweepConfig.get_branch(repo)).commit.sha
-
         pr.add_to_labels(GITHUB_LABEL_NAME)
         current_issue.create_reaction("rocket")
 
@@ -1061,15 +1048,6 @@ def on_ticket(
                     check_run.rerequest()
         except Exception as e:
             logger.error(e)
-
-        # Close sandbox
-        # try:
-        #     if sandbox is not None:
-        #         asyncio.wait_for(sandbox.close(), timeout=10)
-        #         logger.info("Closed e2b sandbox")
-        # except Exception as e:
-        #     logger.error(e)
-        #     logger.info("Failed to close e2b sandbox")
 
         # Completed code review
         edit_sweep_comment(

@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from loguru import logger
 from pydantic import ValidationError
+import requests
 
 from sweepai.celery_init import celery_app
 from sweepai.config.client import SweepConfig, get_documentation_dict
@@ -46,7 +47,6 @@ app = FastAPI()
 import tracemalloc
 
 tracemalloc.start()
-
 
 @celery_app.task(bind=True)
 def run_ticket(self, *args, **kwargs):

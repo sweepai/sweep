@@ -116,7 +116,7 @@ def home():
 class SandboxError(Exception):
     message: str
 
-@app.post("/sandbox")
+@app.post("/")
 async def run_sandbox(request: Request):
     data = await request.json()
     sandbox_request = SandboxRequest(**data)
@@ -172,7 +172,7 @@ async def run_sandbox(request: Request):
                 print(command)
                 outputs.append(run_command(command))
 
-            num_iterations = 15
+            num_iterations = 5
             for i in range(1, num_iterations + 1):
                 try:
                     print(f"Trying to lint for the {i}/{num_iterations}th time")
