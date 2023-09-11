@@ -29,7 +29,7 @@ class SandboxContainer:
 
     def __enter__(self):
         client.containers.run(
-            "sandbox", "tail -f /dev/null", detach=True, name=self.container_name
+            "sweepai/sandbox:latest", "tail -f /dev/null", detach=True, name=self.container_name
         )  # keeps the container running
         self.container = client.containers.get(self.container_name)
         return self.container

@@ -19,10 +19,10 @@ docs:
   deeplake: ["https://docs.deeplake.ai/en/latest", "Deeplake is our vector database"]
 
 sandbox:
-  install: [
-    "apt install -y python3.11 python3.11 pip",
-    "pip install poetry",
-    "poetry env use python3.11",
-    "poetry install"
-  ]
-  check: ["poetry run pylint --errors-only {file_path}"]
+  install:
+    - apt install python3.11 -y
+    - pip install poetry
+    - poetry env use python3.11
+    - poetry install
+  check: 
+    - poetry run pylint --errors-only {file_path}

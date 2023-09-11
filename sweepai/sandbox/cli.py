@@ -1,4 +1,3 @@
-import hashlib
 import os
 import yaml
 import shlex
@@ -38,7 +37,7 @@ def copy_to(container):
     files_to_copy = {
         f
         for f in tqdm(Path(".").rglob("*"), desc="Getting files to copy")
-        if f.is_file() and not spec.match_file(f)
+        if f.is_file() and not spec.match_file(f) and not str(f).startswith(".git")
     }
 
     print("Copying files to container...")
@@ -64,8 +63,10 @@ def get_sandbox_from_config():
 
 @app.command()
 def sandbox(file_path: Path):
+    print("\nGetting sandbox config...\n", style="bold white on cyan")
     sandbox = get_sandbox_from_config()
-    print(f"Spinning up sandbox container\n", style="bold white on yellow")
+    print("Running sandbox with the following settings:\n", sandbox)
+    print(f"\nSpinning up sandbox container\n", style="bold white on cyan")
     with SandboxContainer() as container:
         try:
             print(f"[bold]Copying files into sandbox[/bold]")
@@ -86,21 +87,22 @@ def sandbox(file_path: Path):
                 return logs
 
             def run_command(command):
-                print(f"\n[bold]Running {command}[/bold]\n")
+                print(f"\n[bold]Running `{command}`[/bold]\n")
                 exit_code, output = container.exec_run(
                     wrap_command(command), stderr=True
                 )
                 output = output.decode("utf-8")
-                print(summarize_logs(output))
+                if output:
+                    print(summarize_logs(output))
                 if exit_code != 0 and not ("prettier" in command and exit_code == 2):
                     raise Exception(output)
                 return output
 
-            print("\n\nRunning installation scripts...", style="bold white on yellow")
+            print("\nRunning installation scripts...", style="bold white on cyan")
             for command in sandbox.install:
                 run_command(command)
 
-            print("\n\nRunning linter scripts...", style="bold white on yellow")
+            print("\nRunning linter scripts...", style="bold white on cyan")
             for command in sandbox.check:
                 run_command(command)
 
