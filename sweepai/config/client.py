@@ -220,6 +220,18 @@ def get_blocked_dirs(repo: Repository):
         logger.warning(f"Error when getting docs: {e}, returning empty dict")
         return []
 
+@lru_cache(maxsize=None)
+def get_rules(repo: Repository):
+    try:
+        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
+            "utf-8"
+        )
+        sweep_yaml = yaml.safe_load(sweep_yaml_content)
+        rules = sweep_yaml.get("rules", [])
+        return rules
+    except Exception as e:
+        logger.warning(f"Error when getting rules: {e}, returning empty array")
+        return []
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926a9f")
@@ -231,5 +243,4 @@ UPDATES_MESSAGE = """\
 * Added support for self-hosting! Check out [Self-hosting Sweep](https://docs.sweep.dev/deployment) to get started.
 * [Self Hosting] Multiple options to compute vector embeddings, configure your .env file using [VECTOR_EMBEDDING_SOURCE](https://github.com/sweepai/sweep/blob/main/sweepai/config/server.py#L144)
 """
-# * We open-sourced our new [fine-tuned code search model](https://huggingface.co/sweepai/mpnet-code-search).
-# * We launched our [browser extension](https://github.com/sweepai/sweep/releases/tag/browser-extension-v0.0.1) making it faster to make Sweep issues.
+
