@@ -1,6 +1,6 @@
 import os
 import time
-from typing import Literal, Self
+from typing import Literal
 
 import openai
 import backoff
@@ -15,6 +15,12 @@ from src.prompts import (
     sandbox_code_repair_modify_prompt,
 )
 
+try:
+    from typing import Self
+except ImportError:
+    from typing import TypeVar
+
+    Self = TypeVar("Self")
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
