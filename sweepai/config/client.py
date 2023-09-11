@@ -220,6 +220,18 @@ def get_blocked_dirs(repo: Repository):
         logger.warning(f"Error when getting docs: {e}, returning empty dict")
         return []
 
+@lru_cache(maxsize=None)
+def get_rules(repo: Repository):
+    try:
+        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
+            "utf-8"
+        )
+        sweep_yaml = yaml.safe_load(sweep_yaml_content)
+        rules = sweep_yaml.get("rules", [])
+        return rules
+    except Exception as e:
+        logger.warning(f"Error when getting rules: {e}, returning empty array")
+        return []
 
 # optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926a9f")
