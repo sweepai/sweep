@@ -1,6 +1,7 @@
 gha_enabled: True
 branch: main
-blocked_dirs: [".github/"]
+blocked_dirs: 
+ - ".github/"
 draft: False
 description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. Write code that adheres to PEP8."
 # These are the docs that we index for Sweep.
@@ -26,3 +27,8 @@ sandbox:
     "poetry install"
   ]
   check: ["poetry run pylint --errors-only {file_path}"]
+
+rules:
+ - "There should not be commented out code."
+ - "Comments should be up to date."
+ - "We should update our documentation when there is an interface change or a substantial feature"
