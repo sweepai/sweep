@@ -11,14 +11,14 @@ for i in range(30):
         if response.status_code == 200:
             break
     except:
-        print(f"Waiting for server to start ({i+1}s)" + "." * (i % 4), end="\r")
+        print(f"Waited for server to start ({i+1}s)" + "." * (i % 4), end="\r")
         time.sleep(1)
         continue
-print(f"Waiting for server to start ({i+1}s)")
+if i > 0: print(f"Waited for server to start ({i+1}s)")
 
 response = requests.post(
     host,
-    json=json.load(open("tests/landing_page_issue_webhook.json", "r")),
-    headers={"X-GitHub-Event": "issues"},
+    json=json.load(open("tests/merge_webhook.json", "r")),
+    headers={"X-GitHub-Event": "push"},
 )
 print(response)
