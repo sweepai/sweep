@@ -55,5 +55,5 @@ def on_merge(request_dict, chat_logger):
             logger.info(f"Changes required in {file}")
             repo.create_issue(title="Sweep: " + issue_title, body=issue_description, assignees=[commit_author])
             total_prs += 1
-    if rules is not None:
-        posthog.capture(commit_author, 'on_merge', {'total_lines_changed': total_lines_changed, 'total_prs': total_prs, 'total_files_changed': total_files_changed})
+    if rules:
+        posthog.capture(commit_author, 'rule_pr_created', {'total_lines_changed': total_lines_changed, 'total_prs': total_prs, 'total_files_changed': total_files_changed})
