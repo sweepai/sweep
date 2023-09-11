@@ -34,3 +34,4 @@ rules:
  - "Update docs/pages/usage/config.mdx for changes that affect sweep.yaml."
  - "Add appropriate documentation when large new features are released. Make sure all envvars are documented in sweepai/config/server.py"
  - "Make sure all error logs use traceback and any unnecessary info logs are deleted."
+ - "Ensure that the code adheres to PEP8 standards."
