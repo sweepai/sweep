@@ -186,10 +186,23 @@ def get_deeplake_vs_from_repo(
     files_to_scores = {}
     score_factors = []
     for file_path in file_list:
-        score_factor = compute_score(
-            file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
-        )
-        score_factors.append(score_factor)
+        if not redis_client:
+            score_factor = compute_score(
+                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+            )
+            score_factors.append(score_factor)
+            continue
+        cache_key = hash_sha256(file_path) + CACHE_VERSION
+        cache_value = redis_client.get(cache_key)
+        if cache_value is not None:
+            score_factor = json.loads(cache_value)
+            score_factors.append(score_factor)
+        else:
+            score_factor = compute_score(
+                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+            )
+            score_factors.append(score_factor)
+            redis_client.set(cache_key, json.dumps(score_factor))
     # compute all scores
     all_scores = get_scores(score_factors)
     files_to_scores = {
