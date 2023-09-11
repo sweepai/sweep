@@ -33,6 +33,9 @@ def on_merge(request_dict, chat_logger):
         ====
         return None
     rules = get_rules(repo)
+    if not rules:
+        logger.info("No rules found")
+        return None
     full_commit = repo.get_commit(head_commit['id'])
     total_lines_changed = full_commit.stats.total
     if total_lines_changed < CHANGE_THRESHOLD:
