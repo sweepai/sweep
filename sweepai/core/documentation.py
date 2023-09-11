@@ -1,7 +1,7 @@
 import asyncio
 import re
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from loguru import logger
+# No code here
 from tqdm import tqdm
 from sweepai.core.lexical_search import prepare_index_from_docs, search_docs
 from sweepai.core.robots import is_url_allowed
@@ -18,7 +18,6 @@ from sweepai.config.server import (
 
 MODEL_DIR = "cache/model"
 BATCH_SIZE = 128
-# SENTENCE_TRANSFORMERS_MODEL = "all-mpnet-base-v2"
 timeout = 60 * 60  # 30 minutes
 
 
@@ -57,7 +56,7 @@ class CPUEmbedding:
 
 
 def chunk_string(s):
-    # Chunker's terrible, can be improved later
+    # This function chunks the input string into smaller parts
 
     # Split the string into sentences
     sentences = re.split(r"(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s", s)
@@ -77,7 +76,7 @@ def chunk_string(s):
 
 
 def remove_non_alphanumeric(url):
-    # Keep only alphanumeric characters, and remove all others
+    # This function removes all non-alphanumeric characters from the URL
     cleaned = re.sub(r"[^a-zA-Z0-9]", "", url)
     return cleaned
 
@@ -85,10 +84,12 @@ def remove_non_alphanumeric(url):
 async def write_documentation(doc_url):
     url_allowed = is_url_allowed(doc_url, user_agent="*")
     if not ACTIVELOOP_TOKEN:
-        logger.info("No active loop token")
         return False
+    import traceback
+    
     if not url_allowed:
-        logger.info(f"URL {doc_url} is not allowed")
+        logger.error(traceback.format_exc())
+        logger.error(f"URL {doc_url} is not allowed")
         return False
     idx_name = remove_non_alphanumeric(doc_url)
     url_to_documents = await webscrape(doc_url)
