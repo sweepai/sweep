@@ -96,8 +96,10 @@ ordinal = lambda n: str(n) + (
 
 SLOW_MODE = False
 
+
 def clean_logs(logs: str):
-    return re.sub(r'\x1b\[.*?[@-~]', '', logs)
+    return re.sub(r"\x1b\[.*?[@-~]", "", logs)
+
 
 def post_process_snippets(
     snippets: list[Snippet],
@@ -640,7 +642,7 @@ def on_ticket(
             message_summary += "\n\n" + docs_results
     except Exception as e:
         logger.error(f"Failed to extract docs: {e}")
-    
+
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
@@ -653,7 +655,7 @@ def on_ticket(
     )
 
     context_pruning = ContextPruning(chat_logger=chat_logger)
-    snippets_to_ignore, _ = context_pruning.prune_context( # TODO, ignore directories
+    snippets_to_ignore, _ = context_pruning.prune_context(  # TODO, ignore directories
         human_message, repo=repo
     )
     snippets = post_process_snippets(
@@ -897,6 +899,8 @@ def on_ticket(
                                     i == len(sandbox_execution.outputs) - 1,
                                 )
                                 for i, output in enumerate(sandbox_execution.outputs)
+                                if len(clean_logs(output).strip()) > 0
+                                # And error code check
                             ]
                         ),
                         opened=True,
