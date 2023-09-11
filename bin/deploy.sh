@@ -4,6 +4,7 @@ echo "Removing old docker runs"
 echo `echo `docker ps``
 echo Removed `docker ps -q --filter ancestor=sweepai/sweep | awk 'NR>4'`
 docker ps -q --filter ancestor=sweepai/sweep | awk 'NR>4' | xargs docker rm -f
+docker ps -q --filter ancestor=sweepai/sandbox-web | awk 'NR>4' | xargs docker rm -f
 
 # Start on 8082 to not overlap with sandbox
 PORT=8082
@@ -25,10 +26,6 @@ echo "Found open port: $PORT"
 # Start new docker container
 cd ~/sweep
 
-docker compose build
-docker run --name sandbox-web --env-file .env -v /var/run/docker.sock:/var/run/docker.sock -p 8081:8080 -d sweepai/sandbox-web
-
-# docker compose doesn't seem to build the sweepai/sweep image properly
 docker build -t sweepai/sweep:latest .
 docker run --env-file .env -p $PORT:8080 -d sweepai/sweep:latest
 

@@ -227,9 +227,8 @@ GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926
 UPDATES_MESSAGE = """\
 🎉 Latest improvements to Sweep:
 
-* Use Sweep Map to break large issues into smaller sub-issues, perfect for large tasks like "Sweep (map): migrate from React class components to function components"
-* Getting Sweep to format before committing! Check out [Sweep Sandbox Configs](https://docs.sweep.dev/config#sandbox) to set it up.
-* We released a [demo of our chunker](https://huggingface.co/spaces/sweepai/chunker), where you can find the corresponding blog and code.
+* Getting Sweep to run linters before committing! Check out [Sweep Sandbox Configs](https://docs.sweep.dev/usage/config) to set it up.
+* Added support for self-hosting! Check out [Self-hosting Sweep](https://docs.sweep.dev/deployment) to get started.
+* [Self Hosting] Multiple options to compute vector embeddings, configure your .env file using [VECTOR_EMBEDDING_SOURCE](https://github.com/sweepai/sweep/blob/main/sweepai/config/server.py#L144)
 """
-# * We open-sourced our new [fine-tuned code search model](https://huggingface.co/sweepai/mpnet-code-search).
-# * We launched our [browser extension](https://github.com/sweepai/sweep/releases/tag/browser-extension-v0.0.1) making it faster to make Sweep issues.
+

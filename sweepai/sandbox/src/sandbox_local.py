@@ -240,6 +240,7 @@ async def run_sandbox(request: Request):
 
     except Exception as e:
         error_message = str(e)
+        print(e)
         discord_log_error(
             f"Error in {sandbox_request.repo_url}:\nFile: {sandbox_request.file_path}\nContents: {sandbox_request.content}\n\nError messages:\n{error_message}"
         )
