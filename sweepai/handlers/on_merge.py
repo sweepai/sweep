@@ -2,6 +2,7 @@ from sweepai.config.client import get_rules, SweepConfig
 from sweepai.utils.github_utils import get_github_client
 from sweepai.core.post_merge import PostMerge
 from loguru import logger
+from sweepai.utils.event_logger import posthog
 
 # change threshold for number of lines changed
 CHANGE_THRESHOLD = 50
@@ -32,12 +33,16 @@ def on_merge(request_dict, chat_logger):
         logger.info("Not a merge to master")
         return None
     rules = get_rules(repo)
+    if not rules:
+        logger.info("No rules found")
+        return None
     full_commit = repo.get_commit(head_commit['id'])
     total_lines_changed = full_commit.stats.total
     if total_lines_changed < CHANGE_THRESHOLD:
         return None
     commit_author = head_commit["author"]["username"]
     total_prs = 0
+    total_files_changed = len(changed_files)
     for file in changed_files:
         if total_prs >= 2:
             logger.info("Too many PRs")
@@ -50,3 +55,5 @@ def on_merge(request_dict, chat_logger):
             logger.info(f"Changes required in {file}")
             repo.create_issue(title="Sweep: " + issue_title, body=issue_description, assignees=[commit_author])
             total_prs += 1
+    if rules:
+        posthog.capture(commit_author, 'rule_pr_created', {'total_lines_changed': total_lines_changed, 'total_prs': total_prs, 'total_files_changed': total_files_changed})

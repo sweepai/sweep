@@ -94,7 +94,7 @@ ordinal = lambda n: str(n) + (
     "th" if 4 <= n <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
 )
 
-SLOW_MODE = True
+SLOW_MODE = False
 
 def clean_logs(logs: str):
     return re.sub(r'\x1b\[.*?[@-~]', '', logs)
@@ -640,6 +640,7 @@ def on_ticket(
             message_summary += "\n\n" + docs_results
     except Exception as e:
         logger.error(f"Failed to extract docs: {e}")
+    
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
@@ -650,68 +651,26 @@ def on_ticket(
         snippets=snippets,
         tree=tree,
     )
-    additional_plan = None
-    if SLOW_MODE:
-        slow_mode_bot = SlowModeBot(chat_logger=chat_logger)  # can be async'd
-        queries, additional_plan = slow_mode_bot.expand_plan(human_message)
 
-        snippets, tree = search_snippets(
-            cloned_repo,
-            # repo,
-            f"{title}\n{summary}\n{replies_text}",
-            num_files=num_of_snippets_to_query,
-            multi_query=queries,
-        )
-        snippets = post_process_snippets(
-            snippets, max_num_of_snippets=5 if not use_faster_model else 2
-        )
-
-    # TODO: refactor this
+    context_pruning = ContextPruning(chat_logger=chat_logger)
+    snippets_to_ignore, _ = context_pruning.prune_context( # TODO, ignore directories
+        human_message, repo=repo
+    )
+    snippets = post_process_snippets(
+        snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
+    )
+    logger.info(f"New snippets: {snippets}")
+    logger.info(f"New tree: {tree}")
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
         username=username,
-        repo_description=repo_description,
+        repo_description=repo_description.strip(),
         title=title,
-        summary=message_summary + additional_plan
-        if additional_plan
-        else message_summary,
+        summary=message_summary,
         snippets=snippets,
         tree=tree,
     )
-    if (
-        SLOW_MODE and not use_faster_model
-    ):  # Don't do this for OPENAI_USE_3_5_MODEL_ONLY
-        context_pruning = ContextPruning(chat_logger=chat_logger)
-        snippets_to_ignore, directories_to_ignore = context_pruning.prune_context(
-            human_message, repo=repo
-        )
-        snippets, tree = search_snippets(
-            # repo,
-            cloned_repo,
-            f"{title}\n{summary}\n{replies_text}",
-            num_files=num_of_snippets_to_query,
-            # branch=None,
-            # installation_id=installation_id,
-            excluded_directories=directories_to_ignore,  # handles the tree
-        )
-        snippets = post_process_snippets(
-            snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
-        )
-        logger.info(f"New snippets: {snippets}")
-        logger.info(f"New tree: {tree}")
-        if not use_faster_model and additional_plan is not None:
-            message_summary += additional_plan
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description,
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-        )
 
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
