@@ -14,6 +14,8 @@ services:
       sh -c "echo PORT: ${PORT:-8080} && . bin/startup.sh"
     stdin_open: true
     tty: true
+    links:
+      - sandbox-web
     environment:
       - PORT=${PORT:-8080}
     env_file:
@@ -28,9 +30,9 @@ services:
       context: sweepai/sandbox
       dockerfile: Dockerfile.web
     image: sweepai/sandbox-web
-    ports:
-      - 8081:8080
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 8081:8080
     env_file:
       - .env

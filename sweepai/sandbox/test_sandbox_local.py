@@ -274,10 +274,6 @@ console.log ("hi")
 # file_path = "src/App.tsx"
 file_path = "src/test.js"
 
-# url = "http://localhost:8081/sandbox/"
-# url = "http://164.92.94.50:8080/sandbox/"
-
-# url = "http://24.199.73.199:8080/sandbox/"
 url = "http://0.0.0.0:8081/sandbox/"
 
 headers = {"accept": "application/json", "Content-Type": "application/json"}

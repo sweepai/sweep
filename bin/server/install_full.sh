@@ -40,7 +40,7 @@ poetry env use /root/.pyenv/versions/3.11.5/bin/python
 poetry shell
 
 # Install with this command, pressing only enter when prompted:
-# git clone https://github.com/sweepai/sweep ~/sweep && . sweep/bin/droplet_install.sh
+# git clone https://github.com/sweepai/sweep ~/sweep && . sweep/bin/install_full.sh
 
 # Afterwards, run:
 # - poetry install

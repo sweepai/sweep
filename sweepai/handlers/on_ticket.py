@@ -96,6 +96,8 @@ ordinal = lambda n: str(n) + (
 
 SLOW_MODE = True
 
+def clean_logs(logs: str):
+    return re.sub(r'\x1b\[.*?[@-~]', '', logs)
 
 def post_process_snippets(
     snippets: list[Snippet],
@@ -932,7 +934,7 @@ def on_ticket(
                             [
                                 create_collapsible(
                                     f"Sandbox logs {i + 1}/{len(sandbox_execution.outputs)}",
-                                    f"```{output}```",
+                                    f"```{clean_logs(output)}```",
                                     i == len(sandbox_execution.outputs) - 1,
                                 )
                                 for i, output in enumerate(sandbox_execution.outputs)
