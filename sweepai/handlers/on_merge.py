@@ -2,6 +2,7 @@ from sweepai.config.client import get_rules, SweepConfig
 from sweepai.utils.github_utils import get_github_client
 from sweepai.core.post_merge import PostMerge
 from loguru import logger
+from sweepai.utils.event_logger import posthog
 
 ====
 CHANGE_THRESHOLD = 50
@@ -38,6 +39,7 @@ def on_merge(request_dict, chat_logger):
         return None
     commit_author = head_commit["author"]["username"]
     total_prs = 0
+    total_files_changed = len(changed_files)
     for file in changed_files:
         if total_prs >= 2:
             ====
@@ -49,3 +51,5 @@ def on_merge(request_dict, chat_logger):
             ====
             repo.create_issue(title="Sweep: " + issue_title, body=issue_description, assignees=[commit_author])
             total_prs += 1
+    if rules is not None:
+        posthog.capture(commit_author, 'on_merge', {'total_lines_changed': total_lines_changed, 'total_prs': total_prs, 'total_files_changed': total_files_changed})
