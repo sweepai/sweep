@@ -78,6 +78,7 @@ GITHUB_LABEL_DESCRIPTION = os.environ.get(
     "GITHUB_LABEL_DESCRIPTION", "Sweep your software chores"
 )
 GITHUB_APP_PEM = os.environ.get("GITHUB_APP_PEM", os.environ.get("PRIVATE_KEY"))
+GITHUB_APP_PEM = GITHUB_APP_PEM.strip(' \n"')  # Remove whitespace and quotes
 GITHUB_CONFIG_BRANCH = os.environ.get("GITHUB_CONFIG_BRANCH", "sweep/add-sweep-config")
 GITHUB_DEFAULT_CONFIG = os.environ.get(
     "GITHUB_DEFAULT_CONFIG",
