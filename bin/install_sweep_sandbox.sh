@@ -1,7 +1,9 @@
 #!/bin/bash
 
-CYAN='\033[0;46m'
-WHITE='\033[1;37m'
+# CYAN='\033[0;46m'
+CYAN='\033[1;36m'
+# WHITE='\033[1;37m'
+WHITE=''
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
@@ -67,4 +69,4 @@ cd ~/
 
 echo -e "\n${CYAN}${WHITE}### Setup Completed Successfully ###${NC}\n"
 
-echo "To get started, run `sweep-sandbox` in the base of the repository you want to test Sweep's Sandbox execution runner in."
+echo "To get started, run \`sweep-sandbox\` in the base of the repository you want to test Sweep's Sandbox execution runner in."
