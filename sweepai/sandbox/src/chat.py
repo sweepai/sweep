@@ -1,8 +1,8 @@
-import json
-from copy import deepcopy
+import os
 import time
 from typing import Literal, Self
 
+import openai
 import backoff
 import openai
 from loguru import logger
@@ -15,8 +15,6 @@ from src.prompts import (
     sandbox_code_repair_modify_prompt,
 )
 
-import os
-import openai
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -72,10 +70,12 @@ model_to_max_tokens = {
 }
 temperature = 0.0  # Lowered to 0 for mostly deterministic results for reproducibility
 
-tiktoken_model = tiktoken.encoding_for_model("gpt-4")
+tiktoken_model = None
 
 
 def count_tokens(text: str):
+    if tiktoken_model is None:
+        tiktoken_model = tiktoken.encoding_for_model("gpt-4")
     return len(tiktoken_model.encode(text, disallowed_special=()))
 
 
