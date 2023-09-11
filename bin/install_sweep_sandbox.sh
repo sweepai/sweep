@@ -1,9 +1,11 @@
 #!/bin/bash
 
 # CYAN='\033[0;46m'
-CYAN='\033[1;36m'
+# CYAN='\033[1;36m'
+CYAN=''
 # WHITE='\033[1;37m'
-WHITE=''
+WHITE='\033[1;37m'
+# WHITE='\033[1;30m\033[47m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
