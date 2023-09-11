@@ -159,9 +159,16 @@ def health_check():
     return JSONResponse(
         status_code=200,
         content={"status": "UP", "port": sys.argv[-1] if len(sys.argv) > 0 else -1},
-    )
-
-
+    # Test cases
+    def test_webhook():
+        # Test the webhook function with a mock request
+        # Assert that the function returns the expected response
+    
+    def test_update_sweep_prs():
+        # Test the update_sweep_prs function with a mock repo_full_name and installation_id
+        # Assert that the function performs the expected operations
+    
+    # Add more test cases for the other functions in the file
 @app.get("/", response_class=HTMLResponse)
 def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
