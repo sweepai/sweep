@@ -11,11 +11,12 @@ In this article, we will explore ways to configure Sweep. Mainly, we will focus 
 | `draft` | `bool` | Whether or not to create PRs as drafts |
 | `description` | `str` | The description of the repository |
 | `docs` | `dict` | A dictionary of documentation links |
-| `sandbox` | `dict` | Sandbox settings for linting and formatting |
+| `sandbox` | `dict` | Sandbox settings for validating code changes |
+| `rules` | `dict` | Leave chores for Sweep by following these rules |
 
 ---
 
-## gha_enabled
+## `gha_enabled`
 ```yaml
 gha_enabled: True
 ```
@@ -23,19 +24,19 @@ Possible Values: True, False
 
 This setting determines whether or not to enable GitHub Actions. If this is set to `False`, then Sweep will not read the results of GitHub Actions.
 
-## branch
+## `branch`
 ```yaml
 branch: main
 ```
 This setting determines which branch Sweep will develop from and make pull requests to.
 
-## blocked_dirs
+## `blocked_dirs`
 ```yaml
 blocked_dirs: [".github/", "other_dir"]
 ```
 This setting lists all of the directories that Sweep will not be able to edit. In our example, Sweep is unable to modify the `.github` folder as we do not want Sweep to modify our GitHub Actions.
 
-## draft
+## `draft`
 ```yaml
 draft: False
 ```
@@ -43,13 +44,13 @@ Possible Values: True, False
 
 This setting determines whether or not to create pull requests as drafts. If this is set to `True`, then all pull requests will be created as drafts and **GitHub Actions will not be triggered**.
 
-## description
+## `description`
 ```yaml
 description: "project description and standards to follow"
 ```
 This setting is the description of the repository that will be passed to Sweep. Please include details that Sweep may need to understand the repository. You may also include details about standards to follow here.
 
-## docs
+## `docs`
 ```yaml
 docs:
   - Modal: ["https://modal.com/docs/reference", "Modal is used for serverless deployment"]
@@ -59,34 +60,31 @@ This setting contains documentation links that Sweep is able to search through. 
 
 **Important**: Please contact us if you would like to add a documentation link so we can add it to our database.
 
-## sandbox
-Python:
-```yaml
+## `sandbox`
+```yml
 sandbox:
-  enabled: true
-  image: "Python3"
-  install: "python -m venv venv; . venv/bin/activate; pip install black"
-  formatter: ". venv/bin/activate; black {files}"
+  install:
+    - apt install python3.11 -y
+    - pip install poetry
+    - poetry env use python3.11
+    - poetry install
+  check:
+    - poetry run pylint --errors-only {file_path}
 ```
 
-JavaScript/TypeScript
-```yaml
-sandbox:
-  enabled: true
-  image: "Nodejs"
-  install: "npm install --save-dev prettier"
-  formatter: "npx prettier --write {files}"
+Sandbox executes commands in a sandboxed environment to validate code changes after every edit to guarantee pristine code. For more details, see the [Sandbox](./sandbox) page.
+
+## `rules`
+```yml
+rules:
+ - There should not be commented out code.
+ - Update UPDATES_MESSAGE section in sweepai/config/client.py if there is a major new feature.
+ - Update docs/pages/usage/config.mdx for changes that affect sweep.yaml.
+ - Add appropriate documentation when large new features are released. Make sure all envvars are documented in sweepai/config/server.py
+ - Make sure all error logs use traceback and any unnecessary info logs are deleted.
 ```
 
-This setting contains sandbox settings for linting and formatting. This is helpful when changes are required to be formatted and tested.
-
-### install
-This command is executed when setting up the environment.
-
-### formatter
-This command is executed after Sweep changes a file and before Sweep commits the changes. The `{files}` placeholder is replaced with the files that Sweep has changed.
-
-**Important**: Please contact us if you would like to add a sandbox setting, so we can add it to our database.
+This setting contains a list of rules that Sweep will check for. If any of these rules are broken in a new commit, Sweep will create an pull request to fix the broken rule.
 
 ---
 
@@ -102,3 +100,20 @@ description: "sweepai/sweep is a python 3.10 project. The main api endpoints are
 docs:
   - Modal: https://modal.com/docs/reference
   - PyGitHub: https://pygithub.readthedocs.io/en/latest/
+
+sandbox:
+  install:
+    - apt install python3.11 -y
+    - pip install poetry
+    - poetry env use python3.11
+    - poetry install
+  check:
+    - poetry run pylint --errors-only {file_path}
+
+rules:
+ - There should not be commented out code.
+ - Update UPDATES_MESSAGE section in sweepai/config/client.py if there is a major new feature.
+ - Update docs/pages/usage/config.mdx for changes that affect sweep.yaml.
+ - Add appropriate documentation when large new features are released. Make sure all envvars are documented in sweepai/config/server.py
+ - Make sure all error logs use traceback and any unnecessary info logs are deleted.
+```
