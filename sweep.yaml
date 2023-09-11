@@ -20,17 +20,17 @@ docs:
   deeplake: ["https://docs.deeplake.ai/en/latest", "Deeplake is our vector database"]
 
 sandbox:
-  install: [
-    "apt install -y python3.11 python3.11 pip",
-    "pip install poetry",
-    "poetry env use python3.11",
-    "poetry install"
-  ]
-  check: ["poetry run pylint --errors-only {file_path}"]
+  install:
+    - apt install python3.11 -y
+    - pip install poetry
+    - poetry env use python3.11
+    - poetry install
+  check: 
+    - poetry run pylint --errors-only {file_path}
 
 rules:
  - "There should not be commented out code."
- - "Comments should be up to date with respect to the code."
- - "Update sweep/docs/pages/usage/config.mdx for changes that affect sweep.yaml."
+ - "Update UPDATES_MESSAGE section in sweepai/config/client.py if there is a major new feature."
+ - "Update docs/pages/usage/config.mdx for changes that affect sweep.yaml."
  - "Add appropriate documentation when large new features are released. Make sure all envvars are documented in sweepai/config/server.py"
  - "Make sure all error logs use traceback and any unnecessary info logs are deleted."

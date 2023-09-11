@@ -597,6 +597,8 @@ def generate_new_file_from_patch(
             replace = replace.rstrip()[: -len("</new_file>")]
         elif replace.rstrip().endswith("</updated_file>"):
             replace = replace.rstrip()[: -len("</updated_file>")]
+        if replace.endswith("===="):
+            replace = replace[: -len("====")]
         old_file_lines, best_match, status = sliding_window_replacement(
             old_file_lines, search.split("\n"), replace.split("\n")
         )

@@ -10,7 +10,6 @@ from loguru import logger
 from pydantic import ValidationError
 import requests
 
-from sweepai.celery_init import celery_app
 from sweepai.config.client import SweepConfig, get_documentation_dict
 from sweepai.config.server import (
     API_MODAL_INST_NAME,
@@ -562,7 +561,7 @@ async def webhook(raw_request: Request):
                         {"username": request_dict["pusher"]["name"]}
                     )
                     # on merge
-                    call_on_merge(request_dict)
+                    call_on_merge(request_dict, chat_logger)
                     if request_dict["head_commit"] and (
                         "sweep.yaml" in request_dict["head_commit"]["added"]
                         or "sweep.yaml" in request_dict["head_commit"]["modified"]
