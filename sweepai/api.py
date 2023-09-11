@@ -562,7 +562,6 @@ async def webhook(raw_request: Request):
                     )
                     # on merge
                     call_on_merge(request_dict, chat_logger)
-                    return
                     if request_dict["head_commit"] and (
                         "sweep.yaml" in request_dict["head_commit"]["added"]
                         or "sweep.yaml" in request_dict["head_commit"]["modified"]
