@@ -38,6 +38,7 @@ from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  #
 from sweepai.handlers.create_pr import create_pr_changes, safe_delete_sweep_branch
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
+from sweepai.handlers.on_merge import on_merge
 from sweepai.handlers.on_ticket import on_ticket
 from sweepai.redis_init import redis_client
 from sweepai.utils.chat_logger import ChatLogger
@@ -76,11 +77,6 @@ def terminate_thread(thread):
         logger.error(f"Failed to terminate thread: {e}")
 
 
-def run_ticket(*args, **kwargs):
-    on_ticket(*args, **kwargs)
-    logger.info("Done with on_ticket")
-
-
 def run_on_check_suite(*args, **kwargs):
     request = kwargs["request"]
     pr_change_request = on_check_suite(request)
@@ -89,11 +85,6 @@ def run_on_check_suite(*args, **kwargs):
         logger.info("Done with on_check_suite")
     else:
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
-
-
-def run_comment(*args, **kwargs):
-    on_comment(*args, **kwargs)
-    logger.info("Done with on_comment")
 
 
 def call_on_ticket(*args, **kwargs):
@@ -107,7 +98,7 @@ def call_on_ticket(*args, **kwargs):
         logger.info(f"Found previous thread for key {key} and cancelling it")
         terminate_thread(e)
 
-    thread = threading.Thread(target=run_ticket, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=on_ticket, args=args, kwargs=kwargs)
     on_ticket_events[key] = thread
     thread.start()
 
@@ -134,7 +125,7 @@ def call_on_comment(
     def worker():
         while not events[key].empty():
             task_args, task_kwargs = events[key].get()
-            run_comment(*task_args, **task_kwargs)
+            on_comment(*task_args, **task_kwargs)
 
     events[key].put((args, kwargs))
 
@@ -145,6 +136,24 @@ def call_on_comment(
         thread = threading.Thread(target=worker, name=key)
         thread.start()
 
+
+def call_on_merge(
+    *args, **kwargs
+):
+    thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
+    thread.start()
+
+def call_on_write_docs(
+    *args, **kwargs
+):
+    thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
+    thread.start()
+
+def call_get_deeplake_vs_from_repo(
+    *args, **kwargs
+):
+    thread = threading.Thread(target=get_deeplake_vs_from_repo, args=args, kwargs=kwargs)
+    thread.start()
 
 @app.get("/health")
 def health_check():
@@ -552,6 +561,8 @@ async def webhook(raw_request: Request):
                     chat_logger = ChatLogger(
                         {"username": request_dict["pusher"]["name"]}
                     )
+                    # on merge
+                    call_on_merge(request_dict)
                     if request_dict["head_commit"] and (
                         "sweep.yaml" in request_dict["head_commit"]["added"]
                         or "sweep.yaml" in request_dict["head_commit"]["modified"]
@@ -563,14 +574,14 @@ async def webhook(raw_request: Request):
                         # Call the write_documentation function for each of the existing fields in the "docs" mapping
                         for doc_url, _ in docs.values():
                             logger.info(f"Writing documentation for {doc_url}")
-                            write_documentation(doc_url)
+                            call_on_write_docs(doc_url)
                     # this makes it faster for everyone because the queue doesn't get backed up
                     if chat_logger.is_paying_user():
                         cloned_repo = ClonedRepo(
                             request_dict["repository"]["full_name"],
                             installation_id=request_dict["installation"]["id"],
                         )
-                        get_deeplake_vs_from_repo(cloned_repo)
+                        call_get_deeplake_vs_from_repo(cloned_repo)
                     update_sweep_prs(
                         request_dict["repository"]["full_name"],
                         installation_id=request_dict["installation"]["id"],

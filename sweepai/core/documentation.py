@@ -124,7 +124,6 @@ def search_vector_store(doc_url, query, k=100):
         logger.info("No active loop token")
         return [], []
     idx_name = remove_non_alphanumeric(doc_url)
-    print(ACTIVELOOP_TOKEN)
     vector_store = VectorStore(
         path=f"hub://{ORG_ID}/{idx_name}",
         runtime={"tensor_db": True},
