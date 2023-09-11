@@ -15,7 +15,7 @@ The rules are as such.
 Your job is to review the file for each rule and then create a GitHub issue.
 """
 
-rule_section = """{rule}
+rule_section = """{rule} - whether it is broken:
 * Thought 1 - Explanation 1 with code references
 * Thought 2 - Explanation 2 with code references
 ..."""
@@ -40,9 +40,8 @@ Issue title referencing the file path, changes, and any function/class names. Th
 
 GitHub Issue Description:
 <issue_description>
-Issue description with a detailed description of where we should change the code, mentioning code snippets as well as where to make the changes. This should also specify the rules that are not passing.
-</issue_description>
-"""
+Issue description with a detailed description of where we should change the code, referencing code snippets to make the changes.
+</issue_description>"""
 
 class PostMerge(ChatGPT):
     def check_for_issues(self, rules, file_path, file_contents) -> tuple[str, str]:
