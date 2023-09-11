@@ -33,23 +33,23 @@ def on_merge(request_dict, chat_logger):
         logger.info("Not a merge to master")
         return None
     rules = get_rules(repo)
+    full_commit = repo.get_commit(head_commit['id'])
+    total_lines_changed = full_commit.stats.total
+    if total_lines_changed < CHANGE_THRESHOLD:
+        return None
+    commit_author = head_commit["author"]["username"]
+    total_prs = 0
+    for file in changed_files:
+        if total_prs >= 2:
+            logger.info("Too many PRs")
+            break
+        file_contents = repo.get_contents(file).decoded_content.decode("utf-8")
+        issue_title, issue_description = PostMerge(chat_logger=chat_logger).check_for_issues(rules=rules, file_path=file, file_contents=file_contents)
+        logger.info(f"Title: {issue_title}")
+        logger.info(f"Description: {issue_description}")
+        if issue_title:
+            logger.info(f"Changes required in {file}")
+            repo.create_issue(title="Sweep: " + issue_title, body=issue_description, assignees=[commit_author])
+            total_prs += 1
     if rules is not None:
-        full_commit = repo.get_commit(head_commit['id'])
-        total_lines_changed = full_commit.stats.total
-        if total_lines_changed < CHANGE_THRESHOLD:
-            return None
-        commit_author = head_commit["author"]["username"]
-        total_prs = 0
-        for file in changed_files:
-            if total_prs >= 2:
-                logger.info("Too many PRs")
-                break
-            file_contents = repo.get_contents(file).decoded_content.decode("utf-8")
-            issue_title, issue_description = PostMerge(chat_logger=chat_logger).check_for_issues(rules=rules, file_path=file, file_contents=file_contents)
-            logger.info(f"Title: {issue_title}")
-            logger.info(f"Description: {issue_description}")
-            if issue_title:
-                logger.info(f"Changes required in {file}")
-                repo.create_issue(title="Sweep: " + issue_title, body=issue_description, assignees=[commit_author])
-                total_prs += 1
         posthog.capture(commit_author, 'on_merge', {'total_lines_changed': total_lines_changed, 'total_prs': total_prs})
