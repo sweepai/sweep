@@ -75,7 +75,6 @@ def repo_to_chunks(directory, sweep_config):
     all_chunks = []
     for file_path in tqdm(file_list):
         file_contents = read_file(file_path)
-        logger.info(f"Reading {file_path}")
         chunks = chunk_code(file_contents, path=file_path)
         all_chunks.extend(chunks)
     return all_chunks, file_list
