@@ -1,7 +1,7 @@
 {
   "ref": "refs/heads/main",
-  "before": "332ec5541a242957c66e78b43f6fb7a046a37316",
-  "after": "cd27b6421c2e35d52700517d687d00baf089cfec",
+  "before": "cd27b6421c2e35d52700517d687d00baf089cfec",
+  "after": "89059600eee253ecf465ac84d8de311a93b5f006",
   "repository": {
     "id": 653574784,
     "node_id": "R_kgDOJvTCgA",
@@ -72,13 +72,13 @@
     "deployments_url": "https://api.github.com/repos/sweepai/sweep/deployments",
     "created_at": 1686737287,
     "updated_at": "2023-09-10T15:37:09Z",
-    "pushed_at": 1694399946,
+    "pushed_at": 1694401773,
     "git_url": "git://github.com/sweepai/sweep.git",
     "ssh_url": "git@github.com:sweepai/sweep.git",
     "clone_url": "https://github.com/sweepai/sweep.git",
     "svn_url": "https://github.com/sweepai/sweep",
     "homepage": "https://sweep.dev",
-    "size": 42296,
+    "size": 42321,
     "stargazers_count": 5286,
     "watchers_count": 5286,
     "language": "Python",
@@ -92,7 +92,7 @@
     "mirror_url": null,
     "archived": false,
     "disabled": false,
-    "open_issues_count": 308,
+    "open_issues_count": 303,
     "license": {
       "key": "other",
       "name": "Other",
@@ -116,7 +116,7 @@
     ],
     "visibility": "public",
     "forks": 199,
-    "open_issues": 308,
+    "open_issues": 303,
     "watchers": 5286,
     "default_branch": "main",
     "stargazers": 5286,
@@ -169,61 +169,97 @@
   "deleted": false,
   "forced": false,
   "base_ref": null,
-  "compare": "https://github.com/sweepai/sweep/compare/332ec5541a24...cd27b6421c2e",
+  "compare": "https://github.com/sweepai/sweep/compare/cd27b6421c2e...89059600eee2",
   "commits": [
     {
-      "id": "cd27b6421c2e35d52700517d687d00baf089cfec",
-      "tree_id": "2adc49b3303a7e2770c540d548a6b55b3c64371c",
+      "id": "3e88b95d1d49b330e86994d441898e8d6db04024",
+      "tree_id": "af77f8d3f315ebd3ab08125519a852a6de3a2a12",
       "distinct": true,
-      "message": "Update README.md",
-      "timestamp": "2023-09-10T19:39:06-07:00",
-      "url": "https://github.com/sweepai/sweep/commit/cd27b6421c2e35d52700517d687d00baf089cfec",
+      "message": "Handle the rules",
+      "timestamp": "2023-09-11T03:09:29Z",
+      "url": "https://github.com/sweepai/sweep/commit/3e88b95d1d49b330e86994d441898e8d6db04024",
       "author": {
-        "name": "William Zeng",
-        "email": "44910023+wwzeng1@users.noreply.github.com",
+        "name": "wwzeng1",
+        "email": "william@sweep.dev",
         "username": "wwzeng1"
       },
       "committer": {
-        "name": "GitHub",
-        "email": "noreply@github.com",
-        "username": "web-flow"
+        "name": "wwzeng1",
+        "email": "william@sweep.dev",
+        "username": "wwzeng1"
       },
       "added": [
-
+        "sweepai/core/post_merge.py",
+        "sweepai/handlers/on_merge.py",
+        "tests/merge_webhook.json"
       ],
       "removed": [
 
       ],
       "modified": [
-        "README.md"
+        "sweepai/api.py",
+        "sweepai/config/client.py",
+        "sweepai/core/documentation.py",
+        "sweepai/core/entities.py",
+        "sweepai/handlers/on_ticket.py",
+        "tests/test_run_example_webhook.py"
+      ]
+    },
+    {
+      "id": "89059600eee253ecf465ac84d8de311a93b5f006",
+      "tree_id": "e4ce9c7241921a3bc426b53f284acdc57573710f",
+      "distinct": true,
+      "message": "Merge branch 'main' of https://github.com/sweepai/sweep",
+      "timestamp": "2023-09-11T03:09:33Z",
+      "url": "https://github.com/sweepai/sweep/commit/89059600eee253ecf465ac84d8de311a93b5f006",
+      "author": {
+        "name": "wwzeng1",
+        "email": "william@sweep.dev",
+        "username": "wwzeng1"
+      },
+      "committer": {
+        "name": "wwzeng1",
+        "email": "william@sweep.dev",
+        "username": "wwzeng1"
+      },
+      "added": [
+
+      ],
+      "removed": [
+        "sweepai/celery_init.py"
+      ],
+      "modified": [
+        "README.md",
+        "sweepai/config/client.py"
       ]
     }
   ],
   "head_commit": {
-    "id": "cd27b6421c2e35d52700517d687d00baf089cfec",
-    "tree_id": "2adc49b3303a7e2770c540d548a6b55b3c64371c",
+    "id": "89059600eee253ecf465ac84d8de311a93b5f006",
+    "tree_id": "e4ce9c7241921a3bc426b53f284acdc57573710f",
     "distinct": true,
-    "message": "Update README.md",
-    "timestamp": "2023-09-10T19:39:06-07:00",
-    "url": "https://github.com/sweepai/sweep/commit/cd27b6421c2e35d52700517d687d00baf089cfec",
+    "message": "Merge branch 'main' of https://github.com/sweepai/sweep",
+    "timestamp": "2023-09-11T03:09:33Z",
+    "url": "https://github.com/sweepai/sweep/commit/89059600eee253ecf465ac84d8de311a93b5f006",
     "author": {
-      "name": "William Zeng",
-      "email": "44910023+wwzeng1@users.noreply.github.com",
+      "name": "wwzeng1",
+      "email": "william@sweep.dev",
       "username": "wwzeng1"
     },
     "committer": {
-      "name": "GitHub",
-      "email": "noreply@github.com",
-      "username": "web-flow"
+      "name": "wwzeng1",
+      "email": "william@sweep.dev",
+      "username": "wwzeng1"
     },
     "added": [
 
     ],
     "removed": [
-
+      "sweepai/celery_init.py"
     ],
     "modified": [
-      "README.md"
+      "README.md",
+      "sweepai/config/client.py"
     ]
   }
 }
