@@ -30,7 +30,7 @@ sandbox:
 
 rules:
  - "There should not be commented out code."
- - "Comments should be up to date with respect to the code."
- - "Update sweep/docs/pages/usage/config.mdx for changes that affect sweep.yaml."
+ - "Update UPDATES_MESSAGE section in sweepai/config/client.py"
+ - "Update docs/pages/usage/config.mdx for changes that affect sweep.yaml."
  - "Add appropriate documentation when large new features are released. Make sure all envvars are documented in sweepai/config/server.py"
- - "Make sure all error logs use traceback and any unnecessary info logs are deleted."
+ - "Make sure all error logs use traceback if they are in an exception and any unnecessary info logs are deleted."
