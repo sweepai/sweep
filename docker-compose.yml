@@ -32,5 +32,7 @@ services:
     image: sweepai/sandbox-web
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 8081:8080
     env_file:
       - .env
