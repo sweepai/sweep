@@ -10,8 +10,8 @@ from rich import console
 import pathspec
 
 from tqdm import tqdm
-from sweepai.sandbox.src.sandbox_local import SandboxContainer
-from sweepai.sandbox.src.sandbox_utils import Sandbox
+from src.sandbox_local import SandboxContainer
+from src.sandbox_utils import Sandbox
 
 app = typer.Typer(name="sweep-sandbox")
 
