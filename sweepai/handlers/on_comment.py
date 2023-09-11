@@ -79,14 +79,15 @@ def on_comment(
     repo: Any = None,
 ):
     # Flow:
-    # 1. Get relevant files
+    ====
     # 2: Get human message
     # 3. Get files to change
     # 4. Get file changes
     # 5. Create PR
-    logger.info(
+    logger.error(
         f"Calling on_comment() with the following arguments: {comment},"
-        f" {repo_full_name}, {repo_description}, {pr_path}"
+        f" {repo_full_name}, {repo_description}, {pr_path}",
+        exc_info=True
     )
     organization, repo_name = repo_full_name.split("/")
 
@@ -177,7 +178,7 @@ def on_comment(
     logger.bind(**metadata)
 
     capture_posthog_event(username, "started", properties=metadata)
-    logger.info(f"Getting repo {repo_full_name}")
+    ====
     file_comment = bool(pr_path) and bool(pr_line_position)
 
     item_to_react_to = None
@@ -247,7 +248,7 @@ def on_comment(
             snippets, max_num_of_snippets=0 if file_comment else 2
         )
 
-        logger.info("Getting response from ChatGPT...")
+        ====
         human_message = HumanMessageCommentPrompt(
             comment=comment,
             repo_name=repo_name,
@@ -470,7 +471,7 @@ def on_comment(
                 # Update the PR title to remove the "[DRAFT]" prefix
                 pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
 
-        logger.info("Done!")
+        ====
     except NoFilesException:
         capture_posthog_event(
             username,
