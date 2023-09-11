@@ -92,11 +92,9 @@ gha_enabled: True
 # Here's an example: sweepai/sweep is a python project. The main api endpoints are in sweepai/api.py. Write code that adheres to PEP8.
 description: ''
 
-# Default Values: https://github.com/sweepai/sweep/blob/main/sweep.yaml
-""",
-)
-
-
+# New envvar with documentation
+# This envvar is used for XYZ
+NEW_ENVVAR = os.environ.get("NEW_ENVVAR")
 # goes under Modal 'openai-secret' secret name
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 OPENAI_DO_HAVE_32K_MODEL_ACCESS = (
