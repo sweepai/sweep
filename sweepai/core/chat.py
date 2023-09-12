@@ -5,17 +5,12 @@ from typing import Iterator, Literal, Self
 
 import anthropic
 import backoff
-import openai
-from loguru import logger
-from pydantic import BaseModel
-
-from sweepai.utils.utils import Tiktoken
-from sweepai.core.entities import Message, Function, SweepContext
-from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
-from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.client import get_description
+from sweepai.utils.openai_proxy import OpenAIProxy
 from sweepai.config.server import (
-    OPENAI_API_KEY,
+    OPENAI_API_KEY_GPT35,
+    OPENAI_API_KEY_GPT4,
+    OPENAI_API_KEY_GPT4_32K,
+    OPENAI_FALLBACK,
     OPENAI_USE_3_5_MODEL_ONLY,
     UTILS_MODAL_INST_NAME,
     ANTHROPIC_API_KEY,
@@ -25,17 +20,13 @@ from sweepai.config.server import (
     OPENAI_API_VERSION,
     OPENAI_API_ENGINE,
 )
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.event_logger import posthog
 
-
-if OPENAI_API_TYPE == "azure":
-    openai.api_key = OPENAI_API_KEY
-    openai.api_type = OPENAI_API_TYPE
-    openai.api_base = OPENAI_API_BASE
-    openai.api_version = OPENAI_API_VERSION
-
-
+openai_proxy = OpenAIProxy(
+    OPENAI_API_KEY_GPT35,
+    OPENAI_API_KEY_GPT4,
+    OPENAI_API_KEY_GPT4_32K,
+    OPENAI_FALLBACK
+)
 AnthropicModel = (
     Literal["claude-v1"]
     | Literal["claude-v1.3-100k"]
@@ -282,23 +273,16 @@ class ChatGPT(BaseModel):
                 try:
                     output = None
                     if function_name:
-                        output = (
-                            openai.ChatCompletion.create(
-                                engine=OPENAI_API_ENGINE
-                                if OPENAI_API_TYPE == "azure"
-                                else None,
-                                model=model,
-                                messages=messages_dicts,
-                                max_tokens=max_tokens - token_sub,
-                                temperature=temperature,
-                                functions=[
-                                    json.loads(function.json())
-                                    for function in functions
-                                ],
-                                function_call=function_name,
-                            )
-                            .choices[0]
-                            .message
+                        output = openai_proxy.call_openai(
+                            model=model,
+                            messages=messages_dicts,
+                            max_tokens=max_tokens - token_sub,
+                            temperature=temperature,
+                            functions=[
+                                json.loads(function.json())
+                                for function in functions
+                            ],
+                            function_call=function_name,
                         )
                     else:
                         output = (
