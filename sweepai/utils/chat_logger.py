@@ -18,7 +18,7 @@ from sweepai.config.server import (
 
 
 class ChatLogger(BaseModel):
-    data: dict = Field(default_factory=dict)
+    data: dict
     chat_collection: Any = None
     ticket_collection: Any = None
     expiration: datetime = None
@@ -30,7 +30,7 @@ class ChatLogger(BaseModel):
         default_factory=lambda: datetime.utcnow().strftime("%m/%Y")
     )
 
-    def __init__(self, data: dict = Field(default_factory=dict)):
+    def __init__(self, data: dict):
         super().__init__(data=data)  # Call the BaseModel's __init__ method
         key = MONGODB_URI
         if key is None:
