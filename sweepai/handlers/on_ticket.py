@@ -889,7 +889,7 @@ def on_ticket(
                         "\n\n".join(
                             [
                                 create_collapsible(
-                                    f"<code>{execution.command}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
+                                    f"<code>{execution.command.format(file_path=file_change_request.filename)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
                                     f"<pre>{clean_logs(execution.output)}</pre>",
                                     i == len(sandbox_response.executions) - 1,
                                 )
