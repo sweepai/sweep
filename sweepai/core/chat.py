@@ -1,3 +1,4 @@
+import os
 import json
 from copy import deepcopy
 import time
@@ -213,6 +214,15 @@ class ChatGPT(BaseModel):
         functions: list[Function] = [],
         function_name: dict | None = None,
     ):
+        # Select the correct Azure key based on the model being used
+        if model == "gpt-3.5-turbo":
+            openai.api_key = os.getenv('OPENAI_API_KEY_GPT35')
+        elif model == "gpt-4":
+            openai.api_key = os.getenv('OPENAI_API_KEY_GPT4')
+        elif model == "gpt-4-32k":
+            openai.api_key = os.getenv('OPENAI_API_KEY_GPT4_32K')
+        else:
+            openai.api_key = None
         if self.chat_logger is not None:
             tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
             tickets_count = self.chat_logger.get_ticket_count()
@@ -587,16 +597,28 @@ class ChatGPT(BaseModel):
         )
         def fetch() -> tuple[str, str]:
             logger.warning(f"Calling anthropic...")
-            results = client.completion(
-                prompt=messages_raw,
-                stop_sequences=[anthropic.HUMAN_PROMPT],
-                model=model,
-                max_tokens_to_sample=max_tokens,
-                disable_checks=True,
-                temperature=temperature,
-            )
-            return results["completion"], results["stop_reason"]
-
+            try:
+                results = client.completion(
+                    prompt=messages_raw,
+                    stop_sequences=[anthropic.HUMAN_PROMPT],
+                    model=model,
+                    max_tokens=max_tokens,
+                    disable_checks=True,
+                    temperature=temperature,
+                )
+                return results["completion"], results["stop_reason"]
+            except Exception:
+                # Fallback to OpenAI if OPENAI_FALLBACK is set to true
+                if os.environ.get("OPENAI_FALLBACK", "false").lower() == "true":
+                    results = openai.ChatCompletion.create(
+                        model="gpt-3.5-turbo",
+                        messages=self.messages_dicts,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                    )
+                    return results.choices[0].message["content"], "fallback"
+                else:
+                    raise
         result, stop_reason = fetch()
         logger.warning(f"Stop reasons: {stop_reason}")
         if stop_reason == "max_tokens":
