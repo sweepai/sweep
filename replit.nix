@@ -1,6 +1,5 @@
 { pkgs }: {
   deps = [
-    pkgs.nodejs-19_x
     pkgs.python310Full
     pkgs.redis
   ];
