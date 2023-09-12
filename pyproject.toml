@@ -4,7 +4,7 @@ version = "0.5.2"
 description = "Sweep software chores"
 authors = ["Kevin Lu", "William Zeng", "Luke Jagg"]
 packages = [{ include = "sweepai" }]
-classifiers = ["Programming Language :: Python :: 3.11"]
+classifiers = ["Programming Language :: Python :: 3.10"]
 readme = "README.md"
 
 [tool.poetry.urls]
@@ -15,7 +15,7 @@ Homepage = "https://sweep.dev"
 "Bug Tracker" = "https://github.com/sweepai/sweep/issues"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.10"
 PyGithub = "1.58.2"
 loguru = "^0.6.0"
 requests = "^2.28.2"

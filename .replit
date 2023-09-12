@@ -1,0 +1,9 @@
+run = "redis-server --bind 0.0.0.0 --port 6379 & uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --workers 5"
+
+hidden = [".pythonlibs"]
+
+[nix]
+channel = "stable-23_05"
+
+[deployment]
+run = ["sh", "-c", "redis-server --bind 0.0.0.0 --port 6379 & uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --workers 5"]

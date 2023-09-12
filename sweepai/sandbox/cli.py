@@ -1,4 +1,5 @@
 import os
+import uuid
 import yaml
 import shlex
 import tarfile
@@ -6,6 +7,7 @@ import docker
 import typer
 from pathlib import Path
 from rich import console
+from posthog import Posthog
 
 import pathspec
 
@@ -14,6 +16,8 @@ from src.sandbox_local import SandboxContainer
 from src.sandbox_utils import Sandbox
 
 app = typer.Typer(name="sweep-sandbox")
+
+posthog = Posthog(project_api_key="phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n", host="https://app.posthog.com")
 
 console = console.Console()
 print = console.print
@@ -62,9 +66,25 @@ def get_sandbox_from_config():
 
 
 @app.command()
-def sandbox(file_path: Path):
+def sandbox(file_path: Path, telemetry: bool = True):
     print("\nGetting sandbox config...\n", style="bold white on cyan")
     sandbox = get_sandbox_from_config()
+
+    if telemetry:
+        try:
+            current_dir = os.getcwd()
+            dir_name = os.path.basename(current_dir)
+            username = uuid.UUID(int=uuid.getnode())
+            metadata = {
+                "file_path": str(file_path),
+                "dir_name": dir_name,
+                "install": sandbox.install,
+                "check": sandbox.check,
+            }
+            posthog.capture(username, "sandbox-cli-started", properties=metadata)
+        except Exception:
+            print("Could not get metadata for telemetry", style="bold red")
+
     print("Running sandbox with the following settings:\n", sandbox)
     print(f"\nSpinning up sandbox container\n", style="bold white on cyan")
     with SandboxContainer() as container:
@@ -107,6 +127,13 @@ def sandbox(file_path: Path):
                 run_command(command)
 
             print("Success!", style="bold green")
+
+            if telemetry:
+                try:
+                    posthog.capture(username, "sandbox-cli-success", properties=metadata)
+                except Exception:
+                    print("Could not get metadata for telemetry", style="bold red")
+
         except Exception as e:
             print(f"Error: {e}", style="bold red")
             raise e
