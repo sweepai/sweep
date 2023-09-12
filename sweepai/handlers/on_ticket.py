@@ -399,7 +399,7 @@ def on_ticket(
         )
     )
 
-    def get_comment_header(index, errored=False, pr_message=""):
+    def get_comment_header(index, errored=False, pr_message="", done=False):
         config_pr_message = (
             "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})"
             if config_pr_url is not None
@@ -408,9 +408,12 @@ def on_ticket(
         config_pr_message = " To retrigger Sweep, edit the issue.\n" + config_pr_message
         if index < 0:
             index = 0
-        if index == 6:
+        if index == 4:
             return pr_message + config_pr_message
-        index *= 100 / len(progress_headers)
+
+        total = len(progress_headers) + 1
+        index += 1 if done else 0
+        index *= 100 / total
         index = int(index)
         index = min(100, index)
         if errored:
@@ -476,7 +479,7 @@ def on_ticket(
     # Random variables to save in case of errors
     table = None  # Show plan so user can finetune prompt
 
-    def edit_sweep_comment(message: str, index: int, pr_message=""):
+    def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
         nonlocal current_index
         # -1 = error, -2 = retry
         # Only update the progress bar if the issue generation errors.
@@ -523,7 +526,7 @@ def on_ticket(
 
         # Update the issue comment
         issue_comment.edit(
-            f"{get_comment_header(current_index, errored, pr_message)}\n{sep}{agg_message}{suffix}"
+            f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
         )
 
     if False and len(title + summary) < 20:
@@ -764,6 +767,7 @@ def on_ticket(
                 f"I finished creating the subissues! Track them at:\n\n"
                 + "\n".join(f"* #{subissue.issue_id}" for subissue in subissues),
                 3,
+                done=True,
             )
             edit_sweep_comment(f"N/A", 4)
             edit_sweep_comment(f"I finished creating all the subissues.", 5)
@@ -1026,7 +1030,8 @@ def on_ticket(
             logger.error(e)
 
         edit_sweep_comment(
-            review_message + "\n\nI finished incorporating these changes.", 3
+            review_message + "\n\nI finished incorporating these changes.",
+            3,
         )
 
         is_draft = config.get("draft", False)
@@ -1071,6 +1076,7 @@ def on_ticket(
             pr_message=(
                 f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}"
             ),
+            done=True,
         )
 
         logger.info("Add successful ticket to counter")
