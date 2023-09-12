@@ -888,7 +888,7 @@ def on_ticket(
                             [
                                 create_collapsible(
                                     f"<code>{execution.command}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
-                                    f"```{clean_logs(execution.output)}```",
+                                    f"<pre>{clean_logs(execution.output)}</pre>",
                                     i == len(sandbox_response.executions) - 1,
                                 )
                                 for i, execution in enumerate(
