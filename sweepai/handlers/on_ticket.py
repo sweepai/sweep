@@ -153,7 +153,7 @@ def create_collapsible(summary: str, body: str, opened: bool = False):
 
 
 def blockquote(text: str):
-    return "> " + text.replace("\n", "\n> ") if text else ""
+    return f"<blockquote>{text}</blockquote>" if text else ""
 
 
 def create_checkbox(title: str, body: str, checked: bool = False):
