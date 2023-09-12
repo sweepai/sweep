@@ -1,7 +1,5 @@
 # instantiate a modal sandbox
-from modal import Stub
-from sandbox.src.sandbox_utils import Sandbox
-from sandbox.modal_sandbox import run_sandbox, stub
+from sweepai.sandbox.src.sandbox_utils import Sandbox
 from sweepai.utils.github_utils import get_github_client, get_token
 
 

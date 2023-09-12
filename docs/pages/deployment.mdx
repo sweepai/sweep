@@ -6,9 +6,9 @@ This is the guide for self-deploying Sweep. If you would like to use our hosted 
 
 ---
 
-## Video Guide (3 min 26 seconds)
+## Video Guide (~5 minutes)
 
-[![Video](http://img.youtube.com/vi/myXAMKZI6Jk/0.jpg)](https://www.youtube.com/watch?v=myXAMKZI6Jk "Deploying Sweep Video Guide")
+[![Video](http://img.youtube.com/vi/qEKdqwPl7Jo/0.jpg)](https://www.youtube.com/watch?v=qEKdqwPl7Jo "Deploying Sweep Video Guide")
 
 After finishing the steps in the video, please complete these two steps:
 - Add your GitHub App name to the secrets as `GITHUB_BOT_USERNAME`
@@ -117,15 +117,35 @@ Set the Repository Permissions (7 selected):
 | workflow run             |
 
 Put a placeholder url for now (ex: https://github.com/sweepai/sweep/).
-Generate a private key (it should prompt you at the top of the screen, or alternatively follow [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps)) and save it for later. This is your `private-key.pem` for step 2.
+Generate a private key (it should prompt you at the top of the screen, or alternatively follow [this guide](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/managing-private-keys-for-github-apps)) and save it for later.
 
 ![image](/deployment/pem.png)
+
+Once the private key is downloaded, format it for the next step:
+
+```sh
+echo -e "paste key here" | tr '\n' ' ' | sed 's/ /\\n/g'
+```
+
+And, save the output for later in the following format:
+
+```sh
+PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
+```
 
 You will also need your app ID, which is the number at the top of the page. This is your `app-id` for step 2.
 
 ![image](/deployment/appid.png)
 
 Click Install App to install it on your account or organization. Point it to a repo which you want to use Sweep on. This repo cannot be empty. If you don't have a good repo at hand, check out our [tutorial on running Sweep on Docusaurus](https://docs.sweep.dev/tutorial).
+
+Store the following constants for later:
+
+```sh
+APP_ID=123456
+PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
+GITHUB_BOT_USERNAME=sweep-example-name
+```
 
 </details>
 
