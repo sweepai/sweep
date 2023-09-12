@@ -99,7 +99,7 @@ SLOW_MODE = True
 
 
 def clean_logs(logs: str):
-    return re.sub(r"\x1b\[.*?[@-~]", "", logs)
+    return re.sub(r"\x1b\[.*?[@-~]", "", logs.replace("```", "\`\`\`"))
 
 
 def post_process_snippets(
