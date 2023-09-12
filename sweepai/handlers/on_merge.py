@@ -5,7 +5,7 @@ from loguru import logger
 from sweepai.utils.event_logger import posthog
 
 # change threshold for number of lines changed
-CHANGE_THRESHOLD = 50
+CHANGE_THRESHOLD = 25
 
 def on_merge(request_dict, chat_logger):
     if "commits" in request_dict and len(request_dict["commits"]) > 0:
