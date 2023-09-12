@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import json
 import os
 import io
@@ -29,7 +29,10 @@ class SandboxContainer:
 
     def __enter__(self):
         client.containers.run(
-            "sweepai/sandbox:latest", "tail -f /dev/null", detach=True, name=self.container_name
+            "sweepai/sandbox:latest",
+            "tail -f /dev/null",
+            detach=True,
+            name=self.container_name,
         )  # keeps the container running
         self.container = client.containers.get(self.container_name)
         return self.container
@@ -37,6 +40,13 @@ class SandboxContainer:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.container.stop()
         self.container.remove(force=True)
+
+
+@dataclass
+class SandboxExecution:
+    command: str
+    output: str
+    exit_code: int
 
 
 def write_file(container, file_path, content):
@@ -116,6 +126,7 @@ class SandboxRequest(BaseModel):
     file_path: str
     content: str
     token: str | None = None
+    stage: str = "check"
 
 
 @app.get("/health")
@@ -138,14 +149,8 @@ async def run_sandbox(request: Request):
     data = await request.json()
     sandbox_request = SandboxRequest(**data)
     print(sandbox_request.repo_url, sandbox_request.file_path, sandbox_request.token)
-    # correct_key = None
-    # repo_full_name = "/".join(sandbox_request.repo_url.split('/')[-2:])
-    # for key in sandboxes.keys():
-    #     if repo_full_name.startswith(key):
-    #         correct_key = key
-    #         break
-    # sandbox = sandboxes.get(correct_key, Sandbox())
-    success, outputs, error_messages, updated_content = False, [], [], ""
+    success, error_messages, updated_content = False, [], ""
+    executions: list[SandboxExecution] = []
 
     try:
         if sandbox_request.token:
@@ -188,7 +193,7 @@ async def run_sandbox(request: Request):
                     )
                 return logs
 
-            def run_command(command):
+            def run_command(command: str, stage: str = "check"):
                 print(f"\n\n### Running {command} ###\n")
                 exit_code, output = container.exec_run(
                     wrap_command(command), stderr=True
@@ -197,18 +202,26 @@ async def run_sandbox(request: Request):
                 print(summarize_logs(output))
                 if exit_code != 0 and not ("prettier" in command and exit_code == 1):
                     raise Exception(output)
+                executions.append(
+                    SandboxExecution(
+                        command=command,
+                        output=output,
+                        exit_code=exit_code,
+                    )
+                )
                 return output
 
             for command in sandbox.install:
                 print(command)
-                outputs.append(run_command(command))
+                run_command(command, stage="install")
 
             num_iterations = 15
+            # num_iterations = 3
             for i in range(1, num_iterations + 1):
                 try:
                     print(f"Trying to lint for the {i}/{num_iterations}th time")
                     for command in sandbox.check:
-                        outputs.append(run_command(command))
+                        run_command(command)
                 except Exception as e:
                     error_message = str(e)
                     if (
@@ -248,7 +261,8 @@ async def run_sandbox(request: Request):
     return {
         "success": success,
         "error_messages": error_messages,
-        "outputs": outputs,
+        "outputs": [execution.output for execution in executions],
+        "executions": [asdict(execution) for execution in executions],
         "updated_content": updated_content,
         "sandbox": sandbox.dict(),
     }

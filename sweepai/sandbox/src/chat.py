@@ -80,8 +80,8 @@ tiktoken_model = None
 
 
 def count_tokens(text: str):
-    if tiktoken_model is None:
-        tiktoken_model = tiktoken.encoding_for_model("gpt-4")
+    global tiktoken_model
+    tiktoken_model = tiktoken_model or tiktoken.encoding_for_model("gpt-4")
     return len(tiktoken_model.encode(text, disallowed_special=()))
 
 
