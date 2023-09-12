@@ -17,7 +17,7 @@ from sweepai.core.entities import (
     FileChangeRequest,
     PullRequest,
     RegexMatchError,
-    SandboxExecution,
+    SandboxResponse,
     SectionRewrite,
     Snippet,
     NoFilesException,
@@ -431,7 +431,7 @@ class SweepBot(CodeGenBot, GithubBot):
         content: str,
     ):
         # Format file
-        sandbox_execution: SandboxExecution | None = None
+        sandbox_execution: SandboxResponse | None = None
         if SANDBOX_URL:
             try:
                 print("Running Sandbox...")
@@ -444,7 +444,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     content=content,
                 )
                 print(output)
-                sandbox_execution = SandboxExecution(**output)
+                sandbox_execution = SandboxResponse(**output)
                 if output["success"]:
                     content = output["updated_content"]
             except Exception as e:
