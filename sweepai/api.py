@@ -460,7 +460,11 @@ async def webhook(raw_request: Request):
                 if pull_requests:
                     pr = repo.get_pull(pull_requests[0].number)
                     if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
-                        call_on_check_suite(request=request)
+                        try:
+                            call_on_check_suite(request=request)
+                        except Exception as e:
+                            logger.error(f"Error handling check suite: {e}")
+                            raise
                 else:
                     logger.info("No pull requests, passing")
             case "installation_repositories", "added":
