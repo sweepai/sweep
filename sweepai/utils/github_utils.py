@@ -47,16 +47,27 @@ def get_jwt():
 def get_token(installation_id: int):
     for timeout in [5.5, 5.5, 10.5]:
         try:
-            jwt = get_jwt()
+            logger.info(f"Getting token for installation_id: {installation_id}")
+            try:
+                jwt = get_jwt()
+            except Exception as e:
+                logger.error(f"Error getting JWT: {e}")
+                raise
+            logger.info(f"Generated JWT: {jwt}")
             headers = {
                 "Accept": "application/vnd.github+json",
                 "Authorization": "Bearer " + jwt,
                 "X-GitHub-Api-Version": "2022-11-28",
             }
-            response = requests.post(
-                f"https://api.github.com/app/installations/{int(installation_id)}/access_tokens",
-                headers=headers,
-            )
+            try:
+                response = requests.post(
+                    f"https://api.github.com/app/installations/{int(installation_id)}/access_tokens",
+                    headers=headers,
+                )
+            except Exception as e:
+                logger.error(f"Error making POST request: {e}")
+                raise
+            logger.info(f"Response from POST request: {response.json()}")
             obj = response.json()
             if "token" not in obj:
                 logger.error(obj)
