@@ -14,6 +14,7 @@ from sweepai.core.entities import Message, Function, SweepContext
 from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import get_description
+import os
 from sweepai.config.server import (
     OPENAI_API_KEY,
     OPENAI_USE_3_5_MODEL_ONLY,
@@ -29,11 +30,7 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.event_logger import posthog
 
 
-if OPENAI_API_TYPE == "azure":
-    openai.api_key = OPENAI_API_KEY
-    openai.api_type = OPENAI_API_TYPE
-    openai.api_base = OPENAI_API_BASE
-    openai.api_version = OPENAI_API_VERSION
+# No changes here
 
 
 AnthropicModel = (
@@ -213,6 +210,15 @@ class ChatGPT(BaseModel):
         functions: list[Function] = [],
         function_name: dict | None = None,
     ):
+        if os.environ.get("OPENAI_FALLBACK", "false").lower() == "true":
+            try:
+                # Attempt to call the model
+                return self._call_model(model, functions, function_name)
+            except Exception:
+                # If the call fails, fall back to OpenAI
+                return self._call_model("gpt-3.5-turbo", functions, function_name)
+        else:
+            return self._call_model(model, functions, function_name)
         if self.chat_logger is not None:
             tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
             tickets_count = self.chat_logger.get_ticket_count()
@@ -452,6 +458,15 @@ class ChatGPT(BaseModel):
         self,
         model: ChatModel | None = None,
     ):
+        if os.environ.get("OPENAI_FALLBACK", "false").lower() == "true":
+            try:
+                # Attempt to call the model
+                return await self._acall_model(model)
+            except Exception:
+                # If the call fails, fall back to OpenAI
+                return await self._acall_model("gpt-3.5-turbo")
+        else:
+            return await self._acall_model(model)
         if self.chat_logger is not None:
             tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
             tickets_count = self.chat_logger.get_ticket_count()
