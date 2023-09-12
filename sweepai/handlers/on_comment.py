@@ -226,7 +226,7 @@ def on_comment(
                 + "\n".join(pr_lines[pr_line_position:end])
             )
         else:
-            formatted_pr_chunk = pr_file
+            formatted_pr_chunk = None  # pr_file
         if file_comment:
             snippets = []
             tree = ""
