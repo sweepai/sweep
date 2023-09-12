@@ -1,0 +1,62 @@
+# **When you should handle tech debt**
+
+**William Zeng** - September 12th, 2023
+
+---
+
+There’s two(three?) solutions to handle tech debt like updating documentation, refactoring code, and making sure comments are up to date.
+
+1. handle it before each release
+2. handle it after each release
+3. forget about it
+
+Say you have an engineer(named William) working on a full-stack app. You expect William’s new feature to have error logs enabled with detailed messages.
+It’s not the end of the world if these logs are missing, but it’s really nice to have.
+
+In solution 1, it’s annoying for William to go back and update every possible failure with a detailed log, but all of the work gets done.
+Users are happy, software was shipped(albeit slowly). This is alright, but bottlenecks engineers.
+
+In solution 2, William is happy, but in practice this degrades to solution 3. He forgot to update the logs.
+Next time one of your users reports an error, you ping him to fix it. Not great, but not the end of the world.
+
+## Proposal: handle tech debt shortly after feature releases
+
+<img src="/deployment/tech_debt.png" alt="When to handle tech debt with AI copilots" />
+
+Say William released the feature on Thursday.
+By next Monday, he’s forgotten exactly what they should be doing, the new week has started, and he’s onto the next feature.
+He’s swamped with meetings, so he doesn’t want to take time out of the day to write “detailed error logs”.
+
+However, by handling tech debt immediately after release(say Friday afternoon), he can get the best of both worlds.
+1. He gets to **ship fast**.
+2. Users are using the feature, and the urgency is higher.
+3. The tech debt gets handled.
+
+We’re revisiting how tech debt gets handled at Sweep. We provide a simple flow: you write a github issue describing a code change → you get an automatically generated + validated pull request with code.<br/>
+It’s tricky to use this flow for large features - will it really save you time?(sometimes yes, sometimes no), so we’re cleaning up the small chores first.
+
+
+We started Sweep to proactively clean up tech debt, but few engineers sit down and say **“i’m in a good mood, let’s spend some time to cleanup the logs”**.
+
+*A better way* is for Sweep to say **“you just shipped this feature, great job! Now please review my PR that cleans up what you missed”**.
+
+## A new way to think about tech debt
+
+We think about handling tech debt with a request/response flow vs publish/subscribe flow.
+
+In the first, you either immediately handle the chores before/after shipping, or you “drop the request” and it’s lost forever. <br/>
+In the second, you ship first. Then the chore gets pushed to Sweep’s queue, and Sweep comes back to you with a PR.
+
+These tasks aren’t complex, and that makes them:
+- **Easily** addressable by AI. Sweep validates code using your own linters and tests, along with a quick human review.
+- Not enjoyable for programmers. I’m personally not thrilled to sit down and make sure the logs are clear.
+
+## Can AI help?
+
+There’s a general sense among engineers of “I know AI can speed me up, but I’m not sure exactly where in the flow that is”. Some concerns are whether:
+
+- AI can catch the errors
+- Sweep/AI copilots can actually fix the code
+- you should just go with solution 1 and handle it immediately (YMMV)
+
+If you'd like to watch us solve the first two, come check out Sweep: https://github.com/sweepai/sweep
