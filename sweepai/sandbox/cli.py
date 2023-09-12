@@ -17,7 +17,10 @@ from src.sandbox_utils import Sandbox
 
 app = typer.Typer(name="sweep-sandbox")
 
-posthog = Posthog(project_api_key="phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n", host="https://app.posthog.com")
+posthog = Posthog(
+    project_api_key="phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n",
+    host="https://app.posthog.com",
+)
 
 console = console.Console()
 print = console.print
@@ -27,17 +30,12 @@ client = docker.from_env()
 
 def copy_to(container):
     try:
-        git_ignore_patterns = [
-            line.strip("/")
-            for line in open(".gitignore").read().splitlines()
-            if not line.startswith("#") and line.strip()
-        ]
+        spec = pathspec.PathSpec.from_lines(
+            pathspec.patterns.GitWildMatchPattern,
+            open(".gitignore").read().splitlines(),
+        )
     except FileNotFoundError:
-        git_ignore_patterns = []
-    git_ignore_patterns += [".git"]
-    spec = pathspec.PathSpec.from_lines(
-        pathspec.patterns.GitWildMatchPattern, open(".gitignore").read().splitlines()
-    )
+        spec = pathspec.PathSpec.from_lines(pathspec.patterns.GitWildMatchPattern, [])
     files_to_copy = {
         f
         for f in tqdm(Path(".").rglob("*"), desc="Getting files to copy")
@@ -130,7 +128,9 @@ def sandbox(file_path: Path, telemetry: bool = True):
 
             if telemetry:
                 try:
-                    posthog.capture(username, "sandbox-cli-success", properties=metadata)
+                    posthog.capture(
+                        username, "sandbox-cli-success", properties=metadata
+                    )
                 except Exception:
                     print("Could not get metadata for telemetry", style="bold red")
 
