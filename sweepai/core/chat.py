@@ -5,6 +5,17 @@ from typing import Iterator, Literal, Self
 
 import anthropic
 import backoff
+from loguru import logger
+from pydantic import BaseModel
+from openai import openai
+from posthog import posthog
+
+from sweepai.utils.utils import Tiktoken
+from sweepai.core.entities import Message, Function, SweepContext
+from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
+from sweepai.utils.chat_logger import ChatLogger
+from sweepai.config.client import get_description
+from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.openai_proxy import OpenAIProxy
 from sweepai.config.server import (
     OPENAI_API_KEY_GPT35,
