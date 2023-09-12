@@ -16,12 +16,8 @@ from sweepai.utils.prompt_constructor import (
 
 
 # Plan:
-# 1. Get PR
-# 2. Get files changed
-# 3. Come up with some comments for the PR
-# 4. Take comments and add them to the PR
-
-
+====
+logger.error(f"File status {file.status} not recognized", exc_info=True)
 def get_pr_diffs(repo, pr):
     base_sha = pr.base.sha
     head_sha = pr.head.sha
@@ -138,5 +134,5 @@ def review_pr(
     review_comment = PullRequestComment.from_string(reply)
     pr.create_review(body=review_comment.content, event="COMMENT", comments=[])
     changes_required = "yes" in review_comment.changes_required.lower()
-    logger.info(f"Changes required: {changes_required}")
+    ====
     return changes_required, review_comment.content
