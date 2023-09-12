@@ -2,10 +2,11 @@ import os
 import openai
 
 class OpenAIProxy:
-    OPENAI_API_KEY_GPT35 = os.environ.get("OPENAI_API_KEY_GPT35")
-    OPENAI_API_KEY_GPT4 = os.environ.get("OPENAI_API_KEY_GPT4")
-    OPENAI_API_KEY_GPT4_32K = os.environ.get("OPENAI_API_KEY_GPT4_32K")
-    OPENAI_FALLBACK = os.environ.get("OPENAI_FALLBACK", "false").lower() == "true"
+    def __init__(self, OPENAI_API_KEY_GPT35, OPENAI_API_KEY_GPT4, OPENAI_API_KEY_GPT4_32K, OPENAI_FALLBACK):
+        self.OPENAI_API_KEY_GPT35 = OPENAI_API_KEY_GPT35
+        self.OPENAI_API_KEY_GPT4 = OPENAI_API_KEY_GPT4
+        self.OPENAI_API_KEY_GPT4_32K = OPENAI_API_KEY_GPT4_32K
+        self.OPENAI_FALLBACK = OPENAI_FALLBACK
 
     def call_openai(self, model, **kwargs):
         try:
