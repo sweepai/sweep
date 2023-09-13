@@ -136,23 +136,22 @@ def call_on_comment(
         thread.start()
 
 
-def call_on_merge(
-    *args, **kwargs
-):
+def call_on_merge(*args, **kwargs):
     thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
     thread.start()
 
-def call_on_write_docs(
-    *args, **kwargs
-):
+
+def call_on_write_docs(*args, **kwargs):
     thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
     thread.start()
 
-def call_get_deeplake_vs_from_repo(
-    *args, **kwargs
-):
-    thread = threading.Thread(target=get_deeplake_vs_from_repo, args=args, kwargs=kwargs)
+
+def call_get_deeplake_vs_from_repo(*args, **kwargs):
+    thread = threading.Thread(
+        target=get_deeplake_vs_from_repo, args=args, kwargs=kwargs
+    )
     thread.start()
+
 
 @app.get("/health")
 def health_check():

@@ -207,13 +207,13 @@ def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
     )
 
     # Create a directory to store the index
-    pid = random.randint(0, 1000)
-    shutil.rmtree(f"cache/indices/indexdir_{pid}", ignore_errors=True)
+    dir_name = f"cache/indices/indexdir_{int(time.time())}"
+    shutil.rmtree(dir_name, ignore_errors=True)
     os.makedirs(f"cache/indices", exist_ok=True)
-    os.mkdir(f"cache/indices/indexdir_{pid}")
+    os.mkdir(dir_name)
 
     # Create the index based on the schema
-    ix = index.create_in(f"cache/indices/indexdir_{pid}", schema)
+    ix = index.create_in(dir_name, schema)
     # writer.cancel()
     writer = ix.writer()
     for doc in all_docs:
