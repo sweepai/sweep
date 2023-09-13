@@ -98,8 +98,6 @@ description: ''
 )
 
 
-# goes under Modal 'openai-secret' secret name
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 OPENAI_DO_HAVE_32K_MODEL_ACCESS = (
     os.environ.get("OPENAI_DO_HAVE_32K_MODEL_ACCESS", "true").lower() == "true"
 )
@@ -155,7 +153,12 @@ REPLICATE_API_KEY = os.environ.get("REPLICATE_API_KEY", None)
 REPLICATE_URL = os.environ.get("REPLICATE_URL", None)
 
 # Azure settings, only checked if OPENAI_API_TYPE == "azure"
+AZURE_API_KEY = os.environ.get("AZURE_API_KEY", None)
 OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", None)
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", None)
 OPENAI_API_VERSION = os.environ.get("OPENAI_API_VERSION", None)
-OPENAI_API_ENGINE = os.environ.get("OPENAI_API_ENGINE", None)
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
+OPENAI_API_ENGINE_GPT35 = os.environ.get("OPENAI_API_ENGINE_GPT35", None)
+OPENAI_API_ENGINE_GPT4 = os.environ.get("OPENAI_API_ENGINE_GPT4", None)
+OPENAI_API_ENGINE_GPT4_32K = os.environ.get("OPENAI_API_ENGINE_GPT4_32K", None)
