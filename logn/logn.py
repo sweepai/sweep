@@ -2,11 +2,62 @@ import datetime
 import json
 import os
 import threading
-
+import datetime
+import inspect
 
 LOG_PATH = "logn_logs/logs"
 META_PATH = "logn_logs/meta"
 END_OF_LINE = "󰀀\n"
+
+
+class LogParser:
+    def __init__(self, level: int, parse_args):
+        self.level = level
+        self.parse_args = parse_args
+
+    def parse(self, *args, **kwargs):
+        return self.parse_args(*args, **kwargs)
+
+
+def print2(message, level="INFO"):
+    if level is None:
+        return message
+
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    module_name = globals().get("__name__", "__main__")
+    current_frame = inspect.currentframe()
+    calling_frame = next(
+        frame
+        for frame in inspect.stack()
+        if frame.filename != current_frame.f_code.co_filename
+    )
+    function_name = calling_frame.function
+    line_number = calling_frame.lineno
+
+    log_string = f"{timestamp} | {level:<8} | {module_name}:{function_name}:{line_number} - {message}"
+    return log_string
+
+
+logging_parsers = {
+    print: LogParser(
+        level=0, parse_args=lambda *args, **kwargs: " ".join([str(arg) for arg in args])
+    ),
+}
+
+try:
+    from loguru import logger
+
+    logging_parsers[logger.info] = LogParser(
+        level=1, parse_args=lambda *args, **kwargs: print2(args[0], level="INFO")
+    )
+    logging_parsers[logger.error] = LogParser(
+        level=2, parse_args=lambda *args, **kwargs: print2(args[0], level="ERROR")
+    )
+    logging_parsers[logger.warning] = LogParser(
+        level=3, parse_args=lambda *args, **kwargs: print2(args[0], level="WARNING")
+    )
+except:
+    print("Failed to import loguru")
 
 
 def get_task_key():
