@@ -6,6 +6,7 @@ import threading
 
 LOG_PATH = "logn_logs/logs"
 META_PATH = "logn_logs/meta"
+END_OF_LINE = "󰀀\n"
 
 
 def get_task_key():
@@ -70,7 +71,7 @@ class _Task:
 
         with open(self.log_path, "a") as f:
             log = " ".join([str(arg) for arg in args])
-            f.write(f"{log}\n")
+            f.write(f"{log}{END_OF_LINE}")
 
 
 class _Logger:
