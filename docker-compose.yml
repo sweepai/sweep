@@ -18,8 +18,6 @@ services:
       - sandbox-web
     environment:
       - PORT=${PORT:-8080}
-    env_file:
-      - .env
   sandbox:
     build:
       context: sweepai/sandbox
@@ -34,5 +32,3 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - 8081:8080
-    env_file:
-      - .env

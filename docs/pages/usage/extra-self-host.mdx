@@ -1,0 +1,35 @@
+# Extra Configurations for Deploying Self-Hosted Sweep
+
+This guide assumes you have already completed http://docs.sweep.dev/deployment/ and have a working Sweep instance.
+
+## Using Azure for OpenAI
+
+### 1. Go to your Azure deployment.
+This can be found at https://oai.azure.com/portal -> **Chat(left tab)** -> **View Code(middle of the page)**
+
+You'll see something like the below:
+<img src="/assets/azure_playground.png" alt="Screenshot of how to deploy Sweep, an AI copilot, on Azure Open AI" />
+
+### 2. Go to your Sweep deployment.
+Edit your .env `vim .env` and fill in the following fields:
+```
+AZURE_API_KEY=<YOUR_KEY> # this can be found under "key" in the screenshot above
+OPENAI_API_TYPE=azure
+OPENAI_API_BASE=https://<YOUR_BASE_URL>.openai.azure.com/ # replace <YOUR_BASE_URL> with the url you see in the screenshot above
+OPENAI_API_VERSION="2023-07-01-preview" # replace this with the latest if it's not 2023-07-01-preview
+OPENAI_API_ENGINE_GPT35=YOUR_ENGINE_NAME # replace this for the models/engines you have access to
+OPENAI_API_ENGINE_GPT4=YOUR_ENGINE_NAME # replace this for the models/engines you have access to
+OPENAI_API_ENGINE_GPT4_32K=YOUR_ENGINE_NAME # replace this for the models/engines you have access to
+```
+
+### 3. Configure GPT3.5 or GPT4-32K
+
+If you only have access to GPT3.5 on Azure(or on OpenAI) fill in the following field:
+```
+OPENAI_USE_3_5_MODEL_ONLY=true
+```
+
+If you happen to have access to GPT4-32K, fill in the following field:
+```
+OPENAI_DO_HAVE_32K_MODEL_ACCESS=true
+```

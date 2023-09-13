@@ -532,7 +532,7 @@ def on_ticket(
             f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
         )
 
-    if False and len(title + summary) < 20:
+    if len(title + summary) < 20:
         logger.info("Issue too short")
         edit_sweep_comment(
             (
@@ -876,7 +876,7 @@ def on_ticket(
             if isinstance(item, dict):
                 response = item
                 break
-            file_change_request, changed_file, sandbox_response = item
+            file_change_request, changed_file, sandbox_response, commit = item
             sandbox_response: SandboxResponse | None = sandbox_response
             format_exit_code = (
                 lambda exit_code: "✅" if exit_code == 0 else f"❌ (`{exit_code}`)"
@@ -908,7 +908,11 @@ def on_ticket(
             )
             if changed_file:
                 print("Changed File!")
-                commit_hash = repo.get_branch(pull_request.branch_name).commit.sha
+                commit_hash = (
+                    commit.sha
+                    if commit is not None
+                    else repo.get_branch(pull_request.branch_name).commit.sha
+                )
                 commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
                 checkboxes_progress = [
                     (
