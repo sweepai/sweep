@@ -106,13 +106,17 @@ def call_on_check_suite(*args, **kwargs):
     repo_full_name = kwargs["request"].repository.full_name
     pr_number = kwargs["request"].check_run.pull_requests[0].number
     key = f"{repo_full_name}-{pr_number}"
+
+    # Remove the old GitHub actions from the queue
+    events[key].queue = [task for task in events[key].queue if task[1]["type"] != "github_action"]
+
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
 
 def call_on_comment(
     *args, **kwargs
-):  # TODO: if its a GHA delete all previous GHA and append to the end
+):
     global events
     repo_full_name = kwargs["repo_full_name"]
     pr_id = kwargs["pr_number"]
@@ -121,11 +125,16 @@ def call_on_comment(
     if key not in events:
         events[key] = Queue()
 
+    # If the current task in the queue is a GitHub action task, remove it
+    if events[key].queue[0][1]["type"] == "github_action":
+        events[key].get()
+
     def worker():
         while not events[key].empty():
             task_args, task_kwargs = events[key].get()
             on_comment(*task_args, **task_kwargs)
 
+    # Add the new comment to the queue behind all the other comments
     events[key].put((args, kwargs))
 
     # If a thread isn't running, start one
