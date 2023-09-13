@@ -19,7 +19,7 @@ export function RepoPreview({ repoName, displayName=null }) {
         }
         if (localStorage) {
             try {
-                const cacheHit = localStorage.getItem(`repoData-${repoName}`)
+                const cacheHit = localStorage.getItem(`repoData-${repoName}-v0`)
                 if (cacheHit) {
                     const { repoData, timestamp } = JSON.parse(cacheHit)
                     if (repoData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60 * 24) {

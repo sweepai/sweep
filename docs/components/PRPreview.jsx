@@ -4,6 +4,23 @@ import { ShowMore } from "./ShowMore";
 import { BiGitMerge } from "react-icons/bi";
 import { FiCornerDownRight } from "react-icons/fi";
 
+function setupHerokuAnywhere() {
+    var cors_api_host = 'cors-anywhere.herokuapp.com';
+    var cors_api_url = 'https://' + cors_api_host + '/';
+    var slice = [].slice;
+    var origin = window.location.protocol + '//' + window.location.host;
+    var open = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function() {
+        var args = slice.call(arguments);
+        var targetOrigin = /^https?:\/\/([^\/]+)/i.exec(args[1]);
+        if (targetOrigin && targetOrigin[0].toLowerCase() !== origin &&
+            targetOrigin[1] !== cors_api_host) {
+            args[1] = cors_api_url + args[1];
+        }
+        return open.apply(this, args);
+    };
+}
+
 export function PRPreview({ repoName, prId }) {
     const [prData, setPrData] = useState(null)
     const [issueData, setIssueData] = useState(null)
@@ -11,6 +28,10 @@ export function PRPreview({ repoName, prId }) {
     // const herokuAnywhere = "https://mighty-brook-06697-04a41eb75af8.herokuapp.com/"
     const herokuAnywhere = "https://cors-anywhere.herokuapp.com/"
     const headers = {}
+
+    useEffect(() => {
+        setupHerokuAnywhere()
+    }, [])
 
     useEffect(() => {
         const fetchPRData = async () => {
@@ -27,7 +48,8 @@ export function PRPreview({ repoName, prId }) {
                     return;
                 }
 
-                const diffResponse = await fetch(herokuAnywhere + data.diff_url); // need better cors solution
+                // const diffResponse = await fetch(herokuAnywhere + data.diff_url); // need better cors solution
+                const diffResponse = await fetch(data.diff_url); // need better cors solution
                 const diffText = await diffResponse.text();
                 setDiffData(diffText);
 
@@ -55,7 +77,7 @@ export function PRPreview({ repoName, prId }) {
         console.log(localStorage);
         if (localStorage) {
             try {
-                const cacheHit = localStorage.getItem(`prData-${repoName}-${prId}`)
+                const cacheHit = localStorage.getItem(`prData-${repoName}-${prId}-v0`)
                 if (cacheHit) {
                     const { prData, diffData, issueData, timestamp } = JSON.parse(cacheHit)
                     if (prData && diffData && issueData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60 * 24) {
@@ -90,6 +112,7 @@ export function PRPreview({ repoName, prId }) {
     if (!prData) {
         return <div>{`https://github.com/${repoName}/pulls/${prId}`}. Loading...</div>;
     }
+    console.log(prData)
 
     const numberDaysAgoMerged = Math.round((new Date() - new Date(prData.merged_at)) / (1000 * 60 * 60 * 24))
     const parsedDiff = parse(diffData)
