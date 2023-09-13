@@ -142,9 +142,9 @@ def call_on_comment(
     # Stop the current GitHub action task and add the new comment to the queue
     if kwargs.get('new_comment', False):
         terminate_thread(thread)
-        events[key].put((args, kwargs))
-
-
+        def create_comment(*args, **kwargs):
+            # Code to create a new comment
+            kwargs['new_comment'] = True
 def call_on_merge(
     *args, **kwargs
 ):
