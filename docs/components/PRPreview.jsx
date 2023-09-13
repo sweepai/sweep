@@ -44,15 +44,6 @@ export function PRPreview({ repoName, prId }) {
                 console.log("pr data", data)
                 setPrData(data);
 
-                if (!data.diff_url) {
-                    return;
-                }
-
-                // const diffResponse = await fetch(herokuAnywhere + data.diff_url); // need better cors solution
-                const diffResponse = await fetch(data.diff_url); // need better cors solution
-                const diffText = await diffResponse.text();
-                setDiffData(diffText);
-
                 if (!data.body) {
                     return;
                 }
@@ -69,6 +60,16 @@ export function PRPreview({ repoName, prId }) {
                 const issueData = await issueResponse.json();
                 setIssueData(issueData);
                 console.log("issueData", issueData)
+
+                // const diffResponse = await fetch(herokuAnywhere + data.diff_url); // need better cors solution
+                const diffResponse = await fetch(data.diff_url); // need better cors solution
+                const diffText = await diffResponse.text();
+                setDiffData(diffText);
+
+                if (!data.diff_url) {
+                    return;
+                }
+
             } catch (error) {
                 console.error("Error fetching PR data:", error);
             }
@@ -168,43 +169,47 @@ export function PRPreview({ repoName, prId }) {
                 <div style={{display: "flex", marginTop: 15, color: "darkgrey"}}>
                     <FiCornerDownRight style={{marginTop: 3 }} />&nbsp;{issueData && <p className="clickable">Fixes #{issueData.number} • {issueTitle}</p>}
                 </div>
-                <hr style={{borderColor: "darkgrey", margin: 20}}/>
-                <ShowMore>
-                    <div
-                        className="codeBlocks"
-                        style={{
-                            borderRadius: 5,
-                            padding: 10,
-                            transition: "background-color 0.2s linear",
-                        }}
-                    >
-                        {parsedDiff.map(({chunks, from, oldStart}) => (
-                            from !== "/dev/null" && from !== "sweep.yaml" &&
-                            <>
-                                <p style={{
-                                    marginTop: 0,
-                                    marginBottom: 0,
-                                    fontFamily: "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace"
-                                }}>{from}</p>
-                                {chunks.map(({changes}) =>
-                                    <pre style={{
-                                        backgroundColor: "#161717",
-                                        borderRadius: 10,
-                                        whiteSpace: "pre-wrap",
-                                    }}>
-                                        {changes.map(({content, type}) =>
-                                            <>
-                                                {type === "add" && content && <div style={{backgroundColor: "#12261e", width: "100%", padding: 4}}>{content}</div>}
-                                                {type === "del" && content && <div style={{backgroundColor: "#25171c", width: "100%", padding: 4}}>{content}</div>}
-                                                {type === "normal" && content && <div style={{padding: 4}}>{content}</div>}
-                                            </>
+                {diffData && (
+                    <>
+                        <hr style={{borderColor: "darkgrey", margin: 20}}/>
+                        <ShowMore>
+                            <div
+                                className="codeBlocks"
+                                style={{
+                                    borderRadius: 5,
+                                    padding: 10,
+                                    transition: "background-color 0.2s linear",
+                                }}
+                            >
+                                {parsedDiff.map(({chunks, from, oldStart}) => (
+                                    from !== "/dev/null" && from !== "sweep.yaml" &&
+                                    <>
+                                        <p style={{
+                                            marginTop: 0,
+                                            marginBottom: 0,
+                                            fontFamily: "ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,Liberation Mono,Courier New,monospace"
+                                        }}>{from}</p>
+                                        {chunks.map(({changes}) =>
+                                            <pre style={{
+                                                backgroundColor: "#161717",
+                                                borderRadius: 10,
+                                                whiteSpace: "pre-wrap",
+                                            }}>
+                                                {changes.map(({content, type}) =>
+                                                    <>
+                                                        {type === "add" && content && <div style={{backgroundColor: "#12261e", width: "100%", padding: 4}}>{content}</div>}
+                                                        {type === "del" && content && <div style={{backgroundColor: "#25171c", width: "100%", padding: 4}}>{content}</div>}
+                                                        {type === "normal" && content && <div style={{padding: 4}}>{content}</div>}
+                                                    </>
+                                                )}
+                                            </pre>
                                         )}
-                                    </pre>
-                                )}
-                            </>
-                        ))}
-                    </div>
-                </ShowMore>
+                                    </>
+                                ))}
+                            </div>
+                        </ShowMore>
+                    </>
+                )}
             </div>
         </>
     )
