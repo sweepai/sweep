@@ -51,7 +51,7 @@ def create_pr_changes(
     issue_number: int | None = None,
     sandbox=None,
     chat_logger: ChatLogger = None,
-) -> Generator[tuple[FileChangeRequest, int], None, dict, Commit]:
+) -> Generator[tuple[FileChangeRequest, int, Commit], None, dict]:
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
