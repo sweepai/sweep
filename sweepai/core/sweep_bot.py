@@ -6,6 +6,7 @@ from typing import Generator, Any, Dict
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
+from github.Commit import Commit
 from loguru import logger
 from pydantic import BaseModel
 
@@ -746,6 +747,8 @@ class SweepBot(CodeGenBot, GithubBot):
             print(file_change_request.change_type, file_change_request.filename)
             changed_file = False
             try:
+                commit = None
+                # Todo(Sweep): add commit for each type of change type
                 if self.is_blocked(file_change_request.filename, blocked_dirs)[
                     "success"
                 ]:
@@ -761,7 +764,11 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
                 match file_change_request.change_type:
                     case "create":
-                        changed_file, sandbox_execution = self.handle_create_file(
+                        (
+                            changed_file,
+                            sandbox_execution,
+                            commit,
+                        ) = self.handle_create_file(
                             file_change_request, branch, sandbox=sandbox
                         )
                     case "modify":
@@ -781,7 +788,11 @@ class SweepBot(CodeGenBot, GithubBot):
                                 flags=re.DOTALL,
                             )
 
-                        changed_file, sandbox_execution = self.handle_modify_file(
+                        (
+                            changed_file,
+                            sandbox_execution,
+                            commit,
+                        ) = self.handle_modify_file(
                             file_change_request, branch, sandbox=sandbox
                         )
                     case "rewrite":
@@ -840,7 +851,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             f"Unknown change type {file_change_request.change_type}"
                         )
                 print(f"Done processing {file_change_request.filename}.")
-                yield file_change_request, changed_file, sandbox_execution
+                yield file_change_request, changed_file, sandbox_execution, commit
             except MaxTokensExceeded as e:
                 raise e
             except Exception as e:
@@ -851,7 +862,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def handle_create_file(
         self, file_change_request: FileChangeRequest, branch: str, sandbox=None
-    ) -> tuple[bool, None]:
+    ) -> tuple[bool, None, Commit]:
         try:
             file_change, sandbox_execution = self.create_file(file_change_request)
             file_markdown = is_markdown(file_change_request.filename)
@@ -862,7 +873,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 f" {branch}"
             )
 
-            self.repo.create_file(
+            result = self.repo.create_file(
                 file_change_request.filename,
                 file_change.commit_message,
                 file_change.code,
@@ -871,10 +882,10 @@ class SweepBot(CodeGenBot, GithubBot):
 
             file_change_request.new_content = file_change.code
 
-            return True, sandbox_execution
+            return True, sandbox_execution, result["commit"]
         except Exception as e:
             logger.info(f"Error in handle_create_file: {e}")
-            return False, None
+            return False, None, None
 
     def handle_modify_file(
         self,
@@ -882,7 +893,7 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str,
         commit_message: str = None,
         sandbox=None,
-    ) -> tuple[str, Any]:
+    ) -> tuple[str, Any, Commit]:
         CHUNK_SIZE = 800  # Number of lines to process at a time
         sandbox_error = None
         try:
@@ -973,7 +984,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
             # Update the file with the new contents after all chunks have been processed
             try:
-                self.repo.update_file(
+                result = self.repo.update_file(
                     file_name,
                     # commit_message.format(file_name=file_name),
                     commit_message,
@@ -982,11 +993,11 @@ class SweepBot(CodeGenBot, GithubBot):
                     branch=branch,
                 )
                 file_change_request.new_content = new_file_contents
-                return True, sandbox_error
+                return True, sandbox_error, result["commit"]
             except Exception as e:
                 logger.info(f"Error in updating file, repulling and trying again {e}")
                 file = self.get_file(file_change_request.filename, branch=branch)
-                self.repo.update_file(
+                result = self.repo.update_file(
                     file_name,
                     # commit_message.format(file_name=file_name),
                     commit_message,
@@ -995,10 +1006,10 @@ class SweepBot(CodeGenBot, GithubBot):
                     branch=branch,
                 )
                 file_change_request.new_content = new_file_contents
-                return True, sandbox_error
+                return True, sandbox_error, result["commit"]
         except MaxTokensExceeded as e:
             raise e
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
-            return False, sandbox_error
+            return False, sandbox_error, None

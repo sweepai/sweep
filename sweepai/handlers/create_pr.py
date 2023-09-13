@@ -3,6 +3,7 @@ from typing import Generator
 
 import openai
 from github.Repository import Repository
+from github.Commit import Commit
 from loguru import logger
 
 from sweepai.config.client import UPDATES_MESSAGE, SweepConfig, get_blocked_dirs
@@ -50,7 +51,7 @@ def create_pr_changes(
     issue_number: int | None = None,
     sandbox=None,
     chat_logger: ChatLogger = None,
-) -> Generator[tuple[FileChangeRequest, int], None, dict]:
+) -> Generator[tuple[FileChangeRequest, int], None, dict, Commit]:
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -99,6 +100,7 @@ def create_pr_changes(
             file_change_request,
             changed_file,
             sandbox_error,
+            commit,
         ) in sweep_bot.change_files_in_github_iterator(
             file_change_requests,
             pull_request.branch_name,
@@ -107,7 +109,7 @@ def create_pr_changes(
         ):
             completed_count += changed_file
             logger.info("Completed {}/{} files".format(completed_count, fcr_count))
-            yield file_change_request, changed_file, sandbox_error
+            yield file_change_request, changed_file, sandbox_error, commit
         if completed_count == 0 and fcr_count != 0:
             logger.info("No changes made")
             posthog.capture(
