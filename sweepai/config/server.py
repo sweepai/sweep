@@ -98,25 +98,11 @@ description: ''
 )
 
 
-from sweepai.utils import OpenAIProxy
-
-# goes under Modal 'openai-secret' secret name
-OPENAI_API_KEY_GPT35 = os.environ.get("OPENAI_API_KEY_GPT35")
-OPENAI_API_KEY_GPT4 = os.environ.get("OPENAI_API_KEY_GPT4")
-OPENAI_API_KEY_GPT4_32K = os.environ.get("OPENAI_API_KEY_GPT4_32K")
 OPENAI_DO_HAVE_32K_MODEL_ACCESS = (
     os.environ.get("OPENAI_DO_HAVE_32K_MODEL_ACCESS", "true").lower() == "true"
 )
 OPENAI_USE_3_5_MODEL_ONLY = (
     os.environ.get("OPENAI_USE_3_5_MODEL_ONLY", "false").lower() == "true"
-)
-OPENAI_FALLBACK = os.environ.get("OPENAI_FALLBACK", "false").lower() == "true"
-
-openai_proxy = OpenAIProxy(
-    OPENAI_API_KEY_GPT35,
-    OPENAI_API_KEY_GPT4,
-    OPENAI_API_KEY_GPT4_32K,
-    OPENAI_FALLBACK
 )
 
 # goes under Modal 'anthropic' secret name (optional, can leave env var blank)
@@ -167,7 +153,12 @@ REPLICATE_API_KEY = os.environ.get("REPLICATE_API_KEY", None)
 REPLICATE_URL = os.environ.get("REPLICATE_URL", None)
 
 # Azure settings, only checked if OPENAI_API_TYPE == "azure"
+AZURE_API_KEY = os.environ.get("AZURE_API_KEY", None)
 OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", None)
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", None)
 OPENAI_API_VERSION = os.environ.get("OPENAI_API_VERSION", None)
-OPENAI_API_ENGINE = os.environ.get("OPENAI_API_ENGINE", None)
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
+OPENAI_API_ENGINE_GPT35 = os.environ.get("OPENAI_API_ENGINE_GPT35", None)
+OPENAI_API_ENGINE_GPT4 = os.environ.get("OPENAI_API_ENGINE_GPT4", None)
+OPENAI_API_ENGINE_GPT4_32K = os.environ.get("OPENAI_API_ENGINE_GPT4_32K", None)

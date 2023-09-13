@@ -7,8 +7,6 @@ import anthropic
 import backoff
 from loguru import logger
 from pydantic import BaseModel
-from openai import openai
-from posthog import posthog
 
 from sweepai.utils.utils import Tiktoken
 from sweepai.core.entities import Message, Function, SweepContext
@@ -18,36 +16,14 @@ from sweepai.config.client import get_description
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.openai_proxy import OpenAIProxy
 from sweepai.config.server import (
-    OPENAI_API_KEY_GPT35,
-    OPENAI_API_KEY_GPT4,
-    OPENAI_API_KEY_GPT4_32K,
-    OPENAI_FALLBACK,
     OPENAI_USE_3_5_MODEL_ONLY,
-    UTILS_MODAL_INST_NAME,
-    ANTHROPIC_API_KEY,
     OPENAI_DO_HAVE_32K_MODEL_ACCESS,
-    OPENAI_API_TYPE,
-    OPENAI_API_BASE,
-    OPENAI_API_VERSION,
-    OPENAI_API_ENGINE,
 )
-from sweepai.utils.utils import Tiktoken
-from sweepai.core.entities import Message, Function
-from pydantic import BaseModel
-from sweepai.core.prompts import system_message_prompt
-from loguru import logger
-from sweepai.config.client import get_description
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from posthog import posthog
-from openai import openai
-from sweepai.core.entities import Function
+from sweepai.utils.event_logger import posthog
+import openai
 
-openai_proxy = OpenAIProxy(
-    OPENAI_API_KEY_GPT35,
-    OPENAI_API_KEY_GPT4,
-    OPENAI_API_KEY_GPT4_32K,
-    OPENAI_FALLBACK
-)
+openai_proxy = OpenAIProxy()
+
 AnthropicModel = (
     Literal["claude-v1"]
     | Literal["claude-v1.3-100k"]
@@ -110,7 +86,7 @@ class ChatGPT(BaseModel):
     )
     chat_logger: ChatLogger | None
     human_message: HumanMessagePrompt | None = None
-    file_change_paths = []
+    file_change_paths: list[str] = []
     sweep_context: SweepContext | None = None
 
     @classmethod
@@ -222,8 +198,6 @@ class ChatGPT(BaseModel):
     def call_openai(
         self,
         model: ChatModel | None = None,
-        functions: list[Function] = [],
-        function_name: dict | None = None,
     ):
         if self.chat_logger is not None:
             tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
@@ -279,164 +253,64 @@ class ChatGPT(BaseModel):
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
         global retry_counter
         retry_counter = 0
-        if functions:
 
-            @backoff.on_exception(
-                backoff.expo,
-                Exception,
-                max_tries=5,
-                jitter=backoff.random_jitter,
-            )
-            def fetch():
-                global retry_counter
-                retry_counter += 1
-                token_sub = retry_counter * 200
-                try:
-                    output = None
-                    if function_name:
-                        output = openai_proxy.call_openai(
-                            model=model,
-                            messages=messages_dicts,
-                            max_tokens=max_tokens - token_sub,
-                            temperature=temperature,
-                            functions=[
-                                json.loads(function.json())
-                                for function in functions
-                            ],
-                            function_call=function_name,
-                        )
-                    else:
-                        output = (
-                            openai.ChatCompletion.create(
-                                engine=OPENAI_API_ENGINE
-                                if OPENAI_API_TYPE == "azure"
-                                else None,
-                                model=model,
-                                messages=messages_dicts,
-                                max_tokens=max_tokens - token_sub,
-                                temperature=temperature,
-                                functions=[
-                                    json.loads(function.json())
-                                    for function in functions
-                                ],
-                            )
-                            .choices[0]
-                            .message
-                        )
-                    if self.chat_logger is not None:
-                        self.chat_logger.add_chat(
-                            {
-                                "model": model,
-                                "messages": self.messages_dicts,
-                                "max_tokens": max_tokens - token_sub,
-                                "temperature": temperature,
-                                "functions": [
-                                    json.loads(function.json())
-                                    for function in functions
-                                ],
-                                "function_call": function_name,
-                                "output": output,
-                            }
-                        )
-                    if self.chat_logger:
-                        try:
-                            token_count = count_tokens(output)
-                            posthog.capture(
-                                self.chat_logger.data.get("username"),
-                                "call_openai",
-                                {
-                                    "model": model,
-                                    "max_tokens": max_tokens - token_sub,
-                                    "input_tokens": messages_length,
-                                    "output_tokens": token_count,
-                                    "repo_full_name": self.chat_logger.data.get(
-                                        "repo_full_name"
-                                    ),
-                                    "username": self.chat_logger.data.get("username"),
-                                    "pr_number": self.chat_logger.data.get("pr_number"),
-                                    "issue_url": self.chat_logger.data.get("issue_url"),
-                                },
-                            )
-                        except Exception as e:
-                            logger.warning(e)
-                    return output
-                except Exception as e:
-                    logger.warning(e)
-                    raise e
-
-            result = fetch()
-            if "function_call" in result:
-                result = dict(result["function_call"]), True
-            else:
-                result = result["content"], False
-            logger.info(f"Output to call openai:\n{result}")
-            return result
-
-        else:
-
-            @backoff.on_exception(
-                backoff.expo,
-                Exception,
-                max_tries=5,
-                jitter=backoff.random_jitter,
-            )
-            def fetch():
-                global retry_counter
-                retry_counter += 1
-                token_sub = retry_counter * 200
-                try:
-                    output = (
-                        openai.ChatCompletion.create(
-                            engine=OPENAI_API_ENGINE
-                            if OPENAI_API_TYPE == "azure"
-                            else None,
-                            model=model,
-                            messages=self.messages_dicts,
-                            max_tokens=max_tokens - token_sub,
-                            temperature=temperature,
-                        )
-                        .choices[0]
-                        .message["content"]
+        @backoff.on_exception(
+            backoff.expo,
+            Exception,
+            max_tries=5,
+            jitter=backoff.random_jitter,
+        )
+        def fetch():
+            global retry_counter
+            retry_counter += 1
+            token_sub = retry_counter * 200
+            try:
+                output = None
+                output = openai_proxy.call_openai(
+                    model=model,
+                    messages=messages_dicts,
+                    max_tokens=max_tokens - token_sub,
+                    temperature=temperature,
+                )
+                logger.info(f"Output to call openai:\n{output} is {type(output)}")
+                if self.chat_logger is not None:
+                    self.chat_logger.add_chat(
+                        {
+                            "model": model,
+                            "messages": self.messages_dicts,
+                            "max_tokens": max_tokens - token_sub,
+                            "temperature": temperature,
+                            "output": output,
+                        }
                     )
-                    if self.chat_logger is not None:
-                        self.chat_logger.add_chat(
+                if self.chat_logger:
+                    try:
+                        token_count = count_tokens(output)
+                        posthog.capture(
+                            self.chat_logger.data.get("username"),
+                            "call_openai",
                             {
                                 "model": model,
-                                "messages": self.messages_dicts,
                                 "max_tokens": max_tokens - token_sub,
-                                "temperature": temperature,
-                                "output": output,
-                            }
+                                "input_tokens": messages_length,
+                                "output_tokens": token_count,
+                                "repo_full_name": self.chat_logger.data.get(
+                                    "repo_full_name"
+                                ),
+                                "username": self.chat_logger.data.get("username"),
+                                "pr_number": self.chat_logger.data.get("pr_number"),
+                                "issue_url": self.chat_logger.data.get("issue_url"),
+                            },
                         )
-                    if self.chat_logger:
-                        try:
-                            token_count = count_tokens(output)
-                            posthog.capture(
-                                self.chat_logger.data.get("username"),
-                                "call_openai",
-                                {
-                                    "model": model,
-                                    "max_tokens": max_tokens - token_sub,
-                                    "input_tokens": messages_length,
-                                    "output_tokens": token_count,
-                                    "repo_full_name": self.chat_logger.data.get(
-                                        "repo_full_name"
-                                    ),
-                                    "username": self.chat_logger.data.get("username"),
-                                    "pr_number": self.chat_logger.data.get("pr_number"),
-                                    "issue_url": self.chat_logger.data.get("issue_url"),
-                                },
-                            )
-                        except Exception as e:
-                            logger.warning(e)
-                    return output
-                except Exception as e:
-                    logger.warning(e)
-                    raise e
-
-            result = fetch()
-            logger.info(f"Output to call openai:\n{result}")
-            return result
+                    except Exception as e:
+                        logger.warning(e)
+                return output
+            except Exception as e:
+                logger.warning(e)
+                raise e
+        result = fetch()
+        logger.info(f"Output to call openai:\n{result}")
+        return result
 
     async def achat(
         self,
@@ -569,141 +443,6 @@ class ChatGPT(BaseModel):
         result = await fetch()
         logger.info(f"Output to call openai:\n{result}")
         return result
-
-    def call_anthropic(self, model: ChatModel | None = None) -> str:
-        if model is None:
-            model = self.model
-        messages_length = sum(
-            [int(count_tokens(message.content) * 1.1) for message in self.messages]
-        )
-        max_tokens = model_to_max_tokens[model] - int(messages_length) - 1000
-        logger.info(f"Number of tokens: {max_tokens}")
-        messages_raw = format_for_anthropic(self.messages)
-        logger.info(f"Input to call anthropic:\n{messages_raw}")
-
-        assert ANTHROPIC_API_KEY is not None
-        client = anthropic.Client(api_key=ANTHROPIC_API_KEY)
-
-        @backoff.on_exception(
-            backoff.expo,
-            Exception,
-            max_tries=5,
-            jitter=backoff.random_jitter,
-        )
-        def fetch() -> tuple[str, str]:
-            logger.warning(f"Calling anthropic...")
-            results = client.completion(
-                prompt=messages_raw,
-                stop_sequences=[anthropic.HUMAN_PROMPT],
-                model=model,
-                max_tokens_to_sample=max_tokens,
-                disable_checks=True,
-                temperature=temperature,
-            )
-            return results["completion"], results["stop_reason"]
-
-        result, stop_reason = fetch()
-        logger.warning(f"Stop reasons: {stop_reason}")
-        if stop_reason == "max_tokens":
-            logger.warning("Hit max tokens, running for more tokens.")
-            _self = deepcopy(self)
-            _self.messages.append(Message(role="assistant", content=result, key=""))
-            extension = _self.call_anthropic(model=model)
-            print(len(result), len(extension), len(result + extension))
-            return result + extension
-        logger.info(f"Output to call anthropic:\n{result}")
-        return result
-
-    def chat_stream(
-        self,
-        content: str,
-        model: ChatModel | None = None,
-        message_key: str | None = None,
-        functions: list[Function] = [],
-        function_call: dict | None = None,
-    ) -> Iterator[dict]:
-        if self.messages[-1].function_call is None:
-            self.messages.append(Message(role="user", content=content, key=message_key))
-        else:
-            name = self.messages[-1].function_call["name"]
-            self.messages.append(
-                Message(role="function", content=content, key=message_key, name=name)
-            )
-        model = model or self.model
-        is_function_call = False
-        # might be a bug here in all of this
-        # return self.stream_openai(model=model, functions=functions, function_name=function_name)
-        return self.stream_openai(
-            model=model, functions=functions, function_call=function_call
-        )
-
-    def stream_openai(
-        self,
-        model: ChatModel | None = None,
-        functions: list[Function] = [],
-        function_call: dict | None = None,
-    ) -> Iterator[dict]:
-        model = model or self.model
-        count_tokens = Tiktoken().count
-        messages_length = sum(
-            [count_tokens(message.content or "") for message in self.messages]
-        )
-        max_tokens = (
-            model_to_max_tokens[model] - int(messages_length) - 400
-        )  # this is for the function tokens
-        # TODO: Add a check to see if the message is too long
-        logger.info("file_change_paths" + str(self.file_change_paths))
-        if len(self.file_change_paths) > 0:
-            self.file_change_paths.remove(self.file_change_paths[0])
-        if max_tokens < 0:
-            if len(self.file_change_paths) > 0:
-                pass
-            else:
-                logger.error(f"Input to OpenAI:\n{self.messages_dicts}")
-                raise ValueError(f"Message is too long, max tokens is {max_tokens}")
-        messages_raw = "\n".join([(message.content or "") for message in self.messages])
-        logger.info(f"Input to call openai:\n{messages_raw}")
-
-        gpt_4_buffer = 800
-        if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
-            model = "gpt-4-0613"
-            max_tokens = (
-                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
-            )  # this is for the function tokens
-
-        if OPENAI_USE_3_5_MODEL_ONLY:
-            model = "gpt-3.5-turbo-16k-0613"
-            max_tokens = (
-                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
-            )
-
-        logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
-
-        def generator() -> Iterator[str]:
-            stream = (
-                openai.ChatCompletion.create(
-                    engine=OPENAI_API_ENGINE if OPENAI_API_TYPE == "azure" else None,
-                    model=model,
-                    messages=self.messages_dicts,
-                    temperature=temperature,
-                    functions=[json.loads(function.json()) for function in functions],
-                    function_call=function_call or "auto",
-                    stream=True,
-                )
-                if functions
-                else openai.ChatCompletion.create(
-                    engine=OPENAI_API_ENGINE if OPENAI_API_TYPE == "azure" else None,
-                    model=model,
-                    messages=self.messages_dicts,
-                    temperature=temperature,
-                    stream=True,
-                )
-            )
-            for data in stream:
-                chunk = data.choices[0].delta
-                yield chunk
-
-        return generator()
 
     @property
     def messages_dicts(self):
