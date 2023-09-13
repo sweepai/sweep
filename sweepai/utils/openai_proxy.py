@@ -63,7 +63,4 @@ class OpenAIProxy:
                     return response['choices'][0].message.content
                 except Exception as e:
                     logger.error(f"OpenAI API Key found but error: {e}")
-                    raise tb.format_exc()
-            else:
-                logger.error(f"OpenAI API Key not found and Azure Error: {e}")
-                raise tb.format_exc()
+            logger.error(f"OpenAI API Key not found and Azure Error: {e}")
