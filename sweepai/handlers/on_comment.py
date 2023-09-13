@@ -233,6 +233,10 @@ def on_comment(
                 + f"\n{pr_lines[pr_line_position - 1]} <-- {comment}"
                 + "\n".join(pr_lines[pr_line_position:end])
             )
+            if comment_id:
+                bot_comment = pr.create_review_comment_reply(
+                    comment_id, "Working on it..."
+                )
         else:
             formatted_pr_chunk = None  # pr_file
             bot_comment = pr.create_issue_comment("Working on it...")
@@ -464,14 +468,12 @@ def on_comment(
         try:
             if comment_id:
                 if changes_made:
-                    pr.create_review_comment_reply(comment_id, "Done.")
+                    # PR Review Comment Reply
+                    edit_comment("Done.")
                 else:
-                    pr.create_review_comment_reply(
-                        comment_id,
-                        (
-                            "No changes made. Please add more details so I know what to"
-                            " change."
-                        ),
+                    # PR Review Comment Reply
+                    edit_comment(
+                        "No changes made. Please add more details so I know what to change."
                     )
         except Exception as e:
             logger.error(f"Failed to reply to comment: {e}")
