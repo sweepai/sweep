@@ -8,7 +8,8 @@ export function PRPreview({ repoName, prId }) {
     const [prData, setPrData] = useState(null)
     const [issueData, setIssueData] = useState(null)
     const [diffData, setDiffData] = useState(null)
-    const herokuAnywhere = "https://mighty-brook-06697-04a41eb75af8.herokuapp.com/"
+    // const herokuAnywhere = "https://mighty-brook-06697-04a41eb75af8.herokuapp.com/"
+    const herokuAnywhere = "https://cors-anywhere.herokuapp.com/"
     const headers = {}
 
     useEffect(() => {
