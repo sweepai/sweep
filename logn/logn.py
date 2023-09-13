@@ -37,7 +37,7 @@ class _Task:
         return _Task(task_key=threading.current_thread())
 
     def create_files(self):
-        name = str(self.metadata.get("name", str(self.task_key.name)))
+        name = str(self.metadata.get("name", str(self.task_key.name.split(" ")[0])))
 
         # Write logging file
         log_path = _find_available_path(os.path.join(LOG_PATH, name))
@@ -77,6 +77,9 @@ class _Logger:
     def __init__(self, printfn):
         self.printfn = printfn
 
+    def __call__(self, *args, **kwargs):
+        self.log(*args, **kwargs)
+
     def log(self, *args, **kwargs):
         self.printfn(*args, **kwargs)
 
@@ -112,4 +115,4 @@ class _LogN(_Logger):
         return _Logger(printfn=printfn)
 
 
-LogN = _LogN()
+logn_logger = _LogN()
