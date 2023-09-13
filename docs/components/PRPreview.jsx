@@ -94,7 +94,7 @@ export function PRPreview({ repoName, prId }) {
         return <div>{`https://github.com/${repoName}/pulls/${prId}`}. Loading...</div>;
     }
 
-    const numberDaysAgoMerged = Math.round((new Date() - new Date(prData.merged_at)) / (1000 * 60 * 60 * 24))
+    const numberDaysAgoMerged = Math.max(Math.round((new Date() - new Date(prData.merged_at)) / (1000 * 60 * 60 * 24)), 71)
     const parsedDiff = parse(diffData)
     var issueTitle = issueData ? issueData.title.replace("Sweep: ", "") : ""
     issueTitle = issueTitle.charAt(0).toUpperCase() + issueTitle.slice(1);
