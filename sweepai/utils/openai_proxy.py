@@ -10,9 +10,12 @@ class OpenAIProxy:
         self.OPENAI_FALLBACK = OPENAI_FALLBACK
 
     def call_openai(self, model, **kwargs):
-        try:
-            if model == 'gpt3.5' and OPENAI_API_TYPE == "azure" and self.OPENAI_API_KEY_GPT35 is not None:
-                openai.api_key = self.OPENAI_API_KEY_GPT35
+            try:
+                openai.api_type = OPENAI_API_TYPE
+                openai.api_base = OPENAI_API_BASE
+                openai.api_version = OPENAI_API_VERSION
+                if model == 'gpt3.5' and OPENAI_API_TYPE == "azure" and self.OPENAI_API_KEY_GPT35 is not None:
+                    openai.api_key = self.OPENAI_API_KEY_GPT35
             elif model == 'gpt4' and OPENAI_API_TYPE == "azure" and self.OPENAI_API_KEY_GPT4 is not None:
                 openai.api_key = self.OPENAI_API_KEY_GPT4
             elif model == 'gpt4-32k' and OPENAI_API_TYPE == "azure" and self.OPENAI_API_KEY_GPT4_32K is not None:
