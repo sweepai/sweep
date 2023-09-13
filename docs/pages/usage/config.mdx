@@ -53,7 +53,7 @@ rules:
 
 </details>
 
-## Config Table
+### Config Table
 | Key | Type | Description |
 | --- | --- | --- |
 | `gha_enabled` | `bool` | Whether or not to enable GitHub Actions |
@@ -67,7 +67,7 @@ rules:
 
 ---
 
-## `gha_enabled`
+### `gha_enabled`
 ```yaml
 gha_enabled: True
 ```
@@ -75,19 +75,19 @@ Possible Values: True, False
 
 This setting determines whether or not to enable GitHub Actions. If this is set to `False`, then Sweep will not read the results of GitHub Actions.
 
-## `branch`
+### `branch`
 ```yaml
 branch: main
 ```
 This setting determines which branch Sweep will develop from and make pull requests to.
 
-## `blocked_dirs`
+### `blocked_dirs`
 ```yaml
 blocked_dirs: [".github/", "other_dir"]
 ```
 This setting lists all of the directories that Sweep will not be able to edit. In our example, Sweep is unable to modify the `.github` folder as we do not want Sweep to modify our GitHub Actions.
 
-## `draft`
+### `draft`
 ```yaml
 draft: False
 ```
@@ -95,13 +95,13 @@ Possible Values: True, False
 
 This setting determines whether or not to create pull requests as drafts. If this is set to `True`, then all pull requests will be created as drafts and **GitHub Actions will not be triggered**.
 
-## `description`
+### `description`
 ```yaml
 description: "project description and standards to follow"
 ```
 This setting is the description of the repository that will be passed to Sweep. Please include details that Sweep may need to understand the repository. You may also include details about standards to follow here.
 
-## `docs`
+### `docs`
 ```yaml
 docs:
   - Modal: ["https://modal.com/docs/reference", "Modal is used for serverless deployment"]
@@ -111,7 +111,7 @@ This setting contains documentation links that Sweep is able to search through. 
 
 **Important**: Please contact us if you would like to add a documentation link so we can add it to our database.
 
-## `sandbox`
+### `sandbox`
 ```yml
 sandbox:
   install:
@@ -125,7 +125,7 @@ sandbox:
 
 Sandbox executes commands in a sandboxed environment to validate code changes after every edit to guarantee pristine code. For more details, see the [Sandbox](./sandbox) page.
 
-## `rules`
+### `rules`
 ```yml
 rules:
  - There should not be commented out code.
