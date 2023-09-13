@@ -36,6 +36,8 @@ total_number_of_snippet_tokens = 15_000
 num_full_files = 2
 num_extended_snippets = 2
 
+ERROR_FORMAT = "❌ {title}\n\nPlease join our [Discord](https://discord.gg/sweep) to report this issue."
+
 
 def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3):
     for snippet in snippets[:num_full_files]:
@@ -183,6 +185,12 @@ def on_comment(
     item_to_react_to = None
     reaction = None
 
+    bot_comment = None
+
+    def edit_comment(new_comment):
+        if bot_comment is not None:
+            bot_comment.edit(new_comment)
+
     try:
         # Check if the PR is closed
         if pr.state == "closed":
@@ -227,6 +235,7 @@ def on_comment(
             )
         else:
             formatted_pr_chunk = None  # pr_file
+            bot_comment = pr.create_issue_comment("Working on it...")
         if file_comment:
             snippets = []
             tree = ""
@@ -280,6 +289,7 @@ def on_comment(
             "failed",
             properties={"error": str(e), "reason": "Failed to get files", **metadata},
         )
+        edit_comment(ERROR_FORMAT.format(title="Failed to get files"))
         raise e
 
     try:
@@ -437,7 +447,8 @@ def on_comment(
                 f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
             )
             if pr_number:
-                pr.create_issue_comment(response_for_user)
+                edit_comment(response_for_user)
+                # pr.create_issue_comment(response_for_user)
         logger.info("Making Code Changes...")
 
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
@@ -481,6 +492,7 @@ def on_comment(
                 **metadata,
             },
         )
+        edit_comment(ERROR_FORMAT.format(title="Could not find files to change"))
         return {"success": True, "message": "No files to change."}
     except Exception as e:
         logger.error(traceback.format_exc())
@@ -493,6 +505,7 @@ def on_comment(
                 **metadata,
             },
         )
+        edit_comment(ERROR_FORMAT.format(title="Failed to make changes"))
         raise e
 
     # Delete eyes
@@ -508,6 +521,12 @@ def on_comment(
             reaction = item_to_react_to.create_reaction("rocket")
         except Exception as e:
             pass
+
+    try:
+        if response_for_user is not None:
+            edit_comment(f"## 🚀 Wrote Changes\n\n{response_for_user}")
+    except Exception as e:
+        pass
 
     capture_posthog_event(username, "success", properties={**metadata})
     logger.info("on_comment success")
