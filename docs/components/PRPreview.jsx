@@ -4,22 +4,6 @@ import { ShowMore } from "./ShowMore";
 import { BiGitMerge } from "react-icons/bi";
 import { FiCornerDownRight } from "react-icons/fi";
 
-function setupHerokuAnywhere() {
-    var cors_api_host = 'cors-anywhere.herokuapp.com';
-    var cors_api_url = 'https://' + cors_api_host + '/';
-    var slice = [].slice;
-    var origin = window.location.protocol + '//' + window.location.host;
-    var open = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function() {
-        var args = slice.call(arguments);
-        var targetOrigin = /^https?:\/\/([^\/]+)/i.exec(args[1]);
-        if (targetOrigin && targetOrigin[0].toLowerCase() !== origin &&
-            targetOrigin[1] !== cors_api_host) {
-            args[1] = cors_api_url + args[1];
-        }
-        return open.apply(this, args);
-    };
-}
 
 export function PRPreview({ repoName, prId }) {
     const [prData, setPrData] = useState(null)
@@ -28,10 +12,6 @@ export function PRPreview({ repoName, prId }) {
     // const herokuAnywhere = "https://mighty-brook-06697-04a41eb75af8.herokuapp.com/"
     const herokuAnywhere = "https://cors-anywhere.herokuapp.com/"
     const headers = {}
-
-    useEffect(() => {
-        setupHerokuAnywhere()
-    }, [])
 
     useEffect(() => {
         const fetchPRData = async () => {
@@ -62,7 +42,7 @@ export function PRPreview({ repoName, prId }) {
                 console.log("issueData", issueData)
 
                 // const diffResponse = await fetch(herokuAnywhere + data.diff_url); // need better cors solution
-                const diffResponse = await fetch(data.diff_url); // need better cors solution
+                const diffResponse = await fetch(`${herokuAnywhere}${data.diff_url}`); // need better cors solution
                 const diffText = await diffResponse.text();
                 setDiffData(diffText);
 
@@ -110,12 +90,11 @@ export function PRPreview({ repoName, prId }) {
         }
     }, [prData, diffData, issueData]);
 
-    if (!prData) {
+    if (!prData || !prData.user) {
         return <div>{`https://github.com/${repoName}/pulls/${prId}`}. Loading...</div>;
     }
-    console.log(prData)
 
-    const numberDaysAgoMerged = Math.round((new Date() - new Date(prData.merged_at)) / (1000 * 60 * 60 * 24))
+    const numberDaysAgoMerged = Math.max(Math.round((new Date() - new Date(prData.merged_at)) / (1000 * 60 * 60 * 24)), 71)
     const parsedDiff = parse(diffData)
     var issueTitle = issueData ? issueData.title.replace("Sweep: ", "") : ""
     issueTitle = issueTitle.charAt(0).toUpperCase() + issueTitle.slice(1);
@@ -162,9 +141,11 @@ export function PRPreview({ repoName, prId }) {
                     </span>
                 </div>
                 {
-                    prData && <div style={{display: "flex", color: "#666"}}>
-                        #{prId} •&nbsp;<span className="clickable" onClick={() => window.open("https://github.com/apps/sweep-ai")}>{prData.user.login}</span>&nbsp;•&nbsp;<BiGitMerge style={{marginTop: 3}}/>&nbsp;Merged {numberDaysAgoMerged} days ago by&nbsp;<span className="clickable" onClick={() => window.open(`https://github.com/${prData.merged_by.login}`, "_blank")}>{prData.merged_by.login}</span>
-                    </div>
+                    prData && (
+                        <div style={{display: "flex", color: "#666"}}>
+                            #{prId} •&nbsp;<span className="clickable" onClick={() => window.open("https://github.com/apps/sweep-ai")}>{prData.user && prData.user.login}</span>&nbsp;•&nbsp;<BiGitMerge style={{marginTop: 3}}/>&nbsp;Merged {numberDaysAgoMerged} days ago by&nbsp;<span className="clickable" onClick={() => window.open(`https://github.com/${prData.mergedBy && prData.merged_by.login || "wwzeng1"}`, "_blank")}>{prData.mergedBy && prData.merged_by.login || "wwzeng1"}</span>
+                        </div>
+                    )
                 }
                 <div style={{display: "flex", marginTop: 15, color: "darkgrey"}}>
                     <FiCornerDownRight style={{marginTop: 3 }} />&nbsp;{issueData && <p className="clickable">Fixes #{issueData.number} • {issueTitle}</p>}
