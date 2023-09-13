@@ -20,7 +20,7 @@ After finishing the steps in the video, please complete these two steps:
 ## 1. Create GitHub App
 
 <details>
-<summary><h3>Personal Use</h3></summary>
+<summary><h3>Personal Use (5 min) </h3></summary>
 
 Personal use refers to using Sweep on your personal repositories under your username. If you would like to use Sweep on an organization, please follow the "Organizational Use" section.
 
@@ -76,7 +76,7 @@ GITHUB_BOT_USERNAME=sweep-example-name
 </details>
 
 <details>
-<summary><h3>Organizational Use</h3></summary>
+<summary><h3>Organizational Use (15 min)</h3></summary>
 
 If you would like to use Sweep on GitHub organizations, please follow the steps below.
 
@@ -173,57 +173,54 @@ GITHUB_BOT_USERNAME=sweep-example-name
 
 *Starting here it gets more involved so if you run into issues, please reach out to us on [Discord](https://discord.gg/sweep) or open a GitHub issue (ironic, we know!) at https://github.com/sweepai/sweep/issues. We are online, please ping us @kevin, @william, and @luke.*
 
-<details>
-<summary><h3>1. Create Instance</h3></summary>
-Recommended Specs:
+### 1. Create Instance
+Recommended minimum specs:
 - OS: Ubuntu
 - RAM: 8 GB
 - CPU: 4 vCPUs
 - Storage: 50 GB
-</details>
 
-<details>
-<summary><h3>2. Install Docker</h3></summary>
+### 2. Install Docker
 ```sh
-sudo apt install docker.io
-```
-</details>
-
-<details>
-<summary><h3>3. Pull Image</h3></summary>
-```sh
-docker pull sweepai/sweep:latest
-```
-</details>
-
-<details>
-<summary><h3>4. Create .env File</h3></summary>
-```sh
-touch .env
+sudo apt install docker.io -y
 ```
 
-Then, using your favorite text editor, add the following to the `.env` file from the previous step:
+### 3. Pull Image
+```sh
+git clone https://github.com/sweepai/sweep
+cd sweep
+docker compose pull
+```
+
+### 4. Configure `.env`
+Using your favorite text editor, create an `.env` file in the `sweep` directory:
+
+```sh
+vim .env
+# or
+nano .env
+```
+
+And copy the following into the file:
+
 ```yaml
+# These three are from step 1.
 APP_ID=1234
 PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n"
 GITHUB_BOT_USERNAME=sweep-example-name
 
-# These three are from step 2.
+# These two are from step 2.
 OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
 SENTENCE_TRANSFORMERS_MODEL=sentence-transformers/all-MiniLM-L6-v2
 ```
-</details>
 
-<details>
-<summary><h3>5. Launch Docker Image</h3></summary>
+### 5. Launch Docker Image
 ```sh
-docker run --env-file .env -p 8080:8080 -d sweepai/sweep:latest
+docker compose up # Add -d to run in background
 ```
-</details>
 
-<details>
-<summary><h3>6. Update GitHub Webhook URL</h3></summary>
+### 6. Update GitHub Webhook URL
 
 First, get the IP address of your instance, and add the port Sweep is deployed to (in this case, 8080):
 ```sh
@@ -237,19 +234,43 @@ Navigating to this link should look like this:
 2. Go to your GitHub App and paste this link into the `General` tab `Webhook URL` field.  Ensure SSL verification remains active.
 
 <img src="/deployment/digitalocean_step9.png" alt="Skip Resources Page" />
+
+### Alternative steps:
+
+<details>
+<summary><h2>Alternative to 3: Deploying Locally</h2></summary>
+
+If you do not want to deploy on the cloud and would prefer to deploy on your local machine, you can do so by following the steps below.
+
+You need to install [Docker](https://docs.docker.com/engine/install/) to host Sweep.
+
+Pull our image from Docker Hub:
+
+```sh
+git clone https://github.com/sweepai/sweep
+cd sweep
+docker compose pull
+```
+
+It may take 5-10 minutes to download the image and you can move on to the next step while it's downloading.
+
+Create a `.env` file with the contents from steps 1 and 2. Then in the same directory, run:
+
+```bash
+docker compose up # Add -d to run in background
+```
+
+We're going to use [Ngrok](https://ngrok.com/) for a reverse proxy.
+
+Sign up for an Ngrok account and install the CLI from https://dashboard.ngrok.com/signup. Your terminal must be in the same directory as your ngrok installation. Start the reverse proxy with `./ngrok http 8080`. The second last line should say something like
+
+```sh
+Forwarding  https://4d8d8bf053be.ngrok.app -> http://localhost:8080
+```
+
+Then proceed with step 4.
+
 </details>
-
----
-
-## 4. Using Sweep (1 min)
-
-Finally, you can use Sweep by creating a new issue with a title prefixed with `Sweep:`, like `Sweep: add comments to BaseIndex.tsx` and watch the magic happen!
-
-For more details on using Sweep, see our [tutorial](https://docs.sweep.dev/usage/tutorial) and [advanced usage](https://docs.sweep.dev/usage/advanced) guides.
-
----
-
-Alternate steps:
 
 <details>
 <summary><h2>Alternative to 3: Deploy DigitalOcean App</h2></summary>
@@ -335,38 +356,13 @@ Navigating to this link should look like this:
 </details>
 </details>
 
-<details>
-<summary><h2>Alternative to 3: Deploying Locally</h2></summary>
+---
 
-If you do not want to deploy on the cloud and would prefer to deploy on your local machine, you can do so by following the steps below.
+## 4. Using Sweep (1 min)
 
-You need to install [Docker](https://docs.docker.com/engine/install/) to host Sweep.
+Finally, you can use Sweep by creating a new issue with a title prefixed with `Sweep:`, like `Sweep: add comments to BaseIndex.tsx` and watch the magic happen!
 
-Pull our image from Docker Hub:
-
-```sh
-docker pull sweepai/sweep:latest
-```
-
-It may take 5-10 minutes to download the image and you can move on to the next step while it's downloading.
-
-Create a `.env` file with the contents from steps 1 and 2. Then in the same directory, run:
-
-```bash
-docker run --env-file .env -p 8080:8080 sweepai/sweep:latest
-```
-
-We're going to use [Ngrok](https://ngrok.com/) for a reverse proxy.
-
-Sign up for an Ngrok account and install the CLI from https://dashboard.ngrok.com/signup. Your terminal must be in the same directory as your ngrok installation. Start the reverse proxy with `./ngrok http 8080`. The second last line should say something like
-
-```sh
-Forwarding  https://4d8d8bf053be.ngrok.app -> http://localhost:8080
-```
-
-Then proceed with step 4.
-
-</details>
+For more details on using Sweep, see our [tutorial](https://docs.sweep.dev/usage/tutorial) and [advanced usage](https://docs.sweep.dev/usage/advanced) guides.
 
 ---
 
