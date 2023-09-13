@@ -1,4 +1,5 @@
 import os
+import traceback as tb
 from loguru import logger
 import openai
 from sweepai.config.server import AZURE_API_KEY, OPENAI_API_KEY, OPENAI_API_TYPE, OPENAI_API_BASE, OPENAI_API_VERSION, OPENAI_API_ENGINE_GPT35, OPENAI_API_ENGINE_GPT4, OPENAI_API_ENGINE_GPT4_32K
@@ -32,7 +33,7 @@ class OpenAIProxy:
             elif model == 'gpt-4-32k' or model == 'gpt-4-32k-0613'\
                 and OPENAI_API_ENGINE_GPT4_32K is not None:
                 engine = OPENAI_API_ENGINE_GPT4_32K
-            logger.info(f"Calling {model} with engine {engine} on Azure.")
+            logger.info(f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}.")
             response = openai.ChatCompletion.create(
                 engine=engine,
                 model=model,
@@ -40,22 +41,11 @@ class OpenAIProxy:
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
-            print(response)
-            print(type(response))
-            print(response['choices'])
-            print(type(response['choices']))
-            print(response['choices'][0])
-            print(type(response['choices'][0]))
-            print(response['choices'][0].message)
-            print(type(response['choices'][0].message))
-            print(response['choices'][0].message.content)
-            print(type(response['choices'][0].message.content))
-            import pdb; pdb.set_trace()
             return response['choices'][0].message.content
         except Exception as e:
             if OPENAI_API_KEY:
                 openai.api_key = OPENAI_API_KEY
-                logger.info(f"Azure failed, calling {model} with engine {engine} on OpenAI.")
+                logger.info(f"Azure failed with {tb.format_exc()}, calling {model} with OpenAI.")
                 response = openai.Completion.create(
                     model=model,
                     messages=messages,
@@ -65,4 +55,4 @@ class OpenAIProxy:
                 return response['choices'][0].message
             else:
                 logger.error(f"OpenAI API Key not found and Azure Error: {e}")
-                raise e
+                raise tb.format_exc()

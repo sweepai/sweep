@@ -268,11 +268,10 @@ class ChatGPT(BaseModel):
                 output = None
                 output = openai_proxy.call_openai(
                     model=model,
-                    messages=messages_dicts,
+                    messages=self.messages_dicts,
                     max_tokens=max_tokens - token_sub,
                     temperature=temperature,
                 )
-                logger.info(f"Output to call openai:\n{output} is {type(output)}")
                 if self.chat_logger is not None:
                     self.chat_logger.add_chat(
                         {

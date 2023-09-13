@@ -32,10 +32,15 @@ class HumanMessagePrompt(BaseModel):
         for snippet in self.snippets:
             if snippet.file_path not in deduped_paths:
                 deduped_paths.append(snippet.file_path)
-        return "\n".join(deduped_paths)
+        if len(deduped_paths) == 0:
+            return ""
+        return "<relevant_paths_in_repo>" + "\n" + "\n".join(deduped_paths) + "\n" + "</relevant_paths_in_repo>"
 
     def render_snippets(self):
-        return "\n".join([snippet.xml for snippet in self.snippets])
+        joined_snippets = "\n".join([snippet.xml for snippet in self.snippets])
+        if joined_snippets.strip() == "":
+            return ""
+        return "<relevant_snippets_in_repo>" + '\n' + joined_snippets + '\n' + "</relevant_snippets_in_repo>"
 
     def construct_prompt(self):
         human_messages = [
