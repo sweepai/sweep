@@ -532,7 +532,7 @@ def on_ticket(
             f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
         )
 
-    if False and len(title + summary) < 20:
+    if len(title + summary) < 20:
         logger.info("Issue too short")
         edit_sweep_comment(
             (
