@@ -23,7 +23,6 @@ def _find_available_path(path, extension=".txt"):
     while os.path.exists(available_path):
         available_path = f"{path}{index}{extension}"
         index += 1
-    print(f"Found {available_path}")
     return available_path
 
 
@@ -155,14 +154,14 @@ class _LogN(_Logger):
 
 
 class _LogTask:
-    def __init__(self, name):
-        self.name = name
+    def __init__(self):
+        pass
 
     def __call__(self, func):
         def wrapper(*args, **kwargs):
-            print(self.name, f"Logging before calling {func.__name__}")
+            # print(self.name, f"Logging before calling {func.__name__}")
 
-            key, parent_task, child_task = _Task.create_child_task(name=self.name)
+            key, parent_task, child_task = _Task.create_child_task(name=func.__name__)
 
             try:
                 result = func(*args, **kwargs)
@@ -172,7 +171,7 @@ class _LogTask:
 
             _Task.update_task(task_key=key, task=parent_task)
 
-            print(self.name, f"Logging after calling {func.__name__}")
+            # print(self.name, f"Logging after calling {func.__name__}")
             return result
 
         return wrapper
