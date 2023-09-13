@@ -84,13 +84,14 @@ class _Task:
             f.write(f"{log}{END_OF_LINE}")
 
     @staticmethod
-    def get_task(task_key=None):
+    def get_task(task_key=None, create_if_not_exist=True):
         if task_key is None:
             task_key = get_task_key()
 
+        task = None
         if task_key in _task_dictionary:
             task = _task_dictionary[task_key]
-        else:
+        elif create_if_not_exist:
             task = _Task.default()
             _task_dictionary[task_key] = task
 
@@ -105,16 +106,27 @@ class _Task:
 
     @staticmethod
     def create_child_task(name: str, **metadata):
-        parent_task = _Task.get_task()
-        child_task = _Task(
-            logn_task_key=parent_task.task_key,
-            logn_parent_task=parent_task,
-            **metadata,
-            **metadata,
-            name=parent_task.metadata["name"] + "_" + name,
-        )
-        _task_dictionary[parent_task.task_key] = child_task
-        return parent_task, child_task
+        parent_task = _Task.get_task(create_if_not_exist=False)
+        if parent_task is None:
+            task_key = get_task_key()
+            child_task = _Task(
+                logn_task_key=None,
+                logn_parent_task=parent_task,
+                **{**metadata, "name": name},
+            )
+        else:
+            task_key = parent_task.task_key
+            child_task = _Task(
+                logn_task_key=parent_task.task_key,
+                logn_parent_task=parent_task,
+                **{
+                    **parent_task.metadata,
+                    **metadata,
+                    "name": parent_task.metadata["name"] + "_" + name,
+                },
+            )
+        _task_dictionary[task_key] = child_task
+        return task_key, parent_task, child_task
 
 
 class _Logger:
@@ -150,15 +162,15 @@ class _LogTask:
         def wrapper(*args, **kwargs):
             print(self.name, f"Logging before calling {func.__name__}")
 
-            parent_task, child_task = _Task.create_child_task(name=self.name)
+            key, parent_task, child_task = _Task.create_child_task(name=self.name)
 
             try:
                 result = func(*args, **kwargs)
             except Exception as e:
-                _Task.update_task(task_key=parent_task.task_key, task=parent_task)
+                _Task.update_task(task_key=key, task=parent_task)
                 raise e
 
-            _Task.update_task(task_key=parent_task.task_key, task=parent_task)
+            _Task.update_task(task_key=key, task=parent_task)
 
             print(self.name, f"Logging after calling {func.__name__}")
             return result
