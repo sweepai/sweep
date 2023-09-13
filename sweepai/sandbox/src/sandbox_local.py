@@ -200,8 +200,6 @@ async def run_sandbox(request: Request):
                 )
                 output = output.decode("utf-8")
                 print(summarize_logs(output))
-                if exit_code != 0 and not ("prettier" in command and exit_code == 1):
-                    raise Exception(output)
                 executions.append(
                     SandboxExecution(
                         command=command,
@@ -209,6 +207,8 @@ async def run_sandbox(request: Request):
                         exit_code=exit_code,
                     )
                 )
+                if exit_code != 0 and not ("prettier" in command and exit_code == 1):
+                    raise Exception(output)
                 return output
 
             for command in sandbox.install:

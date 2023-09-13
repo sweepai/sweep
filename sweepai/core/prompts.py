@@ -19,16 +19,12 @@ human_message_prompt = [
     {"role": "assistant", "content": "Examining repo..."},
     {
         "role": "user",
-        "content": """<relevant_snippets_in_repo>
-{relevant_snippets}
-</relevant_snippets_in_repo>""",
+        "content": """{relevant_snippets}""",
         "key": "relevant_snippets",
     },
     {
         "role": "user",
-        "content": """<relevant_paths_in_repo>
-{relevant_directories}
-</relevant_paths_in_repo>""",
+        "content": """{relevant_directories}""",
         "key": "relevant_directories",
     },
     {
@@ -53,15 +49,11 @@ human_message_review_prompt = [
     {"role": "assistant", "content": "Reviewing my pull request..."},
     {
         "role": "user",
-        "content": """<relevant_snippets_in_repo>
-{relevant_snippets}
-</relevant_snippets_in_repo>""",
+        "content": """{relevant_snippets}""",
     },
     {
         "role": "user",
-        "content": """<relevant_paths_in_repo>
-{relevant_directories}
-</relevant_paths_in_repo>""",
+        "content": """{relevant_directories}""",
     },
     {
         "role": "user",
@@ -187,15 +179,11 @@ human_message_prompt_comment = [
     {"role": "assistant", "content": "Reviewing my pull request..."},
     {
         "role": "user",
-        "content": """<relevant_snippets_in_repo>
-{relevant_snippets}
-</relevant_snippets_in_repo>""",
+        "content": """{relevant_snippets}""",
     },
     {
         "role": "user",
-        "content": """<relevant_paths_in_repo>
-{relevant_directories}
-</relevant_paths_in_repo>""",
+        "content": """{relevant_directories}""",
     },
     {
         "role": "user",

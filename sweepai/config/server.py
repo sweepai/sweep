@@ -82,24 +82,53 @@ GITHUB_APP_PEM = GITHUB_APP_PEM.strip(' \n"')  # Remove whitespace and quotes
 GITHUB_CONFIG_BRANCH = os.environ.get("GITHUB_CONFIG_BRANCH", "sweep/add-sweep-config")
 GITHUB_DEFAULT_CONFIG = os.environ.get(
     "GITHUB_DEFAULT_CONFIG",
-    """# Sweep AI turns bug fixes & feature requests into code changes (https://sweep.dev)
-# For details on our config file, check out our docs at https://docs.sweep.dev
+    """# Sweep AI turns bugs & feature requests into code changes (https://sweep.dev)
+# For details on our config file, check out our docs at https://docs.sweep.dev/usage/config
 
-# If you use this be sure to frequently sync your default branch(main, master) to dev.
-branch: '{branch}'
+# This is the branch that Sweep will develop from and make pull requests to. Most people use 'main' or 'master' but some users also use 'dev' or 'staging'.
+branch: 'main'
+
 # By default Sweep will read the logs and outputs from your existing Github Actions. To disable this, set this to false.
 gha_enabled: True
+
 # This is the description of your project. It will be used by sweep when creating PRs. You can tell Sweep what's unique about your project, what frameworks you use, or anything else you want.
-# Here's an example: sweepai/sweep is a python project. The main api endpoints are in sweepai/api.py. Write code that adheres to PEP8.
+#
+# Example:
+#
+# description: sweepai/sweep is a python project. The main api endpoints are in sweepai/api.py. Write code that adheres to PEP8.
 description: ''
 
-# Default Values: https://github.com/sweepai/sweep/blob/main/sweep.yaml
+# This sets whether to create pull requests as drafts. If this is set to True, then all pull requests will be created as drafts and GitHub Actions will not be triggered.
+draft: False
+
+# This is a list of directories that Sweep will not be able to edit. In our example, Sweep is unable to modify the .github folder as we do not want Sweep to modify our GitHub Actions.
+blocked_dirs: [".github/"]
+
+# This is a list of documentation links that Sweep will use to help it understand your code. You can add links to documentation for any packages you use here.
+#
+# Example:
+#
+# docs:
+#   - Modal: https://modal.com/docs/reference
+#   - PyGitHub: https://pygithub.readthedocs.io/en/latest/
+docs: []
+
+# Sandbox executes commands in a sandboxed environment to validate code changes after every edit to guarantee pristine code. For more details, see the [Sandbox](./sandbox) page.
+sandbox:
+  install:
+    - trunk init
+  check:
+    - trunk fmt {file_path}
+    - trunk check --fix {file_path}
+
+# This setting contains a list of rules that Sweep will check for. If any of these rules are broken in a new commit, Sweep will create an pull request to fix the broken rule.
+rules:
+ - There should not be large sections of commented out code.
+ - All docstrings and comments should be up to date.
 """,
 )
 
 
-# goes under Modal 'openai-secret' secret name
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 OPENAI_DO_HAVE_32K_MODEL_ACCESS = (
     os.environ.get("OPENAI_DO_HAVE_32K_MODEL_ACCESS", "true").lower() == "true"
 )
@@ -154,8 +183,15 @@ HUGGINGFACE_TOKEN = os.environ.get("HUGGINGFACE_TOKEN", None)
 REPLICATE_API_KEY = os.environ.get("REPLICATE_API_KEY", None)
 REPLICATE_URL = os.environ.get("REPLICATE_URL", None)
 
+# Default OpenAI
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
+
 # Azure settings, only checked if OPENAI_API_TYPE == "azure"
+AZURE_API_KEY = os.environ.get("AZURE_API_KEY", None)
 OPENAI_API_TYPE = os.environ.get("OPENAI_API_TYPE", None)
 OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE", None)
 OPENAI_API_VERSION = os.environ.get("OPENAI_API_VERSION", None)
-OPENAI_API_ENGINE = os.environ.get("OPENAI_API_ENGINE", None)
+
+OPENAI_API_ENGINE_GPT35 = os.environ.get("OPENAI_API_ENGINE_GPT35", None)
+OPENAI_API_ENGINE_GPT4 = os.environ.get("OPENAI_API_ENGINE_GPT4", None)
+OPENAI_API_ENGINE_GPT4_32K = os.environ.get("OPENAI_API_ENGINE_GPT4_32K", None)
