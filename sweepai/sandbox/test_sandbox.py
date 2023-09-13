@@ -12,7 +12,7 @@ repo = g.get_repo(repo_name)
 sandbox_config = {
     "install": "",
     "formatter": "trunk fmt {file}",
-    "linter": "trunk check {file}",
+    "linter": "trunk check --fix {file}",
 }
 repo_url = f"https://x-access-token:{token}@github.com/{repo_name}.git"
 sandbox = Sandbox.from_token(repo, repo_url, sandbox_config)
