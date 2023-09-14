@@ -93,29 +93,11 @@ You can self-host Sweep with the Docker image (`https://hub.docker.com/r/sweepai
 ## Development
 
 ### Starting the Webhook
-1. Install [poetry](https://python-poetry.org/docs/#installation).
-2. Clone the repo with `git clone https://github.com/sweepai/sweep`.
-3. Install the dependencies with `poetry install` This will take a few minutes, do the new step in the meantime.
-4. Create `.env` according to https://docs.sweep.dev/deployment.
-5. Hop into the environment with `poetry shell` and start the server by running `uvicorn sweepai.api:app --port 8080 --workers 3`. You can tweak the number of workers but it needs to be at least 2.
+1. Clone the repo with `git clone https://github.com/sweepai/sweep`.
+2. Create `.env` according to https://docs.sweep.dev/deployment.
+3. Run `docker compose up --build`. This will take a few moments to start.
 
-### Building Docker
-
-To build the docker image, run
-
-```
-docker build -t sweepai/sweep:latest .
-```
-
-Then run `docker run --env-file .env -p 8080:8080 sweepai/sweep:latest`.
-
-If you are on an ARM-based systems like M1/M2 Mac, you need to install docker [buildx](https://github.com/docker/buildx?tab=readme-ov-file#installing) and run
-
-```
-docker buildx build --platform linux/amd64 -t sweepai/sweep:latest .
-```
-
-and execute it with `docker run --platform linux/amd64 --env-file .env -p 8080:8080 sweepai/sweep:latest`.
+To build the Docker images, run `docker compose build`.
 
 ---
 
