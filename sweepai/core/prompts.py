@@ -57,17 +57,12 @@ human_message_review_prompt = [
     },
     {
         "role": "user",
-        "content": """"<repo_tree>
-{tree}
-</repo_tree>""",
+        "content": """{plan}"""
     },
     {
         "role": "user",
-        "content": """These are the file changes.
-We have the file_path, and the diffs.
-The file_path is the name of the file.
-The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
-Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
+        "content": """These are the file changes. 
+Use the diffs along with the original plan to verify if each step of the plan was implemented.
 {diffs}""",
     },
 ]
@@ -89,14 +84,9 @@ folder_2/file_2.py:42-75
 """
 
 diff_section_prompt = """
-<file_path>
-{diff_file_path}
-</file_path>
-
-<file_diffs>
+<file_diff file="{diff_file_path}">
 {diffs}
-</file_diffs>
-"""
+</file_diff>"""
 
 review_prompt = """\
 Repo & Issue Metadata:
@@ -112,41 +102,27 @@ Issue Description:
 
 I need you to carefully review the code diffs in this pull request.
 
-The code was written by an inexperienced programmer and may contain
-* Logic errors (missing imports)
-* Syntax errors (wrong indents)
+The code was written by an inexperienced programmer. It already passes the linter so it's unlikely there any syntax errors. However it may contain
+* Logical errors (the change may not accomplish the goal of the issue)
 * Unimplemented sections (such as "pass", "...", "# rest of code here")
-* Other issues.
+* Other errors not listed above
 
 Be sure to indicate any of these errors. Do not include formatting errors like missing ending newlines. Ensure that the code resolves the issue requested by the user and every function and class is fully implemented.
 
-Think step-by-step to summarize and indicate potential errors. Respond in the following format:
+Think step-by-step to summarize the changes and indicate errors. Respond in the following format:
 
 Step-by-step thoughts:
-* Lines x1-x2: Brief summary of changes, potential errors and unimplemented sections
-* Lines y1-y2: Brief summary of changes, potential errors and unimplemented sections
+* Lines x1-x2: Brief summary of changes and errors
+* Lines y1-y2: Brief summary of changes and errors
 ...
 
-<file_summarization>
+<file_summaries>
 * file_1 - changes and errors in file_1
 * file_1 - more changes and errors in file_1
 ...
-</file_summarization>
-"""
-
-review_follow_up_prompt = """\
-Here is the next file diff. Think step-by-step to summarize and indicate potential errors. Respond in the following format:
-
-Step-by-step thoughts:
-* Lines x1-x2: Brief summary of changes, potential errors and unimplemented sections
-* Lines y1-y2: Brief summary of changes, potential errors and unimplemented sections
-...
-
-<file_summarization>
-* file_1 - changes and errors in file_1
-* file_1 - more changes and errors in file_1
-...
-</file_summarization>
+* file_n - changes and errors in file_n
+* file_n - more changes and errors in file_n
+</file_summaries>
 """
 
 final_review_prompt = """\
@@ -154,7 +130,7 @@ These were the file summaries you provided:
 <file_summaries>
 {file_summaries}
 </file_summaries>
-Given these summaries write a direct and concise GitHub review comment. Be extra careful with unimplemented sections and do not nit pick on formatting. If there are no changes required, simply say "No changes required."
+Given these summaries write a direct and concise GitHub review comment. Be extra careful with unimplemented sections and do not nitpick on formatting. If there are no changes required, simply say "No changes required."
 In case changes are required, keep in mind the author is an inexperienced programmer and may need a pointer to the files and specific changes.
 Follow this format:
 <changes_required>
@@ -202,11 +178,7 @@ Pull Request Description: {description}""",
     },
     {
         "role": "user",
-        "content": """These are the file changes.
-We have the file_path and the diffs.
-The file_path is the name of the file.
-The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
-Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
+        "content": """These are the file changes
 {diff}""",
     },
     {
@@ -518,13 +490,20 @@ Format:
 
 Instructions:
 1. Complete the Code Planning step
-2. Complete the Code Modification step, remembering to NOT write ellipses, code things out in full, and use multiple small hunks.\
+2. Complete the Code Modification step, remembering to NOT write ellipses, write complete functions, and use multiple small hunks where possible.\
 """
 
 modify_file_system_message = """\
-Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the file to address a Github issue. When you write code, the code works on the first try and is syntactically perfect and complete. You have the utmost care for your code, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies.
+Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the file to address a Github issue. When you write code, the code works on the first try and is syntactically perfect and complete. You have the utmost care for your code, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies. You always follow up each code planning session with a code modification.
 
-You will respond in the following format:
+When you modify code:
+* Always prefer the least amount of changes possible, but ensure the solution is complete.
+* Prefer multiple small changes over a single large change.
+* Do not edit the same parts multiple times.
+* Make sure to add additional lines before and after the original and updated code to disambiguate code when replacing repetitive sections.
+* NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+
+Respond in the following format. Both the Code Planning and Code Modification steps are required.
 
 Code Planning:
 
@@ -536,15 +515,7 @@ Thoughts and detailed plan of modifications:
 
 Code Modification:
 
-Generate diff hunks based on the given plan using the search and replace pairs in the format below.
-* Always prefer the least amount of changes possible, but ensure the solution is complete.
-* Prefer multiple small changes over a single large change.
-* Do not edit the same parts multiple times.
-* Make sure to add additional lines before and after the original and updated code to disambiguate code when replacing repetitive sections.
-* NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
-
-The format is as follows:
-
+Generated diff hunks based on the given plan using the search and replace pairs in the format below.
 ```
 First hunk's description
 
@@ -972,7 +943,8 @@ The snippets, relevant_paths_in_repo and repo_tree are 1:1. All files in the sni
 The unnecessary information will hurt your performance on this task, so we will prune relevant_paths_in_repo and repo_tree to keep only the absolutely necessary information.
 First, list all of the files and directories we should keep in do_not_remove. These files and directories will be kept.
 For relevant_paths_in_repo, list any irrelevant paths in irrelevant_paths_in_repo and they will be removed.
-For repo_tree, list additional files or directories we don't need in irrelevant_repo_tree_paths. If you list a directory, you do not need to list its subdirectories or files in its subdirectories.
+For repo_tree, list any additional files or directories we don't need in irrelevant_repo_tree_paths. 
+If you list a directory, you do not need to list its subdirectories or files in its subdirectories.
 Do not remove files or directories that are referenced in the issue title or descriptions.
 
 Reply in the following format:
@@ -1002,6 +974,7 @@ Plan to address the issue:
 <irrelevant_repo_tree_paths>
 * irrelevant repo tree path 1
 * irrelevant repo tree path 2
+* irrelevant repo tree path 3
 ...
 </irrelevant_repo_tree_paths>
 """
