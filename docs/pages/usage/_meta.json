@@ -1,6 +1,7 @@
 {
-    "tutorial": "Solving an Example Ticket with Sweep",
-    "advanced": "Advanced Prompting for Sweep",
-    "config": "Customize Sweep using sweep.yaml",
-    "extra-self-host": "Extra Self Hosting Configurations"
+    "tutorial": "Tutorial: Solving an Example Ticket with Sweep",
+    "advanced": "Advanced Sweep Features",
+    "config": "Config: Customize Sweep using sweep.yaml",
+    "extra-self-host": "Extra Self Hosting Configurations",
+    "sandbox": "Sandbox: Giving Sweep Dev Tools"
 }
