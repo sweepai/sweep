@@ -163,7 +163,7 @@ class ChatLogger(BaseModel):
             pass
 
         # Non-trial users can only create 2 GPT-4 tickets per day
-        return self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) >= 3
+        return self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) > 3
 
 
 def discord_log_error(content, priority=0):
