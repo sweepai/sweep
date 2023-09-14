@@ -111,7 +111,7 @@ def call_on_check_suite(*args, **kwargs):
 
 
 def call_on_comment(
-    *args, **kwargs
+    *args, task_type="comment", **kwargs
 ):  # TODO: if its a GHA delete all previous GHA and append to the end
     global events
     repo_full_name = kwargs["repo_full_name"]
@@ -124,9 +124,15 @@ def call_on_comment(
     def worker():
         while not events[key].empty():
             task_args, task_kwargs = events[key].get()
+            if task_kwargs.get("task_type") == "gha":
+                # Remove all previous GitHub action tasks
+                events[key] = Queue(item for item in events[key] if item[1].get("task_type") != "gha")
             on_comment(*task_args, **task_kwargs)
 
-    events[key].put((args, kwargs))
+    if task_type == "comment":
+        events[key].put((args, kwargs))
+    else:
+        events[key].put((args, kwargs), last=True)
 
     # If a thread isn't running, start one
     if not any(
