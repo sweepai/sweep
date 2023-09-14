@@ -11,7 +11,6 @@ VERSION = "0.0.2"
 
 @dataclass
 class CTags:
-    sha: str | None = None
     redis_instance: Redis | None = None
     ctags_cmd = [
         "ctags",
@@ -24,7 +23,7 @@ class CTags:
 
     def run_ctags(self, filename: str) -> list[dict]:
         cmd = self.ctags_cmd + ["--input-encoding=utf-8", filename]
-        ctags_cache_key = f"ctags-{self.sha}{filename}-{VERSION}"
+        ctags_cache_key = f"ctags-{filename}-{VERSION}"
         cache_hit = (
             self.redis_instance.get(ctags_cache_key) if self.redis_instance else None
         )
