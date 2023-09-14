@@ -470,6 +470,9 @@ class MockPR(BaseModel):
         # Todo: used to prevent erroring in on_review.py file
         pass
 
+    def create_issue_comment(self, *args, **kwargs):
+        pass
+
 
 class SweepContext(BaseModel):  # type: ignore
     class Config:
