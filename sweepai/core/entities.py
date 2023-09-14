@@ -62,7 +62,7 @@ class RegexMatchableBaseModel(BaseModel):
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        match = re.search(file_regex, string, re.DOTALL)
+        # match = re.search(file_regex, string, re.DOTALL)
         match = re.search(cls._regex, string, re.DOTALL)
         if match is None:
             import traceback
