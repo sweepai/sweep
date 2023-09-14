@@ -229,7 +229,6 @@ class ClonedRepo:
             file_list += snippet_path.split("/")[-1]
             prefixes.append(snippet_path)
 
-        sha = self.repo.get_branch(self.repo.default_branch).commit.sha
         retry = Retry(ExponentialBackoff(), 3)
         cache_inst = (
             Redis.from_url(
@@ -240,7 +239,7 @@ class ClonedRepo:
             if REDIS_URL
             else None
         )
-        ctags = CTags(sha=sha, redis_instance=cache_inst)
+        ctags = CTags(redis_instance=cache_inst)
         all_names = []
         for file in snippet_paths:
             _, names = get_ctags_for_file(ctags, os.path.join("repo", file))
@@ -265,37 +264,6 @@ class ClonedRepo:
         self.git_repo.git.checkout(self.branch)
         file_list = self.get_file_list()
         return len(file_list)
-
-    def get_top_match_ctags(self, file_list, query):
-        retry = Retry(ExponentialBackoff(), 3)
-        cache_inst = Redis.from_url(
-            REDIS_URL,
-            retry=retry,
-            retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
-        )
-        sha = self.repo.get_branch(self.repo.default_branch).commit.sha
-        ctags = CTags(sha=sha, redis_instance=cache_inst)
-        ctags_to_file = {}
-        name_counts = {}
-        for file in file_list:
-            if file.endswith(".md") or file.endswith(".svg") or file.endswith(".png"):
-                continue
-            _, names = get_ctags_for_search(ctags, os.path.join(self.cache_dir, file))
-            for name in names:
-                if name not in name_counts:
-                    name_counts[name] = 0
-                name_counts[name] += 1
-            names = " ".join(names)  # counts here, compute tf-idf
-            ctags_to_file[names] = file
-        ctags_score = []
-        for names, file in ctags_to_file.items():
-            score = fuzz.ratio(query, names)
-            ctags_score.append((score, file))
-        ctags_score.sort(key=lambda x: x[0], reverse=True)
-
-        if len(ctags_score) > 0:
-            top_match = ctags_score[0]
-            return top_match[1] if top_match[0] > 40 else None
 
 
 def get_file_names_from_query(query: str) -> list[str]:
