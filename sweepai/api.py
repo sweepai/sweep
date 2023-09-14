@@ -106,6 +106,12 @@ def call_on_check_suite(*args, **kwargs):
     repo_full_name = kwargs["request"].repository.full_name
     pr_number = kwargs["request"].check_run.pull_requests[0].number
     key = f"{repo_full_name}-{pr_number}"
+
+    # Remove old GitHub actions from the queue
+    for task in events[key].queue:
+        if isinstance(task, GitHubActionTask):
+            events[key].queue.remove(task)
+
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
@@ -121,12 +127,19 @@ def call_on_comment(
     if key not in events:
         events[key] = Queue()
 
+    # If a GitHub action is currently running, stop it
+    if any(
+        thread.name == key and thread.is_alive() and isinstance(thread, GitHubActionThread) for thread in threading.enumerate()
+    ):
+        terminate_thread(thread)
+
     def worker():
         while not events[key].empty():
             task_args, task_kwargs = events[key].get()
             on_comment(*task_args, **task_kwargs)
 
-    events[key].put((args, kwargs))
+    # Add the new comment to the queue behind all other comments
+    events[key].put((args, kwargs), priority=1)
 
     # If a thread isn't running, start one
     if not any(
