@@ -158,9 +158,9 @@ def find_best_match(query: str, code_file: str):
         # Optimize later by using radix
         indented_query_lines = [indent * num_indents + line for line in query_lines]
 
-        for line in code_file_lines:
-            # print(line)
-            print(score_line(line, indented_query_lines[0]))
+        # for line in code_file_lines:
+        #     # print(line)
+        #     print(score_line(line, indented_query_lines[0]))
 
         start_indices = [
             i
