@@ -27,5 +27,7 @@ RUN npm install --global yarn
 RUN node --version
 RUN npm --version
 
+RUN npm install -g pnpm
+
 # Python stuff
-RUN pip install black isort
+RUN pip install black isort pre-commit
