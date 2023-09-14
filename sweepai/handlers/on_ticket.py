@@ -660,7 +660,7 @@ def on_ticket(
     )
     dir_obj = DirectoryTree()
     dir_obj.parse(tree)
-    dir_obj = dir_obj.remove_multiple(excluded_dirs)
+    dir_obj.remove_multiple(excluded_dirs)
     tree = str(dir_obj)
     logger.info(f"New snippets: {snippets}")
     logger.info(f"New tree: {tree}")
