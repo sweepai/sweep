@@ -951,9 +951,7 @@ Step-by-step thoughts with explanations:
 
 external_search_system_prompt = (
     "You are an expert at summarizing content from pages that are relevant to a query."
-    " You will be given a page and asked to summarize it."
-)
-
+    Also see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/usage/advanced).
 external_search_prompt = """\
 Here is the page metadata:
 ```
