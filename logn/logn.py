@@ -4,6 +4,7 @@ import os
 import threading
 import datetime
 import inspect
+import traceback
 
 LOG_PATH = "logn_logs/logs"
 META_PATH = "logn_logs/meta"
@@ -32,12 +33,7 @@ def print2(message, level="INFO"):
         if frame.filename != current_frame.f_code.co_filename
     )
     function_name = calling_frame.function
-    line_number = calling_frame.lineno
-
-    log_string = f"{timestamp} | {level:<8} | {module_name}:{function_name}:{line_number} - {message}"
-    return log_string
-
-
+            # No code here
 logging_parsers = {
     print: LogParser(
         level=0, parse_args=lambda *args, **kwargs: " ".join([str(arg) for arg in args])
@@ -233,23 +229,21 @@ class _LogTask:
 
     def __call__(self, func):
         def wrapper(*args, **kwargs):
-            # print(self.name, f"Logging before calling {func.__name__}")
+            # No code here
 
-            key, parent_task, child_task = _Task.create_child_task(name=func.__name__)
-
-            # Todo: add call to parent task
-
+            # No code here
             try:
                 result = func(*args, **kwargs)
             except Exception as e:
                 child_task.write_metadata(state="Errored")
                 _Task.update_task(task_key=key, task=parent_task)
-                raise e
+                traceback.print_exc()
+                traceback.print_exc()
 
             child_task.write_metadata(state="Done")
             _Task.update_task(task_key=key, task=parent_task)
 
-            # print(self.name, f"Logging after calling {func.__name__}")
+            # No code here
             return result
 
         return wrapper
