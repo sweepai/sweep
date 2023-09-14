@@ -527,7 +527,10 @@ def sliding_window_replacement(
 
     # if max_similarity != len(search):
     snippet, spaces, strip = get_snippet_with_padding(original, best_match, search)
-    if strip:
+    if len(snippet) == 1:
+        # Replace the line
+        modified = [snippet[0].replace(search[0], replace[0])]
+    elif strip:
         # Todo: What if whitespace in search is incorrect
         first_line_spaces = min([len(s) - len(s.lstrip()) for s in search])
         modified = [
@@ -537,7 +540,6 @@ def sliding_window_replacement(
         ]
     else:
         modified = [spaces + line for line in replace]
-
     # replaced original with modified
     original = original[: best_match.start] + modified + original[best_match.end :]
     return original, best_match, None
