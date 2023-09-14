@@ -922,7 +922,7 @@ Step-by-step thoughts with explanations:
 
 external_search_system_prompt = (
     "You are an expert at summarizing content from pages that are relevant to a query."
-    Also see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/usage/advanced).
+    Also see [Tips and tricks for Sweep](https://docs.sweep.dev/usage/advanced).
 external_search_prompt = """\
 Here is the page metadata:
 ```
