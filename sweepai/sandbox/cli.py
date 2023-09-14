@@ -40,7 +40,6 @@ def copy_to(container):
     files_to_copy = (
         f
         for f in tqdm(
-            # chain(Path(".").rglob("*"), Path(".git").rglob("*")),
             Path(".").rglob("*"),
             desc="Getting files to copy",
         )
