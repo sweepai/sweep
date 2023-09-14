@@ -6,7 +6,6 @@ from sweepai.core.prompts import (
     human_message_prompt_comment,
     human_message_review_prompt,
     diff_section_prompt,
-    review_follow_up_prompt,
     final_review_prompt,
 )
 
@@ -70,10 +69,13 @@ class HumanMessagePromptReview(HumanMessagePrompt):
     pr_title: str
     pr_message: str = ""
     diffs: list
+    plan: str
 
     def format_diffs(self):
         formatted_diffs = []
         for file_name, file_patch in self.diffs:
+            if not file_name and not file_patch:
+                continue
             format_diff = diff_section_prompt.format(
                 diff_file_path=file_name, diffs=file_patch
             )
@@ -97,24 +99,13 @@ class HumanMessagePromptReview(HumanMessagePrompt):
                     diffs=self.format_diffs(),
                     pr_title=self.pr_title,
                     pr_message=self.pr_message,
+                    plan=self.plan,
                 ),
             }
             for msg in human_message_review_prompt
         ]
 
         return human_messages
-
-
-class HumanMessageReviewFollowup(BaseModel):
-    diff: tuple
-
-    def construct_prompt(self):
-        file_name, file_patch = self.diff
-        format_diff = diff_section_prompt.format(
-            diff_file_path=file_name, diffs=file_patch
-        )
-        return review_follow_up_prompt + format_diff
-
 
 class HumanMessageCommentPrompt(HumanMessagePrompt):
     comment: str
