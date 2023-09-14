@@ -534,11 +534,13 @@ class SweepBot(CodeGenBot, GithubBot):
             if chunking:
                 # TODO (sweep): make chunking / streaming better
                 message = chunking_prompt + message
+                self.messages[0].content = modify_file_system_message
                 modify_file_response = self.chat(
                     message,
                     message_key=key,
                 )
                 self.delete_messages_from_chat(key)
+                self.messages[0].content = old_system_message
             else:
                 if line_count < RECREATE_LINE_LENGTH:
                     message = modify_recreate_file_prompt_3.format(
