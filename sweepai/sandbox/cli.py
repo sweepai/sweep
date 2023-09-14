@@ -1,3 +1,4 @@
+from itertools import chain
 import os
 import uuid
 import yaml
@@ -36,11 +37,15 @@ def copy_to(container):
         )
     except FileNotFoundError:
         spec = pathspec.PathSpec.from_lines(pathspec.patterns.GitWildMatchPattern, [])
-    files_to_copy = {
+    files_to_copy = (
         f
-        for f in tqdm(Path(".").rglob("*"), desc="Getting files to copy")
-        if f.is_file() and not spec.match_file(f) and not str(f).startswith(".git")
-    }
+        for f in tqdm(
+            # chain(Path(".").rglob("*"), Path(".git").rglob("*")),
+            Path(".").rglob("*"),
+            desc="Getting files to copy",
+        )
+        if f.is_file() and not spec.match_file(f)
+    )
 
     print("Copying files to container...")
     pbar = tqdm(files_to_copy)
