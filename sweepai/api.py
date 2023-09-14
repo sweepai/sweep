@@ -106,6 +106,12 @@ def call_on_check_suite(*args, **kwargs):
     repo_full_name = kwargs["request"].repository.full_name
     pr_number = kwargs["request"].check_run.pull_requests[0].number
     key = f"{repo_full_name}-{pr_number}"
+
+    # Clear the queue before adding the new GitHub action task
+    if key in events:
+        while not events[key].empty():
+            events[key].get()
+
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
@@ -126,14 +132,17 @@ def call_on_comment(
             task_args, task_kwargs = events[key].get()
             on_comment(*task_args, **task_kwargs)
 
-    events[key].put((args, kwargs))
+    # Add the comment task to the front of the queue
+    events[key].queue.appendleft((args, kwargs))
 
-    # If a thread isn't running, start one
-    if not any(
-        thread.name == key and thread.is_alive() for thread in threading.enumerate()
-    ):
-        thread = threading.Thread(target=worker, name=key)
-        thread.start()
+    # Terminate the current thread if it is running
+    for thread in threading.enumerate():
+        if thread.name == key and thread.is_alive():
+            terminate_thread(thread)
+
+    # Start a new thread to handle the tasks in the queue
+    thread = threading.Thread(target=worker, name=key)
+    thread.start()
 
 
 def call_on_merge(*args, **kwargs):
