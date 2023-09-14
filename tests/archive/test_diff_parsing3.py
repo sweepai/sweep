@@ -1,7 +1,6 @@
-"""
-On Github ticket, get ChatGPT to deal with it
-"""
+from sweepai.utils.diff import generate_new_file_from_patch
 
+old_file = r"""
 # TODO: Add file validation
 
 import math
@@ -57,7 +56,6 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.search_utils import search_snippets
-from sweepai.utils.tree_utils import DirectoryTree
 
 openai.api_key = OPENAI_API_KEY
 
@@ -76,14 +74,6 @@ stars_suffix = (
     "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep)"
     " so more people can hear about us!"
 )
-
-collapsible_template = """
-<details {opened}>
-<summary>{summary}</summary>
-
-{body}
-</details>
-"""
 
 checkbox_template = "- [{check}] {filename}\n{instructions}\n"
 
@@ -368,7 +358,7 @@ def on_ticket(
         else 999
     )
     daily_ticket_count = (
-        (3 - chat_logger.get_ticket_count(use_date=True) if not use_faster_model else 0)
+        (2 - chat_logger.get_ticket_count(use_date=True) if not use_faster_model else 0)
         if chat_logger
         else 999
     )
@@ -648,32 +638,29 @@ def on_ticket(
         tree=tree,
     )
 
-    context_pruning = ContextPruning(chat_logger=chat_logger)
-    (
-        snippets_to_ignore,
-        excluded_dirs,
-    ) = context_pruning.prune_context(  # TODO, ignore directories
-        human_message, repo=repo
-    )
-    snippets = post_process_snippets(
-        snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
-    )
-    dir_obj = DirectoryTree()
-    dir_obj.parse(tree)
-    dir_obj.remove_multiple(excluded_dirs)
-    tree = str(dir_obj)
-    logger.info(f"New snippets: {snippets}")
-    logger.info(f"New tree: {tree}")
-    human_message = HumanMessagePrompt(
-        repo_name=repo_name,
-        issue_url=issue_url,
-        username=username,
-        repo_description=repo_description.strip(),
-        title=title,
-        summary=message_summary,
-        snippets=snippets,
-        tree=tree,
-    )
+    if SLOW_MODE:
+        context_pruning = ContextPruning(chat_logger=chat_logger)
+        (
+            snippets_to_ignore,
+            _,
+        ) = context_pruning.prune_context(  # TODO, ignore directories
+            human_message, repo=repo
+        )
+        snippets = post_process_snippets(
+            snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
+        )
+        logger.info(f"New snippets: {snippets}")
+        logger.info(f"New tree: {tree}")
+        human_message = HumanMessagePrompt(
+            repo_name=repo_name,
+            issue_url=issue_url,
+            username=username,
+            repo_description=repo_description.strip(),
+            title=title,
+            summary=message_summary,
+            snippets=snippets,
+            tree=tree,
+        )
 
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
@@ -973,9 +960,10 @@ def on_ticket(
             "I have finished coding the issue. I am now reviewing it for completeness.",
             3,
         )
-        change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
+
         review_message = (
-            "Here are my self-reviews of my changes at" + change_location
+            "Here are my self-reviews of my changes at"
+            f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
         )
 
         lint_output = None
@@ -984,11 +972,9 @@ def on_ticket(
         except:
             pass
 
-        changes_required = False
         try:
             # Todo(lukejagg): Pass sandbox linter results to review_pr
             # CODE REVIEW
-
             changes_required, review_comment = review_pr(
                 repo=repo,
                 pr=pr_changes,
@@ -1000,7 +986,6 @@ def on_ticket(
                 replies_text=replies_text,
                 tree=tree,
                 lint_output=lint_output,
-                plan=plan, # plan for the PR
                 chat_logger=chat_logger,
             )
             # Todo(lukejagg): Execute sandbox after each iteration
@@ -1010,12 +995,12 @@ def on_ticket(
                 + blockquote(review_comment)
                 + "\n\n"
             )
+            edit_sweep_comment(
+                review_message + "\n\nI'm currently addressing these suggestions.",
+                3,
+            )
+            logger.info(f"Addressing review comment {review_comment}")
             if changes_required:
-                edit_sweep_comment(
-                    review_message + "\n\nI'm currently addressing these suggestions.",
-                    3,
-                )
-                logger.info(f"Addressing review comment {review_comment}")
                 on_comment(
                     repo_full_name=repo_full_name,
                     repo_description=repo_description,
@@ -1033,16 +1018,10 @@ def on_ticket(
             logger.error(traceback.format_exc())
             logger.error(e)
 
-        if changes_required:
-            edit_sweep_comment(
-                review_message + "\n\nI finished incorporating these changes.",
-                3,
-            )
-        else:
-            edit_sweep_comment(
-                f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
-                3,
-            )
+        edit_sweep_comment(
+            review_message + "\n\nI finished incorporating these changes.",
+            3,
+        )
 
         is_draft = config.get("draft", False)
         try:
@@ -1220,3 +1199,25 @@ def on_ticket(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
     return {"success": True}
+"""
+
+code_replaces = """
+```
+<<<< ORIGINAL
+def clean_logs(logs: str):
+    cleaned_logs = re.sub(r"\x1b\[.*?[@-~]", "", logs.replace("```", "\`\`\`"))
+    cleaned_logs = cleaned_logs or "(nothing was outputted)"
+    return cleaned_logs
+====
+def clean_logs(logs: str):
+    cleaned_logs = re.sub(r"\x1b\[.*?[@-~]", "", logs.replace("```", "\`\`\`"))
+    cleaned_logs = cleaned_logs or "(nothing was outputted)"
+    cleaned_logs = re.sub('\n{2,}', '\n', cleaned_logs)
+    return cleaned_logs
+>>>> UPDATED
+```
+"""
+
+if __name__ == "__main__":
+    print(generate_new_file_from_patch(code_replaces, old_file)[0][:3000])
+    # generate_new_file_from_patch(code_replaces, old_file)[0]

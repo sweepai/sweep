@@ -530,10 +530,12 @@ class SweepBot(CodeGenBot, GithubBot):
             line_count=line_count,
         )
         recreate_file = False
+        old_system_message = self.messages[0].content
         try:
             if chunking:
                 # TODO (sweep): make chunking / streaming better
                 message = chunking_prompt + message
+                old_system_message = self.messages[0].content
                 self.messages[0].content = modify_file_system_message
                 modify_file_response = self.chat(
                     message,
@@ -549,8 +551,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         code=contents_line_numbers,
                         line_count=line_count,
                     )
-
-                    old_system_message = self.messages[0].content
+    
                     self.messages[0].content = modify_recreate_file_system_message
                     modify_file_response = self.chat(
                         message,
@@ -559,7 +560,6 @@ class SweepBot(CodeGenBot, GithubBot):
                     recreate_file = True
                     self.messages[0].content = old_system_message
                 else:
-                    old_system_message = self.messages[0].content
                     self.messages[0].content = modify_file_system_message
                     modify_file_response = self.chat(
                         message,
@@ -619,9 +619,11 @@ class SweepBot(CodeGenBot, GithubBot):
                 commit_message = f"Updated {file_change_request.filename}"
             commit_message = commit_message[: min(len(commit_message), 50)]
 
-            new_file, sandbox_execution = self.check_sandbox(
-                file_change_request.filename, new_file
-            )
+            sandbox_execution = None
+            if not chunking:
+                new_file, sandbox_execution = self.check_sandbox(
+                    file_change_request.filename, new_file
+                )
             return new_file, commit_message, sandbox_execution
         except Exception as e:
             tb = traceback.format_exc()
@@ -903,13 +905,11 @@ class SweepBot(CodeGenBot, GithubBot):
             file_contents = file.decoded_content.decode("utf-8")
             lines = file_contents.split("\n")
 
-            new_file_contents = (  # Initialize an empty string to hold the new file contents
-                ""
-            )
+            new_file_contents = ""
             all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
             # Todo(lukejagg): Use when only using chunking
             chunk_sizes = [
-                800,
+                # 800,
                 600,
                 400,
             ]  # Define the chunk sizes for the backoff mechanism
@@ -957,7 +957,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                     file_change_request,
                                     contents=chunk_contents,
                                     branch=branch,
-                                    contents_line_numbers=file_contents
+                                    contents_line_numbers=chunk_contents
                                     if USING_DIFF
                                     else "\n".join(contents_line_numbers),
                                     chunking=chunking,
@@ -971,7 +971,10 @@ class SweepBot(CodeGenBot, GithubBot):
                             else:
                                 new_file_contents += new_chunk
                     break  # If the chunking was successful, break the loop
-                except Exception:
+                except Exception as e:
+                    print(e)
+                    raise e
+
                     continue  # If the chunking was not successful, continue to the next chunk size
             # If the original file content is identical to the new file content, log a warning and return
             if file_contents == new_file_contents:

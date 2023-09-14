@@ -4,8 +4,9 @@
 <p align="center">
     <i>Bug Reports & Feature Requests ⟶&nbsp; Code Changes</i>
 </p>
-
-<p align="center">
+<a href="https://hub.docker.com/r/sweepai/sweep">
+    <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/sweepai/sweep" />
+</a>
 <a href="https://sweep.dev">
     <img alt="Install" src="https://img.shields.io/badge/Install-sweep.dev-blue?link=https%3A%2F%2Fsweep.dev">
 </a>
@@ -17,6 +18,9 @@
 </a>
 <a href="https://github.com/sweepai/sweep">
     <img src="https://img.shields.io/github/stars/sweepai/sweep" />
+</a>
+<a href="https://github.com/sweepai/sweep">
+    <img src="https://img.shields.io/github/commit-activity/m/sweepai/sweep" />
 </a>
 <a href="https://twitter.com/sweep__ai">
     <img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Ftwitter.com%2Fsweep__ai" />
