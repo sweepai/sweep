@@ -73,9 +73,10 @@ def terminate_thread(thread):
             ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
             raise SystemError("PyThreadState_SetAsyncExc failed")
     except Exception as e:
-        logger.error(f"Failed to terminate thread: {e}")
-
-
+        # Global variables for storing events and queue for GitHub Action calls and comments
+        events = {}
+        on_ticket_events = {}
+        gh_action_queue = Queue()
 def run_on_check_suite(*args, **kwargs):
     request = kwargs["request"]
     pr_change_request = on_check_suite(request)
@@ -103,9 +104,18 @@ def call_on_ticket(*args, **kwargs):
 
 
 def call_on_check_suite(*args, **kwargs):
+    global gh_action_queue
     repo_full_name = kwargs["request"].repository.full_name
     pr_number = kwargs["request"].check_run.pull_requests[0].number
     key = f"{repo_full_name}-{pr_number}"
+
+    # Remove old GitHub Actions from the queue
+    while not gh_action_queue.empty():
+        task_args, task_kwargs = gh_action_queue.get()
+        if task_kwargs["request"].repository.full_name == repo_full_name and task_kwargs["request"].check_run.pull_requests[0].number == pr_number:
+            continue
+        gh_action_queue.put((task_args, task_kwargs))
+
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
@@ -114,6 +124,7 @@ def call_on_comment(
     *args, **kwargs
 ):  # TODO: if its a GHA delete all previous GHA and append to the end
     global events
+    global gh_action_queue
     repo_full_name = kwargs["repo_full_name"]
     pr_id = kwargs["pr_number"]
     key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
@@ -122,11 +133,11 @@ def call_on_comment(
         events[key] = Queue()
 
     def worker():
-        while not events[key].empty():
-            task_args, task_kwargs = events[key].get()
+        while not gh_action_queue.empty():
+            task_args, task_kwargs = gh_action_queue.get()
             on_comment(*task_args, **task_kwargs)
 
-    events[key].put((args, kwargs))
+    gh_action_queue.put((args, kwargs))
 
     # If a thread isn't running, start one
     if not any(
