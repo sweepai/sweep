@@ -7,7 +7,7 @@ import inspect
 
 LOG_PATH = "logn_logs/logs"
 META_PATH = "logn_logs/meta"
-END_OF_LINE = "󰀀\n"
+END_OF_LINE = "󰀀{level}󰀀\n"
 
 
 class LogParser:
@@ -87,11 +87,30 @@ class _Task:
         self.parent_task = logn_parent_task
         if "name" not in self.metadata:
             self.metadata["name"] = str(self.task_key.name.split(" ")[0])
-        self.log_path, self.meta_path = self.create_files()
+        self.name, self.log_path, self.meta_path = self.create_files()
+        self.write_metadata(state="Created")
 
     @staticmethod
     def default():
         return _Task(logn_task_key=threading.current_thread())
+
+    def write_metadata(self, state: str):
+        with open(self.meta_path, "w") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "task_key": self.name,
+                        "logs": self.log_path,
+                        "datetime": str(datetime.datetime.now()),
+                        "metadata": self.metadata,
+                        # Todo: Write parent task in here
+                        "parent_task": self.parent_task.meta_path
+                        if self.parent_task is not None
+                        else None,
+                        "state": state,
+                    }
+                )
+            )
 
     def create_files(self):
         name = self.metadata["name"]
@@ -108,30 +127,17 @@ class _Task:
         )
         os.makedirs(os.path.dirname(meta_path), exist_ok=True)
         with open(meta_path, "w") as f:
-            f.write(
-                json.dumps(
-                    {
-                        "task_key": name,
-                        "logs": log_path,
-                        "datetime": str(datetime.datetime.now()),
-                        "metadata": self.metadata,
-                        # Todo: Write parent task in here
-                        "parent_task": self.parent_task.meta_path
-                        if self.parent_task is not None
-                        else None,
-                    }
-                )
-            )
+            pass
 
-        return log_path, meta_path
+        return name, log_path, meta_path
 
-    def write_log(self, *args, **kwargs):
+    def write_log(self, logn_level, *args, **kwargs):
         if self.log_path is None:
             raise ValueError("Task has no log path")
 
         with open(self.log_path, "a") as f:
             log = " ".join([str(arg) for arg in args])
-            f.write(f"{log}{END_OF_LINE}")
+            f.write(f"{log}{END_OF_LINE.format(level=logn_level)}")
 
     @staticmethod
     def get_task(task_key=None, create_if_not_exist=True):
@@ -139,7 +145,7 @@ class _Task:
             task_key = get_task_key()
 
         task = None
-        if task_key in _task_dictionary:
+        if _task_dictionary.get(task_key) is not None:
             task = _task_dictionary[task_key]
         elif create_if_not_exist:
             task = _Task.default()
@@ -189,10 +195,14 @@ class _Logger:
     def log(self, *args, **kwargs):
         self.printfn(*args, **kwargs)
 
+        level = 0
+        if self.printfn in logging_parsers:
+            level = logging_parsers[self.printfn].level
+
         # write to file
         # Todo: Make task_key customizable
         task = _Task.get_task()
-        task.write_log(*args, **kwargs)
+        task.write_log(level, *args, **kwargs)
 
 
 class _LogN(_Logger):
@@ -202,6 +212,12 @@ class _LogN(_Logger):
 
     def __getitem__(self, printfn):
         return _Logger(printfn=printfn)
+
+    @staticmethod
+    def close():
+        task = _Task.get_task(create_if_not_exist=False)
+        if task is not None:
+            task.write_metadata(state="Done")
 
 
 class _LogTask:
@@ -214,12 +230,16 @@ class _LogTask:
 
             key, parent_task, child_task = _Task.create_child_task(name=func.__name__)
 
+            # Todo: add call to parent task
+
             try:
                 result = func(*args, **kwargs)
             except Exception as e:
+                child_task.write_metadata(state="Errored")
                 _Task.update_task(task_key=key, task=parent_task)
                 raise e
 
+            child_task.write_metadata(state="Done")
             _Task.update_task(task_key=key, task=parent_task)
 
             # print(self.name, f"Logging after calling {func.__name__}")
