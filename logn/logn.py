@@ -74,12 +74,12 @@ def _find_available_path(path, extension=".txt"):
 
 
 class _Task:
-    def __init__(self, logn_task_key, logn_parent_task=None, **metadata):
+    def __init__(self, logn_task_key, logn_parent_task=None, metadata=None):
         if logn_task_key is None:
             logn_task_key = get_task_key()
 
         self.task_key = logn_task_key
-        self.metadata = {**metadata}
+        self.metadata = metadata
         self.parent_task = logn_parent_task
         if "name" not in self.metadata:
             self.metadata["name"] = str(self.task_key.name.split(" ")[0])
@@ -87,10 +87,13 @@ class _Task:
         self.write_metadata(state="Created")
 
     @staticmethod
-    def default():
-        return _Task(logn_task_key=threading.current_thread())
+    def create(metadata):
+        return _Task(logn_task_key=threading.current_thread(), metadata=metadata)
 
     def write_metadata(self, state: str):
+        # Todo: keep track of state, and allow metadata updates
+        # state: str | None
+        # self.state = state
         with open(self.meta_path, "w") as f:
             f.write(
                 json.dumps(
@@ -136,7 +139,7 @@ class _Task:
             f.write(f"{log}{END_OF_LINE.format(level=logn_level)}")
 
     @staticmethod
-    def get_task(task_key=None, create_if_not_exist=True):
+    def get_task(task_key=None, create_if_not_exist=True, metadata=None):
         if task_key is None:
             task_key = get_task_key()
 
@@ -144,7 +147,7 @@ class _Task:
         if _task_dictionary.get(task_key) is not None:
             task = _task_dictionary[task_key]
         elif create_if_not_exist:
-            task = _Task.default()
+            task = _Task.create(metadata=metadata)
             _task_dictionary[task_key] = task
 
         return task
@@ -157,21 +160,21 @@ class _Task:
         _task_dictionary[task_key] = task
 
     @staticmethod
-    def create_child_task(name: str, **metadata):
+    def create_child_task(name: str, metadata):
         parent_task = _Task.get_task(create_if_not_exist=False)
         if parent_task is None:
             task_key = get_task_key()
             child_task = _Task(
                 logn_task_key=None,
                 logn_parent_task=parent_task,
-                **{**metadata, "name": name},
+                metadata={**metadata, "name": name},
             )
         else:
             task_key = parent_task.task_key
             child_task = _Task(
                 logn_task_key=parent_task.task_key,
                 logn_parent_task=parent_task,
-                **{
+                metadata={
                     **parent_task.metadata,
                     **metadata,
                     "name": parent_task.metadata["name"] + "_" + name,
@@ -191,14 +194,18 @@ class _Logger:
     def log(self, *args, **kwargs):
         self.printfn(*args, **kwargs)
 
+        task = _Task.get_task()
+
+        parser = None
         level = 0
         if self.printfn in logging_parsers:
-            level = logging_parsers[self.printfn].level
+            parser = logging_parsers[self.printfn]
+            task.write_log(parser.level, parser.parse(*args, **kwargs))
+        else:
+            task.write_log(0, *args, **kwargs)
 
-        # write to file
-        # Todo: Make task_key customizable
-        task = _Task.get_task()
-        task.write_log(level, *args, **kwargs)
+    def init(self, metadata):
+        _Task.get_task(metadata=metadata)
 
 
 class _LogN(_Logger):
