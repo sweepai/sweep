@@ -69,6 +69,7 @@ class HumanMessagePromptReview(HumanMessagePrompt):
     pr_title: str
     pr_message: str = ""
     diffs: list
+    plan: str
 
     def format_diffs(self):
         formatted_diffs = []
@@ -98,6 +99,7 @@ class HumanMessagePromptReview(HumanMessagePrompt):
                     diffs=self.format_diffs(),
                     pr_title=self.pr_title,
                     pr_message=self.pr_message,
+                    plan=self.plan,
                 ),
             }
             for msg in human_message_review_prompt

@@ -54,6 +54,7 @@ def review_pr(
     summary,
     replies_text,
     tree,
+    plan,
     lint_output=None,
     chat_logger=None,
 ):
@@ -75,8 +76,9 @@ def review_pr(
         diffs=diffs,
         pr_title=pr.title,
         pr_message=pr.body or "",
+        plan=plan,
     )
-    import pdb; pdb.set_trace()
+
     summarization_replies = []
 
     chat_logger = (

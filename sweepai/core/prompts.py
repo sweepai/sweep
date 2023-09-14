@@ -57,17 +57,12 @@ human_message_review_prompt = [
     },
     {
         "role": "user",
-        "content": """"<repo_tree>
-{tree}
-</repo_tree>""",
+        "content": """{plan}"""
     },
     {
         "role": "user",
-        "content": """These are the file changes.
-We have the file_path, and the diffs.
-The file_path is the name of the file.
-The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
-Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
+        "content": """These are the file changes. 
+Use the diffs along with the original plan to verify if each step of the plan was implemented.
 {diffs}""",
     },
 ]
@@ -91,8 +86,7 @@ folder_2/file_2.py:42-75
 diff_section_prompt = """
 <file_diff file="{diff_file_path}">
 {diffs}
-</file_diff>
-"""
+</file_diff>"""
 
 review_prompt = """\
 Repo & Issue Metadata:
@@ -184,11 +178,7 @@ Pull Request Description: {description}""",
     },
     {
         "role": "user",
-        "content": """These are the file changes.
-We have the file_path and the diffs.
-The file_path is the name of the file.
-The diffs are the lines changed in the file. <added_lines> indicates those lines were added, <deleted_lines> indicates they were deleted.
-Keep in mind that we may see a diff for a deletion and replacement, so don't point those out as issues.
+        "content": """These are the file changes
 {diff}""",
     },
     {
@@ -500,13 +490,20 @@ Format:
 
 Instructions:
 1. Complete the Code Planning step
-2. Complete the Code Modification step, remembering to NOT write ellipses, code things out in full, and use multiple small hunks.\
+2. Complete the Code Modification step, remembering to NOT write ellipses, write complete functions, and use multiple small hunks where possible.\
 """
 
 modify_file_system_message = """\
-Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the file to address a Github issue. When you write code, the code works on the first try and is syntactically perfect and complete. You have the utmost care for your code, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies.
+Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the file to address a Github issue. When you write code, the code works on the first try and is syntactically perfect and complete. You have the utmost care for your code, so you do not make mistakes and every function and class will be fully implemented. Take into account the current repository's language, frameworks, and dependencies. You always follow up each code planning session with a code modification.
 
-You will respond in the following format:
+When you modify code:
+* Always prefer the least amount of changes possible, but ensure the solution is complete.
+* Prefer multiple small changes over a single large change.
+* Do not edit the same parts multiple times.
+* Make sure to add additional lines before and after the original and updated code to disambiguate code when replacing repetitive sections.
+* NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
+
+Respond in the following format. Both the Code Planning and Code Modification steps are required.
 
 Code Planning:
 
@@ -518,15 +515,7 @@ Thoughts and detailed plan of modifications:
 
 Code Modification:
 
-Generate diff hunks based on the given plan using the search and replace pairs in the format below.
-* Always prefer the least amount of changes possible, but ensure the solution is complete.
-* Prefer multiple small changes over a single large change.
-* Do not edit the same parts multiple times.
-* Make sure to add additional lines before and after the original and updated code to disambiguate code when replacing repetitive sections.
-* NEVER write ellipses anywhere in the diffs. Simply write two diff hunks: one for the beginning and another for the end.
-
-The format is as follows:
-
+Generated diff hunks based on the given plan using the search and replace pairs in the format below.
 ```
 First hunk's description
 

@@ -988,6 +988,7 @@ def on_ticket(
         try:
             # Todo(lukejagg): Pass sandbox linter results to review_pr
             # CODE REVIEW
+
             changes_required, review_comment = review_pr(
                 repo=repo,
                 pr=pr_changes,
@@ -999,6 +1000,7 @@ def on_ticket(
                 replies_text=replies_text,
                 tree=tree,
                 lint_output=lint_output,
+                plan=plan, # plan for the PR
                 chat_logger=chat_logger,
             )
             # Todo(lukejagg): Execute sandbox after each iteration
@@ -1038,7 +1040,7 @@ def on_ticket(
             )
         else:
             edit_sweep_comment(
-                "I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
+                f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
                 3,
             )
 
