@@ -1,0 +1,163 @@
+tree_str = """.assets/...
+.do/...
+.github/...
+.gitignore
+.pre-commit-config.yaml
+.python-version
+.replit
+.vscode/...
+CHANGELOG.md
+CONTRIBUTING.md
+Dockerfile
+LICENSE
+README.md
+bin/...
+buildx_image.sh
+deployment/...
+docker-compose.yml
+docs/
+  .github/...
+  .gitignore
+  README.md
+  Recipes.md
+  components/...
+  extension-post-install.md
+  installation.md
+  next-env.d.ts
+  next.config.js
+  package.json
+  docs/pages/
+    _meta.json
+    about/...
+    docs/pages/blogs/
+      _meta.json
+      automate-tech-debt.mdx
+      building-code-search.mdx
+      chunking-2m-files.mdx
+      chunking-improvements.mdx
+      generating-50k-embeddings-with-gte.mdx
+      giving-dev-tools.mdx
+      gpt-32k-open-source.mdx
+      reading-docs.mdx
+      search-infra.mdx
+      self-hosting.mdx
+      sweeps-core-algo.mdx
+      understanding-codebase-with-ctags.mdx
+    deployment.mdx
+    faq.mdx
+    index.mdx
+    privacy.mdx
+    usage/...
+    videos/...
+  pnpm-lock.yaml
+  public/...
+  theme.config.tsx
+  tsconfig.json
+extension/...
+notebooks/...
+package.json
+push_image.sh
+pyproject.toml
+redis.conf
+replit.nix
+requirements.txt
+run_image.sh
+self_deploy/...
+sweep.yaml
+sweepai/
+  __init__.py
+  api.py
+  sweepai/config/
+    __init__.py
+    client.py
+    server.py
+  core/...
+  events.py
+  extension/...
+  sweepai/handlers/
+    __init__.py
+    create_pr.py
+    on_check_suite.py
+    on_comment.py
+    on_merge.py
+    on_review.py
+    on_ticket.py
+  pre_indexed_docs.py
+  redis_init.py
+  sandbox/...
+  startup.py
+  sweepai/utils/
+    __init__.py
+    chat_logger.py
+    ctags.py
+    ctags_chunker.py
+    diff.py
+    event_logger.py
+    file_change_functions.py
+    github_utils.py
+    hash.py
+    html_extractor.py
+    openai_proxy.py
+    prompt_constructor.py
+    scorer.py
+    search_and_replace.py
+    search_utils.py
+    utils.py
+tests/
+  __init__.py
+  tests/archive/
+    additional_modify_prompt.txt
+    api.ipynb
+    async_playwrite.py
+    context.xml
+    example_diff.diff
+    link_matcher.py
+    modify_prompt.txt
+    planning.xml
+    test_cst_splitter.py
+    test_dag.py
+    test_data_extractor.py
+    test_diff.py
+    test_diff_parsing.py
+    test_diff_parsing2.py
+    test_external_docs.py
+    test_external_search.py
+    test_gha_logs.py
+    test_langchain_chunker.py
+    test_modal_sandbox.py
+    test_modify.py
+    test_regex.py
+    test_replicate.py
+    test_repo_tree.py
+    test_scraper.py
+    test_section_rewrite.py
+    test_tabulate.py
+    test_tree_sitter.py
+  comment_webhook.json
+  example_webhook.json
+  issue_webhook.json
+  js_tests/...
+  landing_page_issue_webhook.json
+  merge_webhook.json
+  modify_tests/...
+  multiprocessing/...
+  multithreading_test.py
+  openai_proxy_test.py
+  sandbox_test.py
+  sliding_window_test.py
+  test_api.py
+  test_create_file.py
+  test_file_change_requests.py
+  test_huggingface.py
+  test_redis_api.py
+  test_run_example_webhook.py
+  test_search.py
+  test_weaviate.py"""
+
+from sweepai.utils.tree_utils import DirectoryTree
+
+tree = DirectoryTree()
+tree.parse(tree_str)
+tree.remove_multiple(["sweepai/", "tests/", "docs/"])
+print(tree)
+
