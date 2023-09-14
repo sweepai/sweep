@@ -7,9 +7,7 @@
 <a href="https://hub.docker.com/r/sweepai/sweep">
     <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/sweepai/sweep" />
 </a>
-<a href="https://sweep.dev">
-    <img alt="Install" src="https://img.shields.io/badge/Install-sweep.dev-blue?link=https%3A%2F%2Fsweep.dev">
-</a>
+
 <a href="https://docs.sweep.dev/">
     <img alt="Docs" src="https://img.shields.io/badge/Docs-docs.sweep.dev-blue?link=https%3A%2F%2Fdocs.sweep.dev">
 </a>
