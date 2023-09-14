@@ -8,16 +8,7 @@ At Sweep, our core issue-to-pull-request pipeline resolves around an RAG-based p
 
 In summary, Sweep searches for relevant files and edits the file(s) it thinks requires changes. Sweep then validates its own changes by reading for logical errors and running GitHub Actions on them and finally leaves the pull request for the user to review.
 
-The following is the Sweep’s pipeline that turns an issue like “the app has an error relating to temporary directories on Windows” into a pull request titled “replace all occurences of `/tmp` with `tempfile.TempDirectory()`” like [this](https://github.com/sweepai/sweep/pull/368/files).
-
-![](/sweep-core-algo/flowchart.svg)
-
-## Inputs
-
-Everything starts with the inputs, including everything in the following:
-
-![](/sweep-core-algo/inputs.png)
-
+Generate a summary of the repository using [ctag summaries](https://docs.sweep.dev/usage/advanced) of the top 10 files from the re-ranking, which is a summary of the variable names and functions declared in the file.
 Only the issue, repository and user metadata are useful for now. The context fed to the language model at this point looks like this:
 
 ```coffeescript
@@ -26,14 +17,7 @@ Username: kevinlu1248
 Query: Sweep: Use os agnostic temp directory for windows
 ```
 
-The next step is to use the codebase, but codebases can have up to thousands of files! Thus, we only search for relevant files.
-
-## Search
-
-![](/sweep-core-algo/search.png)
-
-Sweep starts searching for relevant snippets by:
-
+See more at https://docs.sweep.dev/usage/advanced.
 1. **Query** the title and description against the code snippets as the context and retrieves the top 100 snippets using [MPNet](https://huggingface.co/sentence-transformers/all-mpnet-base-v2) embeddings and a [DeepLake](https://github.com/activeloopai/deeplake) vector store. We chunk the files ahead of time using a custom [CST-based chunker](https://docs.sweep.dev/blogs/chunking-2m-files). We have a more details tour of our search infrastructure at https://docs.sweep.dev/blogs/search-infra and https://docs.sweep.dev/blogs/building-code-search.
 2. **Re-rank** the snippets using a heuristic based on the commit count and time of the latest commit and pick the top 4. The assumption is that the files with the latest commit and highest commit counts are more likely to be edited again. We also at this point add any files mentioned directly.
 3. **De-duplicate and fuse snippets**. For example, if the snippet `main.py:0-50` and `main.py:51-100` gets fetched, they get fused into `main.py:0-100`. We then extend each snippet by 25 lines in each direction, so `main.py:25-75` becomes `main.py:0-100`.
@@ -125,40 +109,5 @@ Sweep creates each file from scratch (in the case of file creation) or determine
 >>>> UPDATED
 ```
 
-We use fuzzy matching for the “search” part of “search-and-replace”, based on heuristics like equal start lines and end lines, since GPT-4 skips comments in the “ORIGINAL” section.
-
-For larger files (>1000 LOC), we use a streaming method, involving feeding in 600 lines of code at a time (which corresponds to about 15k tokens).
-
-## Validation
-
-![](/sweep-core-algo/validation.png)
-
-We run both an LLM-based and procedural validation to ensure that there are no errors in the new code and that the generated code reflects the changes summarized by the pull request.
-
-If changes are needed, we re-run the pipeline on the pull request from the beginning, with a few additions. We always include as part of the search all the files that were modified as part of the pull request and we skip the self-review.
-
-### Self-Review
-
-Sweep checks the code diffs and the pull request summary using GPT-4 and verifies that nothing is clearly broken. If something is broken, Sweep makes a comment on its own pull request with a summary of things to change.
-
-If it fails again, we do another self-review. We iterate for a maximum of three times.
-
-### GitHub Actions
-
-GitHub Actions is used to check for errors such as type errors, compile-time errors and failed test runs. Failed Actions logs get fed to Sweep and get treated like pull request comments.
-
-This is entirely configurable by developers. We use GitHub Actions since there’s a plethora of tools it can use and most developers have GitHub Actions already set up for their team. See more at https://docs.sweep.dev/blogs/giving-dev-tools.
-
-## User Review
-
-When a user leaves a comment on the pull request, we re-run the entire pipeline, similar to Sweep’s self-reviews or failed GitHub Action runs.
-
-For code comments, Sweep skips to the execution step and only modifies the file the code comment was left on. This is significantly faster, although the scope is limited.
-
-Once again, here’s the final pipeline.
-
-![](/sweep-core-algo/flowchart.svg)
-
----
-
+We have a more details tour of our search infrastructure at https://docs.sweep.dev/blogs/search-infra and https://docs.sweep.dev/usage/advanced.
 ⭐ If this interests you, see our [open-source repo](https://github.com/sweepai/sweep)!
