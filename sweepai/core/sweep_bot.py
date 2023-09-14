@@ -519,6 +519,7 @@ class SweepBot(CodeGenBot, GithubBot):
         chunk_offset: int = 0,
         sandbox=None,
     ):
+        old_system_message = ""
         key = f"file_change_modified_{file_change_request.filename}"
         file_markdown = is_markdown(file_change_request.filename)
         # TODO(sweep): edge case at empty file
@@ -534,6 +535,7 @@ class SweepBot(CodeGenBot, GithubBot):
             if chunking:
                 # TODO (sweep): make chunking / streaming better
                 message = chunking_prompt + message
+                old_system_message = self.messages[0].content
                 self.messages[0].content = modify_file_system_message
                 modify_file_response = self.chat(
                     message,
