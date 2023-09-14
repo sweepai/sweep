@@ -11,7 +11,6 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.prompt_constructor import (
     HumanMessageFinalPRComment,
     HumanMessagePromptReview,
-    HumanMessageReviewFollowup,
 )
 
 
@@ -61,6 +60,9 @@ def review_pr(
     repo_name = repo.full_name
     logger.info("Getting PR diffs...")
     diffs = get_pr_diffs(repo, pr)
+    if len(diffs) == 0:
+        logger.info("No diffs found.")
+        return False, None
     human_message = HumanMessagePromptReview(
         repo_name=repo_name,
         issue_url=issue_url,
@@ -70,10 +72,11 @@ def review_pr(
         summary=summary + replies_text,
         snippets=[],
         tree=tree,
-        diffs=[diffs[0] if len(diffs) > 0 else ("", "")],
+        diffs=diffs,
         pr_title=pr.title,
         pr_message=pr.body or "",
     )
+    import pdb; pdb.set_trace()
     summarization_replies = []
 
     chat_logger = (
@@ -119,20 +122,9 @@ def review_pr(
     )
     extracted_summary = DiffSummarization.from_string(summarization_reply)
     summarization_replies.append(extracted_summary.content)
-    for diff in diffs[1:]:
-        review_message = HumanMessageReviewFollowup(diff=diff)
-        review_prompt_constructed = review_message.construct_prompt()
-        summarization_reply = sweep_bot.chat(
-            review_prompt_constructed, message_key="review"
-        )
-        extracted_summary = DiffSummarization.from_string(summarization_reply)
-        summarization_replies.append(extracted_summary.content)
     final_review_prompt = HumanMessageFinalPRComment(
         summarization_replies=summarization_replies
     ).construct_prompt()
-
-    if lint_output is not None:
-        final_review_prompt += f"\n\n<linting_output>\n{lint_output}\n</linting_output>"
 
     reply = sweep_bot.chat(final_review_prompt, message_key="final_review")
     review_comment = PullRequestComment.from_string(reply)

@@ -89,13 +89,9 @@ folder_2/file_2.py:42-75
 """
 
 diff_section_prompt = """
-<file_path>
-{diff_file_path}
-</file_path>
-
-<file_diffs>
+<file_diff file="{diff_file_path}">
 {diffs}
-</file_diffs>
+</file_diff>
 """
 
 review_prompt = """\
@@ -112,41 +108,27 @@ Issue Description:
 
 I need you to carefully review the code diffs in this pull request.
 
-The code was written by an inexperienced programmer and may contain
-* Logic errors (missing imports)
-* Syntax errors (wrong indents)
+The code was written by an inexperienced programmer. It already passes the linter so it's unlikely there any syntax errors. However it may contain
+* Logical errors (the change may not accomplish the goal of the issue)
 * Unimplemented sections (such as "pass", "...", "# rest of code here")
-* Other issues.
+* Other errors not listed above
 
 Be sure to indicate any of these errors. Do not include formatting errors like missing ending newlines. Ensure that the code resolves the issue requested by the user and every function and class is fully implemented.
 
-Think step-by-step to summarize and indicate potential errors. Respond in the following format:
+Think step-by-step to summarize the changes and indicate errors. Respond in the following format:
 
 Step-by-step thoughts:
-* Lines x1-x2: Brief summary of changes, potential errors and unimplemented sections
-* Lines y1-y2: Brief summary of changes, potential errors and unimplemented sections
+* Lines x1-x2: Brief summary of changes and errors
+* Lines y1-y2: Brief summary of changes and errors
 ...
 
-<file_summarization>
+<file_summaries>
 * file_1 - changes and errors in file_1
 * file_1 - more changes and errors in file_1
 ...
-</file_summarization>
-"""
-
-review_follow_up_prompt = """\
-Here is the next file diff. Think step-by-step to summarize and indicate potential errors. Respond in the following format:
-
-Step-by-step thoughts:
-* Lines x1-x2: Brief summary of changes, potential errors and unimplemented sections
-* Lines y1-y2: Brief summary of changes, potential errors and unimplemented sections
-...
-
-<file_summarization>
-* file_1 - changes and errors in file_1
-* file_1 - more changes and errors in file_1
-...
-</file_summarization>
+* file_n - changes and errors in file_n
+* file_n - more changes and errors in file_n
+</file_summaries>
 """
 
 final_review_prompt = """\
@@ -154,7 +136,7 @@ These were the file summaries you provided:
 <file_summaries>
 {file_summaries}
 </file_summaries>
-Given these summaries write a direct and concise GitHub review comment. Be extra careful with unimplemented sections and do not nit pick on formatting. If there are no changes required, simply say "No changes required."
+Given these summaries write a direct and concise GitHub review comment. Be extra careful with unimplemented sections and do not nitpick on formatting. If there are no changes required, simply say "No changes required."
 In case changes are required, keep in mind the author is an inexperienced programmer and may need a pointer to the files and specific changes.
 Follow this format:
 <changes_required>
@@ -974,7 +956,8 @@ The snippets, relevant_paths_in_repo and repo_tree are 1:1. All files in the sni
 The unnecessary information will hurt your performance on this task, so we will prune relevant_paths_in_repo and repo_tree to keep only the absolutely necessary information.
 First, list all of the files and directories we should keep in do_not_remove. These files and directories will be kept.
 For relevant_paths_in_repo, list any irrelevant paths in irrelevant_paths_in_repo and they will be removed.
-For repo_tree, list additional files or directories we don't need in irrelevant_repo_tree_paths. If you list a directory, you do not need to list its subdirectories or files in its subdirectories.
+For repo_tree, list any additional files or directories we don't need in irrelevant_repo_tree_paths. 
+If you list a directory, you do not need to list its subdirectories or files in its subdirectories.
 Do not remove files or directories that are referenced in the issue title or descriptions.
 
 Reply in the following format:
@@ -1004,6 +987,7 @@ Plan to address the issue:
 <irrelevant_repo_tree_paths>
 * irrelevant repo tree path 1
 * irrelevant repo tree path 2
+* irrelevant repo tree path 3
 ...
 </irrelevant_repo_tree_paths>
 """

@@ -425,12 +425,12 @@ class Snippet(BaseModel):
 
 class DiffSummarization(RegexMatchableBaseModel):
     content: str
-    _regex = r"""<file_summarization>(?P<content>.*)$"""
+    _regex = r"""<file_summaries>(\n)?(?P<content>.*)$"""
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
         result = super().from_string(string, **kwargs)
-        result.content = result.content.replace("</file_summarization>", "", 1).strip()
+        result.content = result.content.replace("</file_summaries>", "", 1).strip()
         return cls(
             content=result.content,
         )
