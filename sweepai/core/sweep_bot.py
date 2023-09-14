@@ -530,6 +530,7 @@ class SweepBot(CodeGenBot, GithubBot):
             line_count=line_count,
         )
         recreate_file = False
+        old_system_message = self.messages[0].content
         try:
             if chunking:
                 # TODO (sweep): make chunking / streaming better
@@ -549,8 +550,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         code=contents_line_numbers,
                         line_count=line_count,
                     )
-
-                    old_system_message = self.messages[0].content
+    
                     self.messages[0].content = modify_recreate_file_system_message
                     modify_file_response = self.chat(
                         message,
@@ -559,7 +559,6 @@ class SweepBot(CodeGenBot, GithubBot):
                     recreate_file = True
                     self.messages[0].content = old_system_message
                 else:
-                    old_system_message = self.messages[0].content
                     self.messages[0].content = modify_file_system_message
                     modify_file_response = self.chat(
                         message,
