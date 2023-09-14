@@ -368,7 +368,7 @@ def on_ticket(
         else 999
     )
     daily_ticket_count = (
-        (2 - chat_logger.get_ticket_count(use_date=True) if not use_faster_model else 0)
+        (3 - chat_logger.get_ticket_count(use_date=True) if not use_faster_model else 0)
         if chat_logger
         else 999
     )
