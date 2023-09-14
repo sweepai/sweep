@@ -4,6 +4,7 @@ import os
 import threading
 import datetime
 import inspect
+import traceback
 
 LOG_PATH = "logn_logs/logs"
 META_PATH = "logn_logs/meta"
@@ -226,11 +227,10 @@ class _LogTask:
             # No code here
             try:
                 result = func(*args, **kwargs)
-            import traceback
-            
             except Exception as e:
                 child_task.write_metadata(state="Errored")
                 _Task.update_task(task_key=key, task=parent_task)
+                traceback.print_exc()
                 traceback.print_exc()
 
             child_task.write_metadata(state="Done")
