@@ -25,7 +25,6 @@ def print2(message, level="INFO"):
         return message
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-    module_name = globals().get("__name__", "__main__")
     current_frame = inspect.currentframe()
     calling_frame = next(
         frame
@@ -34,6 +33,8 @@ def print2(message, level="INFO"):
     )
     function_name = calling_frame.function
     line_number = calling_frame.lineno
+    # module_name = globals().get("__name__", "__main__")
+    module_name = inspect.getmodule(calling_frame).__name__
 
     log_string = f"{timestamp} | {level:<8} | {module_name}:{function_name}:{line_number} - {message}"
     return log_string
@@ -197,16 +198,18 @@ class _Logger:
         self.log(*args, **kwargs)
 
     def log(self, *args, **kwargs):
-        self.printfn(*args, **kwargs)
-
         task = _Task.get_task()
 
         parser = None
         level = 0
         if self.printfn in logging_parsers:
             parser = logging_parsers[self.printfn]
-            task.write_log(parser.level, parser.parse(*args, **kwargs))
+            log = parser.parse(*args, **kwargs)
+
+            print(log)
+            task.write_log(parser.level, log)
         else:
+            self.printfn(*args, **kwargs)
             task.write_log(0, *args, **kwargs)
 
     def init(self, metadata):
