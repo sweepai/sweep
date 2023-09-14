@@ -18,6 +18,9 @@
 <a href="https://github.com/sweepai/sweep">
     <img src="https://img.shields.io/github/stars/sweepai/sweep" />
 </a>
+<a href="https://github.com/sweepai/sweep">
+    <img src="https://img.shields.io/github/commit-activity/m/sweepai/sweep" />
+</a>
 <a href="https://twitter.com/sweep__ai">
     <img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Ftwitter.com%2Fsweep__ai" />
 </a>
