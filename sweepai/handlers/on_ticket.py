@@ -100,6 +100,7 @@ SLOW_MODE = True
 
 def clean_logs(logs: str):
     cleaned_logs = re.sub(r"\x1b\[.*?[@-~]", "", logs.replace("```", "\`\`\`"))
+    cleaned_logs = re.sub(r'\n{2,}', '\n', cleaned_logs)
     cleaned_logs = cleaned_logs or "(nothing was outputted)"
     return cleaned_logs
 
