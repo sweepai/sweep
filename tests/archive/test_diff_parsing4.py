@@ -35,4 +35,3 @@ Also see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/usage/advanced).
 
 if __name__ == "__main__":
     print(generate_new_file_from_patch(code_replaces, old_file)[0])
-    # generate_new_file_from_patch(code_replaces, old_file)[0]
