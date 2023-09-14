@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import itertools
 import re
 from whoosh.analysis import Tokenizer, Token
+from whoosh.filedb.filestore import RamStorage
 import os
 import random
 import time
@@ -12,12 +13,9 @@ from whoosh.query import Or, Term
 random.seed(os.getpid())
 
 
-def tokenize_call(code, top_words=None):
+def tokenize_call(code):
     def check_valid_token(token):
-        in_top_words = False
-        if top_words:
-            in_top_words = token in top_words
-        return token and len(token) > 1 and not in_top_words
+        return token and len(token) > 1
 
     matches = re.finditer(r"\b\w+\b", code)
     pos = 0
@@ -75,8 +73,8 @@ def tokenize_call(code, top_words=None):
     return valid_tokens
 
 
-def construct_query(query, top_words=None):
-    terms = tokenize_call(query, top_words)
+def construct_query(query):
+    terms = tokenize_call(query)
     bigrams = construct_bigrams(terms)
     trigrams = construct_trigrams(terms)
     terms.extend(bigrams)
@@ -121,9 +119,6 @@ def construct_trigrams(tokens):
 
 
 class CodeTokenizer(Tokenizer):
-    def __init__(self, top_words=None):
-        self.top_words = top_words
-
     def __call__(
         self,
         value,
@@ -136,7 +131,7 @@ class CodeTokenizer(Tokenizer):
         mode="",
         **kwargs,
     ):
-        tokens = tokenize_call(value, self.top_words)
+        tokens = tokenize_call(value)
         bigrams = construct_bigrams(tokens)
         trigrams = construct_trigrams(tokens)
         tokens.extend(bigrams)
@@ -215,14 +210,9 @@ def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
         end=NUMERIC(stored=True),
     )
 
-    # Create a directory to store the index
-    dir_name = f"cache/indices/indexdir_{int(time.time())}"
-    shutil.rmtree(dir_name, ignore_errors=True)
-    os.makedirs(f"cache/indices", exist_ok=True)
-    os.mkdir(dir_name)
-
     # Create the index based on the schema
-    ix = index.create_in(dir_name, schema)
+    storage = RamStorage()
+    ix = storage.create_index(schema)
     # writer.cancel()
     writer = ix.writer()
     print(8)
