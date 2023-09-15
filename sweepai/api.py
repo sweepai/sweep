@@ -44,6 +44,9 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.search_utils import index_full_repository
 
+# Define the GitHubActionTask variable
+GitHubActionTask = "GitHubActionTask"
+
 app = FastAPI()
 
 import tracemalloc
