@@ -59,20 +59,24 @@ def run_on_ticket(*args, **kwargs):
     logn_logger.init(
         metadata={
             **kwargs,
-            "name": kwargs["username"],
-        }
+            "name": "ticket_" + kwargs["username"],
+        },
+        create_file=False,
     )
     on_ticket(*args, **kwargs)
+    logn_logger.close()
 
 
 def run_on_comment(*args, **kwargs):
     logn_logger.init(
         metadata={
             **kwargs,
-            "name": kwargs["username"],
-        }
+            "name": "comment_" + kwargs["username"],
+        },
+        create_file=False,
     )
     on_comment(*args, **kwargs)
+    logn_logger.close()
 
 
 def run_on_check_suite(*args, **kwargs):
@@ -82,8 +86,9 @@ def run_on_check_suite(*args, **kwargs):
         logn_logger.init(
             metadata={
                 **pr_change_request.params,
-                "name": pr_change_request.params["username"],
-            }
+                "name": "check_" + pr_change_request.params["username"],
+            },
+            create_file=False,
         )
         call_on_comment(**pr_change_request.params)
         logger.info("Done with on_check_suite")

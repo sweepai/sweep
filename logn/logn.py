@@ -79,7 +79,9 @@ def _find_available_path(path, extension=".txt"):
 
 
 class _Task:
-    def __init__(self, logn_task_key, logn_parent_task=None, metadata=None):
+    def __init__(
+        self, logn_task_key, logn_parent_task=None, metadata=None, create_file=True
+    ):
         if logn_task_key is None:
             logn_task_key = get_task_key()
 
@@ -88,14 +90,22 @@ class _Task:
         self.parent_task = logn_parent_task
         if "name" not in self.metadata:
             self.metadata["name"] = str(self.task_key.name.split(" ")[0])
+        self.create_file = create_file
         self.name, self.log_path, self.meta_path = self.create_files()
         self.write_metadata(state="Created")
 
     @staticmethod
-    def create(metadata):
-        return _Task(logn_task_key=threading.current_thread(), metadata=metadata)
+    def create(metadata, create_file=True):
+        return _Task(
+            logn_task_key=threading.current_thread(),
+            metadata=metadata,
+            create_file=create_file,
+        )
 
     def write_metadata(self, state: str):
+        if not self.create_file:
+            return
+
         # Todo: keep track of state, and allow metadata updates
         # state: str | None
         # self.state = state
@@ -120,22 +130,29 @@ class _Task:
         name = self.metadata["name"]
 
         # Write logging file
-        log_path = _find_available_path(os.path.join(LOG_PATH, name))
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
-        with open(log_path, "w") as f:
-            pass
+        log_path = os.path.join(LOG_PATH, name + ".txt")
+        if self.create_file:
+            log_path = _find_available_path(os.path.join(LOG_PATH, name))
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            with open(log_path, "w") as f:
+                pass
 
         # Write metadata file
-        meta_path = _find_available_path(
-            os.path.join(META_PATH, name), extension=".json"
-        )
-        os.makedirs(os.path.dirname(meta_path), exist_ok=True)
-        with open(meta_path, "w") as f:
-            pass
+        meta_path = os.path.join(META_PATH, name + ".json")
+        if self.create_file:
+            meta_path = _find_available_path(
+                os.path.join(META_PATH, name), extension=".json"
+            )
+            os.makedirs(os.path.dirname(meta_path), exist_ok=True)
+            with open(meta_path, "w") as f:
+                pass
 
         return name, log_path, meta_path
 
     def write_log(self, logn_level, *args, **kwargs):
+        if not self.create_file:
+            return
+
         if self.log_path is None:
             raise ValueError("Task has no log path")
 
@@ -144,7 +161,9 @@ class _Task:
             f.write(f"{log}{END_OF_LINE.format(level=logn_level)}")
 
     @staticmethod
-    def get_task(task_key=None, create_if_not_exist=True, metadata=None):
+    def get_task(
+        task_key=None, create_if_not_exist=True, metadata=None, create_file=True
+    ):
         if task_key is None:
             task_key = get_task_key()
 
@@ -152,7 +171,7 @@ class _Task:
         if _task_dictionary.get(task_key) is not None:
             task = _task_dictionary[task_key]
         elif create_if_not_exist:
-            task = _Task.create(metadata=metadata)
+            task = _Task.create(metadata=metadata, create_file=create_file)
             _task_dictionary[task_key] = task
 
         return task
@@ -211,8 +230,8 @@ class _Logger:
             self.printfn(*args, **kwargs)
             task.write_log(0, *args, **kwargs)
 
-    def init(self, metadata):
-        _Task.get_task(metadata=metadata)
+    def init(self, metadata, create_file=True):
+        _Task.get_task(metadata=metadata, create_file=create_file)
 
 
 class _LogN(_Logger):
