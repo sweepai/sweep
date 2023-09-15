@@ -103,7 +103,7 @@ def call_on_ticket(*args, **kwargs):
                 self.current_gha_task = None
                 self.q.put((priority, event))
             self.invalidate_lower_priority(priority)
-def call_on_check_suite(*args, **kwargs):
+        def call_on_check_suite(*args, **kwargs):
     repo_full_name = kwargs["request"].repository.full_name
     pr_number = kwargs["request"].check_run.pull_requests[0].number
     key = f"{repo_full_name}-{pr_number}"
