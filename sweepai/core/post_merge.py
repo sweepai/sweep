@@ -3,7 +3,7 @@ from loguru import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import IssueTitleAndDescription, Message
 
-system_prompt = """Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to review the following file and make sure the file conforms to the user's rules. 
+system_prompt = """Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to review the following file and make sure the file conforms to the user's rules.
 
 If the file does not conform to the rules, we should create a GitHub issue telling the user what rules were broken and what changes should be made.
 
@@ -43,13 +43,26 @@ GitHub Issue Description:
 Issue description with a detailed description of where we should change the code, referencing code snippets to make the changes.
 </issue_description>"""
 
+
 class PostMerge(ChatGPT):
     def check_for_issues(self, rules, file_path, file_contents) -> tuple[str, str]:
         try:
             rules_str = "\n".join(rules)
-            self.messages = [Message(role="system", content=system_prompt.format(rules=rules_str), key="system")]
-            rule_sections = "\n".join([rule_section.format(rule=rule) for rule in rules])
-            issues_prompt = user_message.format(file_path=file_path, file_contents=file_contents, rule_sections=rule_sections)
+            self.messages = [
+                Message(
+                    role="system",
+                    content=system_prompt.format(rules=rules_str),
+                    key="system",
+                )
+            ]
+            rule_sections = "\n".join(
+                [rule_section.format(rule=rule) for rule in rules]
+            )
+            issues_prompt = user_message.format(
+                file_path=file_path,
+                file_contents=file_contents,
+                rule_sections=rule_sections,
+            )
             self.model = (
                 "gpt-4-32k"
                 if (self.chat_logger and self.chat_logger.is_paying_user())
@@ -58,10 +71,13 @@ class PostMerge(ChatGPT):
             response = self.chat(issues_prompt)
             issue_title_and_description = IssueTitleAndDescription.from_string(response)
             if issue_title_and_description.changes_required:
-                return issue_title_and_description.issue_title, issue_title_and_description.issue_description
+                return (
+                    issue_title_and_description.issue_title,
+                    issue_title_and_description.issue_description,
+                )
             else:
-                logger.info("No issues found")
+                logn.info("No issues found")
                 return "", ""
         except Exception as e:
-            logger.error(f"An error occurred: {traceback.print_exc()}")
+            logn.error(f"An error occurred: {traceback.print_exc()}")
             return "", ""

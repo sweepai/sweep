@@ -91,9 +91,9 @@ def run_on_check_suite(*args, **kwargs):
             create_file=False,
         )
         call_on_comment(**pr_change_request.params)
-        logger.info("Done with on_check_suite")
+        logn.info("Done with on_check_suite")
     else:
-        logger.info("Skipping on_check_suite as no pr_change_request was returned")
+        logn.info("Skipping on_check_suite as no pr_change_request was returned")
 
 
 def terminate_thread(thread):
@@ -114,7 +114,7 @@ def terminate_thread(thread):
             ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
             raise SystemError("PyThreadState_SetAsyncExc failed")
     except Exception as e:
-        logger.error(f"Failed to terminate thread: {e}")
+        logn.error(f"Failed to terminate thread: {e}")
 
 
 def call_on_ticket(*args, **kwargs):
@@ -125,7 +125,7 @@ def call_on_ticket(*args, **kwargs):
     # Check if a previous process exists for the same key, cancel it
     e = on_ticket_events.get(key, None)
     if e:
-        logger.info(f"Found previous thread for key {key} and cancelling it")
+        logn.info(f"Found previous thread for key {key} and cancelling it")
         terminate_thread(e)
 
     thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
@@ -202,12 +202,12 @@ async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
-        logger.info(f"Received request: {request_dict.keys()}")
+        logn.info(f"Received request: {request_dict.keys()}")
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
         action = request_dict.get("action", None)
         logger.bind(event=event, action=action)
-        logger.info(f"Received event: {event}, {action}")
+        logn.info(f"Received event: {event}, {action}")
         match event, action:
             case "issues", "opened":
                 request = IssueRequest(**request_dict)
@@ -242,7 +242,7 @@ async def webhook(raw_request: Request):
                         request.issue.pull_request and request.issue.pull_request.url
                     )
                 ):
-                    logger.info("New issue comment edited")
+                    logn.info("New issue comment edited")
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
                         request.repository.description or ""
@@ -253,7 +253,7 @@ async def webhook(raw_request: Request):
                         .lower()
                         .startswith(GITHUB_LABEL_NAME)
                     ):
-                        logger.info("Comment does not start with 'Sweep', passing")
+                        logn.info("Comment does not start with 'Sweep', passing")
                         return {
                             "success": True,
                             "reason": "Comment does not start with 'Sweep', passing",
@@ -279,7 +279,7 @@ async def webhook(raw_request: Request):
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
                 ):  # TODO(sweep): set a limit
-                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
+                    logn.info(f"Handling comment on PR: {request.issue.pull_request}")
                     _, g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
                     pr = repo.get_pull(request.issue.number)
@@ -317,7 +317,7 @@ async def webhook(raw_request: Request):
                     and request.sender.type == "User"
                     and not request.sender.login.startswith("sweep")
                 ):
-                    logger.info("New issue edited")
+                    logn.info("New issue edited")
                     key = (request.repository.full_name, request.issue.number)
                     # logger.info(f"Checking if {key} is in {stub.issue_lock}")
                     # process = stub.issue_lock[key] if key in stub.issue_lock else None
@@ -339,7 +339,7 @@ async def webhook(raw_request: Request):
                         comment_id=None,
                     )
                 else:
-                    logger.info("Issue edited, but not a sweep issue")
+                    logn.info("Issue edited, but not a sweep issue")
             case "issues", "labeled":
                 request = IssueRequest(**request_dict)
                 if (
@@ -383,7 +383,7 @@ async def webhook(raw_request: Request):
                         request.issue.pull_request and request.issue.pull_request.url
                     )
                 ):
-                    logger.info("New issue comment created")
+                    logn.info("New issue comment created")
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
                         request.repository.description or ""
@@ -394,7 +394,7 @@ async def webhook(raw_request: Request):
                         .lower()
                         .startswith(GITHUB_LABEL_NAME)
                     ):
-                        logger.info("Comment does not start with 'Sweep', passing")
+                        logn.info("Comment does not start with 'Sweep', passing")
                         return {
                             "success": True,
                             "reason": "Comment does not start with 'Sweep', passing",
@@ -425,7 +425,7 @@ async def webhook(raw_request: Request):
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
                 ):  # TODO(sweep): set a limit
-                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
+                    logn.info(f"Handling comment on PR: {request.issue.pull_request}")
                     _, g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
                     pr = repo.get_pull(request.issue.number)
@@ -452,7 +452,7 @@ async def webhook(raw_request: Request):
             case "pull_request_review_comment", "created":
                 # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
-                logger.info(f"Handling comment on PR: {request.pull_request.number}")
+                logn.info(f"Handling comment on PR: {request.pull_request.number}")
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pr = repo.get_pull(request.pull_request.number)
@@ -483,7 +483,7 @@ async def webhook(raw_request: Request):
                 pass
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
-                logger.info(f"Handling check suite for {request.repository.full_name}")
+                logn.info(f"Handling check suite for {request.repository.full_name}")
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pull_requests = request.check_run.pull_requests
@@ -492,7 +492,7 @@ async def webhook(raw_request: Request):
                     if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
                         call_on_check_suite(request=request)
                 else:
-                    logger.info("No pull requests, passing")
+                    logn.info("No pull requests, passing")
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
@@ -510,7 +510,7 @@ async def webhook(raw_request: Request):
                         repos_added_request.repositories_added,
                     )
                 except Exception as e:
-                    logger.error(f"Failed to add config to top repos: {e}")
+                    logn.error(f"Failed to add config to top repos: {e}")
 
                 posthog.capture(
                     "installation_repositories", "started", properties={**metadata}
@@ -540,7 +540,7 @@ async def webhook(raw_request: Request):
                         repos_added_request.repositories,
                     )
                 except Exception as e:
-                    logger.error(f"Failed to add config to top repos: {e}")
+                    logn.error(f"Failed to add config to top repos: {e}")
 
                 # Index all repos
                 for repo in repos_added_request.repositories:
@@ -599,10 +599,10 @@ async def webhook(raw_request: Request):
                         _, g = get_github_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
                         docs = get_documentation_dict(repo)
-                        logger.info(f"Sweep.yaml docs: {docs}")
+                        logn.info(f"Sweep.yaml docs: {docs}")
                         # Call the write_documentation function for each of the existing fields in the "docs" mapping
                         for doc_url, _ in docs.values():
-                            logger.info(f"Writing documentation for {doc_url}")
+                            logn.info(f"Writing documentation for {doc_url}")
                             call_on_write_docs(doc_url)
                     # this makes it faster for everyone because the queue doesn't get backed up
                     if chat_logger.is_paying_user():
@@ -618,11 +618,11 @@ async def webhook(raw_request: Request):
             case "ping", None:
                 return {"message": "pong"}
             case _:
-                logger.info(
+                logn.info(
                     f"Unhandled event: {event} {request_dict.get('action', None)}"
                 )
     except ValidationError as e:
-        logger.warning(f"Failed to parse request: {e}")
+        logn.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
 
@@ -666,7 +666,7 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                 )
 
                 # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
-                logger.info(
+                logn.info(
                     f"Merging changes from default branch into PR #{pr.number} for branch"
                     f" {feature_branch}"
                 )
@@ -676,8 +676,8 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                     # Create a new PR to add "gha_enabled: True" to sweep.yaml
                     create_gha_pr(g, repo)
             except Exception as e:
-                logger.error(
+                logn.error(
                     f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
                 )
     except:
-        logger.warning("Failed to update sweep PRs")
+        logn.warning("Failed to update sweep PRs")

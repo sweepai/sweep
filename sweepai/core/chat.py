@@ -101,10 +101,10 @@ class ChatGPT(BaseModel):
         content = system_message_prompt
         repo = kwargs.get("repo")
         if repo:
-            logger.info(f"Repo: {repo}")
+            logn.info(f"Repo: {repo}")
             repo_description = get_description(repo)
             if repo_description:
-                logger.info(f"Repo description: {repo_description}")
+                logn.info(f"Repo description: {repo_description}")
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"
         messages = [Message(role="system", content=content, key="system")]
 
@@ -204,9 +204,7 @@ class ChatGPT(BaseModel):
             tickets_count = self.chat_logger.get_ticket_count()
             if tickets_count < tickets_allocated:
                 model = model or self.model
-                logger.warning(
-                    f"{tickets_count} tickets found in MongoDB, using {model}"
-                )
+                logn.warning(f"{tickets_count} tickets found in MongoDB, using {model}")
             else:
                 model = "gpt-3.5-turbo-16k-0613"
 
@@ -218,17 +216,17 @@ class ChatGPT(BaseModel):
             model_to_max_tokens[model] - int(messages_length) - 400
         )  # this is for the function tokens
         # TODO: Add a check to see if the message is too long
-        logger.info("file_change_paths" + str(self.file_change_paths))
+        logn.info("file_change_paths" + str(self.file_change_paths))
         if len(self.file_change_paths) > 0:
             self.file_change_paths.remove(self.file_change_paths[0])
         if max_tokens < 0:
             if len(self.file_change_paths) > 0:
                 pass
             else:
-                logger.error(f"Input to OpenAI:\n{self.messages_dicts}")
+                logn.error(f"Input to OpenAI:\n{self.messages_dicts}")
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
-        logger.info(f"Input to call openai:\n{messages_raw}")
+        logn.info(f"Input to call openai:\n{messages_raw}")
 
         messages_dicts = [self.messages_dicts[0]]
         for message_dict in self.messages_dicts[:1]:
@@ -250,7 +248,7 @@ class ChatGPT(BaseModel):
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )
-        logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
+        logn.info(f"Using the model {model}, with {max_tokens} tokens remaining")
         global retry_counter
         retry_counter = 0
 
@@ -302,13 +300,14 @@ class ChatGPT(BaseModel):
                             },
                         )
                     except Exception as e:
-                        logger.warning(e)
+                        logn.warning(e)
                 return output
             except Exception as e:
-                logger.warning(e)
+                logn.warning(e)
                 raise e
+
         result = fetch()
-        logger.info(f"Output to call openai:\n{result}")
+        logn.info(f"Output to call openai:\n{result}")
         return result
 
     async def achat(
@@ -335,9 +334,7 @@ class ChatGPT(BaseModel):
             tickets_count = self.chat_logger.get_ticket_count()
             if tickets_count < tickets_allocated:
                 model = model or self.model
-                logger.warning(
-                    f"{tickets_count} tickets found in MongoDB, using {model}"
-                )
+                logn.warning(f"{tickets_count} tickets found in MongoDB, using {model}")
             else:
                 model = "gpt-3.5-turbo-16k-0613"
 
@@ -349,17 +346,17 @@ class ChatGPT(BaseModel):
             model_to_max_tokens[model] - int(messages_length) - 400
         )  # this is for the function tokens
         # TODO: Add a check to see if the message is too long
-        logger.info("file_change_paths" + str(self.file_change_paths))
+        logn.info("file_change_paths" + str(self.file_change_paths))
         if len(self.file_change_paths) > 0:
             self.file_change_paths.remove(self.file_change_paths[0])
         if max_tokens < 0:
             if len(self.file_change_paths) > 0:
                 pass
             else:
-                logger.error(f"Input to OpenAI:\n{self.messages_dicts}")
+                logn.error(f"Input to OpenAI:\n{self.messages_dicts}")
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
-        logger.info(f"Input to call openai:\n{messages_raw}")
+        logn.info(f"Input to call openai:\n{messages_raw}")
 
         messages_dicts = [self.messages_dicts[0]]
         for message_dict in self.messages_dicts[:1]:
@@ -381,7 +378,7 @@ class ChatGPT(BaseModel):
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )
-        logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
+        logn.info(f"Using the model {model}, with {max_tokens} tokens remaining")
         global retry_counter
         retry_counter = 0
 
@@ -433,14 +430,14 @@ class ChatGPT(BaseModel):
                                 },
                             )
                         except Exception as e:
-                            logger.warning(e)
+                            logn.warning(e)
                     return output
                 except Exception as e:
-                    logger.warning(e)
+                    logn.warning(e)
                     time.sleep(time_to_sleep + backoff.random_jitter(5))
 
         result = await fetch()
-        logger.info(f"Output to call openai:\n{result}")
+        logn.info(f"Output to call openai:\n{result}")
         return result
 
     @property

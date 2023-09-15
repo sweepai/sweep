@@ -115,16 +115,14 @@ class SweepConfig(BaseModel):
                 repo.get_branch(branch_name)
                 return branch_name
             except Exception as e:
-                logger.warning(f"Error when getting branch: {e}, creating branch")
+                logn.warning(f"Error when getting branch: {e}, creating branch")
                 repo.create_git_ref(
                     f"refs/heads/{branch_name}",
                     repo.get_branch(default_branch).commit.sha,
                 )
                 return branch_name
         except Exception as e:
-            logger.info(
-                f"Error when getting branch: {e}, falling back to default branch"
-            )
+            logn.info(f"Error when getting branch: {e}, falling back to default branch")
             return default_branch
 
     @staticmethod
@@ -134,7 +132,7 @@ class SweepConfig(BaseModel):
             config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
             return config
         except Exception as e:
-            logger.warning(f"Error when getting config: {e}, returning empty dict")
+            logn.warning(f"Error when getting config: {e}, returning empty dict")
             if "This repository is empty." in str(e):
                 raise EmptyRepository()
             return {}
@@ -155,7 +153,7 @@ def get_gha_enabled(repo: Repository) -> bool:
             try:
                 contents = repo.get_contents(".github/sweep.yaml")
             except Exception as e:
-                logger.warning(
+                logn.warning(
                     f"Error when getting gha enabled: {e}, falling back to True"
                 )
                 return True
@@ -211,7 +209,7 @@ def get_documentation_dict(repo: Repository):
         docs = sweep_yaml.get("docs", {})
         return docs
     except Exception as e:
-        logger.warning(f"Error when getting docs: {e}, returning empty dict")
+        logn.warning(f"Error when getting docs: {e}, returning empty dict")
         return {}
 
 
@@ -225,7 +223,7 @@ def get_blocked_dirs(repo: Repository):
         dirs = sweep_yaml.get("blocked_dirs", [])
         return dirs
     except Exception as e:
-        logger.warning(f"Error when getting docs: {e}, returning empty dict")
+        logn.warning(f"Error when getting docs: {e}, returning empty dict")
         return []
 
 
@@ -239,7 +237,7 @@ def get_rules(repo: Repository):
         rules = sweep_yaml.get("rules", [])
         return rules
     except Exception as e:
-        logger.warning(f"Error when getting rules: {e}, returning empty array")
+        logn.warning(f"Error when getting rules: {e}, returning empty array")
         return []
 
 

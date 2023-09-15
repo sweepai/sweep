@@ -122,7 +122,7 @@ async def webscrape(BASE_URL_PREFIX):
             try:
                 await scrape_page(page, link)
             except:
-                logger.warning(f"Failed to scrape {link}")
+                logn.warning(f"Failed to scrape {link}")
                 pass
 
     async with async_playwright() as p:

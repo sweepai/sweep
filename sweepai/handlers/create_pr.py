@@ -90,7 +90,7 @@ def create_pr_changes(
     posthog.capture(username, "started", properties=metadata)
 
     try:
-        logger.info("Making PR...")
+        logn.info("Making PR...")
         pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
         completed_count, fcr_count = 0, len(file_change_requests)
 
@@ -108,10 +108,10 @@ def create_pr_changes(
             sandbox=sandbox,
         ):
             completed_count += changed_file
-            logger.info("Completed {}/{} files".format(completed_count, fcr_count))
+            logn.info("Completed {}/{} files".format(completed_count, fcr_count))
             yield file_change_request, changed_file, sandbox_error, commit
         if completed_count == 0 and fcr_count != 0:
-            logger.info("No changes made")
+            logn.info("No changes made")
             posthog.capture(
                 username,
                 "failed",
@@ -145,7 +145,7 @@ def create_pr_changes(
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
     except MaxTokensExceeded as e:
-        logger.error(e)
+        logn.error(e)
         posthog.capture(
             username,
             "failed",
@@ -157,7 +157,7 @@ def create_pr_changes(
         )
         raise e
     except openai.error.InvalidRequestError as e:
-        logger.error(e)
+        logn.error(e)
         posthog.capture(
             username,
             "failed",
@@ -169,7 +169,7 @@ def create_pr_changes(
         )
         raise e
     except Exception as e:
-        logger.error(e)
+        logn.error(e)
         posthog.capture(
             username,
             "failed",
@@ -182,7 +182,7 @@ def create_pr_changes(
         raise e
 
     posthog.capture(username, "success", properties={**metadata})
-    logger.info("create_pr success")
+    logn.info("create_pr success")
     result = {
         "success": True,
         "pull_request": MockPR(
@@ -266,7 +266,7 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
                 branch=branch_name,
             )
         except Exception as e:
-            logger.error(e)
+            logn.error(e)
     else:
         # Create branch based on default branch
         branch = repo.create_git_ref(
@@ -300,7 +300,7 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
                 branch=branch_name,
             )
         except Exception as e:
-            logger.error(e)
+            logn.error(e)
 
     repo = sweep_bot.repo if sweep_bot is not None else repo
     # Check if the pull request from this branch to main already exists.
@@ -318,8 +318,8 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
             if pr.title == title:
                 return pr
 
-    print("Default branch", repo.default_branch)
-    print("New branch", branch_name)
+    logn.print("Default branch", repo.default_branch)
+    logn.print("New branch", branch_name)
     pr = repo.create_pull(
         title=title,
         body="""🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
@@ -363,7 +363,7 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
         # commits = repo.get_commits(since=since_date, author="lukejagg")
         repo_activity[repo] = commit_date
         # print(repo, commits.totalCount)
-        print(repo, commit_date)
+        logn.print(repo, commit_date)
 
     sorted_repos = sorted(repo_activity, key=repo_activity.get, reverse=True)
     sorted_repos = sorted_repos[:max_repos]
@@ -371,11 +371,11 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
     # For each repo, create a branch based on main branch, then create PR to main branch
     for repo in sorted_repos:
         try:
-            print("Creating config for", repo.full_name)
+            logn.print("Creating config for", repo.full_name)
             create_config_pr(None, repo=repo)
         except Exception as e:
-            print(e)
-    print("Finished creating configs for top repos")
+            logn.print(e)
+    logn.print("Finished creating configs for top repos")
 
 
 def create_gha_pr(g, repo):

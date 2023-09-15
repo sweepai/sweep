@@ -156,8 +156,8 @@ class OpenAIProxy:
                     )
                     return response["choices"][0].message.content
                 except Exception as e:
-                    logger.error(f"OpenAI API Key found but error: {e}")
-            logger.error(f"OpenAI API Key not found and Azure Error: {e}")
+                    logn.error(f"OpenAI API Key found but error: {e}")
+            logn.error(f"OpenAI API Key not found and Azure Error: {e}")
 
 
 openai_proxy = OpenAIProxy()
@@ -206,7 +206,7 @@ class ChatGPT(BaseModel):
             if len(self.file_change_paths) > 0:
                 pass
             else:
-                logger.error(f"Input to OpenAI:\n{self.messages_dicts}")
+                logn.error(f"Input to OpenAI:\n{self.messages_dicts}")
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
         logger.info(f"Input to call openai:\n{messages_raw}")
@@ -256,7 +256,7 @@ class ChatGPT(BaseModel):
                 )
                 return output
             except Exception as e:
-                logger.warning(e)
+                logn.warning(e)
                 raise e
 
         result = fetch()

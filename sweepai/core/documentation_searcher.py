@@ -36,7 +36,7 @@ class DocQueryRewriter(ChatGPT):
 
 def extract_docs_links(content: str, user_dict: dict) -> list[str]:
     urls = []
-    logger.info(content)
+    logn.info(content)
     # add the user_dict to DOC_ENDPOINTS
     assert isinstance(user_dict, dict), "user_dict must be a dict"
     if user_dict:
@@ -98,7 +98,7 @@ def extract_relevant_docs(content: str, user_dict: dict, chat_logger: ChatLogger
         return ""
     result = "\n\n### I also found some related docs:\n\n"
     for link in links:
-        logger.info(f"Fetching docs summary from {link}")
+        logn.info(f"Fetching docs summary from {link}")
         try:
             external_searcher = DocumentationSearcher(
                 chat_logger=chat_logger, model="gpt-3.5-turbo-16k-0613"
@@ -108,5 +108,5 @@ def extract_relevant_docs(content: str, user_dict: dict, chat_logger: ChatLogger
             )
             result += "> " + summary.replace("\n", "\n> ") + "\n\n"
         except Exception as e:
-            logger.error(f"Docs search error: {e}")
+            logn.error(f"Docs search error: {e}")
     return result

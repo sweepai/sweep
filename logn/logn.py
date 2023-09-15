@@ -243,6 +243,22 @@ class _LogN(_Logger):
         return _Logger(printfn=printfn)
 
     @staticmethod
+    def print(*args, **kwargs):
+        _LogN()[print](*args, **kwargs)
+
+    @staticmethod
+    def info(*args, **kwargs):
+        _LogN()[logger.info](*args, **kwargs)
+
+    @staticmethod
+    def error(*args, **kwargs):
+        _LogN()[logger.error](*args, **kwargs)
+
+    @staticmethod
+    def warning(*args, **kwargs):
+        _LogN()[logger.warning](*args, **kwargs)
+
+    @staticmethod
     def close():
         task = _Task.get_task(create_if_not_exist=False)
         if task is not None:
@@ -277,8 +293,16 @@ class _LogTask:
         return wrapper
 
 
+class LogN:
+    @staticmethod
+    def print():
+        pass
+
+
 # Export logger
 logn_logger = _LogN()
 
 # Export method attribute
 LogTask = _LogTask
+
+logn = _LogN()

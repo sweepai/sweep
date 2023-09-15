@@ -69,7 +69,7 @@ def repo_to_chunks(directory: str, sweep_config: SweepConfig) -> list:
             dir_file_count[dir_name] = len(os.listdir(dir_name))
         return dir_file_count[dir_name] > FILE_THRESHOLD
 
-    logger.info(f"Reading files from {directory}")
+    logn.info(f"Reading files from {directory}")
 
     file_list = glob.iglob(f"{directory}/**", recursive=True)
     file_list = [
@@ -78,7 +78,7 @@ def repo_to_chunks(directory: str, sweep_config: SweepConfig) -> list:
         if filter_file(directory, file_name, sweep_config)
         and not is_dir_too_big(file_name)
     ]
-    logger.info(f"Found {len(file_list)} files")
+    logn.info(f"Found {len(file_list)} files")
     all_chunks = []
     for file_path in tqdm(file_list, desc="Reading files"):
         file_contents = read_file(file_path)

@@ -82,7 +82,7 @@ def apply_code_edits(file_contents, code_edits):
         new_code = format_contents(edit["inserted_code"])
         # Indentation
         indentation = int(edit["num_indents"])
-        logger.info(f"The code {new_code} has {indentation} indents")
+        logn.info(f"The code {new_code} has {indentation} indents")
         # Starts with or ends with "" should be swapped to '' for json
         if len(new_code) >= 2 and new_code[:1] == '""':
             new_code = "''" + new_code[2:]
@@ -96,13 +96,13 @@ def apply_code_edits(file_contents, code_edits):
     lines = file_contents.split("\n")
     for start_line, end_line, new_code, indentation in modifications:
         if start_line > end_line:
-            logger.error(f"Start line {start_line} is greater than end line {end_line}")
+            logn.error(f"Start line {start_line} is greater than end line {end_line}")
             continue
         if start_line < 0:
-            logger.error(f"Start line {start_line} is less than 0")
+            logn.error(f"Start line {start_line} is less than 0")
             continue
         if end_line > len(lines) - 1:
-            logger.error(
+            logn.error(
                 f"End line {end_line} is greater than the number of lines in the file"
                 f" {len(lines)}"
             )

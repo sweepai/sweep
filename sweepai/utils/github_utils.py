@@ -39,7 +39,7 @@ def make_valid_string(string: str):
 def get_jwt():
     signing_key = GITHUB_APP_PEM
     app_id = GITHUB_APP_ID
-    print(app_id)
+    logn.print(app_id)
     payload = {"iat": int(time.time()), "exp": int(time.time()) + 600, "iss": app_id}
     return encode(payload, signing_key, algorithm="RS256")
 
@@ -59,11 +59,11 @@ def get_token(installation_id: int):
             )
             obj = response.json()
             if "token" not in obj:
-                logger.error(obj)
+                logn.error(obj)
                 raise Exception("Could not get token")
             return obj["token"]
         except Exception as e:
-            logger.error(e)
+            logn.error(e)
             time.sleep(timeout)
     raise Exception("Could not get token")
 
@@ -121,7 +121,7 @@ class ClonedRepo:
             try:
                 self.git_repo.remotes.origin.pull()
             except:
-                logger.error("Could not pull repo")
+                logn.error("Could not pull repo")
                 self.git_repo = self.clone()
         self.git_repo = self.clone()
         self.repo = Github(self.token).get_repo(self.repo_full_name)

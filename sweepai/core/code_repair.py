@@ -64,7 +64,7 @@ class CodeRepairer(ChatGPT):
                 ["rustfmt", "--check", filename], text=True, capture_output=True
             )
         else:
-            print(f"No formatter for {file_extension} files")
+            logn.print(f"No formatter for {file_extension} files")
             return False
 
         # If the return code is 0, that means the syntax is correct.
@@ -72,7 +72,7 @@ class CodeRepairer(ChatGPT):
         if result.returncode == 0:
             return True
         else:
-            print(result.stderr)
+            logn.print(result.stderr)
             return False
 
     def repair_code(self, diff: str, user_code: str, feature: str, retries=3) -> str:

@@ -29,5 +29,5 @@ class SlowModeBot(ChatGPT):
             )
             return queries, additional_instructions
         except Exception as e:
-            logger.error(f"An error occurred: {e}")
+            logn.error(f"An error occurred: {e}")
         return [], ""

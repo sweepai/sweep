@@ -300,6 +300,6 @@ def search_index(query, ix):
         ix.writer().cancel()
         return res
     except Exception as e:
-        print(e)
+        logn.print(e)
         traceback.print_exc()
         return {}
