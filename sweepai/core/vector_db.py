@@ -145,6 +145,7 @@ def embed_texts(texts: tuple[str]):
                 raise Exception("Replicate URL and token not set")
         case _:
             raise Exception("Invalid vector embedding mode")
+    logger.info(f"Computed embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}")
 
 
 def embedding_function(texts: list[str]):
@@ -182,10 +183,11 @@ def get_deeplake_vs_from_repo(
     index = prepare_index_from_snippets(
         snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
     )
+    print("Prepared index from snippets")
     # scoring for vector search
     files_to_scores = {}
     score_factors = []
-    for file_path in file_list:
+    for file_path in tqdm(file_list):
         if not redis_client:
             score_factor = compute_score(
                 file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo

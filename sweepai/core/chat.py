@@ -1,7 +1,7 @@
 import json
 from copy import deepcopy
 import time
-from typing import Iterator, Literal, Self
+from typing import Any, Iterator, Literal
 
 import anthropic
 import backoff
@@ -97,7 +97,7 @@ class ChatGPT(BaseModel):
         chat_logger=None,
         sweep_context=None,
         **kwargs,
-    ) -> Self:
+    ) -> Any:
         content = system_message_prompt
         repo = kwargs.get("repo")
         if repo:
@@ -123,7 +123,7 @@ class ChatGPT(BaseModel):
     @classmethod
     def from_system_message_string(
         cls, prompt_string, chat_logger: ChatLogger, **kwargs
-    ) -> Self:
+    ) -> Any:
         return cls(
             messages=[Message(role="system", content=prompt_string, key="system")],
             chat_logger=chat_logger,
