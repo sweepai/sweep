@@ -360,7 +360,7 @@ def sliding_window_replacement(
                 if radix_original is not None:
                     return radix_original, None, None
             except Exception as e:
-                logn.print(f"Modify skipped lines error: {e}")
+                print(f"Modify skipped lines error: {e}")
 
         if first_line_idx == 0 and first_line_idx_replace == 0:
             search = search[1:]
@@ -414,7 +414,7 @@ def sliding_window_replacement(
                 ignore_comments=True,
                 **{k: v for k, v in kwargs.items() if k != "ignore_comments"},
             )
-        logn.print("WARNING: No identical lines")
+        print("WARNING: No identical lines")
         return original, None, IDENTICAL_LINES
 
     if current_hits > 1:
@@ -459,7 +459,7 @@ def sliding_window_replacement(
                     **{k: v for k, v in kwargs.items() if k != "exact_match"},
                 )
 
-            logn.print("WARNING: Multiple hits")
+            print("WARNING: Multiple hits")
             return original, None, MULTIPLE_HITS
 
     # Todo(lukejagg): Remove unreachable code
@@ -515,7 +515,7 @@ def generate_new_file_from_patch(
 
     if not old_file_content.strip():
         # If old file is empty, just return the first match
-        logn.print(matches)
+        print(matches)
         search_and_replace, *_ = matches
         return search_and_replace[1]
 

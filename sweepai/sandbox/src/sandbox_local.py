@@ -112,10 +112,10 @@ def discord_log_error(content, priority=0):
             response = requests.post(
                 DISCORD_WEBHOOK_URL, data=json.dumps(data), headers=headers
             )
-            logn.print(response)
+            print(response)
             # Success: response.status_code == 204:
         except Exception as e:
-            logn.print(f"Could not log to Discord: {e}")
+            print(f"Could not log to Discord: {e}")
 
 
 sandboxes: dict[str, Sandbox] = {}
@@ -148,9 +148,7 @@ class SandboxError(Exception):
 async def run_sandbox(request: Request):
     data = await request.json()
     sandbox_request = SandboxRequest(**data)
-    logn.print(
-        sandbox_request.repo_url, sandbox_request.file_path, sandbox_request.token
-    )
+    print(sandbox_request.repo_url, sandbox_request.file_path, sandbox_request.token)
     success, error_messages, updated_content = False, [], ""
     executions: list[SandboxExecution] = []
 
@@ -159,24 +157,24 @@ async def run_sandbox(request: Request):
             sandbox_request.repo_url = sandbox_request.repo_url.replace(
                 "://", f"://x-access-token:{sandbox_request.token}@"
             )
-            logn.print(sandbox_request.repo_url)
+            print(sandbox_request.repo_url)
 
         with SandboxContainer() as container:
-            logn.print("Cloning repo...")
+            print("Cloning repo...")
             exit_code, output = container.exec_run(
                 f"git clone {sandbox_request.repo_url} repo"
             )
             write_file(
                 container, f"repo/{sandbox_request.file_path}", sandbox_request.content
             )
-            logn.print(f"Git Clone - Exit Code: {exit_code}")
-            logn.print(output.decode("utf-8"))
+            print(f"Git Clone - Exit Code: {exit_code}")
+            print(output.decode("utf-8"))
 
             exit_code, output = container.exec_run(f"cat repo/sweep.yaml")
             sandbox = Sandbox.from_yaml(output) if exit_code == 0 else Sandbox()
-            logn.print(f"Running sandbox: {sandbox}")
+            print(f"Running sandbox: {sandbox}")
 
-            logn.print("Running sandbox...")
+            print("Running sandbox...")
             error_message = ""
 
             def wrap_command(command):
@@ -196,12 +194,12 @@ async def run_sandbox(request: Request):
                 return logs
 
             def run_command(command: str, stage: str = "check"):
-                logn.print(f"\n\n### Running {command} ###\n")
+                print(f"\n\n### Running {command} ###\n")
                 exit_code, output = container.exec_run(
                     wrap_command(command), stderr=True
                 )
                 output = output.decode("utf-8")
-                logn.print(summarize_logs(output))
+                print(summarize_logs(output))
                 executions.append(
                     SandboxExecution(
                         command=command,
@@ -214,14 +212,14 @@ async def run_sandbox(request: Request):
                 return output
 
             for command in sandbox.install:
-                logn.print(command)
+                print(command)
                 run_command(command, stage="install")
 
             num_iterations = 15
             # num_iterations = 3
             for i in range(1, num_iterations + 1):
                 try:
-                    logn.print(f"Trying to lint for the {i}/{num_iterations}th time")
+                    print(f"Trying to lint for the {i}/{num_iterations}th time")
                     for command in sandbox.check:
                         run_command(command)
                 except Exception as e:
@@ -251,11 +249,11 @@ async def run_sandbox(request: Request):
             # Read formatted file
             success = True
             updated_content = read_file(container, f"repo/{sandbox_request.file_path}")
-            logn.print(f"Updated Contents:\n```\n{updated_content}\n```")
+            print(f"Updated Contents:\n```\n{updated_content}\n```")
 
     except Exception as e:
         error_message = str(e)
-        logn.print(e)
+        print(e)
         discord_log_error(
             f"Error in {sandbox_request.repo_url}:\nFile: {sandbox_request.file_path}\nContents: {sandbox_request.content}\n\nError messages:\n{error_message}"
         )

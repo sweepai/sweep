@@ -16,6 +16,7 @@ from github import Github
 from github.Repository import Repository
 from jwt import encode
 from loguru import logger
+from logn import logn
 import git
 
 from sweepai.config.client import SweepConfig

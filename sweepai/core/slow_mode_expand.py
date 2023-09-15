@@ -1,3 +1,4 @@
+from logn import logn
 from loguru import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import ExpandedPlan, Message

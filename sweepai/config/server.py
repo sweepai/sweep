@@ -3,6 +3,8 @@ import os
 
 from dotenv import load_dotenv
 
+from logn import logn
+
 load_dotenv(dotenv_path=".env")
 
 os.environ["GITHUB_APP_PEM"] = (

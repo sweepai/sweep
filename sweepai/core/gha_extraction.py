@@ -1,3 +1,4 @@
+from logn import logn
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.core.prompts import gha_extraction_system_prompt, gha_extraction_prompt

@@ -3,6 +3,7 @@ import os
 import re
 import time
 from loguru import logger
+from logn import logn
 
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup

@@ -38,8 +38,8 @@ def _asgi_app():
         try:
             g = Github(config.pat)
         except Exception as e:
-            logn.error(e)
-            logn.error("Likely wrong correct.")
+            logger.error(e)
+            logger.error("Likely wrong correct.")
             raise e
         username = g.get_user().login
         assert username == config.username

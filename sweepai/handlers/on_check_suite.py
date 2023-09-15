@@ -5,6 +5,7 @@ import zipfile
 import openai
 import requests
 from loguru import logger
+from logn import logn
 
 from sweepai.core.entities import PRChangeRequest
 from sweepai.core.gha_extraction import GHAExtractor

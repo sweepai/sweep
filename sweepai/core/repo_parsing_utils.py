@@ -2,6 +2,7 @@ import glob
 import os
 import itertools
 from loguru import logger
+from logn import logn
 
 from tqdm import tqdm
 from sweepai.config.client import SweepConfig

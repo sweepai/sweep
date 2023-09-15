@@ -14,7 +14,7 @@ from loguru import logger
 from tabulate import tabulate
 from tqdm import tqdm
 
-from logn.logn import LogTask, logn_logger
+from logn import logn, LogTask
 from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import extract_relevant_docs
 

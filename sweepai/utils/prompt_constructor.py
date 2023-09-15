@@ -1,4 +1,5 @@
 from loguru import logger
+from logn import logn
 from pydantic import BaseModel
 
 from sweepai.core.prompts import (

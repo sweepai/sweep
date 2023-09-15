@@ -1,4 +1,5 @@
 from loguru import logger
+from logn import logn
 from posthog import Posthog
 import highlight_io
 

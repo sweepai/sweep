@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import os
 import re
 import string
+from logn import logn
 from typing import ClassVar, Literal, Type, TypeVar, Any
 from github.Repository import Repository
 

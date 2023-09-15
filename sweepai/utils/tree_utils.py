@@ -1,3 +1,6 @@
+from logn import logn
+
+
 class Line:
     def __init__(self, indent_count, text, parent=None, is_dir=False):
         self.indent_count = indent_count

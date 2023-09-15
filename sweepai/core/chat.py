@@ -8,6 +8,7 @@ import backoff
 from loguru import logger
 from pydantic import BaseModel
 
+from logn import logn
 from sweepai.utils.utils import Tiktoken
 from sweepai.core.entities import Message, Function, SweepContext
 from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt

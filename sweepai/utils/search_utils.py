@@ -2,6 +2,7 @@ import shutil
 import subprocess
 import github
 from loguru import logger
+from logn import logn
 
 from github.Repository import Repository
 from tqdm import tqdm
@@ -113,7 +114,7 @@ def search_snippets(
             ] + snippets
     snippets = [snippet.expand() for snippet in snippets]
     logn.info(f"Tree: {tree}")
-    logger.info(f"Snippets: {snippets}")
+    logn.info(f"Snippets: {snippets}")
     if include_tree:
         return snippets, tree
     else:

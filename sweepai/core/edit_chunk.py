@@ -1,5 +1,6 @@
 import json
 import subprocess
+from logn import logn
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message

@@ -13,6 +13,7 @@ from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=
     VectorStore,
 )
 from github import Github
+from logn import logn
 from loguru import logger
 from redis import Redis
 from redis.backoff import ConstantBackoff

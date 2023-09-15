@@ -3,11 +3,12 @@ import traceback
 
 import openai
 from loguru import logger
+from logn import logn, LogTask
+
 from typing import Any
 from tabulate import tabulate
 from github.Repository import Repository
 
-from logn.logn import LogTask
 from sweepai.config.client import get_blocked_dirs
 from sweepai.core.entities import (
     NoFilesException,

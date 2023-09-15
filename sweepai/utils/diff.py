@@ -1,5 +1,6 @@
 import difflib
 import re
+from logn import logn
 
 from sweepai.core.entities import SweepContext
 from sweepai.utils.chat_logger import discord_log_error

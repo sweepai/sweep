@@ -2,8 +2,9 @@
 Take a PR and provide an AI generated review of the PR.
 """
 from loguru import logger
-from sweepai.config.server import MONGODB_URI
+from logn import logn
 
+from sweepai.config.server import MONGODB_URI
 from sweepai.core.entities import DiffSummarization, PullRequestComment
 from sweepai.core.prompts import review_prompt
 from sweepai.core.sweep_bot import SweepBot

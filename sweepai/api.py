@@ -9,7 +9,7 @@ from loguru import logger
 from pydantic import ValidationError
 import requests
 
-from logn.logn import logn_logger
+from logn import logn
 from sweepai.config.client import SweepConfig, get_documentation_dict
 from sweepai.config.server import (
     API_MODAL_INST_NAME,
@@ -56,7 +56,7 @@ on_ticket_events = {}
 
 
 def run_on_ticket(*args, **kwargs):
-    logn_logger.init(
+    logn.init(
         metadata={
             **kwargs,
             "name": "ticket_" + kwargs["username"],
@@ -64,11 +64,11 @@ def run_on_ticket(*args, **kwargs):
         create_file=False,
     )
     on_ticket(*args, **kwargs)
-    logn_logger.close()
+    logn.close()
 
 
 def run_on_comment(*args, **kwargs):
-    logn_logger.init(
+    logn.init(
         metadata={
             **kwargs,
             "name": "comment_" + kwargs["username"],
@@ -76,14 +76,14 @@ def run_on_comment(*args, **kwargs):
         create_file=False,
     )
     on_comment(*args, **kwargs)
-    logn_logger.close()
+    logn.close()
 
 
 def run_on_check_suite(*args, **kwargs):
     request = kwargs["request"]
     pr_change_request = on_check_suite(request)
     if pr_change_request:
-        logn_logger.init(
+        logn.init(
             metadata={
                 **pr_change_request.params,
                 "name": "check_" + pr_change_request.params["username"],

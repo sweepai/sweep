@@ -6,6 +6,8 @@ import requests
 from dataclasses import dataclass
 
 from loguru import logger
+from logn import logn
+
 import tiktoken
 
 from sweepai.core.entities import Snippet

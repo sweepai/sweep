@@ -5,6 +5,7 @@ from typing import Any
 import requests
 from geopy import Nominatim
 from loguru import logger
+from logn import logn
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 

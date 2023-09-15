@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import re
 from fuzzywuzzy import fuzz
+from logn import logn
 
 from tqdm import tqdm
 

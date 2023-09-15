@@ -1,6 +1,7 @@
 import os
 import traceback as tb
 from loguru import logger
+from logn import logn
 import openai
 from sweepai.config.server import (
     AZURE_API_KEY,
@@ -44,7 +45,7 @@ class OpenAIProxy:
                 openai.api_base = "https://api.openai.com/v1"
                 openai.api_version = None
                 openai.api_type = "open_ai"
-                logger.info(f"Calling {model} on OpenAI.")
+                logn.info(f"Calling {model} on OpenAI.")
                 response = openai.ChatCompletion.create(
                     model=model,
                     messages=messages,
@@ -52,7 +53,7 @@ class OpenAIProxy:
                     temperature=temperature,
                 )
                 return response["choices"][0].message.content
-            logger.info(
+            logn.info(
                 f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
             )
             openai.api_type = OPENAI_API_TYPE
@@ -74,7 +75,7 @@ class OpenAIProxy:
                     openai.api_base = "https://api.openai.com/v1"
                     openai.api_version = None
                     openai.api_type = "open_ai"
-                    logger.info(f"Calling {model} with OpenAI.")
+                    logn.info(f"Calling {model} with OpenAI.")
                     response = openai.ChatCompletion.create(
                         model=model,
                         messages=messages,
