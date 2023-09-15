@@ -165,14 +165,15 @@ class _Task:
         _task_dictionary[task_key] = task
 
     @staticmethod
-    def create_child_task(name: str, metadata):
+    def create_child_task(name: str):
+        # Todo: make child task metadata
         parent_task = _Task.get_task(create_if_not_exist=False)
         if parent_task is None:
             task_key = get_task_key()
             child_task = _Task(
                 logn_task_key=None,
                 logn_parent_task=parent_task,
-                metadata={**metadata, "name": name},
+                metadata={"name": name},
             )
         else:
             task_key = parent_task.task_key
@@ -181,7 +182,6 @@ class _Task:
                 logn_parent_task=parent_task,
                 metadata={
                     **parent_task.metadata,
-                    **metadata,
                     "name": parent_task.metadata["name"] + "_" + name,
                 },
             )
