@@ -450,6 +450,7 @@ class NoFilesException(Exception):
 class PRChangeRequest(BaseModel):
     type: str  # "comment", or "gha"
     params: dict
+    priority: int  # Priority of the GitHub Action call or comment
 
 
 class MockPR(BaseModel):
