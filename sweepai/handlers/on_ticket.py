@@ -986,6 +986,7 @@ def on_ticket(
     except NoFilesException as e:
         logger.info("Sweep could not find files to modify")
         log_error(
+            is_paying_user, is_trial_user, username, issue_url, 
             "Sweep could not find files to modify",
             str(e) + "\n" + traceback.format_exc(),
             priority=2,

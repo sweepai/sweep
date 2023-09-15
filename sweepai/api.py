@@ -3,7 +3,6 @@ from queue import Queue
 import sys
 import threading
 
-from celery.result import AsyncResult
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from loguru import logger
