@@ -145,6 +145,7 @@ def embed_texts(texts: tuple[str]):
                 raise Exception("Replicate URL and token not set")
         case _:
             raise Exception("Invalid vector embedding mode")
+    logger.info(f"Computed embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}")
 
 
 def embedding_function(texts: list[str]):

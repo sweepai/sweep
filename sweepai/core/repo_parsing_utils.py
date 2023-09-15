@@ -78,8 +78,6 @@ def repo_to_chunks(directory: str, sweep_config: SweepConfig) -> list:
         if filter_file(directory, file_name, sweep_config)
         and not is_dir_too_big(file_name)
     ]
-    for file_name in file_list:
-        logger.debug(f"Found file {file_name[len(directory):]}")
     logger.info(f"Found {len(file_list)} files")
     all_chunks = []
     for file_path in tqdm(file_list, desc="Reading files"):
