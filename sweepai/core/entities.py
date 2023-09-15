@@ -448,7 +448,7 @@ class NoFilesException(Exception):
 
 
 class PRChangeRequest(BaseModel):
-    type: str  # "comment", or "gha"
+    type: Literal["comment", "gha"]  # "comment" for a comment request, "gha" for a GitHub Action request
     params: dict
 
 
