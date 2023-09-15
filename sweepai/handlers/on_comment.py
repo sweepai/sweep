@@ -7,6 +7,7 @@ from typing import Any
 from tabulate import tabulate
 from github.Repository import Repository
 
+from logn.logn import LogTask
 from sweepai.config.client import get_blocked_dirs
 from sweepai.core.entities import (
     NoFilesException,
@@ -66,6 +67,7 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     return result_snippets[:max_num_of_snippets]
 
 
+@LogTask()
 def on_comment(
     repo_full_name: str,
     repo_description: str,

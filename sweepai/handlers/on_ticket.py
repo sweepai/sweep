@@ -13,6 +13,8 @@ from github import GithubException
 from loguru import logger
 from tabulate import tabulate
 from tqdm import tqdm
+
+from logn.logn import LogTask
 from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import extract_relevant_docs
 
@@ -62,6 +64,7 @@ from sweepai.utils.tree_utils import DirectoryTree
 openai.api_key = OPENAI_API_KEY
 
 
+@LogTask()
 def on_ticket(
     title: str,
     summary: str,
@@ -443,7 +446,6 @@ def on_ticket(
             )
             return {"success": False}
 
-
     if lint_mode:
         # Get files to change
         # Create new branch
@@ -475,7 +477,15 @@ def on_ticket(
             ),
             -1,
         )
-        log_error(is_paying_user, is_trial_user, username, issue_url, "File Fetch", str(e) + "\n" + traceback.format_exc(), priority=1)
+        log_error(
+            is_paying_user,
+            is_trial_user,
+            username,
+            issue_url,
+            "File Fetch",
+            str(e) + "\n" + traceback.format_exc(),
+            priority=1,
+        )
         raise e
 
     snippets = post_process_snippets(
@@ -837,9 +847,7 @@ def on_ticket(
             3,
         )
         change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
-        review_message = (
-            "Here are my self-reviews of my changes at" + change_location
-        )
+        review_message = "Here are my self-reviews of my changes at" + change_location
 
         lint_output = None
         try:
@@ -863,7 +871,7 @@ def on_ticket(
                 replies_text=replies_text,
                 tree=tree,
                 lint_output=lint_output,
-                plan=plan, # plan for the PR
+                plan=plan,  # plan for the PR
                 chat_logger=chat_logger,
             )
             # Todo(lukejagg): Execute sandbox after each iteration
@@ -956,7 +964,10 @@ def on_ticket(
     except MaxTokensExceeded as e:
         logger.info("Max tokens exceeded")
         log_error(
-            is_paying_user, is_trial_user, username, issue_url, 
+            is_paying_user,
+            is_trial_user,
+            username,
+            issue_url,
             "Max Tokens Exceeded",
             str(e) + "\n" + traceback.format_exc(),
             priority=2,
@@ -986,7 +997,10 @@ def on_ticket(
     except NoFilesException as e:
         logger.info("Sweep could not find files to modify")
         log_error(
-            is_paying_user, is_trial_user, username, issue_url, 
+            is_paying_user,
+            is_trial_user,
+            username,
+            issue_url,
             "Sweep could not find files to modify",
             str(e) + "\n" + traceback.format_exc(),
             priority=2,
@@ -1015,7 +1029,10 @@ def on_ticket(
             -1,
         )
         log_error(
-            is_paying_user, is_trial_user, username, issue_url, 
+            is_paying_user,
+            is_trial_user,
+            username,
+            issue_url,
             "Context Length",
             str(e) + "\n" + traceback.format_exc(),
             priority=2,
@@ -1054,7 +1071,15 @@ def on_ticket(
                 ),
                 -1,
             )
-        log_error(is_paying_user, is_trial_user, username, issue_url, "Workflow", str(e) + "\n" + traceback.format_exc(), priority=1)
+        log_error(
+            is_paying_user,
+            is_trial_user,
+            username,
+            issue_url,
+            "Workflow",
+            str(e) + "\n" + traceback.format_exc(),
+            priority=1,
+        )
         posthog.capture(
             username,
             "failed",
