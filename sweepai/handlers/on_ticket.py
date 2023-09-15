@@ -956,9 +956,12 @@ def on_ticket(
     except MaxTokensExceeded as e:
         logger.info("Max tokens exceeded")
         log_error(
-            is_paying_user, is_trial_user, username, issue_url, 
-            "Max Tokens Exceeded",
-            str(e) + "\n" + traceback.format_exc(),
+            is_paying_user=is_paying_user, 
+            is_trial_user=is_trial_user, 
+            username=username, 
+            issue_url=issue_url, 
+            error_type="Max Tokens Exceeded",
+            exception=str(e) + "\n" + traceback.format_exc(),
             priority=2,
         )
         if chat_logger.is_paying_user():
@@ -986,8 +989,12 @@ def on_ticket(
     except NoFilesException as e:
         logger.info("Sweep could not find files to modify")
         log_error(
-            "Sweep could not find files to modify",
-            str(e) + "\n" + traceback.format_exc(),
+            is_paying_user=is_paying_user, 
+            is_trial_user=is_trial_user, 
+            username=username, 
+            issue_url=issue_url, 
+            error_type="Sweep could not find files to modify",
+            exception=str(e) + "\n" + traceback.format_exc(),
             priority=2,
         )
         edit_sweep_comment(
@@ -1014,9 +1021,12 @@ def on_ticket(
             -1,
         )
         log_error(
-            is_paying_user, is_trial_user, username, issue_url, 
-            "Context Length",
-            str(e) + "\n" + traceback.format_exc(),
+            is_paying_user=is_paying_user, 
+            is_trial_user=is_trial_user, 
+            username=username, 
+            issue_url=issue_url, 
+            error_type="Context Length",
+            exception=str(e) + "\n" + traceback.format_exc(),
             priority=2,
         )
         posthog.capture(
@@ -1053,7 +1063,7 @@ def on_ticket(
                 ),
                 -1,
             )
-        log_error(is_paying_user, is_trial_user, username, issue_url, "Workflow", str(e) + "\n" + traceback.format_exc(), priority=1)
+        log_error(
         posthog.capture(
             username,
             "failed",
