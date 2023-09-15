@@ -2,6 +2,9 @@ import ctypes
 from queue import Queue
 import sys
 import threading
+from sweepai.core.safe_priority_queue import SafePriorityQueue
+
+task_queue = SafePriorityQueue()
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -102,37 +105,21 @@ def call_on_ticket(*args, **kwargs):
 
 
 def call_on_check_suite(*args, **kwargs):
-    repo_full_name = kwargs["request"].repository.full_name
-    pr_number = kwargs["request"].check_run.pull_requests[0].number
-    key = f"{repo_full_name}-{pr_number}"
-    thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
-    thread.start()
+    pr_change_request = PRChangeRequest(
+        type="gha",
+        params=kwargs,
+        comment_type="gha"
+    )
+    task_queue.put(2, pr_change_request)
 
 
-def call_on_comment(
-    *args, **kwargs
-):  # TODO: if its a GHA delete all previous GHA and append to the end
-    global events
-    repo_full_name = kwargs["repo_full_name"]
-    pr_id = kwargs["pr_number"]
-    key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
-
-    if key not in events:
-        events[key] = Queue()
-
-    def worker():
-        while not events[key].empty():
-            task_args, task_kwargs = events[key].get()
-            on_comment(*task_args, **task_kwargs)
-
-    events[key].put((args, kwargs))
-
-    # If a thread isn't running, start one
-    if not any(
-        thread.name == key and thread.is_alive() for thread in threading.enumerate()
-    ):
-        thread = threading.Thread(target=worker, name=key)
-        thread.start()
+def call_on_comment(*args, **kwargs):
+    pr_change_request = PRChangeRequest(
+        type="comment",
+        params=kwargs,
+        comment_type="comment"
+    )
+    task_queue.put(1, pr_change_request)
 
 
 def call_on_merge(*args, **kwargs):
@@ -604,6 +591,14 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
     # Get the repository
     repo = g.get_repo(repo_full_name)
     config = SweepConfig.get_config(repo)
+
+def process_tasks():
+    while True:
+        pr_change_request = task_queue.get()
+        if pr_change_request.comment_type == "comment":
+            on_comment(**pr_change_request.params)
+        elif pr_change_request.comment_type == "gha":
+            on_check_suite(pr_change_request.params["request"])
 
     try:
         branch_ttl = int(config.get("branch_ttl", 7))
