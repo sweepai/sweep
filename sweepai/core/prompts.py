@@ -456,8 +456,8 @@ User's request:
 Limit your changes to the request.
 
 Instructions:
-1. Complete the Code Planning step
-2. Complete the Code Modification step, remembering to NOT write ellipses, code things out in full, and use multiple small hunks.\
+Complete the Code Planning step and Code Modification step.
+Remember to NOT write ellipses, code things out in full, and use multiple small hunks.\
 """
 
 modify_recreate_file_prompt_3 = """\
@@ -499,7 +499,7 @@ Respond in the following format. Both the Code Planning and Code Modification st
 
 Code Planning:
 
-Thoughts and detailed plan of modifications:
+Thoughts and detailed plan:
 * The request asks me to change the file from a to b
 * Replace x with y in the section involving z
 * Add a foo method to bar
