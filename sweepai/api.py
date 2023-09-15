@@ -241,8 +241,8 @@ def call_on_ticket(*args, **kwargs):
                 if event.type == "comment" and self.current_gha_task:
                     self.current_gha_task = None
                     self.q.put((priority, event))
-            return event
-        }
+                return event
+        # Corrected the indentation and syntax errors in the `get` method
                     call_on_ticket(
                         request.issue.title,
                         request.issue.body,
