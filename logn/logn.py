@@ -88,6 +88,8 @@ class _Task:
         self.task_key = logn_task_key
         self.metadata = metadata
         self.parent_task = logn_parent_task
+        if self.metadata is None:
+            self.metadata = {}
         if "name" not in self.metadata:
             self.metadata["name"] = str(self.task_key.name.split(" ")[0])
         self.create_file = create_file
@@ -242,21 +244,17 @@ class _LogN(_Logger):
     def __getitem__(self, printfn):
         return _Logger(printfn=printfn)
 
-    @staticmethod
-    def print(*args, **kwargs):
-        _LogN()[print](*args, **kwargs)
+    def print(self, *args, **kwargs):
+        self[print](*args, **kwargs)
 
-    @staticmethod
-    def info(*args, **kwargs):
-        _LogN()[logger.info](*args, **kwargs)
+    def info(self, *args, **kwargs):
+        self[logger.info](*args, **kwargs)
 
-    @staticmethod
-    def error(*args, **kwargs):
-        _LogN()[logger.error](*args, **kwargs)
+    def error(self, *args, **kwargs):
+        self[logger.error](*args, **kwargs)
 
-    @staticmethod
-    def warning(*args, **kwargs):
-        _LogN()[logger.warning](*args, **kwargs)
+    def warning(self, *args, **kwargs):
+        self[logger.warning](*args, **kwargs)
 
     @staticmethod
     def close():
