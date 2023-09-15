@@ -81,16 +81,14 @@ def run_on_check_suite(*args, **kwargs):
     if pr_change_request:
         call_on_comment(**pr_change_request.params)
         logger.info("Done with on_check_suite")
-    else:
-        logger.info("Skipping on_check_suite as no pr_change_request was returned")
-
-
-def call_on_ticket(*args, **kwargs):
-    global on_ticket_events
-    key = f"{args[5]}-{args[2]}"  # Full name, issue number as key
-
-    # Use multithreading
-    # Check if a previous process exists for the same key, cancel it
+    239:     def get(self):
+    240:         with self.lock:
+    241:             event = self.q.get()[1]  # Only return the event, not the priority
+    242:             if event.type == "comment" and self.current_gha_task:
+    243:                 self.current_gha_task = None
+    244:                 self.q.put((priority, event))
+    245:             return event
+    ...
     e = on_ticket_events.get(key, None)
     if e:
         logger.info(f"Found previous thread for key {key} and cancelling it")
