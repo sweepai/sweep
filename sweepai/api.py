@@ -106,6 +106,12 @@ def call_on_check_suite(*args, **kwargs):
     repo_full_name = kwargs["request"].repository.full_name
     pr_number = kwargs["request"].check_run.pull_requests[0].number
     key = f"{repo_full_name}-{pr_number}"
+
+    # Remove the old GitHub Action tasks if they exist
+    for task in list(events[key].queue):
+        if isinstance(task, GitHubActionTask):
+            events[key].queue.remove(task)
+
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
@@ -120,6 +126,11 @@ def call_on_comment(
 
     if key not in events:
         events[key] = Queue()
+
+    # Remove the current GitHub Action task if it exists
+    for task in list(events[key].queue):
+        if isinstance(task, GitHubActionTask):
+            events[key].queue.remove(task)
 
     def worker():
         while not events[key].empty():
