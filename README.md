@@ -29,7 +29,7 @@
 
 ---
 
-<b>Sweep</b> is an AI junior developer that transforms bug reports & feature requests into code changes.
+<b>Sweep</b> is an AI junior developer that transforms bug reports & feature requests into code changes. 🤖
 
 Describe bugs, small features, and refactors like you would to a junior developer, and Sweep:
 1. Reads your codebase
