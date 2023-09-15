@@ -162,7 +162,7 @@ def on_check_suite(request: CheckRunCompleted):
         log_message.format(error_logs=problematic_logs)
     )
     pr_change_request = PRChangeRequest(
-        type="comment",
+        type="gha",
         params={
             "repo_full_name": request.repository.full_name,
             "repo_description": request.repository.description,
@@ -175,4 +175,6 @@ def on_check_suite(request: CheckRunCompleted):
             "comment_id": comment.id,
         },
     )
+    safe_priority_queue = SafePriorityQueue()
+    safe_priority_queue.put(1, pr_change_request)  # GitHub Actions have lower priority than comments
     return pr_change_request
