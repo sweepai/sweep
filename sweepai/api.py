@@ -112,10 +112,10 @@ def call_on_ticket(*args, **kwargs):
 
         def get(self):
             with self.lock:
-                priority, event = self.q.get()  # Retrieve both the priority and the event from the queue
+                event = self.q.get()[1]  # Only return the event, not the priority
                 if event.type == "comment" and self.current_gha_task:
                     self.current_gha_task = None
-                    self.q.put((priority, self.current_gha_task))  # Put the current GitHub Action task back into the queue with its original priority
+                    self.q.put((priority, event))
                 return event
     def call_on_check_suite(*args, **kwargs):
         repo_full_name = kwargs["request"].repository.full_name
@@ -235,13 +235,13 @@ def call_on_ticket(*args, **kwargs):
                         "success": True,
                         "reason": "Comment does not start with 'Sweep', passing",
                     }
-        def get(self):
-            with self.lock:
-                event = self.q.get()[1]  # Only return the event, not the priority
-                if event.type == "comment" and self.current_gha_task:
-                    self.current_gha_task = None
-                    self.q.put((priority, event))
-            return event
+            def get(self):
+                with self.lock:
+                    event = self.q.get()[1]  # Only return the event, not the priority
+                    if event.type == "comment" and self.current_gha_task:
+                        self.current_gha_task = None
+                        self.q.put((priority, event))
+                return event
         }
         call_on_ticket(
                         request.issue.title,
