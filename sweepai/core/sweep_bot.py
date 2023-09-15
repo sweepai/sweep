@@ -2,6 +2,7 @@ import traceback
 import re
 import requests
 from typing import Generator, Any, Dict
+from logn import logn
 
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
