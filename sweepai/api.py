@@ -1,5 +1,5 @@
 import ctypes
-from queue import Queue
+from sweepai.utils.safe_priority_queue import SafePriorityQueue
 import sys
 import threading
 
@@ -105,6 +105,8 @@ def call_on_check_suite(*args, **kwargs):
     repo_full_name = kwargs["request"].repository.full_name
     pr_number = kwargs["request"].check_run.pull_requests[0].number
     key = f"{repo_full_name}-{pr_number}"
+    if key not in events:
+        events[key] = SafePriorityQueue()
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
@@ -118,14 +120,14 @@ def call_on_comment(
     key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
 
     if key not in events:
-        events[key] = Queue()
+        events[key] = SafePriorityQueue()
 
     def worker():
         while not events[key].empty():
             task_args, task_kwargs = events[key].get()
             on_comment(*task_args, **task_kwargs)
 
-    events[key].put((args, kwargs))
+    events[key].put(1, (args, kwargs))  # Priority 1 for comments
 
     # If a thread isn't running, start one
     if not any(
@@ -458,7 +460,7 @@ async def webhook(raw_request: Request):
                 if pull_requests:
                     pr = repo.get_pull(pull_requests[0].number)
                     if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
-                        call_on_check_suite(request=request)
+                        events[key].put(2, (request=request))  # Priority 2 for GitHub Action calls
                 else:
                     logger.info("No pull requests, passing")
             case "installation_repositories", "added":
