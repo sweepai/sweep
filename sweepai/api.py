@@ -94,13 +94,15 @@ def call_on_ticket(*args, **kwargs):
     e = on_ticket_events.get(key, None)
     if e:
         logger.info(f"Found previous thread for key {key} and cancelling it")
-        terminate_thread(e)
-
-    thread = threading.Thread(target=on_ticket, args=args, kwargs=kwargs)
-    on_ticket_events[key] = thread
-    thread.start()
-
-
+    def put(self, priority, event):
+        with self.lock:
+            if event.type == "gha":
+                self.remove_old_gha_calls()
+                self.current_gha_task = event
+            elif event.type == "comment" and self.current_gha_task:
+                self.current_gha_task = None
+            self.q.put((priority, event))
+            self.invalidate_lower_priority(priority)
 def call_on_check_suite(*args, **kwargs):
     repo_full_name = kwargs["request"].repository.full_name
     pr_number = kwargs["request"].check_run.pull_requests[0].number
@@ -132,39 +134,21 @@ def call_on_comment(
         thread.name == key and thread.is_alive() for thread in threading.enumerate()
     ):
         thread = threading.Thread(target=worker, name=key)
-        thread.start()
-
-
-def call_on_merge(*args, **kwargs):
-    thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
-    thread.start()
-
-
-def call_on_write_docs(*args, **kwargs):
-    thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
-    thread.start()
-
-
-def call_get_deeplake_vs_from_repo(*args, **kwargs):
-    thread = threading.Thread(
-        target=get_deeplake_vs_from_repo, args=args, kwargs=kwargs
-    )
-    thread.start()
-
-
-@app.get("/health")
-def health_check():
-    return JSONResponse(
-        status_code=200,
-        content={"status": "UP", "port": sys.argv[-1] if len(sys.argv) > 0 else -1},
-    )
-
-
-@app.get("/", response_class=HTMLResponse)
-def home():
-    return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
-
-
+        class SafePriorityQueue:
+            def __init__(self):
+                self.q = queue.PriorityQueue()
+                self.lock = threading.Lock()
+                self.current_gha_task = None
+    def invalidate_lower_priority(self, priority):
+        if priority == "gha":
+            self.remove_old_gha_calls()
+        else:
+            temp_q = queue.PriorityQueue()
+            while not self.q.empty():
+                p, e = self.q.get()
+                if p <= priority:
+                    temp_q.put((p, e))
+            self.q = temp_q
 @app.post("/")
 async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
@@ -225,13 +209,12 @@ async def webhook(raw_request: Request):
                         return {
                             "success": True,
                             "reason": "Comment does not start with 'Sweep', passing",
-                        }
-
-                    # Update before we handle the ticket to make sure index is up to date
-                    # other ways suboptimal
-
-                    key = (request.repository.full_name, request.issue.number)
-
+    def get(self):
+        with self.lock:
+            event = self.q.get()[1]  # Only return the event, not the priority
+            if event.type == "comment" and self.current_gha_task:
+                self.current_gha_task = None
+            return event
                     call_on_ticket(
                         request.issue.title,
                         request.issue.body,
