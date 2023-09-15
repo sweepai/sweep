@@ -162,7 +162,7 @@ def on_check_suite(request: CheckRunCompleted):
         log_message.format(error_logs=problematic_logs)
     )
     pr_change_request = PRChangeRequest(
-        type="comment",
+        type="gha",
         params={
             "repo_full_name": request.repository.full_name,
             "repo_description": request.repository.description,
@@ -173,6 +173,7 @@ def on_check_suite(request: CheckRunCompleted):
             "installation_id": request.installation.id,
             "pr_number": request.check_run.pull_requests[0].number,
             "comment_id": comment.id,
+            "comment_type": "gha"
         },
     )
     return pr_change_request
