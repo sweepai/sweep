@@ -209,13 +209,13 @@ async def webhook(raw_request: Request):
                         return {
                             "success": True,
                             "reason": "Comment does not start with 'Sweep', passing",
-    def get(self):
-        with self.lock:
-            event = self.q.get()[1]  # Only return the event, not the priority
-            if event.type == "comment" and self.current_gha_task:
-                self.current_gha_task = None
-                self.q.put((priority, event))
-            return event
+        def get(self):
+            with self.lock:
+                event = self.q.get()[1]  # Only return the event, not the priority
+                if event.type == "comment" and self.current_gha_task:
+                    self.current_gha_task = None
+                    self.q.put((priority, event))
+                return event
                     call_on_ticket(
                         request.issue.title,
                         request.issue.body,
