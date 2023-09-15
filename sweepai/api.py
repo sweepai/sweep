@@ -108,10 +108,11 @@ def call_on_check_suite(*args, **kwargs):
     key = f"{repo_full_name}-{pr_number}"
 
     # Remove any existing GitHub action tasks from the queue
+    # Here, we are using unique identifiers for tasks to identify them in the queue
     for event_key, queue in events.items():
         if event_key == key:
             queue.queue = [
-                task for task in queue.queue if "on_check_suite" not in task
+                task for task in queue.queue if task.unique_id != "on_check_suite"
             ]
 
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
@@ -127,10 +128,11 @@ def call_on_comment(
     key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
 
     # Stop the current GitHub action task if it's running
+    # Here, we are using the terminate_thread function to terminate a thread
     for event_key, queue in events.items():
         if event_key != key and not queue.empty():
             task_args, task_kwargs = queue.queue[0]
-            if "on_check_suite" in task_args or "on_check_suite" in task_kwargs:
+            if task_args.unique_id == "on_check_suite" or task_kwargs.unique_id == "on_check_suite":
                 terminate_thread(queue)
 
     if key not in events:
