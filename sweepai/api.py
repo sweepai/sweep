@@ -114,7 +114,7 @@ def terminate_thread(thread):
 
 def call_on_ticket(*args, **kwargs):
     global on_ticket_events
-    key = f"{args[5]}-{args[2]}"  # Full name, issue number as key
+    key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
 
     # Use multithreading
     # Check if a previous process exists for the same key, cancel it
