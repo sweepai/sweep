@@ -6,6 +6,7 @@ import re
 import time
 from functools import lru_cache
 from typing import Generator, List
+import traceback
 
 import replicate
 import numpy as np
@@ -122,9 +123,9 @@ def embed_texts(texts: tuple[str]):
                     )
                     embeddings.extend([r["embedding"] for r in response["data"]])
                 except Exception as e:
-                    logger.error(e)
+                    logger.error(traceback.format_exc())
                     logger.error(f"Failed to get embeddings for {batch}")
-            return embeddings
+                return embeddings
         case "huggingface":
             if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
                 embeddings = []
@@ -322,7 +323,7 @@ def get_relevant_snippets(
     try:
         results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
     except Exception as e:
-        logger.error(e)
+        logger.error(traceback.format_exc())
     logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
         logger.info(f"Results query {query} was empty")
