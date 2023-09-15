@@ -119,7 +119,6 @@ def construct_trigrams(tokens):
 
 
 class CodeTokenizer(Tokenizer):
-
     def __call__(
         self,
         value,
@@ -150,8 +149,10 @@ class Document:
 
 
 def snippets_to_docs(snippets, len_repo_cache_dir):
+    from tqdm import tqdm
+
     docs = []
-    for snippet in snippets:
+    for snippet in tqdm(snippets):
         docs.append(
             Document(
                 title=snippet.file_path[len_repo_cache_dir:],
@@ -169,7 +170,27 @@ from whoosh import index
 from whoosh.fields import Schema, TEXT, NUMERIC
 
 
+def get_stopwords(snippets):
+    from collections import Counter
+    from tqdm import tqdm
+
+    # Assuming your CodeTokenizer is defined and works for your specific content
+    tokenizer = CodeTokenizer()
+
+    # Let's say your content is in a variable called "content"
+    chunks = [snippet.content for snippet in tqdm(snippets)]
+    tokens = [t.text for t in tqdm(tokenizer("\n".join(chunks)))]
+    # Count the frequency of each word
+    word_counts = Counter(tqdm(tokens))
+
+    # Identify the top 10 most frequent words
+    top_words = {word for word, _ in word_counts.most_common(10)}
+    return top_words
+
+
 def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
+    from tqdm import tqdm
+
     all_docs = snippets_to_docs(snippets, len_repo_cache_dir)
     # Tokenizer that splits by whitespace and common code punctuation
     tokenizer = CodeTokenizer()
@@ -189,7 +210,7 @@ def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
     ix = storage.create_index(schema)
     # writer.cancel()
     writer = ix.writer()
-    for doc in all_docs:
+    for doc in tqdm(all_docs, total=len(all_docs)):
         writer.add_document(
             title=doc.title, content=doc.content, start=doc.start, end=doc.end
         )
