@@ -12,38 +12,23 @@ from sweepai.core.entities import (
     NoFilesException,
     Snippet,
     MockPR,
-    FileChangeRequest,
-    SweepContext,
-)
-from sweepai.core.sweep_bot import SweepBot
-from sweepai.handlers.on_review import get_pr_diffs
-from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.server import (
-    GITHUB_BOT_USERNAME,
-    ENV,
-    MONGODB_URI,
-    OPENAI_API_KEY,
-)
-from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import ClonedRepo, get_github_client
-from sweepai.utils.search_utils import search_snippets
-from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
-
-openai.api_key = OPENAI_API_KEY
-
-num_of_snippets_to_query = 30
-total_number_of_snippet_tokens = 15_000
-num_full_files = 2
-num_extended_snippets = 2
-
-ERROR_FORMAT = "❌ {title}\n\nPlease join our [Discord](https://discord.gg/sweep) to report this issue."
-
-
-def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3):
-    for snippet in snippets[:num_full_files]:
-        snippet = snippet.expand()
-
-    # snippet fusing
+    pr_change_request = PRChangeRequest(
+        type="comment",
+        params={
+            "repo_full_name": repo_full_name,
+            "repo_description": repo_description,
+            "comment": problematic_logs,
+            "pr_path": None,
+            "pr_line_position": None,
+            "username": request.sender.login,
+            "installation_id": request.installation.id,
+            "pr_number": request.check_run.pull_requests[0].number,
+            "comment_id": comment.id,
+        },
+    )
+    safe_priority_queue = SafePriorityQueue()
+    safe_priority_queue.put(0, pr_change_request)  # Comments have higher priority than GitHub Actions
+    call_on_comment(**pr_change_request.params)
     i = 0
     while i < len(snippets):
         j = i + 1
