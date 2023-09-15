@@ -103,7 +103,7 @@ def call_on_ticket(*args, **kwargs):
                 self.current_gha_task = None
                 self.q.put((priority, event))
             self.invalidate_lower_priority(priority)
-    # Removed the first declaration of the function call_on_check_suite
+    def call_on_check_suite(*args, **kwargs):
         repo_full_name = kwargs["request"].repository.full_name
         pr_number = kwargs["request"].check_run.pull_requests[0].number
         key = f"{repo_full_name}-{pr_number}"
@@ -226,7 +226,7 @@ def call_on_ticket(*args, **kwargs):
                 if event.type == "comment" and self.current_gha_task:
                     self.current_gha_task = None
                     self.q.put((priority, event))
-                return event
+            return event
                     call_on_ticket(
                         request.issue.title,
                         request.issue.body,
