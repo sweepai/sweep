@@ -85,38 +85,39 @@ def run_on_check_suite(*args, **kwargs):
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
 
 
-def call_on_ticket(*args, **kwargs):
-    global on_ticket_events
-    key = f"{args[5]}-{args[2]}"  # Full name, issue number as key
+    def call_on_ticket(*args, **kwargs):
+        global on_ticket_events
+        key = f"{args[5]}-{args[2]}"  # Full name, issue number as key
 
-    # Use multithreading
-    # Check if a previous process exists for the same key, cancel it
-    e = on_ticket_events.get(key, None)
-    if e:
-        logger.info(f"Found previous thread for key {key} and cancelling it")
-    class SafePriorityQueue:
-        def __init__(self):
-            self.q = queue.PriorityQueue()
-            self.lock = threading.Lock()
-            self.current_gha_task = None
+        # Use multithreading
+        # Check if a previous process exists for the same key, cancel it
+        e = on_ticket_events.get(key, None)
+        if e:
+            logger.info(f"Found previous thread for key {key} and cancelling it")
+        class SafePriorityQueue:
+            def __init__(self):
+                self.q = queue.PriorityQueue()
+                self.lock = threading.Lock()
+                self.current_gha_task = None
 
-        def put(self, priority, event):
-            with self.lock:
-                if event.type == "gha":
-                    self.remove_old_gha_calls()
-                    self.current_gha_task = event
-                elif event.type == "comment" and self.current_gha_task:
-                    self.current_gha_task = None
-                    self.q.put((priority, event))
-                self.invalidate_lower_priority(priority)
+            def put(self, priority, event):
+                with self.lock:
+                    if event.type == "gha":
+                        self.remove_old_gha_calls()
+                        self.current_gha_task = event
+                    elif event.type == "comment" and self.current_gha_task:
+                        self.current_gha_task = None
+                        self.q.put((priority, event))
+                    self.invalidate_lower_priority(priority)
 
-        def get(self):
-            with self.lock:
-                priority, event = self.q.get()  # Get both priority and event
-                if event.type == "comment" and self.current_gha_task:
-                    self.current_gha_task = None
-                    self.q.put((priority, event))
-                return event
+            def get(self):
+                with self.lock:
+                    priority, event = self.q.get()  # Get both priority and event
+                    if event.type == "comment" and self.current_gha_task:
+                        self.current_gha_task = None
+                        self.q.put((priority, event))
+                    return event
+        # }
     def call_on_check_suite(*args, **kwargs):
         repo_full_name = kwargs["request"].repository.full_name
         pr_number = kwargs["request"].check_run.pull_requests[0].number
@@ -180,6 +181,7 @@ def call_on_ticket(*args, **kwargs):
                         self.current_gha_task = None
                         self.q.put((priority, event))
                     return event
+        # }
         assert event is not None
         action = request_dict.get("action", None)
         logger.bind(event=event, action=action)
