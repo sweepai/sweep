@@ -26,7 +26,7 @@ code_replaces = """
 URL replacement in docs/Recipes.md
 
 <<<< ORIGINAL
-Also see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/tricks).
+Also see [✨ Tips and tricks for Sweep]().
 ====
 Also see [✨ Tips and tricks for Sweep](https://docs.sweep.dev/usage/advanced).
 >>>> UPDATED
