@@ -144,8 +144,11 @@ def call_on_comment(
 
     def worker():
         while not events[key].empty():
-            task_args, task_kwargs = events[key].get()
-            on_comment(*task_args, **task_kwargs)
+            pr_change_request = safe_priority_queue.get()
+            if pr_change_request.type == "comment":
+                on_comment(**pr_change_request.params)
+            elif pr_change_request.type == "gha":
+                on_check_suite(pr_change_request.params["request"])
 
     events[key].put((args, kwargs))
 
