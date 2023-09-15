@@ -103,12 +103,6 @@ def call_on_ticket(*args, **kwargs):
                 self.current_gha_task = None
                 self.q.put((priority, event))
             self.invalidate_lower_priority(priority)
-    def call_on_check_suite(*args, **kwargs):
-        repo_full_name = kwargs["request"].repository.full_name
-        pr_number = kwargs["request"].check_run.pull_requests[0].number
-        key = f"{repo_full_name}-{pr_number}"
-        thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
-        thread.start()
 
 
 def call_on_comment(
@@ -139,6 +133,13 @@ def call_on_comment(
                 self.q = queue.PriorityQueue()
                 self.lock = threading.Lock()
                 self.current_gha_task = None
+        
+            def call_on_check_suite(self, *args, **kwargs):
+                repo_full_name = kwargs["request"].repository.full_name
+                pr_number = kwargs["request"].check_run.pull_requests[0].number
+                key = f"{repo_full_name}-{pr_number}"
+                thread = threading.Thread(target=self.run_on_check_suite, args=args, kwargs=kwargs)
+                thread.start()
             def put(self, priority, event):
                 with self.lock:
                     if event.type == "gha":
