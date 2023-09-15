@@ -103,12 +103,12 @@ def call_on_ticket(*args, **kwargs):
                 self.current_gha_task = None
                 self.q.put((priority, event))
             self.invalidate_lower_priority(priority)
-
-
-def call_on_comment(
-    *args, **kwargs
-):  # TODO: if its a GHA delete all previous GHA and append to the end
-    global events
+    def call_on_check_suite(*args, **kwargs):
+        repo_full_name = kwargs["request"].repository.full_name
+        pr_number = kwargs["request"].check_run.pull_requests[0].number
+        key = f"{repo_full_name}-{pr_number}"
+        thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
+        thread.start()
     repo_full_name = kwargs["repo_full_name"]
     pr_id = kwargs["pr_number"]
     key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
