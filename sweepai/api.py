@@ -231,9 +231,10 @@ def call_on_ticket(*args, **kwargs):
                         .startswith(GITHUB_LABEL_NAME)
                     ):
                         logger.info("Comment does not start with 'Sweep', passing")
-                        return {
-                            "success": True,
-                            "reason": "Comment does not start with 'Sweep', passing",
+                    return {
+                        "success": True,
+                        "reason": "Comment does not start with 'Sweep', passing",
+                    }
         def get(self):
             with self.lock:
                 event = self.q.get()[1]  # Only return the event, not the priority
