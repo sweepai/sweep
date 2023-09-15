@@ -746,7 +746,7 @@ def on_ticket(
             file_change_request, changed_file, sandbox_response, commit = item
             sandbox_response: SandboxResponse | None = sandbox_response
             format_exit_code = (
-                lambda exit_code: "✅" if exit_code == 0 else f"❌ (`{exit_code}`)"
+                lambda exit_code: "✓" if exit_code == 0 else f"❌ (`{exit_code}`)"
             )
             print(sandbox_response)
             error_logs = (
