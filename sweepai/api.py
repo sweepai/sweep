@@ -149,13 +149,14 @@ def call_on_comment(
                 if p <= priority:
                     temp_q.put((p, e))
             self.q = temp_q
-@app.post("/")
-async def webhook(raw_request: Request):
-    """Handle a webhook request from GitHub."""
-    try:
-        request_dict = await raw_request.json()
-        logger.info(f"Received request: {request_dict.keys()}")
-        event = raw_request.headers.get("X-GitHub-Event")
+    
+    def get(self):
+        with self.lock:
+            event = self.q.get()[1]  # Only return the event, not the priority
+            if event.type == "comment" and self.current_gha_task:
+                self.current_gha_task = None
+                self.q.put((priority, event))
+            return event
         assert event is not None
         action = request_dict.get("action", None)
         logger.bind(event=event, action=action)
