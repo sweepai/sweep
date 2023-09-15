@@ -241,6 +241,7 @@ def call_on_ticket(*args, **kwargs):
                     self.current_gha_task = None
                     self.q.put((priority, event))
             return event
+        }
                     call_on_ticket(
                         request.issue.title,
                         request.issue.body,
