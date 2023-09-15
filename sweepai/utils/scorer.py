@@ -28,7 +28,7 @@ def get_factors(commits):
     return (1, commit_count, days_since_last_modified)
 
 
-def convert_to_percentiles(values, max_percentile=0.1):
+def convert_to_percentiles(values, max_percentile=0.25):
     sorted_values = sorted(values)  # Sort the values in ascending order
     n = len(sorted_values)
     percentile_mapping = {
@@ -57,7 +57,7 @@ def get_scores(score_factors):
             line_count_scores, commit_count_scores, days_since_last_modified_scores
         )
     ]
-    return convert_to_percentiles(scores, 0.1)
+    return convert_to_percentiles(scores, 0.25)
 
 
 def merge_and_dedup_snippets(snippet_lists: list[list[Snippet]]) -> list[Snippet]:

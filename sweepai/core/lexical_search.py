@@ -208,7 +208,6 @@ def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
     # Create the index based on the schema
     storage = RamStorage()
     ix = storage.create_index(schema)
-    # writer.cancel()
     writer = ix.writer()
     for doc in tqdm(all_docs, total=len(all_docs)):
         writer.add_document(
@@ -270,7 +269,9 @@ def search_docs(query, ix):
         # min max normalize scores from 0.5 to 1
         max_score = max(res.values())
         min_score = min(res.values()) if min(res.values()) < max_score else 0
-        return {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
+        res = {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
+    ix.writer().cancel()
+    return res
 
 
 def search_index(query, ix):
@@ -295,9 +296,9 @@ def search_index(query, ix):
             else:
                 max_score = max(res.values())
                 min_score = min(res.values()) if min(res.values()) < max_score else 0
-            return {
-                k: (v - min_score) / (max_score - min_score) for k, v in res.items()
-            }
+            res = {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
+        ix.writer().cancel()
+        return res
     except Exception as e:
         print(e)
         traceback.print_exc()

@@ -55,20 +55,17 @@ human_message_review_prompt = [
         "role": "user",
         "content": """{relevant_directories}""",
     },
+    {"role": "user", "content": """{plan}"""},
     {
         "role": "user",
-        "content": """{plan}"""
-    },
-    {
-        "role": "user",
-        "content": """These are the file changes. 
+        "content": """These are the file changes.
 Use the diffs along with the original plan to verify if each step of the plan was implemented.
 {diffs}""",
     },
 ]
 
 snippet_replacement = """
-In order to address this issue, what required information do you need about the snippets? Only include relevant code that provides you enough detail about the snippets for the problems:
+In order to address this issue, what required information do you need about the snippets? Only include relevant code and required file imports that provides you enough detail about the snippets for the problems:
 
 <contextual_thoughts>
 * Thought_1
@@ -201,7 +198,7 @@ Then, provide a list of files you would like to modify, abiding by the following
 * You may only create, modify, rewrite, delete and rename files
 * Modify tweaks existing code (adding logs, typing, docstrings, etc) whereas rewrite recreates the entire file (migration, changing frameworks etc)
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
-* Use detailed, natural language instructions on what to modify regarding business logic, and do not add low-level details like imports
+* Use detailed, natural language instructions on what to modify regarding business logic, but make reference to files to import
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
 * Create/modify up to 5 FILES
 * Do not modify non-text files such as images, svgs, binary, etc
@@ -309,11 +306,6 @@ Reply in the following format:
 Step-by-step thoughts with explanations:
 * Thought 1
 * Thought 2
-...
-
-Detailed plan of additions:
-* Addition 1
-* Addition 2
 ...
 
 <new_file>
@@ -464,8 +456,8 @@ User's request:
 Limit your changes to the request.
 
 Instructions:
-1. Complete the Code Planning step
-2. Complete the Code Modification step, remembering to NOT write ellipses, code things out in full, and use multiple small hunks.\
+Complete the Code Planning step and Code Modification step.
+Remember to NOT write ellipses, code things out in full, and use multiple small hunks.\
 """
 
 modify_recreate_file_prompt_3 = """\
@@ -507,7 +499,7 @@ Respond in the following format. Both the Code Planning and Code Modification st
 
 Code Planning:
 
-Thoughts and detailed plan of modifications:
+Thoughts and detailed plan:
 * The request asks me to change the file from a to b
 * Replace x with y in the section involving z
 * Add a foo method to bar
@@ -945,7 +937,7 @@ The snippets, relevant_paths_in_repo and repo_tree are 1:1. All files in the sni
 The unnecessary information will hurt your performance on this task, so we will prune relevant_paths_in_repo and repo_tree to keep only the absolutely necessary information.
 First, list all of the files and directories we should keep in do_not_remove. These files and directories will be kept.
 For relevant_paths_in_repo, list any irrelevant paths in irrelevant_paths_in_repo and they will be removed.
-For repo_tree, list any additional files or directories we don't need in irrelevant_repo_tree_paths. 
+For repo_tree, list any additional files or directories we don't need in irrelevant_repo_tree_paths.
 If you list a directory, you do not need to list its subdirectories or files in its subdirectories.
 Do not remove files or directories that are referenced in the issue title or descriptions.
 

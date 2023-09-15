@@ -1,4 +1,5 @@
 import os
+import traceback as tb
 import time
 from typing import Literal
 
@@ -85,6 +86,83 @@ def count_tokens(text: str):
     return len(tiktoken_model.encode(text, disallowed_special=()))
 
 
+class OpenAIProxy:
+    def __init__(self):
+        pass
+
+    def call_openai(self, model, messages, max_tokens, temperature):
+        try:
+            engine = None
+            if (
+                model == "gpt-3.5-turbo-16k"
+                or model == "gpt-3.5-turbo-16k-0613"
+                and os.getenv("OPENAI_API_ENGINE_GPT35") is not None
+            ):
+                engine = os.getenv("OPENAI_API_ENGINE_GPT35")
+            elif (
+                model == "gpt-4"
+                or model == "gpt-4-0613"
+                and os.getenv("OPENAI_API_ENGINE_GPT4") is not None
+            ):
+                engine = os.getenv("OPENAI_API_ENGINE_GPT4")
+            elif (
+                model == "gpt-4-32k"
+                or model == "gpt-4-32k-0613"
+                and os.getenv("OPENAI_API_ENGINE_GPT4_32K") is not None
+            ):
+                engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
+            if os.getenv("OPENAI_API_TYPE") is None or engine is None:
+                openai.api_key = os.getenv("OPENAI_API_KEY")
+                openai.api_base = "https://api.openai.com/v1"
+                openai.api_version = None
+                openai.api_type = "open_ai"
+                logger.info(f"Calling {model} on OpenAI.")
+                response = openai.ChatCompletion.create(
+                    model=model,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                )
+                return response["choices"][0].message.content
+            OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
+            logger.info(
+                f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
+            )
+            openai.api_type = os.getenv("OPENAI_API_TYPE")
+            openai.api_base = os.getenv("OPENAI_API_BASE")
+            openai.api_version = os.getenv("OPENAI_API_VERSION")
+            openai.api_key = os.getenv("AZURE_API_KEY")
+            response = openai.ChatCompletion.create(
+                engine=engine,
+                model=model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+            return response["choices"][0].message.content
+        except Exception as e:
+            if os.getenv("OPENAI_API_KEY"):
+                try:
+                    openai.api_key = os.getenv("OPENAI_API_KEY")
+                    openai.api_base = "https://api.openai.com/v1"
+                    openai.api_version = None
+                    openai.api_type = "open_ai"
+                    logger.info(f"Calling {model} with OpenAI.")
+                    response = openai.ChatCompletion.create(
+                        model=model,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                    )
+                    return response["choices"][0].message.content
+                except Exception as e:
+                    logger.error(f"OpenAI API Key found but error: {e}")
+            logger.error(f"OpenAI API Key not found and Azure Error: {e}")
+
+
+openai_proxy = OpenAIProxy()
+
+
 class ChatGPT(BaseModel):
     messages: list[Message] = [
         Message(
@@ -92,7 +170,11 @@ class ChatGPT(BaseModel):
             content=sandbox_code_repair_modify_system_prompt,
         )
     ]
-    model: OpenAIModel = "gpt-4-32k-0613"
+    model: OpenAIModel = (
+        "gpt-4-32k-0613"
+        if os.getenv("OPENAI_DO_HAVE_32K_MODEL_ACCESS")
+        else "gpt-4-0613"
+    )
     file_change_paths: list = []
 
     def chat(
@@ -143,6 +225,12 @@ class ChatGPT(BaseModel):
             )  # this is for the function tokens
         if "gpt-4" in model:
             max_tokens = min(max_tokens, 5000)
+        # Fix for self hosting where TPM limit is super low for GPT-4
+        if os.getenv("OPENAI_USE_3_5_MODEL_ONLY"):
+            model = "gpt-3.5-turbo-16k-0613"
+            max_tokens = (
+                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
+            )
 
         # Fix for self hosting where TPM limit is super low for GPT-4
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
@@ -160,15 +248,11 @@ class ChatGPT(BaseModel):
             retry_counter += 1
             token_sub = retry_counter * 200
             try:
-                output = (
-                    openai.ChatCompletion.create(
-                        model=model,
-                        messages=self.messages_dicts,
-                        max_tokens=max_tokens - token_sub,
-                        temperature=temperature,
-                    )
-                    .choices[0]
-                    .message["content"]
+                output = openai_proxy.call_openai(
+                    model=model,
+                    messages=self.messages_dicts,
+                    max_tokens=max_tokens - token_sub,
+                    temperature=temperature,
                 )
                 return output
             except Exception as e:
@@ -176,111 +260,6 @@ class ChatGPT(BaseModel):
                 raise e
 
         result = fetch()
-        logger.info(f"Output to call openai:\n{result}")
-        return result
-
-    async def achat(
-        self,
-        content: str,
-        model: OpenAIModel | None = None,
-        message_key: str | None = None,
-    ):
-        self.messages.append(Message(role="user", content=content, key=message_key))
-        model = model or self.model
-        response = await self.acall_openai(model=model)
-        self.messages.append(
-            Message(role="assistant", content=response, key=message_key)
-        )
-        self.prev_message_states.append(self.messages)
-        return self.messages[-1].content
-
-    async def acall_openai(
-        self,
-        model: OpenAIModel | None = None,
-    ):
-        if self.chat_logger is not None:
-            tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
-            tickets_count = self.chat_logger.get_ticket_count()
-            if tickets_count < tickets_allocated:
-                model = model or self.model
-                logger.warning(
-                    f"{tickets_count} tickets found in MongoDB, using {model}"
-                )
-            else:
-                model = "gpt-3.5-turbo-16k-0613"
-
-        messages_length = sum(
-            [count_tokens(message.content or "") for message in self.messages]
-        )
-        max_tokens = (
-            model_to_max_tokens[model] - int(messages_length) - 400
-        )  # this is for the function tokens
-        # TODO: Add a check to see if the message is too long
-        logger.info("file_change_paths" + str(self.file_change_paths))
-        if len(self.file_change_paths) > 0:
-            self.file_change_paths.remove(self.file_change_paths[0])
-        if max_tokens < 0:
-            if len(self.file_change_paths) > 0:
-                pass
-            else:
-                logger.error(f"Input to OpenAI:\n{self.messages_dicts}")
-                raise ValueError(f"Message is too long, max tokens is {max_tokens}")
-        messages_raw = "\n".join([(message.content or "") for message in self.messages])
-        logger.info(f"Input to call openai:\n{messages_raw}")
-
-        messages_dicts = [self.messages_dicts[0]]
-        for message_dict in self.messages_dicts[:1]:
-            if message_dict["role"] == messages_dicts[-1]["role"]:
-                messages_dicts[-1]["content"] += "\n" + message_dict["content"]
-            messages_dicts.append(message_dict)
-
-        gpt_4_buffer = 800
-        if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
-            model = "gpt-4-0613"
-            max_tokens = (
-                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
-            )  # this is for the function tokens
-        if "gpt-4" in model:
-            max_tokens = min(max_tokens, 5000)
-        # Fix for self hosting where TPM limit is super low for GPT-4
-        logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
-        global retry_counter
-        retry_counter = 0
-
-        async def fetch():
-            for time_to_sleep in [10, 10, 20, 30, 60]:
-                global retry_counter
-                retry_counter += 1
-                token_sub = retry_counter * 200
-                try:
-                    output = (
-                        (
-                            await openai.ChatCompletion.acreate(
-                                model=model,
-                                messages=self.messages_dicts,
-                                max_tokens=max_tokens - token_sub,
-                                temperature=temperature,
-                            )
-                        )
-                        .choices[0]
-                        .message["content"]
-                    )
-                    if self.chat_logger is not None:
-                        self.chat_logger.add_chat(
-                            {
-                                "model": model,
-                                "messages": self.messages_dicts,
-                                "max_tokens": max_tokens - token_sub,
-                                "temperature": temperature,
-                                "output": output,
-                            }
-                        )
-                    return output
-                except Exception as e:
-                    logger.warning(e)
-                    time.sleep(time_to_sleep + backoff.random_jitter(5))
-
-        result = await fetch()
         logger.info(f"Output to call openai:\n{result}")
         return result
 

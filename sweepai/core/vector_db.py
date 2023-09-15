@@ -10,7 +10,7 @@ from typing import Generator, List
 import replicate
 import numpy as np
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
-    DeepLakeVectorStore,
+    VectorStore,
 )
 from github import Github
 from loguru import logger
@@ -44,8 +44,6 @@ import openai
 
 MODEL_DIR = "cache/model"
 DEEPLAKE_DIR = "cache/"
-DISKCACHE_DIR = "cache/diskcache/"
-DEEPLAKE_FOLDER = "cache/deeplake/"
 timeout = 60 * 60  # 30 minutes
 CACHE_VERSION = "v1.0.13"
 MAX_FILES = 500
@@ -62,8 +60,10 @@ def download_models():
 
 
 def init_deeplake_vs(repo_name):
-    deeplake_repo_path = f"mem://{DEEPLAKE_FOLDER}{repo_name}"
-    deeplake_vector_store = DeepLakeVectorStore(path=deeplake_repo_path)
+    deeplake_repo_path = f"mem://{int(time.time())}{repo_name}"
+    deeplake_vector_store = VectorStore(
+        path=deeplake_repo_path, read_only=False, overwrite=False
+    )
     return deeplake_vector_store
 
 
@@ -145,7 +145,9 @@ def embed_texts(texts: tuple[str]):
                 raise Exception("Replicate URL and token not set")
         case _:
             raise Exception("Invalid vector embedding mode")
-    logger.info(f"Computed embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}")
+    logger.info(
+        f"Computed embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}"
+    )
 
 
 def embedding_function(texts: list[str]):
@@ -153,20 +155,11 @@ def embedding_function(texts: list[str]):
     return embed_texts(tuple(texts))
 
 
-def get_cache_key(cloned_repo: ClonedRepo, sweep_config: SweepConfig):
-    params = f"{cloned_repo.repo_full_name}--{cloned_repo.git_repo.head.object.hexsha}--{sweep_config}"
-    return hashlib.sha256(params.encode()).hexdigest()
-
-
 def get_deeplake_vs_from_repo(
     cloned_repo: ClonedRepo,
     sweep_config: SweepConfig = SweepConfig(),
 ):
-    cache_key = get_cache_key(cloned_repo, sweep_config)
-    deeplake_file_path = os.path.join("cache/deeplake/", cache_key)
     deeplake_vs = None
-    if os.path.exists(deeplake_file_path):
-        deeplake_vs = DeepLakeVectorStore(deeplake_file_path)
 
     repo_full_name = cloned_repo.repo_full_name
     repo = cloned_repo.repo
@@ -231,16 +224,13 @@ def get_deeplake_vs_from_repo(
     collection_name = parse_collection_name(repo_full_name)
 
     deeplake_vs = deeplake_vs or compute_deeplake_vs(
-        collection_name, documents, ids, metadatas, commit_hash, deeplake_file_path
+        collection_name, documents, ids, metadatas, commit_hash
     )
 
     return deeplake_vs, index, len(documents)
 
 
-def compute_deeplake_vs(
-    collection_name, documents, ids, metadatas, sha, vector_db_path
-):
-    deeplake_vs = DeepLakeVectorStore(vector_db_path)
+def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
     if len(documents) > 0:
         logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
         # Check cache here for all documents
@@ -284,6 +274,7 @@ def compute_deeplake_vs(
             embeddings = np.array(embeddings, dtype=np.float32)
 
         logger.info("Adding embeddings to deeplake vector store...")
+        deeplake_vs = init_deeplake_vs(collection_name)
         deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
         logger.info("Added embeddings to deeplake vector store")
         if redis_client and len(documents_to_compute) > 0:
