@@ -3,33 +3,10 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 
-class Account(BaseModel):
-    id: int
-    login: str
+class PRChangeRequest(BaseModel):
     type: str
-
-
-class Installation(BaseModel):
-    id: Any | None = None
-    account: Account | None = None
-
-
-class InstallationCreatedRequest(BaseModel):
-    class Repository(BaseModel):
-        full_name: str
-
-    repositories: list[Repository]
-    installation: Installation
-
-
-class ReposAddedRequest(BaseModel):
-    class Repository(BaseModel):
-        full_name: str
-
-    repositories_added: list[Repository]
-    installation: Installation
-
-
+    params: dict
+    comment_type: str
 class CommentCreatedRequest(BaseModel):
     class Comment(BaseModel):
         class User(BaseModel):
