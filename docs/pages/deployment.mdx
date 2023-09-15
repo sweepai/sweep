@@ -181,16 +181,17 @@ Recommended minimum specs:
 - CPU: 4 vCPUs
 - Storage: 50 GB
 
-### 2. Install Docker
+### 2. Install Docker and docker-compose
 ```sh
 sudo apt install docker.io -y
+sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
 ```
 
 ### 3. Pull Image
 ```sh
 git clone https://github.com/sweepai/sweep
 cd sweep
-docker compose pull
+docker-compose pull
 ```
 
 ### 4. Configure `.env`
@@ -218,7 +219,7 @@ SENTENCE_TRANSFORMERS_MODEL=sentence-transformers/all-MiniLM-L6-v2
 
 ### 5. Launch Docker Image
 ```sh
-docker compose up # Add -d to run in background
+docker-compose up # Add -d to run in background
 ```
 
 ### 6. Update GitHub Webhook URL
