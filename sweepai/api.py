@@ -101,7 +101,7 @@ def call_on_ticket(*args, **kwargs):
                 self.current_gha_task = event
             elif event.type == "comment" and self.current_gha_task:
                 self.current_gha_task = None
-            self.q.put((priority, event))
+                self.q.put((priority, event))
             self.invalidate_lower_priority(priority)
 def call_on_check_suite(*args, **kwargs):
     repo_full_name = kwargs["request"].repository.full_name
@@ -214,6 +214,7 @@ async def webhook(raw_request: Request):
             event = self.q.get()[1]  # Only return the event, not the priority
             if event.type == "comment" and self.current_gha_task:
                 self.current_gha_task = None
+                self.q.put((priority, event))
             return event
                     call_on_ticket(
                         request.issue.title,
