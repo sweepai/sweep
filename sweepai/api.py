@@ -165,7 +165,7 @@ def call_on_ticket(*args, **kwargs):
                     if event.type == "comment" and self.current_gha_task:
                         self.current_gha_task = None
                         self.q.put((priority, event))
-                    return event
+                return event
             return event
         assert event is not None
         action = request_dict.get("action", None)
