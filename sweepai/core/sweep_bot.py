@@ -552,7 +552,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         code=contents_line_numbers,
                         line_count=line_count,
                     )
-    
+
                     self.messages[0].content = modify_recreate_file_system_message
                     modify_file_response = self.chat(
                         message,
@@ -983,7 +983,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     f"No changes made to {file_change_request.filename}. Skipping file"
                     " update."
                 )
-                return False, sandbox_error
+                return False, sandbox_error, "No changes made to file."
             logger.debug(
                 f"{file_name}, {commit_message}, {new_file_contents}, {branch}"
             )
