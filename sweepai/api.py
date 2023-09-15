@@ -110,15 +110,13 @@ def call_on_ticket(*args, **kwargs):
                     self.q.put((priority, event))
                 self.invalidate_lower_priority(priority)
 
-            def get(self):
-                with self.lock:
-                    event = self.q.get()[1]  # Only return the event, not the priority
-                    if event.type == "comment" and self.current_gha_task:
-                        self.current_gha_task = None
-                        self.q.put((priority, event))
-                    return event
-            # Added closing bracket for the SafePriorityQueue class
-            # ...
+        def get(self):
+            with self.lock:
+                priority, event = self.q.get()  # Get both priority and event
+                if event.type == "comment" and self.current_gha_task:
+                    self.current_gha_task = None
+                    self.q.put((priority, event))
+                return event
     def call_on_check_suite(*args, **kwargs):
         repo_full_name = kwargs["request"].repository.full_name
         pr_number = kwargs["request"].check_run.pull_requests[0].number
@@ -177,7 +175,7 @@ def call_on_ticket(*args, **kwargs):
                     self.q = temp_q
             def get(self):
                 with self.lock:
-                    event = self.q.get()[1]  # Only return the event, not the priority
+                    priority, event = self.q.get()  # Get both priority and event
                     if event.type == "comment" and self.current_gha_task:
                         self.current_gha_task = None
                         self.q.put((priority, event))
