@@ -56,11 +56,22 @@ on_ticket_events = {}
 
 
 def run_on_ticket(*args, **kwargs):
-    logn_logger.init(metadata={})
+    logn_logger.init(
+        metadata={
+            **kwargs,
+            "name": kwargs["username"],
+        }
+    )
     on_ticket(*args, **kwargs)
 
 
 def run_on_comment(*args, **kwargs):
+    logn_logger.init(
+        metadata={
+            **kwargs,
+            "name": kwargs["username"],
+        }
+    )
     on_comment(*args, **kwargs)
 
 
@@ -68,6 +79,12 @@ def run_on_check_suite(*args, **kwargs):
     request = kwargs["request"]
     pr_change_request = on_check_suite(request)
     if pr_change_request:
+        logn_logger.init(
+            metadata={
+                **pr_change_request.params,
+                "name": pr_change_request.params["username"],
+            }
+        )
         call_on_comment(**pr_change_request.params)
         logger.info("Done with on_check_suite")
     else:
