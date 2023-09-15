@@ -44,6 +44,10 @@ echo -e "\n${CYAN}${WHITE}--> Installing PyInstaller...${NC}\n"
 pip install pyinstaller
 exit_if_fail "Failed to install PyInstaller."
 
+echo -e "\n${CYAN}${WHITE}--> Installing Jupyter dependencies for Black...${NC}\n"
+pip install "black[jupyter]"
+exit_if_fail "Failed to install Jupyter dependencies for Black."
+
 echo -e "\n${CYAN}${WHITE}--> Creating standalone executable...${NC}\n"
 PYTHONPATH=. pyinstaller --onefile --paths ./src cli.py
 exit_if_fail "Failed to create standalone executable."
