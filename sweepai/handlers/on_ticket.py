@@ -14,7 +14,7 @@ from loguru import logger
 from tabulate import tabulate
 from tqdm import tqdm
 
-from logn.logn import LogTask
+from logn.logn import LogTask, logn_logger
 from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import extract_relevant_docs
 
@@ -153,7 +153,7 @@ def on_ticket(
         repo=repo,
         token=user_token,
     )
-    print(sweep_context)
+    logn_logger[print](sweep_context)
 
     if not comment_id and not edited and chat_logger:
         chat_logger.add_successful_ticket(
@@ -316,11 +316,11 @@ def on_ticket(
         )
 
     # Find Sweep's previous comment
-    print("USERNAME", GITHUB_BOT_USERNAME)
+    logn_logger[print]("USERNAME", GITHUB_BOT_USERNAME)
     for comment in comments:
-        print("COMMENT", comment.user.login)
+        logn_logger[print]("COMMENT", comment.user.login)
         if comment.user.login == GITHUB_BOT_USERNAME:
-            print("Found comment")
+            logn_logger[print]("Found comment")
             issue_comment = comment
 
     try:
@@ -758,7 +758,7 @@ def on_ticket(
             format_exit_code = (
                 lambda exit_code: "✅" if exit_code == 0 else f"❌ (`{exit_code}`)"
             )
-            print(sandbox_response)
+            logn_logger[print](sandbox_response)
             error_logs = (
                 (
                     create_collapsible(
@@ -784,7 +784,7 @@ def on_ticket(
                 else ""
             )
             if changed_file:
-                print("Changed File!")
+                logn_logger[print]("Changed File!")
                 commit_hash = (
                     commit.sha
                     if commit is not None
@@ -804,7 +804,7 @@ def on_ticket(
                     for filename, instructions, progress in checkboxes_progress
                 ]
             else:
-                print("Didn't change file!")
+                logn_logger[print]("Didn't change file!")
                 checkboxes_progress = [
                     (
                         (
@@ -1106,7 +1106,7 @@ def on_ticket(
         except Exception as e:
             logger.error(e)
             logger.error(traceback.format_exc())
-            print("Deleted branch", pull_request.branch_name)
+            logn_logger[print]("Deleted branch", pull_request.branch_name)
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
