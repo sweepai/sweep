@@ -94,15 +94,29 @@ def call_on_ticket(*args, **kwargs):
     e = on_ticket_events.get(key, None)
     if e:
         logger.info(f"Found previous thread for key {key} and cancelling it")
-    def put(self, priority, event):
-        with self.lock:
-            if event.type == "gha":
-                self.remove_old_gha_calls()
-                self.current_gha_task = event
-            elif event.type == "comment" and self.current_gha_task:
-                self.current_gha_task = None
-                self.q.put((priority, event))
-            self.invalidate_lower_priority(priority)
+    class SafePriorityQueue:
+        def __init__(self):
+            self.q = queue.PriorityQueue()
+            self.lock = threading.Lock()
+            self.current_gha_task = None
+
+        def put(self, priority, event):
+            with self.lock:
+                if event.type == "gha":
+                    self.remove_old_gha_calls()
+                    self.current_gha_task = event
+                elif event.type == "comment" and self.current_gha_task:
+                    self.current_gha_task = None
+                    self.q.put((priority, event))
+                self.invalidate_lower_priority(priority)
+
+        def get(self):
+            with self.lock:
+                event = self.q.get()[1]  # Only return the event, not the priority
+                if event.type == "comment" and self.current_gha_task:
+                    self.current_gha_task = None
+                    self.q.put((priority, event))
+                return event
     def call_on_check_suite(*args, **kwargs):
         repo_full_name = kwargs["request"].repository.full_name
         pr_number = kwargs["request"].check_run.pull_requests[0].number
