@@ -106,7 +106,7 @@ class _Task:
                         "task_key": self.name,
                         "logs": self.log_path,
                         "datetime": str(datetime.datetime.now()),
-                        "metadata": self.metadata,
+                        "metadata": self.metadata if self.metadata is not None else {},
                         # Todo: Write parent task in here
                         "parent_task": self.parent_task.meta_path
                         if self.parent_task is not None
