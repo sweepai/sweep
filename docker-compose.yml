@@ -1,6 +1,8 @@
 version: '2'
 services:
   webhook:
+    env_file:
+      - .env
     build:
       context: .
       dockerfile: Dockerfile
@@ -19,11 +21,15 @@ services:
     environment:
       - PORT=${PORT:-8080}
   sandbox:
+    env_file:
+      - .env
     build:
       context: sweepai/sandbox
       dockerfile: Dockerfile.sandbox
     image: sweepai/sandbox
   sandbox-web:
+    env_file:
+      - .env
     build:
       context: sweepai/sandbox
       dockerfile: Dockerfile.web
