@@ -8,7 +8,7 @@ from sweepai.config.client import SweepConfig
 from sweepai.utils.utils import chunk_code
 
 
-def filter_file(file, sweep_config: SweepConfig):
+def filter_file(directory, file, sweep_config: SweepConfig):
     """
     Check if a file should be filtered based on its size and other criteria.
 
@@ -23,7 +23,7 @@ def filter_file(file, sweep_config: SweepConfig):
         if file.endswith(ext):
             return False
     for dir_name in sweep_config.exclude_dirs:
-        if file[len("repo/") :].startswith(dir_name):
+        if file[len(directory) + 1 :].startswith(dir_name):
             return False
     if not os.path.isfile(file):
         return False
@@ -58,7 +58,12 @@ def repo_to_chunks(directory: str, sweep_config: SweepConfig) -> list:
 
     def is_dir_too_big(file_name):
         dir_name = os.path.dirname(file_name)
-        if file_name == "node_modules" or file_name == "venv":
+        only_file_name = file_name[: len(directory)]
+        if (
+            only_file_name == "node_modules"
+            or only_file_name == "venv"
+            or only_file_name == "patch"
+        ):
             return True
         if dir_name not in dir_file_count:
             dir_file_count[dir_name] = len(os.listdir(dir_name))
@@ -70,7 +75,8 @@ def repo_to_chunks(directory: str, sweep_config: SweepConfig) -> list:
     file_list = [
         file_name
         for file_name in file_list
-        if filter_file(file_name, sweep_config) and not is_dir_too_big(file_name)
+        if filter_file(directory, file_name, sweep_config)
+        and not is_dir_too_big(file_name)
     ]
     for file_name in file_list:
         logger.debug(f"Found file {file_name[len(directory):]}")

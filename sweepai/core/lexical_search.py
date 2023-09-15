@@ -191,16 +191,11 @@ def get_stopwords(snippets):
 def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
     from tqdm import tqdm
 
-    print(1)
     all_docs = snippets_to_docs(snippets, len_repo_cache_dir)
     # Tokenizer that splits by whitespace and common code punctuation
-    print(2)
-    stop_words = get_stopwords(snippets)
-    print(3)
-    tokenizer = CodeTokenizer(stop_words)
+    tokenizer = CodeTokenizer()
 
     # An example analyzer for code
-    print(4)
     code_analyzer = tokenizer
 
     schema = Schema(
@@ -215,12 +210,10 @@ def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
     ix = storage.create_index(schema)
     # writer.cancel()
     writer = ix.writer()
-    print(8)
     for doc in tqdm(all_docs, total=len(all_docs)):
         writer.add_document(
             title=doc.title, content=doc.content, start=doc.start, end=doc.end
         )
-    print("Done")
 
     writer.commit()
     return ix

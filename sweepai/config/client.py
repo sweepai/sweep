@@ -14,7 +14,13 @@ from sweepai.core.entities import EmptyRepository
 
 class SweepConfig(BaseModel):
     include_dirs: list[str] = []
-    exclude_dirs: list[str] = [".git", "node_modules", "venv"]
+    exclude_dirs: list[str] = [
+        ".git",
+        "node_modules",
+        "venv",
+        "patch",
+        "packages/blobs",
+    ]
     include_exts: list[str] = [
         ".cs",
         ".csharp",
