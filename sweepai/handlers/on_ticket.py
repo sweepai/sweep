@@ -233,7 +233,7 @@ def on_ticket(
     # Removed 1, 3
     progress_headers = [
         None,
-        "Step 1: 📍 Planning",
+        "Step 1: 🔎 Searching & 📍 Planning",
         "Step 2: ⌨️ Coding",
         "Step 3: 🔁 Code Review",
     ]

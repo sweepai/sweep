@@ -236,14 +236,8 @@ def prepare_index_from_docs(docs):
         content=TEXT(stored=True, analyzer=code_analyzer),
     )
 
-    # Create a directory to store the index
-    pid = random.randint(0, 100)
-    if not os.path.exists(f"indexdir_{pid}"):
-        os.mkdir(f"indexdir_{pid}")
-
-    # Create the index based on the schema
-    ix = index.create_in("indexdir_{pid}", schema)
-    # writer.cancel()
+    storage = RamStorage()
+    ix = storage.create_index(schema)
     writer = ix.writer()
     for doc in all_docs:
         writer.add_document(url=doc.url, content=doc.content)
@@ -297,9 +291,7 @@ def search_index(query, ix):
             else:
                 max_score = max(res.values())
                 min_score = min(res.values()) if min(res.values()) < max_score else 0
-            res = {
-                k: (v - min_score) / (max_score - min_score) for k, v in res.items()
-            }
+            res = {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
         ix.writer().cancel()
         return res
     except Exception as e:
