@@ -86,6 +86,30 @@ def run_on_comment(*args, **kwargs):
     logn.close()
 
 
+def run_on_merge(*args, **kwargs):
+    logn.init(
+        metadata={
+            **kwargs,
+            "name": "merge_" + kwargs["username"],
+        },
+        create_file=False,
+    )
+    on_merge(*args, **kwargs)
+    logn.close()
+
+
+def run_on_write_docs(*args, **kwargs):
+    logn.init(
+        metadata={
+            **kwargs,
+            "name": "docs_scrape",
+        },
+        create_file=False,
+    )
+    write_documentation(*args, **kwargs)
+    logn.close()
+
+
 def run_on_check_suite(*args, **kwargs):
     request = kwargs["request"]
     pr_change_request = on_check_suite(request)
@@ -175,12 +199,12 @@ def call_on_comment(
 
 
 def call_on_merge(*args, **kwargs):
-    thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=run_on_merge, args=args, kwargs=kwargs)
     thread.start()
 
 
 def call_on_write_docs(*args, **kwargs):
-    thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=run_on_write_docs, args=args, kwargs=kwargs)
     thread.start()
 
 
