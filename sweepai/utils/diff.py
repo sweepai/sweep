@@ -469,7 +469,7 @@ def sliding_window_replacement(
         # return original, None, IDENTICAL_LINES
         raise Exception("No identical lines")
 
-    if max_similarity < 0.5:
+    if max_similarity < 50:
         logger.print(f"Low similarity: {max_similarity}")
 
     # if current_hits > 1:
