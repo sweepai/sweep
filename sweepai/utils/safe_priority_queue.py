@@ -16,6 +16,10 @@ class SafePriorityQueue:
         with self.lock:
             return self.q.get()[1]  # Only return the event, not the priority
 
+    def empty(self):
+        with self.lock:
+            return self.q.empty()
+
     def invalidate_lower_priority(self, priority):
         temp_q = queue.PriorityQueue()
         with self.lock:
