@@ -9,13 +9,14 @@ import re
 import traceback
 import openai
 
+import github
 from github import GithubException
 from loguru import logger
 from tabulate import tabulate
 from tqdm import tqdm
+
 from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import extract_relevant_docs
-
 from sweepai.core.entities import (
     ProposedIssue,
     SandboxResponse,
@@ -366,7 +367,7 @@ def on_ticket(
     table = None  # Show plan so user can finetune prompt
 
     def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
-        nonlocal current_index
+        nonlocal current_index, user_token, g, repo, issue_comment
         # -1 = error, -2 = retry
         # Only update the progress bar if the issue generation errors.
         errored = index == -1
@@ -411,9 +412,18 @@ def on_ticket(
             suffix = bot_suffix  # don't include discord suffix for error messages
 
         # Update the issue comment
-        issue_comment.edit(
-            f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
-        )
+        try:
+            issue_comment.edit(
+                f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
+            )
+        except github.GithubException.BadCredentialsException:
+            logger.error("Bad credentials, refreshing token")
+            _user_token, g = get_github_client(installation_id)
+            repo = g.get_repo(repo_full_name)
+            issue_comment = repo.get_issue(current_issue.number)
+            issue_comment.edit(
+                f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
+            )
 
     if len(title + summary) < 20:
         logger.info("Issue too short")
@@ -442,7 +452,6 @@ def on_ticket(
                 -1,
             )
             return {"success": False}
-
 
     if lint_mode:
         # Get files to change
@@ -475,7 +484,15 @@ def on_ticket(
             ),
             -1,
         )
-        log_error(is_paying_user, is_trial_user, username, issue_url, "File Fetch", str(e) + "\n" + traceback.format_exc(), priority=1)
+        log_error(
+            is_paying_user,
+            is_trial_user,
+            username,
+            issue_url,
+            "File Fetch",
+            str(e) + "\n" + traceback.format_exc(),
+            priority=1,
+        )
         raise e
 
     snippets = post_process_snippets(
@@ -837,9 +854,7 @@ def on_ticket(
             3,
         )
         change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
-        review_message = (
-            "Here are my self-reviews of my changes at" + change_location
-        )
+        review_message = "Here are my self-reviews of my changes at" + change_location
 
         lint_output = None
         try:
@@ -863,7 +878,7 @@ def on_ticket(
                 replies_text=replies_text,
                 tree=tree,
                 lint_output=lint_output,
-                plan=plan, # plan for the PR
+                plan=plan,  # plan for the PR
                 chat_logger=chat_logger,
             )
             # Todo(lukejagg): Execute sandbox after each iteration
@@ -956,7 +971,10 @@ def on_ticket(
     except MaxTokensExceeded as e:
         logger.info("Max tokens exceeded")
         log_error(
-            is_paying_user, is_trial_user, username, issue_url, 
+            is_paying_user,
+            is_trial_user,
+            username,
+            issue_url,
             "Max Tokens Exceeded",
             str(e) + "\n" + traceback.format_exc(),
             priority=2,
@@ -986,7 +1004,10 @@ def on_ticket(
     except NoFilesException as e:
         logger.info("Sweep could not find files to modify")
         log_error(
-            is_paying_user, is_trial_user, username, issue_url, 
+            is_paying_user,
+            is_trial_user,
+            username,
+            issue_url,
             "Sweep could not find files to modify",
             str(e) + "\n" + traceback.format_exc(),
             priority=2,
@@ -1015,7 +1036,10 @@ def on_ticket(
             -1,
         )
         log_error(
-            is_paying_user, is_trial_user, username, issue_url, 
+            is_paying_user,
+            is_trial_user,
+            username,
+            issue_url,
             "Context Length",
             str(e) + "\n" + traceback.format_exc(),
             priority=2,
@@ -1054,7 +1078,15 @@ def on_ticket(
                 ),
                 -1,
             )
-        log_error(is_paying_user, is_trial_user, username, issue_url, "Workflow", str(e) + "\n" + traceback.format_exc(), priority=1)
+        log_error(
+            is_paying_user,
+            is_trial_user,
+            username,
+            issue_url,
+            "Workflow",
+            str(e) + "\n" + traceback.format_exc(),
+            priority=1,
+        )
         posthog.capture(
             username,
             "failed",
