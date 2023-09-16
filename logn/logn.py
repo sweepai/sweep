@@ -47,15 +47,15 @@ logging_parsers = {
 }
 
 try:
-    from loguru import logger
+    from loguru import logger as loguru_logger
 
-    logging_parsers[logger.info] = LogParser(
+    logging_parsers[loguru_logger.info] = LogParser(
         level=1, parse_args=lambda *args, **kwargs: print2(args[0], level="INFO")
     )
-    logging_parsers[logger.error] = LogParser(
+    logging_parsers[loguru_logger.error] = LogParser(
         level=2, parse_args=lambda *args, **kwargs: print2(args[0], level="ERROR")
     )
-    logging_parsers[logger.warning] = LogParser(
+    logging_parsers[loguru_logger.warning] = LogParser(
         level=3, parse_args=lambda *args, **kwargs: print2(args[0], level="WARNING")
     )
 except:
@@ -229,6 +229,12 @@ class _Task:
 
 class _Logger:
     def __init__(self, printfn):
+        # Check if printfn is a _Logger instance
+        if isinstance(printfn, _Logger):
+            print("Warning: self-reference logger can result in infinite loop")
+            self.printfn = print
+            return
+
         self.printfn = printfn
 
     def __call__(self, *args, **kwargs):
@@ -269,17 +275,17 @@ class _LogN(_Logger):
         self[print](*args, **kwargs)
 
     def info(self, *args, **kwargs):
-        self[logger.info](*args, **kwargs)
+        self[loguru_logger.info](*args, **kwargs)
 
     def error(self, *args, **kwargs):
-        self[logger.error](*args, **kwargs)
+        self[loguru_logger.error](*args, **kwargs)
 
     def warning(self, *args, **kwargs):
-        self[logger.warning](*args, **kwargs)
+        self[loguru_logger.warning](*args, **kwargs)
 
     def debug(self, *args, **kwargs):
         # Todo: add debug level
-        self[logger.info](*args, **kwargs)
+        self[loguru_logger.info](*args, **kwargs)
 
     @staticmethod
     def close():
