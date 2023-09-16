@@ -60,8 +60,6 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.search_utils import search_snippets
 from sweepai.utils.tree_utils import DirectoryTree
 
-GHOST_ART = "👻\n👻👻\n👻👻👻\n👻👻👻👻\n👻👻👻👻👻"
-
 openai.api_key = OPENAI_API_KEY
 
 
@@ -91,11 +89,11 @@ def on_ticket(
     # Flow:
     # 1. Get relevant files
         ghost_ascii_art = """
-        👻
-        👻👻
-        👻👻👻
-        👻👻👻👻
-        👻👻👻👻👻
+            👻
+            👻👻
+            👻👻👻
+            👻👻👻👻
+            👻👻👻👻👻
         """
         agg_message = (
             get_comment_header(index, errored, pr_message, done)
@@ -400,9 +398,6 @@ def on_ticket(
                 continue  # skip None header
             header = progress_headers[i]
             if header is not None:
-                message = message.replace(
-                    "👻\n👻👻\n👻👻👻\n👻👻👻👻\n👻👻👻👻👻", GHOST_ART
-                )
                 header = "## " + header + "\n"
             else:
                 header = "No header\n"
@@ -421,7 +416,22 @@ def on_ticket(
                 + "\n\nFor bonus GPT-4 tickets, please report this bug on"
                 " **[Discord](https://discord.com/invite/sweep-ai)**."
                 + "\n\n"
-                + GHOST_ART
+                + "```\n"
+                + "  👻  👻  👻  👻  👻\n"
+                + "  / \\ / \\ / \\ / \\ / \\\n"
+                + "  |   |   |   |   |   |\n"
+                + "  \\_/ \\_/ \\_/ \\_/ \\_/\n"
+                + "```\n"
+            )
+            if table is not None:
+                agg_message = (
+                    agg_message
+                    + f"\n{sep}Please look at the generated plan. If something looks"
+                    f" wrong, please add more details to your issue.\n\n{table}"
+                )
+            suffix = bot_suffix  # don't include discord suffix for error messages
+
+        # Update the issue comment
         try:
             issue_comment.edit(
                 f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
@@ -707,8 +717,35 @@ def on_ticket(
                     file_change_request.instructions_display.replace(
                         "\n", "<br/>"
                     ).replace("```", "\\```"),
-                + "\n\n"
-                + GHOST_ART
+                ]
+                for file_change_request in file_change_requests
+            ],
+            headers=["File Path", "Proposed Changes"],
+            tablefmt="pipe",
+        )
+        # edit_sweep_comment(
+        #     "From looking through the relevant snippets, I decided to make the"
+        #     " following modifications:\n\n" + table + "\n\n",
+        #     2,
+        # )
+
+        # TODO(lukejagg): Generate PR after modifications are made
+        # CREATE PR METADATA
+        logger.info("Generating PR...")
+        pull_request = sweep_bot.generate_pull_request()
+        # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
+        # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
+        # edit_sweep_comment(
+        #     (
+        #         "I have created a plan for writing the pull request. I am now working"
+        #         " my plan and coding the required changes to address this issue. Here"
+        #         f" is the planned pull request:\n\n{pull_request_summary}"
+        #     ),
+        #     3,
+        # )
+
+        logger.info("Making PR...")
+
         files_progress: list[tuple[str, str, str, str]] = [
             (
                 file_change_request.filename,
@@ -851,8 +888,15 @@ def on_ticket(
 
         lint_output = None
         try:
-            # In the `edit_sweep_comment` function, where the ASCII art string is used
-            GHOST_ART
+            current_issue.delete_reaction(eyes_reaction.id)
+        except:
+        ghost_ascii_art = """
+            👻
+            👻👻
+            👻👻👻
+            👻👻👻👻
+            👻👻👻👻👻
+        """
             changes_required, review_comment = review_pr(
                 repo=repo,
                 pr=pr_changes,
@@ -1051,7 +1095,8 @@ def on_ticket(
                     "I'm sorry, but it looks like an error has occurred due to"
                     " insufficient information. Be sure to create a more detailed issue"
                     " so I can better address it. If this error persists report it at"
-                    " https://discord.gg/sweep.\n\nBoo! 👻"
+                    " https://discord.gg/sweep.\n\n"
+                    "Boo! 👻"
                 ),
                 -1,
             )
@@ -1060,7 +1105,8 @@ def on_ticket(
                 (
                     "I'm sorry, but it looks like an error has occurred. Try changing"
                     " the issue description to re-trigger Sweep. If this error persists"
-                    " contact team@sweep.dev.\n\nBoo! 👻"
+                    " contact team@sweep.dev.\n\n"
+                    "Boo! 👻"
                 ),
                 -1,
             )
