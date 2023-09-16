@@ -1,15 +1,4 @@
-# import asyncio
-# from sandbox_local import run_sandbox
-#
-# async def main():
-#     return await run_sandbox(
-#         "prendo93",
-#         "https://github.com/sweepai/sweep.git",
-#         "test1/test2.js",
-#         """print( 'hi')"""
-#     )
-#
-# print(asyncio.run(main()))
+
 
 import requests
 
@@ -261,7 +250,7 @@ export function hasNextPage(pageInfo: MetadataOutput, pageIndex: number) {
   }
   return undefined;
 """
-# bad_file_contents = "print('hello world')"
+
 # file_path = "src/App.tsx"
 file_path = "packages/web-main/src/queries/util.ts"
 
@@ -270,7 +259,7 @@ bad_file_contents = """
 print('hello world')
 """
 
-# bad_file_contents = "print('hello world')"
+
 # file_path = "src/App.tsx"
 file_path = "src/test.js"
 
