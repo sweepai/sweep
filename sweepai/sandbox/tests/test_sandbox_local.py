@@ -252,16 +252,16 @@ export function hasNextPage(pageInfo: MetadataOutput, pageIndex: number) {
 """
 
 
-file_path = "packages/web-main/src/queries/util.ts"
+# file_path = "packages/web-main/src/queries/util.ts"
 
 
-bad_file_contents = """
-print('hello world')
-"""
+# bad_file_contents = """
+# print('hello world')
+# """
 
-# bad_file_contents = "print('hello world')"
-# file_path = "src/App.tsx"
-file_path = "src/test.js"
+bad_file_contents = "print('hello world')"
+file_path = "src/App.tsx"
+# file_path = "src/test.js"
 
 # url = "http://0.0.0.0:8081/sandbox/"
 url = "http://0.0.0.0:8081"
