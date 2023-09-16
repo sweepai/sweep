@@ -13,7 +13,6 @@ import threading
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from loguru import logger
 from pydantic import ValidationError
 import requests
 
@@ -243,7 +242,7 @@ async def webhook(raw_request: Request):
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
         action = request_dict.get("action", None)
-        logger.bind(event=event, action=action)
+        # logger.bind(event=event, action=action)
         logn.info(f"Received event: {event}, {action}")
         match event, action:
             case "issues", "opened":
