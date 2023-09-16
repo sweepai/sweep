@@ -5,16 +5,15 @@ import threading
 
 class ContextManager:
     def __enter__(self):
-        print("enter")
+        pass
 
     def __exit__(self, type, value, traceback):
-        print(type, value, traceback)
-        print("exit")
+        pass
 
 
 class Obj:
     def __del__(self):
-        print("deleted!")
+        pass
 
 
 # Create new function and thread
@@ -23,10 +22,8 @@ def new_function():
         obj = Obj()
         with open("test.txt", "w") as f:
             while True:
-                # sleep
                 time.sleep(1)
                 print("hi")
-            # f.write("Hello world!")
         print("done")
     except:
         print("death")
@@ -35,6 +32,8 @@ def new_function():
 t = threading.Thread(target=new_function)
 t.start()
 
+
+import traceback
 
 def terminate_thread(thread):
     """Terminate a python threading.Thread."""
@@ -54,7 +53,7 @@ def terminate_thread(thread):
             ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
             raise SystemError("PyThreadState_SetAsyncExc failed")
     except Exception as e:
-        print(f"Failed to terminate thread: {e}")
+        traceback.print_exc()
 
 
 time.sleep(4)
