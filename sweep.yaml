@@ -29,6 +29,7 @@ sandbox:
     - '[[ "{file_path}" == *.py ]] && poetry run pylint --errors-only {file_path} || exit 0'
 
 rules:
+ - "These rules should do NOT apply to tests."
  - "There should not be commented out code."
  - "Update UPDATES_MESSAGE section in sweepai/config/client.py if there is a major new feature."
  - "Update docs/pages/usage/config.mdx for changes that affect sweep.yaml."
