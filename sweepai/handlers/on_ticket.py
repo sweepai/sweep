@@ -226,14 +226,14 @@ def on_ticket(
     reactions = item_to_react_to.get_reactions()
     for reaction in reactions:
         if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
-        except github.BadCredentialsException:
-            logger.error("Bad credentials, refreshing token")
-            _user_token, g = get_github_client(installation_id)
-            repo = g.get_repo(repo_full_name)
-            issue_comment = repo.get_issue(current_issue.number)
-            issue_comment.edit(
-                f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
-            )
+                except github.GithubException.BadCredentialsException:
+                    logger.error("Bad credentials, refreshing token")
+                    _user_token, g = get_github_client(installation_id)
+                    repo = g.get_repo(repo_full_name)
+                    issue_comment = repo.get_issue(current_issue.number)
+                    issue_comment.edit(
+                        f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
+                    )
     issue_comment = None
     tickets_allocated = 5
     if is_trial_user:
@@ -411,7 +411,7 @@ def on_ticket(
             issue_comment.edit(
                 f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
             )
-        except github.BadCredentialsException:
+        except github.GithubException.BadCredentialsException:
             logger.error("Bad credentials, refreshing token")
             _user_token, g = get_github_client(installation_id)
             repo = g.get_repo(repo_full_name)
@@ -854,9 +854,8 @@ def on_ticket(
         lint_output = None
         try:
             current_issue.delete_reaction(eyes_reaction.id)
-        except:
+        except github.GithubException.BadCredentialsException:
             pass
-
         changes_required = False
         try:
             # Todo(lukejagg): Pass sandbox linter results to review_pr
@@ -1092,7 +1091,7 @@ def on_ticket(
         try:
             item_to_react_to.delete_reaction(eyes_reaction.id)
             item_to_react_to.create_reaction("rocket")
-        except Exception as e:
+        except github.GithubException.BadCredentialsException as e:
             logger.error(e)
     finally:
         cloned_repo.delete()
