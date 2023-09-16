@@ -89,7 +89,7 @@ def run_on_merge(*args, **kwargs):
     logger.init(
         metadata={
             **kwargs,
-            "name": "merge_" + kwargs["username"],
+            "name": "merge_" + args[0]["pusher"]["name"],
         },
         create_file=False,
     )
