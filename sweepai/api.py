@@ -38,6 +38,7 @@ from sweepai.events import (
     IssueRequest,
     PRRequest,
     ReposAddedRequest,
+    IssueCommentChanges,
 )
 from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  # type: ignore
 from sweepai.handlers.create_pr import create_pr_changes, safe_delete_sweep_branch
@@ -275,6 +276,7 @@ async def webhook(raw_request: Request):
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
             case "issue_comment", "edited":
                 request = IssueCommentRequest(**request_dict)
+                changes = IssueCommentChanges(**request_dict)
                 if (
                     request.issue is not None
                     and GITHUB_LABEL_NAME

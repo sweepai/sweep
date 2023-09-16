@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Any, Literal, Dict
 
 from pydantic import BaseModel
 
@@ -103,6 +103,15 @@ class IssueRequest(BaseModel):
     assignee: Issue.Assignee | None = None
     installation: Installation | None = None
     sender: Issue.User
+
+
+class IssueCommentChanges(BaseModel):
+    "changes/body/from"
+
+    class Body(BaseModel):
+        body: Dict[str, str]
+
+    changes: Body
 
 
 class IssueCommentRequest(IssueRequest):
