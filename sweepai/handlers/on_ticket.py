@@ -361,24 +361,35 @@ def on_ticket(
         issue_comment.edit(first_comment)
 
     # Comment edit function
-    past_messages = {}
-    current_index = 0
-
-    # Random variables to save in case of errors
-    table = None  # Show plan so user can finetune prompt
-
-    def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
-        nonlocal current_index, user_token, g, repo, issue_comment
-        # -1 = error, -2 = retry
-        # Only update the progress bar if the issue generation errors.
-        errored = index == -1
-        if index >= 0:
-            past_messages[index] = message
-            current_index = index
-
-        agg_message = None
-        # Include progress history
-        # index = -2 is reserved for
+        agg_message = (
+            f"{get_comment_header(index, errored, pr_message, done)}\n{sep}"
+            + agg_message
+            + suffix
+        )
+        issue_comment.edit(agg_message)
+        if errored:
+            # ASCII art of a dragon
+            dragon_art = """
+            _________
+            < ROARRR! >
+            ---------
+                    \                    ^    /^
+                     \                  / \  // \
+                      \   |\___/|      /   \//  .\
+                       \  /V  V  \__  /    //| _\ \   *shifty eyes*
+                         /     /  \/_/    //  | / \_   ^ ' /^
+                         @___@`    \/_   //  / _/ / \ /  ^ ^
+                      0/0/|       \/_ //  /  /  \__/
+                  0/0/0/0/|        \///  /  /-_______\ ~\~~~ ~~~~ ~
+               0/0/0/0/0/_|_ /   (  //  / /-_/     ~\~~~ ~~~ ~~~~ ~
+            0/0/0/0/0/0/`/,_ _ _/  ) ; -.  _____  _  ~\~~~ ~~~~ ~
+                         ,-}        _ / `-.   ~\~~~ ~~~~ ~
+                        `._/______/ /     ~\~~~ ~~~ ~~~~
+                               _.-' _/'\___/ ~\~~~ ~~~ ~~~~
+                              (_,-'  (_)   ~\~~~ ~~~ ~~~~
+            """
+            print(dragon_art)
+            raise Exception("Errored")
         for i in range(
             current_index + 2
         ):  # go to next header (for Working on it... text)
@@ -583,6 +594,20 @@ def on_ticket(
                 "Failed to create new branch for sweep.yaml file.\n",
                 e,
                 traceback.format_exc(),
+            )
+            logger.error(
+                """
+                ASCII Art of Dragon:
+                _________
+                -==|====|
+                    |____|
+                .-"""""-.
+               / -     - \
+              |  .-. .-.  |
+              | /   |   \ |
+              \'-.___.-'/
+                `-.___.-'
+                """
             )
     else:
         logger.info("sweep.yaml file already exists.")
@@ -847,6 +872,25 @@ def on_ticket(
             logger.info(f"Edited {file_change_request.filename}")
             edit_sweep_comment(checkboxes_contents, 2)
         if not response.get("success"):
+            logger.error(f"Failed to create PR: {response.get('error')}")
+            logger.error(r"""
+            ______ __
+          ,;::\::\  
+         ,'/' `/'`/
+        (_   .   _)
+         `) (._./
+          (    `\
+          \)   ./
+            \ (
+             `=\;
+            __||__
+          .'______'.
+         / .^^^^^^^^. \
+        / /^^^^^^^^^^\ \
+        / /' ^^^^^^^^^ '\ \
+        (/'  '^^^^^^^^^^'  '\)
+        '------------------'
+            """)
             raise Exception(f"Failed to create PR: {response.get('error')}")
         pr_changes = response["pull_request"]
 
