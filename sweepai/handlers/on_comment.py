@@ -81,6 +81,7 @@ def on_comment(
     chat_logger: Any = None,
     pr: MockPR = None,  # For on_comment calls before PR is created
     repo: Any = None,
+    type: str = "comment",
 ):
     # Flow:
     # 1. Get relevant files
