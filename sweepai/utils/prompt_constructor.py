@@ -1,4 +1,3 @@
-from loguru import logger
 from logn import logn
 from pydantic import BaseModel
 

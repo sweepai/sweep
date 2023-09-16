@@ -11,7 +11,6 @@ import openai
 
 import github
 from github import GithubException, BadCredentialsException
-from loguru import logger
 from tabulate import tabulate
 from tqdm import tqdm
 
@@ -182,7 +181,7 @@ def on_ticket(
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
     }
-    logger.bind(**metadata)
+    # logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
 
     logn.info(f"Getting repo {repo_full_name}")
@@ -419,7 +418,7 @@ def on_ticket(
                 f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
             )
         except BadCredentialsException:
-            logger.error("Bad credentials, refreshing token")
+            logn.error("Bad credentials, refreshing token")
             _user_token, g = get_github_client(installation_id)
             repo = g.get_repo(repo_full_name)
             issue_comment = repo.get_issue(current_issue.number)

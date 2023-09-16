@@ -6,7 +6,6 @@ from typing import Dict
 
 import yaml
 from github.Repository import Repository
-from loguru import logger
 from pydantic import BaseModel
 
 from logn import logn

@@ -277,6 +277,10 @@ class _LogN(_Logger):
     def warning(self, *args, **kwargs):
         self[logger.warning](*args, **kwargs)
 
+    def debug(self, *args, **kwargs):
+        # Todo: add debug level
+        self[logger.info](*args, **kwargs)
+
     @staticmethod
     def close():
         task = _Task.get_task(create_if_not_exist=False)
@@ -290,8 +294,6 @@ class _LogTask:
 
     def __call__(self, func):
         def wrapper(*args, **kwargs):
-
-
             key, parent_task, child_task = _Task.create_child_task(name=func.__name__)
             parent_task.write_metadata(
                 child_task=child_task.meta_path, function_name=func.__name__

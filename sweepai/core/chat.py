@@ -5,7 +5,6 @@ from typing import Any, Iterator, Literal
 
 import anthropic
 import backoff
-from loguru import logger
 from pydantic import BaseModel
 
 from logn import logn
