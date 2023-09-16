@@ -482,7 +482,6 @@ def on_ticket(
         assert len(snippets) > 0
         except Exception as e:
             trace = traceback.format_exc()
-            logger.error(
             logger.error(trace)
             edit_sweep_comment(
                 (
