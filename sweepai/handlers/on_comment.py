@@ -2,7 +2,7 @@ import re
 import traceback
 
 import openai
-from logn import logn, LogTask
+from logn import logger, LogTask
 
 from typing import Any
 from tabulate import tabulate
@@ -88,7 +88,7 @@ def on_comment(
     # 3. Get files to change
     # 4. Get file changes
     # 5. Create PR
-    logn.info(
+    logger.info(
         f"Calling on_comment() with the following arguments: {comment},"
         f" {repo_full_name}, {repo_description}, {pr_path}"
     )
@@ -111,7 +111,7 @@ def on_comment(
         issue_number = issue_number_match.group("issue_number")
         original_issue = repo.get_issue(int(issue_number))
         author = original_issue.user.login
-        logn.info(f"Author of original issue is {author}")
+        logger.info(f"Author of original issue is {author}")
         chat_logger = (
             chat_logger
             if chat_logger is not None
@@ -137,7 +137,7 @@ def on_comment(
             else None
         )
     else:
-        logn.warning(f"No issue number found in PR body for summary {pr.body}")
+        logger.warning(f"No issue number found in PR body for summary {pr.body}")
         chat_logger = None
 
     if chat_logger:
@@ -181,7 +181,7 @@ def on_comment(
     # logger.bind(**metadata)
 
     capture_posthog_event(username, "started", properties=metadata)
-    logn.info(f"Getting repo {repo_full_name}")
+    logger.info(f"Getting repo {repo_full_name}")
     file_comment = bool(pr_path) and bool(pr_line_position)
 
     item_to_react_to = None
@@ -247,7 +247,7 @@ def on_comment(
             tree = ""
         else:
             try:
-                logn.info("Fetching relevant files...")
+                logger.info("Fetching relevant files...")
                 snippets, tree = search_snippets(
                     cloned_repo,
                     f"{comment}\n{pr_title}" + (f"\n{pr_chunk}" if pr_chunk else ""),
@@ -255,14 +255,14 @@ def on_comment(
                 )
                 assert len(snippets) > 0
             except Exception as e:
-                logn.error(traceback.format_exc())
+                logger.error(traceback.format_exc())
                 raise e
 
         snippets = post_process_snippets(
             snippets, max_num_of_snippets=0 if file_comment else 2
         )
 
-        logn.info("Getting response from ChatGPT...")
+        logger.info("Getting response from ChatGPT...")
         human_message = HumanMessageCommentPrompt(
             comment=comment,
             repo_name=repo_name,
@@ -278,7 +278,7 @@ def on_comment(
             pr_chunk=formatted_pr_chunk,  # may be None
             original_line=original_line if pr_chunk else None,
         )
-        logn.info(f"Human prompt{human_message.construct_prompt()}")
+        logger.info(f"Human prompt{human_message.construct_prompt()}")
 
         sweep_bot = SweepBot.from_system_message_content(
             # human_message=human_message, model="claude-v1.3-100k", repo=repo
@@ -289,7 +289,7 @@ def on_comment(
             sweep_context=sweep_context,
         )
     except Exception as e:
-        logn.error(traceback.format_exc())
+        logger.error(traceback.format_exc())
         capture_posthog_event(
             username,
             "failed",
@@ -299,7 +299,7 @@ def on_comment(
         raise e
 
     try:
-        logn.info("Fetching files to modify/create...")
+        logger.info("Fetching files to modify/create...")
         if file_comment:
             file_change_requests = [
                 FileChangeRequest(
@@ -312,7 +312,7 @@ def on_comment(
             regenerate = comment.strip().lower().startswith("sweep: regenerate")
             reset = comment.strip().lower().startswith("sweep: reset")
             if regenerate or reset:
-                logn.info(f"Running {'regenerate' if regenerate else 'reset'}...")
+                logger.info(f"Running {'regenerate' if regenerate else 'reset'}...")
 
                 file_paths = comment.strip().split(" ")[2:]
 
@@ -320,7 +320,7 @@ def on_comment(
                     try:
                         return repo.get_contents(file_path)
                     except Exception as e:
-                        logn.error(e)
+                        logger.error(e)
                         return None
 
                 old_file_contents = [
@@ -328,13 +328,13 @@ def on_comment(
                     for file_path in file_paths
                 ]
 
-                logn.print(old_file_contents)
+                logger.print(old_file_contents)
                 for file_path, old_file_content in zip(file_paths, old_file_contents):
                     current_content = sweep_bot.get_contents(
                         file_path, branch=branch_name
                     )
                     if old_file_content:
-                        logn.info("Resetting file...")
+                        logger.info("Resetting file...")
                         sweep_bot.repo.update_file(
                             file_path,
                             f"Reset {file_path}",
@@ -343,7 +343,7 @@ def on_comment(
                             branch=branch_name,
                         )
                     else:
-                        logn.info("Deleting file...")
+                        logger.info("Deleting file...")
                         sweep_bot.repo.delete_file(
                             file_path,
                             f"Reset {file_path}",
@@ -396,12 +396,12 @@ def on_comment(
                         )
                         for file_path in file_paths
                     ]
-                logn.print(file_change_requests)
+                logger.print(file_change_requests)
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name
                 )
 
-                logn.info("Getting response from ChatGPT...")
+                logger.info("Getting response from ChatGPT...")
                 human_message = HumanMessageCommentPrompt(
                     comment=comment,
                     repo_name=repo_name,
@@ -418,7 +418,7 @@ def on_comment(
                     original_line=original_line if pr_chunk else None,
                 )
 
-                logn.info(f"Human prompt{human_message.construct_prompt()}")
+                logger.info(f"Human prompt{human_message.construct_prompt()}")
                 sweep_bot = SweepBot.from_system_message_content(
                     human_message=human_message,
                     repo=repo,
@@ -455,7 +455,7 @@ def on_comment(
             if pr_number:
                 edit_comment(response_for_user)
                 # pr.create_issue_comment(response_for_user)
-        logn.info("Making Code Changes...")
+        logger.info("Making Code Changes...")
 
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
 
@@ -478,14 +478,14 @@ def on_comment(
                         "No changes made. Please add more details so I know what to change."
                     )
         except Exception as e:
-            logn.error(f"Failed to reply to comment: {e}")
+            logger.error(f"Failed to reply to comment: {e}")
 
         if type(pr) != MockPR:
             if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
                 # Update the PR title to remove the "[DRAFT]" prefix
                 pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
 
-        logn.info("Done!")
+        logger.info("Done!")
     except NoFilesException:
         capture_posthog_event(
             username,
@@ -499,7 +499,7 @@ def on_comment(
         edit_comment(ERROR_FORMAT.format(title="Could not find files to change"))
         return {"success": True, "message": "No files to change."}
     except Exception as e:
-        logn.error(traceback.format_exc())
+        logger.error(traceback.format_exc())
         capture_posthog_event(
             username,
             "failed",
@@ -533,7 +533,7 @@ def on_comment(
         pass
 
     capture_posthog_event(username, "success", properties={**metadata})
-    logn.info("on_comment success")
+    logger.info("on_comment success")
     return {"success": True}
 
 

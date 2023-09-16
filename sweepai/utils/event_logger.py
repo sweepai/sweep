@@ -1,4 +1,4 @@
-from logn import logn
+from logn import logger
 from posthog import Posthog
 import highlight_io
 
@@ -8,7 +8,7 @@ if POSTHOG_API_KEY is None or POSTHOG_API_KEY.lower() == "none":
     posthog = Posthog(
         project_api_key="none", disabled=True, host="https://app.posthog.com"
     )
-    logn.warning(
+    logger.warning(
         "Initialized an empty Posthog instance as POSTHOG_API_KEY is not present."
     )
 else:
