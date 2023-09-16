@@ -226,19 +226,14 @@ def on_ticket(
     reactions = item_to_react_to.get_reactions()
     for reaction in reactions:
         if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
-            item_to_react_to.delete_reaction(reaction.id)
-
-    # Removed 1, 3
-    progress_headers = [
-        None,
-        "Step 1: 📍 Planning",
-        "Step 2: ⌨️ Coding",
-        "Step 3: 🔁 Code Review",
-    ]
-
-    config_pr_url = None
-
-    # Find the first comment made by the bot
+        except github.BadCredentialsException:
+            logger.error("Bad credentials, refreshing token")
+            _user_token, g = get_github_client(installation_id)
+            repo = g.get_repo(repo_full_name)
+            issue_comment = repo.get_issue(current_issue.number)
+            issue_comment.edit(
+                f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
+            )
     issue_comment = None
     tickets_allocated = 5
     if is_trial_user:
