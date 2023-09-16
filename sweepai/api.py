@@ -1,6 +1,7 @@
 # Do not save logs for main process
 import traceback
 from logn import logger
+from sweepai.utils.safe_pqueue import SafePriorityQueue
 
 logger.init(
     metadata=None,
@@ -128,7 +129,7 @@ def run_on_check_suite(*args, **kwargs):
             },
             create_file=False,
         )
-        call_on_comment(**pr_change_request.params)
+        call_on_comment(**pr_change_request.params, type="github_action")
         logger.info("Done with on_check_suite")
     else:
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
@@ -177,20 +178,23 @@ def call_on_check_suite(*args, **kwargs):
 def call_on_comment(
     *args, **kwargs
 ):  # TODO: if its a GHA delete all previous GHA and append to the end
+    def worker():
+        while not events[key].empty():
+            task_args, task_kwargs = events[key].get()
+            run_on_comment(*task_args, **task_kwargs)
     global events
     repo_full_name = kwargs["repo_full_name"]
     pr_id = kwargs["pr_number"]
     key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
 
+    comment_type = kwargs["type"]
+    priority = 0 if comment_type == "comment" else 1 # set priority to 0 if comment, 1 if GHA
+    logger.info(f"Received comment type: {comment_type}")
+
     if key not in events:
-        events[key] = Queue()
+        events[key] = SafePriorityQueue()
 
-    def worker():
-        while not events[key].empty():
-            task_args, task_kwargs = events[key].get()
-            run_on_comment(*task_args, **task_kwargs)
-
-    events[key].put((args, kwargs))
+    events[key].put(priority, (args, kwargs))
 
     # If a thread isn't running, start one
     if not any(
@@ -328,8 +332,8 @@ async def webhook(raw_request: Request):
                         label.name.lower() == "sweep" for label in labels
                     ):
                         pr_change_request = PRChangeRequest(
-                            type="comment",
                             params={
+                                "type": "comment",
                                 "repo_full_name": request.repository.full_name,
                                 "repo_description": request.repository.description,
                                 "comment": request.comment.body,
@@ -475,8 +479,8 @@ async def webhook(raw_request: Request):
                         label.name.lower() == "sweep" for label in labels
                     ):
                         pr_change_request = PRChangeRequest(
-                            type="comment",
                             params={
+                                "type": "comment",
                                 "repo_full_name": request.repository.full_name,
                                 "repo_description": request.repository.description,
                                 "comment": request.comment.body,
@@ -503,8 +507,8 @@ async def webhook(raw_request: Request):
                     or any(label.name.lower() == "sweep" for label in labels)
                 ) and request.comment.user.type == "User":
                     pr_change_request = PRChangeRequest(
-                        type="comment",
                         params={
+                            "type": "comment",
                             "repo_full_name": request.repository.full_name,
                             "repo_description": request.repository.description,
                             "comment": request.comment.body,
