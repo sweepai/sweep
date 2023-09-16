@@ -584,6 +584,14 @@ def on_ticket(
                 e,
                 traceback.format_exc(),
             )
+            logger.info(
+                """
+                _________
+                /   o     \\\\
+                | __   __ |
+                |||  |||  |||
+                """
+            )
     else:
         logger.info("sweep.yaml file already exists.")
 
@@ -848,6 +856,16 @@ def on_ticket(
             edit_sweep_comment(checkboxes_contents, 2)
         if not response.get("success"):
             raise Exception(f"Failed to create PR: {response.get('error')}")
+            logger.info("""
+            _________
+           ( _______ )
+          / /       \ \
+         / /         \ \
+        ( (           ) )
+         \ \         / /
+          \_\_______/_/
+            (_______)
+            """)
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
