@@ -84,6 +84,12 @@ def on_ticket(
         sandbox_mode,
         fast_mode,
     )
+    # Flow:
+    # 1. Get relevant files
+    # 2: Get human message
+    # 3. Get files to change
+    # 4. Get file changes
+    # 5. Create PR
     summary = summary or ""
     summary = re.sub(
         "<details (open)?>\n<summary>Checklist</summary>.*",
@@ -687,31 +693,19 @@ def on_ticket(
                 for file_change_request in file_change_requests
             ],
             headers=["File Path", "Proposed Changes"],
-            tablefmt="pipe",
-        )
-        edit_sweep_comment(
-            "From looking through the relevant snippets, I decided to make the"
-            " following modifications:\n\n" + table + "\n\n",
-            2,
-        )
-
-        # TODO(lukejagg): Generate PR after modifications are made
-        # CREATE PR METADATA
-        logger.info("Generating PR...")
-        pull_request = sweep_bot.generate_pull_request()
-        pull_request_content = pull_request.content.strip().replace("\n", "\n>")
-        pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
-        # edit_sweep_comment(
-        #     (
-        #         "I have created a plan for writing the pull request. I am now working"
-        #         " my plan and coding the required changes to address this issue. Here"
-        #         f" is the planned pull request:\n\n{pull_request_summary}"
-        #     ),
-        #     3,
-        # )
-
-        logger.info("Making PR...")
-
+    installation_id: int,
+    comment_id: int = None,
+    edited: bool = False,
+):
+    (
+        title,
+        slow_mode,
+        do_map,
+        subissues_mode,
+        sandbox_mode,
+        fast_mode,
+        lint_mode,
+    ) = strip_sweep(title)
         files_progress: list[tuple[str, str, str, str]] = [
             (
                 file_change_request.filename,
@@ -852,19 +846,28 @@ def on_ticket(
         change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
         review_message = "Here are my self-reviews of my changes at" + change_location
 
-        lint_output = None
-        try:
-            current_issue.delete_reaction(eyes_reaction.id)
-        except:
-            pass
+    installation_id: int,
+    comment_id: int = None,
+    edited: bool = False,
+):
+    (
+        title,
+        slow_mode,
+        do_map,
+        subissues_mode,
+        sandbox_mode,
+        fast_mode,
+        lint_mode,
+    ) = strip_sweep(title)
 
-        changes_required = False
-        try:
-            # Todo(lukejagg): Pass sandbox linter results to review_pr
-            # CODE REVIEW
+    # Flow:
+    # 1. Get relevant files
+    # 2: Get human message
+    # 3. Get files to change
+    # 4. Get file changes
+    # 5. Create PR
 
-            changes_required, review_comment = review_pr(
-                repo=repo,
+    summary = summary or ""
                 pr=pr_changes,
                 issue_url=issue_url,
                 username=username,
