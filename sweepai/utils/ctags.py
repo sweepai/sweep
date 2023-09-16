@@ -3,7 +3,6 @@ import json
 import os
 import subprocess
 from collections import defaultdict
-from loguru import logger
 from logn import logn
 from redis import Redis
 

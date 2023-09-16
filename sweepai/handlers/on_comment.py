@@ -2,7 +2,6 @@ import re
 import traceback
 
 import openai
-from loguru import logger
 from logn import logn, LogTask
 
 from typing import Any
@@ -179,7 +178,7 @@ def on_comment(
         "comment": comment,
         "issue_number": issue_number if issue_number_match else "",
     }
-    logger.bind(**metadata)
+    # logger.bind(**metadata)
 
     capture_posthog_event(username, "started", properties=metadata)
     logn.info(f"Getting repo {repo_full_name}")
