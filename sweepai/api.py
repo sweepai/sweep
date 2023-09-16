@@ -54,6 +54,12 @@ tracemalloc.start()
 events = {}
 on_ticket_events = {}
 
+# Do not save logs for main process
+logn.init(
+    metadata=None,
+    create_file=False,
+)
+
 
 def run_on_ticket(*args, **kwargs):
     logn.init(

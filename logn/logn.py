@@ -215,9 +215,13 @@ class _Logger:
         self.printfn = printfn
 
     def __call__(self, *args, **kwargs):
-        self.log(*args, **kwargs)
+        try:
+            self._log(*args, **kwargs)
+        except Exception as e:
+            print(e)
+            print("Failed to write log")
 
-    def log(self, *args, **kwargs):
+    def _log(self, *args, **kwargs):
         task = _Task.get_task()
 
         parser = None
