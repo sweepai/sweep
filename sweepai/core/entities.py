@@ -448,7 +448,6 @@ class NoFilesException(Exception):
 
 
 class PRChangeRequest(BaseModel):
-    type: str  # "comment", or "gha"
     params: dict
 
 
