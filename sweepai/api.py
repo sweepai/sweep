@@ -1,5 +1,6 @@
 # Do not save logs for main process
 from logn import logger
+from sweepai.utils.buttons import check_button_activated
 
 logger.init(
     metadata=None,
@@ -291,6 +292,22 @@ async def webhook(raw_request: Request):
             case "issue_comment", "edited":
                 request = IssueCommentRequest(**request_dict)
                 changes = IssueCommentChanges(**request_dict)
+
+                restart_sweep = False
+                if (
+                    request.comment.user.type == "Bot"
+                    and GITHUB_BOT_USERNAME in request.comment.user.login
+                    and changes.changes.body.get("from") is not None
+                    and check_button_activated(
+                        "Restart Sweep", request.comment.body, changes
+                    )
+                    and GITHUB_LABEL_NAME
+                    in [label.name.lower() for label in request.issue.labels]
+                    and request.sender.type == "User"
+                ):
+                    # Restart Sweep on this issue
+                    restart_sweep = True
+
                 if (
                     request.issue is not None
                     and GITHUB_LABEL_NAME
@@ -300,6 +317,7 @@ async def webhook(raw_request: Request):
                     and not (
                         request.issue.pull_request and request.issue.pull_request.url
                     )
+                    or restart_sweep
                 ):
                     logger.info("New issue comment edited")
                     request.issue.body = request.issue.body or ""
@@ -311,6 +329,7 @@ async def webhook(raw_request: Request):
                         not request.comment.body.strip()
                         .lower()
                         .startswith(GITHUB_LABEL_NAME)
+                        and not restart_sweep
                     ):
                         logger.info("Comment does not start with 'Sweep', passing")
                         return {

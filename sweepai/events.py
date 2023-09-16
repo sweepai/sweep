@@ -125,6 +125,7 @@ class IssueCommentRequest(IssueRequest):
         body: str
 
     comment: Comment
+    sender: Comment.User
 
 
 class PRRequest(BaseModel):
