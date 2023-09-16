@@ -211,15 +211,15 @@ class CodeGenBot(ChatGPT):
                 e_str = str(e)
                 if "too long" in e_str:
                     too_long = True
-                logger.warning(f"Error in summarize_snippets: {raw_snippet}. Likely failed to parse {traceback.format_exc()}")
+                logger.warning(f"Error in summarize_snippets: Likely failed to parse {traceback.format_exc()}")
                 logger.warning(f"Error in summarize_snippets: {e}. Likely failed to parse {traceback.format_exc()}")
                 logger.warning(f"Failed to parse! Retrying... {traceback.format_exc()}")
                 logger.warning(f"Failed to parse! Retrying... {traceback.format_exc()}")
                 logger.warning(f"Exception {e_str}. Failed to parse! Retrying... {traceback.format_exc()}")
-                logger.warning(f"{path} {traceback.format_exc()}")
-                logger.warning(f"{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha} {traceback.format_exc()}")
+                logger.warning(f"{traceback.format_exc()}")
+                logger.warning(f"{traceback.format_exc()}")
                 logger.warning(f"Retrying {branch}_{i}... {traceback.format_exc()}")
-                logger.error(f"{snippet} {traceback.format_exc()}")
+                logger.error(f"{traceback.format_exc()}")
     def get_contents(self, path: str, branch: str = ""):
         if not branch:
             branch = SweepConfig.get_branch(self.repo)
