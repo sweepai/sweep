@@ -4,6 +4,7 @@ import os
 import threading
 import datetime
 import inspect
+import traceback
 
 LOG_PATH = "logn_logs/logs"
 META_PATH = "logn_logs/meta"
@@ -32,7 +33,7 @@ def print2(message, level="INFO"):
     )
     function_name = calling_frame.function
     line_number = calling_frame.lineno
-    # module_name = globals().get("__name__", "__main__")
+
     module_name = inspect.getmodule(calling_frame).__name__
 
     log_string = f"{timestamp} | {level:<8} | {module_name}:{function_name}:{line_number} - {message}"
@@ -94,6 +95,9 @@ class _Task:
             self.metadata["name"] = str(self.task_key.name.split(" ")[0])
         self.create_file = create_file
         self.name, self.log_path, self.meta_path = self.create_files()
+        self.state = "Created"
+        self.children = []
+        self.function_name = None
         self.write_metadata(state="Created")
 
     @staticmethod
@@ -104,7 +108,18 @@ class _Task:
             create_file=create_file,
         )
 
-    def write_metadata(self, state: str):
+    def write_metadata(
+        self,
+        state: str | None = None,
+        child_task: str | None = None,
+        function_name: str | None = None,
+    ):
+        if state is not None:
+            self.state = state
+        if child_task is not None:
+            self.children.append(child_task)
+        if function_name is not None:
+            self.function_name = function_name
         if not self.create_file:
             return
 
@@ -120,9 +135,11 @@ class _Task:
                         "datetime": str(datetime.datetime.now()),
                         "metadata": self.metadata if self.metadata is not None else {},
                         # Todo: Write parent task in here
+                        "function_name": self.function_name,
                         "parent_task": self.parent_task.meta_path
                         if self.parent_task is not None
                         else None,
+                        "children": self.children,
                         "state": state,
                     }
                 )
@@ -218,7 +235,7 @@ class _Logger:
         try:
             self._log(*args, **kwargs)
         except Exception as e:
-            print(e)
+            print(traceback.format_exc())
             print("Failed to write log")
 
     def _log(self, *args, **kwargs):
@@ -273,9 +290,12 @@ class _LogTask:
 
     def __call__(self, func):
         def wrapper(*args, **kwargs):
-            # print(self.name, f"Logging before calling {func.__name__}")
+
 
             key, parent_task, child_task = _Task.create_child_task(name=func.__name__)
+            parent_task.write_metadata(
+                child_task=child_task.meta_path, function_name=func.__name__
+            )
 
             # Todo: add call to parent task
 

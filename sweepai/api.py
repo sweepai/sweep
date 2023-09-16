@@ -1,3 +1,11 @@
+# Do not save logs for main process
+from logn import logn
+
+logn.init(
+    metadata=None,
+    create_file=False,
+)
+
 import ctypes
 from queue import Queue
 import sys
@@ -9,7 +17,6 @@ from loguru import logger
 from pydantic import ValidationError
 import requests
 
-from logn import logn
 from sweepai.config.client import SweepConfig, get_documentation_dict
 from sweepai.config.server import (
     API_MODAL_INST_NAME,
@@ -54,12 +61,6 @@ tracemalloc.start()
 events = {}
 on_ticket_events = {}
 
-# Do not save logs for main process
-logn.init(
-    metadata=None,
-    create_file=False,
-)
-
 
 def run_on_ticket(*args, **kwargs):
     logn.init(
@@ -82,6 +83,30 @@ def run_on_comment(*args, **kwargs):
         create_file=False,
     )
     on_comment(*args, **kwargs)
+    logn.close()
+
+
+def run_on_merge(*args, **kwargs):
+    logn.init(
+        metadata={
+            **kwargs,
+            "name": "merge_" + kwargs["username"],
+        },
+        create_file=False,
+    )
+    on_merge(*args, **kwargs)
+    logn.close()
+
+
+def run_on_write_docs(*args, **kwargs):
+    logn.init(
+        metadata={
+            **kwargs,
+            "name": "docs_scrape",
+        },
+        create_file=False,
+    )
+    write_documentation(*args, **kwargs)
     logn.close()
 
 
@@ -174,12 +199,12 @@ def call_on_comment(
 
 
 def call_on_merge(*args, **kwargs):
-    thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=run_on_merge, args=args, kwargs=kwargs)
     thread.start()
 
 
 def call_on_write_docs(*args, **kwargs):
-    thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=run_on_write_docs, args=args, kwargs=kwargs)
     thread.start()
 
 
