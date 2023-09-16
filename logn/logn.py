@@ -94,6 +94,8 @@ class _Task:
             self.metadata["name"] = str(self.task_key.name.split(" ")[0])
         self.create_file = create_file
         self.name, self.log_path, self.meta_path = self.create_files()
+        self.state = "Created"
+        self.children = []
         self.write_metadata(state="Created")
 
     @staticmethod
@@ -104,7 +106,11 @@ class _Task:
             create_file=create_file,
         )
 
-    def write_metadata(self, state: str):
+    def write_metadata(self, state: str | None = None, child_task: str | None = None):
+        if state is not None:
+            self.state = state
+        if child_task is not None:
+            self.children.append(child_task)
         if not self.create_file:
             return
 
@@ -123,6 +129,7 @@ class _Task:
                         "parent_task": self.parent_task.meta_path
                         if self.parent_task is not None
                         else None,
+                        "children": self.children,
                         "state": state,
                     }
                 )
@@ -276,6 +283,7 @@ class _LogTask:
             # print(self.name, f"Logging before calling {func.__name__}")
 
             key, parent_task, child_task = _Task.create_child_task(name=func.__name__)
+            parent_task.write_metadata(child_task=child_task.meta_path)
 
             # Todo: add call to parent task
 
