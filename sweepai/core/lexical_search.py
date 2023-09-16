@@ -297,7 +297,9 @@ def search_index(query, ix):
             else:
                 max_score = max(res.values())
                 min_score = min(res.values()) if min(res.values()) < max_score else 0
-            res = {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
+            res = {
+                k: (v - min_score) / (max_score - min_score) for k, v in res.items()
+            }
         ix.writer().cancel()
         return res
     except Exception as e:

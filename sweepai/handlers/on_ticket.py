@@ -9,6 +9,7 @@ import re
 import traceback
 import openai
 
+import github
 from github import GithubException
 from loguru import logger
 from tabulate import tabulate
@@ -17,7 +18,6 @@ from tqdm import tqdm
 from logn import logn, LogTask
 from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import extract_relevant_docs
-
 from sweepai.core.entities import (
     ProposedIssue,
     SandboxResponse,
@@ -369,7 +369,7 @@ def on_ticket(
     table = None  # Show plan so user can finetune prompt
 
     def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
-        nonlocal current_index
+        nonlocal current_index, user_token, g, repo, issue_comment
         # -1 = error, -2 = retry
         # Only update the progress bar if the issue generation errors.
         errored = index == -1
@@ -414,9 +414,18 @@ def on_ticket(
             suffix = bot_suffix  # don't include discord suffix for error messages
 
         # Update the issue comment
-        issue_comment.edit(
-            f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
-        )
+        try:
+            issue_comment.edit(
+                f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
+            )
+        except github.GithubException.BadCredentialsException:
+            logger.error("Bad credentials, refreshing token")
+            _user_token, g = get_github_client(installation_id)
+            repo = g.get_repo(repo_full_name)
+            issue_comment = repo.get_issue(current_issue.number)
+            issue_comment.edit(
+                f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
+            )
 
     if len(title + summary) < 20:
         logn.info("Issue too short")

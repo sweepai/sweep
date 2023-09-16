@@ -155,7 +155,7 @@ def embedding_function(texts: list[str]):
     # For LRU cache to work
     return embed_texts(tuple(texts))
 
-
+  
 def get_deeplake_vs_from_repo(
     cloned_repo: ClonedRepo,
     sweep_config: SweepConfig = SweepConfig(),
@@ -231,7 +231,9 @@ def get_deeplake_vs_from_repo(
     return deeplake_vs, index, len(documents)
 
 
-def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
+def compute_deeplake_vs(
+    collection_name, documents, ids, metadatas, sha
+):
     if len(documents) > 0:
         logn.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
         # Check cache here for all documents
