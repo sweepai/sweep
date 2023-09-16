@@ -1,6 +1,5 @@
 import os
 import traceback as tb
-from loguru import logger
 from logn import logn
 import openai
 from sweepai.config.server import (

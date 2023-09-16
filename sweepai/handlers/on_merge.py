@@ -1,7 +1,6 @@
 from sweepai.config.client import get_rules, SweepConfig
 from sweepai.utils.github_utils import get_github_client
 from sweepai.core.post_merge import PostMerge
-from loguru import logger
 from logn import logn, LogTask
 from sweepai.utils.event_logger import posthog
 

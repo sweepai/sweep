@@ -1,7 +1,6 @@
 """
 Take a PR and provide an AI generated review of the PR.
 """
-from loguru import logger
 from logn import logn
 
 from sweepai.config.server import MONGODB_URI

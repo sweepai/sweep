@@ -1,7 +1,6 @@
 import shutil
 import subprocess
 import github
-from loguru import logger
 from logn import logn
 
 from github.Repository import Repository
