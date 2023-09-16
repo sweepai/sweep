@@ -306,7 +306,7 @@ class ChatGPT(BaseModel):
                         logger.warning(e)
                 return output
                 except Exception as e:
-                logger.warning(f"{e}, {traceback.format_exc()}")
+                logger.warning(f'{e}, {traceback.format_exc()}')
                 raise e
         result = fetch()
         logger.info(f"Output to call openai:\n{result}")
