@@ -6,6 +6,8 @@ import requests
 from dataclasses import dataclass
 
 from loguru import logger
+from logn import logn
+
 import tiktoken
 
 from sweepai.core.entities import Snippet
@@ -218,7 +220,7 @@ def chunk_code(
             snippets.append(new_snippet)
         return snippets
     except Exception as e:
-        logger.error(traceback.format_exc())
+        logn.error(traceback.format_exc())
         return []
 
 
