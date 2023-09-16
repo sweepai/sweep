@@ -4,7 +4,7 @@ from sweepai.events import IssueCommentChanges
 
 
 def create_button(label: str, selected: bool = False):
-    return f"- [{'X' if selected else ' '}] {label}"
+    return f"- [{'x' if selected else ' '}] {label}"
 
 
 def create_action_buttons(labels: List[str]):
@@ -16,7 +16,7 @@ def create_action_buttons(labels: List[str]):
 def get_toggled_state(label: str, changes_request: IssueCommentChanges) -> bool:
     old_content = changes_request.changes.body["from"]
     button = create_button(label, selected=True)
-    return button in old_content
+    return button.lower() in old_content.lower()
 
 
 def check_button_activated(
@@ -28,4 +28,4 @@ def check_button_activated(
             return False
 
     button = create_button(label, selected=True)
-    return button in body
+    return button.lower() in body.lower()
