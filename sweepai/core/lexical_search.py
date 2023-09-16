@@ -242,7 +242,10 @@ def prepare_index_from_docs(docs):
     for doc in all_docs:
         writer.add_document(url=doc.url, content=doc.content)
 
-    writer.commit()
+    try:
+        writer.commit()
+    except Exception as e:
+        logger.error(e)
     return ix
 
 
