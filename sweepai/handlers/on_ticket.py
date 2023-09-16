@@ -88,13 +88,17 @@ def on_ticket(
 
     # Flow:
     # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
-
-    summary = summary or ""
-    summary = re.sub(
+        ghost_ascii_art = """
+        👻👻👻👻👻
+        """
+        agg_message = (
+            get_comment_header(index, errored, pr_message, done)
+            + "\n"
+            + sep
+            + agg_message
+            + ghost_ascii_art
+            + suffix
+        )
         "<details (open)?>\n<summary>Checklist</summary>.*",
         "",
         summary,
@@ -481,7 +485,7 @@ def on_ticket(
                 " Perhaps the repo has not been initialized. If this error persists"
                 f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
                 " description to include more details and I will automatically"
-                " relaunch."
+                " relaunch.\n\nBoo! 👻"
             ),
             -1,
         )
