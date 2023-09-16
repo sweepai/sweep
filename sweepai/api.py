@@ -1,3 +1,11 @@
+# Do not save logs for main process
+from logn import logger
+
+logger.init(
+    metadata=None,
+    create_file=False,
+)
+
 import ctypes
 from queue import Queue
 import sys
@@ -5,7 +13,6 @@ import threading
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from loguru import logger
 from pydantic import ValidationError
 import requests
 
@@ -42,7 +49,6 @@ from sweepai.redis_init import redis_client
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
-from sweepai.utils.safe_priority_queue import SafePriorityQueue
 from sweepai.utils.search_utils import index_full_repository
 
 app = FastAPI()
@@ -51,8 +57,80 @@ import tracemalloc
 
 tracemalloc.start()
 
-events = SafePriorityQueue()
+events = {}
 on_ticket_events = {}
+
+
+def run_on_ticket(*args, **kwargs):
+    logger.init(
+        metadata={
+            **kwargs,
+            "name": "ticket_" + kwargs["username"],
+        },
+        create_file=False,
+    )
+    on_ticket(*args, **kwargs)
+    logger.close()
+
+
+def run_on_comment(*args, **kwargs):
+    logger.init(
+        metadata={
+            **kwargs,
+            "name": "comment_" + kwargs["username"],
+        },
+        create_file=False,
+    )
+    on_comment(*args, **kwargs)
+    logger.close()
+
+
+def run_on_merge(*args, **kwargs):
+    logger.init(
+        metadata={
+            **kwargs,
+            "name": "merge_" + args[0]["pusher"]["name"],
+        },
+        create_file=False,
+    )
+    on_merge(*args, **kwargs)
+    logger.close()
+
+
+def run_on_write_docs(*args, **kwargs):
+    logger.init(
+        metadata={
+            **kwargs,
+            "name": "docs_scrape",
+        },
+        create_file=False,
+    )
+    write_documentation(*args, **kwargs)
+    logger.close()
+
+
+def run_on_check_suite(*args, **kwargs):
+    logger.init(
+        metadata={
+            "name": "check",
+        },
+        create_file=False,
+    )
+
+    request = kwargs["request"]
+    pr_change_request = on_check_suite(request)
+    if pr_change_request:
+        logger.init(
+            metadata={
+                **pr_change_request.params,
+                "name": "check_" + pr_change_request.params["username"],
+            },
+            create_file=False,
+        )
+        call_on_comment(**pr_change_request.params)
+        logger.info("Done with on_check_suite")
+    else:
+        logger.info("Skipping on_check_suite as no pr_change_request was returned")
 
 
 def terminate_thread(thread):
@@ -76,19 +154,9 @@ def terminate_thread(thread):
         logger.error(f"Failed to terminate thread: {e}")
 
 
-def run_on_check_suite(*args, **kwargs):
-    request = kwargs["request"]
-    pr_change_request = on_check_suite(request)
-    if pr_change_request:
-        call_on_comment(**pr_change_request.params)
-        logger.info("Done with on_check_suite")
-    else:
-        logger.info("Skipping on_check_suite as no pr_change_request was returned")
-
-
 def call_on_ticket(*args, **kwargs):
     global on_ticket_events
-    key = f"{args[5]}-{args[2]}"  # Full name, issue number as key
+    key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
 
     # Use multithreading
     # Check if a previous process exists for the same key, cancel it
@@ -97,7 +165,7 @@ def call_on_ticket(*args, **kwargs):
         logger.info(f"Found previous thread for key {key} and cancelling it")
         terminate_thread(e)
 
-    thread = threading.Thread(target=on_ticket, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
     on_ticket_events[key] = thread
     thread.start()
 
@@ -106,7 +174,6 @@ def call_on_check_suite(*args, **kwargs):
     repo_full_name = kwargs["request"].repository.full_name
     pr_number = kwargs["request"].check_run.pull_requests[0].number
     key = f"{repo_full_name}-{pr_number}"
-    events.put(2, (args, kwargs))  # Priority 2 for GitHub Action calls
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
@@ -119,12 +186,15 @@ def call_on_comment(
     pr_id = kwargs["pr_number"]
     key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
 
-    def worker():
-        while not events.empty():
-            task_args, task_kwargs = events.get()
-            on_comment(*task_args, **task_kwargs)
+    if key not in events:
+        events[key] = Queue()
 
-    events.put(1, (args, kwargs))  # Priority 1 for comments
+    def worker():
+        while not events[key].empty():
+            task_args, task_kwargs = events[key].get()
+            run_on_comment(*task_args, **task_kwargs)
+
+    events[key].put((args, kwargs))
 
     # If a thread isn't running, start one
     if not any(
@@ -135,12 +205,12 @@ def call_on_comment(
 
 
 def call_on_merge(*args, **kwargs):
-    thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=run_on_merge, args=args, kwargs=kwargs)
     thread.start()
 
 
 def call_on_write_docs(*args, **kwargs):
-    thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=run_on_write_docs, args=args, kwargs=kwargs)
     thread.start()
 
 
@@ -166,6 +236,12 @@ def home():
 
 @app.post("/")
 async def webhook(raw_request: Request):
+    # Do not create logs for api
+    logger.init(
+        metadata=None,
+        create_file=False,
+    )
+
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
@@ -173,7 +249,7 @@ async def webhook(raw_request: Request):
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
         action = request_dict.get("action", None)
-        logger.bind(event=event, action=action)
+        # logger.bind(event=event, action=action)
         logger.info(f"Received event: {event}, {action}")
         match event, action:
             case "issues", "opened":
@@ -232,15 +308,15 @@ async def webhook(raw_request: Request):
                     key = (request.repository.full_name, request.issue.number)
 
                     call_on_ticket(
-                        request.issue.title,
-                        request.issue.body,
-                        request.issue.number,
-                        request.issue.html_url,
-                        request.issue.user.login,
-                        request.repository.full_name,
-                        request.repository.description,
-                        request.installation.id,
-                        request.comment.id,
+                        title=request.issue.title,
+                        summary=request.issue.body,
+                        issue_number=request.issue.number,
+                        issue_url=request.issue.html_url,
+                        username=request.issue.user.login,
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        installation_id=request.installation.id,
+                        comment_id=request.comment.id,
                         edited=True,
                     )
                 elif (
@@ -295,15 +371,15 @@ async def webhook(raw_request: Request):
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
                     call_on_ticket(
-                        request.issue.title,
-                        request.issue.body,
-                        request.issue.number,
-                        request.issue.html_url,
-                        request.issue.user.login,
-                        request.repository.full_name,
-                        request.repository.description,
-                        request.installation.id,
-                        None,
+                        title=request.issue.title,
+                        summary=request.issue.body,
+                        issue_number=request.issue.number,
+                        issue_url=request.issue.html_url,
+                        username=request.issue.user.login,
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        installation_id=request.installation.id,
+                        comment_id=None,
                     )
                 else:
                     logger.info("Issue edited, but not a sweep issue")
@@ -329,15 +405,15 @@ async def webhook(raw_request: Request):
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
                     call_on_ticket(
-                        request.issue.title,
-                        request.issue.body,
-                        request.issue.number,
-                        request.issue.html_url,
-                        request.issue.user.login,
-                        request.repository.full_name,
-                        request.repository.description,
-                        request.installation.id,
-                        None,
+                        title=request.issue.title,
+                        summary=request.issue.body,
+                        issue_number=request.issue.number,
+                        issue_url=request.issue.html_url,
+                        username=request.issue.user.login,
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        installation_id=request.installation.id,
+                        comment_id=None,
                     )
             case "issue_comment", "created":
                 request = IssueCommentRequest(**request_dict)
@@ -379,15 +455,15 @@ async def webhook(raw_request: Request):
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
                     call_on_ticket(
-                        request.issue.title,
-                        request.issue.body,
-                        request.issue.number,
-                        request.issue.html_url,
-                        request.issue.user.login,
-                        request.repository.full_name,
-                        request.repository.description,
-                        request.installation.id,
-                        request.comment.id,
+                        title=request.issue.title,
+                        summary=request.issue.body,
+                        issue_number=request.issue.number,
+                        issue_url=request.issue.html_url,
+                        username=request.issue.user.login,
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        installation_id=request.installation.id,
+                        comment_id=request.comment.id,
                     )
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
