@@ -83,13 +83,11 @@ def on_ticket(
         subissues_mode,
         sandbox_mode,
         fast_mode,
-    )
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
+        second line before
+        first line before
+        new code
+        first line after
+        second line after
     summary = summary or ""
     summary = re.sub(
         "<details (open)?>\n<summary>Checklist</summary>.*",
@@ -204,39 +202,32 @@ def on_ticket(
                 for comment in comments
                 if comment.user.type == "User"
             ]
-        )
-    summary = summary if summary else ""
-
-    prs = repo.get_pulls(
-        state="open", sort="created", base=SweepConfig.get_branch(repo)
-    )
-    for pr in prs:
-        # Check if this issue is mentioned in the PR, and pr is owned by bot
-        # This is done in create_pr, (pr_description = ...)
-        if (
-            pr.user.login == GITHUB_BOT_USERNAME
-            and f"Fixes #{issue_number}.\n" in pr.body
-        ):
-            success = safe_delete_sweep_branch(pr, repo)
-
-    eyes_reaction = item_to_react_to.create_reaction("eyes")
-    # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
-    reactions = item_to_react_to.get_reactions()
-    for reaction in reactions:
-        if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
-            item_to_react_to.delete_reaction(reaction.id)
-
-    # Removed 1, 3
-    progress_headers = [
-        None,
-        "Step 1: 🔎 Searching & 📍 Planning",
-        "Step 2: ⌨️ Coding",
-        "Step 3: 🔁 Code Review",
-    ]
-
-    config_pr_url = None
-
-    # Find the first comment made by the bot
+            (
+                "It looks like an issue has occurred around fetching the files."
+                " Perhaps the repo has not been initialized. If this error persists"
+                f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
+                " description to include more details and I will automatically"
+                " relaunch."
+                "\n\n"
+                """
+                "                  ___====-_  _-====___\n"
+                "            _--^^^#####// ' ` ^^^^^^--_\n"
+                "           -^ ##########// (    ) ########## ^-\n"
+                "          - ############//  :\^^/:  ############ -\n"
+                "        _/############//   (@::@)   ############\_\n"
+                "       /#############((     \\//     ))#############\n"
+                "      -###############\\    (oo)    //###############-\n"
+                "     -#################\\  / `' \\  //#################-\n"
+                "    -###################\\/  (_)  \\/###################-\n"
+                "   _#/|##########/\\######(   `'`   )######/\\##########|\\#_\n"
+                "   |/ |#/'`/#\\ `-:/  #/--'`-_-'`-\\--#\\ `:- '\\#\\'`\\| \n"
+                "   '  |/  V  V ' `!  |  I  `!  I  |  !'  `!  V  V  \\|  `\n"
+                "       '  `  `  `   |  |   `!  `!  |  |   '  '  '  `\n"
+                "                    (  | !   `!  `!  | !  )\n"
+                "                     `!  |   `!  `!  |  !'\n"
+                "                      `!  `!   `!  `! '\n"
+                """
+            ),
     issue_comment = None
     tickets_allocated = 5
     if is_trial_user:
@@ -306,76 +297,23 @@ def on_ticket(
         return (
             f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)"
             + ("\n" + stars_suffix if index != -1 else "")
-            + "\n"
-            + payment_message_start
-            + config_pr_message
-        )
-
-    # Find Sweep's previous comment
-    logger.print("USERNAME", GITHUB_BOT_USERNAME)
-    for comment in comments:
-        logger.print("COMMENT", comment.user.login)
-        if comment.user.login == GITHUB_BOT_USERNAME:
-            logger.print("Found comment")
-            issue_comment = comment
-
-    try:
-        config = SweepConfig.get_config(repo)
-    except EmptyRepository as e:
-        logger.info("Empty repo")
-        first_comment = (
-            "Sweep is currently not supported on empty repositories. Please add some"
-            f" code to your repository and try again.\n{sep}##"
-            f" {progress_headers[1]}\n{bot_suffix}{discord_suffix}"
-        )
-        if issue_comment is None:
-            issue_comment = current_issue.create_comment(first_comment)
-        else:
-            issue_comment.edit(first_comment)
-        return {"success": False}
-
-    cloned_repo = ClonedRepo(
-        repo_full_name, installation_id=installation_id, token=user_token
-    )
-    num_of_files = cloned_repo.get_num_files_from_repo()
-    time_estimate = math.ceil(3 + 5 * num_of_files / 1000)
-
-    indexing_message = (
-        "I'm searching for relevant snippets in your repository. If this is your first"
-        " time using Sweep, I'm indexing your repository. This may take up to"
-        f" {time_estimate} minutes. I'll let you know when I'm done."
-    )
-    first_comment = (
-        f"{get_comment_header(0)}\n{sep}I am currently looking into this ticket! I"
-        " will update the progress of the ticket in this comment. I am currently"
-        f" searching through your code, looking for relevant snippets.\n{sep}##"
-        f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
-    )
-
-    if issue_comment is None:
-        issue_comment = current_issue.create_comment(first_comment)
-    else:
-        issue_comment.edit(first_comment)
-
-    # Comment edit function
-    past_messages = {}
-    current_index = 0
-
-    # Random variables to save in case of errors
-    table = None  # Show plan so user can finetune prompt
-
-    def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
-        nonlocal current_index, user_token, g, repo, issue_comment
-        # -1 = error, -2 = retry
-        # Only update the progress bar if the issue generation errors.
-        errored = index == -1
-        if index >= 0:
-            past_messages[index] = message
-            current_index = index
-
-        agg_message = None
-        # Include progress history
-        # index = -2 is reserved for
+            (
+                "I'm sorry, but it looks like an error has occurred. Try changing"
+                " the issue description to re-trigger Sweep. If this error persists"
+                " contact team@sweep.dev."
+                "\n\n"
+                """
+                "                  ___====-_--____,-'          \n"
+                "            _,--'                 \n"
+                "          ,'            __       \n"
+                "         /  _       _   \\.         \n"
+                "        (  (_ \\ (  `    )        \n"
+                "         \\             /         \n"
+                "          \\          /          \n"
+                "           \\______ (          \n"
+                "            `-._, \\_ .__,\n"
+                """
+            ),
         for i in range(
             current_index + 2
         ):  # go to next header (for Working on it... text)
@@ -468,20 +406,39 @@ def on_ticket(
             num_files=num_of_snippets_to_query,
         )
         assert len(snippets) > 0
-        except Exception as e:
-            trace = traceback.format_exc()
-            logger.error(e)
-            logger.error(trace)
-            edit_sweep_comment(
-                        (
-                            "It looks like an issue has occurred around fetching the files."
-                            " Perhaps the repo has not been initialized. If this error persists"
-                            f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
-                            " description to include more details and I will automatically"
-                            " relaunch."
-                        ),
-                        -1,
-                    )
+    except Exception as e:
+        trace = traceback.format_exc()
+        logger.error(e)
+        logger.error(trace)
+        edit_sweep_comment(
+                            f"""
+                                It looks like an issue has occurred around fetching the files.
+                                Perhaps the repo has not been initialized. If this error persists
+                                contact team@sweep.dev.\n\n> @{username}, please edit the issue
+                                description to include more details and I will automatically
+                                relaunch.
+        
+                                ```
+                                  ___====-_  _-====___
+                            _--^^^#####// ' ` ^^^^^^--_
+                           -^ ##########// (    ) ########## ^-
+                          - ############//  :\^^/:  ############ -
+                        _/############//   (@::@)   ############\_
+                       /#############((     \\//     ))#############
+                      -###############\\    (oo)    //###############-
+                     -#################\\  / `' \\  //#################-
+                    -###################\\/  (_)  \\/###################-
+                   _#/|##########/\\######(   `'`   )######/\\##########|\\#_
+                   |/ |#/'`/#\\ `-:/  #/--'`-_-'`-\\--#\\ `:- '\\#\\'`\\| 
+                   '  |/  V  V ' `!  |  I  `!  I  |  !'  `!  V  V  \\|  
+                       '  `  `  `   |  |   `!  `!  |  |   '  '  '  
+                                    (  | !   `!  `!  | !  )
+                                     `!  |   `!  `!  |  !'
+                                      `!  `!   `!  `! '
+                                ```
+                            """,
+                            -1,
+                        )
         log_error(
             is_paying_user,
             is_trial_user,
@@ -693,19 +650,31 @@ def on_ticket(
                 for file_change_request in file_change_requests
             ],
             headers=["File Path", "Proposed Changes"],
-    installation_id: int,
-    comment_id: int = None,
-    edited: bool = False,
-):
-    (
-        title,
-        slow_mode,
-        do_map,
-        subissues_mode,
-        sandbox_mode,
-        fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
+            tablefmt="pipe",
+        )
+        edit_sweep_comment(
+            "From looking through the relevant snippets, I decided to make the"
+            " following modifications:\n\n" + table + "\n\n",
+            2,
+        )
+
+        # TODO(lukejagg): Generate PR after modifications are made
+        # CREATE PR METADATA
+        logger.info("Generating PR...")
+        pull_request = sweep_bot.generate_pull_request()
+        pull_request_content = pull_request.content.strip().replace("\n", "\n>")
+        pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
+        # edit_sweep_comment(
+        #     (
+        #         "I have created a plan for writing the pull request. I am now working"
+        #         " my plan and coding the required changes to address this issue. Here"
+        #         f" is the planned pull request:\n\n{pull_request_summary}"
+        #     ),
+        #     3,
+        # )
+
+        logger.info("Making PR...")
+
         files_progress: list[tuple[str, str, str, str]] = [
             (
                 file_change_request.filename,
@@ -846,28 +815,19 @@ def on_ticket(
         change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
         review_message = "Here are my self-reviews of my changes at" + change_location
 
-    installation_id: int,
-    comment_id: int = None,
-    edited: bool = False,
-):
-    (
-        title,
-        slow_mode,
-        do_map,
-        subissues_mode,
-        sandbox_mode,
-        fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
+        lint_output = None
+        try:
+            current_issue.delete_reaction(eyes_reaction.id)
+        except:
+            pass
 
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
+        changes_required = False
+        try:
+            # Todo(lukejagg): Pass sandbox linter results to review_pr
+            # CODE REVIEW
 
-    summary = summary or ""
+            changes_required, review_comment = review_pr(
+                repo=repo,
                 pr=pr_changes,
                 issue_url=issue_url,
                 username=username,
@@ -1069,26 +1029,26 @@ def on_ticket(
                 -1,
             )
         else:
-            edit_sweep_comment(
-                (
-                    "I'm sorry, but it looks like an error has occurred. Try changing"
-                    " the issue description to re-trigger Sweep. If this error persists"
-                    " contact team@sweep.dev."
-                    "\n\n"
-                    "```\n"
-                    "                  ___====-_--____,-'          \n"
-                    "            _,--'                 \n"
-                    "          ,'            __       \n"
-                    "         /  _       _   \\.         \n"
-                    "        (  (_ \\ (  `    )        \n"
-                    "         \\             /         \n"
-                    "          \\          /          \n"
-                    "           \\______ (          \n"
-                    "            `-._, \\_ .__,\n"
-                    "```\n"
-                ),
-                -1,
-            )
+        edit_sweep_comment(
+            (
+                "I'm sorry, but it looks like an error has occurred. Try changing"
+                " the issue description to re-trigger Sweep. If this error persists"
+                " contact team@sweep.dev."
+                "\n\n"
+                """```
+                  ___====-_--____,-'          
+            _,--'                 
+          ,'            __       
+         /  _       _   \\.         
+        (  (_ \\ (  `    )        
+         \\             /         
+          \\          /          
+           \\______ (          
+            `-._, \\_ .__,
+                ```"""
+            ),
+            -1,
+        )
         log_error(
             is_paying_user,
             is_trial_user,
