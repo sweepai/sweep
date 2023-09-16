@@ -329,4 +329,4 @@ logn_logger = _LogN()
 # Export method attribute
 LogTask = _LogTask
 
-logn = _LogN()
+logger = _LogN()

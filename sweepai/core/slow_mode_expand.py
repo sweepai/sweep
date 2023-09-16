@@ -1,4 +1,4 @@
-from logn import logn
+from logn import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import ExpandedPlan, Message
 from sweepai.core.prompts import (
@@ -29,5 +29,5 @@ class SlowModeBot(ChatGPT):
             )
             return queries, additional_instructions
         except Exception as e:
-            logn.error(f"An error occurred: {e}")
+            logger.error(f"An error occurred: {e}")
         return [], ""

@@ -1,6 +1,6 @@
 import os
 import traceback as tb
-from logn import logn
+from logn import logger
 import openai
 from sweepai.config.server import (
     AZURE_API_KEY,
@@ -44,7 +44,7 @@ class OpenAIProxy:
                 openai.api_base = "https://api.openai.com/v1"
                 openai.api_version = None
                 openai.api_type = "open_ai"
-                logn.info(f"Calling {model} on OpenAI.")
+                logger.info(f"Calling {model} on OpenAI.")
                 response = openai.ChatCompletion.create(
                     model=model,
                     messages=messages,
@@ -52,7 +52,7 @@ class OpenAIProxy:
                     temperature=temperature,
                 )
                 return response["choices"][0].message.content
-            logn.info(
+            logger.info(
                 f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
             )
             openai.api_type = OPENAI_API_TYPE
@@ -74,7 +74,7 @@ class OpenAIProxy:
                     openai.api_base = "https://api.openai.com/v1"
                     openai.api_version = None
                     openai.api_type = "open_ai"
-                    logn.info(f"Calling {model} with OpenAI.")
+                    logger.info(f"Calling {model} with OpenAI.")
                     response = openai.ChatCompletion.create(
                         model=model,
                         messages=messages,
@@ -83,5 +83,5 @@ class OpenAIProxy:
                     )
                     return response["choices"][0].message.content
                 except Exception as e:
-                    logn.error(f"OpenAI API Key found but error: {e}")
-            logn.error(f"OpenAI API Key not found and Azure Error: {e}")
+                    logger.error(f"OpenAI API Key found but error: {e}")
+            logger.error(f"OpenAI API Key not found and Azure Error: {e}")

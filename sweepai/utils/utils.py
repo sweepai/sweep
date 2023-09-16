@@ -5,7 +5,7 @@ import traceback
 import requests
 from dataclasses import dataclass
 
-from logn import logn
+from logn import logger
 
 import tiktoken
 
@@ -219,7 +219,7 @@ def chunk_code(
             snippets.append(new_snippet)
         return snippets
     except Exception as e:
-        logn.error(traceback.format_exc())
+        logger.error(traceback.format_exc())
         return []
 
 
