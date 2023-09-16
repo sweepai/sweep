@@ -2,6 +2,7 @@ import json
 from copy import deepcopy
 import time
 from typing import Any, Iterator, Literal
+import traceback
 
 import anthropic
 import backoff
@@ -225,7 +226,7 @@ class ChatGPT(BaseModel):
             if len(self.file_change_paths) > 0:
                 pass
             else:
-                logger.error(f"Input to OpenAI:\n{self.messages_dicts}")
+                logger.error(f"Input to OpenAI:\n{self.messages_dicts}\n{traceback.format_exc()}")
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
         logger.info(f"Input to call openai:\n{messages_raw}")
@@ -305,7 +306,7 @@ class ChatGPT(BaseModel):
                         logger.warning(e)
                 return output
             except Exception as e:
-                logger.warning(e)
+                logger.warning(f'{e}\n{traceback.format_exc()}')
                 raise e
 
         result = fetch()
@@ -357,7 +358,7 @@ class ChatGPT(BaseModel):
             if len(self.file_change_paths) > 0:
                 pass
             else:
-                logger.error(f"Input to OpenAI:\n{self.messages_dicts}")
+                logger.error(f"Input to OpenAI:\n{self.messages_dicts}\n{traceback.format_exc()}")
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
         messages_raw = "\n".join([(message.content or "") for message in self.messages])
         logger.info(f"Input to call openai:\n{messages_raw}")
@@ -437,7 +438,7 @@ class ChatGPT(BaseModel):
                             logger.warning(e)
                     return output
                 except Exception as e:
-                    logger.warning(e)
+                    logger.warning(f'{e}\n{traceback.format_exc()}')
                     time.sleep(time_to_sleep + backoff.random_jitter(5))
 
         result = await fetch()
