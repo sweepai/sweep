@@ -95,12 +95,14 @@ def on_ticket(
         👻👻👻👻
         👻👻👻👻👻
         """
+        """
         agg_message = (
             get_comment_header(index, errored, pr_message, done)
             + "\n"
             + sep
             + agg_message
             + ghost_ascii_art
+            + """
             + suffix
         )
         "<details (open)?>\n<summary>Checklist</summary>.*",
@@ -214,40 +216,14 @@ def on_ticket(
                 )
                 for comment in comments
                 if comment.user.type == "User"
-            ]
-        )
-    summary = summary if summary else ""
-
-    prs = repo.get_pulls(
-        state="open", sort="created", base=SweepConfig.get_branch(repo)
-    )
-    for pr in prs:
-        # Check if this issue is mentioned in the PR, and pr is owned by bot
-        # This is done in create_pr, (pr_description = ...)
-        if (
-            pr.user.login == GITHUB_BOT_USERNAME
-            and f"Fixes #{issue_number}.\n" in pr.body
-        ):
-            success = safe_delete_sweep_branch(pr, repo)
-
-    eyes_reaction = item_to_react_to.create_reaction("eyes")
-    # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
-    reactions = item_to_react_to.get_reactions()
-    for reaction in reactions:
-        if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
-            item_to_react_to.delete_reaction(reaction.id)
-
-    # Removed 1, 3
-    progress_headers = [
-        None,
-        "Step 1: 🔎 Searching",
-        "Step 2: ⌨️ Coding",
-        "Step 3: 🔁 Code Review",
-    ]
-
-    config_pr_url = None
-
-    # Find the first comment made by the bot
+                + "👻\n"
+                + "👻👻\n"
+                + "👻👻👻\n"
+                + "👻👻👻👻\n"
+                + "👻👻👻👻👻"
+                + """
+                + """
+                + """
     issue_comment = None
     tickets_allocated = 5
     if is_trial_user:
@@ -422,6 +398,7 @@ def on_ticket(
                 + "|   |   |   |   |   |\n"
                 + " \\_/ \\_/ \\_/ \\_/ \\_/\n"
                 + "```\n"
+                + "```\n"
             )
             if table is not None:
                 agg_message = (
@@ -507,10 +484,14 @@ def on_ticket(
                 + "|   |   |   |   |   |\n"
                 + " \\_/ \\_/ \\_/ \\_/ \\_/\n"
                 + "```\n"
+                + "```\n"
             ),
             -1,
         )
+        raise e
+        return {"success": False}
         log_error(
+        return {"success": True}
             is_paying_user,
             is_trial_user,
             username,
@@ -832,7 +813,7 @@ def on_ticket(
                     (
                         (
                             f"`{filename}` ✅ Commit [`{commit_hash[:7]}`]({commit_url})",
-                            blockquote(instructions) + error_logs + "\n\nBoo! 👻",
+                            blockquote(instructions) + error_logs + "\n\nBoo! 👻\"\"\"",
                             "X",
                         )
                         if file_change_request.filename == filename
@@ -942,10 +923,10 @@ def on_ticket(
             logger.error(e)
 
         if changes_required:
-            edit_sweep_comment(
-                review_message + "\n\nI finished incorporating these changes.",
-                3,
-            )
+                edit_sweep_comment(
+                    review_message + "\n\nI finished incorporating these changes.\"\"\"",
+                    3,
+                )
         else:
             edit_sweep_comment(
                 f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
@@ -988,14 +969,14 @@ def on_ticket(
             logger.error(e)
 
         # Completed code review
-        edit_sweep_comment(
-            review_message + "\n\nSuccess! 🚀",
-            4,
-            pr_message=(
-                f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}"
-            ),
-            done=True,
-        )
+                edit_sweep_comment(
+                    review_message + "\n\nSuccess! 🚀\"\"\"",
+                    4,
+                    pr_message=(
+                        f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}"
+                    ),
+                    done=True,
+                )
 
         logger.info("Add successful ticket to counter")
     except MaxTokensExceeded as e:
@@ -1090,24 +1071,24 @@ def on_ticket(
         logger.error(e)
         # title and summary are defined elsewhere
         if len(title + summary) < 60:
-            edit_sweep_comment(
-                (
-                    "I'm sorry, but it looks like an error has occurred due to"
-                    " insufficient information. Be sure to create a more detailed issue"
-                    " so I can better address it. If this error persists report it at"
-                    " https://discord.gg/sweep.\n\nBoo! 👻"
-                ),
-                -1,
-            )
+                edit_sweep_comment(
+                    (
+                        "I'm sorry, but it looks like an error has occurred due to"
+                        " insufficient information. Be sure to create a more detailed issue"
+                        " so I can better address it. If this error persists report it at"
+                        " https://discord.gg/sweep.\n\nBoo! 👻\"\"\""
+                    ),
+                    -1,
+                )
         else:
-            edit_sweep_comment(
-                (
-                    "I'm sorry, but it looks like an error has occurred. Try changing"
-                    " the issue description to re-trigger Sweep. If this error persists"
-                    " contact team@sweep.dev.\n\nBoo! 👻"
-                ),
-                -1,
-            )
+                edit_sweep_comment(
+                    (
+                        "I'm sorry, but it looks like an error has occurred. Try changing"
+                        " the issue description to re-trigger Sweep. If this error persists"
+                        " contact team@sweep.dev.\n\nBoo! 👻\"\"\""
+                    ),
+                    -1,
+                )
         log_error(
             is_paying_user,
             is_trial_user,
