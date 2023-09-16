@@ -135,7 +135,6 @@ def run_on_check_suite(*args, **kwargs):
 
 def terminate_thread(thread):
     """Terminate a python threading.Thread."""
-    # Todo(lukejagg): for multiprocessing, see if .terminate is catched in try/catch
     try:
         if not thread.is_alive():
             return
@@ -147,13 +146,10 @@ def terminate_thread(thread):
         if res == 0:
             raise ValueError("Invalid thread ID")
         elif res != 1:
-            # Call with exception set to 0 is needed to cleanup properly.
             ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
             raise SystemError("PyThreadState_SetAsyncExc failed")
     except Exception as e:
-        logger.error(f"Failed to terminate thread: {e}")
-
-
+        logger.error(f"Failed to terminate thread: {e}, traceback: {traceback.format_exc()}")
 def call_on_ticket(*args, **kwargs):
     global on_ticket_events
     key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
