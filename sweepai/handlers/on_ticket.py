@@ -584,14 +584,6 @@ def on_ticket(
                 e,
                 traceback.format_exc(),
             )
-            logger.info(
-                """
-                _________
-                /   o     \\\\
-                | __   __ |
-                |||  |||  |||
-                """
-            )
     else:
         logger.info("sweep.yaml file already exists.")
 
@@ -719,17 +711,17 @@ def on_ticket(
         # edit_sweep_comment(
         #     (
         #         "I have created a plan for writing the pull request. I am now working"
-        #         " my plan and coding the required changes to address this issue. Here"
-        #         f" is the planned pull request:\n\n{pull_request_summary}"
-        #     ),
-        #     3,
-        # )
-
-        logger.info("Making PR...")
-
-        files_progress: list[tuple[str, str, str, str]] = [
-            (
-                file_change_request.filename,
+            raise Exception(f"Failed to create PR: {response.get('error')}\n"
+            """
+            _________
+           ( _______ )
+          / /       \ \
+         / /         \ \
+        ( (           ) )
+         \ \         / /
+          \_\_______/_/
+            (_______)
+            """)
                 file_change_request.instructions_display,
                 "⏳ In Progress",
                 "",
@@ -855,17 +847,15 @@ def on_ticket(
             logger.info(f"Edited {file_change_request.filename}")
             edit_sweep_comment(checkboxes_contents, 2)
         if not response.get("success"):
-            raise Exception(f"Failed to create PR: {response.get('error')}")
-            logger.info("""
-            _________
-           ( _______ )
-          / /       \ \
-         / /         \ \
-        ( (           ) )
-         \ \         / /
-          \_\_______/_/
-            (_______)
-            """)
+            raise Exception(f"Failed to create PR: {response.get('error')}\n"
+            "______\n"
+            "( _______ )\n"
+            "/ /       \\ \\\n"
+            "/ /         \\ \\\n"
+            "( (           ) )\n"
+            "\\ \\         / /\n"
+            "\\_\\_______/_/\n"
+            "(_______)\n")
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
@@ -929,18 +919,6 @@ def on_ticket(
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
-
-        if changes_required:
-            edit_sweep_comment(
-                review_message + "\n\nI finished incorporating these changes.",
-                3,
-            )
-        else:
-            edit_sweep_comment(
-                f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
-                3,
-            )
-
         is_draft = config.get("draft", False)
         try:
             pr = repo.create_pull(
