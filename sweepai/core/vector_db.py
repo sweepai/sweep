@@ -13,6 +13,7 @@ from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=
     VectorStore,
 )
 from github import Github
+from logn import logn
 from loguru import logger
 from redis import Redis
 from redis.backoff import ConstantBackoff
@@ -61,7 +62,9 @@ def download_models():
 
 def init_deeplake_vs(repo_name):
     deeplake_repo_path = f"mem://{int(time.time())}{repo_name}"
-    deeplake_vector_store = VectorStore(path=deeplake_repo_path, read_only=False, overwrite=False)
+    deeplake_vector_store = VectorStore(
+        path=deeplake_repo_path, read_only=False, overwrite=False
+    )
     return deeplake_vector_store
 
 
@@ -86,7 +89,7 @@ def embed_huggingface(texts):
             )
             return response.json()["embeddings"]
         except requests.exceptions.RequestException as e:
-            logger.error(
+            logn.error(
                 f"Error occurred when sending request to Hugging Face endpoint: {e}"
             )
 
@@ -99,7 +102,7 @@ def embed_replicate(texts):
 
 @lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
-    logger.info(
+    logn.info(
         f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}..."
     )
     match VECTOR_EMBEDDING_SOURCE:
@@ -122,8 +125,8 @@ def embed_texts(texts: tuple[str]):
                     )
                     embeddings.extend([r["embedding"] for r in response["data"]])
                 except Exception as e:
-                    logger.error(e)
-                    logger.error(f"Failed to get embeddings for {batch}")
+                    logn.error(e)
+                    logn.error(f"Failed to get embeddings for {batch}")
             return embeddings
         case "huggingface":
             if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
@@ -143,13 +146,16 @@ def embed_texts(texts: tuple[str]):
                 raise Exception("Replicate URL and token not set")
         case _:
             raise Exception("Invalid vector embedding mode")
-    logger.info(f"Computed embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}")
+    logn.info(
+        f"Computed embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}"
+    )
 
 
 def embedding_function(texts: list[str]):
     # For LRU cache to work
     return embed_texts(tuple(texts))
 
+  
 def get_deeplake_vs_from_repo(
     cloned_repo: ClonedRepo,
     sweep_config: SweepConfig = SweepConfig(),
@@ -161,17 +167,17 @@ def get_deeplake_vs_from_repo(
     commits = repo.get_commits()
     commit_hash = commits[0].sha
 
-    logger.info(f"Downloading repository and indexing for {repo_full_name}...")
+    logn.info(f"Downloading repository and indexing for {repo_full_name}...")
     start = time.time()
-    logger.info("Recursively getting list of files...")
+    logn.info("Recursively getting list of files...")
 
     snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
-    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
+    logn.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
     # prepare lexical search
     index = prepare_index_from_snippets(
         snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
     )
-    print("Prepared index from snippets")
+    logn.print("Prepared index from snippets")
     # scoring for vector search
     files_to_scores = {}
     score_factors = []
@@ -198,7 +204,7 @@ def get_deeplake_vs_from_repo(
     files_to_scores = {
         file_path: score for file_path, score in zip(file_list, all_scores)
     }
-    logger.info(f"Found {len(file_list)} files in repository {repo_full_name}")
+    logn.info(f"Found {len(file_list)} files in repository {repo_full_name}")
 
     documents = []
     metadatas = []
@@ -214,8 +220,8 @@ def get_deeplake_vs_from_repo(
         metadatas.append(metadata)
         gh_file_path = snippet.file_path[len("repo/") :]
         ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")
-    logger.info(f"Getting list of all files took {time.time() - start}")
-    logger.info(f"Received {len(documents)} documents from repository {repo_full_name}")
+    logn.info(f"Getting list of all files took {time.time() - start}")
+    logn.info(f"Received {len(documents)} documents from repository {repo_full_name}")
     collection_name = parse_collection_name(repo_full_name)
 
     deeplake_vs = deeplake_vs or compute_deeplake_vs(
@@ -229,7 +235,7 @@ def compute_deeplake_vs(
     collection_name, documents, ids, metadatas, sha
 ):
     if len(documents) > 0:
-        logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
+        logn.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
         # Check cache here for all documents
         embeddings = [None] * len(documents)
         if redis_client:
@@ -247,15 +253,15 @@ def compute_deeplake_vs(
                     if isinstance(arr, list):
                         embeddings[idx] = np.array(arr, dtype=np.float32)
 
-        logger.info(
+        logn.info(
             f"Found {len([x for x in embeddings if x is not None])} embeddings in cache"
         )
         indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
         documents_to_compute = [documents[idx] for idx in indices_to_compute]
 
-        logger.info(f"Computing {len(documents_to_compute)} embeddings...")
+        logn.info(f"Computing {len(documents_to_compute)} embeddings...")
         computed_embeddings = embedding_function(documents_to_compute)
-        logger.info(f"Computed {len(computed_embeddings)} embeddings")
+        logn.info(f"Computed {len(computed_embeddings)} embeddings")
 
         for idx, embedding in zip(indices_to_compute, computed_embeddings):
             embeddings[idx] = embedding
@@ -263,19 +269,19 @@ def compute_deeplake_vs(
         try:
             embeddings = np.array(embeddings, dtype=np.float32)
         except:
-            print([len(embedding) for embedding in embeddings])
-            logger.error(
+            logn.print([len(embedding) for embedding in embeddings])
+            logn.error(
                 "Failed to convert embeddings to numpy array, recomputing all of them"
             )
             embeddings = embedding_function(documents)
             embeddings = np.array(embeddings, dtype=np.float32)
 
-        logger.info("Adding embeddings to deeplake vector store...")
+        logn.info("Adding embeddings to deeplake vector store...")
         deeplake_vs = init_deeplake_vs(collection_name)
         deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
-        logger.info("Added embeddings to deeplake vector store")
+        logn.info("Added embeddings to deeplake vector store")
         if redis_client and len(documents_to_compute) > 0:
-            logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
+            logn.info(f"Updating cache with {len(computed_embeddings)} embeddings")
             cache_keys = [
                 hash_sha256(doc)
                 + SENTENCE_TRANSFORMERS_MODEL
@@ -295,7 +301,7 @@ def compute_deeplake_vs(
             )
         return deeplake_vs
     else:
-        logger.error("No documents found in repository")
+        logn.error("No documents found in repository")
         return deeplake_vs
 
 
@@ -309,24 +315,24 @@ def get_relevant_snippets(
 ):
     repo_name = cloned_repo.repo_full_name
     installation_id = cloned_repo.installation_id
-    logger.info("Getting query embedding...")
+    logn.info("Getting query embedding...")
     query_embedding = embedding_function([query])  # pylint: disable=no-member
-    logger.info("Starting search by getting vector store...")
+    logn.info("Starting search by getting vector store...")
     deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
         cloned_repo, sweep_config=sweep_config
     )
     content_to_lexical_score = search_index(query, lexical_index)
-    logger.info(f"Found {len(content_to_lexical_score)} lexical results")
-    logger.info(f"Searching for relevant snippets... with {num_docs} docs")
+    logn.info(f"Found {len(content_to_lexical_score)} lexical results")
+    logn.info(f"Searching for relevant snippets... with {num_docs} docs")
     results = {"metadata": [], "text": []}
     try:
         results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
     except Exception as e:
-        logger.error(e)
-    logger.info("Fetched relevant snippets...")
+        logn.error(e)
+    logn.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
-        logger.info(f"Results query {query} was empty")
-        logger.info(f"Results: {results}")
+        logn.info(f"Results query {query} was empty")
+        logn.info(f"Results: {results}")
         if username is None:
             username = "anonymous"
         posthog.capture(
@@ -361,7 +367,7 @@ def get_relevant_snippets(
     sorted_list = sorted(combined_list, key=lambda x: x[0], reverse=True)
     sorted_metadatas = [metadata for _, metadata in sorted_list]
     relevant_paths = [metadata["file_path"] for metadata in sorted_metadatas]
-    logger.info("Relevant paths: {}".format(relevant_paths[:5]))
+    logn.info("Relevant paths: {}".format(relevant_paths[:5]))
     return [
         Snippet(
             content="",

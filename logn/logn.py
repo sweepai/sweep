@@ -79,23 +79,35 @@ def _find_available_path(path, extension=".txt"):
 
 
 class _Task:
-    def __init__(self, logn_task_key, logn_parent_task=None, metadata=None):
+    def __init__(
+        self, logn_task_key, logn_parent_task=None, metadata=None, create_file=True
+    ):
         if logn_task_key is None:
             logn_task_key = get_task_key()
 
         self.task_key = logn_task_key
         self.metadata = metadata
         self.parent_task = logn_parent_task
+        if self.metadata is None:
+            self.metadata = {}
         if "name" not in self.metadata:
             self.metadata["name"] = str(self.task_key.name.split(" ")[0])
+        self.create_file = create_file
         self.name, self.log_path, self.meta_path = self.create_files()
         self.write_metadata(state="Created")
 
     @staticmethod
-    def create(metadata):
-        return _Task(logn_task_key=threading.current_thread(), metadata=metadata)
+    def create(metadata, create_file=True):
+        return _Task(
+            logn_task_key=threading.current_thread(),
+            metadata=metadata,
+            create_file=create_file,
+        )
 
     def write_metadata(self, state: str):
+        if not self.create_file:
+            return
+
         # Todo: keep track of state, and allow metadata updates
         # state: str | None
         # self.state = state
@@ -106,7 +118,7 @@ class _Task:
                         "task_key": self.name,
                         "logs": self.log_path,
                         "datetime": str(datetime.datetime.now()),
-                        "metadata": self.metadata,
+                        "metadata": self.metadata if self.metadata is not None else {},
                         # Todo: Write parent task in here
                         "parent_task": self.parent_task.meta_path
                         if self.parent_task is not None
@@ -120,22 +132,29 @@ class _Task:
         name = self.metadata["name"]
 
         # Write logging file
-        log_path = _find_available_path(os.path.join(LOG_PATH, name))
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
-        with open(log_path, "w") as f:
-            pass
+        log_path = os.path.join(LOG_PATH, name + ".txt")
+        if self.create_file:
+            log_path = _find_available_path(os.path.join(LOG_PATH, name))
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            with open(log_path, "w") as f:
+                pass
 
         # Write metadata file
-        meta_path = _find_available_path(
-            os.path.join(META_PATH, name), extension=".json"
-        )
-        os.makedirs(os.path.dirname(meta_path), exist_ok=True)
-        with open(meta_path, "w") as f:
-            pass
+        meta_path = os.path.join(META_PATH, name + ".json")
+        if self.create_file:
+            meta_path = _find_available_path(
+                os.path.join(META_PATH, name), extension=".json"
+            )
+            os.makedirs(os.path.dirname(meta_path), exist_ok=True)
+            with open(meta_path, "w") as f:
+                pass
 
         return name, log_path, meta_path
 
     def write_log(self, logn_level, *args, **kwargs):
+        if not self.create_file:
+            return
+
         if self.log_path is None:
             raise ValueError("Task has no log path")
 
@@ -144,7 +163,9 @@ class _Task:
             f.write(f"{log}{END_OF_LINE.format(level=logn_level)}")
 
     @staticmethod
-    def get_task(task_key=None, create_if_not_exist=True, metadata=None):
+    def get_task(
+        task_key=None, create_if_not_exist=True, metadata=None, create_file=True
+    ):
         if task_key is None:
             task_key = get_task_key()
 
@@ -152,7 +173,7 @@ class _Task:
         if _task_dictionary.get(task_key) is not None:
             task = _task_dictionary[task_key]
         elif create_if_not_exist:
-            task = _Task.create(metadata=metadata)
+            task = _Task.create(metadata=metadata, create_file=create_file)
             _task_dictionary[task_key] = task
 
         return task
@@ -165,14 +186,15 @@ class _Task:
         _task_dictionary[task_key] = task
 
     @staticmethod
-    def create_child_task(name: str, metadata):
+    def create_child_task(name: str):
+        # Todo: make child task metadata
         parent_task = _Task.get_task(create_if_not_exist=False)
         if parent_task is None:
             task_key = get_task_key()
             child_task = _Task(
                 logn_task_key=None,
                 logn_parent_task=parent_task,
-                metadata={**metadata, "name": name},
+                metadata={"name": name},
             )
         else:
             task_key = parent_task.task_key
@@ -181,7 +203,6 @@ class _Task:
                 logn_parent_task=parent_task,
                 metadata={
                     **parent_task.metadata,
-                    **metadata,
                     "name": parent_task.metadata["name"] + "_" + name,
                 },
             )
@@ -194,9 +215,13 @@ class _Logger:
         self.printfn = printfn
 
     def __call__(self, *args, **kwargs):
-        self.log(*args, **kwargs)
+        try:
+            self._log(*args, **kwargs)
+        except Exception as e:
+            print(e)
+            print("Failed to write log")
 
-    def log(self, *args, **kwargs):
+    def _log(self, *args, **kwargs):
         task = _Task.get_task()
 
         parser = None
@@ -211,8 +236,8 @@ class _Logger:
             self.printfn(*args, **kwargs)
             task.write_log(0, *args, **kwargs)
 
-    def init(self, metadata):
-        _Task.get_task(metadata=metadata)
+    def init(self, metadata, create_file=True):
+        _Task.get_task(metadata=metadata, create_file=create_file)
 
 
 class _LogN(_Logger):
@@ -222,6 +247,18 @@ class _LogN(_Logger):
 
     def __getitem__(self, printfn):
         return _Logger(printfn=printfn)
+
+    def print(self, *args, **kwargs):
+        self[print](*args, **kwargs)
+
+    def info(self, *args, **kwargs):
+        self[logger.info](*args, **kwargs)
+
+    def error(self, *args, **kwargs):
+        self[logger.error](*args, **kwargs)
+
+    def warning(self, *args, **kwargs):
+        self[logger.warning](*args, **kwargs)
 
     @staticmethod
     def close():
@@ -258,8 +295,16 @@ class _LogTask:
         return wrapper
 
 
+class LogN:
+    @staticmethod
+    def print():
+        pass
+
+
 # Export logger
 logn_logger = _LogN()
 
 # Export method attribute
 LogTask = _LogTask
+
+logn = _LogN()
