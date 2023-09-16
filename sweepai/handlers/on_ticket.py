@@ -366,7 +366,32 @@ def on_ticket(
 
     # Random variables to save in case of errors
     table = None  # Show plan so user can finetune prompt
-
+    
+    # ASCII art of a dragon
+    dragon_art = """
+                      ___====-_--_____-====___
+                _--^^^#####// ' ` ^^^^^^^^ ######^^^--_
+              -^ ##########// ( ) ^^^^^^^^^ #######^-
+             - ############// `\_/ ' ^^^^^^^ ######## -
+            _/ ############// (@) ^^^^^^^^ ######### \_
+           / #############(( `\\_^_^ ' ))############# \
+          - ###############\\ `---------' //############### -
+         _^ ###############\\ ########### //###############
+        / #################\\ ########### //################ \
+       - ##################\\ ########### //################## -
+      _^ ##################\\ ########### //###################^_
+     / ###################(( ###########(( #################### \
+    - #####################\\ ###########\\ ##################### -
+    ######################\\ ###########\\ ######################
+    - ###################(( ###########(( ##################### -
+     \ #################(( `###########, ))################# /
+      ^ ##############(( `############# ' ))##############^
+        ` #######(( `################# ' ))####### '
+           ` ##(( `############### ' ))## '
+               `~\ ' ^^^^^^^^^^ ' /~'
+                    ` - ....... - '
+    """
+    
     def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
         nonlocal current_index, user_token, g, repo, issue_comment
         # -1 = error, -2 = retry
@@ -375,7 +400,7 @@ def on_ticket(
         if index >= 0:
             past_messages[index] = message
             current_index = index
-
+    
         agg_message = None
         # Include progress history
         # index = -2 is reserved for
@@ -394,10 +419,11 @@ def on_ticket(
                 agg_message = msg
             else:
                 agg_message = agg_message + f"\n{sep}" + msg
-
+    
         suffix = bot_suffix + discord_suffix
         if errored:
             agg_message = (
+            agg_message + "\n" + dragon_art
                 "## ❌ Unable to Complete PR"
                 + "\n"
                 + message
@@ -579,8 +605,15 @@ def on_ticket(
             config_pr_url = config_pr.html_url
             edit_sweep_comment(message="", index=-2)
         except Exception as e:
+            dragon_art = """
+            _________
+            |       |
+            |       |
+            |       |
+            |_______|
+            """
             logger.error(
-                "Failed to create new branch for sweep.yaml file.\n",
+                "Failed to create new branch for sweep.yaml file.\n" + dragon_art,
                 e,
                 traceback.format_exc(),
             )
@@ -847,7 +880,17 @@ def on_ticket(
             logger.info(f"Edited {file_change_request.filename}")
             edit_sweep_comment(checkboxes_contents, 2)
         if not response.get("success"):
-            raise Exception(f"Failed to create PR: {response.get('error')}")
+            dragon_art = """
+            _____====_____
+        /                 \\
+        {                       }
+        \\_______/\\_______/
+        {______} {______}
+        /\\:_______/\\_______\\
+        {                       }
+        \\:_______\\_______/
+            """
+            raise Exception(f"Failed to create PR: {response.get('error')}\n{dragon_art}")
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
