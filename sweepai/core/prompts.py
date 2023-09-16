@@ -312,7 +312,7 @@ Step-by-step thoughts with explanations:
 {{complete_new_file_contents}}
 </new_file>
 
-Commit message: "the commit message"
+Commit message: "feat/fix: the commit message"
 """
 
 """
@@ -355,6 +355,8 @@ Step-by-step thoughts with explanations:
 * Thought 1
 * Thought 2
 ...
+
+Commit message: "feat/fix: the commit message"
 
 Detailed plan of modifications:
 * Modification 1
