@@ -1,4 +1,5 @@
 # Do not save logs for main process
+import traceback
 from logn import logger
 
 logger.init(
@@ -158,7 +159,6 @@ def call_on_ticket(*args, **kwargs):
     # Check if a previous process exists for the same key, cancel it
     e = on_ticket_events.get(key, None)
     if e:
-        logger.info(f"Found previous thread for key {key} and cancelling it")
         terminate_thread(e)
 
     thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
@@ -398,6 +398,8 @@ async def webhook(raw_request: Request):
                     #     logger.info("Cancelling process")
                     #     process.cancel()
                     # stub.issue_lock[
+                    import traceback
+                    
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
                     call_on_ticket(
@@ -433,7 +435,6 @@ async def webhook(raw_request: Request):
                         .lower()
                         .startswith(GITHUB_LABEL_NAME)
                     ):
-                        logger.info("Comment does not start with 'Sweep', passing")
                         return {
                             "success": True,
                             "reason": "Comment does not start with 'Sweep', passing",
