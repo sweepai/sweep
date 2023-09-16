@@ -61,76 +61,19 @@ events = {}
 on_ticket_events = {}
 
 
-def run_on_ticket(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "ticket_" + kwargs["username"],
-        },
-        create_file=False,
-    )
-    on_ticket(*args, **kwargs)
-    logger.close()
+# Removed run_on_ticket function
 
 
-def run_on_comment(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "comment_" + kwargs["username"],
-        },
-        create_file=False,
-    )
-    on_comment(*args, **kwargs)
-    logger.close()
+# Removed run_on_comment function
 
 
-def run_on_merge(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "merge_" + args[0]["pusher"]["name"],
-        },
-        create_file=False,
-    )
-    on_merge(*args, **kwargs)
-    logger.close()
+# Removed run_on_merge function
 
 
-def run_on_write_docs(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "docs_scrape",
-        },
-        create_file=False,
-    )
-    write_documentation(*args, **kwargs)
-    logger.close()
+# Removed run_on_write_docs function
 
 
-def run_on_check_suite(*args, **kwargs):
-    logger.init(
-        metadata={
-            "name": "check",
-        },
-        create_file=False,
-    )
-
-    request = kwargs["request"]
-    pr_change_request = on_check_suite(request)
-    if pr_change_request:
-        logger.init(
-            metadata={
-                **pr_change_request.params,
-                "name": "check_" + pr_change_request.params["username"],
-            },
-            create_file=False,
-        )
-        call_on_comment(**pr_change_request.params)
-        logger.info("Done with on_check_suite")
-    else:
-        logger.info("Skipping on_check_suite as no pr_change_request was returned")
+# Removed run_on_check_suite function
 
 
 def terminate_thread(thread):
@@ -165,7 +108,7 @@ def call_on_ticket(*args, **kwargs):
         logger.info(f"Found previous thread for key {key} and cancelling it")
         terminate_thread(e)
 
-    thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=on_ticket, args=args, kwargs=kwargs)
     on_ticket_events[key] = thread
     thread.start()
 
@@ -174,7 +117,7 @@ def call_on_check_suite(*args, **kwargs):
     repo_full_name = kwargs["request"].repository.full_name
     pr_number = kwargs["request"].check_run.pull_requests[0].number
     key = f"{repo_full_name}-{pr_number}"
-    thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
 
@@ -205,12 +148,12 @@ def call_on_comment(
 
 
 def call_on_merge(*args, **kwargs):
-    thread = threading.Thread(target=run_on_merge, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
     thread.start()
 
 
 def call_on_write_docs(*args, **kwargs):
-    thread = threading.Thread(target=run_on_write_docs, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
     thread.start()
 
 
@@ -667,31 +610,26 @@ async def webhook(raw_request: Request):
     except ValidationError as e:
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
-    return {"success": True}
-
-
-# Set up cronjob for this
-@app.get("/update_sweep_prs")
-def update_sweep_prs(repo_full_name: str, installation_id: int):
-    # Get a Github client
-    _, g = get_github_client(installation_id)
-
-    # Get the repository
-    repo = g.get_repo(repo_full_name)
-    config = SweepConfig.get_config(repo)
-
+    
     try:
         branch_ttl = int(config.get("branch_ttl", 7))
     except:
         branch_ttl = 7
-    branch_ttl = max(branch_ttl, 1)
-
-    # Get all open pull requests created by Sweep
-    pulls = repo.get_pulls(
-        state="open", head="sweep", sort="updated", direction="desc"
-    )[:5]
-
-    # For each pull request, attempt to merge the changes from the default branch into the pull request branch
+    def call_on_ticket(*args, **kwargs):
+        global on_ticket_events
+        key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
+    
+        logger.init(
+            metadata={
+                **kwargs,
+                "name": "ticket_" + kwargs["username"],
+            },
+            create_file=False,
+        )
+        thread = threading.Thread(target=on_ticket, args=args, kwargs=kwargs)
+        on_ticket_events[key] = thread
+        thread.start()
+        logger.close()
     try:
         for pr in pulls:
             try:
