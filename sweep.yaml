@@ -30,7 +30,7 @@ sandbox:
 
 rules:
  - "These rules should do NOT apply to tests."
- - "There should not be commented out code."
+ - "There should not be large chunks of code that's just commented out. Docstrings and explanations in code are okay though."
  - "Update UPDATES_MESSAGE section in sweepai/config/client.py if there is a major new feature."
  - "Update docs/pages/usage/config.mdx for changes that affect sweep.yaml."
  - "Add appropriate documentation when large new features are released. Make sure all envvars are documented in sweepai/config/server.py"
