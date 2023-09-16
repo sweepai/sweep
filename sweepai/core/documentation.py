@@ -2,7 +2,7 @@ import asyncio
 import re
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from loguru import logger
-from logn import logn
+from logn import logn, LogTask
 from tqdm import tqdm
 from sweepai.core.lexical_search import prepare_index_from_docs, search_docs
 from sweepai.core.robots import is_url_allowed
@@ -83,6 +83,7 @@ def remove_non_alphanumeric(url):
     return cleaned
 
 
+@LogTask()
 async def write_documentation(doc_url):
     url_allowed = is_url_allowed(doc_url, user_agent="*")
     if not ACTIVELOOP_TOKEN:
