@@ -42,6 +42,7 @@ from sweepai.redis_init import redis_client
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.safe_priority_queue import SafePriorityQueue
 from sweepai.utils.search_utils import index_full_repository
 
 app = FastAPI()
@@ -50,7 +51,7 @@ import tracemalloc
 
 tracemalloc.start()
 
-events = {}
+events = SafePriorityQueue()
 on_ticket_events = {}
 
 
@@ -105,6 +106,7 @@ def call_on_check_suite(*args, **kwargs):
     repo_full_name = kwargs["request"].repository.full_name
     pr_number = kwargs["request"].check_run.pull_requests[0].number
     key = f"{repo_full_name}-{pr_number}"
+    events.put(2, (args, kwargs))  # Priority 2 for GitHub Action calls
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
@@ -117,15 +119,12 @@ def call_on_comment(
     pr_id = kwargs["pr_number"]
     key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
 
-    if key not in events:
-        events[key] = Queue()
-
     def worker():
-        while not events[key].empty():
-            task_args, task_kwargs = events[key].get()
+        while not events.empty():
+            task_args, task_kwargs = events.get()
             on_comment(*task_args, **task_kwargs)
 
-    events[key].put((args, kwargs))
+    events.put(1, (args, kwargs))  # Priority 1 for comments
 
     # If a thread isn't running, start one
     if not any(
