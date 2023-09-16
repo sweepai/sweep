@@ -110,6 +110,13 @@ def run_on_write_docs(*args, **kwargs):
 
 
 def run_on_check_suite(*args, **kwargs):
+    logger.init(
+        metadata={
+            "name": "check",
+        },
+        create_file=False,
+    )
+
     request = kwargs["request"]
     pr_change_request = on_check_suite(request)
     if pr_change_request:
