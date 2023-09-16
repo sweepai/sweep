@@ -2,13 +2,14 @@ from sweepai.config.client import get_rules, SweepConfig
 from sweepai.utils.github_utils import get_github_client
 from sweepai.core.post_merge import PostMerge
 from loguru import logger
-from logn import logn
+from logn import logn, LogTask
 from sweepai.utils.event_logger import posthog
 
 # change threshold for number of lines changed
 CHANGE_THRESHOLD = 25
 
 
+@LogTask()
 def on_merge(request_dict, chat_logger):
     if "commits" in request_dict and len(request_dict["commits"]) > 0:
         head_commit = request_dict["commits"][0]
