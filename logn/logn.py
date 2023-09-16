@@ -96,6 +96,7 @@ class _Task:
         self.name, self.log_path, self.meta_path = self.create_files()
         self.state = "Created"
         self.children = []
+        self.function_name = None
         self.write_metadata(state="Created")
 
     @staticmethod
@@ -106,11 +107,18 @@ class _Task:
             create_file=create_file,
         )
 
-    def write_metadata(self, state: str | None = None, child_task: str | None = None):
+    def write_metadata(
+        self,
+        state: str | None = None,
+        child_task: str | None = None,
+        function_name: str | None = None,
+    ):
         if state is not None:
             self.state = state
         if child_task is not None:
             self.children.append(child_task)
+        if function_name is not None:
+            self.function_name = function_name
         if not self.create_file:
             return
 
@@ -126,6 +134,7 @@ class _Task:
                         "datetime": str(datetime.datetime.now()),
                         "metadata": self.metadata if self.metadata is not None else {},
                         # Todo: Write parent task in here
+                        "function_name": self.function_name,
                         "parent_task": self.parent_task.meta_path
                         if self.parent_task is not None
                         else None,
@@ -283,7 +292,9 @@ class _LogTask:
             # print(self.name, f"Logging before calling {func.__name__}")
 
             key, parent_task, child_task = _Task.create_child_task(name=func.__name__)
-            parent_task.write_metadata(child_task=child_task.meta_path)
+            parent_task.write_metadata(
+                child_task=child_task.meta_path, function_name=func.__name__
+            )
 
             # Todo: add call to parent task
 
