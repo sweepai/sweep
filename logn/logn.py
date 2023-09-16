@@ -34,7 +34,8 @@ def print2(message, level="INFO"):
     function_name = calling_frame.function
     line_number = calling_frame.lineno
 
-    module_name = inspect.getmodule(calling_frame).__name__
+    # module_name = inspect.getmodule(calling_frame).__name__
+    module_name = calling_frame.filename.split("/")[-1].replace(".py", "")
 
     log_string = f"{timestamp} | {level:<8} | {module_name}:{function_name}:{line_number} - {message}"
     return log_string
