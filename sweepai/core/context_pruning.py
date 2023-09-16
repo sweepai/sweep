@@ -1,4 +1,4 @@
-from logn import logn
+from logn import logger
 from sweepai.config.client import get_description
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, ContextToPrune
@@ -35,5 +35,5 @@ class ContextPruning(ChatGPT):
             context_to_prune = ContextToPrune.from_string(response)
             return context_to_prune.excluded_snippets, context_to_prune.excluded_dirs
         except Exception as e:
-            logn.error(f"An error occurred: {e}")
+            logger.error(f"An error occurred: {e}")
             return [], []

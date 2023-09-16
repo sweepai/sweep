@@ -1,7 +1,7 @@
 """
 Take a PR and provide an AI generated review of the PR.
 """
-from logn import logn
+from logn import logger
 
 from sweepai.config.server import MONGODB_URI
 from sweepai.core.entities import DiffSummarization, PullRequestComment
@@ -38,7 +38,7 @@ def get_pr_diffs(repo, pr):
         ):
             pr_diffs.append((file.filename, diff))
         else:
-            logn.info(
+            logger.info(
                 f"File status {file.status} not recognized"
             )  # TODO(sweep): We don't handle renamed files
     return pr_diffs
@@ -59,10 +59,10 @@ def review_pr(
     chat_logger=None,
 ):
     repo_name = repo.full_name
-    logn.info("Getting PR diffs...")
+    logger.info("Getting PR diffs...")
     diffs = get_pr_diffs(repo, pr)
     if len(diffs) == 0:
-        logn.info("No diffs found.")
+        logger.info("No diffs found.")
         return False, None
     human_message = HumanMessagePromptReview(
         repo_name=repo_name,
@@ -132,5 +132,5 @@ def review_pr(
     review_comment = PullRequestComment.from_string(reply)
     pr.create_review(body=review_comment.content, event="COMMENT", comments=[])
     changes_required = "yes" in review_comment.changes_required.lower()
-    logn.info(f"Changes required: {changes_required}")
+    logger.info(f"Changes required: {changes_required}")
     return changes_required, review_comment.content

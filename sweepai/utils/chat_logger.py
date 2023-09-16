@@ -4,7 +4,7 @@ from typing import Any
 
 import requests
 from geopy import Nominatim
-from logn import logn
+from logn import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
@@ -34,7 +34,7 @@ class ChatLogger(BaseModel):
         super().__init__(data=data)  # Call the BaseModel's __init__ method
         key = MONGODB_URI
         if key is None:
-            logn.warning("Chat history logger has no key")
+            logger.warning("Chat history logger has no key")
             return
         try:
             client = MongoClient(
@@ -51,8 +51,8 @@ class ChatLogger(BaseModel):
                 days=1
             )  # 1 day since historical use case
         except Exception as e:
-            logn.warning("Chat history could not connect to MongoDB")
-            logn.warning(e)
+            logger.warning("Chat history could not connect to MongoDB")
+            logger.warning(e)
 
     def get_chat_history(self, filters):
         return (
@@ -63,7 +63,7 @@ class ChatLogger(BaseModel):
 
     def add_chat(self, additional_data):
         if self.chat_collection is None:
-            logn.error("Chat collection is not initialized")
+            logger.error("Chat collection is not initialized")
             return
         document = {
             **self.data,
@@ -76,7 +76,7 @@ class ChatLogger(BaseModel):
 
     def add_successful_ticket(self, gpt3=False):
         if self.ticket_collection is None:
-            logn.error("Ticket Collection Does Not Exist")
+            logger.error("Ticket Collection Does Not Exist")
             return
         username = self.data["username"]
         if "assignee" in self.data:
@@ -94,12 +94,12 @@ class ChatLogger(BaseModel):
                 {"$inc": {self.current_month: 1, self.current_date: 1}},
                 upsert=True,
             )
-        logn.info(f"Added Successful Ticket for {username}")
+        logger.info(f"Added Successful Ticket for {username}")
 
     def get_ticket_count(self, use_date=False, gpt3=False):
         # gpt3 overrides use_date
         if self.ticket_collection is None:
-            logn.error("Ticket Collection Does Not Exist")
+            logger.error("Ticket Collection Does Not Exist")
             return 0
         username = self.data["username"]
         tracking_date = self.current_date if use_date else self.current_month
@@ -115,12 +115,12 @@ class ChatLogger(BaseModel):
         ticket_count = (
             result_list[0].get(tracking_date, 0) if len(result_list) > 0 else 0
         )
-        logn.info(f"Ticket Count for {username} {ticket_count}")
+        logger.info(f"Ticket Count for {username} {ticket_count}")
         return ticket_count
 
     def is_paying_user(self):
         if self.ticket_collection is None:
-            logn.error("Ticket Collection Does Not Exist")
+            logger.error("Ticket Collection Does Not Exist")
             return False
         username = self.data["username"]
         result = self.ticket_collection.find_one({"username": username})
@@ -128,7 +128,7 @@ class ChatLogger(BaseModel):
 
     def is_trial_user(self):
         if self.ticket_collection is None:
-            logn.error("Ticket Collection Does Not Exist")
+            logger.error("Ticket Collection Does Not Exist")
             return False
         username = self.data["username"]
         result = self.ticket_collection.find_one({"username": username})
@@ -136,7 +136,7 @@ class ChatLogger(BaseModel):
 
     def use_faster_model(self, g):
         if self.ticket_collection is None:
-            logn.error("Ticket Collection Does Not Exist")
+            logger.error("Ticket Collection Does Not Exist")
             return True
         if self.is_paying_user():
             return self.get_ticket_count() >= 500
@@ -154,7 +154,7 @@ class ChatLogger(BaseModel):
                     g = True
                     break
             if not g:
-                logn.print("G EXCEPTION", loc_user)
+                logger.print("G EXCEPTION", loc_user)
                 return (
                     self.get_ticket_count() >= 5
                     or self.get_ticket_count(use_date=True) >= 1
@@ -182,5 +182,5 @@ def discord_log_error(content, priority=0):
         response = requests.post(url, data=json.dumps(data), headers=headers)
         # Success: response.status_code == 204:
     except Exception as e:
-        logn.error(f"Could not log to Discord: {e}")
+        logger.error(f"Could not log to Discord: {e}")
         pass

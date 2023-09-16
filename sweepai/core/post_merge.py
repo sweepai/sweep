@@ -1,5 +1,5 @@
 import traceback
-from logn import logn
+from logn import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import IssueTitleAndDescription, Message
 
@@ -76,8 +76,8 @@ class PostMerge(ChatGPT):
                     issue_title_and_description.issue_description,
                 )
             else:
-                logn.info("No issues found")
+                logger.info("No issues found")
                 return "", ""
         except Exception as e:
-            logn.error(f"An error occurred: {traceback.print_exc()}")
+            logger.error(f"An error occurred: {traceback.print_exc()}")
             return "", ""

@@ -1,6 +1,6 @@
 import json
 import subprocess
-from logn import logn
+from logn import logger
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
@@ -40,5 +40,5 @@ class EditBot(ChatGPT):
             elif "false" in last_line.lower():
                 return False
         except Exception as e:
-            logn.print(f"An error occurred: {e}")
+            logger.print(f"An error occurred: {e}")
         return False
