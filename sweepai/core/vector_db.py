@@ -6,6 +6,7 @@ import re
 import time
 from functools import lru_cache
 from typing import Generator, List
+import traceback
 
 import replicate
 import numpy as np
@@ -268,7 +269,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
         except:
             logn.print([len(embedding) for embedding in embeddings])
             logn.error(
-                "Failed to convert embeddings to numpy array, recomputing all of them"
+                "Failed to convert embeddings to numpy array, recomputing all of them" + traceback.format_exc()
             )
             embeddings = embedding_function(documents)
             embeddings = np.array(embeddings, dtype=np.float32)
@@ -298,7 +299,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
             )
         return deeplake_vs
     else:
-        logn.error("No documents found in repository")
+        logn.error("No documents found in repository" + traceback.format_exc())
         return deeplake_vs
 
 
@@ -325,7 +326,7 @@ def get_relevant_snippets(
     try:
         results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
     except Exception as e:
-        logn.error(e)
+        logn.error(traceback.format_exc())
     logn.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
         logn.info(f"Results query {query} was empty")
