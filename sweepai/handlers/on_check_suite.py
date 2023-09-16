@@ -4,7 +4,7 @@ import zipfile
 
 import openai
 import requests
-from logn import logn
+from logn import logger
 
 from sweepai.core.entities import PRChangeRequest
 from sweepai.core.gha_extraction import GHAExtractor
@@ -59,8 +59,8 @@ def download_logs(repo_full_name: str, run_id: int, installation_id: int):
                     if "##[error]" in last_line:
                         logs_str += logs
     else:
-        logn.info(response.text)
-        logn.warning(f"Failed to download logs for run id: {run_id}")
+        logger.info(response.text)
+        logger.warning(f"Failed to download logs for run id: {run_id}")
     return logs_str
 
 
@@ -109,11 +109,13 @@ def extract_logs_from_comment(comment: str) -> str:
 
 
 def on_check_suite(request: CheckRunCompleted):
-    logn.info(f"Received check run completed event for {request.repository.full_name}")
+    logger.info(
+        f"Received check run completed event for {request.repository.full_name}"
+    )
     _, g = get_github_client(request.installation.id)
     repo = g.get_repo(request.repository.full_name)
     if not get_gha_enabled(repo):
-        logn.info(
+        logger.info(
             f"Skipping github action for {request.repository.full_name} because it is"
             " not enabled"
         )
@@ -121,9 +123,9 @@ def on_check_suite(request: CheckRunCompleted):
     pr = repo.get_pull(request.check_run.pull_requests[0].number)
     num_pr_commits = len(list(pr.get_commits()))
     if num_pr_commits > 20:
-        logn.info(f"Skipping github action for PR with {num_pr_commits} commits")
+        logger.info(f"Skipping github action for PR with {num_pr_commits} commits")
         return None
-    logn.info(f"Running github action for PR with {num_pr_commits} commits")
+    logger.info(f"Running github action for PR with {num_pr_commits} commits")
     logs = download_logs(
         request.repository.full_name, request.check_run.run_id, request.installation.id
     )
@@ -131,7 +133,7 @@ def on_check_suite(request: CheckRunCompleted):
         return None
     logs = clean_logs(logs)
     extractor = GHAExtractor(chat_logger=None)
-    logn.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
+    logger.info(f"Extracting logs from {request.repository.full_name}, logs: {logs}")
     problematic_logs = extractor.gha_extract(logs)
     if problematic_logs.count("\n") > 20:
         problematic_logs += (
@@ -157,7 +159,7 @@ def on_check_suite(request: CheckRunCompleted):
             + "\n\nI'm getting the same errors 3 times in a row, so I will stop working"
             " on fixing this PR."
         )
-        logn.warning("Skipping logs because it is duplicated")
+        logger.warning("Skipping logs because it is duplicated")
         return None
     comment = pr.as_issue().create_comment(
         log_message.format(error_logs=problematic_logs)

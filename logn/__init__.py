@@ -1,2 +1,2 @@
-from .logn import logn
+from .logn import logger
 from .logn import LogTask

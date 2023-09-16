@@ -1,7 +1,7 @@
 import shutil
 import subprocess
 import github
-from logn import logn
+from logn import logger
 
 from github.Repository import Repository
 from tqdm import tqdm
@@ -37,18 +37,18 @@ def search_snippets(
                 query,
                 num_files,
             )
-            logn.info(f"Snippets for query {query}: {snippets}")
+            logger.info(f"Snippets for query {query}: {snippets}")
             if snippets:
                 lists_of_snippets.append(snippets)
         snippets = merge_and_dedup_snippets(lists_of_snippets)
-        logn.info(f"Snippets for multi query {multi_query}: {snippets}")
+        logger.info(f"Snippets for multi query {multi_query}: {snippets}")
     else:
         snippets: list[Snippet] = get_relevant_snippets(
             cloned_repo,
             query,
             num_files,
         )
-        logn.info(f"Snippets for query {query}: {snippets}")
+        logger.info(f"Snippets for query {query}: {snippets}")
     new_snippets = []
     for snippet in snippets:
         try:
@@ -59,11 +59,11 @@ def search_snippets(
             if (
                 len(file_contents) > sweep_config.max_file_limit
             ):  # more than ~10000 tokens
-                logn.warning(f"Skipping {snippet.file_path}, too many tokens")
+                logger.warning(f"Skipping {snippet.file_path}, too many tokens")
                 continue
         except github.UnknownObjectException as e:
-            logn.warning(f"Error: {e}")
-            logn.warning(f"Skipping {snippet.file_path}")
+            logger.warning(f"Error: {e}")
+            logger.warning(f"Skipping {snippet.file_path}")
         else:
             snippet.content = file_contents
             new_snippets.append(snippet)
@@ -97,11 +97,11 @@ def search_snippets(
             if (
                 len(file_contents) > sweep_config.max_file_limit
             ):  # more than 10000 tokens
-                logn.warning(f"Skipping {file_path}, too many tokens")
+                logger.warning(f"Skipping {file_path}, too many tokens")
                 continue
         except github.UnknownObjectException as e:
-            logn.warning(f"Error: {e}")
-            logn.warning(f"Skipping {file_path}")
+            logger.warning(f"Error: {e}")
+            logger.warning(f"Skipping {file_path}")
         else:
             snippets = [
                 Snippet(
@@ -112,8 +112,8 @@ def search_snippets(
                 )
             ] + snippets
     snippets = [snippet.expand() for snippet in snippets]
-    logn.info(f"Tree: {tree}")
-    logn.info(f"Snippets: {snippets}")
+    logger.info(f"Tree: {tree}")
+    logger.info(f"Snippets: {snippets}")
     if include_tree:
         return snippets, tree
     else:
@@ -144,7 +144,7 @@ def index_full_repository(
             )
     except Exception as e:
         posthog.capture("index_full_repository", "failed", {"error": str(e)})
-        logn.warning(
+        logger.warning(
             "Adding label failed, probably because label already."
         )  # warn that the repo may already be indexed
     return num_indexed_docs
