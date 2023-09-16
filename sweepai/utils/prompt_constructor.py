@@ -1,4 +1,5 @@
 from loguru import logger
+from logn import logn
 from pydantic import BaseModel
 
 from sweepai.core.prompts import (
@@ -33,13 +34,25 @@ class HumanMessagePrompt(BaseModel):
                 deduped_paths.append(snippet.file_path)
         if len(deduped_paths) == 0:
             return ""
-        return "<relevant_paths_in_repo>" + "\n" + "\n".join(deduped_paths) + "\n" + "</relevant_paths_in_repo>"
+        return (
+            "<relevant_paths_in_repo>"
+            + "\n"
+            + "\n".join(deduped_paths)
+            + "\n"
+            + "</relevant_paths_in_repo>"
+        )
 
     def render_snippets(self):
         joined_snippets = "\n".join([snippet.xml for snippet in self.snippets])
         if joined_snippets.strip() == "":
             return ""
-        return "<relevant_snippets_in_repo>" + '\n' + joined_snippets + '\n' + "</relevant_snippets_in_repo>"
+        return (
+            "<relevant_snippets_in_repo>"
+            + "\n"
+            + joined_snippets
+            + "\n"
+            + "</relevant_snippets_in_repo>"
+        )
 
     def construct_prompt(self):
         human_messages = [
@@ -107,6 +120,7 @@ class HumanMessagePromptReview(HumanMessagePrompt):
 
         return human_messages
 
+
 class HumanMessageCommentPrompt(HumanMessagePrompt):
     comment: str
     diffs: list
@@ -153,9 +167,9 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
         ]
 
         if self.pr_file_path and self.pr_chunk and self.original_line:
-            logger.info(f"Review Comment {self.comment}")
+            logn.info(f"Review Comment {self.comment}")
         else:
-            logger.info(f"General Comment {self.comment}")
+            logn.info(f"General Comment {self.comment}")
 
         return human_messages
 

@@ -1,3 +1,4 @@
+from logn import logn
 import shutil
 import traceback
 from dataclasses import dataclass
@@ -302,6 +303,6 @@ def search_index(query, ix):
         ix.writer().cancel()
         return res
     except Exception as e:
-        print(e)
+        logn.print(e)
         traceback.print_exc()
         return {}
