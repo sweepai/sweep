@@ -262,11 +262,11 @@ class ChatGPT(BaseModel):
             jitter=backoff.random_jitter,
         )
         def fetch():
-            global retry_counter
-            retry_counter += 1
-            token_sub = retry_counter * 200
             try:
-                output = None
+                # existing code...
+            except Exception as e:
+                logger.warning(f"{e}, {traceback.format_exc()}")
+                raise e
                 output = openai_proxy.call_openai(
                     model=model,
                     messages=self.messages_dicts,
@@ -306,8 +306,8 @@ class ChatGPT(BaseModel):
                         logger.warning(e)
                 return output
                 except Exception as e:
-                    logger.warning(f"{e}, {traceback.format_exc()}")
-                    raise e
+                logger.warning(f"{e}, {traceback.format_exc()}")
+                raise e
         result = fetch()
         logger.info(f"Output to call openai:\n{result}")
         return result
