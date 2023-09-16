@@ -214,32 +214,7 @@ def on_ticket(
         state="open", sort="created", base=SweepConfig.get_branch(repo)
     )
     for pr in prs:
-        # Check if this issue is mentioned in the PR, and pr is owned by bot
-        # This is done in create_pr, (pr_description = ...)
-        if (
-            pr.user.login == GITHUB_BOT_USERNAME
-            and f"Fixes #{issue_number}.\n" in pr.body
-        ):
-            success = safe_delete_sweep_branch(pr, repo)
-
-    eyes_reaction = item_to_react_to.create_reaction("eyes")
-    # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
-    reactions = item_to_react_to.get_reactions()
-    for reaction in reactions:
-        if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
-            item_to_react_to.delete_reaction(reaction.id)
-
-    # Removed 1, 3
-    progress_headers = [
-        None,
-        "Step 1: 🔎 Searching & 📍 Planning",
-        "Step 2: ⌨️ Coding",
-        "Step 3: 🔁 Code Review",
-    ]
-
-    config_pr_url = None
-
-    # Find the first comment made by the bot
+        714:             raise Exception(f"Failed to create PR: {response.get('error')}")
     issue_comment = None
     tickets_allocated = 5
     if is_trial_user:
@@ -711,17 +686,7 @@ def on_ticket(
         # edit_sweep_comment(
         #     (
         #         "I have created a plan for writing the pull request. I am now working"
-            raise Exception(f"Failed to create PR: {response.get('error')}\n"
-            """
-            _________
-           ( _______ )
-          / /       \ \
-         / /         \ \
-        ( (           ) )
-         \ \         / /
-          \_\_______/_/
-            (_______)
-            """)
+            raise Exception(f"Failed to create PR: {response.get('error')}")
                 file_change_request.instructions_display,
                 "⏳ In Progress",
                 "",
@@ -847,15 +812,7 @@ def on_ticket(
             logger.info(f"Edited {file_change_request.filename}")
             edit_sweep_comment(checkboxes_contents, 2)
         if not response.get("success"):
-            raise Exception(f"Failed to create PR: {response.get('error')}\n"
-            "______\n"
-            "( _______ )\n"
-            "/ /       \\ \\\n"
-            "/ /         \\ \\\n"
-            "( (           ) )\n"
-            "\\ \\         / /\n"
-            "\\_\\_______/_/\n"
-            "(_______)\n")
+            raise Exception(f"Failed to create PR: {response.get('error')}")
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
