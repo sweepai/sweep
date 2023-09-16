@@ -848,6 +848,15 @@ def on_ticket(
             logn.info(f"Edited {file_change_request.filename}")
             edit_sweep_comment(checkboxes_contents, 2)
         if not response.get("success"):
+            logn.error(f"Failed to create PR: {response.get('error')}")
+            logn.error('''
+            ______ __
+          ,`.-'-.`.\ 
+         /_.-. .-._\  Dragon ASCII Art
+        (_(___.__)_)
+         \         / 
+          `-._.-._,' 
+            ''')
             raise Exception(f"Failed to create PR: {response.get('error')}")
         pr_changes = response["pull_request"]
 
