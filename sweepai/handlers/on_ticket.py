@@ -214,7 +214,7 @@ def on_ticket(
         state="open", sort="created", base=SweepConfig.get_branch(repo)
     )
     for pr in prs:
-        714:             raise Exception(f"Failed to create PR: {response.get('error')}")
+        714: raise Exception(f"Failed to create PR: {response.get('error')}")
     issue_comment = None
     tickets_allocated = 5
     if is_trial_user:
@@ -686,7 +686,7 @@ def on_ticket(
         # edit_sweep_comment(
         #     (
         #         "I have created a plan for writing the pull request. I am now working"
-            raise Exception(f"Failed to create PR: {response.get('error')}")
+        raise Exception(f"Failed to create PR: {response.get('error')}")
                 file_change_request.instructions_display,
                 "⏳ In Progress",
                 "",
@@ -811,9 +811,9 @@ def on_ticket(
             logger.info(files_progress)
             logger.info(f"Edited {file_change_request.filename}")
             edit_sweep_comment(checkboxes_contents, 2)
-        if not response.get("success"):
+            if not response.get("success"):
             raise Exception(f"Failed to create PR: {response.get('error')}")
-        pr_changes = response["pull_request"]
+            pr_changes = response["pull_request"]
 
         edit_sweep_comment(
             "I have finished coding the issue. I am now reviewing it for completeness.",
