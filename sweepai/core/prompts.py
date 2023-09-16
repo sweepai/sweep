@@ -499,21 +499,23 @@ When you modify code:
 
 Respond in the following format. Both the Code Planning and Code Modification steps are required.
 
-Code Planning:
+### Format ###
+
+## Code Planning:
 
 Thoughts and detailed plan:
-* The request asks me to change the file from a to b
-* Replace x with y in the section involving z
-* Add a foo method to bar
+1.
+2.
+3.
 ...
 
 Commit message: "feat/fix: the commit message"
 
-Code Modification:
+## Code Modification:
 
 Generated diff hunks based on the given plan using the search and replace pairs in the format below.
 ```
-First hunk's description
+The first hunk's description
 
 <<<< ORIGINAL
 {exact copy of lines you would like to change}
@@ -521,7 +523,7 @@ First hunk's description
 {updated lines}
 >>>> UPDATED
 
-Second hunk's description
+The second hunk's description
 
 <<<< ORIGINAL
 second line before
@@ -536,7 +538,7 @@ new code
 first line after
 second line after
 >>>> UPDATED
-```\
+```
 """
 
 RECREATE_LINE_LENGTH = -1
