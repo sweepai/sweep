@@ -306,8 +306,8 @@ class ChatGPT(BaseModel):
                         logger.warning(e)
                 return output
                 except Exception as e:
-                    logger.warning('%s, %s', e, traceback.format_exc())
-                    raise e
+                logger.warning(f'{e}, {traceback.format_exc()}')
+                raise e
 
         result = fetch()
         logger.info(f"Output to call openai:\n{result}")
@@ -438,7 +438,7 @@ class ChatGPT(BaseModel):
                             logger.warning(f'{e}, {traceback.format_exc()}')
                     return output
                 except Exception as e:
-                    logger.warning('%s, %s', e, traceback.format_exc())
+                    logger.warning(f'{e}, {traceback.format_exc()}')
                     time.sleep(time_to_sleep + backoff.random_jitter(5))
 
         result = await fetch()
