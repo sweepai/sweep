@@ -93,13 +93,13 @@ def on_ticket(
     " description to include more details and I will automatically"
     " relaunch."
     "\n\n"
-    "  .-\"\"\"\"\"\"-.\n"
-    " .'          '.\n"
-    "/   O      O   \\\n"
-    ":           `   :\n"
-    "|                |\n"
+    "  ___  \n"
+    " /   \\\\ \n"
+    "|     |\n"
+    "|     |\n"
+    " \\\\___/\n"
     ":    .------.    :\n"
-    " \\  '        '  /\n"
+    " \\\\  '        '  /\n"
     "  '.          .'\n"
     "    '-......-'"
     summary = summary or ""
@@ -482,6 +482,7 @@ def on_ticket(
         assert len(snippets) > 0
         except Exception as e:
             trace = traceback.format_exc()
+            logger.error(
             logger.error(trace)
             edit_sweep_comment(
                 (
@@ -492,10 +493,10 @@ def on_ticket(
                     " relaunch."
                     "\n\n"
                     "  ___  \n"
-                    " /   \\ \n"
+                    " /   \\\\ \n"
                     "|     |\n"
                     "|     |\n"
-                    " \\___/\n"
+                    " \\\\___/\n"
                 ),
                 -1,
             )
@@ -1007,15 +1008,15 @@ def on_ticket(
                     " description to include more details and I will automatically"
                     " relaunch."
                     "\n\n"
-                    "  ___  \n"
-                    " /   \\ \n"
-                    "|     |\n"
-                    "|     |\n"
-                    " \\___/\n"
-                ),
-                -1,
-            )
-                    f"Sorry, I could not edit `{e.filename}` as this file is too"
+                    "  .-\"\"\"\"\"\"\"-.\n"
+                    " .'          '.\n"
+                    "/   O      O   \\\\\n"
+                    ":           `   :\n"
+                    "|                |\n"
+                    ":    .------.    :\n"
+                    " \\\\  '        '  /\n"
+                    "  '.          .'\n"
+                    "    '-......-'"
                     " long.\n\nIf this file is incorrect, please describe the desired"
                     " file in the prompt. However, if you would like to edit longer"
                     " files, consider upgrading to [Sweep Pro](https://sweep.dev/) for"
@@ -1097,12 +1098,12 @@ def on_ticket(
                     " insufficient information. Be sure to create a more detailed issue"
                     " so I can better address it. If this error persists report it at"
                     " https://discord.gg/sweep."
-                ) + ghost_art,
-                -1,
-            )
-        else:
-            ghost_art = """
-              _____  
+                    "\n\n"
+                    "  ___  \n"
+                    " /   \\\\ \n"
+                    "|     |\n"
+                    "|     |\n"
+                    " \\\\___/\n"
              /     \ 
             |       |
             |   ^   |
@@ -1113,12 +1114,12 @@ def on_ticket(
                     "I'm sorry, but it looks like an error has occurred. Try changing"
                     " the issue description to re-trigger Sweep. If this error persists"
                     " contact team@sweep.dev."
-                ) + ghost_art,
-                -1,
-            )
-        log_error(
-            is_paying_user,
-            is_trial_user,
+                    "\n\n"
+                    "  ___  \n"
+                    " /   \\\\ \n"
+                    "|     |\n"
+                    "|     |\n"
+                    " \\\\___/\n"
             username,
             issue_url,
             "Workflow",
