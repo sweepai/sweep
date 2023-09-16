@@ -232,7 +232,7 @@ def on_ticket(
     # Removed 1, 3
     progress_headers = [
         None,
-        "Step 1: 🔎 Searching & 📍 Planning",
+        "Step 1: 🔎 Searching",
         "Step 2: ⌨️ Coding",
         "Step 3: 🔁 Code Review",
     ]
@@ -299,7 +299,7 @@ def on_ticket(
         if index == 4:
             return pr_message + config_pr_message
 
-        total = len(progress_headers) + 1
+        total = len(progress_headers)
         index += 1 if done else 0
         index *= 100 / total
         index = int(index)

@@ -327,7 +327,7 @@ Reply in the format below.
 chunking_prompt = """
 We are handling this file in chunks. You have been provided a section of the code.
 Any lines that you do not see will be handled, so trust that the imports are managed and any other issues are taken care of.
-If you see code that should be modified, please modify it. The changes may not need to be in this chunk, in that case just copy and return the code as is.
+If you see code that should be modified, please modify it. The changes may not need to be in this chunk, do not make any changes.
 """
 
 modify_file_hallucination_prompt = [
