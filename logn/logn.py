@@ -4,6 +4,7 @@ import os
 import threading
 import datetime
 import inspect
+import traceback
 
 LOG_PATH = "logn_logs/logs"
 META_PATH = "logn_logs/meta"
@@ -32,7 +33,7 @@ def print2(message, level="INFO"):
     )
     function_name = calling_frame.function
     line_number = calling_frame.lineno
-    # module_name = globals().get("__name__", "__main__")
+
     module_name = inspect.getmodule(calling_frame).__name__
 
     log_string = f"{timestamp} | {level:<8} | {module_name}:{function_name}:{line_number} - {message}"
@@ -225,7 +226,7 @@ class _Logger:
         try:
             self._log(*args, **kwargs)
         except Exception as e:
-            print(e)
+            print(traceback.format_exc())
             print("Failed to write log")
 
     def _log(self, *args, **kwargs):
@@ -280,7 +281,7 @@ class _LogTask:
 
     def __call__(self, func):
         def wrapper(*args, **kwargs):
-            # print(self.name, f"Logging before calling {func.__name__}")
+
 
             key, parent_task, child_task = _Task.create_child_task(name=func.__name__)
             parent_task.write_metadata(child_task=child_task.meta_path)
