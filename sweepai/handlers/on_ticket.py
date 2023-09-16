@@ -39,6 +39,7 @@ from sweepai.handlers.create_pr import (
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
+from sweepai.utils.buttons import create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import (
     SweepConfig,
@@ -293,11 +294,18 @@ def on_ticket(
             if config_pr_url is not None
             else ""
         )
-        config_pr_message = " To retrigger Sweep, edit the issue.\n" + config_pr_message
+        # Why is this so convoluted
+        # config_pr_message = " To retrigger Sweep, edit the issue.\n" + config_pr_message
+        actions_message = create_action_buttons(
+            [
+                "Restart Sweep",
+            ]
+        )
+
         if index < 0:
             index = 0
         if index == 4:
-            return pr_message + config_pr_message
+            return pr_message + f"\n\n---\n{actions_message}" + config_pr_message
 
         total = len(progress_headers)
         index += 1 if done else 0
@@ -305,12 +313,16 @@ def on_ticket(
         index = int(index)
         index = min(100, index)
         if errored:
-            return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
+            return (
+                f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
+                + f"\n\n---\n{actions_message}"
+            )
         return (
             f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)"
             + ("\n" + stars_suffix if index != -1 else "")
             + "\n"
             + payment_message_start
+            + f"\n\n---\n{actions_message}"
             + config_pr_message
         )
 
