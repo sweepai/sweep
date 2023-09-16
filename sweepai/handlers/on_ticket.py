@@ -482,7 +482,7 @@ def on_ticket(
         assert len(snippets) > 0
         except Exception as e:
             trace = traceback.format_exc()
-            logger.error(e)
+            logger.error(
             logger.error(trace)
             edit_sweep_comment(
                 (
@@ -1085,13 +1085,20 @@ def on_ticket(
         logger.error(e)
         # title and summary are defined elsewhere
         if len(title + summary) < 60:
+            ghost_art = """
+              _____  
+             /     \ 
+            |       |
+            |   ^   |
+             \_____/
+            """
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks like an error has occurred due to"
                     " insufficient information. Be sure to create a more detailed issue"
                     " so I can better address it. If this error persists report it at"
                     " https://discord.gg/sweep."
-                ),
+                ) + ghost_art,
                 -1,
             )
         else:
