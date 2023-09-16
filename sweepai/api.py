@@ -1,3 +1,11 @@
+# Do not save logs for main process
+from logn import logn
+
+logn.init(
+    metadata=None,
+    create_file=False,
+)
+
 import ctypes
 from queue import Queue
 import sys
@@ -9,7 +17,6 @@ from loguru import logger
 from pydantic import ValidationError
 import requests
 
-from logn import logn
 from sweepai.config.client import SweepConfig, get_documentation_dict
 from sweepai.config.server import (
     API_MODAL_INST_NAME,
@@ -53,12 +60,6 @@ tracemalloc.start()
 
 events = {}
 on_ticket_events = {}
-
-# Do not save logs for main process
-logn.init(
-    metadata=None,
-    create_file=False,
-)
 
 
 def run_on_ticket(*args, **kwargs):
