@@ -1,10 +1,9 @@
 #!/bin/bash
 
-echo "Removing old docker runs"
+echo "Removing old docker runs (hopefully Sandbox is not running on this machine)"
 echo `echo `docker ps``
-echo Removed `docker ps -q --filter ancestor=sweepai/sweep | awk 'NR>4'`
-docker ps -q --filter ancestor=sweepai/sweep | awk 'NR>4' | xargs docker rm -f
-docker ps -q --filter ancestor=sweepai/sandbox-web | awk 'NR>4' | xargs docker rm -f
+echo Removed `docker ps -q | awk 'NR>4'`
+docker ps -q | awk 'NR>4' | xargs docker rm -f
 
 # Start on 8082 to not overlap with sandbox
 PORT=8082
