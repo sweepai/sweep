@@ -620,8 +620,10 @@ def on_ticket(
                 ),
             )
             + (
-                "I also found the following external resources that might be"
-                f" helpful:\n\n{external_results}\n\n"
+                create_collapsible(
+                    "I also found the following external resources that might be helpful:",
+                    f"\n\n{external_results}\n\n",
+                )
                 if external_results
                 else ""
             )
