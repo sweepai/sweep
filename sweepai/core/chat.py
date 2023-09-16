@@ -263,7 +263,16 @@ class ChatGPT(BaseModel):
         )
         def fetch():
             try:
-                # existing code...
+                output = openai_proxy.call_openai(
+                    model=model,
+                    messages=self.messages_dicts,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    top_p=top_p,
+                    n=n,
+                    stop=stop,
+                    return_prompt=return_prompt,
+                )
             except Exception as e:
                 logger.warning(f"{e}, {traceback.format_exc()}")
                 raise e
