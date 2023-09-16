@@ -205,6 +205,12 @@ def home():
 
 @app.post("/")
 async def webhook(raw_request: Request):
+    # Do not create logs for api
+    logn.init(
+        metadata=None,
+        create_file=False,
+    )
+
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
