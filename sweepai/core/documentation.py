@@ -1,7 +1,6 @@
 import asyncio
 import re
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from loguru import logger
 from logn import logn, LogTask
 from tqdm import tqdm
 from sweepai.core.lexical_search import prepare_index_from_docs, search_docs

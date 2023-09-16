@@ -8,7 +8,6 @@ from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from github.Commit import Commit
-from loguru import logger
 from pydantic import BaseModel
 
 from sweepai.core.chat import ChatGPT
@@ -723,7 +722,7 @@ class SweepBot(CodeGenBot, GithubBot):
         sandbox=None,
     ):
         # should check if branch exists, if not, create it
-        logger.debug(file_change_requests)
+        logn.debug(file_change_requests)
         num_fcr = len(file_change_requests)
         completed = 0
 
@@ -742,7 +741,7 @@ class SweepBot(CodeGenBot, GithubBot):
         sandbox=None,
     ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
         # should check if branch exists, if not, create it
-        logger.debug(file_change_requests)
+        logn.debug(file_change_requests)
         num_fcr = len(file_change_requests)
         completed = 0
         sandbox_execution = None
@@ -873,7 +872,7 @@ class SweepBot(CodeGenBot, GithubBot):
             file_change, sandbox_execution = self.create_file(file_change_request)
             file_markdown = is_markdown(file_change_request.filename)
             file_change.code = format_contents(file_change.code, file_markdown)
-            logger.debug(
+            logn.debug(
                 f"{file_change_request.filename},"
                 f" {f'Create {file_change_request.filename}'}, {file_change.code},"
                 f" {branch}"
@@ -985,9 +984,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     " update."
                 )
                 return False, sandbox_error, "No changes made to file."
-            logger.debug(
-                f"{file_name}, {commit_message}, {new_file_contents}, {branch}"
-            )
+            logn.debug(f"{file_name}, {commit_message}, {new_file_contents}, {branch}")
 
             # Update the file with the new contents after all chunks have been processed
             try:

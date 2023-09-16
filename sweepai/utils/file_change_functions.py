@@ -1,4 +1,3 @@
-from loguru import logger
 from logn import logn
 from sweepai.core.chat import Function
 from sweepai.utils.diff import format_contents

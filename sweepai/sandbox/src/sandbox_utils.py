@@ -1,7 +1,6 @@
 import os
 
 import yaml
-from loguru import logger
 from pydantic import BaseModel
 from typing import Type, TypeVar, Any
 
