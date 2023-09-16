@@ -109,7 +109,7 @@ def create_pr_changes(
             sandbox=sandbox,
         ):
             completed_count += changed_file
-            logn.info("Completed {}/{} files".format(completed_count, fcr_count))
+            logn.info(f"Completed {completed_count}/{fcr_count} files")
             yield file_change_request, changed_file, sandbox_error, commit
         if completed_count == 0 and fcr_count != 0:
             logn.info("No changes made")
