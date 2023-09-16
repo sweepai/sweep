@@ -83,11 +83,7 @@ def on_ticket(
         subissues_mode,
         sandbox_mode,
         fast_mode,
-        second line before
-        first line before
-        new code
-        first line after
-        second line after
+    )
     summary = summary or ""
     summary = re.sub(
         "<details (open)?>\n<summary>Checklist</summary>.*",
@@ -466,39 +462,20 @@ def on_ticket(
             num_files=num_of_snippets_to_query,
         )
         assert len(snippets) > 0
-    except Exception as e:
-        trace = traceback.format_exc()
-        logger.error(e)
-        logger.error(trace)
-        edit_sweep_comment(
-                    (
-                        "It looks like an issue has occurred around fetching the files."
-                        " Perhaps the repo has not been initialized. If this error persists"
-                        f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
-                        " description to include more details and I will automatically"
-                        " relaunch."
-                        "\n\n"
-                        "```\n"
-                        "                  ___====-_  _-====___\n"
-                        "            _--^^^#####// ' ` ^^^^^^--_\n"
-                        "           -^ ##########// (    ) ########## ^-\n"
-                        "          - ############//  :\^^/:  ############ -\n"
-                        "        _/############//   (@::@)   ############\_\n"
-                        "       /#############((     \\//     ))#############\n"
-                        "      -###############\\    (oo)    //###############-\n"
-                        "     -#################\\  / `' \\  //#################-\n"
-                        "    -###################\\/  (_)  \\/###################-\n"
-                        "   _#/|##########/\\######(   `'`   )######/\\##########|\\#_\n"
-                        "   |/ |#/'`/#\\ `-:/  #/--'`-_-'`-\\--#\\ `:- '\\#\\'`\\| \n"
-                        "   '  |/  V  V ' `!  |  I  `!  I  |  !'  `!  V  V  \\|  `\n"
-                        "       '  `  `  `   |  |   `!  `!  |  |   '  '  '  `\n"
-                        "                    (  | !   `!  `!  | !  )\n"
-                        "                     `!  |   `!  `!  |  !'\n"
-                        "                      `!  `!   `!  `! '\n"
-                        "```"
-                    ),
-                    -1,
-                )
+        except Exception as e:
+            trace = traceback.format_exc()
+            logger.error(e)
+            logger.error(trace)
+            edit_sweep_comment(
+                        (
+                            "It looks like an issue has occurred around fetching the files."
+                            " Perhaps the repo has not been initialized. If this error persists"
+                            f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
+                            " description to include more details and I will automatically"
+                            " relaunch."
+                        ),
+                        -1,
+                    )
         log_error(
             is_paying_user,
             is_trial_user,
