@@ -1,4 +1,3 @@
-from loguru import logger
 from logn import logn
 from sweepai.config.client import get_description
 from sweepai.core.chat import ChatGPT

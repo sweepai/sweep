@@ -7,7 +7,6 @@ from typing import ClassVar, Literal, Type, TypeVar, Any
 from github.Repository import Repository
 
 from github.Branch import Branch
-from loguru import logger
 from pydantic import BaseModel
 from urllib.parse import quote
 
@@ -494,7 +493,7 @@ class SweepContext(BaseModel):  # type: ignore
         if SweepContext._static_instance is None:
             SweepContext._static_instance = sweep_context
             set_highlight_id(sweep_context.issue_url)
-            logger.bind(**kwargs)
+            # logger.bind(**kwargs)
         return sweep_context
 
     @staticmethod

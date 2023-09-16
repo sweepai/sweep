@@ -1,6 +1,5 @@
 import re
 
-from loguru import logger
 from logn import logn
 
 from sweepai.utils.html_extractor import extract_info

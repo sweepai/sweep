@@ -4,7 +4,6 @@ from typing import Generator
 import openai
 from github.Repository import Repository
 from github.Commit import Commit
-from loguru import logger
 from logn import logn
 
 from sweepai.config.client import UPDATES_MESSAGE, SweepConfig, get_blocked_dirs
