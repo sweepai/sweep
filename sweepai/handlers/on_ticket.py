@@ -10,7 +10,7 @@ import traceback
 import openai
 
 import github
-from github import GithubException
+from github import GithubException, BadCredentialsException
 from loguru import logger
 from tabulate import tabulate
 from tqdm import tqdm
@@ -416,7 +416,7 @@ def on_ticket(
             issue_comment.edit(
                 f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
             )
-        except github.GithubException.BadCredentialsException:
+        except BadCredentialsException:
             logger.error("Bad credentials, refreshing token")
             _user_token, g = get_github_client(installation_id)
             repo = g.get_repo(repo_full_name)
