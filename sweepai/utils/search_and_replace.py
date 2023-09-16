@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import re
 from fuzzywuzzy import fuzz
+from logn import logn
 
 from tqdm import tqdm
 
@@ -206,7 +207,7 @@ def find_best_match(query: str, code_file: str):
             unique_top_matches.append(top_match)
             unique_spans.add((top_match.start, top_match.end))
     for top_match in unique_top_matches[:5]:
-        print(top_match)
+        logn.print(top_match)
 
     return unique_top_matches[0]
 

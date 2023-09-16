@@ -3,6 +3,8 @@ import os
 
 from dotenv import load_dotenv
 
+from logn import logn
+
 load_dotenv(dotenv_path=".env")
 
 os.environ["GITHUB_APP_PEM"] = (
@@ -167,7 +169,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
 SANDBOX_URL = os.environ.get("SANDBOX_URL", "http://sandbox-web:8080")
 if SANDBOX_URL is not None:
-    print(f"Using Sandbox URL: {SANDBOX_URL}")
+    logn.print(f"Using Sandbox URL: {SANDBOX_URL}")
 
 HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY", None)
 

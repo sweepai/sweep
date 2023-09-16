@@ -2,6 +2,7 @@ import asyncio
 import re
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from loguru import logger
+from logn import logn
 from tqdm import tqdm
 from sweepai.core.lexical_search import prepare_index_from_docs, search_docs
 from sweepai.core.robots import is_url_allowed
@@ -48,7 +49,7 @@ class CPUEmbedding:
         )
 
     def compute(self, texts: list[str]) -> list[list[float]]:
-        logger.info(f"Computing embeddings for {len(texts)} texts")
+        logn.info(f"Computing embeddings for {len(texts)} texts")
         vector = self.model.encode(texts, show_progress_bar=True, batch_size=BATCH_SIZE)
         if vector.shape[0] == 1:
             return [vector.tolist()]
@@ -85,17 +86,17 @@ def remove_non_alphanumeric(url):
 async def write_documentation(doc_url):
     url_allowed = is_url_allowed(doc_url, user_agent="*")
     if not ACTIVELOOP_TOKEN:
-        logger.info("No active loop token")
+        logn.info("No active loop token")
         return False
     if not url_allowed:
-        logger.info(f"URL {doc_url} is not allowed")
+        logn.info(f"URL {doc_url} is not allowed")
         return False
     idx_name = remove_non_alphanumeric(doc_url)
     url_to_documents = await webscrape(doc_url)
     urls, document_chunks = [], []
     for url, document in url_to_documents.items():
         if len(document) == 0:
-            logger.info(f"Empty document for url {url}")
+            logn.info(f"Empty document for url {url}")
         document_chunks.extend(chunk_string(document))
         urls.extend([url] * len(chunk_string(document)))
     computed_embeddings = embedding_function(document_chunks)
@@ -119,9 +120,9 @@ async def daily_update():
 
 
 def search_vector_store(doc_url, query, k=100):
-    logger.info(f'Searching for "{query}" in {doc_url}')
+    logn.info(f'Searching for "{query}" in {doc_url}')
     if not ACTIVELOOP_TOKEN:
-        logger.info("No active loop token")
+        logn.info("No active loop token")
         return [], []
     idx_name = remove_non_alphanumeric(doc_url)
     vector_store = VectorStore(
@@ -130,9 +131,9 @@ def search_vector_store(doc_url, query, k=100):
         read_only=True,
         token=ACTIVELOOP_TOKEN,
     )
-    logger.info("Embedding query...")
+    logn.info("Embedding query...")
     query_embedding = embedding_function(query, cpu=True)
-    logger.info("Searching vector store...")
+    logn.info("Searching vector store...")
     results = vector_store.search(embedding=query_embedding, k=k)
     metadatas = results["metadata"]
     docs = results["text"]
@@ -171,5 +172,5 @@ def search_vector_store(doc_url, query, k=100):
             final_urls.append(url)
         else:
             break
-    logger.info("Done searching vector store")
+    logn.info("Done searching vector store")
     return final_urls, final_docs

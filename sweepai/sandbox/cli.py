@@ -46,13 +46,13 @@ def copy_to(container):
         if f.is_file() and not spec.match_file(f)
     )
 
-    print("Copying files to container...")
+    logn.print("Copying files to container...")
     pbar = tqdm(files_to_copy)
     with tarfile.open("repo.tar", "w") as tar:
         for f in pbar:
             pbar.set_description(f"Copying {f}")
             tar.add(f)
-    print("Done copying files into container")
+    logn.print("Done copying files into container")
 
     data = open("repo.tar", "rb").read()
     container.put_archive(".", data)
@@ -69,7 +69,7 @@ def get_sandbox_from_config():
 
 @app.command()
 def sandbox(file_path: Path, telemetry: bool = True):
-    print("\n Getting sandbox config... \n", style="bold white on cyan")
+    logn.print("\n Getting sandbox config... \n", style="bold white on cyan")
     sandbox = get_sandbox_from_config()
 
     if telemetry:
@@ -85,13 +85,13 @@ def sandbox(file_path: Path, telemetry: bool = True):
             }
             posthog.capture(username, "sandbox-cli-started", properties=metadata)
         except Exception:
-            print("Could not get metadata for telemetry", style="bold red")
+            logn.print("Could not get metadata for telemetry", style="bold red")
 
-    print("Running sandbox with the following settings:\n", sandbox)
-    print(f"\n Spinning up sandbox container \n", style="bold white on cyan")
+    logn.print("Running sandbox with the following settings:\n", sandbox)
+    logn.print(f"\n Spinning up sandbox container \n", style="bold white on cyan")
     with SandboxContainer() as container:
         try:
-            print(f"[bold]Copying files into sandbox[/bold]")
+            logn.print(f"[bold]Copying files into sandbox[/bold]")
             copy_to(container)
 
             def wrap_command(command):
@@ -109,26 +109,28 @@ def sandbox(file_path: Path, telemetry: bool = True):
                 return logs
 
             def run_command(command):
-                print(f"\n[bold]Running `{command}`[/bold]\n")
+                logn.print(f"\n[bold]Running `{command}`[/bold]\n")
                 exit_code, output = container.exec_run(
                     wrap_command(command), stderr=True
                 )
                 output = output.decode("utf-8")
                 if output:
-                    print(summarize_logs(output))
+                    logn.print(summarize_logs(output))
                 if exit_code != 0 and not ("prettier" in command and exit_code == 2):
                     raise Exception(output)
                 return output
 
-            print("\n Running installation scripts... ", style="bold white on cyan")
+            logn.print(
+                "\n Running installation scripts... ", style="bold white on cyan"
+            )
             for command in sandbox.install:
                 run_command(command)
 
-            print("\n Running linter scripts... ", style="bold white on cyan")
+            logn.print("\n Running linter scripts... ", style="bold white on cyan")
             for command in sandbox.check:
                 run_command(command)
 
-            print("Success!", style="bold green")
+            logn.print("Success!", style="bold green")
 
             if telemetry:
                 try:
@@ -136,10 +138,10 @@ def sandbox(file_path: Path, telemetry: bool = True):
                         username, "sandbox-cli-success", properties=metadata
                     )
                 except Exception:
-                    print("Could not get metadata for telemetry", style="bold red")
+                    logn.print("Could not get metadata for telemetry", style="bold red")
 
         except Exception as e:
-            print(f"Error: {e}", style="bold red")
+            logn.print(f"Error: {e}", style="bold red")
             raise e
 
 

@@ -1,5 +1,6 @@
 import difflib
 import re
+from logn import logn
 
 from sweepai.core.entities import SweepContext
 from sweepai.utils.chat_logger import discord_log_error
@@ -212,7 +213,7 @@ def match_string(original, search, start_index=None, exact_match=False) -> Match
     # else:
     #     import pdb; pdb.set_trace()
     #     best_match = Match(index, index + line_matches, score=100)
-    print(best_match)
+    logn.print(best_match)
     return best_match
 
 
@@ -437,7 +438,7 @@ def sliding_window_replacement(
     #     original, search, exact_match=exact_match, ignore_comments=ignore_comments
     # )
     best_match = match_string(original, search)
-    print(best_match)
+    logn.print(best_match)
     max_similarity = best_match.score
     # index = best_match.start
 
@@ -469,7 +470,7 @@ def sliding_window_replacement(
         raise Exception("No identical lines")
 
     if max_similarity < 0.5:
-        print(f"Low similarity: {max_similarity}")
+        logn.print(f"Low similarity: {max_similarity}")
 
     # if current_hits > 1:
     #     success = False
@@ -574,7 +575,7 @@ def generate_new_file_from_patch(
 
     if not old_file_content.strip():
         # If old file is empty, just return the first match
-        print(matches)
+        logn.print(matches)
         search_and_replace, *_ = matches
         return search_and_replace[1]
 
