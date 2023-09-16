@@ -197,6 +197,15 @@ class _Task:
         return task
 
     @staticmethod
+    def set_metadata(metadata, create_file):
+        task = _Task.get_task(metadata=metadata, create_file=create_file)
+        if task is None:
+            return
+        task.create_file = create_file
+        task.metadata = metadata
+        task.write_metadata()
+
+    @staticmethod
     def update_task(task_key=None, task=None):
         if task_key is None:
             task_key = get_task_key()
@@ -260,8 +269,8 @@ class _Logger:
             self.printfn(*args, **kwargs)
             task.write_log(0, *args, **kwargs)
 
-    def init(self, metadata, create_file=True):
-        _Task.get_task(metadata=metadata, create_file=create_file)
+    def init(self, metadata, create_file):
+        _Task.set_metadata(metadata=metadata, create_file=create_file)
 
 
 class _LogN(_Logger):
