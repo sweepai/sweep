@@ -232,7 +232,7 @@ def on_ticket(
     # Removed 1, 3
     progress_headers = [
         None,
-        "Step 1: 🔎 Searching & 📍 Planning",
+        "Step 1: 🔎 Searching",
         "Step 2: ⌨️ Coding",
         "Step 3: 🔁 Code Review",
     ]
@@ -299,7 +299,7 @@ def on_ticket(
         if index == 4:
             return pr_message + config_pr_message
 
-        total = len(progress_headers) + 1
+        total = len(progress_headers)
         index += 1 if done else 0
         index *= 100 / total
         index = int(index)
@@ -698,18 +698,18 @@ def on_ticket(
             headers=["File Path", "Proposed Changes"],
             tablefmt="pipe",
         )
-        edit_sweep_comment(
-            "From looking through the relevant snippets, I decided to make the"
-            " following modifications:\n\n" + table + "\n\n",
-            2,
-        )
+        # edit_sweep_comment(
+        #     "From looking through the relevant snippets, I decided to make the"
+        #     " following modifications:\n\n" + table + "\n\n",
+        #     2,
+        # )
 
         # TODO(lukejagg): Generate PR after modifications are made
         # CREATE PR METADATA
         logger.info("Generating PR...")
         pull_request = sweep_bot.generate_pull_request()
-        pull_request_content = pull_request.content.strip().replace("\n", "\n>")
-        pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
+        # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
+        # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
         # edit_sweep_comment(
         #     (
         #         "I have created a plan for writing the pull request. I am now working"

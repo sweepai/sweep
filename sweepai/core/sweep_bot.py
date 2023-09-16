@@ -539,7 +539,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 old_system_message = self.messages[0].content
                 self.messages[0].content = modify_file_system_message
                 modify_file_response = self.chat(
-                    message,
+                    message
+                    + "\nIf you do not wish to make changes to this file, please type `skip`.",
                     message_key=key,
                 )
                 self.delete_messages_from_chat(key)
@@ -911,7 +912,7 @@ class SweepBot(CodeGenBot, GithubBot):
             # Todo(lukejagg): Use when only using chunking
             chunk_sizes = [
                 # 800,
-                600,
+                # 600,
                 400,
             ]  # Define the chunk sizes for the backoff mechanism
             for CHUNK_SIZE in chunk_sizes:
@@ -944,29 +945,29 @@ class SweepBot(CodeGenBot, GithubBot):
                             contents_line_numbers = "\n".join(
                                 all_lines_numbered[i : i + CHUNK_SIZE]
                             )
-                            if not EditBot().should_edit(
-                                issue=file_change_request.instructions,
-                                snippet=chunk_contents,
-                            ):
-                                new_chunk = chunk_contents
-                            else:
-                                (
-                                    new_chunk,
-                                    suggested_commit_message,
-                                    sandbox_error,
-                                ) = self.modify_file(
-                                    file_change_request,
-                                    contents=chunk_contents,
-                                    branch=branch,
-                                    contents_line_numbers=chunk_contents
-                                    if USING_DIFF
-                                    else "\n".join(contents_line_numbers),
-                                    chunking=chunking,
-                                    chunk_offset=i,
-                                    sandbox=sandbox,
-                                )
-                                # commit_message = commit_message or suggested_commit_message
-                                commit_message = suggested_commit_message
+                            # if not EditBot().should_edit(
+                            #     issue=file_change_request.instructions,
+                            #     snippet=chunk_contents,
+                            # ):
+                            #     new_chunk = chunk_contents
+                            # else:
+                            (
+                                new_chunk,
+                                suggested_commit_message,
+                                sandbox_error,
+                            ) = self.modify_file(
+                                file_change_request,
+                                contents=chunk_contents,
+                                branch=branch,
+                                contents_line_numbers=chunk_contents
+                                if USING_DIFF
+                                else "\n".join(contents_line_numbers),
+                                chunking=chunking,
+                                chunk_offset=i,
+                                sandbox=sandbox,
+                            )
+                            # commit_message = commit_message or suggested_commit_message
+                            commit_message = suggested_commit_message
                             if i + CHUNK_SIZE < len(lines):
                                 new_file_contents += new_chunk + "\n"
                             else:
