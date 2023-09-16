@@ -60,6 +60,8 @@ from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.search_utils import search_snippets
 from sweepai.utils.tree_utils import DirectoryTree
 
+GHOST_ART = "👻\n👻👻\n👻👻👻\n👻👻👻👻\n👻👻👻👻👻"
+
 openai.api_key = OPENAI_API_KEY
 
 
@@ -95,14 +97,12 @@ def on_ticket(
         👻👻👻👻
         👻👻👻👻👻
         """
-        """
         agg_message = (
             get_comment_header(index, errored, pr_message, done)
             + "\n"
             + sep
             + agg_message
             + ghost_ascii_art
-            + """
             + suffix
         )
         "<details (open)?>\n<summary>Checklist</summary>.*",
@@ -216,14 +216,40 @@ def on_ticket(
                 )
                 for comment in comments
                 if comment.user.type == "User"
-                + "👻\n"
-                + "👻👻\n"
-                + "👻👻👻\n"
-                + "👻👻👻👻\n"
-                + "👻👻👻👻👻"
-                + """
-                + """
-                + """
+            ]
+        )
+    summary = summary if summary else ""
+
+    prs = repo.get_pulls(
+        state="open", sort="created", base=SweepConfig.get_branch(repo)
+    )
+    for pr in prs:
+        # Check if this issue is mentioned in the PR, and pr is owned by bot
+        # This is done in create_pr, (pr_description = ...)
+        if (
+            pr.user.login == GITHUB_BOT_USERNAME
+            and f"Fixes #{issue_number}.\n" in pr.body
+        ):
+            success = safe_delete_sweep_branch(pr, repo)
+
+    eyes_reaction = item_to_react_to.create_reaction("eyes")
+    # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
+    reactions = item_to_react_to.get_reactions()
+    for reaction in reactions:
+        if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
+            item_to_react_to.delete_reaction(reaction.id)
+
+    # Removed 1, 3
+    progress_headers = [
+        None,
+        "Step 1: 🔎 Searching",
+        "Step 2: ⌨️ Coding",
+        "Step 3: 🔁 Code Review",
+    ]
+
+    config_pr_url = None
+
+    # Find the first comment made by the bot
     issue_comment = None
     tickets_allocated = 5
     if is_trial_user:
@@ -374,6 +400,9 @@ def on_ticket(
                 continue  # skip None header
             header = progress_headers[i]
             if header is not None:
+                message = message.replace(
+                    "👻\n👻👻\n👻👻👻\n👻👻👻👻\n👻👻👻👻👻", GHOST_ART
+                )
                 header = "## " + header + "\n"
             else:
                 header = "No header\n"
@@ -392,23 +421,7 @@ def on_ticket(
                 + "\n\nFor bonus GPT-4 tickets, please report this bug on"
                 " **[Discord](https://discord.com/invite/sweep-ai)**."
                 + "\n\n"
-                + "```\n"
-                + "  👻  👻  👻  👻  👻\n"
-                + " / \\ / \\ / \\ / \\ / \\\n"
-                + "|   |   |   |   |   |\n"
-                + " \\_/ \\_/ \\_/ \\_/ \\_/\n"
-                + "```\n"
-                + "```\n"
-            )
-            if table is not None:
-                agg_message = (
-                    agg_message
-                    + f"\n{sep}Please look at the generated plan. If something looks"
-                    f" wrong, please add more details to your issue.\n\n{table}"
-                )
-            suffix = bot_suffix  # don't include discord suffix for error messages
-
-        # Update the issue comment
+                + GHOST_ART
         try:
             issue_comment.edit(
                 f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
@@ -484,14 +497,10 @@ def on_ticket(
                 + "|   |   |   |   |   |\n"
                 + " \\_/ \\_/ \\_/ \\_/ \\_/\n"
                 + "```\n"
-                + "```\n"
             ),
             -1,
         )
-        raise e
-        return {"success": False}
         log_error(
-        return {"success": True}
             is_paying_user,
             is_trial_user,
             username,
@@ -698,35 +707,8 @@ def on_ticket(
                     file_change_request.instructions_display.replace(
                         "\n", "<br/>"
                     ).replace("```", "\\```"),
-                ]
-                for file_change_request in file_change_requests
-            ],
-            headers=["File Path", "Proposed Changes"],
-            tablefmt="pipe",
-        )
-        # edit_sweep_comment(
-        #     "From looking through the relevant snippets, I decided to make the"
-        #     " following modifications:\n\n" + table + "\n\n",
-        #     2,
-        # )
-
-        # TODO(lukejagg): Generate PR after modifications are made
-        # CREATE PR METADATA
-        logger.info("Generating PR...")
-        pull_request = sweep_bot.generate_pull_request()
-        # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
-        # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
-        # edit_sweep_comment(
-        #     (
-        #         "I have created a plan for writing the pull request. I am now working"
-        #         " my plan and coding the required changes to address this issue. Here"
-        #         f" is the planned pull request:\n\n{pull_request_summary}"
-        #     ),
-        #     3,
-        # )
-
-        logger.info("Making PR...")
-
+                + "\n\n"
+                + GHOST_ART
         files_progress: list[tuple[str, str, str, str]] = [
             (
                 file_change_request.filename,
@@ -813,7 +795,7 @@ def on_ticket(
                     (
                         (
                             f"`{filename}` ✅ Commit [`{commit_hash[:7]}`]({commit_url})",
-                            blockquote(instructions) + error_logs + "\n\nBoo! 👻\"\"\"",
+                            blockquote(instructions) + error_logs + "\n\nBoo! 👻",
                             "X",
                         )
                         if file_change_request.filename == filename
@@ -869,15 +851,8 @@ def on_ticket(
 
         lint_output = None
         try:
-            current_issue.delete_reaction(eyes_reaction.id)
-        except:
-            pass
-
-        changes_required = False
-        try:
-            # Todo(lukejagg): Pass sandbox linter results to review_pr
-            # CODE REVIEW
-
+            # In the `edit_sweep_comment` function, where the ASCII art string is used
+            GHOST_ART
             changes_required, review_comment = review_pr(
                 repo=repo,
                 pr=pr_changes,
@@ -923,10 +898,10 @@ def on_ticket(
             logger.error(e)
 
         if changes_required:
-                edit_sweep_comment(
-                    review_message + "\n\nI finished incorporating these changes.\"\"\"",
-                    3,
-                )
+            edit_sweep_comment(
+                review_message + "\n\nI finished incorporating these changes.",
+                3,
+            )
         else:
             edit_sweep_comment(
                 f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
@@ -969,14 +944,14 @@ def on_ticket(
             logger.error(e)
 
         # Completed code review
-                edit_sweep_comment(
-                    review_message + "\n\nSuccess! 🚀\"\"\"",
-                    4,
-                    pr_message=(
-                        f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}"
-                    ),
-                    done=True,
-                )
+        edit_sweep_comment(
+            review_message + "\n\nSuccess! 🚀",
+            4,
+            pr_message=(
+                f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}"
+            ),
+            done=True,
+        )
 
         logger.info("Add successful ticket to counter")
     except MaxTokensExceeded as e:
@@ -1071,24 +1046,24 @@ def on_ticket(
         logger.error(e)
         # title and summary are defined elsewhere
         if len(title + summary) < 60:
-                edit_sweep_comment(
-                    (
-                        "I'm sorry, but it looks like an error has occurred due to"
-                        " insufficient information. Be sure to create a more detailed issue"
-                        " so I can better address it. If this error persists report it at"
-                        " https://discord.gg/sweep.\n\nBoo! 👻\"\"\""
-                    ),
-                    -1,
-                )
+            edit_sweep_comment(
+                (
+                    "I'm sorry, but it looks like an error has occurred due to"
+                    " insufficient information. Be sure to create a more detailed issue"
+                    " so I can better address it. If this error persists report it at"
+                    " https://discord.gg/sweep.\n\nBoo! 👻"
+                ),
+                -1,
+            )
         else:
-                edit_sweep_comment(
-                    (
-                        "I'm sorry, but it looks like an error has occurred. Try changing"
-                        " the issue description to re-trigger Sweep. If this error persists"
-                        " contact team@sweep.dev.\n\nBoo! 👻\"\"\""
-                    ),
-                    -1,
-                )
+            edit_sweep_comment(
+                (
+                    "I'm sorry, but it looks like an error has occurred. Try changing"
+                    " the issue description to re-trigger Sweep. If this error persists"
+                    " contact team@sweep.dev.\n\nBoo! 👻"
+                ),
+                -1,
+            )
         log_error(
             is_paying_user,
             is_trial_user,
