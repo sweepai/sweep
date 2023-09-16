@@ -204,6 +204,7 @@ class _Task:
         task.create_file = create_file
         task.metadata = metadata
         task.write_metadata()
+        return task
 
     @staticmethod
     def update_task(task_key=None, task=None):
@@ -270,7 +271,8 @@ class _Logger:
             task.write_log(0, *args, **kwargs)
 
     def init(self, metadata, create_file):
-        _Task.set_metadata(metadata=metadata, create_file=create_file)
+        task = _Task.set_metadata(metadata=metadata, create_file=create_file)
+        return self
 
 
 class _LogN(_Logger):
@@ -298,10 +300,23 @@ class _LogN(_Logger):
         self[loguru_logger.info](*args, **kwargs)
 
     @staticmethod
-    def close():
+    def close(state="Done"):
         task = _Task.get_task(create_if_not_exist=False)
         if task is not None:
-            task.write_metadata(state="Done")
+            task.write_metadata(state=state)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Check if it errored
+        if exc_type is not None:
+            if type(exc_type) == SystemExit:
+                self.close(state="Exited")
+            else:
+                self.close(state="Errored")
+        else:
+            self.close()
 
 
 class _LogTask:

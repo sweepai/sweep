@@ -70,8 +70,8 @@ def run_on_ticket(*args, **kwargs):
         },
         create_file=False,
     )
-    on_ticket(*args, **kwargs)
-    logger.close()
+    with logger:
+        on_ticket(*args, **kwargs)
 
 
 def run_on_comment(*args, **kwargs):
@@ -82,8 +82,9 @@ def run_on_comment(*args, **kwargs):
         },
         create_file=False,
     )
-    on_comment(*args, **kwargs)
-    logger.close()
+
+    with logger:
+        on_comment(*args, **kwargs)
 
 
 def run_on_merge(*args, **kwargs):
@@ -94,8 +95,8 @@ def run_on_merge(*args, **kwargs):
         },
         create_file=False,
     )
-    on_merge(*args, **kwargs)
-    logger.close()
+    with logger:
+        on_merge(*args, **kwargs)
 
 
 def run_on_write_docs(*args, **kwargs):
@@ -106,8 +107,8 @@ def run_on_write_docs(*args, **kwargs):
         },
         create_file=False,
     )
-    write_documentation(*args, **kwargs)
-    logger.close()
+    with logger:
+        write_documentation(*args, **kwargs)
 
 
 def run_on_check_suite(*args, **kwargs):
@@ -128,10 +129,23 @@ def run_on_check_suite(*args, **kwargs):
             },
             create_file=False,
         )
-        call_on_comment(**pr_change_request.params)
+        with logger:
+            call_on_comment(**pr_change_request.params)
         logger.info("Done with on_check_suite")
     else:
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
+
+
+def run_get_deeplake_vs_from_repo(*args, **kwargs):
+    logger.init(
+        metadata={
+            **kwargs,
+            "name": "deeplake",
+        },
+        create_file=False,
+    )
+    with logger:
+        get_deeplake_vs_from_repo(*args, **kwargs)
 
 
 def terminate_thread(thread):
@@ -217,7 +231,7 @@ def call_on_write_docs(*args, **kwargs):
 
 def call_get_deeplake_vs_from_repo(*args, **kwargs):
     thread = threading.Thread(
-        target=get_deeplake_vs_from_repo, args=args, kwargs=kwargs
+        target=run_get_deeplake_vs_from_repo, args=args, kwargs=kwargs
     )
     thread.start()
 
