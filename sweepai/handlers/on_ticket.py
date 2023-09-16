@@ -698,18 +698,18 @@ def on_ticket(
             headers=["File Path", "Proposed Changes"],
             tablefmt="pipe",
         )
-        edit_sweep_comment(
-            "From looking through the relevant snippets, I decided to make the"
-            " following modifications:\n\n" + table + "\n\n",
-            2,
-        )
+        # edit_sweep_comment(
+        #     "From looking through the relevant snippets, I decided to make the"
+        #     " following modifications:\n\n" + table + "\n\n",
+        #     2,
+        # )
 
         # TODO(lukejagg): Generate PR after modifications are made
         # CREATE PR METADATA
         logger.info("Generating PR...")
         pull_request = sweep_bot.generate_pull_request()
-        pull_request_content = pull_request.content.strip().replace("\n", "\n>")
-        pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
+        # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
+        # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
         # edit_sweep_comment(
         #     (
         #         "I have created a plan for writing the pull request. I am now working"

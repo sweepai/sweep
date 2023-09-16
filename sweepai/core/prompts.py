@@ -507,6 +507,8 @@ Thoughts and detailed plan:
 * Add a foo method to bar
 ...
 
+Commit message: "feat/fix: the commit message"
+
 Code Modification:
 
 Generated diff hunks based on the given plan using the search and replace pairs in the format below.

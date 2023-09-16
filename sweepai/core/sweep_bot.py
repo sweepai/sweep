@@ -538,7 +538,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 old_system_message = self.messages[0].content
                 self.messages[0].content = modify_file_system_message
                 modify_file_response = self.chat(
-                    message + "\nRemember you do not have to suggest changes.",
+                    message
+                    + "\nIf you do not wish to make changes to this file, please type `skip`.",
                     message_key=key,
                 )
                 self.delete_messages_from_chat(key)
