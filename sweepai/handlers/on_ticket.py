@@ -87,12 +87,21 @@ def on_ticket(
     ) = strip_sweep(title)
 
     # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
-
+    "It looks like an issue has occurred around fetching the files."
+    " Perhaps the repo has not been initialized. If this error persists"
+    f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
+    " description to include more details and I will automatically"
+    " relaunch."
+    "\n\n"
+    "  .-\"\"\"\"\"\"-.\n"
+    " .'          '.\n"
+    "/   O      O   \\\n"
+    ":           `   :\n"
+    "|                |\n"
+    ":    .------.    :\n"
+    " \\  '        '  /\n"
+    "  '.          .'\n"
+    "    '-......-'"
     summary = summary or ""
     summary = re.sub(
         "<details (open)?>\n<summary>Checklist</summary>.*",
@@ -482,7 +491,12 @@ def on_ticket(
                     f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
                     " description to include more details and I will automatically"
                     " relaunch."
-                    "\n\n  👻"
+                    "\n\n"
+                    "  ___  \n"
+                    " /   \\ \n"
+                    "|     |\n"
+                    "|     |\n"
+                    " \\___/\n"
                 ),
                 -1,
             )
@@ -988,15 +1002,20 @@ def on_ticket(
         if chat_logger.is_paying_user():
             edit_sweep_comment(
                 (
-                    f"Sorry, I could not edit `{e.filename}` as this file is too long."
-                    " We are currently working on improved file streaming to address"
-                    " this issue.\n"
+                    "It looks like an issue has occurred around fetching the files."
+                    " Perhaps the repo has not been initialized. If this error persists"
+                    f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
+                    " description to include more details and I will automatically"
+                    " relaunch."
+                    "\n\n"
+                    "  ___  \n"
+                    " /   \\ \n"
+                    "|     |\n"
+                    "|     |\n"
+                    " \\___/\n"
                 ),
                 -1,
             )
-        else:
-            edit_sweep_comment(
-                (
                     f"Sorry, I could not edit `{e.filename}` as this file is too"
                     " long.\n\nIf this file is incorrect, please describe the desired"
                     " file in the prompt. However, if you would like to edit longer"
