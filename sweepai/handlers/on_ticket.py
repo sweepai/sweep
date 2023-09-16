@@ -471,20 +471,21 @@ def on_ticket(
             num_files=num_of_snippets_to_query,
         )
         assert len(snippets) > 0
-    except Exception as e:
-        trace = traceback.format_exc()
-        logger.error(e)
-        logger.error(trace)
-        edit_sweep_comment(
-            (
-                "It looks like an issue has occurred around fetching the files."
-                " Perhaps the repo has not been initialized. If this error persists"
-                f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
-                " description to include more details and I will automatically"
-                " relaunch."
-            ),
-            -1,
-        )
+        except Exception as e:
+            trace = traceback.format_exc()
+            logger.error(e)
+            logger.error(trace)
+            edit_sweep_comment(
+                (
+                    "It looks like an issue has occurred around fetching the files."
+                    " Perhaps the repo has not been initialized. If this error persists"
+                    f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
+                    " description to include more details and I will automatically"
+                    " relaunch."
+                    "\n\n  👻"
+                ),
+                -1,
+            )
         log_error(
             is_paying_user,
             is_trial_user,
@@ -1075,12 +1076,19 @@ def on_ticket(
                 -1,
             )
         else:
+            ghost_art = """
+              _____  
+             /     \ 
+            |       |
+            |   ^   |
+             \_____/
+            """
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks like an error has occurred. Try changing"
                     " the issue description to re-trigger Sweep. If this error persists"
                     " contact team@sweep.dev."
-                ),
+                ) + ghost_art,
                 -1,
             )
         log_error(
