@@ -1,4 +1,4 @@
-from logn import logn
+from logn import logger
 
 
 class Line:
@@ -44,7 +44,7 @@ class DirectoryTree:
                 continue
 
             if skip_until_indent is not None and line.indent_count > skip_until_indent:
-                logn.print("Skipping:", line.full_path())
+                logger.print("Skipping:", line.full_path())
                 continue
 
             skip_until_indent = None

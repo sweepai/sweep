@@ -1,7 +1,7 @@
 from sweepai.config.client import get_rules, SweepConfig
 from sweepai.utils.github_utils import get_github_client
 from sweepai.core.post_merge import PostMerge
-from logn import logn, LogTask
+from logn import logger, LogTask
 from sweepai.utils.event_logger import posthog
 
 # change threshold for number of lines changed
@@ -15,28 +15,28 @@ def on_merge(request_dict, chat_logger):
         all_commits = request_dict["commits"] if "commits" in request_dict else []
         # create a huge commit object with all the commits
         for commit in all_commits:
-            logn.info(f"Commit: {commit}")
+            logger.info(f"Commit: {commit}")
             head_commit["added"] += commit["added"]
             head_commit["modified"] += commit["modified"]
     else:
-        logn.info("No commit found")
+        logger.info("No commit found")
         return None
     ref = request_dict["ref"]
     if not head_commit["added"] and not head_commit["modified"]:
-        logn.info("No files added or modified")
+        logger.info("No files added or modified")
         return None
     changed_files = head_commit["added"] + head_commit["modified"]
-    logn.info(f"Changed files: {changed_files}")
+    logger.info(f"Changed files: {changed_files}")
     _, g = get_github_client(request_dict["installation"]["id"])
     repo = g.get_repo(request_dict["repository"]["full_name"])
     if not ref.startswith("refs/heads/") or ref[
         len("refs/heads/") :
     ] != SweepConfig.get_branch(repo):
-        logn.info("Not a merge to master")
+        logger.info("Not a merge to master")
         return None
     rules = get_rules(repo)
     if not rules:
-        logn.info("No rules found")
+        logger.info("No rules found")
         return None
     full_commit = repo.get_commit(head_commit["id"])
     total_lines_changed = full_commit.stats.total
@@ -47,16 +47,16 @@ def on_merge(request_dict, chat_logger):
     total_files_changed = len(changed_files)
     for file in changed_files:
         if total_prs >= 2:
-            logn.info("Too many PRs")
+            logger.info("Too many PRs")
             break
         file_contents = repo.get_contents(file).decoded_content.decode("utf-8")
         issue_title, issue_description = PostMerge(
             chat_logger=chat_logger
         ).check_for_issues(rules=rules, file_path=file, file_contents=file_contents)
-        logn.info(f"Title: {issue_title}")
-        logn.info(f"Description: {issue_description}")
+        logger.info(f"Title: {issue_title}")
+        logger.info(f"Description: {issue_description}")
         if issue_title:
-            logn.info(f"Changes required in {file}")
+            logger.info(f"Changes required in {file}")
             repo.create_issue(
                 title="Sweep: " + issue_title,
                 body=issue_description,

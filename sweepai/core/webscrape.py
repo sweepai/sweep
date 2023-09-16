@@ -2,7 +2,7 @@ import asyncio
 import os
 import re
 import time
-from logn import logn
+from logn import logger
 
 from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
@@ -122,7 +122,7 @@ async def webscrape(BASE_URL_PREFIX):
             try:
                 await scrape_page(page, link)
             except:
-                logn.warning(f"Failed to scrape {link}")
+                logger.warning(f"Failed to scrape {link}")
                 pass
 
     async with async_playwright() as p:

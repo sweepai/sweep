@@ -1,4 +1,4 @@
-from logn import logn
+from logn import logger
 from pydantic import BaseModel
 
 from sweepai.core.prompts import (
@@ -166,9 +166,9 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
         ]
 
         if self.pr_file_path and self.pr_chunk and self.original_line:
-            logn.info(f"Review Comment {self.comment}")
+            logger.info(f"Review Comment {self.comment}")
         else:
-            logn.info(f"General Comment {self.comment}")
+            logger.info(f"General Comment {self.comment}")
 
         return human_messages
 
