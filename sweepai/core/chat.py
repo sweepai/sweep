@@ -1,4 +1,5 @@
 import json
+import traceback
 from copy import deepcopy
 import time
 from typing import Any, Iterator, Literal
@@ -261,11 +262,11 @@ class ChatGPT(BaseModel):
             jitter=backoff.random_jitter,
         )
         def fetch():
-            global retry_counter
-            retry_counter += 1
-            token_sub = retry_counter * 200
             try:
-                output = None
+                # existing code...
+            except Exception as e:
+                logger.warning(f"{e}, {traceback.format_exc()}")
+                raise e
                 output = openai_proxy.call_openai(
                     model=model,
                     messages=self.messages_dicts,
@@ -304,10 +305,9 @@ class ChatGPT(BaseModel):
                     except Exception as e:
                         logger.warning(e)
                 return output
-            except Exception as e:
-                logger.warning(e)
+                except Exception as e:
+                logger.warning(f"{e}, {traceback.format_exc()}")
                 raise e
-
         result = fetch()
         logger.info(f"Output to call openai:\n{result}")
         return result
@@ -434,10 +434,10 @@ class ChatGPT(BaseModel):
                                 },
                             )
                         except Exception as e:
-                            logger.warning(e)
+                            logger.warning(f"{e}, {traceback.format_exc()}")
                     return output
                 except Exception as e:
-                    logger.warning(e)
+                    logger.warning(f"{e}, {traceback.format_exc()}")
                     time.sleep(time_to_sleep + backoff.random_jitter(5))
 
         result = await fetch()
