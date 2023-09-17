@@ -1218,18 +1218,19 @@ Don't move the core logic, just any helper methods, like ones that edit sweeps c
 # print("=====================================")
 # print(dic)
 
-import json
+# import json
 
-ls = json.load(open("tests/summaries.json", "r"))
+# ls = json.load(open("tests/summaries.json", "r"))
 
-for chunk in ls:
-    print(chunk + "\n\n========================\n\n")
+# for chunk in ls:
+#     print(chunk + "\n\n========================\n\n")
 
 # Read all thread info sequentially
 # for t in threads:
 #     x = t.join()
 #     summary.append(x)
 
-# for chunk in chunks:
-#     print("\n########################\n")
-#     print(chunk.content)
+# for i, chunk in enumerate(chunks):
+#     print(f"""<chunk number="{i}" start="{chunk.start}" end="{chunk.end}">
+# {chunk.content}
+# </chunk>""")
