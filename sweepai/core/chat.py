@@ -461,10 +461,10 @@ class ChatGPT(BaseModel):
     @property
     def messages_dicts(self):
         # Remove the key from the message object before sending to OpenAI
-        cleaned_messages = [message.to_openai() for message in self.messages]
+        cleaned_messages = self.messages.to_openai()
         return cleaned_messages
 
     def undo(self):
         if len(self.prev_message_states) > 0:
-            self.messages = self.prev_message_states.pop()
+            self.messages = Messages(self.prev_message_states.pop())
         return self.messages
