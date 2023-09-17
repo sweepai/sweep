@@ -31,7 +31,7 @@ docker run -v $(pwd)/logn_logs:/app/logn_logs --env-file .env -p $PORT:8080 -d s
 # Curl the new server to make sure it's up
 echo "Waiting for server to start..."
 while true; do
-    curl --output /dev/null --silent --head --fail http://localhost:$PORT/health
+    curl --output /dev/null --silent --fail http://localhost:$PORT/health
     if [ $? -eq 0 ]; then
         echo "Received a good response!"
         break
