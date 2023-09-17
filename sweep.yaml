@@ -2,6 +2,7 @@ gha_enabled: True
 branch: main
 blocked_dirs: 
  - ".github/"
+ - "tests/"
 draft: False
 description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. Write code that adheres to PEP8."
 # These are the docs that we index for Sweep.
