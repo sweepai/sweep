@@ -1,3 +1,4 @@
+from dataclasses import field
 import traceback
 import re
 import requests
@@ -42,6 +43,10 @@ from sweepai.core.prompts import (
     rewrite_file_prompt,
     rewrite_file_system_prompt,
     snippet_replacement_system_message,
+    fetch_snippets_system_prompt,
+    fetch_snippets_prompt,
+    update_snippets_system_prompt,
+    update_snippets_prompt,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DB_MODAL_INST_NAME, SANDBOX_URL, SECONDARY_MODEL
@@ -57,6 +62,81 @@ from sweepai.utils.utils import chunk_code
 USING_DIFF = True
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
+
+
+def strip_backticks(s: str) -> str:
+    s = s.strip()
+    if s.startswith("```"):
+        s = s[s.find("\n") :]
+    if s.endswith("```"):
+        s = s[: s.rfind("\n")]
+    return s
+
+
+class ModifyBot:
+    def __init__(self, chat_logger=None):
+        self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
+            fetch_snippets_system_prompt, chat_logger=chat_logger
+        )
+        self.update_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
+            update_snippets_system_prompt, chat_logger=chat_logger
+        )
+
+    def update_file(
+        self,
+        file_path: str,
+        file_contents: str,
+        file_change_request: FileChangeRequest,
+    ):
+        fetch_snippets_response = self.fetch_snippets_bot.chat(
+            fetch_snippets_prompt.format(
+                code=file_contents,
+                file_path=file_path,
+                request=file_change_request.instructions,
+            )
+        )
+
+        snippets = []
+        pattern = r"<snippet>(?P<code>.*)</snippet>"
+        for code in re.findall(pattern, fetch_snippets_response, re.DOTALL):
+            snippets.append(strip_backticks(code))
+
+        update_snippets_response = self.update_snippets_bot.chat(
+            update_snippets_prompt.format(
+                code=file_contents,
+                file_path=file_path,
+                snippets=fetch_snippets_response,
+                request=file_change_request.instructions,
+            )
+        )
+
+        updated_snippets = []
+        pattern = r"<updated_snippet id=\"(?P<id>.*)\">(?P<code>.*)</updated_snippet>"
+        for _id, code in re.findall(pattern, update_snippets_response, re.DOTALL):
+            updated_snippets.append(strip_backticks(code))
+
+        replace_prompt = """"""
+
+        for search, replace in zip(snippets, updated_snippets):
+            replace_prompt += f"""
+<<<< ORIGINAL
+{search}
+====
+{replace}
+>>>> UPDATED
+"""
+
+        print("REPLACE PROMPT")
+        print(len(replace_prompt))
+        print(len(updated_snippets))
+        print(replace_prompt)
+
+        updated_code, _ = generate_new_file_from_patch(
+            replace_prompt,
+            file_contents,
+        )
+
+        return updated_code
 
 
 class CodeGenBot(ChatGPT):

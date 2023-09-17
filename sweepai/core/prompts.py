@@ -1059,3 +1059,48 @@ summarize_snippet_prompt = """# Code
 
 # Instructions
 Losslessly summarize the code in a ordered list for an engineer to search for relevant code to solve the above GitHub issue."""
+
+fetch_snippets_system_prompt = "You are a masterful engineer. Your job is to determine snippets that should be modified but don't actually modify them. Always intend on making the least amount of changes."
+
+fetch_snippets_prompt = """# Code
+File path: {file_path}
+```
+{code}
+```
+
+# Request
+{request}
+
+# Instructions
+Respond with a list of all snippets to modify.
+
+<snippet>
+```
+first five lines of the snippet
+...
+last five lines of the snippet
+```
+</snippet>"""
+
+update_snippets_system_prompt = (
+    "You are a masterful engineer. Always make the least amount of changes."
+)
+
+update_snippets_prompt = """# Code
+File path: {file_path}
+```
+{code}
+```
+
+# Snippets
+{snippets}
+
+# Request
+{request}
+
+# Instructions
+Respond with a list of all snippets to modify.
+
+<updated_snippet id="1">
+updated lines
+</updated_snippet>"""
