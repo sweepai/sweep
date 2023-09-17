@@ -228,7 +228,7 @@ async def run_sandbox(request: Request):
                 try:
                     print(f"Trying to lint for the {i}/{num_iterations}th time")
                     for command in sandbox.check:
-                        run_command(command)
+                        run_command(command, stage="check", iteration=i)
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
@@ -247,8 +247,6 @@ async def run_sandbox(request: Request):
                         current_file,
                         error_message,
                         username,
-                        stage="check",
-                        iteration=i,
                     )
                     write_file(
                         container, f"repo/{sandbox_request.file_path}", current_file
