@@ -161,6 +161,8 @@ class ChatLogger(BaseModel):
                     self.get_ticket_count() >= 5
                     or self.get_ticket_count(use_date=True) >= 1
                 )
+        except SystemExit:
+            raise SystemExit
         except:
             pass
 

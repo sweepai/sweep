@@ -53,6 +53,8 @@ def search_snippets(
     for snippet in snippets:
         try:
             file_contents = cloned_repo.get_file_contents(snippet.file_path)
+        except SystemExit:
+            raise SystemExit
         except:
             continue
         try:

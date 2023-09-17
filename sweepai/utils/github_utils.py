@@ -88,6 +88,8 @@ def get_installation_id(username: str):
     obj = response.json()
     try:
         return obj["id"]
+    except SystemExit:
+        raise SystemExit
     except:
         raise Exception("Could not get installation id, probably not installed")
 
@@ -122,6 +124,8 @@ class ClonedRepo:
             self.git_repo = git.Repo(self.cache_dir)
             try:
                 self.git_repo.remotes.origin.pull()
+            except SystemExit:
+                raise SystemExit
             except:
                 logger.error("Could not pull repo")
                 self.git_repo = self.clone()
