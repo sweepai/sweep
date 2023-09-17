@@ -107,6 +107,8 @@ class SweepConfig(BaseModel):
         try:
             try:
                 contents = repo.get_contents("sweep.yaml")
+            except SystemExit:
+                raise SystemExit
             except Exception:
                 contents = repo.get_contents(".github/sweep.yaml")
             branch_name = yaml.safe_load(contents.decoded_content.decode("utf-8"))[
@@ -200,6 +202,8 @@ def get_sandbox_config(repo: Repository):
             "sandbox", {}
         )
         return description
+    except SystemExit:
+        raise SystemExit
     except Exception:
         return {}
 
@@ -212,6 +216,8 @@ def get_branch_name_config(repo: Repository):
             "branch_use_underscores", False
         )
         return description
+    except SystemExit:
+        raise SystemExit
     except Exception:
         return False
 
