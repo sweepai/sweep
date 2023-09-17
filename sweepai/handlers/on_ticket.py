@@ -568,6 +568,8 @@ def on_ticket(
         tree=tree,
     )
 
+    _user_token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
         repo=repo,
