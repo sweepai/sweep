@@ -54,7 +54,7 @@ from sweepai.config.server import (
     OPENAI_USE_3_5_MODEL_ONLY,
     WHITELISTED_REPOS,
 )
-from sweepai.utils.ticket_utils import *
+from sweepai.utils.ticket_utils import strip_sweep
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
@@ -85,18 +85,7 @@ def on_ticket(
         sandbox_mode,
         fast_mode,
         lint_mode,
-    ) = strip_sweep(title)
-
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
-
-    summary = summary or ""
-    summary = re.sub(
-        "<details (open)?>\n<summary>Checklist</summary>.*",
+    
         "",
         summary,
         flags=re.DOTALL,
@@ -671,100 +660,7 @@ def on_ticket(
             )
             edit_sweep_comment(f"N/A", 4)
             edit_sweep_comment(f"I finished creating all the subissues.", 5)
-            return {"success": True}
-
-        # COMMENT ON ISSUE
-        # TODO: removed issue commenting here
-        logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
-
-        if not file_change_requests:
-            if len(title + summary) < 60:
-                edit_sweep_comment(
-                    (
-                        "Sorry, I could not find any files to modify, can you please"
-                        " provide more details? Please make sure that the title and"
-                        " summary of the issue are at least 60 characters."
-                    ),
-                    -1,
-                )
-            else:
-                edit_sweep_comment(
-                    (
-                        "Sorry, I could not find any files to modify, can you please"
-                        " provide more details?"
-                    ),
-                    -1,
-                )
-            raise Exception("No files to modify.")
-
-        sweep_bot.summarize_snippets()
-
-        file_change_requests = sweep_bot.validate_file_change_requests(
-            file_change_requests
-        )
-        table = tabulate(
-            [
-                [
-                    f"`{file_change_request.filename}`",
-                    file_change_request.instructions_display.replace(
-                        "\n", "<br/>"
-                    ).replace("```", "\\```"),
-                ]
-                for file_change_request in file_change_requests
-            ],
-            headers=["File Path", "Proposed Changes"],
-            tablefmt="pipe",
-        )
-        # edit_sweep_comment(
-        #     "From looking through the relevant snippets, I decided to make the"
-        #     " following modifications:\n\n" + table + "\n\n",
-        #     2,
-        # )
-
-        # TODO(lukejagg): Generate PR after modifications are made
-        # CREATE PR METADATA
-        logger.info("Generating PR...")
-        pull_request = sweep_bot.generate_pull_request()
-        # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
-        # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
-        # edit_sweep_comment(
-        #     (
-        #         "I have created a plan for writing the pull request. I am now working"
-        #         " my plan and coding the required changes to address this issue. Here"
-        #         f" is the planned pull request:\n\n{pull_request_summary}"
-        #     ),
-        #     3,
-        # )
-
-        logger.info("Making PR...")
-
-        files_progress: list[tuple[str, str, str, str]] = [
-            (
-                file_change_request.filename,
-                file_change_request.instructions_display,
-                "⏳ In Progress",
-                "",
-            )
-            for file_change_request in file_change_requests
-        ]
-
-        checkboxes_progress: list[tuple[str, str, str]] = [
-            (file_change_request.filename, file_change_request.instructions, " ")
-            for file_change_request in file_change_requests
-        ]
-        checkboxes_contents = "\n".join(
-            [
-                create_checkbox(f"`{filename}`", blockquote(instructions), check == "X")
-                for filename, instructions, check in checkboxes_progress
-            ]
-        )
-        checkboxes_collapsible = create_collapsible(
-            "Checklist", checkboxes_contents, opened=True
-        )
-        issue = repo.get_issue(number=issue_number)
-        issue.edit(body=summary + "\n\n" + checkboxes_collapsible)
-
+            
         delete_branch = False
         generator = create_pr_changes(  # make this async later
             file_change_requests,
@@ -868,28 +764,7 @@ def on_ticket(
             logger.info(files_progress)
             logger.info(f"Edited {file_change_request.filename}")
             edit_sweep_comment(checkboxes_contents, 2)
-        if not response.get("success"):
-            raise Exception(f"Failed to create PR: {response.get('error')}")
-        pr_changes = response["pull_request"]
-
-        edit_sweep_comment(
-            "I have finished coding the issue. I am now reviewing it for completeness.",
-            3,
-        )
-        change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
-        review_message = "Here are my self-reviews of my changes at" + change_location
-
-        lint_output = None
-        try:
-            current_issue.delete_reaction(eyes_reaction.id)
-        except:
-            pass
-
-        changes_required = False
-        try:
-            # Todo(lukejagg): Pass sandbox linter results to review_pr
-            # CODE REVIEW
-
+        # These methods have been moved to ticket_utils.py
             changes_required, review_comment = review_pr(
                 repo=repo,
                 pr=pr_changes,
@@ -967,16 +842,16 @@ def on_ticket(
             )
 
         pr.add_to_labels(GITHUB_LABEL_NAME)
-        current_issue.create_reaction("rocket")
-
-        logger.info("Running github actions...")
-        try:
-            if is_draft:
-                logger.info("Skipping github actions because PR is a draft")
-            else:
-                commit = pr.get_commits().reversed[0]
-                check_runs = commit.get_check_runs()
-
+        from sweepai.utils.ticket_utils import (
+            clean_logs,
+            post_process_snippets,
+            create_collapsible,
+            strip_sweep,
+            blockquote,
+            create_checkbox,
+            edit_sweep_comment,
+            log_error,
+        )
                 for check_run in check_runs:
                     check_run.rerequest()
         except SystemExit:
