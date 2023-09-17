@@ -31,6 +31,8 @@ def main(stdscr):
     curses.init_pair(1, curses.COLOR_YELLOW, -1)  # Yellow text for Running
     curses.init_pair(2, curses.COLOR_GREEN, -1)   # Green text for Done
     curses.init_pair(3, curses.COLOR_RED, -1)     # Red text for Errored
+    curses.init_pair(4, curses.COLOR_WHITE, -1)  # Grey text for Exited
+
 
     # Path to the directory
     path = "logn_logs/meta/"
@@ -41,7 +43,7 @@ def main(stdscr):
     # tables = load_files(latest_files)
 
     # Animation sequence for "Running"
-    running_anim = ["◐", "◓", "◑", "◒"]
+    running_anim = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
     anim_index = 0
 
     # Make getch non-blocking
@@ -62,9 +64,11 @@ def main(stdscr):
                 stdscr.addstr(idx, 10, f"Table {idx}: ✅ (Done)", curses.color_pair(2))
             elif table["state"] == "Errored":
                 stdscr.addstr(idx, 10, f"Table {idx}: ❌ (Errored)", curses.color_pair(3))
+            elif table["state"] == "Exited":
+                stdscr.addstr(idx, 10, f"Table {idx}: ⬛ (Exited)", curses.color_pair(4))
 
         # Update the animation index
-        anim_index = (anim_index + 1) % 4
+        anim_index = (anim_index + 1) % len(running_anim)
 
         # Refresh the screen
         stdscr.refresh()
