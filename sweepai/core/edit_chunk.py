@@ -39,6 +39,8 @@ class EditBot(ChatGPT):
                 return True
             elif "false" in last_line.lower():
                 return False
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.print(f"An error occurred: {e}")
         return False
