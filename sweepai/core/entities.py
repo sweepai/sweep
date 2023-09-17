@@ -315,88 +315,55 @@ class ProposedIssue(RegexMatchableBaseModel):
 
 
 class Snippet(BaseModel):
-    """
-    Start and end refer to line numbers
-    """
-
-    content: str
-    start: int
-    end: int
-    file_path: str
-
-    def __eq__(self, other):
-        if isinstance(other, Snippet):
-            return (
-                self.file_path == other.file_path
-                and self.start == other.start
-                and self.end == other.end
-            )
-        return False
-
-    def __hash__(self):
-        return hash((self.file_path, self.start, self.end))
-
-    def get_snippet(self, add_ellipsis: bool = True, add_lines: bool = True):
-        lines = self.content.splitlines()
-        snippet = "\n".join(
-            (f"{i+1}: {line}" if add_lines else line)
-            for i, line in enumerate(lines[self.start : self.end])
-        )
-        if add_ellipsis:
-            if self.start > 1:
-                snippet = "...\n" + snippet
-            if self.end < self.content.count("\n") + 1:
-                snippet = snippet + "\n..."
-        return snippet
-
-    def __add__(self, other):
-        assert self.content == other.content
-        assert self.file_path == other.file_path
-        return Snippet(
-            content=self.content,
-            start=self.start,
-            end=other.end,
-            file_path=self.file_path,
-        )
-
-    def __xor__(self, other: "Snippet") -> bool:
-        """
-        Returns True if there is an overlap between two snippets.
-        """
-        if self.file_path != other.file_path:
-            return False
-        return self.file_path == other.file_path and (
-            (self.start <= other.start and self.end >= other.start)
-            or (other.start <= self.start and other.end >= self.start)
-        )
-
-    def __or__(self, other: "Snippet") -> "Snippet":
-        assert self.file_path == other.file_path
-        return Snippet(
-            content=self.content,
-            start=min(self.start, other.start),
-            end=max(self.end, other.end),
-            file_path=self.file_path,
-        )
-
-    @property
-    def xml(self):
-        return f"""<snippet source="{self.file_path}:{self.start}-{self.end}">\n{self.get_snippet()}\n</snippet>"""
-
-    def get_url(self, repo_name: str, commit_id: str = "main"):
-        num_lines = self.content.count("\n") + 1
-        encoded_file_path = quote(self.file_path, safe="/")
-        return f"https://github.com/{repo_name}/blob/{commit_id}/{encoded_file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}"
-
-    def get_markdown_link(self, repo_name: str, commit_id: str = "main"):
-        num_lines = self.content.count("\n") + 1
-        base = commit_id + "/" if commit_id != "main" else ""
-        return f"[{base}{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}]({self.get_url(repo_name, commit_id)})"
-
+...
     def get_slack_link(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
         base = commit_id + "/" if commit_id != "main" else ""
         return f"<{self.get_url(repo_name, commit_id)}|{base}{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}>"
+
+class Messages:
+    def __init__(self, iterable=None):
+        self._messages = list(iterable) if iterable else []
+
+    def __getitem__(self, index):
+        return self._messages[index]
+
+    def __setitem__(self, index, value):
+        self._messages[index] = value
+
+    def __delitem__(self, index):
+        del self._messages[index]
+
+    def __len__(self):
+        return len(self._messages)
+
+    def __iter__(self):
+        return iter(self._messages)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    def prompt(self, system_prompt, new_prompt, swap_prompt):
+        return PromptContext(self, system_prompt, new_prompt, swap_prompt)
+
+class PromptContext:
+    def __init__(self, messages, system_prompt, new_prompt, swap_prompt):
+        self.messages = messages
+        self.system_prompt = system_prompt
+        self.new_prompt = new_prompt
+        self.swap_prompt = swap_prompt
+
+    def __enter__(self):
+        if self.swap_prompt:
+            self.messages[self.system_prompt] = self.new_prompt
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.swap_prompt:
+            self.messages[self.system_prompt] = self.system_prompt
 
     def get_preview(self, max_lines: int = 5):
         snippet = "\n".join(
@@ -527,6 +494,50 @@ class MaxTokensExceeded(Exception):
     def __init__(self, filename):
         self.filename = filename
 
+
+class Messages:
+    def __init__(self, iterable=[]):
+        self.items = list(iterable)
+
+    def __getitem__(self, index):
+        return self.items[index]
+
+    def __setitem__(self, index, value):
+        self.items[index] = value
+
+    def __delitem__(self, index):
+        del self.items[index]
+
+    def __len__(self):
+        return len(self.items)
+
+    def __iter__(self):
+        return iter(self.items)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    def prompt(self, system_prompt, new_prompt, swap_prompt):
+        class PromptContext:
+            def __init__(self, messages, system_prompt, new_prompt, swap_prompt):
+                self.messages = messages
+                self.system_prompt = system_prompt
+                self.new_prompt = new_prompt
+                self.swap_prompt = swap_prompt
+
+            def __enter__(self):
+                if self.swap_prompt:
+                    self.messages[self.system_prompt] = self.new_prompt
+                return self
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                if self.swap_prompt:
+                    self.messages[self.system_prompt] = self.system_prompt
+
+        return PromptContext(self, system_prompt, new_prompt, swap_prompt)
 
 class EmptyRepository(Exception):
     def __init__(self):
