@@ -288,43 +288,7 @@ def on_ticket(
         )
     )
 
-    def get_comment_header(index, errored=False, pr_message="", done=False):
-        config_pr_message = (
-            "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})"
-            if config_pr_url is not None
-            else ""
-        )
-        # Why is this so convoluted
-        # config_pr_message = " To retrigger Sweep, edit the issue.\n" + config_pr_message
-        actions_message = create_action_buttons(
-            [
-                "Restart Sweep",
-            ]
-        )
-
-        if index < 0:
-            index = 0
-        if index == 4:
-            return pr_message + f"\n\n---\n{actions_message}" + config_pr_message
-
-        total = len(progress_headers)
-        index += 1 if done else 0
-        index *= 100 / total
-        index = int(index)
-        index = min(100, index)
-        if errored:
-            return (
-                f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
-                + f"\n\n---\n{actions_message}"
-            )
-        return (
-            f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)"
-            + ("\n" + stars_suffix if index != -1 else "")
-            + "\n"
-            + payment_message_start
-            # + f"\n\n---\n{actions_message}"
-            + config_pr_message
-        )
+    
 
     # Find Sweep's previous comment
     logger.print("USERNAME", GITHUB_BOT_USERNAME)
@@ -379,25 +343,7 @@ def on_ticket(
     # Random variables to save in case of errors
     table = None  # Show plan so user can finetune prompt
 
-    def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
-        nonlocal current_index, user_token, g, repo, issue_comment
-        # -1 = error, -2 = retry
-        # Only update the progress bar if the issue generation errors.
-        errored = index == -1
-        if index >= 0:
-            past_messages[index] = message
-            current_index = index
-
-        agg_message = None
-        # Include progress history
-        # index = -2 is reserved for
-        for i in range(
-            current_index + 2
-        ):  # go to next header (for Working on it... text)
-            if i == 0 or i >= len(progress_headers):
-                continue  # skip None header
-            header = progress_headers[i]
-            if header is not None:
+    
                 header = "## " + header + "\n"
             else:
                 header = "No header\n"
@@ -565,31 +511,7 @@ def on_ticket(
         repo_name=repo_name,
         issue_url=issue_url,
         username=username,
-        repo_description=repo_description.strip(),
-        title=title,
-        summary=message_summary,
-        snippets=snippets,
-        tree=tree,
-    )
-
-    _user_token, g = get_github_client(installation_id)
-    repo = g.get_repo(repo_full_name)
-    sweep_bot = SweepBot.from_system_message_content(
-        human_message=human_message,
-        repo=repo,
-        is_reply=bool(comments),
-        chat_logger=chat_logger,
-        sweep_context=sweep_context,
-    )
-
-    # Check repository for sweep.yml file.
-    sweep_yml_exists = False
-    for content_file in repo.get_contents(""):
-        if content_file.name == "sweep.yaml":
-            sweep_yml_exists = True
-            break
-
-    # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
+        # The function has been moved to ticket_utils.py
     if not sweep_yml_exists:
         try:
             logger.info("Creating sweep.yaml file...")
@@ -671,76 +593,7 @@ def on_ticket(
                 3,
                 done=True,
             )
-            edit_sweep_comment(f"N/A", 4)
-            edit_sweep_comment(f"I finished creating all the subissues.", 5)
-            return {"success": True}
-
-        # COMMENT ON ISSUE
-        # TODO: removed issue commenting here
-        logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
-
-        if not file_change_requests:
-            if len(title + summary) < 60:
-                edit_sweep_comment(
-                    (
-                        "Sorry, I could not find any files to modify, can you please"
-                        " provide more details? Please make sure that the title and"
-                        " summary of the issue are at least 60 characters."
-                    ),
-                    -1,
-                )
-            else:
-                edit_sweep_comment(
-                    (
-                        "Sorry, I could not find any files to modify, can you please"
-                        " provide more details?"
-                    ),
-                    -1,
-                )
-            raise Exception("No files to modify.")
-
-        sweep_bot.summarize_snippets()
-
-        file_change_requests = sweep_bot.validate_file_change_requests(
-            file_change_requests
-        )
-        table = tabulate(
-            [
-                [
-                    f"`{file_change_request.filename}`",
-                    file_change_request.instructions_display.replace(
-                        "\n", "<br/>"
-                    ).replace("```", "\\```"),
-                ]
-                for file_change_request in file_change_requests
-            ],
-            headers=["File Path", "Proposed Changes"],
-            tablefmt="pipe",
-        )
-        # edit_sweep_comment(
-        #     "From looking through the relevant snippets, I decided to make the"
-        #     " following modifications:\n\n" + table + "\n\n",
-        #     2,
-        # )
-
-        # TODO(lukejagg): Generate PR after modifications are made
-        # CREATE PR METADATA
-        logger.info("Generating PR...")
-        pull_request = sweep_bot.generate_pull_request()
-        # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
-        # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
-        # edit_sweep_comment(
-        #     (
-        #         "I have created a plan for writing the pull request. I am now working"
-        #         " my plan and coding the required changes to address this issue. Here"
-        #         f" is the planned pull request:\n\n{pull_request_summary}"
-        #     ),
-        #     3,
-        # )
-
-        logger.info("Making PR...")
-
+            # The function has been moved to ticket_utils.py
         files_progress: list[tuple[str, str, str, str]] = [
             (
                 file_change_request.filename,
@@ -941,6 +794,8 @@ def on_ticket(
             logger.error(e)
 
         if changes_required:
+            from sweepai.utils.ticket_utils import edit_sweep_comment
+            
             edit_sweep_comment(
                 review_message + "\n\nI finished incorporating these changes.",
                 3,
@@ -989,6 +844,8 @@ def on_ticket(
             logger.error(e)
 
         # Completed code review
+        from sweepai.utils.ticket_utils import edit_sweep_comment
+        
         edit_sweep_comment(
             review_message + "\n\nSuccess! 🚀",
             4,
