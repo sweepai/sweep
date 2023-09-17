@@ -1041,3 +1041,21 @@ The format is as follows:
 Instructions:
 1. Complete the Code Planning step
 2. Complete the Code Generation step"""
+
+summarize_snippet_system_prompt = """You are a technical writer. Summarize code for an engineer. Be concise but detailed. Mention all entities implicitly. Never say "the code does x", just say "x". Keep it within 30 lines.
+
+E.g: If `issue_comment` is None, set `issue_comment` to `current_issue.create_comment(first_comment)`, otherwise edit comment via `issue_comment.edit(first_comment)`"""
+
+summarize_snippet_prompt = """# Code
+```
+{code}
+```
+
+# Repo Metadata
+{metadata}
+
+# Issue
+{issue}
+
+# Instructions
+Losslessly summarize the code in a ordered list for an engineer to search for relevant code to solve the above GitHub issue."""
