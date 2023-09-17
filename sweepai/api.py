@@ -204,13 +204,16 @@ def call_on_comment(
         while not events[key].empty():
             task_args, task_kwargs = events[key].get()
             run_on_comment(*task_args, **task_kwargs)
+
     global events
     repo_full_name = kwargs["repo_full_name"]
     pr_id = kwargs["pr_number"]
     key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
 
     comment_type = kwargs["type"]
-    priority = 0 if comment_type == "comment" else 1 # set priority to 0 if comment, 1 if GHA
+    priority = (
+        0 if comment_type == "comment" else 1
+    )  # set priority to 0 if comment, 1 if GHA
     logger.info(f"Received comment type: {comment_type}")
 
     if key not in events:
@@ -727,6 +730,8 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
 
     try:
         branch_ttl = int(config.get("branch_ttl", 7))
+    except SystemExit:
+        raise SystemExit
     except:
         branch_ttl = 7
     branch_ttl = max(branch_ttl, 1)
@@ -769,5 +774,7 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                 logger.error(
                     f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
                 )
+    except SystemExit:
+        raise SystemExit
     except:
         logger.warning("Failed to update sweep PRs")

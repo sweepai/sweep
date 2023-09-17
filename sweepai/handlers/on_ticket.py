@@ -882,6 +882,8 @@ def on_ticket(
         lint_output = None
         try:
             current_issue.delete_reaction(eyes_reaction.id)
+        except SystemExit:
+            raise SystemExit
         except:
             pass
 
