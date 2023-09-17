@@ -131,7 +131,7 @@ class ModifyBot:
         print(len(updated_snippets))
         print(replace_prompt)
 
-        updated_code, _ = generate_new_file_from_patch(
+        updated_code, _ = (
             replace_prompt,
             file_contents,
         )
