@@ -125,6 +125,12 @@ def strip_sweep(text: str):
         re.search(r"^[Ss]weep\s?\([Ll]int\)", text) is not None,
     )
 
+def get_comment_header(user: str, repo: str, issue_number: int) -> str:
+    return f"Comment header for user {user} on repo {repo} for issue {issue_number}"
+
+def edit_sweep_comment(comment_id: int, new_content: str):
+    print(f"Editing comment {comment_id} with new content: {new_content}")
+
 def log_error(is_paying_user, is_trial_user, username, issue_url, error_type, exception, priority=0):
         if is_paying_user or is_trial_user:
             if priority == 1:
