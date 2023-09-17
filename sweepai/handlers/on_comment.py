@@ -81,6 +81,7 @@ def on_comment(
     chat_logger: Any = None,
     pr: MockPR = None,  # For on_comment calls before PR is created
     repo: Any = None,
+    type: str = "comment",
 ):
     # Flow:
     # 1. Get relevant files
@@ -201,10 +202,14 @@ def on_comment(
             try:
                 item_to_react_to = pr.get_issue_comment(comment_id)
                 reaction = item_to_react_to.create_reaction("eyes")
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 try:
                     item_to_react_to = pr.get_review_comment(comment_id)
                     reaction = item_to_react_to.create_reaction("eyes")
+                except SystemExit:
+                    raise SystemExit
                 except Exception as e:
                     pass
 
@@ -319,6 +324,8 @@ def on_comment(
                 def get_contents_with_fallback(repo: Repository, file_path: str):
                     try:
                         return repo.get_contents(file_path)
+                    except SystemExit:
+                        raise SystemExit
                     except Exception as e:
                         logger.error(e)
                         return None
@@ -475,8 +482,10 @@ def on_comment(
                 else:
                     # PR Review Comment Reply
                     edit_comment(
-                        "No changes made. Please add more details so I know what to change."
+                        'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR(at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discord](https://discord.com/invite/sweep)'
                     )
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.error(f"Failed to reply to comment: {e}")
 
@@ -519,16 +528,22 @@ def on_comment(
     try:
         item_to_react_to = pr.get_issue_comment(comment_id)
         reaction = item_to_react_to.create_reaction("rocket")
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         try:
             item_to_react_to = pr.get_review_comment(comment_id)
             reaction = item_to_react_to.create_reaction("rocket")
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             pass
 
     try:
         if response_for_user is not None:
             edit_comment(f"## 🚀 Wrote Changes\n\n{response_for_user}")
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         pass
 

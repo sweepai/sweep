@@ -99,6 +99,7 @@ class _Task:
         self.state = "Created"
         self.children = []
         self.function_name = None
+        self.exception = None
         self.write_metadata(state="Created")
 
     @staticmethod
@@ -114,6 +115,7 @@ class _Task:
         state: str | None = None,
         child_task: str | None = None,
         function_name: str | None = None,
+        exception: str | None = None,
     ):
         if state is not None:
             self.state = state
@@ -121,6 +123,8 @@ class _Task:
             self.children.append(child_task)
         if function_name is not None:
             self.function_name = function_name
+        if exception is not None:
+            self.exception = exception
         if not self.create_file:
             return
 
@@ -141,6 +145,7 @@ class _Task:
                         if self.parent_task is not None
                         else None,
                         "children": self.children,
+                        "exception": self.exception,
                         "state": state,
                     }
                 )
@@ -204,6 +209,7 @@ class _Task:
         task.create_file = create_file
         task.metadata = metadata
         task.write_metadata()
+        return task
 
     @staticmethod
     def update_task(task_key=None, task=None):
@@ -270,7 +276,8 @@ class _Logger:
             task.write_log(0, *args, **kwargs)
 
     def init(self, metadata, create_file):
-        _Task.set_metadata(metadata=metadata, create_file=create_file)
+        task = _Task.set_metadata(metadata=metadata, create_file=create_file)
+        return self
 
 
 class _LogN(_Logger):
@@ -298,10 +305,23 @@ class _LogN(_Logger):
         self[loguru_logger.info](*args, **kwargs)
 
     @staticmethod
-    def close():
+    def close(state="Done", exception=None):
         task = _Task.get_task(create_if_not_exist=False)
         if task is not None:
-            task.write_metadata(state="Done")
+            task.write_metadata(state=state, exception=exception)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Check if it errored
+        if exc_type is not None:
+            if type(exc_type) == SystemExit:
+                self.close(state="Exited", exception=type(exc_type).__name__)
+            else:
+                self.close(state="Errored", exception=type(exc_type).__name__)
+        else:
+            self.close()
 
 
 class _LogTask:
@@ -315,12 +335,15 @@ class _LogTask:
                 child_task=child_task.meta_path, function_name=func.__name__
             )
 
-            # Todo: add call to parent task
-
+            # Todo: update to use with logger instead of try/except
             try:
                 result = func(*args, **kwargs)
+            except SystemExit as e:
+                child_task.write_metadata(state="Exited", exception=type(e).__name__)
+                _Task.update_task(task_key=key, task=parent_task)
+                raise e
             except Exception as e:
-                child_task.write_metadata(state="Errored")
+                child_task.write_metadata(state="Errored", exception=type(e).__name__)
                 _Task.update_task(task_key=key, task=parent_task)
                 raise e
 

@@ -64,8 +64,15 @@ Use the diffs along with the original plan to verify if each step of the plan wa
     },
 ]
 
-snippet_replacement = """
+snippet_replacement_system_message = f"""{system_message_prompt}
+
+You are selecting relevant snippets for this issue. You must only select files that would help you understand the context of this issue.
+
+## Snippet Step
+
 In order to address this issue, what required information do you need about the snippets? Only include relevant code and required file imports that provides you enough detail about the snippets for the problems:
+
+Note: Do not select the entire file. Only select relevant lines from these files. Keep the relevant_snippets as small as possible.
 
 <contextual_thoughts>
 * Thought_1
@@ -79,6 +86,10 @@ folder_2/file_2.py:42-75
 ...
 </relevant_snippets>
 """
+
+snippet_replacement = """Based on this issue, determine what context is relevant for the file changes. In the relevant_snippets, do not write the entire file lines. Choose only the most important lines.
+
+Complete the Snippet Step."""
 
 diff_section_prompt = """
 <file_diff file="{diff_file_path}">
