@@ -1155,7 +1155,81 @@ def on_ticket(
 
 chunks = chunk_code(file_contents, "api.py", 10000, 200)
 
-for chunk in chunks:
-    print("\n########################\n")
-    print(chunk.content)
-import pdb; pdb.set_trace()
+import csv
+
+# with open('output.csv', 'w', newline='') as file:
+#     writer = csv.writer(file)
+#     for chunk in chunks:
+#         writer.writerow([chunk.content])
+
+from sweepai.core.chat import ChatGPT
+from sweepai.core.prompts import (
+    summarize_snippet_system_prompt,
+    summarize_snippet_prompt,
+)
+
+metadata = """Repo: sweepai/sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.
+Issue Url: https://github.com/sweepai/sweep/issues/1648
+Username: wwzeng1"""
+
+issue = """Move any code that can be moved out of on_ticket.py into ticket_utils.py
+Don't move the core logic, just any helper methods, like ones that edit sweeps comment"""
+
+# dic = [x for x in range(100)]
+# def chat(index, content):
+#     chat = ChatGPT.from_system_message_string(summarize_snippet_system_prompt, chat_logger=None)
+#     f = chat.chat(
+#         summarize_snippet_prompt.format(
+#             code=content,
+#             metadata=metadata,
+#             issue=issue,
+#         ),
+#         model="gpt-3.5-turbo-16k-0613"
+#     )
+#     dic[index] = content
+#     return f
+
+# threads = []
+# for index, content in enumerate(chunks):
+#     import threading
+#     t = threading.Thread(target=chat, args=(index, content.content,))
+#     t.start()
+#     threads.append(t)
+
+# for i, t in enumerate(threads):
+#     print(i)
+#     t.join()
+
+# dic = []
+# from tqdm import tqdm
+# for chunk in tqdm(chunks):
+#     chat = ChatGPT.from_system_message_string(summarize_snippet_system_prompt, chat_logger=None)
+#     f = chat.chat(
+#         summarize_snippet_prompt.format(
+#             code=chunk.content,
+#             metadata=metadata,
+#             issue=issue,
+#         ),
+#         model="gpt-3.5-turbo-16k-0613",
+#         temperature=0.1
+#     )
+#     dic.append(f)
+
+# print("=====================================")
+# print(dic)
+
+import json
+
+ls = json.load(open("tests/summaries.json", "r"))
+
+for chunk in ls:
+    print(chunk + "\n\n========================\n\n")
+
+# Read all thread info sequentially
+# for t in threads:
+#     x = t.join()
+#     summary.append(x)
+
+# for chunk in chunks:
+#     print("\n########################\n")
+#     print(chunk.content)
