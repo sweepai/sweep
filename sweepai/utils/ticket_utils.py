@@ -97,12 +97,53 @@ def post_process_snippets(
 
 
 def create_collapsible(summary: str, body: str, opened: bool = False):
-    # The helper methods have been moved to ticket_utils.py
+    return collapsible_template.format(
+        summary=summary, body=body, opened="open" if opened else ""
+    )
+
 def create_checkbox(title: str, body: str, checked: bool = False):
     return checkbox_template.format(
         check="X" if checked else " ", filename=title, instructions=body
     )
+    return checkbox_template.format(
+        check="X" if checked else " ", filename=title, instructions=body
+    )
 
+
+def get_comment_header(index, errored=False, pr_message="", done=False):
+    config_pr_message = (
+        "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})"
+        if config_pr_url is not None
+        else ""
+    )
+    actions_message = create_action_buttons(
+        [
+            "Restart Sweep",
+        ]
+    )
+
+    if index < 0:
+        index = 0
+    if index == 4:
+        return pr_message + f"\n\n---\n{actions_message}" + config_pr_message
+
+    total = len(progress_headers)
+    index += 1 if done else 0
+    index *= 100 / total
+    index = int(index)
+    index = min(100, index)
+    if errored:
+        return (
+            f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
+            + f"\n\n---\n{actions_message}"
+        )
+    return (
+        f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)"
+        + ("\n" + stars_suffix if index != -1 else "")
+        + "\n"
+        + payment_message_start
+        + config_pr_message
+    )
 
 def strip_sweep(text: str):
     return (
@@ -117,21 +158,92 @@ def strip_sweep(text: str):
         re.search(r"^[Ss]weep\s?\([Ll]int\)", text) is not None,
     )
 
-def log_error(is_paying_user, is_trial_user, username, issue_url, error_type, exception, priority=0):
-        if is_paying_user or is_trial_user:
-            if priority == 1:
-                priority = 0
-            elif priority == 2:
-                priority = 1
+def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
+    nonlocal current_index, user_token, g, repo, issue_comment
+    errored = index == -1
+    if index >= 0:
+        past_messages[index] = message
+        current_index = index
 
-        prefix = ""
-        if is_trial_user:
-            prefix = " (TRIAL)"
-        if is_paying_user:
-            prefix = " (PRO)"
+    agg_message = None
+    for i in range(
+        current_index + 2
+    ):
+        if i == 0 or i >= len(progress_headers):
+            continue
+        header = progress_headers[i]
+        if header is not None:
+            header = "## " + header + "\n"
+        else:
+            header = "No header\n"
+        msg = header + (past_messages.get(i) or "Working on it...")
+        if agg_message is None:
+            agg_message = msg
+        else:
+            agg_message = agg_message + f"\n{sep}" + msg
 
-        content = (
-            f"**{error_type} Error**{prefix}\n{username}:"
-            f" {issue_url}\n```{exception}```"
+    suffix = bot_suffix + discord_suffix
+    if errored:
+        agg_message = (
+            "## ❌ Unable to Complete PR"
+            + "\n"
+            + message
+            + "\n\nFor bonus GPT-4 tickets, please report this bug on"
+            " **[Discord](https://discord.com/invite/sweep-ai)**."
         )
-        discord_log_error(content, priority=priority)
+        if table is not None:
+            agg_message = (
+                agg_message
+                + f"\n{sep}Please look at the generated plan. If something looks"
+                f" wrong, please add more details to your issue.\n\n{table}"
+            )
+        suffix = bot_suffix
+    try:
+        issue_comment.edit(
+            f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
+        )
+    except BadCredentialsException:
+        logger.error("Bad credentials, refreshing token")
+        _user_token, g = get_github_client(installation_id)
+        repo = g.get_repo(repo_full_name)
+        issue_comment = repo.get_issue(current_issue.number)
+        issue_comment.edit(
+            f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
+        )
+
+def handle_generic_exception(e, title, summary, is_paying_user, is_trial_user, username, issue_url, metadata):
+    logger.error(traceback.format_exc())
+    logger.error(e)
+
+    if changes_required:
+        edit_sweep_comment(
+            review_message + "\n\nI finished incorporating these changes.",
+            3,
+        )
+    else:
+        edit_sweep_comment(
+            f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
+            3,
+        )
+
+    is_draft = config.get("draft", False)
+    try:
+        pr = repo.create_pull(
+            title=pr_changes.title,
+            body=pr_changes.body,
+            head=pr_changes.pr_head,
+            base=SweepConfig.get_branch(repo),
+            draft=is_draft,
+        )
+    except GithubException as e:
+        is_draft = False
+        pr = repo.create_pull(
+            title=pr_changes.title,
+            body=pr_changes.body,
+            head=pr_changes.pr_head,
+            base=SweepConfig.get_branch(repo),
+            draft=is_draft,
+        )
+
+    pr.add_to_labels(GITHUB_LABEL_NAME)
+    current_issue.create_reaction("rocket")
