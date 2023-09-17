@@ -181,6 +181,7 @@ class ChatGPT(BaseModel):
         content: str,
         model: ChatModel | None = None,
         message_key: str | None = None,
+        temperature=temperature,
     ):
         self.messages.append(Message(role="user", content=content, key=message_key))
         model = model or self.model
@@ -189,6 +190,7 @@ class ChatGPT(BaseModel):
                 role="assistant",
                 content=self.call_openai(
                     model=model,
+                    temperature=temperature,
                 ),
                 key=message_key,
             )
@@ -199,6 +201,7 @@ class ChatGPT(BaseModel):
     def call_openai(
         self,
         model: ChatModel | None = None,
+        temperature=temperature,
     ):
         if self.chat_logger is not None:
             tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
