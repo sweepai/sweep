@@ -314,85 +314,76 @@ class ProposedIssue(RegexMatchableBaseModel):
     _regex = r'<issue\s+title="(?P<title>.*?)">(?P<body>.*?)</issue>'
 
 
+class Messages:
+    def __init__(self):
+        self._list = []
+        self._system_prompt = None
+
+    def __getitem__(self, index):
+        return self._list[index]
+
+    def __setitem__(self, index, value):
+        self._list[index] = value
+
+    def __delitem__(self, index):
+        del self._list[index]
+
+    def __len__(self):
+        return len(self._list)
+
+    def append(self, item):
+        self._list.append(item)
+
+    def extend(self, items):
+        self._list.extend(items)
+
+    def insert(self, index, item):
+        self._list.insert(index, item)
+
+    def remove(self, item):
+        self._list.remove(item)
+
+    def pop(self, index=-1):
+        return self._list.pop(index)
+
+    def clear(self):
+        self._list.clear()
+
+    def index(self, item, start=0, end=None):
+        return self._list.index(item, start, end if end is not None else len(self._list))
+
+    def count(self, item):
+        return self._list.count(item)
+
+    def sort(self, key=None, reverse=False):
+        self._list.sort(key=key, reverse=reverse)
+
+    def reverse(self):
+        self._list.reverse()
+
+    def copy(self):
+        return self._list.copy()
+
+    def prompt(self, system_prompt, new_prompt, swap_prompt):
+        if swap_prompt:
+            self._system_prompt = system_prompt
+            return PromptSwapper(self, new_prompt)
+        else:
+            return self._system_prompt
+
+class PromptSwapper:
+    def __init__(self, messages, new_prompt):
+        self._messages = messages
+        self._new_prompt = new_prompt
+
+    def __enter__(self):
+        self._messages._system_prompt = self._new_prompt
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._messages._system_prompt = None
+
 class Snippet(BaseModel):
-    """
-    Start and end refer to line numbers
-    """
-
-    content: str
-    start: int
-    end: int
-    file_path: str
-
-    def __eq__(self, other):
-        if isinstance(other, Snippet):
-            return (
-                self.file_path == other.file_path
-                and self.start == other.start
-                and self.end == other.end
-            )
-        return False
-
-    def __hash__(self):
-        return hash((self.file_path, self.start, self.end))
-
-    def get_snippet(self, add_ellipsis: bool = True, add_lines: bool = True):
-        lines = self.content.splitlines()
-        snippet = "\n".join(
-            (f"{i+1}: {line}" if add_lines else line)
-            for i, line in enumerate(lines[self.start : self.end])
-        )
-        if add_ellipsis:
-            if self.start > 1:
-                snippet = "...\n" + snippet
-            if self.end < self.content.count("\n") + 1:
-                snippet = snippet + "\n..."
-        return snippet
-
-    def __add__(self, other):
-        assert self.content == other.content
-        assert self.file_path == other.file_path
-        return Snippet(
-            content=self.content,
-            start=self.start,
-            end=other.end,
-            file_path=self.file_path,
-        )
-
-    def __xor__(self, other: "Snippet") -> bool:
-        """
-        Returns True if there is an overlap between two snippets.
-        """
-        if self.file_path != other.file_path:
-            return False
-        return self.file_path == other.file_path and (
-            (self.start <= other.start and self.end >= other.start)
-            or (other.start <= self.start and other.end >= self.start)
-        )
-
-    def __or__(self, other: "Snippet") -> "Snippet":
-        assert self.file_path == other.file_path
-        return Snippet(
-            content=self.content,
-            start=min(self.start, other.start),
-            end=max(self.end, other.end),
-            file_path=self.file_path,
-        )
-
-    @property
-    def xml(self):
-        return f"""<snippet source="{self.file_path}:{self.start}-{self.end}">\n{self.get_snippet()}\n</snippet>"""
-
-    def get_url(self, repo_name: str, commit_id: str = "main"):
-        num_lines = self.content.count("\n") + 1
-        encoded_file_path = quote(self.file_path, safe="/")
-        return f"https://github.com/{repo_name}/blob/{commit_id}/{encoded_file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}"
-
-    def get_markdown_link(self, repo_name: str, commit_id: str = "main"):
-        num_lines = self.content.count("\n") + 1
-        base = commit_id + "/" if commit_id != "main" else ""
-        return f"[{base}{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}]({self.get_url(repo_name, commit_id)})"
-
+...
     def get_slack_link(self, repo_name: str, commit_id: str = "main"):
         num_lines = self.content.count("\n") + 1
         base = commit_id + "/" if commit_id != "main" else ""
@@ -527,6 +518,67 @@ class MaxTokensExceeded(Exception):
     def __init__(self, filename):
         self.filename = filename
 
+
+class Messages:
+    def __init__(self):
+        self._list = []
+        self._system_prompt = None
+
+    def __getitem__(self, index):
+        return self._list[index]
+
+    def __setitem__(self, index, value):
+        self._list[index] = value
+
+    def __delitem__(self, index):
+        del self._list[index]
+
+    def __len__(self):
+        return len(self._list)
+
+    def append(self, item):
+        self._list.append(item)
+
+    def extend(self, items):
+        self._list.extend(items)
+
+    def insert(self, index, item):
+        self._list.insert(index, item)
+
+    def remove(self, item):
+        self._list.remove(item)
+
+    def pop(self, index=-1):
+        return self._list.pop(index)
+
+    def clear(self):
+        self._list.clear()
+
+    def index(self, item, start=0, end=None):
+        return self._list.index(item, start, end if end is not None else len(self._list))
+
+    def count(self, item):
+        return self._list.count(item)
+
+    def sort(self, key=None, reverse=False):
+        self._list.sort(key=key, reverse=reverse)
+
+    def reverse(self):
+        self._list.reverse()
+
+    def copy(self):
+        return self._list.copy()
+
+    def prompt(self, system_prompt, new_prompt, swap_prompt):
+        self._system_prompt = system_prompt if swap_prompt else None
+        return new_prompt
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._system_prompt is not None:
+            return self._system_prompt
 
 class EmptyRepository(Exception):
     def __init__(self):
