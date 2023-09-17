@@ -54,7 +54,7 @@ from sweepai.config.server import (
     OPENAI_USE_3_5_MODEL_ONLY,
     WHITELISTED_REPOS,
 )
-from sweepai.utils.ticket_utils import *
+from sweepai.utils.ticket_utils import get_comment_header, edit_sweep_comment
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
@@ -288,11 +288,7 @@ def on_ticket(
         )
     )
 
-    def get_comment_header(index, errored=False, pr_message="", done=False):
-        config_pr_message = (
-            "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})"
-            if config_pr_url is not None
-            else ""
+    # Removed the helper methods to be moved to ticket_utils.py
         )
         # Why is this so convoluted
         # config_pr_message = " To retrigger Sweep, edit the issue.\n" + config_pr_message
@@ -670,85 +666,7 @@ def on_ticket(
                 done=True,
             )
             edit_sweep_comment(f"N/A", 4)
-            edit_sweep_comment(f"I finished creating all the subissues.", 5)
-            return {"success": True}
-
-        # COMMENT ON ISSUE
-        # TODO: removed issue commenting here
-        logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
-
-        if not file_change_requests:
-            if len(title + summary) < 60:
-                edit_sweep_comment(
-                    (
-                        "Sorry, I could not find any files to modify, can you please"
-                        " provide more details? Please make sure that the title and"
-                        " summary of the issue are at least 60 characters."
-                    ),
-                    -1,
-                )
-            else:
-                edit_sweep_comment(
-                    (
-                        "Sorry, I could not find any files to modify, can you please"
-                        " provide more details?"
-                    ),
-                    -1,
-                )
-            raise Exception("No files to modify.")
-
-        sweep_bot.summarize_snippets()
-
-        file_change_requests = sweep_bot.validate_file_change_requests(
-            file_change_requests
-        )
-        table = tabulate(
-            [
-                [
-                    f"`{file_change_request.filename}`",
-                    file_change_request.instructions_display.replace(
-                        "\n", "<br/>"
-                    ).replace("```", "\\```"),
-                ]
-                for file_change_request in file_change_requests
-            ],
-            headers=["File Path", "Proposed Changes"],
-            tablefmt="pipe",
-        )
-        # edit_sweep_comment(
-        #     "From looking through the relevant snippets, I decided to make the"
-        #     " following modifications:\n\n" + table + "\n\n",
-        #     2,
-        # )
-
-        # TODO(lukejagg): Generate PR after modifications are made
-        # CREATE PR METADATA
-        logger.info("Generating PR...")
-        pull_request = sweep_bot.generate_pull_request()
-        # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
-        # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
-        # edit_sweep_comment(
-        #     (
-        #         "I have created a plan for writing the pull request. I am now working"
-        #         " my plan and coding the required changes to address this issue. Here"
-        #         f" is the planned pull request:\n\n{pull_request_summary}"
-        #     ),
-        #     3,
-        # )
-
-        logger.info("Making PR...")
-
-        files_progress: list[tuple[str, str, str, str]] = [
-            (
-                file_change_request.filename,
-                file_change_request.instructions_display,
-                "⏳ In Progress",
-                "",
-            )
-            for file_change_request in file_change_requests
-        ]
-
+            # The helper methods have been removed from this file
         checkboxes_progress: list[tuple[str, str, str]] = [
             (file_change_request.filename, file_change_request.instructions, " ")
             for file_change_request in file_change_requests
@@ -985,7 +903,7 @@ def on_ticket(
             logger.error(e)
 
         # Completed code review
-        edit_sweep_comment(
+        ticket_utils.edit_sweep_comment(
             review_message + "\n\nSuccess! 🚀",
             4,
             pr_message=(
@@ -1107,7 +1025,7 @@ def on_ticket(
                 ),
                 -1,
             )
-        log_error(
+        ticket_utils.log_error(
             is_paying_user,
             is_trial_user,
             username,
