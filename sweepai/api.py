@@ -12,6 +12,7 @@ import ctypes
 from queue import Queue
 import sys
 import threading
+import traceback
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -170,7 +171,7 @@ def terminate_thread(thread):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.error(f"Failed to terminate thread: {e}")
+        logger.error(f"Failed to terminate thread: {e}, traceback: {traceback.format_exc()}")
 
 
 def call_on_ticket(*args, **kwargs):
@@ -211,7 +212,7 @@ def call_on_comment(
 
     comment_type = kwargs["type"]
     priority = 0 if comment_type == "comment" else 1 # set priority to 0 if comment, 1 if GHA
-    logger.info(f"Received comment type: {comment_type}")
+    # logger.info(f"Received comment type: {comment_type}")
 
     if key not in events:
         events[key] = SafePriorityQueue()
