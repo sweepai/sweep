@@ -125,21 +125,4 @@ def strip_sweep(text: str):
         re.search(r"^[Ss]weep\s?\([Ll]int\)", text) is not None,
     )
 
-def log_error(is_paying_user, is_trial_user, username, issue_url, error_type, exception, priority=0):
-        if is_paying_user or is_trial_user:
-            if priority == 1:
-                priority = 0
-            elif priority == 2:
-                priority = 1
-
-        prefix = ""
-        if is_trial_user:
-            prefix = " (TRIAL)"
-        if is_paying_user:
-            prefix = " (PRO)"
-
-        content = (
-            f"**{error_type} Error**{prefix}\n{username}:"
-            f" {issue_url}\n```{exception}```"
-        )
-        discord_log_error(content, priority=priority)
+# No code here as we are moving the function to another file
