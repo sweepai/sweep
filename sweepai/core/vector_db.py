@@ -211,7 +211,7 @@ def get_deeplake_vs_from_repo(
     metadatas = []
     ids = []
     for snippet in snippets:
-        documents.append(snippet.content)
+        documents.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
         metadata = {
             "file_path": snippet.file_path[len(cloned_repo.cache_dir) + 1 :],
             "start": snippet.start,
