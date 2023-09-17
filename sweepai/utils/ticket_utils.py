@@ -97,15 +97,7 @@ def post_process_snippets(
 
 
 def create_collapsible(summary: str, body: str, opened: bool = False):
-    return collapsible_template.format(
-        summary=summary, body=body, opened="open" if opened else ""
-    )
-
-
-def blockquote(text: str):
-    return f"<blockquote>{text}</blockquote>" if text else ""
-
-
+    # No code here as the methods are moved to ticket_utils.py
 def create_checkbox(title: str, body: str, checked: bool = False):
     return checkbox_template.format(
         check="X" if checked else " ", filename=title, instructions=body
