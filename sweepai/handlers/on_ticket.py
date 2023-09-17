@@ -288,43 +288,7 @@ def on_ticket(
         )
     )
 
-    def get_comment_header(index, errored=False, pr_message="", done=False):
-        config_pr_message = (
-            "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})"
-            if config_pr_url is not None
-            else ""
-        )
-        # Why is this so convoluted
-        # config_pr_message = " To retrigger Sweep, edit the issue.\n" + config_pr_message
-        actions_message = create_action_buttons(
-            [
-                "Restart Sweep",
-            ]
-        )
-
-        if index < 0:
-            index = 0
-        if index == 4:
-            return pr_message + f"\n\n---\n{actions_message}" + config_pr_message
-
-        total = len(progress_headers)
-        index += 1 if done else 0
-        index *= 100 / total
-        index = int(index)
-        index = min(100, index)
-        if errored:
-            return (
-                f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
-                + f"\n\n---\n{actions_message}"
-            )
-        return (
-            f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)"
-            + ("\n" + stars_suffix if index != -1 else "")
-            + "\n"
-            + payment_message_start
-            # + f"\n\n---\n{actions_message}"
-            + config_pr_message
-        )
+    # This method has been moved to ticket_utils.py
 
     # Find Sweep's previous comment
     logger.print("USERNAME", GITHUB_BOT_USERNAME)
@@ -379,25 +343,7 @@ def on_ticket(
     # Random variables to save in case of errors
     table = None  # Show plan so user can finetune prompt
 
-    def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
-        nonlocal current_index, user_token, g, repo, issue_comment
-        # -1 = error, -2 = retry
-        # Only update the progress bar if the issue generation errors.
-        errored = index == -1
-        if index >= 0:
-            past_messages[index] = message
-            current_index = index
-
-        agg_message = None
-        # Include progress history
-        # index = -2 is reserved for
-        for i in range(
-            current_index + 2
-        ):  # go to next header (for Working on it... text)
-            if i == 0 or i >= len(progress_headers):
-                continue  # skip None header
-            header = progress_headers[i]
-            if header is not None:
+    # This method has been moved to ticket_utils.py
                 header = "## " + header + "\n"
             else:
                 header = "No header\n"
@@ -680,7 +626,9 @@ def on_ticket(
 
         if not file_change_requests:
             if len(title + summary) < 60:
-                edit_sweep_comment(
+                from sweepai.utils import ticket_utils
+                
+                ticket_utils.edit_sweep_comment(
                     (
                         "Sorry, I could not find any files to modify, can you please"
                         " provide more details? Please make sure that the title and"
@@ -688,16 +636,15 @@ def on_ticket(
                     ),
                     -1,
                 )
-            else:
-                edit_sweep_comment(
-                    (
-                        "Sorry, I could not find any files to modify, can you please"
-                        " provide more details?"
-                    ),
-                    -1,
+                ticket_utils.log_error(
+                    is_paying_user,
+                    is_trial_user,
+                    username,
+                    issue_url,
+                    "File Fetch",
+                    str(e) + "\n" + traceback.format_exc(),
+                    priority=1,
                 )
-            raise Exception("No files to modify.")
-
         sweep_bot.summarize_snippets()
 
         file_change_requests = sweep_bot.validate_file_change_requests(
@@ -717,28 +664,14 @@ def on_ticket(
             tablefmt="pipe",
         )
         # edit_sweep_comment(
-        #     "From looking through the relevant snippets, I decided to make the"
-        #     " following modifications:\n\n" + table + "\n\n",
-        #     2,
-        # )
-
+        # This method has been moved to ticket_utils.py
         # TODO(lukejagg): Generate PR after modifications are made
         # CREATE PR METADATA
         logger.info("Generating PR...")
         pull_request = sweep_bot.generate_pull_request()
         # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
         # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
-        # edit_sweep_comment(
-        #     (
-        #         "I have created a plan for writing the pull request. I am now working"
-        #         " my plan and coding the required changes to address this issue. Here"
-        #         f" is the planned pull request:\n\n{pull_request_summary}"
-        #     ),
-        #     3,
-        # )
-
-        logger.info("Making PR...")
-
+        # This method has been moved to ticket_utils.py
         files_progress: list[tuple[str, str, str, str]] = [
             (
                 file_change_request.filename,
@@ -821,18 +754,7 @@ def on_ticket(
                     else repo.get_branch(pull_request.branch_name).commit.sha
                 )
                 commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
-                checkboxes_progress = [
-                    (
-                        (
-                            f"`{filename}` ✅ Commit [`{commit_hash[:7]}`]({commit_url})",
-                            blockquote(instructions) + error_logs,
-                            "X",
-                        )
-                        if file_change_request.filename == filename
-                        else (filename, instructions, progress)
-                    )
-                    for filename, instructions, progress in checkboxes_progress
-                ]
+                checkboxes_progress = create_checkboxes_progress(file_change_request, commit_hash, commit_url, error_logs, checkboxes_progress)
             else:
                 logger.print("Didn't change file!")
                 checkboxes_progress = [
@@ -932,43 +854,7 @@ def on_ticket(
                 )
         except SystemExit:
             raise SystemExit
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
-
-        if changes_required:
-            edit_sweep_comment(
-                review_message + "\n\nI finished incorporating these changes.",
-                3,
-            )
-        else:
-            edit_sweep_comment(
-                f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
-                3,
-            )
-
-        is_draft = config.get("draft", False)
-        try:
-            pr = repo.create_pull(
-                title=pr_changes.title,
-                body=pr_changes.body,
-                head=pr_changes.pr_head,
-                base=SweepConfig.get_branch(repo),
-                draft=is_draft,
-            )
-        except GithubException as e:
-            is_draft = False
-            pr = repo.create_pull(
-                title=pr_changes.title,
-                body=pr_changes.body,
-                head=pr_changes.pr_head,
-                base=SweepConfig.get_branch(repo),
-                draft=is_draft,
-            )
-
-        pr.add_to_labels(GITHUB_LABEL_NAME)
-        current_issue.create_reaction("rocket")
-
+        handle_generic_exception(e, title, summary, is_paying_user, is_trial_user, username, issue_url, metadata)
         logger.info("Running github actions...")
         try:
             if is_draft:
