@@ -107,6 +107,8 @@ def extract_relevant_docs(content: str, user_dict: dict, chat_logger: ChatLogger
                 link, content, user_dict, chat_logger
             )
             result += "> " + summary.replace("\n", "\n> ") + "\n\n"
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.error(f"Docs search error: {e}")
     return result

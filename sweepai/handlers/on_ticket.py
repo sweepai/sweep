@@ -39,6 +39,7 @@ from sweepai.handlers.create_pr import (
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
+from sweepai.utils.buttons import create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import (
     SweepConfig,
@@ -293,11 +294,18 @@ def on_ticket(
             if config_pr_url is not None
             else ""
         )
-        config_pr_message = " To retrigger Sweep, edit the issue.\n" + config_pr_message
+        # Why is this so convoluted
+        # config_pr_message = " To retrigger Sweep, edit the issue.\n" + config_pr_message
+        actions_message = create_action_buttons(
+            [
+                "Restart Sweep",
+            ]
+        )
+
         if index < 0:
             index = 0
         if index == 4:
-            return pr_message + config_pr_message
+            return pr_message + f"\n\n---\n{actions_message}" + config_pr_message
 
         total = len(progress_headers)
         index += 1 if done else 0
@@ -305,12 +313,16 @@ def on_ticket(
         index = int(index)
         index = min(100, index)
         if errored:
-            return f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
+            return (
+                f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
+                + f"\n\n---\n{actions_message}"
+            )
         return (
             f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)"
             + ("\n" + stars_suffix if index != -1 else "")
             + "\n"
             + payment_message_start
+            # + f"\n\n---\n{actions_message}"
             + config_pr_message
         )
 
@@ -471,6 +483,8 @@ def on_ticket(
             num_files=num_of_snippets_to_query,
         )
         assert len(snippets) > 0
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         trace = traceback.format_exc()
         logger.error(e)
@@ -515,6 +529,8 @@ def on_ticket(
         )
         if docs_results:
             message_summary += "\n\n" + docs_results
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         logger.error(f"Failed to extract docs: {e}")
 
@@ -578,6 +594,8 @@ def on_ticket(
             config_pr = create_config_pr(sweep_bot)
             config_pr_url = config_pr.html_url
             edit_sweep_comment(message="", index=-2)
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.error(
                 "Failed to create new branch for sweep.yaml file.\n",
@@ -912,6 +930,8 @@ def on_ticket(
                     chat_logger=chat_logger,
                     repo=repo,
                 )
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
@@ -959,6 +979,8 @@ def on_ticket(
 
                 for check_run in check_runs:
                     check_run.rerequest()
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.error(e)
 
@@ -1060,6 +1082,8 @@ def on_ticket(
         )
         delete_branch = True
         raise e
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         logger.error(traceback.format_exc())
         logger.error(e)
@@ -1102,6 +1126,8 @@ def on_ticket(
         try:
             item_to_react_to.delete_reaction(eyes_reaction.id)
             item_to_react_to.create_reaction("rocket")
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.error(e)
     finally:
@@ -1115,6 +1141,8 @@ def on_ticket(
                 raise Exception(
                     f"Branch name {pull_request.branch_name} does not start with sweep/"
                 )
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.error(e)
             logger.error(traceback.format_exc())

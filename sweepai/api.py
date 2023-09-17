@@ -1,6 +1,7 @@
 # Do not save logs for main process
 import traceback
 from logn import logger
+from sweepai.utils.buttons import check_button_activated
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
 logger.init(
@@ -40,6 +41,7 @@ from sweepai.events import (
     IssueRequest,
     PRRequest,
     ReposAddedRequest,
+    IssueCommentChanges,
 )
 from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  # type: ignore
 from sweepai.handlers.create_pr import create_pr_changes, safe_delete_sweep_branch
@@ -71,8 +73,8 @@ def run_on_ticket(*args, **kwargs):
         },
         create_file=False,
     )
-    on_ticket(*args, **kwargs)
-    logger.close()
+    with logger:
+        on_ticket(*args, **kwargs)
 
 
 def run_on_comment(*args, **kwargs):
@@ -83,8 +85,9 @@ def run_on_comment(*args, **kwargs):
         },
         create_file=False,
     )
-    on_comment(*args, **kwargs)
-    logger.close()
+
+    with logger:
+        on_comment(*args, **kwargs)
 
 
 def run_on_merge(*args, **kwargs):
@@ -95,8 +98,8 @@ def run_on_merge(*args, **kwargs):
         },
         create_file=False,
     )
-    on_merge(*args, **kwargs)
-    logger.close()
+    with logger:
+        on_merge(*args, **kwargs)
 
 
 def run_on_write_docs(*args, **kwargs):
@@ -107,8 +110,8 @@ def run_on_write_docs(*args, **kwargs):
         },
         create_file=False,
     )
-    write_documentation(*args, **kwargs)
-    logger.close()
+    with logger:
+        write_documentation(*args, **kwargs)
 
 
 def run_on_check_suite(*args, **kwargs):
@@ -129,10 +132,23 @@ def run_on_check_suite(*args, **kwargs):
             },
             create_file=False,
         )
-        call_on_comment(**pr_change_request.params, type="github_action")
+        with logger:
+            call_on_comment(**pr_change_request.params, type="github_action")
         logger.info("Done with on_check_suite")
     else:
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
+
+
+def run_get_deeplake_vs_from_repo(*args, **kwargs):
+    logger.init(
+        metadata={
+            **kwargs,
+            "name": "deeplake",
+        },
+        create_file=False,
+    )
+    with logger:
+        get_deeplake_vs_from_repo(*args, **kwargs)
 
 
 def terminate_thread(thread):
@@ -150,6 +166,8 @@ def terminate_thread(thread):
         elif res != 1:
             ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
             raise SystemError("PyThreadState_SetAsyncExc failed")
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         logger.error(f"Failed to terminate thread: {e}, traceback: {traceback.format_exc()}")
 def call_on_ticket(*args, **kwargs):
@@ -216,7 +234,7 @@ def call_on_write_docs(*args, **kwargs):
 
 def call_get_deeplake_vs_from_repo(*args, **kwargs):
     thread = threading.Thread(
-        target=get_deeplake_vs_from_repo, args=args, kwargs=kwargs
+        target=run_get_deeplake_vs_from_repo, args=args, kwargs=kwargs
     )
     thread.start()
 
@@ -275,6 +293,23 @@ async def webhook(raw_request: Request):
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
             case "issue_comment", "edited":
                 request = IssueCommentRequest(**request_dict)
+                changes = IssueCommentChanges(**request_dict)
+
+                restart_sweep = False
+                if (
+                    request.comment.user.type == "Bot"
+                    and GITHUB_BOT_USERNAME in request.comment.user.login
+                    and changes.changes.body.get("from") is not None
+                    and check_button_activated(
+                        "Restart Sweep", request.comment.body, changes
+                    )
+                    and GITHUB_LABEL_NAME
+                    in [label.name.lower() for label in request.issue.labels]
+                    and request.sender.type == "User"
+                ):
+                    # Restart Sweep on this issue
+                    restart_sweep = True
+
                 if (
                     request.issue is not None
                     and GITHUB_LABEL_NAME
@@ -284,6 +319,7 @@ async def webhook(raw_request: Request):
                     and not (
                         request.issue.pull_request and request.issue.pull_request.url
                     )
+                    or restart_sweep
                 ):
                     logger.info("New issue comment edited")
                     request.issue.body = request.issue.body or ""
@@ -295,6 +331,7 @@ async def webhook(raw_request: Request):
                         not request.comment.body.strip()
                         .lower()
                         .startswith(GITHUB_LABEL_NAME)
+                        and not restart_sweep
                     ):
                         logger.info("Comment does not start with 'Sweep', passing")
                         return {
@@ -553,6 +590,8 @@ async def webhook(raw_request: Request):
                         repos_added_request.installation.account.login,
                         repos_added_request.repositories_added,
                     )
+                except SystemExit:
+                    raise SystemExit
                 except Exception as e:
                     logger.error(f"Failed to add config to top repos: {e}")
 
@@ -583,6 +622,8 @@ async def webhook(raw_request: Request):
                         repos_added_request.installation.account.login,
                         repos_added_request.repositories,
                     )
+                except SystemExit:
+                    raise SystemExit
                 except Exception as e:
                     logger.error(f"Failed to add config to top repos: {e}")
 
@@ -719,6 +760,8 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                 if pr.title == "Configure Sweep" and pr.merged:
                     # Create a new PR to add "gha_enabled: True" to sweep.yaml
                     create_gha_pr(g, repo)
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 logger.error(
                     f"Failed to merge changes from default branch into PR #{pr.number}: {e}"

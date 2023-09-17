@@ -115,6 +115,8 @@ class SweepConfig(BaseModel):
             try:
                 repo.get_branch(branch_name)
                 return branch_name
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 logger.warning(f"Error when getting branch: {e}, creating branch")
                 repo.create_git_ref(
@@ -122,6 +124,8 @@ class SweepConfig(BaseModel):
                     repo.get_branch(default_branch).commit.sha,
                 )
                 return branch_name
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.info(
                 f"Error when getting branch: {e}, falling back to default branch"
@@ -134,6 +138,8 @@ class SweepConfig(BaseModel):
             contents = repo.get_contents("sweep.yaml")
             config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
             return config
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.warning(f"Error when getting config: {e}, returning empty dict")
             if "This repository is empty." in str(e):
@@ -149,12 +155,18 @@ def get_gha_enabled(repo: Repository) -> bool:
             "gha_enabled", True
         )
         return gha_enabled
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         try:
             contents = repo.get_contents(".github/sweep.yaml")
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             try:
                 contents = repo.get_contents(".github/sweep.yaml")
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 logger.warning(
                     f"Error when getting gha enabled: {e}, falling back to True"
@@ -174,6 +186,8 @@ def get_description(repo: Repository) -> str:
             "description", ""
         )
         return description
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         return ""
 
@@ -211,6 +225,8 @@ def get_documentation_dict(repo: Repository):
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
         docs = sweep_yaml.get("docs", {})
         return docs
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         logger.warning(f"Error when getting docs: {e}, returning empty dict")
         return {}
@@ -225,6 +241,8 @@ def get_blocked_dirs(repo: Repository):
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
         dirs = sweep_yaml.get("blocked_dirs", [])
         return dirs
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         logger.warning(f"Error when getting docs: {e}, returning empty dict")
         return []
@@ -239,6 +257,8 @@ def get_rules(repo: Repository):
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
         rules = sweep_yaml.get("rules", [])
         return rules
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         logger.warning(f"Error when getting rules: {e}, returning empty array")
         return []
