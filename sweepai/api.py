@@ -132,7 +132,7 @@ def run_on_check_suite(*args, **kwargs):
             create_file=False,
         )
         with logger:
-            call_on_comment(**pr_change_request.params, type="github_action")
+            call_on_comment(**pr_change_request.params, comment_type="github_action")
         logger.info("Done with on_check_suite")
     else:
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
@@ -210,7 +210,7 @@ def call_on_comment(
     pr_id = kwargs["pr_number"]
     key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
 
-    comment_type = kwargs["type"]
+    comment_type = kwargs["comment_type"]
     priority = (
         0 if comment_type == "comment" else 1
     )  # set priority to 0 if comment, 1 if GHA
@@ -377,7 +377,7 @@ async def webhook(raw_request: Request):
                     ):
                         pr_change_request = PRChangeRequest(
                             params={
-                                "type": "comment",
+                                "comment_type": "comment",
                                 "repo_full_name": request.repository.full_name,
                                 "repo_description": request.repository.description,
                                 "comment": request.comment.body,
@@ -523,7 +523,7 @@ async def webhook(raw_request: Request):
                     ):
                         pr_change_request = PRChangeRequest(
                             params={
-                                "type": "comment",
+                                "comment_type": "comment",
                                 "repo_full_name": request.repository.full_name,
                                 "repo_description": request.repository.description,
                                 "comment": request.comment.body,
@@ -551,7 +551,7 @@ async def webhook(raw_request: Request):
                 ) and request.comment.user.type == "User":
                     pr_change_request = PRChangeRequest(
                         params={
-                            "type": "comment",
+                            "comment_type": "comment",
                             "repo_full_name": request.repository.full_name,
                             "repo_description": request.repository.description,
                             "comment": request.comment.body,
