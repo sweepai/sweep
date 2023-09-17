@@ -8,14 +8,14 @@
     <a href="https://github.com/apps/sweep-ai">
         <img alt="Install" src="https://img.shields.io/badge/Install-GitHub App-purple?link=https://github.com/apps/sweep-ai">
     </a>
+    <a href="https://discord.gg/sweep">
+        <img src="https://dcbadge.vercel.app/api/server/sweep?style=flat" />
+    </a>
     <a href="https://hub.docker.com/r/sweepai/sweep">
         <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/sweepai/sweep" />
     </a>
     <a href="https://docs.sweep.dev/">
         <img alt="Docs" src="https://img.shields.io/badge/Docs-docs.sweep.dev-blue?link=https%3A%2F%2Fdocs.sweep.dev">
-    </a>
-    <a href="https://discord.gg/sweep">
-        <img src="https://dcbadge.vercel.app/api/server/sweep?style=flat" />
     </a>
     <a href="https://github.com/sweepai/sweep">
         <img src="https://img.shields.io/github/commit-activity/m/sweepai/sweep" />
