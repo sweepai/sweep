@@ -84,16 +84,11 @@ def on_ticket(
         subissues_mode,
         sandbox_mode,
         fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
-
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
-
+        second line before
+        first line before
+        new code
+        first line after
+        second line after
     summary = summary or ""
     summary = re.sub(
         "<details (open)?>\n<summary>Checklist</summary>.*",
