@@ -913,11 +913,12 @@ class SweepBot(CodeGenBot, GithubBot):
                 # 800,
                 # 600,
                 400,
+                # 300,
             ]  # Define the chunk sizes for the backoff mechanism
             for CHUNK_SIZE in chunk_sizes:
                 try:
                     chunking = (
-                        len(lines) > CHUNK_SIZE * 1.5
+                        len(lines) > CHUNK_SIZE
                     )  # Only chunk if the file is large enough
                     file_name = file_change_request.filename
                     if not chunking:

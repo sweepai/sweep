@@ -3,6 +3,7 @@ import traceback as tb
 import time
 from typing import Literal
 
+from pydantic import Field
 import openai
 import backoff
 import openai
@@ -15,6 +16,7 @@ from src.prompts import (
     sandbox_code_repair_modify_system_prompt,
     sandbox_code_repair_modify_prompt,
 )
+from src.chat_logger import ChatLogger
 
 try:
     from typing import Self
@@ -85,6 +87,7 @@ def count_tokens(text: str):
     tiktoken_model = tiktoken_model or tiktoken.encoding_for_model("gpt-4")
     return len(tiktoken_model.encode(text, disallowed_special=()))
 
+
 class OpenAIProxy:
     def __init__(self):
         pass
@@ -92,20 +95,29 @@ class OpenAIProxy:
     def call_openai(self, model, messages, max_tokens, temperature):
         try:
             engine = None
-            if model == 'gpt-3.5-turbo-16k' or model == 'gpt-3.5-turbo-16k-0613'\
-                and os.getenv("OPENAI_API_ENGINE_GPT35") is not None:
+            if (
+                model == "gpt-3.5-turbo-16k"
+                or model == "gpt-3.5-turbo-16k-0613"
+                and os.getenv("OPENAI_API_ENGINE_GPT35") is not None
+            ):
                 engine = os.getenv("OPENAI_API_ENGINE_GPT35")
-            elif model == 'gpt-4' or model == 'gpt-4-0613'\
-                and os.getenv("OPENAI_API_ENGINE_GPT4") is not None:
+            elif (
+                model == "gpt-4"
+                or model == "gpt-4-0613"
+                and os.getenv("OPENAI_API_ENGINE_GPT4") is not None
+            ):
                 engine = os.getenv("OPENAI_API_ENGINE_GPT4")
-            elif model == 'gpt-4-32k' or model == 'gpt-4-32k-0613'\
-                and os.getenv("OPENAI_API_ENGINE_GPT4_32K") is not None:
+            elif (
+                model == "gpt-4-32k"
+                or model == "gpt-4-32k-0613"
+                and os.getenv("OPENAI_API_ENGINE_GPT4_32K") is not None
+            ):
                 engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
             if os.getenv("OPENAI_API_TYPE") is None or engine is None:
                 openai.api_key = os.getenv("OPENAI_API_KEY")
-                openai.api_base = 'https://api.openai.com/v1'
+                openai.api_base = "https://api.openai.com/v1"
                 openai.api_version = None
-                openai.api_type = 'open_ai'
+                openai.api_type = "open_ai"
                 logger.info(f"Calling {model} on OpenAI.")
                 response = openai.ChatCompletion.create(
                     model=model,
@@ -113,9 +125,11 @@ class OpenAIProxy:
                     max_tokens=max_tokens,
                     temperature=temperature,
                 )
-                return response['choices'][0].message.content
+                return response["choices"][0].message.content
             OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
-            logger.info(f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}.")
+            logger.info(
+                f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
+            )
             openai.api_type = os.getenv("OPENAI_API_TYPE")
             openai.api_base = os.getenv("OPENAI_API_BASE")
             openai.api_version = os.getenv("OPENAI_API_VERSION")
@@ -127,14 +141,14 @@ class OpenAIProxy:
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
-            return response['choices'][0].message.content
+            return response["choices"][0].message.content
         except Exception as e:
             if os.getenv("OPENAI_API_KEY"):
                 try:
                     openai.api_key = os.getenv("OPENAI_API_KEY")
-                    openai.api_base = 'https://api.openai.com/v1'
+                    openai.api_base = "https://api.openai.com/v1"
                     openai.api_version = None
-                    openai.api_type = 'open_ai'
+                    openai.api_type = "open_ai"
                     logger.info(f"Calling {model} with OpenAI.")
                     response = openai.ChatCompletion.create(
                         model=model,
@@ -142,12 +156,14 @@ class OpenAIProxy:
                         max_tokens=max_tokens,
                         temperature=temperature,
                     )
-                    return response['choices'][0].message.content
+                    return response["choices"][0].message.content
                 except Exception as e:
                     logger.error(f"OpenAI API Key found but error: {e}")
             logger.error(f"OpenAI API Key not found and Azure Error: {e}")
 
+
 openai_proxy = OpenAIProxy()
+
 
 class OpenAIProxy:
     def __init__(self):
@@ -233,8 +249,13 @@ class ChatGPT(BaseModel):
             content=sandbox_code_repair_modify_system_prompt,
         )
     ]
-    model: OpenAIModel = "gpt-4-32k-0613" if os.getenv("OPENAI_DO_HAVE_32K_MODEL_ACCESS") else "gpt-4-0613"
+    model: OpenAIModel = (
+        "gpt-4-32k-0613"
+        if os.getenv("OPENAI_DO_HAVE_32K_MODEL_ACCESS")
+        else "gpt-4-0613"
+    )
     file_change_paths: list = []
+    chat_logger: ChatLogger = Field(default_factory=lambda: ChatLogger(data={}))
 
     def chat(
         self,
@@ -313,6 +334,15 @@ class ChatGPT(BaseModel):
                     max_tokens=max_tokens - token_sub,
                     temperature=temperature,
                 )
+                self.chat_logger.add_chat(
+                    {
+                        "model": model,
+                        "messages": self.messages_dicts,
+                        "max_tokens": max_tokens - token_sub,
+                        "temperature": temperature,
+                        "output": output,
+                    }
+                )
                 return output
             except Exception as e:
                 logger.warning(e)
@@ -340,8 +370,12 @@ def clean_logs(logs: str) -> str:
     ).strip()
 
 
-def fix_file(filename: str, code: str, stdout: str):
-    chat = ChatGPT()
+def fix_file(filename: str, code: str, stdout: str, username: str = "anonymous"):
+    chat = ChatGPT(
+        chat_logger=ChatLogger(data={"username": username, "title": filename})
+    )
+    print("here!!!")
+    print(username)
     response = chat.chat(
         sandbox_code_repair_modify_prompt.format(
             filename=filename, code=code, stdout=stdout
