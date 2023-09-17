@@ -5,7 +5,8 @@
 </p>
 <p align="center">
     <i>Bug Reports & Feature Requests ⟶&nbsp; Code Changes</i>
-    <br>
+</p>
+<p align="center">
     <a href="https://github.com/apps/sweep-ai">
         <img alt="Install" src="https://img.shields.io/badge/Install-GitHub App-purple?link=https://github.com/apps/sweep-ai">
     </a>
