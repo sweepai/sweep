@@ -29,3 +29,6 @@ class Messages(list):
                     self.messages.original_prompt = None
 
         return PromptContext(self, system_prompt, new_prompt)
+
+    def to_openai(self):
+        return [message.to_openai() for message in self]
