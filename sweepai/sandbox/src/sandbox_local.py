@@ -129,6 +129,7 @@ class SandboxRequest(BaseModel):
     content: str
     token: str | None = None
     stage: str = "check"
+    iteration: int = 0
 
 
 @app.get("/health")
@@ -153,6 +154,7 @@ async def run_sandbox(request: Request):
     print(sandbox_request.repo_url, sandbox_request.file_path, sandbox_request.token)
     success, error_messages, updated_content = False, [], ""
     executions: list[SandboxExecution] = []
+    username, _repo_name = sandbox_request.repo_url.split("/")[-2:]
 
     try:
         if sandbox_request.token:
@@ -195,7 +197,7 @@ async def run_sandbox(request: Request):
                     )
                 return logs
 
-            def run_command(command: str, stage: str = "check"):
+            def run_command(command: str, stage: str = "check", iteration: int = 0):
                 print(f"\n\n### Running {command} ###\n")
                 exit_code, output = container.exec_run(
                     wrap_command(command), stderr=True
@@ -207,6 +209,8 @@ async def run_sandbox(request: Request):
                         command=command,
                         output=output,
                         exit_code=exit_code,
+                        stage=stage,
+                        iteration=iteration,
                     )
                 )
                 if exit_code != 0 and not ("prettier" in command and exit_code == 1):
@@ -217,6 +221,7 @@ async def run_sandbox(request: Request):
                 print(command)
                 run_command(command, stage="install")
 
+            current_file = sandbox_request.content
             num_iterations = 15
             # num_iterations = 3
             for i in range(1, num_iterations + 1):
@@ -237,13 +242,16 @@ async def run_sandbox(request: Request):
                             "Failed to fix the code after multiple attempts"
                         )
                     error_messages.append(error_message)
-                    fixed_code = fix_file(
+                    current_file = fix_file(
                         sandbox_request.file_path,
-                        sandbox_request.content,
+                        current_file,
                         error_message,
+                        username,
+                        stage="check",
+                        iteration=i,
                     )
                     write_file(
-                        container, f"repo/{sandbox_request.file_path}", fixed_code
+                        container, f"repo/{sandbox_request.file_path}", current_file
                     )
                 else:
                     break
