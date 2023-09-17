@@ -322,7 +322,7 @@ def on_ticket(
             + ("\n" + stars_suffix if index != -1 else "")
             + "\n"
             + payment_message_start
-            + f"\n\n---\n{actions_message}"
+            # + f"\n\n---\n{actions_message}"
             + config_pr_message
         )
 
