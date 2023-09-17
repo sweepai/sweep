@@ -314,12 +314,10 @@ class ChatGPT(BaseModel):
                 return output
             except Exception as e:
                 logger.warning(f"{e}\n{traceback.format_exc()}")
-                raise e
-
-        result = fetch()
-        logger.info(f"Output to call openai:\n{result}")
-        return result
-
+    def undo(self):
+        if len(self.prev_message_states) > 0:
+            self.messages, self.messages.original_prompt = self.prev_message_states.pop()
+        return self.messages
     async def achat(
         self,
         content: str,
@@ -466,5 +464,5 @@ class ChatGPT(BaseModel):
 
     def undo(self):
         if len(self.prev_message_states) > 0:
-            self.messages = Messages(self.prev_message_states.pop())
+            self.messages, self.messages.original_prompt = self.prev_message_states.pop()
         return self.messages
