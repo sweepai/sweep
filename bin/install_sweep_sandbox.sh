@@ -50,7 +50,7 @@ exit_if_fail "Failed to create standalone executable."
 
 echo -e "\n${CYAN}${WHITE}--> Copying executable to home directory and /usr/bin...${NC}\n"
 mv dist/cli dist/sweep-sandbox
-# cp -f dist/sweep-sandbox ~/
+cp -f dist/sweep-sandbox ~/
 alias sweep-sandbox=~/sweep-sandbox
 
 if [ -n "$BASH_VERSION" ]; then
