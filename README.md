@@ -7,7 +7,7 @@
     <i>Bug Reports & Feature Requests ⟶&nbsp; Code Changes</i>
 </p>
 <a href="https://github.com/apps/sweep-ai">
-    <img alt="Install" src="https://img.shields.io/badge/Install-GitHub App-blue?link=https://github.com/apps/sweep-ai">
+    <img alt="Install" src="https://img.shields.io/badge/Install-GitHub App-purple?link=https://github.com/apps/sweep-ai">
 </a>
 <a href="https://hub.docker.com/r/sweepai/sweep">
     <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/sweepai/sweep" />
