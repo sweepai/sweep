@@ -41,6 +41,7 @@ from sweepai.core.prompts import (
     modify_recreate_file_prompt_3,
     rewrite_file_prompt,
     rewrite_file_system_prompt,
+    snippet_replacement_system_message,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DB_MODAL_INST_NAME, SANDBOX_URL, SECONDARY_MODEL
@@ -60,10 +61,17 @@ BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 
 class CodeGenBot(ChatGPT):
     def summarize_snippets(self):
+        # Custom system message for snippet replacement
+        old_msg = self.messages[0].content
+        self.messages[0].content = snippet_replacement_system_message
+
         snippet_summarization = self.chat(
             snippet_replacement,
             message_key="snippet_summarization",
         )  # maybe add relevant info
+
+        self.messages[0].content = old_msg
+
         contextual_thought_match = re.search(
             "<contextual_thoughts>(?P<thoughts>.*)</contextual_thoughts>",
             snippet_summarization,
