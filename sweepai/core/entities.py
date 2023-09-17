@@ -5,6 +5,7 @@ import string
 from logn import logger
 from typing import ClassVar, Literal, Type, TypeVar, Any
 from github.Repository import Repository
+from contextlib import contextmanager
 
 from github.Branch import Branch
 from pydantic import BaseModel
@@ -23,6 +24,36 @@ class Message(BaseModel):
     name: str | None = None
     function_call: dict | None = None
     key: str | None = None
+
+class Messages:
+    def __init__(self):
+        self.messages = []
+
+    def __getitem__(self, index):
+        return self.messages[index]
+
+    def __setitem__(self, index, value):
+        self.messages[index] = value
+
+    def __delitem__(self, index):
+        del self.messages[index]
+
+    def __len__(self):
+        return len(self.messages)
+
+    def __iter__(self):
+        return iter(self.messages)
+
+    @contextmanager
+    def prompt(self, system_prompt, new_prompt, swap_prompt):
+        if swap_prompt:
+            old_prompt = system_prompt
+            system_prompt = new_prompt
+        try:
+            yield
+        finally:
+            if swap_prompt:
+                system_prompt = old_prompt
 
     @classmethod
     def from_tuple(cls, tup: tuple[str | None, str | None]) -> Self:
@@ -531,3 +562,41 @@ class MaxTokensExceeded(Exception):
 class EmptyRepository(Exception):
     def __init__(self):
         pass
+
+class Messages:
+    def __init__(self, messages=None):
+        self.messages = messages if messages else []
+
+    def __getitem__(self, index):
+        return self.messages[index]
+
+    def __setitem__(self, index, value):
+        self.messages[index] = value
+
+    def __delitem__(self, index):
+        del self.messages[index]
+
+    def __len__(self):
+        return len(self.messages)
+
+    def __iter__(self):
+        return iter(self.messages)
+
+    def prompt(self, system_prompt, new_prompt, swap_prompt):
+        return _PromptContextManager(self, system_prompt, new_prompt, swap_prompt)
+
+class _PromptContextManager:
+    def __init__(self, messages, system_prompt, new_prompt, swap_prompt):
+        self.messages = messages
+        self.system_prompt = system_prompt
+        self.new_prompt = new_prompt
+        self.swap_prompt = swap_prompt
+
+    def __enter__(self):
+        if self.swap_prompt:
+            self.messages[self.system_prompt] = self.new_prompt
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.swap_prompt:
+            self.messages[self.system_prompt] = self.system_prompt
