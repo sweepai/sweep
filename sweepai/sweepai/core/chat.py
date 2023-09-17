@@ -1,0 +1,19 @@
+from .entities import Messages
+
+class ChatGPT:
+    def __init__(self, ...):
+        ...
+        self.messages = Messages()
+        ...
+
+    def some_method(self):
+        ...
+        message = self.messages[0]  # indexing
+        self.messages.append(new_message)  # list method
+        ...
+
+    def another_method(self):
+        ...
+        with self.messages.prompt(system_prompt=..., new_prompt=..., swap_prompt=True):
+            # do something
+        ...
