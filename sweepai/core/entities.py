@@ -370,7 +370,6 @@ class Messages:
             return PromptSwapper(self, new_prompt)
         else:
             return self._system_prompt
-
 class PromptSwapper:
     def __init__(self, messages, new_prompt):
         self._messages = messages
@@ -570,8 +569,11 @@ class Messages:
         return self._list.copy()
 
     def prompt(self, system_prompt, new_prompt, swap_prompt):
-        self._system_prompt = system_prompt if swap_prompt else None
-        return new_prompt
+        if swap_prompt:
+            self._system_prompt = system_prompt
+            return PromptSwapper(self, new_prompt)
+        else:
+            return self._system_prompt
 
     def __enter__(self):
         return self
