@@ -81,7 +81,7 @@ def on_comment(
     chat_logger: Any = None,
     pr: MockPR = None,  # For on_comment calls before PR is created
     repo: Any = None,
-    type: str = "comment",
+    comment_type: str = "comment",
 ):
     # Flow:
     # 1. Get relevant files
@@ -489,7 +489,7 @@ def on_comment(
         except Exception as e:
             logger.error(f"Failed to reply to comment: {e}")
 
-        if type(pr) != MockPR:
+        if not isinstance(pr, MockPR):
             if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
                 # Update the PR title to remove the "[DRAFT]" prefix
                 pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
