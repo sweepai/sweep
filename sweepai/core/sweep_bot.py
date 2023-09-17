@@ -109,7 +109,7 @@ class CodeGenBot(ChatGPT):
                     )
                 start, end = lines.split("-", 1)
                 start = int(start)
-                end = int(end)
+                end = int(end) - 1
                 end = min(end, start + 200)
 
                 snippet = Snippet(file_path=file_path, start=start, end=end, content="")
