@@ -77,26 +77,17 @@ def on_ticket(
     comment_id: int = None,
     edited: bool = False,
 ):
+    from sweepai.utils.ticket_utils import strip_sweep
+    
     (
-        title,
-        slow_mode,
-        do_map,
-        subissues_mode,
-        sandbox_mode,
-        fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
-
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
-
-    summary = summary or ""
-    summary = re.sub(
-        "<details (open)?>\n<summary>Checklist</summary>.*",
+            title,
+            slow_mode,
+            do_map,
+            subissues_mode,
+            sandbox_mode,
+            fast_mode,
+            lint_mode,
+        # The strip_sweep function has been moved to ticket_utils.py
         "",
         summary,
         flags=re.DOTALL,
@@ -798,7 +789,7 @@ def on_ticket(
                                 [
                                     create_collapsible(
                                         f"<code>{execution.command.format(file_path=file_change_request.filename)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
-                                        f"<pre>{clean_logs(execution.output)}</pre>",
+                                        f"<pre>{ticket_utils.clean_logs(execution.output)}</pre>",
                                         i == len(sandbox_response.executions) - 1,
                                     )
                                     for i, execution in enumerate(
@@ -851,18 +842,18 @@ def on_ticket(
                 ]
             checkboxes_contents = "\n".join(
                 [
-                    checkbox_template.format(
-                        check=check,
-                        filename=filename,
-                        instructions=instructions,
+                    ticket_utils.create_checkbox(
+                        title=filename,
+                        body=instructions,
+                        checked=(check == "X"),
                     )
                     for filename, instructions, check in checkboxes_progress
                 ]
             )
-            checkboxes_collapsible = collapsible_template.format(
+            checkboxes_collapsible = ticket_utils.create_collapsible(
                 summary="Checklist",
                 body=checkboxes_contents,
-                opened="open",
+                opened=True,
             )
             issue = repo.get_issue(number=issue_number)
             issue.edit(body=summary + "\n\n" + checkboxes_collapsible)
@@ -912,7 +903,7 @@ def on_ticket(
             lint_output = None
             review_message += (
                 f"Here is the {ordinal(1)} review\n"
-                + blockquote(review_comment)
+                + ticket_utils.blockquote(review_comment)
                 + "\n\n"
             )
             if changes_required:
@@ -1111,7 +1102,7 @@ def on_ticket(
                 ),
                 -1,
             )
-        log_error(
+        ticket_utils.log_error(
             is_paying_user,
             is_trial_user,
             username,
