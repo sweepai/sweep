@@ -82,7 +82,12 @@ def _find_available_path(path, extension=".txt"):
 
 class _Task:
     def __init__(
-        self, logn_task_key, logn_parent_task=None, metadata=None, create_file=True
+        self,
+        logn_task_key,
+        logn_parent_task=None,
+        metadata=None,
+        create_file=True,
+        function_name=None,
     ):
         if logn_task_key is None:
             logn_task_key = get_task_key()
@@ -98,7 +103,7 @@ class _Task:
         self.name, self.log_path, self.meta_path = self.create_files()
         self.state = "Created"
         self.children = []
-        self.function_name = None
+        self.function_name = function_name
         self.exception = None
         self.write_metadata(state="Created")
 
@@ -219,7 +224,7 @@ class _Task:
         _task_dictionary[task_key] = task
 
     @staticmethod
-    def create_child_task(name: str):
+    def create_child_task(name: str, function_name: str = None):
         # Todo: make child task metadata
         parent_task = _Task.get_task(create_if_not_exist=False)
         if parent_task is None:
@@ -228,6 +233,7 @@ class _Task:
                 logn_task_key=None,
                 logn_parent_task=parent_task,
                 metadata={"name": name},
+                function_name=function_name,
             )
         else:
             task_key = parent_task.task_key
@@ -238,6 +244,7 @@ class _Task:
                     **parent_task.metadata,
                     "name": parent_task.metadata["name"] + "_" + name,
                 },
+                function_name=function_name,
             )
         _task_dictionary[task_key] = child_task
         return task_key, parent_task, child_task
@@ -330,9 +337,11 @@ class _LogTask:
 
     def __call__(self, func):
         def wrapper(*args, **kwargs):
-            key, parent_task, child_task = _Task.create_child_task(name=func.__name__)
+            key, parent_task, child_task = _Task.create_child_task(
+                name=func.__name__, function_name=func.__name__
+            )
             parent_task.write_metadata(
-                child_task=child_task.meta_path, function_name=func.__name__
+                child_task=child_task.meta_path,  # function_name=func.__name__
             )
 
             # Todo: update to use with logger instead of try/except
