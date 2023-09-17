@@ -54,7 +54,7 @@ from sweepai.config.server import (
     OPENAI_USE_3_5_MODEL_ONLY,
     WHITELISTED_REPOS,
 )
-from sweepai.utils.ticket_utils import *
+from sweepai.utils.ticket_utils import *, get_comment_header, edit_sweep_comment
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
@@ -288,11 +288,7 @@ def on_ticket(
         )
     )
 
-    def get_comment_header(index, errored=False, pr_message="", done=False):
-        config_pr_message = (
-            "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})"
-            if config_pr_url is not None
-            else ""
+    # No code here as we are removing these methods
         )
         # Why is this so convoluted
         # config_pr_message = " To retrigger Sweep, edit the issue.\n" + config_pr_message
@@ -578,37 +574,7 @@ def on_ticket(
         human_message=human_message,
         repo=repo,
         is_reply=bool(comments),
-        chat_logger=chat_logger,
-        sweep_context=sweep_context,
-    )
-
-    # Check repository for sweep.yml file.
-    sweep_yml_exists = False
-    for content_file in repo.get_contents(""):
-        if content_file.name == "sweep.yaml":
-            sweep_yml_exists = True
-            break
-
-    # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
-    if not sweep_yml_exists:
-        try:
-            logger.info("Creating sweep.yaml file...")
-            config_pr = create_config_pr(sweep_bot)
-            config_pr_url = config_pr.html_url
-            edit_sweep_comment(message="", index=-2)
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.error(
-                "Failed to create new branch for sweep.yaml file.\n",
-                e,
-                traceback.format_exc(),
-            )
-    else:
-        logger.info("sweep.yaml file already exists.")
-
-    try:
-        # ANALYZE SNIPPETS
+        
         newline = "\n"
         edit_sweep_comment(
             "I found the following snippets in your repository. I will now analyze"
@@ -718,32 +684,7 @@ def on_ticket(
             headers=["File Path", "Proposed Changes"],
             tablefmt="pipe",
         )
-        # edit_sweep_comment(
-        #     "From looking through the relevant snippets, I decided to make the"
-        #     " following modifications:\n\n" + table + "\n\n",
-        #     2,
-        # )
-
-        # TODO(lukejagg): Generate PR after modifications are made
-        # CREATE PR METADATA
-        logger.info("Generating PR...")
-        pull_request = sweep_bot.generate_pull_request()
-        # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
-        # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
-        # edit_sweep_comment(
-        #     (
-        #         "I have created a plan for writing the pull request. I am now working"
-        #         " my plan and coding the required changes to address this issue. Here"
-        #         f" is the planned pull request:\n\n{pull_request_summary}"
-        #     ),
-        #     3,
-        # )
-
-        logger.info("Making PR...")
-
-        files_progress: list[tuple[str, str, str, str]] = [
-            (
-                file_change_request.filename,
+        
                 file_change_request.instructions_display,
                 "⏳ In Progress",
                 "",
@@ -871,30 +812,7 @@ def on_ticket(
             logger.info(f"Edited {file_change_request.filename}")
             edit_sweep_comment(checkboxes_contents, 2)
         if not response.get("success"):
-            raise Exception(f"Failed to create PR: {response.get('error')}")
-        pr_changes = response["pull_request"]
-
-        edit_sweep_comment(
-            "I have finished coding the issue. I am now reviewing it for completeness.",
-            3,
-        )
-        change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
-        review_message = "Here are my self-reviews of my changes at" + change_location
-
-        lint_output = None
-        try:
-            current_issue.delete_reaction(eyes_reaction.id)
-        except SystemExit:
-            raise SystemExit
-        except:
-            pass
-
-        changes_required = False
-        try:
-            # Todo(lukejagg): Pass sandbox linter results to review_pr
-            # CODE REVIEW
-
-            changes_required, review_comment = review_pr(
+            # These methods have been moved to ticket_utils.py
                 repo=repo,
                 pr=pr_changes,
                 issue_url=issue_url,
@@ -971,16 +889,17 @@ def on_ticket(
             )
 
         pr.add_to_labels(GITHUB_LABEL_NAME)
-        current_issue.create_reaction("rocket")
-
-        logger.info("Running github actions...")
-        try:
-            if is_draft:
-                logger.info("Skipping github actions because PR is a draft")
-            else:
-                commit = pr.get_commits().reversed[0]
-                check_runs = commit.get_check_runs()
-
+        from sweepai.utils.ticket_utils import (
+            clean_logs,
+            post_process_snippets,
+            create_collapsible,
+            blockquote,
+            create_checkbox,
+            strip_sweep,
+            edit_sweep_comment,
+            log_error,
+            review_pr,
+        )
                 for check_run in check_runs:
                     check_run.rerequest()
         except SystemExit:
