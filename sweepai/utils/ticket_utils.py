@@ -143,3 +143,4 @@ def log_error(is_paying_user, is_trial_user, username, issue_url, error_type, ex
             f" {issue_url}\n```{exception}```"
         )
         discord_log_error(content, priority=priority)
+
