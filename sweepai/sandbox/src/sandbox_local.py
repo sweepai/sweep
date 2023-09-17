@@ -47,6 +47,8 @@ class SandboxExecution:
     command: str
     output: str
     exit_code: int
+    stage: str = "check"
+    iteration: int = 0
 
 
 def write_file(container, file_path, content):
@@ -128,8 +130,6 @@ class SandboxRequest(BaseModel):
     file_path: str
     content: str
     token: str | None = None
-    stage: str = "check"
-    iteration: int = 0
 
 
 @app.get("/health")
