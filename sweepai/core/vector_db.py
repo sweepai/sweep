@@ -267,6 +267,8 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
 
         try:
             embeddings = np.array(embeddings, dtype=np.float32)
+        except SystemExit:
+            raise SystemExit
         except:
             logger.print([len(embedding) for embedding in embeddings])
             logger.error(

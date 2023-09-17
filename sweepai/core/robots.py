@@ -11,5 +11,7 @@ def is_url_allowed(url, user_agent="*"):
         rerp = RobotExclusionRulesParser()
         rerp.parse(robots_txt)
         return rerp.is_allowed(user_agent, url)
+    except SystemExit:
+        raise SystemExit
     except:
         return False

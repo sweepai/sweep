@@ -121,6 +121,8 @@ async def webscrape(BASE_URL_PREFIX):
         for link in links:
             try:
                 await scrape_page(page, link)
+            except SystemExit:
+                raise SystemExit
             except:
                 logger.warning(f"Failed to scrape {link}")
                 pass
