@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from logn import logger
 from sweepai.utils.utils import Tiktoken
-from sweepai.core.entities import Message, Function, SweepContext
+from sweepai.core.entities import Message, Function, SweepContext, Messages
 from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import get_description
@@ -75,12 +75,12 @@ def format_for_anthropic(messages: list[Message]) -> str:
 
 
 class ChatGPT(BaseModel):
-    messages: list[Message] = [
+    messages: Messages = Messages([
         Message(
             role="system",
             content=system_message_prompt,
         )
-    ]
+    ])
     prev_message_states: list[list[Message]] = []
     model: ChatModel = (
         "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
@@ -145,7 +145,7 @@ class ChatGPT(BaseModel):
     def delete_messages_from_chat(
         self, key_to_delete: str, delete_user=True, delete_assistant=True
     ):
-        self.messages = [
+        self.messages = Messages([
             message
             for message in self.messages
             if not (
@@ -157,7 +157,7 @@ class ChatGPT(BaseModel):
                     and message.role == "assistant"
                 )
             )  # Only delete if message matches key to delete and role should be deleted
-        ]
+        ])
 
     def delete_file_from_system_message(self, file_path: str):
         self.human_message.delete_file(file_path)
@@ -183,7 +183,7 @@ class ChatGPT(BaseModel):
         message_key: str | None = None,
         temperature=temperature,
     ):
-        self.messages.append(Message(role="user", content=content, key=message_key))
+        self.messages.append_message(Message(role="user", content=content, key=message_key))
         model = model or self.model
         self.messages.append(
             Message(
@@ -326,7 +326,7 @@ class ChatGPT(BaseModel):
         model: ChatModel | None = None,
         message_key: str | None = None,
     ):
-        self.messages.append(Message(role="user", content=content, key=message_key))
+        self.messages.append_message(Message(role="user", content=content, key=message_key))
         model = model or self.model
         response = await self.acall_openai(model=model)
         self.messages.append(
@@ -461,10 +461,10 @@ class ChatGPT(BaseModel):
     @property
     def messages_dicts(self):
         # Remove the key from the message object before sending to OpenAI
-        cleaned_messages = [message.to_openai() for message in self.messages]
+        cleaned_messages = self.messages.to_openai()
         return cleaned_messages
 
     def undo(self):
         if len(self.prev_message_states) > 0:
-            self.messages = self.prev_message_states.pop()
+            self.messages.pop()
         return self.messages
