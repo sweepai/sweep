@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from logn import logger
 from sweepai.utils.utils import Tiktoken
-from sweepai.core.entities import Message, Function, SweepContext
+from sweepai.core.entities import Message, Function, SweepContext, Messages
 from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import get_description
@@ -75,12 +75,12 @@ def format_for_anthropic(messages: list[Message]) -> str:
 
 
 class ChatGPT(BaseModel):
-    messages: list[Message] = [
+    messages: Messages = Messages([
         Message(
             role="system",
             content=system_message_prompt,
         )
-    ]
+    ])
     prev_message_states: list[list[Message]] = []
     model: ChatModel = (
         "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
@@ -450,21 +450,19 @@ class ChatGPT(BaseModel):
                     return output
                 except SystemExit:
                     raise SystemExit
-                except Exception as e:
-                    logger.warning(f"{e}\n{traceback.format_exc()}")
-                    time.sleep(time_to_sleep + backoff.random_jitter(5))
-
-        result = await fetch()
-        logger.info(f"Output to call openai:\n{result}")
-        return result
-
-    @property
-    def messages_dicts(self):
-        # Remove the key from the message object before sending to OpenAI
-        cleaned_messages = [message.to_openai() for message in self.messages]
-        return cleaned_messages
-
     def undo(self):
         if len(self.prev_message_states) > 0:
-            self.messages = self.prev_message_states.pop()
+            self.messages = Messages(self.prev_message_states.pop())
         return self.messages
+        result = await fetch()
+        logger.info(f"Output to call openai:\n{result}")
+        import time
+        import traceback
+        from typing import List, Optional
+        from openai import openai
+        from openai.api_resources.abstract.api_resource import APIResource
+        from openai.utils import backoff
+        from sweepai.core.entities import Message, Messages
+        from sweepai.utils import count_tokens
+        from sweepai.utils.logger import logger
+        from sweepai.utils.posthog import posthog
