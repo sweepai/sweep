@@ -288,13 +288,7 @@ def on_ticket(
         )
     )
 
-    def get_comment_header(index, errored=False, pr_message="", done=False):
-        config_pr_message = (
-            "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})"
-            if config_pr_url is not None
-            else ""
-        )
-        # Why is this so convoluted
+    # These methods have been moved to ticket_utils.py
         # config_pr_message = " To retrigger Sweep, edit the issue.\n" + config_pr_message
         actions_message = create_action_buttons(
             [
@@ -370,15 +364,8 @@ def on_ticket(
     if issue_comment is None:
         issue_comment = current_issue.create_comment(first_comment)
     else:
-        issue_comment.edit(first_comment)
-
-    # Comment edit function
-    past_messages = {}
-    current_index = 0
-
-    # Random variables to save in case of errors
-    table = None  # Show plan so user can finetune prompt
-
+        ticket_utils.get_comment_header(index, errored=False, pr_message="", done=False)
+        ticket_utils.edit_sweep_comment(message: str, index: int, pr_message="", done=False)
     def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
         nonlocal current_index, user_token, g, repo, issue_comment
         # -1 = error, -2 = retry
