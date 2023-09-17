@@ -12,6 +12,23 @@ from urllib.parse import quote
 
 from sweepai.utils.event_logger import set_highlight_id
 
+class Messages(list):
+    def prompt(self, system_prompt, new_prompt):
+        return self.PromptContext(system_prompt, new_prompt)
+
+    class PromptContext:
+        def __init__(self, system_prompt, new_prompt):
+            self.system_prompt = system_prompt
+            self.new_prompt = new_prompt
+            self.original_prompt = None
+
+        def __enter__(self):
+            self.original_prompt = self.system_prompt
+            self.system_prompt = self.new_prompt
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            self.system_prompt = self.original_prompt
+
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
@@ -527,6 +544,25 @@ class MaxTokensExceeded(Exception):
     def __init__(self, filename):
         self.filename = filename
 
+
+class Messages(list):
+    def prompt(self, system_prompt, new_prompt, swap_prompt=True):
+        return self.PromptContext(system_prompt, new_prompt, swap_prompt)
+
+    class PromptContext:
+        def __init__(self, system_prompt, new_prompt, swap_prompt):
+            self.system_prompt = system_prompt
+            self.new_prompt = new_prompt
+            self.swap_prompt = swap_prompt
+
+        def __enter__(self):
+            if self.swap_prompt:
+                self.system_prompt, self.new_prompt = self.new_prompt, self.system_prompt
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            if self.swap_prompt:
+                self.system_prompt, self.new_prompt = self.new_prompt, self.system_prompt
 
 class EmptyRepository(Exception):
     def __init__(self):
