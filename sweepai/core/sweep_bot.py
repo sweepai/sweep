@@ -110,6 +110,8 @@ class CodeGenBot(ChatGPT):
 
             self.populate_snippets(snippets)
             snippets_text = "\n".join([snippet.xml for snippet in snippets])
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.warning(f"Error in summarize_snippets: {e}. Likely failed to parse")
             snippets_text = self.get_message_content_from_message_key(
@@ -207,6 +209,8 @@ class CodeGenBot(ChatGPT):
                     pr_text_response += '"""'
 
                 self.delete_messages_from_chat("pull_request")
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 e_str = str(e)
                 if "too long" in e_str:
@@ -309,6 +313,8 @@ class GithubBot(BaseModel):
                 snippet.content = self.repo.get_contents(
                     snippet.file_path, SweepConfig.get_branch(self.repo)
                 ).decoded_content.decode("utf-8")
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 logger.error(snippet)
 
@@ -333,6 +339,8 @@ class GithubBot(BaseModel):
                     )
                 except UnknownObjectException:
                     exists = False
+                except SystemExit:
+                    raise SystemExit
                 except Exception as e:
                     logger.error(f"FileChange Validation Error: {e}")
 
@@ -350,6 +358,8 @@ class GithubBot(BaseModel):
                         f'❌ Unable to modify files in `{block_status["path"]}`\nEdit'
                         " `sweep.yaml` to configure."
                     )
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 logger.info(traceback.format_exc())
         return file_change_requests
@@ -448,6 +458,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 sandbox_execution = SandboxResponse(**output)
                 if output["success"]:
                     content = output["updated_content"]
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 logger.error(f"Sandbox Error: {e}")
                 logger.error(traceback.format_exc())
@@ -493,6 +505,8 @@ class SweepBot(CodeGenBot, GithubBot):
                         f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
                         priority=2 if self.sweep_context.use_faster_model else 0,
                     )
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 logger.error(f"Error: {e}")
 
@@ -501,6 +515,8 @@ class SweepBot(CodeGenBot, GithubBot):
             )
 
             return file_change, sandbox_execution
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
             logger.info(traceback.format_exc())
@@ -567,6 +583,8 @@ class SweepBot(CodeGenBot, GithubBot):
                         message_key=key,
                     )
                     self.messages[0].content = old_system_message
+        except SystemExit:
+            raise SystemExit
         except Exception as e:  # Check for max tokens error
             if "max tokens" in str(e).lower():
                 logger.error(f"Max tokens exceeded for {file_change_request.filename}")
@@ -606,6 +624,8 @@ class SweepBot(CodeGenBot, GithubBot):
                             f"{self.sweep_context.issue_url}\nUnimplemented Modify Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
                             priority=2 if self.sweep_context.use_faster_model else 0,
                         )
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 logger.error(f"Error: {e}")
 
@@ -626,6 +646,8 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_change_request.filename, new_file
                 )
             return new_file, commit_message, sandbox_execution
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             tb = traceback.format_exc()
             logger.warning(f"Failed to parse." f" {e}\n{tb}")
@@ -666,10 +688,14 @@ class SweepBot(CodeGenBot, GithubBot):
                         f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
                         priority=2 if self.sweep_context.use_faster_model else 0,
                     )
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 logger.error(f"Error: {e}")
 
             return section_rewrite
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
             logger.info(traceback.format_exc())
@@ -859,6 +885,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 yield file_change_request, changed_file, sandbox_execution, commit
             except MaxTokensExceeded as e:
                 raise e
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 logger.error(f"Error in change_files_in_github {e}")
 
@@ -888,6 +916,8 @@ class SweepBot(CodeGenBot, GithubBot):
             file_change_request.new_content = file_change.code
 
             return True, sandbox_execution, result["commit"]
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.info(f"Error in handle_create_file: {e}")
             return False, None, None
@@ -1000,6 +1030,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
                 file_change_request.new_content = new_file_contents
                 return True, sandbox_error, result["commit"]
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 logger.info(f"Error in updating file, repulling and trying again {e}")
                 file = self.get_file(file_change_request.filename, branch=branch)
@@ -1015,6 +1047,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 return True, sandbox_error, result["commit"]
         except MaxTokensExceeded as e:
             raise e
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")

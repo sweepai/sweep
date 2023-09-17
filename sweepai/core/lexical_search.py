@@ -244,6 +244,8 @@ def prepare_index_from_docs(docs):
 
     try:
         writer.commit()
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         logger.error(e)
     return ix
@@ -297,6 +299,8 @@ def search_index(query, ix):
             res = {k: (v - min_score) / (max_score - min_score) for k, v in res.items()}
         ix.writer().cancel()
         return res
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         logger.print(e)
         traceback.print_exc()
