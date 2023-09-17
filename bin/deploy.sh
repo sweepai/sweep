@@ -28,6 +28,13 @@ cd ~/sweep
 docker build -t sweepai/sweep:latest .
 docker run -v $(pwd)/logn_logs:/app/logn_logs --env-file .env -p $PORT:8080 -d sweepai/sweep:latest
 
+# Curl the new server to make sure it's up
+echo "Waiting for server to start..."
+until $(curl --output /dev/null --silent --head --fail http://localhost:$PORT/health); do
+    printf '.'
+    sleep 1
+done
+
 # Check if the "ngrok" screen session exists
 screen -list | grep -q "\bngrok\b"
 SESSION_EXISTS=$?
