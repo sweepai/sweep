@@ -232,6 +232,8 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
         try:
             repo.get_contents("sweep.yaml")
             return
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             pass
 
@@ -264,6 +266,8 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
                 SWEEP_FAST_TEMPLATE,
                 branch=branch_name,
             )
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.error(e)
     else:
@@ -298,6 +302,8 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
                 SWEEP_FAST_TEMPLATE,
                 branch=branch_name,
             )
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.error(e)
 
@@ -372,6 +378,8 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
         try:
             logger.print("Creating config for", repo.full_name)
             create_config_pr(None, repo=repo)
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.print(e)
     logger.print("Finished creating configs for top repos")

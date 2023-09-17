@@ -50,6 +50,8 @@ class ChatLogger(BaseModel):
             self.expiration = datetime.utcnow() + timedelta(
                 days=1
             )  # 1 day since historical use case
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.warning("Chat history could not connect to MongoDB")
             logger.warning(e)
@@ -181,6 +183,8 @@ def discord_log_error(content, priority=0):
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, data=json.dumps(data), headers=headers)
         # Success: response.status_code == 204:
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         logger.error(f"Could not log to Discord: {e}")
         pass

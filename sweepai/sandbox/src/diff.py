@@ -359,6 +359,8 @@ def sliding_window_replacement(
                 radix_original = radix_replace(original, search, replace)
                 if radix_original is not None:
                     return radix_original, None, None
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 print(f"Modify skipped lines error: {e}")
 

@@ -114,6 +114,8 @@ def discord_log_error(content, priority=0):
             )
             print(response)
             # Success: response.status_code == 204:
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             print(f"Could not log to Discord: {e}")
 
@@ -222,6 +224,8 @@ async def run_sandbox(request: Request):
                     print(f"Trying to lint for the {i}/{num_iterations}th time")
                     for command in sandbox.check:
                         run_command(command)
+                except SystemExit:
+                    raise SystemExit
                 except Exception as e:
                     error_message = str(e)
                     if (
@@ -250,7 +254,8 @@ async def run_sandbox(request: Request):
             success = True
             updated_content = read_file(container, f"repo/{sandbox_request.file_path}")
             print(f"Updated Contents:\n```\n{updated_content}\n```")
-
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         error_message = str(e)
         print(e)

@@ -123,6 +123,8 @@ def embed_texts(texts: tuple[str]):
                         input=batch, model="text-embedding-ada-002"
                     )
                     embeddings.extend([r["embedding"] for r in response["data"]])
+                except SystemExit:
+                    raise SystemExit
                 except Exception as e:
                     logger.error(e)
                     logger.error(f"Failed to get embeddings for {batch}")
@@ -324,6 +326,8 @@ def get_relevant_snippets(
     results = {"metadata": [], "text": []}
     try:
         results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         logger.error(e)
     logger.info("Fetched relevant snippets...")
