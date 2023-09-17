@@ -1,5 +1,3 @@
-
-
 import requests
 
 bad_file_contents = """\
@@ -257,6 +255,10 @@ file_path = "packages/web-main/src/queries/util.ts"
 
 bad_file_contents = """
 print('hello world')
+"""
+
+bad_file_contents = """
+print('hello world'
 """
 
 
