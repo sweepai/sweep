@@ -28,6 +28,8 @@ def new_function():
                 print("hi")
             # f.write("Hello world!")
         print("done")
+    except SystemExit:
+        raise SystemExit
     except:
         print("death")
 

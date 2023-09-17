@@ -267,6 +267,8 @@ class GithubBot(BaseModel):
         try:
             self.get_contents(path, branch)
             return True
+        except SystemExit:
+            raise SystemExit
         except Exception:
             return False
 
@@ -289,6 +291,8 @@ class GithubBot(BaseModel):
                 branch = branch.replace(
                     "/", "_"
                 )  # Replace sweep/ with sweep_ (temp fix)
+            except SystemExit:
+                raise SystemExit
             except Exception:
                 pass
 
