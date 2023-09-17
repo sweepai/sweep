@@ -34,6 +34,8 @@ class ContextPruning(ChatGPT):
             response = self.chat(pruning_prompt)
             context_to_prune = ContextToPrune.from_string(response)
             return context_to_prune.excluded_snippets, context_to_prune.excluded_dirs
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.error(f"An error occurred: {e}")
             return [], []

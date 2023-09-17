@@ -142,6 +142,8 @@ def index_full_repository(
                 color="5320E7",
                 description="Assigns Sweep to an issue or pull request.",
             )
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         posthog.capture("index_full_repository", "failed", {"error": str(e)})
         logger.warning(

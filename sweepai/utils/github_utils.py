@@ -62,6 +62,8 @@ def get_token(installation_id: int):
                 logger.error(obj)
                 raise Exception("Could not get token")
             return obj["token"]
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logger.error(e)
             time.sleep(timeout)
