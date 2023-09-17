@@ -81,6 +81,7 @@ def on_comment(
     chat_logger: Any = None,
     pr: MockPR = None,  # For on_comment calls before PR is created
     repo: Any = None,
+    type: str = "comment",
 ):
     # Flow:
     # 1. Get relevant files
@@ -481,7 +482,7 @@ def on_comment(
                 else:
                     # PR Review Comment Reply
                     edit_comment(
-                        "I wasn't able to make changes. This could be due to an unclear request or a bug in my code. Please try again or contact us on [Discord](https://discord.com/invite/sweep)"
+                        'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR(at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discord](https://discord.com/invite/sweep)'
                     )
         except SystemExit:
             raise SystemExit

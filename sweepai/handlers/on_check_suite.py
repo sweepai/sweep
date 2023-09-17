@@ -165,8 +165,8 @@ def on_check_suite(request: CheckRunCompleted):
         log_message.format(error_logs=problematic_logs)
     )
     pr_change_request = PRChangeRequest(
-        type="comment",
         params={
+            "type": "github_action",
             "repo_full_name": request.repository.full_name,
             "repo_description": request.repository.description,
             "comment": problematic_logs,
