@@ -67,6 +67,8 @@ class OpenAIProxy:
                 temperature=temperature,
             )
             return response["choices"][0].message.content
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             if OPENAI_API_KEY:
                 try:
@@ -82,6 +84,8 @@ class OpenAIProxy:
                         temperature=temperature,
                     )
                     return response["choices"][0].message.content
+                except SystemExit:
+                    raise SystemExit
                 except Exception as e:
                     logger.error(f"OpenAI API Key found but error: {e}")
             logger.error(f"OpenAI API Key not found and Azure Error: {e}")

@@ -166,6 +166,8 @@ def terminate_thread(thread):
             # Call with exception set to 0 is needed to cleanup properly.
             ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
             raise SystemError("PyThreadState_SetAsyncExc failed")
+    except SystemExit:
+        raise SystemExit
     except Exception as e:
         logger.error(f"Failed to terminate thread: {e}")
 
@@ -587,6 +589,8 @@ async def webhook(raw_request: Request):
                         repos_added_request.installation.account.login,
                         repos_added_request.repositories_added,
                     )
+                except SystemExit:
+                    raise SystemExit
                 except Exception as e:
                     logger.error(f"Failed to add config to top repos: {e}")
 
@@ -617,6 +621,8 @@ async def webhook(raw_request: Request):
                         repos_added_request.installation.account.login,
                         repos_added_request.repositories,
                     )
+                except SystemExit:
+                    raise SystemExit
                 except Exception as e:
                     logger.error(f"Failed to add config to top repos: {e}")
 
@@ -753,6 +759,8 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                 if pr.title == "Configure Sweep" and pr.merged:
                     # Create a new PR to add "gha_enabled: True" to sweep.yaml
                     create_gha_pr(g, repo)
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 logger.error(
                     f"Failed to merge changes from default branch into PR #{pr.number}: {e}"

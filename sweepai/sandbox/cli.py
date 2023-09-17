@@ -15,6 +15,7 @@ import pathspec
 from tqdm import tqdm
 from src.sandbox_local import SandboxContainer
 from src.sandbox_utils import Sandbox
+from logn import logger as logn
 
 app = typer.Typer(name="sweep-sandbox")
 
@@ -139,7 +140,8 @@ def sandbox(file_path: Path, telemetry: bool = True):
                     )
                 except Exception:
                     logn.print("Could not get metadata for telemetry", style="bold red")
-
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             logn.print(f"Error: {e}", style="bold red")
             raise e
