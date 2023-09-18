@@ -298,7 +298,7 @@ def on_ticket(
         # config_pr_message = " To retrigger Sweep, edit the issue.\n" + config_pr_message
         actions_message = create_action_buttons(
             [
-                "Restart Sweep",
+                "↻ Restart Sweep",
             ]
         )
 
@@ -493,9 +493,7 @@ def on_ticket(
             (
                 "It looks like an issue has occurred around fetching the files."
                 " Perhaps the repo has not been initialized. If this error persists"
-                f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
-                " description to include more details and I will automatically"
-                " relaunch."
+                f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch."
             ),
             -1,
         )

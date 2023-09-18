@@ -42,8 +42,8 @@ from sweepai.utils.scorer import compute_score, get_scores
 from ..utils.github_utils import ClonedRepo, get_token
 import openai
 
-MODEL_DIR = "cache/model"
-DEEPLAKE_DIR = "cache/"
+MODEL_DIR = "/tmp/cache/model"
+DEEPLAKE_DIR = "/tmp/cache/"
 timeout = 60 * 60  # 30 minutes
 CACHE_VERSION = "v1.0.13"
 MAX_FILES = 500
