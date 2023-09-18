@@ -58,7 +58,7 @@ from sweepai.utils.diff import (
     get_matches,
     sliding_window_replacement,
 )
-from sweepai.utils.search_and_replace import find_best_match
+from sweepai.utils.search_and_replace import Match, find_best_match
 from sweepai.utils.utils import chunk_code
 
 USING_DIFF = True
@@ -76,13 +76,15 @@ def strip_backticks(s: str) -> str:
 
 
 class ModifyBot:
-    def __init__(self, chat_logger=None):
+    def __init__(self, additional_messages: list[Message] = [], chat_logger=None):
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
             fetch_snippets_system_prompt, chat_logger=chat_logger
         )
+        self.fetch_snippets_bot.messages.extend(additional_messages)
         self.update_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
             update_snippets_system_prompt, chat_logger=chat_logger
         )
+        self.update_snippets_bot.messages.extend(additional_messages)
 
     def update_file(
         self,
@@ -90,65 +92,99 @@ class ModifyBot:
         file_contents: str,
         file_change_request: FileChangeRequest,
     ):
-        try:
-            fetch_snippets_response = self.fetch_snippets_bot.chat(
-                fetch_snippets_prompt.format(
-                    code=file_contents,
-                    file_path=file_path,
-                    request=file_change_request.instructions,
+        fetch_snippets_response = self.fetch_snippets_bot.chat(
+            fetch_snippets_prompt.format(
+                code=file_contents,
+                file_path=file_path,
+                request=file_change_request.instructions,
+            )
+        )
+
+        snippet_queries = []
+        query_pattern = (
+            r'<snippet instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet>'
+        )
+        for instructions, code in re.findall(
+            query_pattern, fetch_snippets_response, re.DOTALL
+        ):
+            snippet_queries.append((instructions, strip_backticks(code)))
+
+        assert len(snippet_queries) > 0, "No snippets found in file"
+
+        best_matches = []
+        for instructions, query in snippet_queries:
+            _match = find_best_match(query, file_contents)
+            best_matches.append((instructions, _match))
+
+        best_matches.sort(key=lambda x: x[1].start + x[1].end * 0.001)
+
+        def fuse_matches(a: Match, b: Match) -> Match:
+            return Match(
+                start=min(a.start, b.start),
+                end=max(a.end, b.end),
+                score=min(a.score, b.score),
+            )
+
+        current_instructions, current_match = best_matches[0]
+        deduped_matches = []
+
+        # Fuse & dedup
+        for instructions, _match in best_matches:
+            if current_match.end > _match.start:
+                current_instructions = f"{current_instructions}. {instructions}"
+                current_match = fuse_matches(current_match, _match)
+            else:
+                deduped_matches.append((current_instructions, current_match))
+                current_instructions = instructions
+                current_match = _match
+        deduped_matches.append((current_instructions, current_match))
+
+        selected_snippets = []
+        for instructions, _match in deduped_matches:
+            selected_snippets.append(
+                (
+                    instructions,
+                    "\n".join(file_contents.splitlines()[_match.start : _match.end]),
                 )
             )
 
-            snippet_queries = []
-            pattern = r"<snippet>(?P<code>.*)</snippet>"
-            for code in re.findall(pattern, fetch_snippets_response, re.DOTALL):
-                snippet_queries.append(strip_backticks(code))
+        print(deduped_matches)
 
-            assert len(snippet_queries) > 0, "No snippets found in file"
-
-            selected_snippets = []
-            for query in snippet_queries:
-                try:
-                    _match = find_best_match(query, file_contents)
-                except:
-                    print(query, file_contents)
-                print(len(file_contents.splitlines()), _match.start, _match.end)
-                selected_snippets.append(
-                    "\n".join(file_contents.splitlines()[_match.start : _match.end])
-                )
-
-            update_snippets_response = self.update_snippets_bot.chat(
-                update_snippets_prompt.format(
-                    code=file_contents,
-                    file_path=file_path,
-                    snippets="\n".join(
-                        [
-                            f'<snippet id="{i}">{snippet}</snippet>'
-                            for i, snippet in enumerate(selected_snippets)
-                        ]
-                    ),
-                    request=file_change_request.instructions,
-                )
+        update_snippets_response = self.update_snippets_bot.chat(
+            update_snippets_prompt.format(
+                code=file_contents,
+                file_path=file_path,
+                snippets="\n\n".join(
+                    [
+                        f'<snippet id="{i}" instructions="{instructions}">\n{snippet}\n</snippet>'
+                        for i, (instructions, snippet) in enumerate(selected_snippets)
+                    ]
+                ),
+                request=file_change_request.instructions,
             )
+        )
 
-            updated_snippets = []
-            pattern = (
-                r"<updated_snippet id=\"(?P<id>.*)\">(?P<code>.*)</updated_snippet>"
+        updated_snippets = []
+        updated_pattern = (
+            r"<updated_snippet id=\"(?P<id>.*?)\">(?P<code>.*?)</updated_snippet>"
+        )
+        for _id, code in re.findall(
+            updated_pattern, update_snippets_response, re.DOTALL
+        ):
+            updated_snippets.append(strip_backticks(code))
+
+        result = file_contents
+        for (_instructions, search), replace in zip(
+            selected_snippets, updated_snippets
+        ):
+            # print(f"replace >-------\n{search}\n============\n{replace}\nupdated  ---->")
+            result, _, _ = sliding_window_replacement(
+                result.splitlines(),
+                search.splitlines(),
+                replace.splitlines(),
             )
-            for _id, code in re.findall(pattern, update_snippets_response, re.DOTALL):
-                updated_snippets.append(strip_backticks(code))
-
-            result = file_contents
-            for search, replace in zip(selected_snippets, updated_snippets):
-                result, _, _ = sliding_window_replacement(
-                    file_contents.splitlines(),
-                    search.splitlines(),
-                    replace.splitlines(),
-                )
-                result = "\n".join(result)
-            return result
-        except:
-            exit(0)
+            result = "\n".join(result)
+        return result
 
 
 class CodeGenBot(ChatGPT):
@@ -654,6 +690,14 @@ class SweepBot(CodeGenBot, GithubBot):
         new_file = ""
         try:
             modify_file_bot = ModifyBot(
+                additional_messages=[
+                    Message(
+                        content=self.get_message_content_from_message_key(
+                            BOT_ANALYSIS_SUMMARY, "assistant"
+                        ),
+                        role="system",
+                    )
+                ],
                 chat_logger=self.chat_logger,
             )
             new_file = modify_file_bot.update_file(
@@ -916,7 +960,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         ) = self.handle_create_file(
                             file_change_request, branch, sandbox=sandbox
                         )
-                    case "modify":
+                    case "modify" | "rewrite":
                         # Remove snippets from this file if they exist
                         snippet_msgs = [
                             m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
@@ -940,26 +984,26 @@ class SweepBot(CodeGenBot, GithubBot):
                         ) = self.handle_modify_file(
                             file_change_request, branch, sandbox=sandbox
                         )
-                    case "rewrite":
-                        # Remove snippets from this file if they exist
-                        snippet_msgs = [
-                            m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
-                        ]
-                        if len(snippet_msgs) > 0:  # Should always be true
-                            snippet_msg = snippet_msgs[0]
-                            # Use regex to remove this snippet from the message
-                            file = re.escape(file_change_request.filename)
-                            regex = rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
-                            snippet_msg.content = re.sub(
-                                regex,
-                                "",
-                                snippet_msg.content,
-                                flags=re.DOTALL,
-                            )
+                    # case "rewrite":
+                    #     # Remove snippets from this file if they exist
+                    #     snippet_msgs = [
+                    #         m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
+                    #     ]
+                    #     if len(snippet_msgs) > 0:  # Should always be true
+                    #         snippet_msg = snippet_msgs[0]
+                    #         # Use regex to remove this snippet from the message
+                    #         file = re.escape(file_change_request.filename)
+                    #         regex = rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
+                    #         snippet_msg.content = re.sub(
+                    #             regex,
+                    #             "",
+                    #             snippet_msg.content,
+                    #             flags=re.DOTALL,
+                    #         )
 
-                        changed_file, sandbox_execution = self.rewrite_file(
-                            file_change_request, branch
-                        )
+                    #     changed_file, sandbox_execution = self.rewrite_file(
+                    #         file_change_request, branch
+                    #     )
                     case "delete":
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch
