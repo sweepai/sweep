@@ -25,6 +25,24 @@ def extract_degree_paths(graph, start_node, degree=3):
     return paths
 
 
+def condense_paths(paths):
+    # Path is File, Symbol, File
+    # Condense to File, Symbol[], File if the files are the same
+    condensed_path_dict = {}
+    for path in paths:
+        key = path[0] + "\n" + path[2]
+        if key not in condensed_path_dict:
+            condensed_path_dict[key] = [path[1]]
+        else:
+            condensed_path_dict[key].append(path[1])
+    condensed_paths = []
+    for key in condensed_path_dict:
+        (path_1, path_2) = key.split("\n")
+        condensed_paths.append([path_1, ", ".join(condensed_path_dict[key]), path_2])
+    condensed_paths.sort(key=lambda x: len(x[1]), reverse=True)
+    return condensed_paths
+
+
 def extract_entities(code):
     tree = ast.parse(code)
     imported_modules = []
@@ -110,8 +128,8 @@ def draw_paths_on_graph(graph, paths=None):
     plt.show()
 
 
-def format_degree_4_path(path):
-    return " -> ".join(path)
+def format_path(path):
+    return " -> ".join(path[1:])
 
 
 # class PythonCodeGraph:
@@ -119,21 +137,20 @@ def format_degree_4_path(path):
 
 if __name__ == "__main__":
     # Replace this with the actual path you want to traverse
-    folder_path = "PATHTOSWEEP"
+    folder_path = os.getcwd()
     graph = traverse_folder(folder_path)
-    degree_4_paths = None
-    draw_paths_on_graph(graph, degree_4_paths)
+
     # Select one file to extract degree 4 paths (you can loop over all files if needed)
-    selected_file = ".py"  # Replace with actual file name in your folder
+    selected_file = (
+        "sweepai/utils/buttons.py"  # Replace with actual file name in your folder
+    )
 
-    # Extract degree 4 paths originating from the selected file
-    degree_4_paths = extract_degree_paths(graph, selected_file)
-    import pdb
-
-    pdb.set_trace()
+    paths = extract_degree_paths(graph, selected_file)
+    condensed_paths = condense_paths(paths)
     res = ""
 
-    for path in degree_4_paths:
-        res += format_degree_4_path(path) + "\n"
-
+    for path in condensed_paths:
+        # import pdb; pdb.set_trace()
+        res += format_path(path) + "\n"
+    print(res)
     # Draw only those paths on the graph
