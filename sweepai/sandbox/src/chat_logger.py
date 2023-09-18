@@ -33,11 +33,11 @@ class ChatLogger(BaseModel):
         logger.warning("Chat history logger has no MongoDB URI")
         return
     try:
-        client = MongoClient(
-            key, serverSelectionTimeoutMS=5000, socketTimeoutMS=5000
-        )
-            db = client["llm"]
-            self.chat_collection = db["chat_history"]
+    client = MongoClient(
+        key, serverSelectionTimeoutMS=5000, socketTimeoutMS=5000
+    )
+    db = client["llm"]
+    self.chat_collection = db["chat_history"]
             self.ticket_collection = db["tickets"]
             self.ticket_collection.create_index("username")
             self.chat_collection.create_index(
