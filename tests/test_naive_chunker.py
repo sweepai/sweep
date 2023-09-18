@@ -1230,7 +1230,9 @@ Don't move the core logic, just any helper methods, like ones that edit sweeps c
 #     x = t.join()
 #     summary.append(x)
 
-# for i, chunk in enumerate(chunks):
-#     print(f"""<chunk number="{i}" start="{chunk.start}" end="{chunk.end}">
-# {chunk.content}
-# </chunk>""")
+for i, chunk in enumerate(chunks):
+    print(
+        f"""<chunk number="{i}" start="{chunk.start}" end="{chunk.end}">
+{chunk.content}
+</chunk>"""
+    )
