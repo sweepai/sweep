@@ -10,6 +10,7 @@ from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from github.Commit import Commit
 from pydantic import BaseModel
+from sweepai.agents.graph_parent import GraphParentBot
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.edit_chunk import EditBot
@@ -57,6 +58,7 @@ from sweepai.utils.diff import (
     is_markdown,
     get_matches,
 )
+from sweepai.utils.graph import Graph
 from sweepai.utils.utils import chunk_code
 
 USING_DIFF = True
@@ -251,27 +253,33 @@ class CodeGenBot(ChatGPT):
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
-
-        for count in range(retries):
-            try:
-                logger.info(f"Generating for the {count}th time...")
-                files_to_change_response = self.chat(
-                    files_to_change_prompt, message_key="files_to_change"
-                )  # Dedup files to change here
-                file_change_requests = []
-                for re_match in re.finditer(
-                    FileChangeRequest._regex, files_to_change_response, re.DOTALL
-                ):
-                    file_change_requests.append(
-                        FileChangeRequest.from_string(re_match.group(0))
-                    )
-                if file_change_requests:
-                    return file_change_requests, files_to_change_response
-            except RegexMatchError as e:
-                logger.print(e)
-                logger.warning("Failed to parse! Retrying...")
-                self.delete_messages_from_chat("files_to_change")
-                continue
+        try:
+            graph = Graph.from_folder(folder_path=self.cloned_repo)
+            graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
+            issue_metadata = self.human_message.get_issue_metadata()
+            relevant_snippets = self.human_message.render_snippets()
+            symbols_to_files = graph.paths_to_first_degree_entities(
+                self.human_message.get_file_paths()
+            )
+            relevant_symbols_to_files = graph_parent_bot.relevant_symbols_to_files(
+                issue_metadata, relevant_snippets, symbols_to_files
+            )
+            files_to_change_response = self.chat(
+                files_to_change_prompt, message_key="files_to_change"
+            )  # Dedup files to change here
+            file_change_requests = []
+            for re_match in re.finditer(
+                FileChangeRequest._regex, files_to_change_response, re.DOTALL
+            ):
+                file_change_requests.append(
+                    FileChangeRequest.from_string(re_match.group(0))
+                )
+            if file_change_requests:
+                return file_change_requests, files_to_change_response
+        except RegexMatchError as e:
+            logger.print(e)
+            logger.warning("Failed to parse! Retrying...")
+            self.delete_messages_from_chat("files_to_change")
         raise NoFilesException()
 
     def generate_pull_request(self, retries=2) -> PullRequest:

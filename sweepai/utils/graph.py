@@ -191,6 +191,9 @@ class Graph(BaseModel):
         references_path = extract_degree_paths(self.references_graph, file_path)
         return references_path
 
+    def paths_to_first_degree_entities(self, file_paths: list[str]):
+        "\n".join([get_entities_for_file(file_path) for file_path in file_paths])
+
 
 g = Graph()
 
@@ -217,9 +220,9 @@ if __name__ == "__main__":
         res = ""
 
         for path in condensed_definition_paths:
-            res += format_path(path, separator=" is defined in ") + "\n"
+            res += format_path(path, separator=" defined in ") + "\n"
         for path in condensed_references_paths:
-            res += format_path(path, separator=" is imported by ") + "\n"
+            res += format_path(path, separator=" imported by ") + "\n"
         return res
 
     print(

@@ -9,6 +9,7 @@ import backoff
 from pydantic import BaseModel
 
 from logn import logger
+from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.utils import Tiktoken
 from sweepai.core.entities import Message, Function, SweepContext
 from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
@@ -89,6 +90,7 @@ class ChatGPT(BaseModel):
     human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []
     sweep_context: SweepContext | None = None
+    cloned_repo: ClonedRepo | None = (None,)
 
     @classmethod
     def from_system_message_content(
@@ -97,6 +99,7 @@ class ChatGPT(BaseModel):
         is_reply: bool = False,
         chat_logger=None,
         sweep_context=None,
+        cloned_repo: ClonedRepo | None = None,
         **kwargs,
     ) -> Any:
         content = system_message_prompt
@@ -118,6 +121,7 @@ class ChatGPT(BaseModel):
             human_message=human_message,
             chat_logger=chat_logger,
             sweep_context=sweep_context,
+            cloned_repo=cloned_repo,
             **kwargs,
         )
 

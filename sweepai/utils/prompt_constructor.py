@@ -41,6 +41,9 @@ class HumanMessagePrompt(BaseModel):
             + "</relevant_paths_in_repo>"
         )
 
+    def get_file_paths(self):
+        return [snippet.file_path for snippet in self.snippets]
+
     def render_snippets(self):
         joined_snippets = "\n".join([snippet.xml for snippet in self.snippets])
         if joined_snippets.strip() == "":
@@ -75,6 +78,15 @@ class HumanMessagePrompt(BaseModel):
             for msg in human_message_prompt
         ]
         return human_messages
+
+    def get_issue_metadata(self):
+        return f"""# Repo & Issue Metadata
+Repo: {self.repo_name}: {self.repo_description}
+Issue: {self.issue_url}
+Username: {self.username}
+Issue Title: {self.title}
+Issue Description: {self.summary}
+"""
 
 
 class HumanMessagePromptReview(HumanMessagePrompt):

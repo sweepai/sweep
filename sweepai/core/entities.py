@@ -10,7 +10,6 @@ from github.Branch import Branch
 from pydantic import BaseModel
 from urllib.parse import quote
 
-from sweepai.core.chat import ChatGPT
 from sweepai.utils.event_logger import set_highlight_id
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
@@ -540,12 +539,10 @@ class CustomInstructions(BaseModel):
     # Todo: add delete_after
     # delete_after: bool = False
 
-    def activate(self, chatbot: ChatGPT, key: str, **kwargs):
+    def activate(self, chatbot, key: str, **kwargs):
         # Create class for handling __enter__ and __exit__ methods
         class CustomInstructionsContext:
-            def __init__(
-                self, chatbot: ChatGPT, custom_instructions: CustomInstructions
-            ):
+            def __init__(self, chatbot, custom_instructions: CustomInstructions):
                 self.chatbot = chatbot
                 self.custom_instructions = custom_instructions
                 self.old_system_prompt = chatbot.messages[0].content

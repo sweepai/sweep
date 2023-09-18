@@ -580,6 +580,7 @@ def on_ticket(
         is_reply=bool(comments),
         chat_logger=chat_logger,
         sweep_context=sweep_context,
+        cloned_repo=cloned_repo,
     )
 
     # Check repository for sweep.yml file.
@@ -677,6 +678,8 @@ def on_ticket(
 
         # COMMENT ON ISSUE
         # TODO: removed issue commenting here
+        # TODO(william, luke) planning here
+
         logger.info("Fetching files to modify/create...")
         file_change_requests, plan = sweep_bot.get_files_to_change()
 
