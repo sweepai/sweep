@@ -13,4 +13,5 @@ result = modify_bot.update_file(
     ),
 )
 
-print(result)
+with open("test.py", "w") as f:
+    f.write(result)

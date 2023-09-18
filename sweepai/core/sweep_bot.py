@@ -56,7 +56,9 @@ from sweepai.utils.diff import (
     generate_new_file_from_patch,
     is_markdown,
     get_matches,
+    sliding_window_replacement,
 )
+from sweepai.utils.search_and_replace import find_best_match
 from sweepai.utils.utils import chunk_code
 
 USING_DIFF = True
@@ -70,7 +72,7 @@ def strip_backticks(s: str) -> str:
         s = s[s.find("\n") :]
     if s.endswith("```"):
         s = s[: s.rfind("\n")]
-    return s
+    return s.strip()
 
 
 class ModifyBot:
@@ -88,55 +90,65 @@ class ModifyBot:
         file_contents: str,
         file_change_request: FileChangeRequest,
     ):
-        fetch_snippets_response = self.fetch_snippets_bot.chat(
-            fetch_snippets_prompt.format(
-                code=file_contents,
-                file_path=file_path,
-                request=file_change_request.instructions,
+        try:
+            fetch_snippets_response = self.fetch_snippets_bot.chat(
+                fetch_snippets_prompt.format(
+                    code=file_contents,
+                    file_path=file_path,
+                    request=file_change_request.instructions,
+                )
             )
-        )
 
-        snippets = []
-        pattern = r"<snippet>(?P<code>.*)</snippet>"
-        for code in re.findall(pattern, fetch_snippets_response, re.DOTALL):
-            snippets.append(strip_backticks(code))
+            snippet_queries = []
+            pattern = r"<snippet>(?P<code>.*)</snippet>"
+            for code in re.findall(pattern, fetch_snippets_response, re.DOTALL):
+                snippet_queries.append(strip_backticks(code))
 
-        update_snippets_response = self.update_snippets_bot.chat(
-            update_snippets_prompt.format(
-                code=file_contents,
-                file_path=file_path,
-                snippets=fetch_snippets_response,
-                request=file_change_request.instructions,
+            assert len(snippet_queries) > 0, "No snippets found in file"
+
+            selected_snippets = []
+            for query in snippet_queries:
+                try:
+                    _match = find_best_match(query, file_contents)
+                except:
+                    print(query, file_contents)
+                print(len(file_contents.splitlines()), _match.start, _match.end)
+                selected_snippets.append(
+                    "\n".join(file_contents.splitlines()[_match.start : _match.end])
+                )
+
+            update_snippets_response = self.update_snippets_bot.chat(
+                update_snippets_prompt.format(
+                    code=file_contents,
+                    file_path=file_path,
+                    snippets="\n".join(
+                        [
+                            f'<snippet id="{i}">{snippet}</snippet>'
+                            for i, snippet in enumerate(selected_snippets)
+                        ]
+                    ),
+                    request=file_change_request.instructions,
+                )
             )
-        )
 
-        updated_snippets = []
-        pattern = r"<updated_snippet id=\"(?P<id>.*)\">(?P<code>.*)</updated_snippet>"
-        for _id, code in re.findall(pattern, update_snippets_response, re.DOTALL):
-            updated_snippets.append(strip_backticks(code))
+            updated_snippets = []
+            pattern = (
+                r"<updated_snippet id=\"(?P<id>.*)\">(?P<code>.*)</updated_snippet>"
+            )
+            for _id, code in re.findall(pattern, update_snippets_response, re.DOTALL):
+                updated_snippets.append(strip_backticks(code))
 
-        replace_prompt = """"""
-
-        for search, replace in zip(snippets, updated_snippets):
-            replace_prompt += f"""
-<<<< ORIGINAL
-{search}
-====
-{replace}
->>>> UPDATED
-"""
-
-        print("REPLACE PROMPT")
-        print(len(replace_prompt))
-        print(len(updated_snippets))
-        print(replace_prompt)
-
-        updated_code, _ = (
-            replace_prompt,
-            file_contents,
-        )
-
-        return updated_code
+            result = file_contents
+            for search, replace in zip(selected_snippets, updated_snippets):
+                result, _, _ = sliding_window_replacement(
+                    file_contents.splitlines(),
+                    search.splitlines(),
+                    replace.splitlines(),
+                )
+                result = "\n".join(result)
+            return result
+        except:
+            exit(0)
 
 
 class CodeGenBot(ChatGPT):
@@ -631,50 +643,59 @@ class SweepBot(CodeGenBot, GithubBot):
         file_markdown = is_markdown(file_change_request.filename)
         # TODO(sweep): edge case at empty file
         line_count = contents.count("\n") + 1
-        message = modify_file_prompt_3.format(
-            filename=file_change_request.filename,
-            instructions=file_change_request.instructions,
-            code=contents_line_numbers,
-            line_count=line_count,
-        )
-        recreate_file = False
-        old_system_message = self.messages[0].content
+        # message = modify_file_prompt_3.format(
+        #     filename=file_change_request.filename,
+        #     instructions=file_change_request.instructions,
+        #     code=contents_line_numbers,
+        #     line_count=line_count,
+        # )
+        # recreate_file = False
+        # old_system_message = self.messages[0].content
+        new_file = ""
         try:
-            if chunking:
-                # TODO (sweep): make chunking / streaming better
-                message = chunking_prompt + message
-                old_system_message = self.messages[0].content
-                self.messages[0].content = modify_file_system_message
-                modify_file_response = self.chat(
-                    message
-                    + "\nIf you do not wish to make changes to this file, please type `skip`.",
-                    message_key=key,
-                )
-                self.delete_messages_from_chat(key)
-                self.messages[0].content = old_system_message
-            else:
-                if line_count < RECREATE_LINE_LENGTH:
-                    message = modify_recreate_file_prompt_3.format(
-                        filename=file_change_request.filename,
-                        instructions=file_change_request.instructions,
-                        code=contents_line_numbers,
-                        line_count=line_count,
-                    )
+            modify_file_bot = ModifyBot(
+                chat_logger=self.chat_logger,
+            )
+            new_file = modify_file_bot.update_file(
+                file_path=file_change_request.filename,
+                file_contents=contents,
+                file_change_request=file_change_request,
+            )
+            # if chunking:
+            #     # TODO (sweep): make chunking / streaming better
+            #     message = chunking_prompt + message
+            #     old_system_message = self.messages[0].content
+            #     self.messages[0].content = modify_file_system_message
+            #     modify_file_response = self.chat(
+            #         message
+            #         + "\nIf you do not wish to make changes to this file, please type `skip`.",
+            #         message_key=key,
+            #     )
+            #     self.delete_messages_from_chat(key)
+            #     self.messages[0].content = old_system_message
+            # else:
+            #     if line_count < RECREATE_LINE_LENGTH:
+            #         message = modify_recreate_file_prompt_3.format(
+            #             filename=file_change_request.filename,
+            #             instructions=file_change_request.instructions,
+            #             code=contents_line_numbers,
+            #             line_count=line_count,
+            #         )
 
-                    self.messages[0].content = modify_recreate_file_system_message
-                    modify_file_response = self.chat(
-                        message,
-                        message_key=key,
-                    )
-                    recreate_file = True
-                    self.messages[0].content = old_system_message
-                else:
-                    self.messages[0].content = modify_file_system_message
-                    modify_file_response = self.chat(
-                        message,
-                        message_key=key,
-                    )
-                    self.messages[0].content = old_system_message
+            #         self.messages[0].content = modify_recreate_file_system_message
+            #         modify_file_response = self.chat(
+            #             message,
+            #             message_key=key,
+            #         )
+            #         recreate_file = True
+            #         self.messages[0].content = old_system_message
+            #     else:
+            #         self.messages[0].content = modify_file_system_message
+            #         modify_file_response = self.chat(
+            #             message,
+            #             message_key=key,
+            #         )
+            #         self.messages[0].content = old_system_message
         except SystemExit:
             raise SystemExit
         except Exception as e:  # Check for max tokens error
@@ -687,49 +708,50 @@ class SweepBot(CodeGenBot, GithubBot):
                 self.delete_messages_from_chat(key)
                 raise e
         try:
-            logger.info(
-                f"generate_new_file with contents: {contents} and"
-                f" modify_file_response: {modify_file_response}"
-            )
-            if recreate_file:
-                # Todo(lukejagg): Discord logging on error
-                new_file = re.findall(
-                    r"<new_file>\n(.*?)\n?</new_file>", modify_file_response, re.DOTALL
-                )[0]
-            else:
-                new_file, errors = generate_new_file_from_patch(
-                    modify_file_response,
-                    contents,
-                    chunk_offset=chunk_offset,
-                    sweep_context=self.sweep_context,
-                )
-                if errors:
-                    logger.error(errors)
+            # logger.info(
+            #     f"generate_new_file with contents: {contents} and"
+            #     f" modify_file_response: {modify_file_response}"
+            # )
+            # if recreate_file:
+            #     # Todo(lukejagg): Discord logging on error
+            #     new_file = re.findall(
+            #         r"<new_file>\n(.*?)\n?</new_file>", modify_file_response, re.DOTALL
+            #     )[0]
+            # else:
+            #     new_file, errors = generate_new_file_from_patch(
+            #         modify_file_response,
+            #         contents,
+            #         chunk_offset=chunk_offset,
+            #         sweep_context=self.sweep_context,
+            #     )
+            #     if errors:
+            #         logger.error(errors)
 
-            try:
-                for _, replace in get_matches(modify_file_response):
-                    implemented = self.check_completion(  # can use async
-                        file_change_request.filename, replace
-                    )
-                    if not implemented:
-                        discord_log_error(
-                            f"{self.sweep_context.issue_url}\nUnimplemented Modify Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
-                            priority=2 if self.sweep_context.use_faster_model else 0,
-                        )
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(f"Error: {e}")
+            # try:
+            #     for _, replace in get_matches(modify_file_response):
+            #         implemented = self.check_completion(  # can use async
+            #             file_change_request.filename, replace
+            #         )
+            #         if not implemented:
+            #             discord_log_error(
+            #                 f"{self.sweep_context.issue_url}\nUnimplemented Modify Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
+            #                 priority=2 if self.sweep_context.use_faster_model else 0,
+            #             )
+            # except SystemExit:
+            #     raise SystemExit
+            # except Exception as e:
+            #     logger.error(f"Error: {e}")
 
             new_file = format_contents(new_file, file_markdown)
 
-            commit_message_match = re.search(
-                'Commit message: "(?P<commit_message>.*)"', modify_file_response
-            )
+            # commit_message_match = re.search(
+            #     'Commit message: "(?P<commit_message>.*)"', modify_file_response
+            # )
+            commit_message_match = None
             if commit_message_match:
                 commit_message = commit_message_match.group("commit_message")
             else:
-                commit_message = f"Updated {file_change_request.filename}"
+                commit_message = f"feat: Updated {file_change_request.filename}"
             commit_message = commit_message[: min(len(commit_message), 50)]
 
             sandbox_execution = None

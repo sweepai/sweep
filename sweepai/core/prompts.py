@@ -1072,7 +1072,7 @@ File path: {file_path}
 {request}
 
 # Instructions
-Respond with a list of all snippets to modify.
+Respond with a list of all snippets to modify in the following format:
 
 <snippet>
 ```
