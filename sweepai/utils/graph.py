@@ -60,7 +60,8 @@ def extract_entities(code):
 
 
 def traverse_folder(folder):
-    graph = nx.DiGraph()
+    definitions_graph = nx.DiGraph()
+    references_graph = nx.DiGraph()
     for root, _, files in os.walk(folder):
         for file in files:
             if file.endswith(".py"):
@@ -69,41 +70,55 @@ def traverse_folder(folder):
                 with open(abs_path, "r") as f:
                     code = f.read()
                 imports, classes, functions = extract_entities(code)
-                graph.add_node(rel_path)
+                definitions_graph.add_node(rel_path)
+                references_graph.add_node(rel_path)
                 for imp in imports:
-                    graph.add_edge(rel_path, imp)
+                    definitions_graph.add_edge(rel_path, imp)
+                    references_graph.add_edge(imp, rel_path)
                 for cls in classes:
-                    graph.add_edge(cls, rel_path)
+                    definitions_graph.add_edge(cls, rel_path)
+                    references_graph.add_edge(rel_path, cls)
                 for func in functions:
-                    graph.add_edge(func, rel_path)
+                    definitions_graph.add_edge(func, rel_path)
+                    references_graph.add_edge(rel_path, func)
 
-    # Removing entities that do not point to a file
-    file_nodes = [n for n in graph.nodes if n.endswith(".py")]
-    non_file_nodes = set(graph.nodes) - set(file_nodes)
-    entities_to_remove = [
-        n for n in non_file_nodes if not any(graph.has_edge(n, f) for f in file_nodes)
-    ]
-    graph.remove_nodes_from(entities_to_remove)
+    def remove_nodes(graph):
+        # Removing entities that do not point to a file
+        file_nodes = [n for n in graph.nodes if n.endswith(".py")]
+        non_file_nodes = set(graph.nodes) - set(file_nodes)
+        entities_to_remove = [
+            n
+            for n in non_file_nodes
+            if not any(graph.has_edge(n, f) for f in file_nodes)
+        ]
+        graph.remove_nodes_from(entities_to_remove)
 
-    # Removing files with a total degree of 0
-    file_nodes_to_remove = [f for f, degree in graph.degree(file_nodes) if degree == 0]
-    graph.remove_nodes_from(file_nodes_to_remove)
+        # Removing files with a total degree of 0
+        file_nodes_to_remove = [
+            f for f, degree in graph.degree(file_nodes) if degree == 0
+        ]
+        graph.remove_nodes_from(file_nodes_to_remove)
 
-    # Pruning nodes based on the sum of in-degree and out-degree
-    nodes_to_remove = [node for node, degree in graph.degree() if degree <= 1]
-    graph.remove_nodes_from(nodes_to_remove)
+        # Pruning nodes based on the sum of in-degree and out-degree
+        nodes_to_remove = [node for node, degree in graph.degree() if degree <= 1]
+        graph.remove_nodes_from(nodes_to_remove)
 
-    # Remove non-file nodes with in-degree 0 at the end
-    non_file_nodes_to_remove = [
-        n for n, degree in graph.in_degree(non_file_nodes) if degree == 0
-    ]
-    graph.remove_nodes_from(non_file_nodes_to_remove)
+        # Remove non-file nodes with in-degree 0 at the end
+        non_file_nodes_to_remove = [
+            n for n, degree in graph.in_degree(non_file_nodes) if degree == 0
+        ]
+        graph.remove_nodes_from(non_file_nodes_to_remove)
 
-    # Remove files with total-degree 0 at the end
-    file_nodes_to_remove = [f for f, degree in graph.degree(file_nodes) if degree == 0]
-    graph.remove_nodes_from(file_nodes_to_remove)
+        # Remove files with total-degree 0 at the end
+        file_nodes_to_remove = [
+            f for f, degree in graph.degree(file_nodes) if degree == 0
+        ]
+        graph.remove_nodes_from(file_nodes_to_remove)
 
-    return graph
+    remove_nodes(definitions_graph)
+    remove_nodes(references_graph)
+
+    return definitions_graph, references_graph
 
 
 def draw_paths_on_graph(graph, paths=None):
@@ -128,29 +143,30 @@ def draw_paths_on_graph(graph, paths=None):
     plt.show()
 
 
-def format_path(path):
-    return " -> ".join(path[1:])
-
-
-# class PythonCodeGraph:
+def format_path(path, separator=" uses "):
+    return separator.join(path[1:])
 
 
 if __name__ == "__main__":
     # Replace this with the actual path you want to traverse
     folder_path = os.getcwd()
-    graph = traverse_folder(folder_path)
+    definitions_graph, references_graph = traverse_folder(folder_path)
 
     # Select one file to extract degree 4 paths (you can loop over all files if needed)
     selected_file = (
-        "sweepai/utils/buttons.py"  # Replace with actual file name in your folder
+        "sweepai/core/chat.py"  # Replace with actual file name in your folder
     )
 
-    paths = extract_degree_paths(graph, selected_file)
-    condensed_paths = condense_paths(paths)
+    definition_paths = extract_degree_paths(definitions_graph, selected_file)
+    references_path = extract_degree_paths(references_graph, selected_file)
+
+    condensed_definition_paths = condense_paths(definition_paths)
+    condensed_references_paths = condense_paths(references_path)
     res = ""
 
-    for path in condensed_paths:
-        # import pdb; pdb.set_trace()
-        res += format_path(path) + "\n"
+    for path in condensed_definition_paths:
+        res += format_path(path, separator=" defined in ") + "\n"
+    for path in condensed_references_paths:
+        res += format_path(path, separator=" used in ") + "\n"
     print(res)
     # Draw only those paths on the graph
