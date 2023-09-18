@@ -15,6 +15,70 @@ from sweepai.utils.event_logger import set_highlight_id
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
+class Messages:
+    def __init__(self):
+        self.messages = []
+
+    def __getitem__(self, index):
+        return self.messages[index]
+
+    def __setitem__(self, index, value):
+        self.messages[index] = value
+
+    def __delitem__(self, index):
+        del self.messages[index]
+
+    def __len__(self):
+        return len(self.messages)
+
+    def append(self, item):
+        self.messages.append(item)
+
+    def extend(self, iterable):
+        self.messages.extend(iterable)
+
+    def insert(self, index, item):
+        self.messages.insert(index, item)
+
+    def remove(self, item):
+        self.messages.remove(item)
+
+    def pop(self, index=-1):
+        return self.messages.pop(index)
+
+    def clear(self):
+        self.messages.clear()
+
+    def index(self, item, start=0, end=None):
+        return self.messages.index(item, start, end)
+
+    def count(self, item):
+        return self.messages.count(item)
+
+    def sort(self, key=None, reverse=False):
+        self.messages.sort(key=key, reverse=reverse)
+
+    def reverse(self):
+        self.messages.reverse()
+
+    def copy(self):
+        return self.messages.copy()
+
+    class PromptContext:
+        def __init__(self, messages):
+            self.messages = messages
+
+        def __enter__(self):
+            # Swap system prompts here
+            pass
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            # Revert system prompts here
+            pass
+
+    def prompt(self):
+        return self.PromptContext(self)
+
 class Message(BaseModel):
     role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal[
         "function"
@@ -397,7 +461,6 @@ class Snippet(BaseModel):
         num_lines = self.content.count("\n") + 1
         base = commit_id + "/" if commit_id != "main" else ""
         return f"<{self.get_url(repo_name, commit_id)}|{base}{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}>"
-
     def get_preview(self, max_lines: int = 5):
         snippet = "\n".join(
             self.content.splitlines()[
