@@ -252,8 +252,7 @@ Step-by-step thoughts with explanations:
 """
 
 subissues_prompt = """
-Think step-by-step to break down the requested problem into small sub-issues with each max 5 files of non-trivial changes. The sub-issue should be a small, self-contained, and independent part of the problem, and should partition the files to be changed.
-
+Think step-by-step to break down the requested problem into sub-issues each of non-trivial changes. The sub-issue should be a small, self-contained, and independent part of the problem, and should partition the files to be changed.
 You MUST follow the following format with the final output in XML tags:
 
 Root cause:
