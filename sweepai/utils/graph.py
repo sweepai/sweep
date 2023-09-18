@@ -2,6 +2,8 @@
 
 import os
 import ast
+from typing import Any
+
 import networkx as nx
 from networkx.drawing.layout import bipartite_layout
 import matplotlib.pyplot as plt
@@ -156,8 +158,8 @@ def format_path(path, separator=" uses "):
 
 
 class Graph(BaseModel):
-    definitions_graph: nx.DiGraph
-    references_graph: nx.DiGraph
+    definitions_graph: Any
+    references_graph: Any
 
     @classmethod
     def from_folder(cls, folder_path):
