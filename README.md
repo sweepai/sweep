@@ -123,24 +123,9 @@ We plan on rapidly improving Sweep. To see what we're working on, check out our 
 
 ---
 
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=sweepai/sweep&type=Date)](https://star-history.com/#sweepai/sweep&Date)
-
-Consider starring us if you're using Sweep so more people hear about us!
-
 ## Contributing
 
-Contributions are welcome and greatly appreciated! To get set up, clone the repo and run
-
-```
-poetry install
-poetry shell
-```
-
-To build the docker image run
-
-For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
+Contributions are welcome and greatly appreciated! To get set up, see [Development](https://github.com/sweepai/sweep#development). For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
 * [Sweep Docs](https://docs.sweep.dev/).
 
 
