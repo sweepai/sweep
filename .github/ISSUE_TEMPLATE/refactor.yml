@@ -9,10 +9,3 @@ body:
       label: Details
       description: More details for Sweep
       placeholder: We are migrating this function to ... version because ...
-  - type: textarea
-    id: write
-    attributes:
-      label: Files to change
-      description: Optional but can improve Sweep
-      placeholder: "src/main.py\ntests/test.py"
-      render: shell
