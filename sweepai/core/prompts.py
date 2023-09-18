@@ -1,6 +1,7 @@
 """
 List of common prompts used across the codebase.
 """
+from sweepai.core.entities import CustomInstructions
 
 # Following two should be fused
 system_message_prompt = (
@@ -1104,3 +1105,87 @@ Respond with a list of all snippets to modify.
 <updated_snippet id="1">
 updated lines
 </updated_snippet>"""
+
+# Initial agent is used when deciding to explore entities initially.
+# code_graph_initial_agent = CustomInstructions(
+#     user_prompt="hi",
+#     system_prompt="Write code",
+# )
+
+# Todo: Add this to human_message prompt if using GPT-4
+gpt4_human_message_entity_prompt = """\
+Information needed from file:
+
+
+<relevant_snippet>
+...
+</relevant_snippet>
+...
+
+
+<entities_to_explore>
+...
+</entities_to_explore>
+
+
+<entities>
+chat.py:ChatGPT
+prompts.py:Messages
+human.py:RandomEntity
+</entities>
+"""
+
+# Todo: Add this to the end of files_to_change_prompt if using GPT-4
+gpt4_human_message_entity_plan_prompt = """\
+<files_to_explore>
+{file_name}
+...
+</files_to_explore>
+
+<entities_to_explore>
+{entity}
+</entities_to_explore>
+"""
+
+# Todo:
+# Explore agent will partake in the exploration.
+code_graph_explore_agent = CustomInstructions(
+    system_prompt="""You are a developer working on the following issue:
+
+<metadata>
+{metadata}
+</metadata>
+
+You must find the relevant context and information needed to perform these changes on an implementation level.
+
+
+You must return the following format:
+Snippets:
+<relevant_snippet>
+{snippet in file that is needed}
+</relevant_snippet>
+...
+
+
+Paths to Explore:
+<files_to_explore>
+{file_name}
+...
+</files_to_explore>
+
+<entities_to_explore>
+{entity}
+</entities_to_explore>
+""",
+    user_prompt=[
+        """<entity name=\"{entity_name}\" file_path=\"{file_path}\">
+{entity}
+</entity>""",
+        """You have already explored the following entities:
+<explored_already>
+{explored}
+</explored_already>
+
+You are currently exploring entity ChatGPT. Extract relevant content.""",
+    ],
+)
