@@ -65,7 +65,8 @@ class RegexMatchableBaseModel(BaseModel):
         # match = re.search(file_regex, string, re.DOTALL)
         match = re.search(cls._regex, string, re.DOTALL)
         if match is None:
-            logger.warning(f"Did not match {string} with pattern {cls._regex}")
+            import traceback
+            logger.warning(f"Did not match {string} with pattern {cls._regex}", exc_info=True)
             raise RegexMatchError("Did not match")
         return cls(
             **{k: (v if v else "").strip() for k, v in match.groupdict().items()},
@@ -133,7 +134,7 @@ class ContextToPrune(RegexMatchableBaseModel):
             path = path.replace("* ", "")
             path = path.replace("...", "")
             if len(path) > 1:
-                logger.info(f"Excluding path: {path}")
+                # logger.info(f"Excluding path: {path}")
                 excluded_snippets.append(path)
         irrelevant_repo_tree_paths_pattern = r"""<irrelevant_repo_tree_paths>(\n)?(?P<irrelevant_repo_tree_paths>.*)</irrelevant_repo_tree_paths>"""
         irrelevant_repo_tree_paths_match = re.search(
@@ -146,7 +147,7 @@ class ContextToPrune(RegexMatchableBaseModel):
             path = path.replace("* ", "")
             path = path.replace("...", "")
             if len(path) > 1:
-                logger.info(f"Excluding path: {path}")
+                # logger.info(f"Excluding path: {path}")
                 excluded_dirs.append(path)
         return cls(
             excluded_dirs=excluded_dirs,
