@@ -46,6 +46,35 @@ Issue Description: {description}""",
     },
 ]
 
+python_human_message_prompt = [
+    {
+        "role": "user",
+        "content": """{relevant_snippets}""",
+        "key": "relevant_snippets",
+    },
+    {
+        "role": "user",
+        "content": """{plan_suggestions}""",
+        "key": "plan_suggestions",
+    },
+    {
+        "role": "user",
+        "content": """<repo_tree>
+{tree}
+</repo_tree>""",
+        "key": "relevant_tree",
+    },
+    {
+        "role": "user",
+        "content": """# Repo & Issue Metadata
+Repo: {repo_name}: {repo_description}
+Issue Url: {issue_url}
+Username: {username}
+Issue Title: {title}
+Issue Description: {description}""",
+    },
+]
+
 human_message_review_prompt = [
     {"role": "assistant", "content": "Reviewing my pull request..."},
     {

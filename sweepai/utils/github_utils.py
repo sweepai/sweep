@@ -259,11 +259,13 @@ class ClonedRepo:
         return tree
 
     def get_file_contents(self, file_path, ref=None):
-        if ref is None:
-            ref = self.repo.default_branch
-        file = self.repo.get_contents(file_path, ref=ref)
-        contents = file.decoded_content.decode("utf-8", errors="replace")
-        return contents
+        local_path = os.path.join(self.cache_dir, file_path)
+        if os.path.exists(local_path):
+            with open(local_path, 'r', encoding='utf-8', errors='replace') as f:
+                contents = f.read()
+            return contents
+        else:
+            raise FileNotFoundError(f"{local_path} does not exist.")
 
     def get_num_files_from_repo(self):
         # subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])

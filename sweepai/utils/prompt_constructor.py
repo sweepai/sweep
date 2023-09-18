@@ -89,6 +89,35 @@ Issue Description: {self.summary}
 """
 
 
+class PythonHumanMessagePrompt(HumanMessagePrompt):
+    plan_suggestions: list
+    relevant_snippets: list
+
+    def construct_prompt(self):
+        human_messages = [
+            {
+                "role": msg["role"],
+                "content": msg["content"].format(
+                    repo_name=self.repo_name,
+                    issue_url=self.issue_url,
+                    username=self.username,
+                    repo_description=self.repo_description,
+                    tree=self.tree,
+                    title=self.title,
+                    description=self.summary
+                    if self.summary
+                    else "No description provided.",
+                    relevant_snippets=self.render_snippets(),
+                    relevant_directories=self.get_relevant_directories(),
+                    plan_suggestions="\n".join(self.plan_suggestions),
+                ),
+                "key": msg.get("key"),
+            }
+            for msg in human_message_prompt
+        ]
+        return human_messages
+
+
 class HumanMessagePromptReview(HumanMessagePrompt):
     pr_title: str
     pr_message: str = ""
