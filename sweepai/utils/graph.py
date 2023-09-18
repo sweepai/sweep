@@ -192,7 +192,7 @@ class Graph(BaseModel):
         return references_path
 
     def paths_to_first_degree_entities(self, file_paths: list[str]):
-        "\n".join([get_entities_for_file(file_path) for file_path in file_paths])
+        return "\n".join([self.extract_first_degree(file_path) for file_path in file_paths])
 
 
 g = Graph()

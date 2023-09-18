@@ -37,15 +37,11 @@ Concise explanation of relevant symbol's usage and why it is highly relevant to 
 ...
 </relevant_symbols_to_files>"""
 
-user_prompt = """<metadata>
+graph_user_prompt = """<metadata>
 {issue_metadata}
 </metadata>
 
-
-<relevant_snippets_in_repo>
 {relevant_snippets}
-</relevant_snippets_in_repo>
-
 
 <symbols_to_files>
 {symbols_to_files}
@@ -80,7 +76,7 @@ class GraphParentBot(ChatGPT):
                 key="system",
             )
         ]
-        user_prompt = user_prompt.format(
+        user_prompt = graph_user_prompt.format(
             issue_metadata=issue_metadata,
             relevant_snippets=relevant_snippets,
             symbols_to_files=symbols_to_files,

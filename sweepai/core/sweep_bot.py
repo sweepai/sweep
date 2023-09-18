@@ -254,16 +254,15 @@ class CodeGenBot(ChatGPT):
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            graph = Graph.from_folder(folder_path=self.cloned_repo)
+            graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
             graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
             issue_metadata = self.human_message.get_issue_metadata()
             relevant_snippets = self.human_message.render_snippets()
             symbols_to_files = graph.paths_to_first_degree_entities(
                 self.human_message.get_file_paths()
             )
-            relevant_symbols_to_files = graph_parent_bot.relevant_symbols_to_files(
-                issue_metadata, relevant_snippets, symbols_to_files
-            )
+            relevant_symbols_to_files = graph_parent_bot.relevant_symbols_to_files(issue_metadata, relevant_snippets, symbols_to_files)
+            import pdb; pdb.set_trace()
             files_to_change_response = self.chat(
                 files_to_change_prompt, message_key="files_to_change"
             )  # Dedup files to change here
