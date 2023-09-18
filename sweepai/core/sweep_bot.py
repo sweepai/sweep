@@ -75,6 +75,17 @@ def strip_backticks(s: str) -> str:
     return s.strip()
 
 
+def match_indent(generated: str, original: str) -> str:
+    generated_indents = len(generated) - len(generated.lstrip())
+    target_indents = len(original) - len(original.lstrip())
+    diff_indents = target_indents - generated_indents
+    if diff_indents > 0:
+        generated = " " * diff_indents + generated.replace(
+            "\n", "\n" + " " * diff_indents
+        )
+    return generated
+
+
 class ModifyBot:
     def __init__(self, additional_messages: list[Message] = [], chat_logger=None):
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
@@ -181,9 +192,13 @@ class ModifyBot:
             result, _, _ = sliding_window_replacement(
                 result.splitlines(),
                 search.splitlines(),
-                replace.splitlines(),
+                match_indent(replace, search).splitlines(),
             )
             result = "\n".join(result)
+
+        if file_contents.endswith("\n"):
+            result += "\n"
+
         return result
 
 

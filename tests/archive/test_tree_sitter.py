@@ -6,7 +6,8 @@ subprocess.run(
     shell=True,
 )
 Language.build_library(
-    f"cache/build/embedded-template.so", [f"cache/tree-sitter-embedded-template"]
+    f"/tmp/cache/build/embedded-template.so",
+    [f"/tmp/cache/tree-sitter-embedded-template"],
 )
 subprocess.run(
     f"cp cache/build/embedded-template.so /tmp/embedded-template.so", shell=True
