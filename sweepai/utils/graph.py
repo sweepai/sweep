@@ -15,6 +15,8 @@ def extract_degree_paths(graph, start_node, degree=3):
         if len(path) == degree:
             paths.append(path.copy())
             return
+        if node not in graph:
+            return
         for neighbor in graph.neighbors(node):
             if neighbor not in visited:
                 visited.add(neighbor)
