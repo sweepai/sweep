@@ -1072,7 +1072,7 @@ File path: {file_path}
 {request}
 
 # Instructions
-Respond with a list of all non-overlapping snippets to modify in the following format:
+If the code is already correct, reply with "No changes needed". Otherwise, respond with a list of all non-overlapping snippet(s) to modify in the following format:
 
 <snippet instructions="detailed instructions for this snippet">
 ```

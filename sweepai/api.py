@@ -308,7 +308,7 @@ async def webhook(raw_request: Request):
                     and GITHUB_BOT_USERNAME in request.comment.user.login
                     and changes.changes.body.get("from") is not None
                     and check_button_activated(
-                        "Restart Sweep", request.comment.body, changes
+                        "↻ Restart Sweep", request.comment.body, changes
                     )
                     and GITHUB_LABEL_NAME
                     in [label.name.lower() for label in request.issue.labels]

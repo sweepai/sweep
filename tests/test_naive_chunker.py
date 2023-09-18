@@ -298,7 +298,7 @@ def on_ticket(
         # config_pr_message = " To retrigger Sweep, edit the issue.\n" + config_pr_message
         actions_message = create_action_buttons(
             [
-                "Restart Sweep",
+                "↻ Restart Sweep",
             ]
         )
 
