@@ -183,11 +183,11 @@ class Graph(BaseModel):
         return res
 
     def find_definitions(self, file_path: str):
-        definition_paths = extract_degree_paths(definitions_graph, file_path)
+        definition_paths = extract_degree_paths(self.definitions_graph, file_path)
         return definition_paths
 
     def find_references(self, file_path: str):
-        references_path = extract_degree_paths(references_graph, file_path)
+        references_path = extract_degree_paths(self.references_graph, file_path)
         return references_path
 
 
