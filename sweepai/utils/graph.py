@@ -5,6 +5,7 @@ import ast
 import networkx as nx
 from networkx.drawing.layout import bipartite_layout
 import matplotlib.pyplot as plt
+from pydantic import BaseModel
 
 
 def extract_degree_paths(graph, start_node, degree=3):
@@ -56,6 +57,11 @@ def extract_entities(code):
             defined_classes.append(node.name)
         elif isinstance(node, ast.FunctionDef):
             defined_functions.append(node.name)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    defined_functions.append(target.id)
+
     return imported_modules, defined_classes, defined_functions
 
 
@@ -145,6 +151,43 @@ def draw_paths_on_graph(graph, paths=None):
 
 def format_path(path, separator=" uses "):
     return separator.join(path[1:])
+
+
+class Graph(BaseModel):
+    definitions_graph: nx.DiGraph
+    references_graph: nx.DiGraph
+
+    @classmethod
+    def from_folder(cls, folder_path):
+        definitions_graph, references_graph = traverse_folder(folder_path)
+        return cls(
+            definitions_graph=definitions_graph, references_graph=references_graph
+        )
+
+    def extract_first_degree(self, file_path: str) -> str:
+        definition_paths = self.find_definitions(file_path)
+        references_path = self.find_references(file_path)
+
+        condensed_definition_paths = condense_paths(definition_paths)
+        condensed_references_paths = condense_paths(references_path)
+
+        res = ""
+        for path in condensed_definition_paths:
+            res += format_path(path, separator=" defined in ") + "\n"
+        for path in condensed_references_paths:
+            res += format_path(path, separator=" used in ") + "\n"
+        return res
+
+    def find_definitions(self, file_path: str):
+        definition_paths = extract_degree_paths(definitions_graph, file_path)
+        return definition_paths
+
+    def find_references(self, file_path: str):
+        references_path = extract_degree_paths(references_graph, file_path)
+        return references_path
+
+
+g = Graph()
 
 
 if __name__ == "__main__":
