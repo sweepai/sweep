@@ -15,6 +15,9 @@ from sweepai.utils.event_logger import set_highlight_id
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
+from typing import List
+from contextlib import contextmanager
+
 class Message(BaseModel):
     role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal[
         "function"
@@ -41,6 +44,43 @@ class Message(BaseModel):
         if self.role == "function":
             obj["name"] = self.name
         return obj
+
+
+class Messages:
+    def __init__(self):
+        self._messages: List[Message] = []
+
+    def append(self, message: Message):
+        self._messages.append(message)
+
+    def insert(self, index: int, message: Message):
+        self._messages.insert(index, message)
+
+    def remove(self, message: Message):
+        self._messages.remove(message)
+
+    def __getitem__(self, index: int) -> Message:
+        return self._messages[index]
+
+    def __setitem__(self, index: int, message: Message):
+        self._messages[index] = message
+
+    def __delitem__(self, index: int):
+        del self._messages[index]
+
+    def __len__(self) -> int:
+        return len(self._messages)
+
+    @contextmanager
+    def prompt(self):
+        class Prompt:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        yield Prompt()
 
 
 class Function(BaseModel):
@@ -397,7 +437,6 @@ class Snippet(BaseModel):
         num_lines = self.content.count("\n") + 1
         base = commit_id + "/" if commit_id != "main" else ""
         return f"<{self.get_url(repo_name, commit_id)}|{base}{self.file_path}#L{max(self.start, 1)}-L{min(self.end, num_lines)}>"
-
     def get_preview(self, max_lines: int = 5):
         snippet = "\n".join(
             self.content.splitlines()[
@@ -489,6 +528,57 @@ class SweepContext(BaseModel):  # type: ignore
     @classmethod
     def create(cls, **kwargs):
         sweep_context = cls(**kwargs)
+        if SweepContext._static_instance is None:
+            SweepContext._static_instance = sweep_context
+            set_highlight_id(sweep_context.issue_url)
+            # logger.bind(**kwargs)
+        return sweep_context
+
+    @staticmethod
+    def log_error(exception, traceback):
+        pass
+
+    @staticmethod
+    def log(message):
+        pass
+
+    def __str__(self):
+        return f"{self.issue_url}, {self.use_faster_model}"
+
+class Messages:
+    def __init__(self):
+        self.messages = []
+
+    def append(self, message):
+        self.messages.append(message)
+
+    def insert(self, index, message):
+        self.messages.insert(index, message)
+
+    def remove(self, message):
+        self.messages.remove(message)
+
+    def __getitem__(self, index):
+        return self.messages[index]
+
+    def __setitem__(self, index, value):
+        self.messages[index] = value
+
+    def __delitem__(self, index):
+        del self.messages[index]
+
+    def __len__(self):
+        return len(self.messages)
+
+    def prompt(self):
+        class Prompt:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        return Prompt()
         if SweepContext._static_instance is None:
             SweepContext._static_instance = sweep_context
             set_highlight_id(sweep_context.issue_url)
