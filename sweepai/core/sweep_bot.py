@@ -76,12 +76,13 @@ def strip_backticks(s: str) -> str:
 
 
 def match_indent(generated: str, original: str) -> str:
+    indent_type = "\t" if "\t" in original[:5] else " "
     generated_indents = len(generated) - len(generated.lstrip())
     target_indents = len(original) - len(original.lstrip())
     diff_indents = target_indents - generated_indents
     if diff_indents > 0:
-        generated = " " * diff_indents + generated.replace(
-            "\n", "\n" + " " * diff_indents
+        generated = indent_type * diff_indents + generated.replace(
+            "\n", "\n" + indent_type * diff_indents
         )
     return generated
 
