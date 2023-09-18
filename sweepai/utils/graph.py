@@ -50,6 +50,13 @@ def traverse_folder(folder):
     nodes_to_remove = [node for node, degree in graph.in_degree() if degree == 0]
     graph.remove_nodes_from(nodes_to_remove)
 
+    # remove all files with no in-degree
+    file_nodes = [n for n in graph.nodes if n.endswith(".py")]
+    nodes_to_remove = [
+        node for node, degree in graph.in_degree() if degree == 0 and node in file_nodes
+    ]
+    graph.remove_nodes_from(nodes_to_remove)
+
     # Removing entities that do not point to a file
     file_nodes = [n for n in graph.nodes if n.endswith(".py")]
     non_file_nodes = set(graph.nodes) - set(file_nodes)
