@@ -89,13 +89,21 @@ def on_ticket(
 
     # Flow:
     # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
-
-    summary = summary or ""
-    summary = re.sub(
+        ghost_ascii_art = """
+            👻
+            👻👻
+            👻👻👻
+            👻👻👻👻
+            👻👻👻👻👻
+        """
+        agg_message = (
+            get_comment_header(index, errored, pr_message, done)
+            + "\n"
+            + sep
+            + agg_message
+            + ghost_ascii_art
+            + suffix
+        )
         "<details (open)?>\n<summary>Checklist</summary>.*",
         "",
         summary,
@@ -370,15 +378,19 @@ def on_ticket(
     if issue_comment is None:
         issue_comment = current_issue.create_comment(first_comment)
     else:
-        issue_comment.edit(first_comment)
-
-    # Comment edit function
-    past_messages = {}
-    current_index = 0
-
-    # Random variables to save in case of errors
-    table = None  # Show plan so user can finetune prompt
-
+        edit_sweep_comment(
+            (
+                "I'm sorry, but it looks like an error has occurred. Try changing"
+                " the issue description to re-trigger Sweep. If this error persists"
+                " contact team@sweep.dev.\n\n"
+                "👻\n"
+                "👻👻\n"
+                "👻👻👻\n"
+                "👻👻👻👻\n"
+                "👻👻👻👻👻"
+            ),
+            -1,
+        )
     def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
         nonlocal current_index, user_token, g, repo, issue_comment
         # -1 = error, -2 = retry
@@ -415,6 +427,13 @@ def on_ticket(
                 + message
                 + "\n\nFor bonus GPT-4 tickets, please report this bug on"
                 " **[Discord](https://discord.com/invite/sweep-ai)**."
+                + "\n\n"
+                + "```\n"
+                + "👻  👻  👻  👻  👻\n"
+                + "/ \\ / \\ / \\ / \\ / \\\n"
+                + "|   |   |   |   |   |\n"
+                + "\\_/ \\_/ \\_/ \\_/ \\_/\n"
+                + "```\n"
             )
             if table is not None:
                 agg_message = (
@@ -495,7 +514,13 @@ def on_ticket(
                 " Perhaps the repo has not been initialized. If this error persists"
                 f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
                 " description to include more details and I will automatically"
-                " relaunch."
+                " relaunch.\n\n"
+                + "```\n"
+                + "  👻  👻  👻  👻  👻\n"
+                + " / \\ / \\ / \\ / \\ / \\\n"
+                + "|   |   |   |   |   |\n"
+                + " \\_/ \\_/ \\_/ \\_/ \\_/\n"
+                + "```\n"
             ),
             -1,
         )
@@ -827,7 +852,7 @@ def on_ticket(
                     (
                         (
                             f"`{filename}` ✅ Commit [`{commit_hash[:7]}`]({commit_url})",
-                            blockquote(instructions) + error_logs,
+                            blockquote(instructions) + error_logs + "\n\nBoo! 👻",
                             "X",
                         )
                         if file_change_request.filename == filename
@@ -887,13 +912,13 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except:
-            pass
-
-        changes_required = False
-        try:
-            # Todo(lukejagg): Pass sandbox linter results to review_pr
-            # CODE REVIEW
-
+        ghost_ascii_art = """
+            👻
+            👻👻
+            👻👻👻
+            👻👻👻👻
+            👻👻👻👻👻
+        """
             changes_required, review_comment = review_pr(
                 repo=repo,
                 pr=pr_changes,
@@ -1098,7 +1123,8 @@ def on_ticket(
                     "I'm sorry, but it looks like an error has occurred due to"
                     " insufficient information. Be sure to create a more detailed issue"
                     " so I can better address it. If this error persists report it at"
-                    " https://discord.gg/sweep."
+                    " https://discord.gg/sweep.\n\n"
+                    "Boo! 👻"
                 ),
                 -1,
             )
@@ -1107,7 +1133,8 @@ def on_ticket(
                 (
                     "I'm sorry, but it looks like an error has occurred. Try changing"
                     " the issue description to re-trigger Sweep. If this error persists"
-                    " contact team@sweep.dev."
+                    " contact team@sweep.dev.\n\n"
+                    "Boo! 👻"
                 ),
                 -1,
             )
