@@ -2,6 +2,7 @@
 
 import os
 import ast
+
 from typing import Any
 
 import networkx as nx
@@ -200,20 +201,30 @@ if __name__ == "__main__":
     definitions_graph, references_graph = traverse_folder(folder_path)
 
     # Select one file to extract degree 4 paths (you can loop over all files if needed)
-    selected_file = (
-        "sweepai/core/chat.py"  # Replace with actual file name in your folder
+    selected_files = (
+        "sweepai/core/code_repair.py",
+        "sweepai/core/sweep_bot.py",
+        "sweepai/core/chat.py",
+        "sweepai/core/prompts.py",
     )
 
-    definition_paths = extract_degree_paths(definitions_graph, selected_file)
-    references_path = extract_degree_paths(references_graph, selected_file)
+    def get_entities_for_file(selected_file):
+        definition_paths = extract_degree_paths(definitions_graph, selected_file)
+        references_path = extract_degree_paths(references_graph, selected_file)
 
-    condensed_definition_paths = condense_paths(definition_paths)
-    condensed_references_paths = condense_paths(references_path)
-    res = ""
+        condensed_definition_paths = condense_paths(definition_paths)
+        condensed_references_paths = condense_paths(references_path)
+        res = ""
 
-    for path in condensed_definition_paths:
-        res += format_path(path, separator=" defined in ") + "\n"
-    for path in condensed_references_paths:
-        res += format_path(path, separator=" used in ") + "\n"
-    print(res)
+        for path in condensed_definition_paths:
+            res += format_path(path, separator=" is defined in ") + "\n"
+        for path in condensed_references_paths:
+            res += format_path(path, separator=" is imported by ") + "\n"
+        return res
+
+    print(
+        "\n".join(
+            [get_entities_for_file(selected_file) for selected_file in selected_files]
+        )
+    )
     # Draw only those paths on the graph
