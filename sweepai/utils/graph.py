@@ -1,4 +1,4 @@
-# Modifying the script to remove entities that do not point to a file.
+# Modifying the script to remove non-file nodes with in-degree 0 at the end.
 
 import os
 import ast
@@ -27,9 +27,7 @@ def traverse_folder(folder):
     graph = nx.DiGraph()
     for root, _, files in os.walk(folder):
         for file in files:
-            if file.endswith(
-                ".py"
-            ):  # and (file.endswith('chat.py') or file.endswith('entities.py')):
+            if file.endswith(".py"):
                 filepath = os.path.join(root, file)
                 with open(filepath, "r") as f:
                     code = f.read()
@@ -42,21 +40,6 @@ def traverse_folder(folder):
                 for func in functions:
                     graph.add_edge(func, file)
 
-    # Pruning nodes based on the sum of in-degree and out-degree
-    nodes_to_remove = [node for node, degree in graph.degree() if degree <= 1]
-    graph.remove_nodes_from(nodes_to_remove)
-
-    # remove all nodes with no in-degree
-    nodes_to_remove = [node for node, degree in graph.in_degree() if degree == 0]
-    graph.remove_nodes_from(nodes_to_remove)
-
-    # remove all files with no in-degree
-    file_nodes = [n for n in graph.nodes if n.endswith(".py")]
-    nodes_to_remove = [
-        node for node, degree in graph.in_degree() if degree == 0 and node in file_nodes
-    ]
-    graph.remove_nodes_from(nodes_to_remove)
-
     # Removing entities that do not point to a file
     file_nodes = [n for n in graph.nodes if n.endswith(".py")]
     non_file_nodes = set(graph.nodes) - set(file_nodes)
@@ -64,6 +47,24 @@ def traverse_folder(folder):
         n for n in non_file_nodes if not any(graph.has_edge(n, f) for f in file_nodes)
     ]
     graph.remove_nodes_from(entities_to_remove)
+
+    # Removing files with a total degree of 0
+    file_nodes_to_remove = [f for f, degree in graph.degree(file_nodes) if degree == 0]
+    graph.remove_nodes_from(file_nodes_to_remove)
+
+    # Pruning nodes based on the sum of in-degree and out-degree
+    nodes_to_remove = [node for node, degree in graph.degree() if degree <= 1]
+    graph.remove_nodes_from(nodes_to_remove)
+
+    # Remove non-file nodes with in-degree 0 at the end
+    non_file_nodes_to_remove = [
+        n for n, degree in graph.in_degree(non_file_nodes) if degree == 0
+    ]
+    graph.remove_nodes_from(non_file_nodes_to_remove)
+
+    # Remove files with total-degree 0 at the end
+    file_nodes_to_remove = [f for f, degree in graph.degree(file_nodes) if degree == 0]
+    graph.remove_nodes_from(file_nodes_to_remove)
 
     return graph
 
