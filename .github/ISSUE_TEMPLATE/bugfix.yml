@@ -9,10 +9,3 @@ body:
       label: Details
       description: More details about the bug
       placeholder: "The bug might be in ... file. Here are the logs: ..."
-  - type: textarea
-    id: write
-    attributes:
-      label: Files to change
-      description: Optional but can improve Sweep
-      placeholder: "src/main.py\ntests/test.py"
-      render: shell
