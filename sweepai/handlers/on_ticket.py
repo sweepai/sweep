@@ -63,6 +63,12 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 openai.api_key = OPENAI_API_KEY
 
+sweeping_gif = """
+<div align="center">
+  <img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="200" style="width:50px; margin-bottom:10px" alt="Sweeping">
+</div>
+"""
+
 
 @LogTask()
 def on_ticket(
@@ -314,11 +320,11 @@ def on_ticket(
         index = min(100, index)
         if errored:
             return (
-                f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
+                f"{sweeping_gif}\n\n![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
                 + f"\n\n---\n{actions_message}"
             )
         return (
-            f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)"
+            f"{sweeping_gif}\n\n![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)"
             + ("\n" + stars_suffix if index != -1 else "")
             + "\n"
             + payment_message_start
