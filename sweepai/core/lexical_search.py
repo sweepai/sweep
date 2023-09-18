@@ -4,6 +4,7 @@ import traceback
 from dataclasses import dataclass
 import itertools
 import re
+from sweepai.core.entities import Snippet
 from whoosh.analysis import Tokenizer, Token
 from whoosh.filedb.filestore import RamStorage
 import os
@@ -149,7 +150,7 @@ class Document:
     end: int
 
 
-def snippets_to_docs(snippets, len_repo_cache_dir):
+def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
     from tqdm import tqdm
 
     docs = []
@@ -157,7 +158,7 @@ def snippets_to_docs(snippets, len_repo_cache_dir):
         docs.append(
             Document(
                 title=snippet.file_path[len_repo_cache_dir:],
-                content=snippet.content,
+                content=snippet.get_snippet(add_ellipsis=False, add_lines=False),
                 start=snippet.start,
                 end=snippet.end,
             )
@@ -169,25 +170,6 @@ from whoosh.qparser import QueryParser, OrGroup
 import os
 from whoosh import index
 from whoosh.fields import Schema, TEXT, NUMERIC
-
-
-def get_stopwords(snippets):
-    from collections import Counter
-    from tqdm import tqdm
-
-    # Assuming your CodeTokenizer is defined and works for your specific content
-    tokenizer = CodeTokenizer()
-
-    # Let's say your content is in a variable called "content"
-    chunks = [snippet.content for snippet in tqdm(snippets)]
-    tokens = [t.text for t in tqdm(tokenizer("\n".join(chunks)))]
-    # Count the frequency of each word
-    word_counts = Counter(tqdm(tokens))
-
-    # Identify the top 10 most frequent words
-    top_words = {word for word, _ in word_counts.most_common(10)}
-    return top_words
-
 
 def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
     from tqdm import tqdm
