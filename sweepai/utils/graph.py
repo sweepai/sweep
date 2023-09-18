@@ -1,10 +1,28 @@
-# Modifying the script to remove non-file nodes with in-degree 0 at the end.
+# Modifying the script to graph only the paths of degree 4 originating from a file.
 
 import os
 import ast
 import networkx as nx
 from networkx.drawing.layout import bipartite_layout
 import matplotlib.pyplot as plt
+
+
+def extract_degree_paths(graph, start_node, degree=3):
+    paths = []
+
+    def dfs(node, visited, path):
+        if len(path) == degree:
+            paths.append(path.copy())
+            return
+        for neighbor in graph.neighbors(node):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                dfs(neighbor, visited, path + [neighbor])
+                visited.remove(neighbor)
+
+    visited = set([start_node])
+    dfs(start_node, visited, [start_node])
+    return paths
 
 
 def extract_entities(code):
@@ -28,17 +46,18 @@ def traverse_folder(folder):
     for root, _, files in os.walk(folder):
         for file in files:
             if file.endswith(".py"):
-                filepath = os.path.join(root, file)
-                with open(filepath, "r") as f:
+                abs_path = os.path.join(root, file)
+                rel_path = abs_path[len(folder) + 1 :]
+                with open(abs_path, "r") as f:
                     code = f.read()
                 imports, classes, functions = extract_entities(code)
-                graph.add_node(file)
+                graph.add_node(rel_path)
                 for imp in imports:
-                    graph.add_edge(file, imp)
+                    graph.add_edge(rel_path, imp)
                 for cls in classes:
-                    graph.add_edge(cls, file)
+                    graph.add_edge(cls, rel_path)
                 for func in functions:
-                    graph.add_edge(func, file)
+                    graph.add_edge(func, rel_path)
 
     # Removing entities that do not point to a file
     file_nodes = [n for n in graph.nodes if n.endswith(".py")]
@@ -69,24 +88,52 @@ def traverse_folder(folder):
     return graph
 
 
-def draw_bipartite_graph_with_labels(graph):
-    file_nodes = [n for n in graph.nodes if n.endswith(".py")]
-    pos = bipartite_layout(graph, nodes=file_nodes)
-    edge_labels = {(u, v): f"{u} -> {v}" for u, v in graph.edges()}
+def draw_paths_on_graph(graph, paths=None):
+    if paths:
+        subgraph_nodes = set([node for path in paths for node in path])
+        subgraph = graph.subgraph(subgraph_nodes)
+    else:
+        subgraph = graph
+    file_nodes = [n for n in subgraph.nodes if n.endswith(".py")]
+    pos = bipartite_layout(subgraph, nodes=file_nodes)
+
+    edge_labels = {(u, v): f"{u} -> {v}" for u, v in subgraph.edges()}
     nx.draw(
-        graph,
+        subgraph,
         pos,
         with_labels=True,
         node_color="skyblue",
         font_size=10,
         font_color="black",
     )
-    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=8)
+    nx.draw_networkx_edge_labels(subgraph, pos, edge_labels=edge_labels, font_size=8)
     plt.show()
+
+
+def format_degree_4_path(path):
+    return " -> ".join(path)
+
+
+# class PythonCodeGraph:
 
 
 if __name__ == "__main__":
     # Replace this with the actual path you want to traverse
-    folder_path = os.getcwd() + "/sweepai/core"
+    folder_path = "PATHTOSWEEP"
     graph = traverse_folder(folder_path)
-    draw_bipartite_graph_with_labels(graph)
+    degree_4_paths = None
+    draw_paths_on_graph(graph, degree_4_paths)
+    # Select one file to extract degree 4 paths (you can loop over all files if needed)
+    selected_file = ".py"  # Replace with actual file name in your folder
+
+    # Extract degree 4 paths originating from the selected file
+    degree_4_paths = extract_degree_paths(graph, selected_file)
+    import pdb
+
+    pdb.set_trace()
+    res = ""
+
+    for path in degree_4_paths:
+        res += format_degree_4_path(path) + "\n"
+
+    # Draw only those paths on the graph
