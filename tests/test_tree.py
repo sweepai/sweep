@@ -160,4 +160,3 @@ tree = DirectoryTree()
 tree.parse(tree_str)
 tree.remove_multiple(["sweepai/", "tests/", "docs/"])
 print(tree)
-
