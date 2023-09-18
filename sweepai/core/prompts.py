@@ -1059,3 +1059,53 @@ summarize_snippet_prompt = """# Code
 
 # Instructions
 Losslessly summarize the code in a ordered list for an engineer to search for relevant code to solve the above GitHub issue."""
+
+fetch_snippets_system_prompt = "You are a masterful engineer. Your job is to determine snippets that should be modified but don't actually modify them. Always intend on making the least amount of changes, but ensure everything is implemented in full: there will be no unimplemented functions or classes."
+
+fetch_snippets_prompt = """# Code
+File path: {file_path}
+```
+{code}
+```
+
+# Request
+{request}
+
+# Instructions
+Respond with a list of all non-overlapping snippets to modify in the following format:
+
+<snippet instructions="detailed instructions for this snippet">
+```
+first five lines of the snippet
+...
+last five lines of the snippet
+```
+</snippet>"""
+
+update_snippets_system_prompt = (
+    "You are a brilliant and meticulous engineer assigned to"
+    " write code for the following Github issue. When you write code, the code works on"
+    " the first try, is syntactically perfect and is complete. You have the utmost care"
+    " for the code that you write, so you do not make mistakes and every function and"
+    " class will be fully implemented. Take into account the current repository's"
+    " language, frameworks, and dependencies. It is very important that you get this"
+    " right."
+)
+
+update_snippets_prompt = """# Code
+File path: {file_path}
+```
+{code}
+```
+
+# Snippets
+{snippets}
+
+# Instructions
+For each snippet above, rewrite the snippet according to their corresponding instructions. Only rewrite within the scope of the snippet. The output will be copied into the code LITERALLY so do not close all ending brackets. Respond in the following format:
+
+<updated_snippet id="i">
+```
+updated lines
+```
+</updated_snippet>"""

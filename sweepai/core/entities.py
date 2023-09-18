@@ -339,8 +339,8 @@ class Snippet(BaseModel):
     def get_snippet(self, add_ellipsis: bool = True, add_lines: bool = True):
         lines = self.content.splitlines()
         snippet = "\n".join(
-            (f"{i+1}: {line}" if add_lines else line)
-            for i, line in enumerate(lines[self.start : self.end])
+            (f"{i + self.start}: {line}" if add_lines else line)
+            for i, line in enumerate(lines[self.start - 1 : self.end])
         )
         if add_ellipsis:
             if self.start > 1:
