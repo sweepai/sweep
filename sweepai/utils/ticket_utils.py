@@ -19,31 +19,11 @@ discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep)"
 
 stars_suffix = (
     "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep)"
-    " so more people can hear about us!"
-)
-
-collapsible_template = """
-<details {opened}>
-<summary>{summary}</summary>
-
-{body}
-</details>
-"""
-
-checkbox_template = "- [{check}] {filename}\n{instructions}\n"
-
-num_of_snippets_to_query = 30
-total_number_of_snippet_tokens = 15_000
-num_full_files = 2
-
-ordinal = lambda n: str(n) + (
-    "th" if 4 <= n <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
-)
-
-SLOW_MODE = False
-SLOW_MODE = True
-
-
+    second line before
+    first line before
+    new code
+    first line after
+    second line after
 def clean_logs(logs: str):
     cleaned_logs = re.sub(r"\x1b\[.*?[@-~]", "", logs.replace("```", "\`\`\`"))
     cleaned_logs = re.sub('\n{2,}', '\n', cleaned_logs)
@@ -143,3 +123,4 @@ def log_error(is_paying_user, is_trial_user, username, issue_url, error_type, ex
             f" {issue_url}\n```{exception}```"
         )
         discord_log_error(content, priority=priority)
+
