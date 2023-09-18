@@ -2,7 +2,7 @@ from dataclasses import field
 import traceback
 import re
 import requests
-from typing import Generator, Any, Dict
+from typing import Generator, Any, Dict, List
 from logn import logger
 
 from github.ContentFile import ContentFile
@@ -10,6 +10,7 @@ from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from github.Commit import Commit
 from pydantic import BaseModel
+from sweepai.agents.graph_child import GraphChildBot, GraphContextAndPlan
 from sweepai.agents.graph_parent import GraphParentBot
 
 from sweepai.core.chat import ChatGPT
@@ -254,15 +255,37 @@ class CodeGenBot(ChatGPT):
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
-            graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
-            issue_metadata = self.human_message.get_issue_metadata()
-            relevant_snippets = self.human_message.render_snippets()
-            symbols_to_files = graph.paths_to_first_degree_entities(
-                self.human_message.get_file_paths()
-            )
-            relevant_symbols_to_files = graph_parent_bot.relevant_symbols_to_files(issue_metadata, relevant_snippets, symbols_to_files)
+            using_code_graph = False
+            if True: # self.chat_logger.is_paying_user() and is_python_repo:
+                using_code_graph = True
+            
+            plans: List[GraphContextAndPlan] = []
+            if using_code_graph:
+                graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
+                graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
+                issue_metadata = self.human_message.get_issue_metadata()
+                relevant_snippets = self.human_message.render_snippets()
+                symbols_to_files = graph.paths_to_first_degree_entities(
+                    self.human_message.get_file_paths()
+                )
+                relevant_files_to_symbols = graph_parent_bot.relevant_files_to_symbols(issue_metadata, relevant_snippets, symbols_to_files)
+
+                # path: entity
+                for file_path, entity in relevant_files_to_symbols.items():
+                    print("CHILD", file_path, entity)
+                    plan_bot = GraphChildBot(chat_logger=self.chat_logger)
+                    import pdb; pdb.set_trace()
+                    plan = plan_bot.code_plan_extraction(
+                        code=self.cloned_repo.get_file_contents(file_path),
+                        file_path=file_path,
+                        entity=entity,
+                        issue_metadata=issue_metadata,
+                    )
+                    plans.append(plan)
+
             import pdb; pdb.set_trace()
+
+            # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
             files_to_change_response = self.chat(
                 files_to_change_prompt, message_key="files_to_change"
             )  # Dedup files to change here

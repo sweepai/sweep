@@ -49,11 +49,11 @@ graph_user_prompt = """<metadata>
 
 
 class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
-    relevant_symbols_to_files: dict[str, str]
+    relevant_files_to_symbols: dict[str, str]
 
     @classmethod
     def from_string(cls, string: str, **kwargs):
-        relevant_symbols_to_files = {}
+        relevant_files_to_symbols = {}
         symbols_to_files_pattern = r"""<relevant_symbols_to_files>(\n)?(?P<symbols_to_files>.*)</relevant_symbols_to_files>"""
         symbols_to_files_match = re.search(symbols_to_files_pattern, string, re.DOTALL)
         if symbols_to_files_match:
@@ -61,12 +61,12 @@ class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
             for line in symbols_to_files.split("\n"):
                 if line:
                     symbol, file_path = line.split(":")
-                    relevant_symbols_to_files[symbol] = file_path
-        return cls(relevant_symbols_to_files=relevant_symbols_to_files, **kwargs)
+                    relevant_files_to_symbols[file_path] = symbol
+        return cls(relevant_files_to_symbols=relevant_files_to_symbols, **kwargs)
 
 
 class GraphParentBot(ChatGPT):
-    def relevant_symbols_to_files(
+    def relevant_files_to_symbols(
         self, issue_metadata, relevant_snippets, symbols_to_files
     ):
         self.messages = [
@@ -88,7 +88,7 @@ class GraphParentBot(ChatGPT):
         )
         response = self.chat(user_prompt)
         relevant_symbols_and_files = RelevantSymbolsAndFiles.from_string(response)
-        return relevant_symbols_and_files.relevant_symbols_to_files
+        return relevant_symbols_and_files.relevant_files_to_symbols
 
 
 if __name__ == "__main__":
