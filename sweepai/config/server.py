@@ -17,10 +17,10 @@ os.environ["GITHUB_APP_PEM"] = (
 )
 
 os.environ["TRANSFORMERS_CACHE"] = os.environ.get(
-    "TRANSFORMERS_CACHE", "cache/model"
+    "TRANSFORMERS_CACHE", "/tmp/cache/model"
 )  # vector_db.py
 os.environ["TIKTOKEN_CACHE_DIR"] = os.environ.get(
-    "TIKTOKEN_CACHE_DIR", "cache/tiktoken"
+    "TIKTOKEN_CACHE_DIR", "/tmp/cache/tiktoken"
 )  # utils.py
 
 SENTENCE_TRANSFORMERS_MODEL = os.environ.get(

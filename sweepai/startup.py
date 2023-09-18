@@ -1,5 +1,5 @@
 SENTENCE_TRANSFORMERS_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
-MODEL_DIR = "cache/model"
+MODEL_DIR = "/tmp/cache/model"
 
 
 def download_models():
