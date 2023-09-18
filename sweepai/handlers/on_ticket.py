@@ -63,11 +63,11 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 openai.api_key = OPENAI_API_KEY
 
-sweeping_gif = """
-<div align="center">
-  <img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="200" style="width:50px; margin-bottom:10px" alt="Sweeping">
-</div>
-"""
+sweeping_gif = """<img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="200" style="width:50px; margin-bottom:10px" alt="Sweeping">"""
+
+
+def center(text: str) -> str:
+    return f"<div align='center'>{text}</div>"
 
 
 @LogTask()
@@ -107,7 +107,9 @@ def on_ticket(
         summary,
         flags=re.DOTALL,
     ).strip()
-    summary = re.sub("Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL).strip()
+    summary = re.sub(
+        "---\s+Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL
+    ).strip()
 
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
@@ -319,12 +321,13 @@ def on_ticket(
         index = int(index)
         index = min(100, index)
         if errored:
-            return (
-                f"{sweeping_gif}\n\n![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
-                + f"\n\n---\n{actions_message}"
-            )
+            # pbar = "\n\n![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
+            pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Errored&width=600' alt='{index}%' />"
+            return f"{center(sweeping_gif + pbar)}\n\n" + f"\n\n---\n{actions_message}"
+        # pbar = "\n\n![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)"
+        pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
         return (
-            f"{sweeping_gif}\n\n![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)"
+            f"{center(sweeping_gif + pbar)}"
             + ("\n" + stars_suffix if index != -1 else "")
             + "\n"
             + payment_message_start
