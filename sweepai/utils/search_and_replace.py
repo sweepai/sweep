@@ -200,7 +200,7 @@ def find_best_match(query: str, code_file: str):
                 if score > best_match.score:
                     best_match = current_match
 
-    unique_top_matches = []
+    unique_top_matches: list[Match] = []
     unique_spans = set()
     for top_match in sorted(top_matches, reverse=True):
         if (top_match.start, top_match.end) not in unique_spans:

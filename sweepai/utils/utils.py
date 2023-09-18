@@ -211,7 +211,7 @@ def chunk_code(
         snippets = []
         for chunk in chunks:
             new_snippet = Snippet(
-                content=chunk.extract_lines(code),
+                content=code,
                 start=chunk.start,
                 end=chunk.end,
                 file_path=path,
