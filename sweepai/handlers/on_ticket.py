@@ -63,7 +63,7 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 openai.api_key = OPENAI_API_KEY
 
-sweeping_gif = """<img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="200" style="width:50px; margin-bottom:10px" alt="Sweeping">"""
+sweeping_gif = """<img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="200" style="width:50px; margin-bottom:10px; animation: swing 1s infinite;" alt="Sweeping">"""
 
 
 def center(text: str) -> str:
