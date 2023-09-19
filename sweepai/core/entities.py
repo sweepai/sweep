@@ -3,7 +3,7 @@ import os
 import re
 import string
 from logn import logger
-from typing import ClassVar, Literal, Type, TypeVar, Any
+from typing import ClassVar, Literal, Type, TypeVar, Any, List
 from github.Repository import Repository
 
 from github.Branch import Branch
@@ -410,7 +410,7 @@ class Snippet(BaseModel):
             snippet = snippet + "\n"
         return snippet
 
-    def expand(self, num_lines: int = 35):
+    def expand(self, num_lines: int = 25):
         return Snippet(
             content=self.content,
             start=max(self.start - num_lines, 1),
@@ -531,3 +531,51 @@ class MaxTokensExceeded(Exception):
 class EmptyRepository(Exception):
     def __init__(self):
         pass
+
+
+class CustomInstructions(BaseModel):
+    user_prompt: str | List[str]
+    system_prompt: str = None
+    # Todo: add delete_after
+    # delete_after: bool = False
+
+    def activate(self, chatbot, key: str, **kwargs):
+        # Create class for handling __enter__ and __exit__ methods
+        class CustomInstructionsContext:
+            def __init__(self, chatbot, custom_instructions: CustomInstructions):
+                self.chatbot = chatbot
+                self.custom_instructions = custom_instructions
+                self.old_system_prompt = chatbot.messages[0].content
+
+            def __enter__(self):
+                nonlocal key, kwargs
+                if self.custom_instructions.system_prompt:
+                    self.chatbot.messages[
+                        0
+                    ].content = self.custom_instructions.system_prompt.format(**kwargs)
+                if self.custom_instructions.user_prompt:
+                    if type(self.custom_instructions.user_prompt) == list:
+                        for user_prompt in self.custom_instructions.user_prompt:
+                            self.chatbot.messages.append(
+                                Message(
+                                    role="user",
+                                    content=user_prompt.format(**kwargs),
+                                    key=key,
+                                )
+                            )
+                    else:
+                        self.chatbot.messages.append(
+                            Message(
+                                role="user",
+                                content=self.custom_instructions.user_prompt.format(
+                                    **kwargs
+                                ),
+                                key=key,
+                            )
+                        )
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                if self.old_system_prompt is not None:
+                    self.chatbot.messages[0].content = self.old_system_prompt
+
+        return CustomInstructionsContext(chatbot, self)
