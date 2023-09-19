@@ -329,26 +329,35 @@ def on_ticket(
         " will update the progress of the ticket in this comment. I am currently"
         f" searching through your code, looking for relevant snippets.\n{sep}##"
         f" {progress_headers[1]}\n{indexing_message}{bot_suffix}{discord_suffix}"
-    )
-
     if issue_comment is None:
-        issue_comment = current_issue.create_comment(first_comment)
-    else:
-        issue_comment.edit(first_comment)
-
-    # Comment edit function
-    past_messages = {}
-    current_index = 0
-
-    # Random variables to save in case of errors
-    table = None  # Show plan so user can finetune prompt
-
+            issue_comment = current_issue.create_comment(first_comment)
+        else:
+            issue_comment.edit(first_comment)
     
-                header = "## " + header + "\n"
-            else:
-                header = "No header\n"
-            msg = header + (past_messages.get(i) or "Working on it...")
-            if agg_message is None:
+        # Comment edit function
+        past_messages = {}
+        current_index = 0
+    
+        # Random variables to save in case of errors
+        table = None  # Show plan so user can finetune prompt
+    
+        def edit_sweep_comment(message: str, index: int, done: bool = False):
+            global current_index
+            if index != -1:
+                current_index = index
+            past_messages[index] = message
+            agg_message = None
+            for i in range(current_index + 1):
+                header = progress_headers[i]
+                if header:
+                    header = "## " + header + "\n"
+                else:
+                    header = "No header\n"
+                msg = header + (past_messages.get(i) or "Working on it...")
+                if agg_message is None:
+                    agg_message = msg
+                else:
+                    agg_message = agg_message + f"\n{sep}" + msg
                 agg_message = msg
             else:
                 agg_message = agg_message + f"\n{sep}" + msg
@@ -727,25 +736,34 @@ def on_ticket(
             raise Exception(f"Failed to create PR: {response.get('error')}")
         pr_changes = response["pull_request"]
 
-        edit_sweep_comment(
-            "I have finished coding the issue. I am now reviewing it for completeness.",
-            3,
-        )
-        change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
-        review_message = "Here are my self-reviews of my changes at" + change_location
-
-        lint_output = None
-        try:
-            current_issue.delete_reaction(eyes_reaction.id)
-        except SystemExit:
-            raise SystemExit
-        except:
-            pass
-
-        changes_required = False
-        try:
-            # Todo(lukejagg): Pass sandbox linter results to review_pr
-            # CODE REVIEW
+        files_progress: list[tuple[str, str, str]] = [
+                    (
+                        file_change_request.filename,
+                        "⏳ In Progress",
+                        "",
+                    )
+                    for file_change_request in file_change_requests
+                ]
+        
+                edit_sweep_comment(
+                    "I have finished coding the issue. I am now reviewing it for completeness.",
+                    3,
+                )
+                change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
+                review_message = "Here are my self-reviews of my changes at" + change_location
+        
+                lint_output = None
+                try:
+                    current_issue.delete_reaction(eyes_reaction.id)
+                except SystemExit:
+                    raise SystemExit
+                except:
+                    pass
+        
+                changes_required = False
+                try:
+                    # Todo(lukejagg): Pass sandbox linter results to review_pr
+                    # CODE REVIEW
 
             changes_required, review_comment = review_pr(
                 repo=repo,
