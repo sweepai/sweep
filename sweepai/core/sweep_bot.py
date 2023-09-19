@@ -323,9 +323,9 @@ class CodeGenBot(ChatGPT):
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            is_python_issue = False # sum([file_path.endswith(".py") for file_path in self.human_message.get_file_paths()]) > len(self.human_message.get_file_paths()) / 2
+            is_python_issue = False  # sum([file_path.endswith(".py") for file_path in self.human_message.get_file_paths()]) > len(self.human_message.get_file_paths()) / 2
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
-            
+
             plans: List[GraphContextAndPlan] = []
             if is_python_issue:
                 graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
@@ -335,12 +335,26 @@ class CodeGenBot(ChatGPT):
                 symbols_to_files = graph.paths_to_first_degree_entities(
                     self.human_message.get_file_paths()
                 )
-                relevant_files_to_symbols, relevant_symbols_string = graph_parent_bot.relevant_files_to_symbols(
-                    issue_metadata, relevant_snippets, symbols_to_files)
+                (
+                    relevant_files_to_symbols,
+                    relevant_symbols_string,
+                ) = graph_parent_bot.relevant_files_to_symbols(
+                    issue_metadata, relevant_snippets, symbols_to_files
+                )
 
-                file_paths_to_contents = {file_path: self.cloned_repo.get_file_contents(file_path) for file_path in relevant_files_to_symbols.keys()}
+                file_paths_to_contents = {
+                    file_path: self.cloned_repo.get_file_contents(file_path)
+                    for file_path in relevant_files_to_symbols.keys()
+                }
 
-                def worker(file_path, entities, issue_metadata, relevant_snippets, relevant_symbols_string, file_contents):
+                def worker(
+                    file_path,
+                    entities,
+                    issue_metadata,
+                    relevant_snippets,
+                    relevant_symbols_string,
+                    file_contents,
+                ):
                     print("CHILD", file_path, entities)
                     plan_bot = GraphChildBot(chat_logger=self.chat_logger)
                     plan = plan_bot.code_plan_extraction(
@@ -356,7 +370,18 @@ class CodeGenBot(ChatGPT):
                     return plan
 
                 with ThreadPoolExecutor() as executor:
-                    future_to_file = {executor.submit(worker, file_path, entities, issue_metadata, relevant_snippets, relevant_symbols_string, file_paths_to_contents[file_path]): file_path for file_path, entities in relevant_files_to_symbols.items()}
+                    future_to_file = {
+                        executor.submit(
+                            worker,
+                            file_path,
+                            entities,
+                            issue_metadata,
+                            relevant_snippets,
+                            relevant_symbols_string,
+                            file_paths_to_contents[file_path],
+                        ): file_path
+                        for file_path, entities in relevant_files_to_symbols.items()
+                    }
                     for future in as_completed(future_to_file):
                         plan = future.result()
                         if plan is not None:
@@ -367,7 +392,9 @@ class CodeGenBot(ChatGPT):
                     relevant_snippets.extend(plan.relevant_new_snippet)
                 plan_suggestions = []
                 for plan in plans:
-                    plan_suggestions.append(f"<plan_suggestion file={plan.file_path}>\n{plan.changes_for_new_file}\n</plan_suggestion>")
+                    plan_suggestions.append(
+                        f"<plan_suggestion file={plan.file_path}>\n{plan.changes_for_new_file}\n</plan_suggestion>"
+                    )
 
                 python_human_message = PythonHumanMessagePrompt(
                     repo_name=self.human_message.repo_name,
@@ -387,11 +414,13 @@ class CodeGenBot(ChatGPT):
                 self.messages = new_messages
                 file_change_requests = []
                 for plan in plans:
-                    file_change_requests.append(FileChangeRequest(
-                        filename=plan.file_path,
-                        instructions=plan.changes_for_new_file,
-                        change_type="modify"
-                    ))
+                    file_change_requests.append(
+                        FileChangeRequest(
+                            filename=plan.file_path,
+                            instructions=plan.changes_for_new_file,
+                            change_type="modify",
+                        )
+                    )
                 return file_change_requests, " ".join(plan_suggestions)
             else:
                 # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
@@ -783,7 +812,8 @@ class SweepBot(CodeGenBot, GithubBot):
             modify_file_bot = ModifyBot(
                 additional_messages=[
                     Message(
-                        content="This is one of the sections of code out of a larger body of code and the changes may not be in this file. If you do not wish to make changes to this file, please type `skip`."
+                        content="This is one of the sections of code out of a larger body of code and the changes may not be in this file. If you do not wish to make changes to this file, please type `skip`.",
+                        role="assistant",
                     )
                 ]
                 if chunking
