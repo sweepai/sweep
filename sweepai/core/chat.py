@@ -8,7 +8,7 @@ import anthropic
 import backoff
 from pydantic import BaseModel
 
-from logn import logger
+from logn import logger, file_cache
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.utils import Tiktoken
 from sweepai.core.entities import Message, Function, SweepContext
@@ -204,6 +204,7 @@ class ChatGPT(BaseModel):
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 
+    @file_cache(ignore_params=["chat_logger", "sweep_context", "cloned_repo"])
     def call_openai(
         self,
         model: ChatModel | None = None,
