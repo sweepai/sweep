@@ -3,7 +3,7 @@ import pickle
 import hashlib
 
 from sweepai.config.server import GITHUB_BOT_USERNAME
-TEST_BOT_NAME = "sweep-nightly[bot]"
+TEST_BOT_NAME = "sweep-nightly[bot] disabled for now"
 MAX_DEPTH = 6
 
 
