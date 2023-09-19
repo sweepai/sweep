@@ -324,14 +324,14 @@ def on_ticket(
                 f"{center(sweeping_gif)}<br/><br/>{center(pbar)}\n\n"
                 + f"\n\n---\n{actions_message}"
             )
-        pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
-        return (
-            f"{center(sweeping_gif)}<br/><br/>{center(pbar)}"
-            + ("\n" + stars_suffix if index != -1 else "")
-            + "\n"
-            + payment_message_start
-            + config_pr_message
-        )
+        pbar = f"\n\n<div class='progress-bar-animation'><img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' /></div>"
+                return (
+                    f"{center(sweeping_gif)}<br/><br/>{center(pbar)}"
+                    + ("\n" + stars_suffix if index != -1 else "")
+                    + "\n"
+                    + payment_message_start
+                    + config_pr_message
+                )
 
     # Find Sweep's previous comment
     logger.print("USERNAME", GITHUB_BOT_USERNAME)
