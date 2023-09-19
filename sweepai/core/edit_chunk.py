@@ -2,14 +2,14 @@ import json
 import subprocess
 from logn import logger
 
-from sweepai.core.chat import ChatGPT
+from sweepai.core.chat import Messages
 from sweepai.core.entities import Message
 from sweepai.core.prompts import should_edit_code_system_prompt, should_edit_code_prompt
 
 
-class EditBot(ChatGPT):
+class EditBot(Messages):
     """
-    EditBot is a subclass of ChatGPT that decides whether a given code snippet should be edited.
+    EditBot is a subclass of Messages that decides whether a given code snippet should be edited.
     """
 
     def should_edit(self, issue: str, snippet: str) -> bool:
@@ -24,7 +24,7 @@ class EditBot(ChatGPT):
         bool: True if the code snippet should be edited, False otherwise.
         """
         try:
-            self.messages = [
+            self.messages.list = [
                 Message(role="system", content=should_edit_code_system_prompt)
             ]
             # self.model = "gpt-3.5-turbo-16k-0613"  # can be optimized
@@ -44,3 +44,9 @@ class EditBot(ChatGPT):
         except Exception as e:
             logger.print(f"An error occurred: {e}")
         return False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
