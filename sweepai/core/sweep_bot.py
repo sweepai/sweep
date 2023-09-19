@@ -79,7 +79,7 @@ def strip_backticks(s: str) -> str:
         s = s[s.find("\n") :]
     if s.endswith("```"):
         s = s[: s.rfind("\n")]
-    return s.strip()
+    return s.strip("\n")
 
 
 def match_indent(generated: str, original: str) -> str:
@@ -378,8 +378,21 @@ class CodeGenBot(ChatGPT):
                     # Create plan for relevant snippets first
                     relevant_snippet_futures = {}
                     for i, snippet in enumerate(self.human_message.snippets):
-                        other_snippets = self.human_message.snippets[:i] + self.human_message.snippets[i+1:]
-                        relevant_snippet_futures[executor.submit(worker, snippet.file_path, None, issue_metadata, self.human_message.render_snippet_array(other_snippets), relevant_symbols_string, snippet.get_snippet())] = snippet.file_path
+                        other_snippets = (
+                            self.human_message.snippets[:i]
+                            + self.human_message.snippets[i + 1 :]
+                        )
+                        relevant_snippet_futures[
+                            executor.submit(
+                                worker,
+                                snippet.file_path,
+                                None,
+                                issue_metadata,
+                                self.human_message.render_snippet_array(other_snippets),
+                                relevant_symbols_string,
+                                snippet.get_snippet(),
+                            )
+                        ] = snippet.file_path
                         break
 
                     for future in as_completed(relevant_snippet_futures):
@@ -388,9 +401,9 @@ class CodeGenBot(ChatGPT):
                         if plan is not None:
                             plans.append(plan)
 
-
                     print("CONGRATZ")
                     import time as t1
+
                     t1.sleep(10)
 
                     # Then use plan for each reference
