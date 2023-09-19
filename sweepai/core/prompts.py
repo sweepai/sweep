@@ -1167,6 +1167,9 @@ File path: {file_path}
 {code}
 ```
 
+# Request
+{request}
+
 # Snippets
 {snippets}
 
