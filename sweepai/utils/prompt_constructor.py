@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 from sweepai.core.prompts import (
     human_message_prompt,
+    python_human_message_prompt,
     human_message_prompt_comment,
     human_message_review_prompt,
     diff_section_prompt,
@@ -91,7 +92,6 @@ Issue Description: {self.summary}
 
 class PythonHumanMessagePrompt(HumanMessagePrompt):
     plan_suggestions: list
-    relevant_snippets: list
 
     def construct_prompt(self):
         human_messages = [
@@ -113,7 +113,7 @@ class PythonHumanMessagePrompt(HumanMessagePrompt):
                 ),
                 "key": msg.get("key"),
             }
-            for msg in human_message_prompt
+            for msg in python_human_message_prompt
         ]
         return human_messages
 

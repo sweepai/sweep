@@ -66,11 +66,10 @@ def extract_entities(code):
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     defined_functions.append(target.id)
-
     return imported_modules, defined_classes, defined_functions
 
 
-def traverse_folder(folder):
+def traverse_folder(folder): # TODO(add excluded_dirs)
     definitions_graph = nx.DiGraph()
     references_graph = nx.DiGraph()
     for root, _, files in os.walk(folder):
