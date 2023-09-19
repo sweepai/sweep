@@ -307,12 +307,12 @@ def on_ticket(
                 "↻ Restart Sweep",
             ]
         )
-    
+
         if index < 0:
             index = 0
         if index == 4:
             return pr_message + f"\n\n---\n{actions_message}" + config_pr_message
-    
+
         total = len(progress_headers)
         index += 1 if done else 0
         index *= 100 / total
@@ -320,10 +320,13 @@ def on_ticket(
         index = min(100, index)
         if errored:
             pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Errored&width=600' alt='{index}%' />"
-            return f"{center(sweeping_gif)}\n{center(pbar)}\n\n" + f"\n\n---\n{actions_message}"
+            return (
+                f"{center(sweeping_gif)}<br/><br/>{center(pbar)}\n\n"
+                + f"\n\n---\n{actions_message}"
+            )
         pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
         return (
-            f"{center(sweeping_gif)}\n{center(pbar)}"
+            f"{center(sweeping_gif)}<br/><br/>{center(pbar)}"
             + ("\n" + stars_suffix if index != -1 else "")
             + "\n"
             + payment_message_start
@@ -1160,4 +1163,3 @@ def on_ticket(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
     return {"success": True}
-

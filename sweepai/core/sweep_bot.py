@@ -204,8 +204,8 @@ class ModifyBot:
             )
             result = "\n".join(result)
 
-        if file_contents.endswith("\n"):
-            result += "\n"
+        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
+        result = result.rstrip("\n") + "\n" * ending_newlines
 
         return result
 
@@ -781,21 +781,19 @@ class SweepBot(CodeGenBot, GithubBot):
         new_file = ""
         try:
             modify_file_bot = ModifyBot(
-                additional_messages=[
-                    Message(
-                        content=self.get_message_content_from_message_key(
-                            BOT_ANALYSIS_SUMMARY, "assistant"
-                        ),
-                        role="system",
-                    )
-                ],
                 chat_logger=self.chat_logger,
             )
-            new_file = modify_file_bot.update_file(
-                file_path=file_change_request.filename,
-                file_contents=contents,
-                file_change_request=file_change_request,
-            )
+            try:
+                new_file = modify_file_bot.update_file(
+                    file_path=file_change_request.filename,
+                    file_contents=contents,
+                    file_change_request=file_change_request,
+                )
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                if chunking:
+                    return contents, "", None
             # if chunking:
             #     # TODO (sweep): make chunking / streaming better
             #     message = chunking_prompt + message
