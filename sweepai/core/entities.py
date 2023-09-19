@@ -68,7 +68,7 @@ class RegexMatchableBaseModel(BaseModel):
             logger.warning(f"Did not match {string} with pattern {cls._regex}")
             raise RegexMatchError("Did not match")
         return cls(
-            **{k: (v if v else "").strip() for k, v in match.groupdict().items()},
+            **{k: (v if v else "").strip("\n") for k, v in match.groupdict().items()},
             **kwargs,
         )
 
