@@ -314,6 +314,40 @@ class ProposedIssue(RegexMatchableBaseModel):
     _regex = r'<issue\s+title="(?P<title>.*?)">(?P<body>.*?)</issue>'
 
 
+class Messages:
+    def __init__(self, messages=None):
+        self.messages = messages if messages else []
+
+    def __enter__(self):
+        # Swap the system prompt here
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Swap the system prompt back here
+        pass
+
+    def append(self, message):
+        self.messages.append(message)
+
+    def remove(self, message):
+        self.messages.remove(message)
+
+    def __iter__(self):
+        return iter(self.messages)
+
+    def __getitem__(self, item):
+        return self.messages[item]
+
+    def __setitem__(self, key, value):
+        self.messages[key] = value
+
+    def __delitem__(self, key):
+        del self.messages[key]
+
+    def __len__(self):
+        return len(self.messages)
+
+
 class Snippet(BaseModel):
     """
     Start and end refer to line numbers
@@ -430,48 +464,78 @@ class DiffSummarization(RegexMatchableBaseModel):
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
         result = super().from_string(string, **kwargs)
-        result.content = result.content.replace("</file_summaries>", "", 1).strip()
-        return cls(
-            content=result.content,
-        )
-
-
-class PullRequestComment(RegexMatchableBaseModel):
-    changes_required: str
-    content: str
-    _regex = r"""<changes_required>(?P<changes_required>.*)<\/changes_required>(\s+)<review_comment>(?P<content>.*)<\/review_comment>"""
-
-
-class NoFilesException(Exception):
-    def __init__(self, message="Sweep could not find any files to modify"):
-        super().__init__(message)
-
-
-class PRChangeRequest(BaseModel):
-    params: dict
-
-
-class MockPR(BaseModel):
-    # Used to mock a PR object without creating a PR (branch will be created tho)
-    file_count: int = 0  # Number of files changes
-    title: str
-    body: str
-    pr_head: str
-    base: Any
-    head: Any
-    assignee: Any = None
-
-    id: int = -1
-    state: str = "open"
-    html_url: str = ""
-
-    def create_review(self, *args, **kwargs):
-        # Todo: used to prevent erroring in on_review.py file
-        pass
-
-    def create_issue_comment(self, *args, **kwargs):
-        pass
-
+        class Messages:
+            def __init__(self, messages=None):
+                if messages is None:
+                    self.messages = []
+                else:
+                    self.messages = messages
+        
+            def __enter__(self):
+                # Swap the system prompt here
+                return self
+        
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                # Swap the system prompt back here
+                pass
+        
+            def append(self, message):
+                self.messages.append(message)
+        
+            def remove(self, message):
+                self.messages.remove(message)
+        
+            def __iter__(self):
+                return iter(self.messages)
+        
+            def __getitem__(self, item):
+                return self.messages[item]
+        
+            def __setitem__(self, key, value):
+                self.messages[key] = value
+        
+            def __delitem__(self, key):
+                del self.messages[key]
+        
+            def __len__(self):
+                return len(self.messages)
+        
+        
+        class PullRequestComment(RegexMatchableBaseModel):
+            changes_required: str
+            content: str
+            _regex = r"""<changes_required>(?P<changes_required>.*)<\/changes_required>(\s+)<review_comment>(?P<content>.*)<\/review_comment>"""
+        
+        
+        class NoFilesException(Exception):
+            def __init__(self, message="Sweep could not find any files to modify"):
+                super().__init__(message)
+        
+        
+        class PRChangeRequest(BaseModel):
+            params: dict
+        
+        
+        class MockPR(BaseModel):
+            # Used to mock a PR object without creating a PR (branch will be created tho)
+            file_count: int = 0  # Number of files changes
+            title: str
+            body: str
+            pr_head: str
+            base: Any
+            head: Any
+            assignee: Any = None
+        
+            id: int = -1
+            state: str = "open"
+            html_url: str = ""
+        
+            def create_review(self, *args, **kwargs):
+                # Todo: used to prevent erroring in on_review.py file
+                pass
+        
+            def create_issue_comment(self, *args, **kwargs):
+                pass
 
 class SweepContext(BaseModel):  # type: ignore
     class Config:
