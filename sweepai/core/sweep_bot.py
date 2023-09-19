@@ -786,6 +786,13 @@ class SweepBot(CodeGenBot, GithubBot):
         new_file = ""
         try:
             modify_file_bot = ModifyBot(
+                additional_messages=[
+                    Message(
+                        content="This is one of the sections of code out of a larger body of code and the changes may not be in this file. If you do not wish to make changes to this file, please type `skip`."
+                    )
+                ]
+                if chunking
+                else [],
                 chat_logger=self.chat_logger,
             )
             try:
@@ -799,6 +806,7 @@ class SweepBot(CodeGenBot, GithubBot):
             except Exception as e:
                 if chunking:
                     return contents, "", None
+                raise e
             # if chunking:
             #     # TODO (sweep): make chunking / streaming better
             #     message = chunking_prompt + message
@@ -1193,7 +1201,7 @@ class SweepBot(CodeGenBot, GithubBot):
             # Todo(lukejagg): Use when only using chunking
             chunk_sizes = [
                 # 800,
-                # 600,
+                600,
                 400,
                 # 300,
             ]  # Define the chunk sizes for the backoff mechanism
