@@ -4,7 +4,7 @@ import hashlib
 import logging
 
 from sweepai.config.server import GITHUB_BOT_USERNAME
-TEST_BOT_NAME = "sweep-nightly[bot] disabled for now"
+TEST_BOT_NAME = "sweep-nightly[bot]"
 MAX_DEPTH = 6
 
 
@@ -35,6 +35,8 @@ def file_cache(ignore_params=[]):
         def wrapper(*args, **kwargs):
             if GITHUB_BOT_USERNAME != TEST_BOT_NAME:
                 result = func(*args, **kwargs)
+                return result
+
             cache_dir = "cache"
             os.makedirs(cache_dir, exist_ok=True)
 
