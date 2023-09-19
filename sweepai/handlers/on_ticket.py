@@ -63,7 +63,7 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 openai.api_key = OPENAI_API_KEY
 
-sweeping_gif = """<img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="200" style="width:50px; margin-bottom:10px" alt="Sweeping">"""
+sweeping_gif = """<img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping">"""
 
 
 def center(text: str) -> str:
@@ -321,12 +321,12 @@ def on_ticket(
         if errored:
             pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Errored&width=600' alt='{index}%' />"
             return (
-                f"{center(sweeping_gif)}<br/><br/>{center(pbar)}\n\n"
+                f"{center(sweeping_gif)}<br/>{center(pbar)}\n\n"
                 + f"\n\n---\n{actions_message}"
             )
         pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
         return (
-            f"{center(sweeping_gif)}<br/><br/>{center(pbar)}"
+            f"{center(sweeping_gif)}<br/>{center(pbar)}"
             + ("\n" + stars_suffix if index != -1 else "")
             + "\n"
             + payment_message_start
