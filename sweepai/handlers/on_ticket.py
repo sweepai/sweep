@@ -63,7 +63,7 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 openai.api_key = OPENAI_API_KEY
 
-sweeping_gif = """<img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="200" style="width:50px; margin-bottom:10px; animation: swing 1s infinite;" alt="Sweeping">
+sweeping_gif = """<img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="200" style="width:50px; margin-bottom:10px; animation: swing 1s infinite;" alt="Sweeping">"""
 
 
 def center(text: str) -> str:
@@ -735,13 +735,13 @@ def on_ticket(
         # edit_sweep_comment(
         #     (
         #         "I have created a plan for writing the pull request. I am now working"
-        #         " my plan and coding the required changes to address this issue. Here"
-        #         f" is the planned pull request:\n\n{pull_request_summary}"
-        #     ),
-        #     3,
-        # )
-
-        logger.info("Making PR...")
+                #         " my plan and coding the required changes to address this issue. Here"
+                #         f" is the planned pull request:\n\n{pull_request_summary}"
+                #     ),
+                #     3,
+                # )
+        
+                logger.info("Making PR...")
 
         files_progress: list[tuple[str, str, str, str]] = [
             (
