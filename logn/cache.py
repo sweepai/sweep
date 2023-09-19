@@ -3,7 +3,9 @@ import pickle
 import hashlib
 import logging
 
-MAX_DEPTH = 3
+from sweepai.config.server import GITHUB_BOT_USERNAME
+TEST_BOT_NAME = "sweep-nightly[bot]"
+MAX_DEPTH = 6
 
 
 def recursive_hash(value, depth=0, ignore_params=[]):
@@ -31,6 +33,8 @@ def file_cache(ignore_params=[]):
 
     def decorator(func):
         def wrapper(*args, **kwargs):
+            if GITHUB_BOT_USERNAME != TEST_BOT_NAME:
+                result = func(*args, **kwargs)
             cache_dir = "cache"
             os.makedirs(cache_dir, exist_ok=True)
 
