@@ -1,6 +1,6 @@
 gha_enabled: True
 branch: main
-blocked_dirs: 
+blocked_dirs:
  - ".github/"
  - "tests/"
 draft: False
@@ -22,12 +22,12 @@ docs:
 
 sandbox:
   install:
-    - apt install python3.11 -y
+    - pre-commit install
     - pip install poetry
-    - poetry env use python3.11
     - poetry install
-  check: 
-    - '[[ "{file_path}" == *.py ]] && poetry run pylint --errors-only {file_path} || exit 0'
+  check:
+    - pre-commit run --files {file_path}
+    - '[[ "{file_path}" == *.py ]] && poetry run pylint --errors-only {file_path}'
 
 rules:
  - "These rules should do NOT apply to tests."

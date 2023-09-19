@@ -386,10 +386,14 @@ def get_snippet_with_padding(original, best_match, search):
 
 
 def sliding_window_replacement(
-    original, search, replace, search_context_before=None, **kwargs
+    original: list[str],
+    search: list[str],
+    replace: list[str],
+    search_context_before=None,
+    **kwargs,
 ):
     if search == replace:
-        return original
+        return original, None, None
     status, replace_index = None, None
     # First, do check for "..." (example: define method, then put ... to ignore initial lines)
     canDoDotCheck = not any(

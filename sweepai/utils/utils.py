@@ -225,7 +225,7 @@ def chunk_code(
         return []
 
 
-TIKTOKEN_CACHE_DIR = "cache/tiktoken"
+TIKTOKEN_CACHE_DIR = "/tmp/cache/tiktoken"
 
 
 class Tiktoken:

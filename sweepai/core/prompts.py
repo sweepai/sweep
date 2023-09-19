@@ -323,8 +323,7 @@ Step-by-step thoughts with explanations:
 """
 
 subissues_prompt = """
-Think step-by-step to break down the requested problem into small sub-issues with each max 3 files of non-trivial changes. The sub-issue should be a small, self-contained, and independent part of the problem, and should partition the files to be changed.
-
+Think step-by-step to break down the requested problem into sub-issues each of equally sized non-trivial changes. The sub-issue should be a small, self-contained, and independent part of the problem, and should partition the files to be changed.
 You MUST follow the following format with the final output in XML tags:
 
 Root cause:
@@ -333,11 +332,6 @@ Write an abstract minimum plan to address this issue in the least amount of chan
 Step-by-step thoughts with explanations:
 * Thought 1
 * Thought 2
-...
-
-List of all files to modify:
-* file_path_1
-* file_path_2
 ...
 
 <plan>
@@ -1131,7 +1125,7 @@ summarize_snippet_prompt = """# Code
 # Instructions
 Losslessly summarize the code in a ordered list for an engineer to search for relevant code to solve the above GitHub issue."""
 
-fetch_snippets_system_prompt = "You are a masterful engineer. Your job is to determine snippets that should be modified but don't actually modify them. Always intend on making the least amount of changes."
+fetch_snippets_system_prompt = "You are a masterful engineer. Your job is to determine snippets that should be modified but don't actually modify them. Always intend on making the least amount of changes, but ensure everything is implemented in full: there will be no unimplemented functions or classes."
 
 fetch_snippets_prompt = """# Code
 File path: {file_path}
@@ -1143,9 +1137,9 @@ File path: {file_path}
 {request}
 
 # Instructions
-Respond with a list of all snippets to modify.
+If the code is already correct, reply with "No changes needed". Otherwise, respond with a list of all non-overlapping snippet(s) to modify in the following format:
 
-<snippet>
+<snippet instructions="detailed instructions for this snippet">
 ```
 first five lines of the snippet
 ...
@@ -1154,7 +1148,13 @@ last five lines of the snippet
 </snippet>"""
 
 update_snippets_system_prompt = (
-    "You are a masterful engineer. Always make the least amount of changes."
+    "You are a brilliant and meticulous engineer assigned to"
+    " write code for the following Github issue. When you write code, the code works on"
+    " the first try, is syntactically perfect and is complete. You have the utmost care"
+    " for the code that you write, so you do not make mistakes and every function and"
+    " class will be fully implemented. Take into account the current repository's"
+    " language, frameworks, and dependencies. It is very important that you get this"
+    " right."
 )
 
 update_snippets_prompt = """# Code
@@ -1166,14 +1166,13 @@ File path: {file_path}
 # Snippets
 {snippets}
 
-# Request
-{request}
-
 # Instructions
-Respond with a list of all snippets to modify.
+For each snippet above, rewrite the snippet according to their corresponding instructions. Only rewrite within the scope of the snippet. The output will be copied into the code LITERALLY so do not close all ending brackets. Respond in the following format:
 
-<updated_snippet id="1">
+<updated_snippet id="i">
+```
 updated lines
+```
 </updated_snippet>"""
 
 # Initial agent is used when deciding to explore entities initially.
