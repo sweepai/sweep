@@ -76,12 +76,12 @@ def format_for_anthropic(messages: list[Message]) -> str:
 
 
 class ChatGPT(BaseModel):
-    messages: list[Message] = [
+    messages: Messages = Messages([
         Message(
             role="system",
             content=system_message_prompt,
         )
-    ]
+    ])
     prev_message_states: list[list[Message]] = []
     model: ChatModel = (
         "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
@@ -94,16 +94,36 @@ class ChatGPT(BaseModel):
 
     @classmethod
     def from_system_message_content(
-        cls,
-        human_message: HumanMessagePrompt,
-        is_reply: bool = False,
-        chat_logger=None,
-        sweep_context=None,
-        cloned_repo: ClonedRepo | None = None,
-        **kwargs,
-    ) -> Any:
-        content = system_message_prompt
-        repo = kwargs.get("repo")
+            cls,
+            human_message: HumanMessagePrompt,
+            is_reply: bool = False,
+            chat_logger=None,
+            sweep_context=None,
+            cloned_repo: ClonedRepo | None = None,
+            **kwargs,
+        ) -> Any:
+            content = system_message_prompt
+            repo = kwargs.get("repo")
+            if repo:
+                logger.info(f"Repo: {repo}")
+                repo_description = get_description(repo)
+                if repo_description:
+                    logger.info(f"Repo description: {repo_description}")
+                    content += f"{repo_description_prefix_prompt}\n{repo_description}"
+            messages = Messages([Message(role="system", content=content, key="system")])
+    
+            added_messages = human_message.construct_prompt()  # [ { role, content }, ... ]
+            for msg in added_messages:
+                messages.append(Message(**msg))
+    
+            return cls(
+                messages=messages,
+                human_message=human_message,
+                chat_logger=chat_logger,
+                sweep_context=sweep_context,
+                cloned_repo=cloned_repo,
+                **kwargs,
+            )
         if repo:
             logger.info(f"Repo: {repo}")
             repo_description = get_description(repo)
@@ -127,13 +147,13 @@ class ChatGPT(BaseModel):
 
     @classmethod
     def from_system_message_string(
-        cls, prompt_string, chat_logger: ChatLogger, **kwargs
-    ) -> Any:
-        return cls(
-            messages=[Message(role="system", content=prompt_string, key="system")],
-            chat_logger=chat_logger,
-            **kwargs,
-        )
+            cls, prompt_string, chat_logger: ChatLogger, **kwargs
+        ) -> Any:
+            return cls(
+                messages=Messages([Message(role="system", content=prompt_string, key="system")]),
+                chat_logger=chat_logger,
+                **kwargs,
+            )
 
     def select_message_from_message_key(
         self, message_key: str, message_role: str = None
@@ -181,13 +201,26 @@ class ChatGPT(BaseModel):
         ).content = new_content
 
     def chat(
-        self,
-        content: str,
-        model: ChatModel | None = None,
-        message_key: str | None = None,
-        temperature=temperature,
-    ):
-        self.messages.append(Message(role="user", content=content, key=message_key))
+            self,
+            content: str,
+            model: ChatModel | None = None,
+            message_key: str | None = None,
+            temperature=temperature,
+        ):
+            self.messages.append(Message(role="user", content=content, key=message_key))
+            model = model or self.model
+            self.messages.append(
+                Message(
+                    role="assistant",
+                    content=self.call_openai(
+                        model=model,
+                        temperature=temperature,
+                    ),
+                    key=message_key,
+                )
+            )
+            self.prev_message_states.append(deepcopy(self.messages))
+            return self.messages[-1].content
         model = model or self.model
         self.messages.append(
             Message(
@@ -326,12 +359,19 @@ class ChatGPT(BaseModel):
         return result
 
     async def achat(
-        self,
-        content: str,
-        model: ChatModel | None = None,
-        message_key: str | None = None,
-    ):
-        self.messages.append(Message(role="user", content=content, key=message_key))
+            self,
+            content: str,
+            model: ChatModel | None = None,
+            message_key: str | None = None,
+        ):
+            self.messages.append(Message(role="user", content=content, key=message_key))
+            model = model or self.model
+            response = await self.acall_openai(model=model)
+            self.messages.append(
+                Message(role="assistant", content=response, key=message_key)
+            )
+            self.prev_message_states.append(deepcopy(self.messages))
+            return self.messages[-1].content
         model = model or self.model
         response = await self.acall_openai(model=model)
         self.messages.append(
@@ -470,6 +510,7 @@ class ChatGPT(BaseModel):
         return cleaned_messages
 
     def undo(self):
-        if len(self.prev_message_states) > 0:
-            self.messages = self.prev_message_states.pop()
+            if len(self.prev_message_states) > 0:
+                self.messages = self.prev_message_states.pop()
+            return self.messages
         return self.messages
