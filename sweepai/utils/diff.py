@@ -399,42 +399,42 @@ def sliding_window_replacement(
     canDoDotCheck = not any(
         "..." in line.strip() for line in original
     )  # If ... not in original file
-    if canDoDotCheck:
-        # Check first 3 lines for '...'
-        first_line_idx = -1
-        for i in range(len(search)):
-            if search[i].strip() == "...":
-                first_line_idx = i
-                break
+    # if canDoDotCheck:
+    #     # Check first 3 lines for '...'
+    #     first_line_idx = -1
+    #     for i in range(len(search)):
+    #         if search[i].strip() == "...":
+    #             first_line_idx = i
+    #             break
 
-        # Do this for replace too
-        first_line_idx_replace = -1
-        for i in range(len(replace)):
-            if replace[i].strip() == "...":
-                first_line_idx_replace = i
-                break
-        if first_line_idx == 0 and first_line_idx_replace == 0:
-            search = search[1:]
-            replace = replace[1:]
-        elif (
-            first_line_idx == len(search) - 1
-            and first_line_idx_replace == len(replace) - 1
-        ):
-            search = search[:first_line_idx]
-            replace = replace[:first_line_idx_replace]
-        elif first_line_idx != -1 and first_line_idx_replace != -1:
-            # SPLIT INTO TWO PARTS
-            # TODO(lukejagg): pass in the first and last lines as context for matching (so ambiguous ... can be matched)
-            search_context_before = search[:first_line_idx]
-            original, best_match, status = sliding_window_replacement(
-                original,
-                search[first_line_idx + 1 :],
-                replace[first_line_idx_replace + 1 :],
-                search_context_before,
-                **kwargs,
-            )
-            search = search[:first_line_idx]
-            replace = replace[:first_line_idx_replace]
+    #     # Do this for replace too
+    #     first_line_idx_replace = -1
+    #     for i in range(len(replace)):
+    #         if replace[i].strip() == "...":
+    #             first_line_idx_replace = i
+    #             break
+    #     if first_line_idx == 0 and first_line_idx_replace == 0:
+    #         search = search[1:]
+    #         replace = replace[1:]
+    #     elif (
+    #         first_line_idx == len(search) - 1
+    #         and first_line_idx_replace == len(replace) - 1
+    #     ):
+    #         search = search[:first_line_idx]
+    #         replace = replace[:first_line_idx_replace]
+    #     elif first_line_idx != -1 and first_line_idx_replace != -1:
+    #         # SPLIT INTO TWO PARTS
+    #         # TODO(lukejagg): pass in the first and last lines as context for matching (so ambiguous ... can be matched)
+    #         search_context_before = search[:first_line_idx]
+    #         original, best_match, status = sliding_window_replacement(
+    #             original,
+    #             search[first_line_idx + 1 :],
+    #             replace[first_line_idx_replace + 1 :],
+    #             search_context_before,
+    #             **kwargs,
+    #         )
+    #         search = search[:first_line_idx]
+    #         replace = replace[:first_line_idx_replace]
 
     # exact_match = kwargs.get("exact_match", False)
     # ignore_comments = kwargs.get("ignore_comments", False)
@@ -532,7 +532,7 @@ def sliding_window_replacement(
 
     # if max_similarity != len(search):
     snippet, spaces, strip = get_snippet_with_padding(original, best_match, search)
-    if len(snippet) == 1:
+    if len(snippet) == 1 and len(replace) == 1:
         # Replace the line
         modified = [snippet[0].replace(search[0], replace[0])]
     elif strip:
