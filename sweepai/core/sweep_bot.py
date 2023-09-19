@@ -133,7 +133,10 @@ class ModifyBot:
         best_matches = []
         for instructions, query in snippet_queries:
             _match = find_best_match(query, file_contents)
-            best_matches.append((instructions, _match))
+            if _match.score > 50:
+                best_matches.append((instructions, _match))
+
+        assert len(best_matches) > 0, "No matches found in file"
 
         best_matches.sort(key=lambda x: x[1].start + x[1].end * 0.001)
 
