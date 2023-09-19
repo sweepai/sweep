@@ -643,5 +643,5 @@ class ChatGPT(BaseModel):
         return self.messages"""
     
     print(extract_int("10, 10-11 (message)"))
-    span = extract_python_span(file, "ChatGPT")
+    span = extract_python_span(file, ["ChatGPT"])
     print(span)
