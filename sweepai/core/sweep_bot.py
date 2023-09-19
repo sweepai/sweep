@@ -328,6 +328,9 @@ class CodeGenBot(ChatGPT):
         try:
             is_python_issue = False  # sum([file_path.endswith(".py") for file_path in self.human_message.get_file_paths()]) > len(self.human_message.get_file_paths()) / 2
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+            from time import sleep
+            sleep(5)
+            is_python_issue = True
 
             plans: List[GraphContextAndPlan] = []
             if is_python_issue:
@@ -372,26 +375,43 @@ class CodeGenBot(ChatGPT):
                         return None
                     return plan
 
-                print("\n" * 20, "REACHED THIS POINT")
-
                 with ThreadPoolExecutor() as executor:
                     # Create plan for relevant snippets first
+                    initial_files = set(s.file_path for s in self.human_message.snippets)
                     relevant_snippet_futures = {}
-                    for i, snippet in enumerate(self.human_message.snippets):
-                        other_snippets = self.human_message.snippets[:i] + self.human_message.snippets[i+1:]
-                        relevant_snippet_futures[executor.submit(worker, snippet.file_path, None, issue_metadata, self.human_message.render_snippet_array(other_snippets), relevant_symbols_string, snippet.get_snippet())] = snippet.file_path
-                        break
+                    for file_path in initial_files:
+                        other_snippets = [snippet for snippet in self.human_message.snippets if snippet.file_path != file_path]
+                        snippet = next(snippet for snippet in self.human_message.snippets if snippet.file_path == file_path)
+
+                        # convert [[...], ] to []
+                        l = []
+                        for v in relevant_files_to_symbols.values():
+                            l.extend(v)
+                        relevant_snippet_futures[executor.submit(worker, file_path,
+                                                                 l, issue_metadata,
+                                                                 self.human_message.render_snippet_array(other_snippets),
+                                                                 relevant_symbols_string, snippet.content)] = snippet.file_path
 
                     for future in as_completed(relevant_snippet_futures):
                         plan = future.result()
-                        print(plan)
                         if plan is not None:
                             plans.append(plan)
+                            # relevant snippets, and the plan for file change
 
+                    plan_suggestions = []
+                    for plan in plans:
+                        plan_suggestions.append(
+                            f"<plan_suggestion file={plan.file_path}>\n{plan.changes_for_new_file}\n</plan_suggestion>"
+                        )
 
-                    print("CONGRATZ")
-                    import time as t1
-                    t1.sleep(10)
+                    for plan in plans:
+                        self.populate_snippets(plan.relevant_new_snippet)
+                        relevant_snippets.extend(plan.relevant_new_snippet)
+                    plan_suggestions = []
+                    for plan in plans:
+                        plan_suggestions.append(
+                            f"<plan_suggestion file={plan.file_path}>\n{plan.changes_for_new_file}\n</plan_suggestion>"
+                        )
 
                     # Then use plan for each reference
                     future_to_file = {
@@ -410,11 +430,12 @@ class CodeGenBot(ChatGPT):
                         plan = future.result()
                         if plan is not None:
                             plans.append(plan)
+
                 relevant_snippets = self.human_message.snippets
                 for plan in plans:
                     self.populate_snippets(plan.relevant_new_snippet)
                     relevant_snippets.extend(plan.relevant_new_snippet)
-                plan_suggestions = []
+
                 for plan in plans:
                     plan_suggestions.append(
                         f"<plan_suggestion file={plan.file_path}>\n{plan.changes_for_new_file}\n</plan_suggestion>"
