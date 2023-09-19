@@ -237,7 +237,7 @@ def on_comment(
             pr_file_path = pr_path.strip()
             formatted_pr_chunk = (
                 "\n".join(pr_lines[start : pr_line_position - 1])
-                + f"\n{pr_lines[pr_line_position - 1]} <-- {comment}"
+                + f"\n{pr_lines[pr_line_position - 1]} <<<< COMMENT: {comment} <<<<"
                 + "\n".join(pr_lines[pr_line_position:end])
             )
             if comment_id:

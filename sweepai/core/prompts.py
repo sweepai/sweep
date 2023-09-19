@@ -1096,7 +1096,7 @@ File path: {file_path}
 {snippets}
 
 # Instructions
-For each snippet above, rewrite the snippet according to their corresponding instructions. Only rewrite within the scope of the snippet. The output will be copied into the code LITERALLY so do not close all ending brackets. Respond in the following format:
+For each snippet above, rewrite the snippet according to their corresponding instructions. Only rewrite within the scope of the snippet. Do not delete whitespace or comments. The output will be copied into the code LITERALLY so do not close all ending brackets. Respond in the following format:
 
 <updated_snippet id="i">
 ```
