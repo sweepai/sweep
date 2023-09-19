@@ -13,7 +13,7 @@ from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=
     VectorStore,
 )
 from github import Github
-from logn import logger
+from logn import logger, file_cache
 from redis import Redis
 from redis.backoff import ConstantBackoff
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
@@ -306,6 +306,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
         return deeplake_vs
 
 
+@file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
 def get_relevant_snippets(
     cloned_repo: ClonedRepo,
     query: str,
