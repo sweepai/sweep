@@ -44,17 +44,19 @@ Issue description with a detailed description of where we should change the code
 </issue_description>"""
 
 
+from sweepai.core.entities import Messages
+
 class PostMerge(ChatGPT):
     def check_for_issues(self, rules, file_path, file_contents) -> tuple[str, str]:
         try:
             rules_str = "\n".join(rules)
-            self.messages = [
+            self.messages = Messages([
                 Message(
                     role="system",
                     content=system_prompt.format(rules=rules_str),
                     key="system",
                 )
-            ]
+            ])
             rule_sections = "\n".join(
                 [rule_section.format(rule=rule) for rule in rules]
             )
