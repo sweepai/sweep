@@ -1,8 +1,9 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import field
 import traceback
 import re
 import requests
-from typing import Generator, Any, Dict
+from typing import Generator, Any, Dict, List
 from logn import logger
 
 from github.ContentFile import ContentFile
@@ -10,6 +11,8 @@ from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from github.Commit import Commit
 from pydantic import BaseModel
+from sweepai.agents.graph_child import GraphChildBot, GraphContextAndPlan
+from sweepai.agents.graph_parent import GraphParentBot
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.edit_chunk import EditBot
@@ -47,6 +50,7 @@ from sweepai.core.prompts import (
     fetch_snippets_prompt,
     update_snippets_system_prompt,
     update_snippets_prompt,
+    python_files_to_change_prompt,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DB_MODAL_INST_NAME, SANDBOX_URL, SECONDARY_MODEL
@@ -58,6 +62,9 @@ from sweepai.utils.diff import (
     get_matches,
     sliding_window_replacement,
 )
+
+from sweepai.utils.graph import Graph
+from sweepai.utils.prompt_constructor import PythonHumanMessagePrompt
 from sweepai.utils.search_and_replace import Match, find_best_match
 from sweepai.utils.utils import chunk_code
 
@@ -197,8 +204,8 @@ class ModifyBot:
             )
             result = "\n".join(result)
 
-        if file_contents.endswith("\n"):
-            result += "\n"
+        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
+        result = result.rstrip("\n") + "\n" * ending_newlines
 
         return result
 
@@ -257,10 +264,10 @@ class CodeGenBot(ChatGPT):
                 end = min(end, start + 200)
 
                 snippet = Snippet(file_path=file_path, start=start, end=end, content="")
-                snippet.expand(15)
                 snippets.append(snippet)
 
             self.populate_snippets(snippets)
+            snippets = [snippet.expand() for snippet in snippets]
             snippets_text = "\n".join([snippet.xml for snippet in snippets])
         except SystemExit:
             raise SystemExit
@@ -315,27 +322,95 @@ class CodeGenBot(ChatGPT):
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
+        try:
+            is_python_issue = False # sum([file_path.endswith(".py") for file_path in self.human_message.get_file_paths()]) > len(self.human_message.get_file_paths()) / 2
+            logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+            
+            plans: List[GraphContextAndPlan] = []
+            if is_python_issue:
+                graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
+                graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
+                issue_metadata = self.human_message.get_issue_metadata()
+                relevant_snippets = self.human_message.render_snippets()
+                symbols_to_files = graph.paths_to_first_degree_entities(
+                    self.human_message.get_file_paths()
+                )
+                relevant_files_to_symbols, relevant_symbols_string = graph_parent_bot.relevant_files_to_symbols(
+                    issue_metadata, relevant_snippets, symbols_to_files)
 
-        for count in range(retries):
-            try:
-                logger.info(f"Generating for the {count}th time...")
+                file_paths_to_contents = {file_path: self.cloned_repo.get_file_contents(file_path) for file_path in relevant_files_to_symbols.keys()}
+
+                def worker(file_path, entities, issue_metadata, relevant_snippets, relevant_symbols_string, file_contents):
+                    print("CHILD", file_path, entities)
+                    plan_bot = GraphChildBot(chat_logger=self.chat_logger)
+                    plan = plan_bot.code_plan_extraction(
+                        code=file_contents,
+                        file_path=file_path,
+                        entities=entities,
+                        issue_metadata=issue_metadata,
+                        previous_snippets=relevant_snippets,
+                        all_symbols_and_files=relevant_symbols_string,
+                    )
+                    if not plan.changes_for_new_file or not plan.relevant_new_snippet:
+                        return None
+                    return plan
+
+                with ThreadPoolExecutor() as executor:
+                    future_to_file = {executor.submit(worker, file_path, entities, issue_metadata, relevant_snippets, relevant_symbols_string, file_paths_to_contents[file_path]): file_path for file_path, entities in relevant_files_to_symbols.items()}
+                    for future in as_completed(future_to_file):
+                        plan = future.result()
+                        if plan is not None:
+                            plans.append(plan)
+                relevant_snippets = self.human_message.snippets
+                for plan in plans:
+                    self.populate_snippets(plan.relevant_new_snippet)
+                    relevant_snippets.extend(plan.relevant_new_snippet)
+                plan_suggestions = []
+                for plan in plans:
+                    plan_suggestions.append(f"<plan_suggestion file={plan.file_path}>\n{plan.changes_for_new_file}\n</plan_suggestion>")
+
+                python_human_message = PythonHumanMessagePrompt(
+                    repo_name=self.human_message.repo_name,
+                    issue_url=self.human_message.issue_url,
+                    username=self.human_message.username,
+                    title=self.human_message.title,
+                    summary=self.human_message.summary,
+                    snippets=relevant_snippets,
+                    tree=self.human_message.tree,
+                    repo_description=self.human_message.repo_description,
+                    plan_suggestions=plan_suggestions,
+                )
+                prompt_message_dicts = python_human_message.construct_prompt()
+                new_messages = [self.messages[0]]
+                for message_dict in prompt_message_dicts:
+                    new_messages.append(Message(**message_dict))
+                self.messages = new_messages
+                file_change_requests = []
+                for plan in plans:
+                    file_change_requests.append(FileChangeRequest(
+                        filename=plan.file_path,
+                        instructions=plan.changes_for_new_file,
+                        change_type="modify"
+                    ))
+                return file_change_requests, " ".join(plan_suggestions)
+            else:
+                # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
                 files_to_change_response = self.chat(
                     files_to_change_prompt, message_key="files_to_change"
                 )  # Dedup files to change here
-                file_change_requests = []
-                for re_match in re.finditer(
-                    FileChangeRequest._regex, files_to_change_response, re.DOTALL
-                ):
-                    file_change_requests.append(
-                        FileChangeRequest.from_string(re_match.group(0))
-                    )
-                if file_change_requests:
-                    return file_change_requests, files_to_change_response
-            except RegexMatchError as e:
-                logger.print(e)
-                logger.warning("Failed to parse! Retrying...")
-                self.delete_messages_from_chat("files_to_change")
-                continue
+            file_change_requests = []
+            for re_match in re.finditer(
+                FileChangeRequest._regex, files_to_change_response, re.DOTALL
+            ):
+                file_change_requests.append(
+                    FileChangeRequest.from_string(re_match.group(0))
+                )
+            if file_change_requests:
+                return file_change_requests, files_to_change_response
+        except RegexMatchError as e:
+            logger.print(e)
+            logger.warning("Failed to parse! Retrying...")
+            self.delete_messages_from_chat("files_to_change")
         raise NoFilesException()
 
     def generate_pull_request(self, retries=2) -> PullRequest:
@@ -706,21 +781,19 @@ class SweepBot(CodeGenBot, GithubBot):
         new_file = ""
         try:
             modify_file_bot = ModifyBot(
-                additional_messages=[
-                    Message(
-                        content=self.get_message_content_from_message_key(
-                            BOT_ANALYSIS_SUMMARY, "assistant"
-                        ),
-                        role="system",
-                    )
-                ],
                 chat_logger=self.chat_logger,
             )
-            new_file = modify_file_bot.update_file(
-                file_path=file_change_request.filename,
-                file_contents=contents,
-                file_change_request=file_change_request,
-            )
+            try:
+                new_file = modify_file_bot.update_file(
+                    file_path=file_change_request.filename,
+                    file_contents=contents,
+                    file_change_request=file_change_request,
+                )
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                if chunking:
+                    return contents, "", None
             # if chunking:
             #     # TODO (sweep): make chunking / streaming better
             #     message = chunking_prompt + message

@@ -23,7 +23,7 @@ if i > 0:
 
 response = requests.post(
     host,
-    json=json.load(open("tests/issue_armbian_map_webhook.json", "r")),
+    json=json.load(open("tests/issue_webhook.json", "r")),
     headers={"X-GitHub-Event": "issues"},
 )
 print(response)
