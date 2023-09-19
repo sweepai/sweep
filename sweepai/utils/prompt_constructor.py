@@ -45,17 +45,21 @@ class HumanMessagePrompt(BaseModel):
     def get_file_paths(self):
         return [snippet.file_path for snippet in self.snippets]
 
-    def render_snippets(self):
-        joined_snippets = "\n".join([snippet.xml for snippet in self.snippets])
+    @staticmethod
+    def render_snippet_array(snippets):
+        joined_snippets = "\n".join([snippet.xml for snippet in snippets])
         if joined_snippets.strip() == "":
             return ""
         return (
-            "<relevant_snippets_in_repo>"
-            + "\n"
-            + joined_snippets
-            + "\n"
-            + "</relevant_snippets_in_repo>"
+                "<relevant_snippets_in_repo>"
+                + "\n"
+                + joined_snippets
+                + "\n"
+                + "</relevant_snippets_in_repo>"
         )
+
+    def render_snippets(self):
+        return self.render_snippet_array(self.snippets)
 
     def construct_prompt(self):
         human_messages = [
