@@ -339,9 +339,10 @@ class CodeGenBot(ChatGPT):
                     issue_metadata, relevant_snippets, symbols_to_files)
 
                 file_paths_to_contents = {file_path: self.cloned_repo.get_file_contents(file_path) for file_path in relevant_files_to_symbols.keys()}
-
-                def worker(file_path, entities, issue_metadata, relevant_snippets, relevant_symbols_string, file_contents):
+                
+                def worker(file_path, entities, issue_metadata, relevant_snippets, relevant_symbols_string):
                     print("CHILD", file_path, entities)
+                    file_contents = self.cloned_repo.get_file_contents(file_path)
                     plan_bot = GraphChildBot(chat_logger=self.chat_logger)
                     plan = plan_bot.code_plan_extraction(
                         code=file_contents,
@@ -541,13 +542,17 @@ class GithubBot(BaseModel):
     def populate_snippets(self, snippets: list[Snippet]):
         for snippet in snippets:
             try:
-                snippet.content = self.repo.get_contents(
-                    snippet.file_path, SweepConfig.get_branch(self.repo)
-                ).decoded_content.decode("utf-8")
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(snippet)
+                            content_file = self.repo.get_contents(
+                                snippet.file_path, SweepConfig.get_branch(self.repo)
+                            )
+                            if isinstance(content_file, ContentFile):
+                                snippet.content = content_file.decoded_content.decode("utf-8")
+                            else:
+                                logger.error(f"Expected ContentFile but got {type(content_file)}")
+                        except SystemExit:
+                            raise SystemExit
+                        except Exception as e:
+                            logger.error(snippet)
 
     @staticmethod
     def is_blocked(file_path: str, blocked_dirs: list[str]):
@@ -1180,11 +1185,11 @@ class SweepBot(CodeGenBot, GithubBot):
         sandbox_error = None
         try:
             file = self.get_file(file_change_request.filename, branch=branch)
-            file_contents = file.decoded_content.decode("utf-8")
-            lines = file_contents.split("\n")
-
-            new_file_contents = ""
-            all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
+                        file_contents = file.decoded_content.decode("utf-8")
+                        lines = file_contents.split("\n")
+            
+                        new_file_contents = ""
+                        all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
             # Todo(lukejagg): Use when only using chunking
             chunk_sizes = [
                 # 800,
@@ -1282,15 +1287,15 @@ class SweepBot(CodeGenBot, GithubBot):
                 raise SystemExit
             except Exception as e:
                 logger.info(f"Error in updating file, repulling and trying again {e}")
-                file = self.get_file(file_change_request.filename, branch=branch)
-                result = self.repo.update_file(
-                    file_name,
-                    # commit_message.format(file_name=file_name),
-                    commit_message,
-                    new_file_contents,
-                    file.sha,
-                    branch=branch,
-                )
+                                file = self.repo.get_file(file_change_request.filename, branch=branch)
+                                result = self.repo.update_file(
+                                    file_name,
+                                    # commit_message.format(file_name=file_name),
+                                    commit_message,
+                                    new_file_contents,
+                                    file.sha,
+                                    branch=branch,
+                                )
                 file_change_request.new_content = new_file_contents
                 return True, sandbox_error, result["commit"]
         except MaxTokensExceeded as e:
