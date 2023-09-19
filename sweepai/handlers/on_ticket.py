@@ -378,10 +378,10 @@ def on_ticket(
         issue_comment = current_issue.create_comment(first_comment)
     else:
         issue_comment.edit(first_comment)
-        
-            # Comment edit function
-            past_messages = {}
-            current_index = 0
+            
+    # Comment edit function
+    past_messages = {}
+    current_index = 0
         
             # Random variables to save in case of errors
             table = None  # Show plan so user can finetune prompt
