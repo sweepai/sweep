@@ -15,32 +15,23 @@ from sweepai.utils.event_logger import set_highlight_id
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
-class Message(BaseModel):
-    role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal[
-        "function"
-    ]
-    content: str | None = None
-    name: str | None = None
-    function_call: dict | None = None
-    key: str | None = None
+class Messages(list):
+    def __init__(self, *args):
+        super().__init__(*args)
 
-    @classmethod
-    def from_tuple(cls, tup: tuple[str | None, str | None]) -> Self:
-        if tup[0] is None:
-            return cls(role="assistant", content=tup[1])
-        else:
-            return cls(role="user", content=tup[0])
+    def prompt(self, system_prompt, new_prompt, swap_prompt):
+        if swap_prompt:
+            for message in self:
+                if message.role == "system" and message.content == system_prompt:
+                    message.content = new_prompt
 
-    def to_openai(self) -> str:
-        obj = {
-            "role": self.role,
-            "content": self.content,
-        }
-        if self.function_call:
-            obj["function_call"] = self.function_call
-        if self.role == "function":
-            obj["name"] = self.name
-        return obj
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        for message in self:
+            if message.role == "system" and message.content == new_prompt:
+                message.content = system_prompt
 
 
 class Function(BaseModel):
@@ -536,27 +527,22 @@ class EmptyRepository(Exception):
 class CustomInstructions(BaseModel):
     user_prompt: str | List[str]
     system_prompt: str = None
-    # Todo: add delete_after
-    # delete_after: bool = False
 
-    def activate(self, chatbot, key: str, **kwargs):
-        # Create class for handling __enter__ and __exit__ methods
+    def activate(self, messages: Messages, key: str, **kwargs):
         class CustomInstructionsContext:
-            def __init__(self, chatbot, custom_instructions: CustomInstructions):
-                self.chatbot = chatbot
+            def __init__(self, messages, custom_instructions: CustomInstructions):
+                self.messages = messages
                 self.custom_instructions = custom_instructions
-                self.old_system_prompt = chatbot.messages[0].content
+                self.old_system_prompt = messages[0].content if messages[0].role == "system" else None
 
             def __enter__(self):
                 nonlocal key, kwargs
                 if self.custom_instructions.system_prompt:
-                    self.chatbot.messages[
-                        0
-                    ].content = self.custom_instructions.system_prompt.format(**kwargs)
+                    self.messages.prompt(self.old_system_prompt, self.custom_instructions.system_prompt, True)
                 if self.custom_instructions.user_prompt:
                     if type(self.custom_instructions.user_prompt) == list:
                         for user_prompt in self.custom_instructions.user_prompt:
-                            self.chatbot.messages.append(
+                            self.messages.append(
                                 Message(
                                     role="user",
                                     content=user_prompt.format(**kwargs),
@@ -564,7 +550,7 @@ class CustomInstructions(BaseModel):
                                 )
                             )
                     else:
-                        self.chatbot.messages.append(
+                        self.messages.append(
                             Message(
                                 role="user",
                                 content=self.custom_instructions.user_prompt.format(
@@ -576,6 +562,6 @@ class CustomInstructions(BaseModel):
 
             def __exit__(self, exc_type, exc_value, traceback):
                 if self.old_system_prompt is not None:
-                    self.chatbot.messages[0].content = self.old_system_prompt
+                    self.messages.prompt(self.custom_instructions.system_prompt, self.old_system_prompt, True)
 
-        return CustomInstructionsContext(chatbot, self)
+        return CustomInstructionsContext(messages, self)
