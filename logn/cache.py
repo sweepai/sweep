@@ -50,9 +50,9 @@ def file_cache(ignore_params=[]):
 
             # If cache exists, load and return it
             if os.path.exists(cache_file):
-                            logging.info("Used cache for function:" + func.__name__)
-                            with open(cache_file, 'rb') as f:
-                                return pickle.load(f)
+                logging.info("Used cache for function:" + func.__name__)
+                with open(cache_file, 'rb') as f:
+                    return pickle.load(f)
 
             # Otherwise, call the function and save its result to the cache
             result = func(*args, **kwargs)
