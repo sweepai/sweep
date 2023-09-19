@@ -1211,20 +1211,25 @@ class SweepBot(CodeGenBot, GithubBot):
                 f" {f'Create {file_change_request.filename}'}, {file_change.code},"
                 f" {branch}"
             )
-
+    
+            if not isinstance(self.repo, GithubBot):
+                raise TypeError("self.repo must be an instance of GithubBot")
+    
             result = self.repo.create_file(
                 file_change_request.filename,
                 file_change.commit_message,
                 file_change.code,
                 branch=branch,
             )
-
+    
             file_change_request.new_content = file_change.code
-
+    
             return True, sandbox_execution, result["commit"]
         except SystemExit:
             raise SystemExit
         except Exception as e:
+            logger.info(f"Error in handle_create_file: {e}")
+            return False, None, None
             logger.info(f"Error in handle_create_file: {e}")
             return False, None, None
 
