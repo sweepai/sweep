@@ -15,32 +15,74 @@ from sweepai.utils.event_logger import set_highlight_id
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
-class Message(BaseModel):
-    role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal[
-        "function"
-    ]
-    content: str | None = None
-    name: str | None = None
-    function_call: dict | None = None
-    key: str | None = None
+class Messages:
+    def __init__(self, messages: List[Message]):
+        self.messages = messages
 
-    @classmethod
-    def from_tuple(cls, tup: tuple[str | None, str | None]) -> Self:
-        if tup[0] is None:
-            return cls(role="assistant", content=tup[1])
-        else:
-            return cls(role="user", content=tup[0])
+    def __getitem__(self, index):
+        return self.messages[index]
 
-    def to_openai(self) -> str:
-        obj = {
-            "role": self.role,
-            "content": self.content,
-        }
-        if self.function_call:
-            obj["function_call"] = self.function_call
-        if self.role == "function":
-            obj["name"] = self.name
-        return obj
+    def __setitem__(self, index, value):
+        self.messages[index] = value
+
+    def __delitem__(self, index):
+        del self.messages[index]
+
+    def __len__(self):
+        return len(self.messages)
+
+    def append(self, message: Message):
+        self.messages.append(message)
+
+    def extend(self, new_messages: List[Message]):
+        self.messages.extend(new_messages)
+
+    def insert(self, index, message: Message):
+        self.messages.insert(index, message)
+
+    def remove(self, message: Message):
+        self.messages.remove(message)
+
+    def pop(self, index=-1):
+        return self.messages.pop(index)
+
+    def clear(self):
+        self.messages.clear()
+
+    def index(self, message: Message, start=0, end=None):
+        return self.messages.index(message, start, end if end else len(self))
+
+    def count(self, message: Message):
+        return self.messages.count(message)
+
+    def sort(self, key=None, reverse=False):
+        self.messages.sort(key=key, reverse=reverse)
+
+    def reverse(self):
+        self.messages.reverse()
+
+    def copy(self):
+        return self.messages.copy()
+
+    class PromptContext:
+        def __init__(self, messages, system_prompt, new_prompt, swap_prompt):
+            self.messages = messages
+            self.system_prompt = system_prompt
+            self.new_prompt = new_prompt
+            self.swap_prompt = swap_prompt
+            self.old_system_prompt = None
+
+        def __enter__(self):
+            if self.swap_prompt:
+                self.old_system_prompt = self.system_prompt
+                self.system_prompt = self.new_prompt
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            if self.swap_prompt:
+                self.system_prompt = self.old_system_prompt
+
+    def prompt(self, system_prompt, new_prompt, swap_prompt):
+        return self.PromptContext(self, system_prompt, new_prompt, swap_prompt)
 
 
 class Function(BaseModel):
