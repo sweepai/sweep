@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
 MONGODB_URI = os.environ.get("MONGODB_URI")
-assert MONGODB_URI is not None
 
 
 class ChatLogger(BaseModel):
@@ -31,7 +30,7 @@ class ChatLogger(BaseModel):
         super().__init__(data=data)  # Call the BaseModel's __init__ method
         key = MONGODB_URI
         if key is None:
-            logger.warning("Chat history logger has no key")
+            logger.warning("MONGODB_URI is not set. Chat history logger cannot connect to MongoDB.")
             return
         try:
             client = MongoClient(

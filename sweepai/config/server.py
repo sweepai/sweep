@@ -17,10 +17,10 @@ os.environ["GITHUB_APP_PEM"] = (
 )
 
 os.environ["TRANSFORMERS_CACHE"] = os.environ.get(
-    "TRANSFORMERS_CACHE", "cache/model"
+    "TRANSFORMERS_CACHE", "/tmp/cache/model"
 )  # vector_db.py
 os.environ["TIKTOKEN_CACHE_DIR"] = os.environ.get(
-    "TIKTOKEN_CACHE_DIR", "cache/tiktoken"
+    "TIKTOKEN_CACHE_DIR", "/tmp/cache/tiktoken"
 )  # utils.py
 
 SENTENCE_TRANSFORMERS_MODEL = os.environ.get(
@@ -49,6 +49,9 @@ BOT_TOKEN_NAME = "bot-token"
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 DISCORD_MEDIUM_PRIORITY_URL = os.environ.get("DISCORD_MEDIUM_PRIORITY_URL")
 DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
+
+SWEEP_HEALTH_URL = os.environ.get("SWEEP_HEALTH_URL")
+DISCORD_STATUS_WEBHOOK_URL = os.environ.get("DISCORD_STATUS_WEBHOOK_URL")
 
 # goes under Modal 'github' secret name
 GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID", os.environ.get("APP_ID"))
@@ -79,7 +82,8 @@ GITHUB_LABEL_COLOR = os.environ.get("GITHUB_LABEL_COLOR", "9400D3")
 GITHUB_LABEL_DESCRIPTION = os.environ.get(
     "GITHUB_LABEL_DESCRIPTION", "Sweep your software chores"
 )
-GITHUB_APP_PEM = os.environ.get("GITHUB_APP_PEM", os.environ.get("PRIVATE_KEY"))
+GITHUB_APP_PEM = os.environ.get("GITHUB_APP_PEM")
+GITHUB_APP_PEM = GITHUB_APP_PEM or os.environ.get("PRIVATE_KEY")
 GITHUB_APP_PEM = GITHUB_APP_PEM.strip(' \n"')  # Remove whitespace and quotes
 GITHUB_APP_PEM = GITHUB_APP_PEM.replace("\\n", "\n")
 assert GITHUB_APP_PEM, "GITHUB_APP_PEM is required"

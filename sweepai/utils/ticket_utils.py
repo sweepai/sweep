@@ -7,20 +7,14 @@ from sweepai.core.entities import Snippet
 from sweepai.utils.chat_logger import discord_log_error
 
 sep = "\n---\n"
-bot_suffix_starring = (
-    "⭐ If you are enjoying Sweep, please [star our"
-    " repo](https://github.com/sweepai/sweep) so more people can hear about us!"
-)
+bot_suffix_starring = ""
 bot_suffix = (
     f"\n{sep}\n{UPDATES_MESSAGE}\n{sep} 💡 To recreate the pull request edit the issue"
     " title or description. To tweak the pull request, leave a comment on the pull request."
 )
 discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep)"
 
-stars_suffix = (
-    "⭐ In the meantime, consider [starring our repo](https://github.com/sweepai/sweep)"
-    " so more people can hear about us!"
-)
+stars_suffix = ""
 
 collapsible_template = """
 <details {opened}>
@@ -46,7 +40,7 @@ SLOW_MODE = True
 
 def clean_logs(logs: str):
     cleaned_logs = re.sub(r"\x1b\[.*?[@-~]", "", logs.replace("```", "\`\`\`"))
-    cleaned_logs = re.sub('\n{2,}', '\n', cleaned_logs)
+    cleaned_logs = re.sub("\n{2,}", "\n", cleaned_logs)
     cleaned_logs = cleaned_logs or "(nothing was outputted)"
     return cleaned_logs
 
@@ -125,21 +119,30 @@ def strip_sweep(text: str):
         re.search(r"^[Ss]weep\s?\([Ll]int\)", text) is not None,
     )
 
-def log_error(is_paying_user, is_trial_user, username, issue_url, error_type, exception, priority=0):
-        if is_paying_user or is_trial_user:
-            if priority == 1:
-                priority = 0
-            elif priority == 2:
-                priority = 1
 
-        prefix = ""
-        if is_trial_user:
-            prefix = " (TRIAL)"
-        if is_paying_user:
-            prefix = " (PRO)"
+def log_error(
+    is_paying_user,
+    is_trial_user,
+    username,
+    issue_url,
+    error_type,
+    exception,
+    priority=0,
+):
+    if is_paying_user or is_trial_user:
+        if priority == 1:
+            priority = 0
+        elif priority == 2:
+            priority = 1
 
-        content = (
-            f"**{error_type} Error**{prefix}\n{username}:"
-            f" {issue_url}\n```{exception}```"
-        )
-        discord_log_error(content, priority=priority)
+    prefix = ""
+    if is_trial_user:
+        prefix = " (TRIAL)"
+    if is_paying_user:
+        prefix = " (PRO)"
+
+    content = (
+        f"**{error_type} Error**{prefix}\n{username}:"
+        f" {issue_url}\n```{exception}```"
+    )
+    discord_log_error(content, priority=priority)

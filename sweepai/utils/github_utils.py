@@ -106,7 +106,7 @@ class ClonedRepo:
         random_bytes = os.urandom(16)
         hash_obj = hashlib.sha256(random_bytes)
         hash_hex = hash_obj.hexdigest()
-        return os.path.join("cache/repos", self.repo_full_name, hash_hex)
+        return os.path.join("/tmp/cache/repos", self.repo_full_name, hash_hex)
 
     @property
     def clone_url(self):
