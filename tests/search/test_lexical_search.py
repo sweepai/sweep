@@ -1,7 +1,7 @@
-"""
-On Github ticket, get ChatGPT to deal with it
-"""
+from sweepai.core.lexical_search import tokenize_call
 
+
+file_contents = """\
 # TODO: Add file validation
 
 import math
@@ -63,12 +63,6 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 openai.api_key = OPENAI_API_KEY
 
-sweeping_gif = """<img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping">"""
-
-
-def center(text: str) -> str:
-    return f"<div align='center'>{text}</div>"
-
 
 @LogTask()
 def on_ticket(
@@ -107,9 +101,7 @@ def on_ticket(
         summary,
         flags=re.DOTALL,
     ).strip()
-    summary = re.sub(
-        "---\s+Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL
-    ).strip()
+    summary = re.sub("Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL).strip()
 
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
@@ -302,9 +294,11 @@ def on_ticket(
             if config_pr_url is not None
             else ""
         )
+        # Why is this so convoluted
+        # config_pr_message = " To retrigger Sweep, edit the issue.\n" + config_pr_message
         actions_message = create_action_buttons(
             [
-                "↻ Restart Sweep",
+                "Restart Sweep",
             ]
         )
 
@@ -319,17 +313,16 @@ def on_ticket(
         index = int(index)
         index = min(100, index)
         if errored:
-            pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Errored&width=600' alt='{index}%' />"
             return (
-                f"{center(sweeping_gif)}<br/>{center(pbar)}\n\n"
+                f"![{index}%](https://progress-bar.dev/{index}/?&title=Errored&width=600)"
                 + f"\n\n---\n{actions_message}"
             )
-        pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
         return (
-            f"{center(sweeping_gif)}<br/>{center(pbar)}"
+            f"![{index}%](https://progress-bar.dev/{index}/?&title=Progress&width=600)"
             + ("\n" + stars_suffix if index != -1 else "")
             + "\n"
             + payment_message_start
+            # + f"\n\n---\n{actions_message}"
             + config_pr_message
         )
 
@@ -500,7 +493,9 @@ def on_ticket(
             (
                 "It looks like an issue has occurred around fetching the files."
                 " Perhaps the repo has not been initialized. If this error persists"
-                f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch."
+                f" contact team@sweep.dev.\n\n> @{username}, please edit the issue"
+                " description to include more details and I will automatically"
+                " relaunch."
             ),
             -1,
         )
@@ -585,7 +580,6 @@ def on_ticket(
         is_reply=bool(comments),
         chat_logger=chat_logger,
         sweep_context=sweep_context,
-        cloned_repo=cloned_repo,
     )
 
     # Check repository for sweep.yml file.
@@ -683,8 +677,6 @@ def on_ticket(
 
         # COMMENT ON ISSUE
         # TODO: removed issue commenting here
-        # TODO(william, luke) planning here
-
         logger.info("Fetching files to modify/create...")
         file_change_requests, plan = sweep_bot.get_files_to_change()
 
@@ -1163,3 +1155,9 @@ def on_ticket(
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
     return {"success": True}
+"""
+
+tokens = tokenize_call(file_contents)
+symbols = list(set([token.text for token in tokens]))
+print(symbols)
+import pdb; pdb.set_trace()

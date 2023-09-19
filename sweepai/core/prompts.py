@@ -1,6 +1,7 @@
 """
 List of common prompts used across the codebase.
 """
+from sweepai.core.entities import CustomInstructions
 
 # Following two should be fused
 system_message_prompt = (
@@ -26,6 +27,35 @@ human_message_prompt = [
         "role": "user",
         "content": """{relevant_directories}""",
         "key": "relevant_directories",
+    },
+    {
+        "role": "user",
+        "content": """<repo_tree>
+{tree}
+</repo_tree>""",
+        "key": "relevant_tree",
+    },
+    {
+        "role": "user",
+        "content": """# Repo & Issue Metadata
+Repo: {repo_name}: {repo_description}
+Issue Url: {issue_url}
+Username: {username}
+Issue Title: {title}
+Issue Description: {description}""",
+    },
+]
+
+python_human_message_prompt = [
+    {
+        "role": "user",
+        "content": """{relevant_snippets}""",
+        "key": "relevant_snippets",
+    },
+    {
+        "role": "user",
+        "content": """{plan_suggestions}""",
+        "key": "plan_suggestions",
     },
     {
         "role": "user",
@@ -246,6 +276,47 @@ Step-by-step thoughts with explanations:
 <delete file="file_path_4"></delete>
 
 <rename file="file_path_5">new full path for file path 6</rename>
+
+...
+</plan>
+"""
+
+python_files_to_change_prompt = """
+Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
+Then, provide a list of files you would like to modify, abiding by the following:
+* You may only create, modify, delete and rename files
+* Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
+* Use detailed, natural language instructions on what to modify regarding business logic, but reference files to import
+* Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
+* Create/modify up to 5 FILES
+* Do not modify non-text files such as images, svgs, binary, etc
+
+You MUST follow the following format with the final output in XML tags:
+
+Root cause:
+Write an abstract minimum plan to address this issue. Be clear and concise.
+
+Step-by-step thoughts with explanations:
+* Thought 1
+* Thought 2
+...
+
+<plan>
+<create file="file_path_1">
+* Instruction 1 for file_path_1
+* Instruction 2 for file_path_1
+...
+</create>
+
+<modify file="file_path_3">
+* Instruction 1 for file_path_3
+* Instruction 2 for file_path_3
+...
+</modify>
+
+<delete file="file_path_4"></delete>
+
+<rename file="file_path_5">new full path for file_path_6</rename>
 
 ...
 </plan>
@@ -1107,3 +1178,87 @@ For each snippet above, rewrite the snippet according to their corresponding ins
 updated lines
 ```
 </updated_snippet>"""
+
+# Initial agent is used when deciding to explore entities initially.
+# code_graph_initial_agent = CustomInstructions(
+#     user_prompt="hi",
+#     system_prompt="Write code",
+# )
+
+# Todo: Add this to human_message prompt if using GPT-4
+gpt4_human_message_entity_prompt = """\
+Information needed from file:
+
+
+<relevant_snippet>
+...
+</relevant_snippet>
+...
+
+
+<entities_to_explore>
+...
+</entities_to_explore>
+
+
+<entities>
+chat.py:ChatGPT
+prompts.py:Messages
+human.py:RandomEntity
+</entities>
+"""
+
+# Todo: Add this to the end of files_to_change_prompt if using GPT-4
+gpt4_human_message_entity_plan_prompt = """\
+<files_to_explore>
+{file_name}
+...
+</files_to_explore>
+
+<entities_to_explore>
+{entity}
+</entities_to_explore>
+"""
+
+# Todo:
+# Explore agent will partake in the exploration.
+code_graph_explore_agent = CustomInstructions(
+    system_prompt="""You are a developer working on the following issue:
+
+<metadata>
+{metadata}
+</metadata>
+
+You must find the relevant context and information needed to perform these changes on an implementation level.
+
+
+You must return the following format:
+Snippets:
+<relevant_snippet>
+{snippet in file that is needed}
+</relevant_snippet>
+...
+
+
+Paths to Explore:
+<files_to_explore>
+{file_name}
+...
+</files_to_explore>
+
+<entities_to_explore>
+{entity}
+</entities_to_explore>
+""",
+    user_prompt=[
+        """<entity name=\"{entity_name}\" file_path=\"{file_path}\">
+{entity}
+</entity>""",
+        """You have already explored the following entities:
+<explored_already>
+{explored}
+</explored_already>
+
+You are currently exploring entity ChatGPT. Extract relevant content.""",
+    ],
+)
