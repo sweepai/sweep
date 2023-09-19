@@ -594,10 +594,12 @@ class GithubBot(BaseModel):
     def populate_snippets(self, snippets: list[Snippet]):
         for snippet in snippets:
             try:
-                snippet.content = self.repo.get_contents(
-                    snippet.file_path, SweepConfig.get_branch(self.repo)
-                ).decoded_content.decode("utf-8")
-            except SystemExit:
+                            file_content = self.repo.get_contents(
+                                snippet.file_path, SweepConfig.get_branch(self.repo)
+                            )
+                            if isinstance(file_content, ContentFile):
+                                snippet.content = file_content.decoded_content.decode("utf-8")
+                        except SystemExit:
                 raise SystemExit
             except Exception as e:
                 logger.error(snippet)
@@ -1157,8 +1159,8 @@ class SweepBot(CodeGenBot, GithubBot):
                     #     )
                     case "delete":
                         contents = self.repo.get_contents(
-                            file_change_request.filename, ref=branch
-                        )
+                                                    file_change_request.filename, ref=branch
+                                                )
                         self.repo.delete_file(
                             file_change_request.filename,
                             f"Deleted {file_change_request.filename}",
@@ -1241,10 +1243,9 @@ class SweepBot(CodeGenBot, GithubBot):
         CHUNK_SIZE = 800  # Number of lines to process at a time
         sandbox_error = None
         try:
-            file = self.get_file(file_change_request.filename, branch=branch)
-            file_contents = file.decoded_content.decode("utf-8")
+            file_contents = self.get_file_contents(file_change_request.filename, branch=branch)
             lines = file_contents.split("\n")
-
+            
             new_file_contents = ""
             all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
             # Todo(lukejagg): Use when only using chunking
