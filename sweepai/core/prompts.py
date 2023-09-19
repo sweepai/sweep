@@ -252,7 +252,7 @@ Step-by-step thoughts with explanations:
 """
 
 subissues_prompt = """
-Think step-by-step to break down the requested problem into sub-issues each of non-trivial changes. The sub-issue should be a small, self-contained, and independent part of the problem, and should partition the files to be changed.
+Think step-by-step to break down the requested problem into sub-issues each of equally sized non-trivial changes. The sub-issue should be a small, self-contained, and independent part of the problem, and should partition the files to be changed.
 You MUST follow the following format with the final output in XML tags:
 
 Root cause:
@@ -261,11 +261,6 @@ Write an abstract minimum plan to address this issue in the least amount of chan
 Step-by-step thoughts with explanations:
 * Thought 1
 * Thought 2
-...
-
-List of all files to modify:
-* file_path_1
-* file_path_2
 ...
 
 <plan>
