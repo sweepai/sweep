@@ -75,14 +75,30 @@ def format_for_anthropic(messages: list[Message]) -> str:
     ) + (anthropic.AI_PROMPT if new_messages[-1].role != "assistant" else "")
 
 
+class Messages:
+    def __init__(self, system_prompt):
+        self.system_prompt = system_prompt
+        self.original_system_prompt = system_message_prompt
+        self.messages = [
+            Message(
+                role="system",
+                content=self.system_prompt,
+            )
+        ]
+        self.prev_message_states = []
+
+    def __enter__(self):
+        global system_message_prompt
+        system_message_prompt = self.system_prompt
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        global system_message_prompt
+        system_message_prompt = self.original_system_prompt
+
 class ChatGPT(BaseModel):
-    messages: list[Message] = [
-        Message(
-            role="system",
-            content=system_message_prompt,
-        )
-    ]
-    prev_message_states: list[list[Message]] = []
+    messages: list[Message] = Messages(system_message_prompt).messages
+    prev_message_states: list[list[Message]] = Messages(system_message_prompt).prev_message_states
     model: ChatModel = (
         "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
     )
