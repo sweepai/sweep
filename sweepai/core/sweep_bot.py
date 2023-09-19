@@ -301,7 +301,8 @@ class CodeGenBot(ChatGPT):
                     self.populate_snippets(plan.relevant_new_snippet)
                     relevant_snippets.extend(plan.relevant_new_snippet)
                 plan_suggestions = []
-                for plan in plans:plan_suggestions.append(f"<plan_suggestion file={plan.file_path}, entities={plan.entities}>\n{plan.changes_for_new_file}\n</plan_suggestion>")
+                for plan in plans:
+                    plan_suggestions.append(f"<plan_suggestion file={plan.file_path}, entities={plan.entities}>\n{plan.changes_for_new_file}\n</plan_suggestion>")
 
                 python_human_message = PythonHumanMessagePrompt(
                     repo_name=self.human_message.repo_name,
@@ -316,10 +317,13 @@ class CodeGenBot(ChatGPT):
                 )
                 prompt_message_dicts = python_human_message.construct_prompt()
                 new_messages = [self.messages[0]]
-                for message_dict in prompt_message_dicts:new_messages.append(Message(**message_dict))
+                for message_dict in prompt_message_dicts:
+                    new_messages.append(Message(**message_dict))
                 self.messages = new_messages
-                import pdb; pdb.set_trace()
-                files_to_change_response = self.chat(python_files_to_change_prompt, message_key="files_to_change")
+                file_change_requests = []
+                
+
+
             else:
                 # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
                 files_to_change_response = self.chat(
