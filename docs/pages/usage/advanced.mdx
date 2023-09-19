@@ -35,6 +35,10 @@ For more on configs, check out https://docs.sweep.dev/usage/config.
 
 ## Prompting 🗣️
 
+### Show by example
+
+Provide similar files for Sweep to look at, like "Write a unit test for `src/Menu.tsx` like `src/Navbar.test.tsx`". This is effective because the problem boils down to a translation task, and allows Sweep to very quickly learn by example without manually writing a lot of detail.
+
 ### Use an imperative tone when writing comments
 
 This means writing the comment as a command or instruction. For example, instead of writing 'This line of code needs to be optimized', write 'Optimize this line of code'. Using an imperative tone makes the action required clear and direct.
@@ -56,9 +60,9 @@ A good issue might include:
 | In `on_comment.py`                                      | we should not fire an event                                                            | because it's possible that the comment is on a closed PR                                            |
 | In the config loader in `packages/server/src/config.ts` | add a third option called "env" to load the config settings from environment variables | At present, there are two options:  1. ... and 2. ...                                               |
 
-If you want Sweep to use a file, try to mention the full path. Similarly, to have Sweep use a function, try to mention the class method or what it does.
+If you want Sweep to use a file, try to mention the file path. Similarly, to have Sweep use a function, try to mention the class method or what it does.
 
-### Limitations:
+### Limitations 🚫
 Sweep is unlikely to complete complex issues on the first try, similar to the average junior developer. Here are Sweep's limitations(for now):
 - Try to change less than 300 lines of code
 - Try to modify less than 5 files
