@@ -324,65 +324,6 @@ def get_snippet_with_padding(original, best_match, search):
 #         replace = [line[-indent_diff:] for line in replace]
 #     return replace
 
-# def radix_replace(original, search, replace) -> tuple[list[str], bool]:
-#     # based on start and end, find the lines that are the same
-#     # then, replace the lines in between
-
-#     best_match = match_string(original, search)
-#     old_lines = original[best_match.start : best_match.end]
-#     indent = detect_indent("\n".join(original))
-#     original = original[: best_match.start] + indent_replace(old_lines, search, replace, indent) + original[best_match.end + 1 :]
-# MAX_RADIX = 20
-# Two-pointer approach for string matching
-# for i in range(len(original)):
-#     for j in range(
-#         i + len(search) - 1, len(original) + len(search) + MAX_RADIX + 1
-#     ):
-#         # If second pointer is out of bounds, continue
-#         if j >= len(original):
-#             continue
-
-#         # Match ends
-#         match_start = original[i].strip() == search[0].strip()
-#         match_end = original[j].strip() == search[-1].strip()
-#         if not match_start or not match_end:
-#             continue
-
-#         # Counts the number of search matches with original code in this snippet (from i to j)
-#         matches = []
-#         current_index = i
-#         count = 0  # Number of matches
-#         while current_index <= j and count < len(search):
-#             if original[current_index].strip() == search[count].strip():
-#                 matches.append(current_index)
-#                 count += 1
-#             current_index += 1
-
-#         # If exact match, do not use this algorithm as this is for skipped lines (comments)
-#         if j - i == len(search) - 1:
-#             return None
-
-#         # If all lines matched in this snippet, then replace
-#         if count == len(search):
-#             # Replace search lines with replace lines
-#             for i, original_index in enumerate(matches):
-#                 if i < len(replace):
-#                     original[original_index] = replace[i]
-
-#             if len(replace) > len(search):
-#                 # Add lines after the end of search if replace is longer
-#                 original = (
-#                     original[: original_index + 1]
-#                     + replace[len(search) :]
-#                     + original[original_index + 1 :]
-#                 )
-#             else:
-#                 # Remove lines after end of search if replace is shorter
-#                 original = (
-#                     original[:original_index]
-#                     + original[original_index + len(search) - len(replace) :]
-#                 )
-# return original
 
 
 def sliding_window_replacement(
