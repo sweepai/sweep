@@ -63,7 +63,7 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 openai.api_key = OPENAI_API_KEY
 
-sweeping_gif = """<img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping_swing.gif" width="200" style="width:50px; margin-bottom:10px; animation: swing 1s infinite;" alt="Sweeping">"""
+sweeping_gif = """<img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="200" style="width:50px; margin-bottom:10px; animation: swing 1s infinite;" alt="Sweeping">"""
 
 
 def center(text: str) -> str:
@@ -883,7 +883,7 @@ def on_ticket(
             "I have finished coding the issue. I am now reviewing it for completeness.",
             3,
         )
-        change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
+        sweeping_gif = "https://sweep.dev/sweeping.gif"
         review_message = "Here are my self-reviews of my changes at" + change_location
 
         lint_output = None
