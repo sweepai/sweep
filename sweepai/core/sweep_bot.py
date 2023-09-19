@@ -369,7 +369,28 @@ class CodeGenBot(ChatGPT):
                         return None
                     return plan
 
+                print("\n" * 20, "REACHED THIS POINT")
+
                 with ThreadPoolExecutor() as executor:
+                    # Create plan for relevant snippets first
+                    relevant_snippet_futures = {}
+                    for i, snippet in enumerate(self.human_message.snippets):
+                        other_snippets = self.human_message.snippets[:i] + self.human_message.snippets[i+1:]
+                        relevant_snippet_futures[executor.submit(worker, snippet.file_path, None, issue_metadata, self.human_message.render_snippet_array(other_snippets), relevant_symbols_string, snippet.get_snippet())] = snippet.file_path
+                        break
+
+                    for future in as_completed(relevant_snippet_futures):
+                        plan = future.result()
+                        print(plan)
+                        if plan is not None:
+                            plans.append(plan)
+
+
+                    print("CONGRATZ")
+                    import time as t1
+                    t1.sleep(10)
+
+                    # Then use plan for each reference
                     future_to_file = {
                         executor.submit(
                             worker,
