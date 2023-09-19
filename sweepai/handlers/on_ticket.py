@@ -378,13 +378,26 @@ def on_ticket(
         issue_comment = current_issue.create_comment(first_comment)
     else:
         issue_comment.edit(first_comment)
-
-    # Comment edit function
-    past_messages = {}
-    current_index = 0
-
-    # Random variables to save in case of errors
-    table = None  # Show plan so user can finetune prompt
+        
+            # Comment edit function
+            past_messages = {}
+            current_index = 0
+        
+            # Random variables to save in case of errors
+            table = None  # Show plan so user can finetune prompt
+        
+            def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
+                nonlocal current_index, user_token, g, repo, issue_comment
+                # -1 = error, -2 = retry
+                # Only update the progress bar if the issue generation errors.
+                errored = index == -1
+                if index >= 0:
+                    past_messages[index] = message
+                    current_index = index
+        
+                agg_message = None
+                # Include progress history
+                # index = -2 is reserved for
 
     def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
         nonlocal current_index, user_token, g, repo, issue_comment
@@ -497,8 +510,8 @@ def on_ticket(
         logger.error(e)
         logger.error(trace)
         edit_sweep_comment(
-            (
-                "It looks like an issue has occurred around fetching the files."
+                    (
+                        "It looks like an issue has occurred around fetching the files."
                 " Perhaps the repo has not been initialized. If this error persists"
                 f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch."
             ),
@@ -883,9 +896,9 @@ def on_ticket(
         pr_changes = response["pull_request"]
 
         edit_sweep_comment(
-            "I have finished coding the issue. I am now reviewing it for completeness.",
-            3,
-        )
+                    "I have finished coding the issue. I am now reviewing it for completeness.",
+                    3,
+                )
         sweeping_gif = "https://sweep.dev/sweeping.gif"
         review_message = "Here are my self-reviews of my changes at" + change_location
 
