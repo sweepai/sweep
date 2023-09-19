@@ -532,6 +532,7 @@ def sliding_window_replacement(
 
     # if max_similarity != len(search):
     snippet, spaces, strip = get_snippet_with_padding(original, best_match, search)
+    print(spaces)
     if len(snippet) == 1 and len(replace) == 1:
         # Replace the line
         modified = [snippet[0].replace(search[0], replace[0])]
