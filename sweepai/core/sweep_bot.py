@@ -361,7 +361,7 @@ class CodeGenBot(ChatGPT):
                     print("CHILD", file_path, entities)
                     plan_bot = GraphChildBot(chat_logger=self.chat_logger)
                     plan = plan_bot.code_plan_extraction(
-                        code=file_contents,
+                        code=self.cloned_repo.get_file_contents(file_path),
                         file_path=file_path,
                         entities=entities,
                         issue_metadata=issue_metadata,
@@ -1060,8 +1060,8 @@ class SweepBot(CodeGenBot, GithubBot):
         logger.debug(file_change_requests)
         num_fcr = len(file_change_requests)
         completed = 0
-
-        for _, changed_file in self.change_files_in_github_iterator(
+    
+        for _, changed_file, _, _ in self.change_files_in_github_iterator(
             file_change_requests, branch, blocked_dirs, sandbox=sandbox
         ):
             if changed_file:
