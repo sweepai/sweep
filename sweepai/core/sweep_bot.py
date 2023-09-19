@@ -323,7 +323,7 @@ class CodeGenBot(ChatGPT):
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            is_python_issue = sum([file_path.endswith(".py") for file_path in self.human_message.get_file_paths()]) > len(self.human_message.get_file_paths()) / 2
+            is_python_issue = False # sum([file_path.endswith(".py") for file_path in self.human_message.get_file_paths()]) > len(self.human_message.get_file_paths()) / 2
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
             
             plans: List[GraphContextAndPlan] = []
@@ -367,7 +367,7 @@ class CodeGenBot(ChatGPT):
                     relevant_snippets.extend(plan.relevant_new_snippet)
                 plan_suggestions = []
                 for plan in plans:
-                    plan_suggestions.append(f"<plan_suggestion file={plan.file_path}, entities={plan.entities}>\n{plan.changes_for_new_file}\n</plan_suggestion>")
+                    plan_suggestions.append(f"<plan_suggestion file={plan.file_path}>\n{plan.changes_for_new_file}\n</plan_suggestion>")
 
                 python_human_message = PythonHumanMessagePrompt(
                     repo_name=self.human_message.repo_name,
@@ -386,9 +386,13 @@ class CodeGenBot(ChatGPT):
                     new_messages.append(Message(**message_dict))
                 self.messages = new_messages
                 file_change_requests = []
-                
-
-
+                for plan in plans:
+                    file_change_requests.append(FileChangeRequest(
+                        filename=plan.file_path,
+                        instructions=plan.changes_for_new_file,
+                        change_type="modify"
+                    ))
+                return file_change_requests, " ".join(plan_suggestions)
             else:
                 # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
                 files_to_change_response = self.chat(
@@ -1178,7 +1182,7 @@ class SweepBot(CodeGenBot, GithubBot):
         sandbox_error = None
         try:
             file = self.get_file(file_change_request.filename, branch=branch)
-            file_contents = repr(file.decoded_content.decode("utf-8"))
+            file_contents = file.decoded_content.decode("utf-8")
             lines = file_contents.split("\n")
 
             new_file_contents = ""
