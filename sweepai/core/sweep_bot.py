@@ -338,14 +338,14 @@ class CodeGenBot(ChatGPT):
                 relevant_files_to_symbols, relevant_symbols_string = graph_parent_bot.relevant_files_to_symbols(
                     issue_metadata, relevant_snippets, symbols_to_files)
 
-                file_paths_to_contents = {file_path: self.cloned_repo.get_file_contents(file_path) for file_path in relevant_files_to_symbols.keys()}
-
+                file_paths_to_contents = {str(file_path): self.cloned_repo.get_file_contents(str(file_path)) for file_path in relevant_files_to_symbols.keys()}
+                
                 def worker(file_path, entities, issue_metadata, relevant_snippets, relevant_symbols_string, file_contents):
                     print("CHILD", file_path, entities)
                     plan_bot = GraphChildBot(chat_logger=self.chat_logger)
                     plan = plan_bot.code_plan_extraction(
                         code=file_contents,
-                        file_path=file_path,
+                        file_path=str(file_path),
                         entities=entities,
                         issue_metadata=issue_metadata,
                         previous_snippets=relevant_snippets,
@@ -541,8 +541,12 @@ class GithubBot(BaseModel):
     def populate_snippets(self, snippets: list[Snippet]):
         for snippet in snippets:
             try:
+                # Ensure file_path is a string
+                file_path = snippet.file_path
+                if not isinstance(file_path, str):
+                    file_path = str(file_path)
                 snippet.content = self.repo.get_contents(
-                    snippet.file_path, SweepConfig.get_branch(self.repo)
+                    file_path, SweepConfig.get_branch(self.repo)
                 ).decoded_content.decode("utf-8")
             except SystemExit:
                 raise SystemExit
@@ -1187,11 +1191,13 @@ class SweepBot(CodeGenBot, GithubBot):
         CHUNK_SIZE = 800  # Number of lines to process at a time
         sandbox_error = None
         try:
-            file = self.get_file(file_change_request.filename, branch=branch)
-            file_contents = file.decoded_content.decode("utf-8")
-            lines = file_contents.split("\n")
-
-            new_file_contents = ""
+                    if not isinstance(file_change_request.filename, str):
+                        file_change_request.filename = str(file_change_request.filename)
+                    file = self.get_file(file_change_request.filename, branch=branch)
+                    file_contents = file.decoded_content.decode("utf-8")
+                    lines = file_contents.split("\n")
+        
+                    new_file_contents = ""
             all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
             # Todo(lukejagg): Use when only using chunking
             chunk_sizes = [

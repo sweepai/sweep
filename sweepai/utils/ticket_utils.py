@@ -1,3 +1,4 @@
+import traceback
 import re
 from sweepai.config.client import (
     UPDATES_MESSAGE,
@@ -141,8 +142,11 @@ def log_error(
     if is_paying_user:
         prefix = " (PRO)"
 
+    traceback_info = traceback.format_exception(type(exception), exception, exception.__traceback__)
+    traceback_string = "".join(traceback_info)
+
     content = (
         f"**{error_type} Error**{prefix}\n{username}:"
-        f" {issue_url}\n```{exception}```"
+        f" {issue_url}\n```{traceback_string}```"
     )
     discord_log_error(content, priority=priority)
