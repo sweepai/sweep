@@ -79,7 +79,7 @@ def strip_backticks(s: str) -> str:
         s = s[s.find("\n") :]
     if s.endswith("```"):
         s = s[: s.rfind("\n")]
-    return s.strip()
+    return s.strip("\n")
 
 
 def match_indent(generated: str, original: str) -> str:
