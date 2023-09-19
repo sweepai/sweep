@@ -1,4 +1,173 @@
-import json
+import re
+from sweepai.core.chat import ChatGPT
+from sweepai.core.entities import Message, RegexMatchableBaseModel, Snippet
+
+system_prompt = """You are a genius engineer tasked with solving the following GitHub issue. 
+Some relevant_snippets_from_repo have been provided. Assume any changes relevant to those snippets have been taken care of.
+Determine whether changes in the new_file are necessary. 
+If code changes need to be in this file, provide the relevant_new_snippet and the changes_for_new_file. 
+Extract the code you deem necessary, and then describe the necessary code changes. Otherwise leave both sections blank.
+
+# Extraction
+
+Include only the relevant snippet that provides enough detail to solve the issue: Keep the 
+relevant_snippet as small as possible. When writing the code changes keep in mind the user can read the metadata and the relevant snippets.
+
+<code_analysis>
+{thought about potentially relevant snippet and its relevance to the issue}
+...
+</code_analysis>
+
+<relevant_new_snippet>
+{relevant snippet from the new_file in the format file_path:start_idx-end_idx}
+...
+</relevant_new_snippet>
+
+<changes_for_new_file>
+{Detailed natural language instructions of modifications to be made in new_file.}
+</changes_for_new_file>
+"""
+
+graph_user_prompt = """
+<metadata>
+{issue_metadata}
+</metadata>
+
+{previous_snippets}
+
+<all_symbols_and_files>
+{all_symbols_and_files}</all_symbols_and_files>
+
+<new_file file_path=\"{file_path}\" entities=\"{entities}\">
+{code}
+</new_file>
+
+Provide the relevant snippets and changes from the new_file above.
+"""
+
+class GraphContextAndPlan(RegexMatchableBaseModel):
+    relevant_new_snippet: list[Snippet]
+    changes_for_new_file: str
+    file_path: str
+    entities: str = None
+
+    @classmethod
+    def from_string(cls, string: str, file_path:str, **kwargs):
+        snippets_pattern = r"""<relevant_new_snippet>(\n)?(?P<relevant_new_snippet>.*)</relevant_new_snippet>"""
+        plan_pattern = r"""<changes_for_new_file>(\n)?(?P<changes_for_new_file>.*)</changes_for_new_file>"""
+        snippets_match = re.search(snippets_pattern, string, re.DOTALL)
+        relevant_new_snippet_match = None
+        changes_for_new_file = ""
+        relevant_new_snippet = []
+        if not snippets_match:
+            return cls(relevant_new_snippet=relevant_new_snippet, changes_for_new_file=changes_for_new_file, file_path=file_path, **kwargs)
+        relevant_new_snippet_match = snippets_match.group("relevant_new_snippet")
+        for raw_snippet in relevant_new_snippet_match.split("\n"):
+            if ":" not in raw_snippet:
+                continue
+            generated_file_path, lines = raw_snippet.split(":", 1)
+            generated_file_path, lines = generated_file_path.strip(), lines.split()[0].strip() # second one accounts for trailing text like "1-10 (message)"
+            if generated_file_path != file_path:
+                continue
+            if "-" not in lines:
+                continue
+            start, end = lines.split("-", 1)
+            start, end = extract_int(start), extract_int(end)
+            if start is None or end is None:
+                continue
+            start = int(start)
+            end = int(end) - 1
+            end = min(end, start + 200)
+            snippet = Snippet(file_path=file_path, start=start, end=end, content="")
+            relevant_new_snippet.append(snippet)
+        plan_match = re.search(plan_pattern, string, re.DOTALL)
+        if plan_match:
+            changes_for_new_file = plan_match.group("changes_for_new_file").strip()
+        return cls(
+            relevant_new_snippet=relevant_new_snippet, changes_for_new_file=changes_for_new_file, file_path=file_path, **kwargs
+        )
+
+    def __str__(self) -> str:
+        return f"{self.relevant_new_snippet}\n{self.changes_for_new_file}"
+    
+class GraphChildBot(ChatGPT):
+    def code_plan_extraction(
+        self, code, file_path, entities, issue_metadata, previous_snippets, all_symbols_and_files
+    ) -> GraphContextAndPlan:
+        self.messages = [
+            Message(
+                role="system",
+                content=system_prompt,
+                key="system",
+            )
+        ]
+        code_with_line_numbers = extract_python_span(code, entities)
+
+        user_prompt = graph_user_prompt.format(
+            code=code_with_line_numbers,
+            file_path=file_path,
+            entities=entities,
+            issue_metadata=issue_metadata,
+            previous_snippets=previous_snippets,
+            all_symbols_and_files=all_symbols_and_files,
+        )
+        self.model = (
+            "gpt-4-32k-0613"
+            if (self.chat_logger and self.chat_logger.is_paying_user())
+            else "gpt-3.5-turbo-16k-0613"
+        )
+        response = self.chat(user_prompt)
+        graph_plan = GraphContextAndPlan.from_string(response, file_path=file_path)
+        graph_plan.entities = entities
+        return graph_plan
+
+def extract_int(s):
+    match = re.search(r"\d+", s)
+    if match:
+        return int(match.group())
+    return None
+
+def extract_python_span(code, entities):
+    # Identify lines where entity is mentioned
+    mentioned_lines = []
+    lines = code.split("\n")
+    for i, line in enumerate(lines):
+        for entity in entities:
+            if entity in line:
+                mentioned_lines.append(i)
+    # Calculate the window to show
+    window_size = 100
+    start_window = max(0, min(mentioned_lines))
+    end_window = max(mentioned_lines)
+
+    # Extend end_window to the next line with no indent
+    for i in range(end_window + 1, len(lines)):
+        if lines[i].strip() and not lines[i].startswith(" "):
+            end_window = i
+            break
+    else:
+        end_window = len(lines)
+
+    if end_window - start_window < 2:
+        end_window = start_window + window_size
+
+    # Extract lines in the window and mark where entity is mentioned
+    code_with_line_numbers = ""
+    for i in range(start_window, end_window):
+        line = lines[i]
+        mentioned_entities = [entity for entity in entities if entity in line]
+        if len(mentioned_entities) == 1:
+            code_with_line_numbers += f"{i + 1} {line}" + f" <- {mentioned_entities[0]} is mentioned here\n"
+        elif len(mentioned_entities) > 1:
+            mentioned_entities = ", ".join(mentioned_entities)
+            code_with_line_numbers += f"{i + 1} {line}" + f" <- {mentioned_entities} are mentioned here\n"
+        else:
+            code_with_line_numbers += f"{i + 1} {line}\n"
+    code_with_line_numbers = code_with_line_numbers.strip()
+    return code_with_line_numbers
+
+if __name__ == "__main__":
+    file = r"""import json
 from copy import deepcopy
 import time
 from typing import Any, Iterator, Literal
@@ -471,4 +640,8 @@ class ChatGPT(BaseModel):
     def undo(self):
         if len(self.prev_message_states) > 0:
             self.messages = self.prev_message_states.pop()
-        return self.messages
+        return self.messages"""
+    
+    print(extract_int("10, 10-11 (message)"))
+    span = extract_python_span(file, "ChatGPT")
+    print(span)

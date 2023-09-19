@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 from sweepai.core.prompts import (
     human_message_prompt,
+    python_human_message_prompt,
     human_message_prompt_comment,
     human_message_review_prompt,
     diff_section_prompt,
@@ -41,6 +42,9 @@ class HumanMessagePrompt(BaseModel):
             + "</relevant_paths_in_repo>"
         )
 
+    def get_file_paths(self):
+        return [snippet.file_path for snippet in self.snippets]
+
     def render_snippets(self):
         joined_snippets = "\n".join([snippet.xml for snippet in self.snippets])
         if joined_snippets.strip() == "":
@@ -73,6 +77,43 @@ class HumanMessagePrompt(BaseModel):
                 "key": msg.get("key"),
             }
             for msg in human_message_prompt
+        ]
+        return human_messages
+
+    def get_issue_metadata(self):
+        return f"""# Repo & Issue Metadata
+Repo: {self.repo_name}: {self.repo_description}
+Issue: {self.issue_url}
+Username: {self.username}
+Issue Title: {self.title}
+Issue Description: {self.summary}
+"""
+
+
+class PythonHumanMessagePrompt(HumanMessagePrompt):
+    plan_suggestions: list
+
+    def construct_prompt(self):
+        human_messages = [
+            {
+                "role": msg["role"],
+                "content": msg["content"].format(
+                    repo_name=self.repo_name,
+                    issue_url=self.issue_url,
+                    username=self.username,
+                    repo_description=self.repo_description,
+                    tree=self.tree,
+                    title=self.title,
+                    description=self.summary
+                    if self.summary
+                    else "No description provided.",
+                    relevant_snippets=self.render_snippets(),
+                    relevant_directories=self.get_relevant_directories(),
+                    plan_suggestions="\n".join(self.plan_suggestions),
+                ),
+                "key": msg.get("key"),
+            }
+            for msg in python_human_message_prompt
         ]
         return human_messages
 
