@@ -18,7 +18,6 @@ from sweepai.config.server import (
 
 MODEL_DIR = "/tmp/cache/model"
 BATCH_SIZE = 128
-# SENTENCE_TRANSFORMERS_MODEL = "all-mpnet-base-v2"
 timeout = 60 * 60  # 30 minutes
 
 
