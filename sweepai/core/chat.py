@@ -2,85 +2,60 @@ import json
 from copy import deepcopy
 import time
 from typing import Any, Iterator, Literal
-import traceback
+from typing import List, Any
 
-import anthropic
-import backoff
-from pydantic import BaseModel
+class Messages(List[Message]):
+    def __init__(self, *args: Any) -> None:
+        super().__init__(*args)
 
-from logn import logger
-from sweepai.utils.utils import Tiktoken
-from sweepai.core.entities import Message, Function, SweepContext
-from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
-from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.client import get_description
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.openai_proxy import OpenAIProxy
-from sweepai.config.server import (
-    OPENAI_USE_3_5_MODEL_ONLY,
-    OPENAI_DO_HAVE_32K_MODEL_ACCESS,
-)
-from sweepai.utils.event_logger import posthog
-import openai
+    def append(self, message: Message) -> None:
+        super().append(message)
 
-openai_proxy = OpenAIProxy()
+    def extend(self, messages: List[Message]) -> None:
+        super().extend(messages)
 
-AnthropicModel = (
-    Literal["claude-v1"]
-    | Literal["claude-v1.3-100k"]
-    | Literal["claude-instant-v1.1-100k"]
-)
-OpenAIModel = (
-    Literal["gpt-3.5-turbo"]
-    | Literal["gpt-4"]
-    | Literal["gpt-4-0613"]
-    | Literal["gpt-3.5-turbo-16k"]
-    | Literal["gpt-3.5-turbo-16k-0613"]
-    | Literal["gpt-4-32k"]
-    | Literal["gpt-4-32k-0613"]
-)
+    def insert(self, index: int, message: Message) -> None:
+        super().insert(index, message)
 
-ChatModel = OpenAIModel | AnthropicModel
-model_to_max_tokens = {
-    "gpt-3.5-turbo": 4096,
-    "gpt-4": 8192,
-    "gpt-4-0613": 8192,
-    "claude-v1": 9000,
-    "claude-v1.3-100k": 100000,
-    "claude-instant-v1.3-100k": 100000,
-    "gpt-3.5-turbo-16k-0613": 16000,
-    "gpt-4-32k-0613": 32000,
-    "gpt-4-32k": 32000,
-}
-temperature = 0.0  # Lowered to 0 for mostly deterministic results for reproducibility
-count_tokens = Tiktoken().count
+    def remove(self, message: Message) -> None:
+        super().remove(message)
 
+    def pop(self, index: int = -1) -> Message:
+        return super().pop(index)
 
-def format_for_anthropic(messages: list[Message]) -> str:
-    if len(messages) > 1:
-        new_messages: list[Message] = [
-            Message(
-                role="system", content=messages[0].content + "\n" + messages[1].content
-            )
-        ]
-        messages = messages[2:] if len(messages) >= 3 else []
-    else:
-        new_messages: list[Message] = []
-    for message in messages:
-        new_messages.append(message)
-    return "\n".join(
-        f"{anthropic.HUMAN_PROMPT if message.role != 'assistant' else anthropic.AI_PROMPT} {message.content}"
-        for message in new_messages
-    ) + (anthropic.AI_PROMPT if new_messages[-1].role != "assistant" else "")
+    def clear(self) -> None:
+        super().clear()
 
+    def index(self, message: Message, start: int = 0, end: int = 0) -> int:
+        return super().index(message, start, end)
+
+    def count(self, message: Message) -> int:
+        return super().count(message)
+
+    def sort(self, key: Any = None, reverse: bool = False) -> None:
+        super().sort(key, reverse)
+
+    def reverse(self) -> None:
+        super().reverse()
+
+    def copy(self) -> List[Message]:
+        return super().copy()
+
+    def __enter__(self) -> 'Messages':
+        self.system_prompt = system_message_prompt
+        system_message_prompt = "New system prompt"
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        system_message_prompt = self.system_prompt
 
 class ChatGPT(BaseModel):
-    messages: list[Message] = [
+    messages: Messages = Messages(
         Message(
             role="system",
             content=system_message_prompt,
         )
-    ]
+    )
     prev_message_states: list[list[Message]] = []
     model: ChatModel = (
         "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
@@ -107,7 +82,7 @@ class ChatGPT(BaseModel):
             if repo_description:
                 logger.info(f"Repo description: {repo_description}")
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"
-        messages = [Message(role="system", content=content, key="system")]
+        messages = Messages(Message(role="system", content=content, key="system"))
 
         added_messages = human_message.construct_prompt()  # [ { role, content }, ... ]
         for msg in added_messages:
@@ -126,7 +101,7 @@ class ChatGPT(BaseModel):
         cls, prompt_string, chat_logger: ChatLogger, **kwargs
     ) -> Any:
         return cls(
-            messages=[Message(role="system", content=prompt_string, key="system")],
+            messages=Messages(Message(role="system", content=prompt_string, key="system")),
             chat_logger=chat_logger,
             **kwargs,
         )
@@ -145,7 +120,7 @@ class ChatGPT(BaseModel):
     def delete_messages_from_chat(
         self, key_to_delete: str, delete_user=True, delete_assistant=True
     ):
-        self.messages = [
+        self.messages = Messages(
             message
             for message in self.messages
             if not (
@@ -157,7 +132,7 @@ class ChatGPT(BaseModel):
                     and message.role == "assistant"
                 )
             )  # Only delete if message matches key to delete and role should be deleted
-        ]
+        )
 
     def delete_file_from_system_message(self, file_path: str):
         self.human_message.delete_file(file_path)
@@ -195,7 +170,7 @@ class ChatGPT(BaseModel):
                 key=message_key,
             )
         )
-        self.prev_message_states.append(self.messages)
+        self.prev_message_states.append(self.messages.copy())
         return self.messages[-1].content
 
     def call_openai(
@@ -332,7 +307,7 @@ class ChatGPT(BaseModel):
         self.messages.append(
             Message(role="assistant", content=response, key=message_key)
         )
-        self.prev_message_states.append(self.messages)
+        self.prev_message_states.append(self.messages.copy())
         return self.messages[-1].content
 
     async def acall_openai(
@@ -442,29 +417,67 @@ class ChatGPT(BaseModel):
                                     "pr_number": self.chat_logger.data.get("pr_number"),
                                     "issue_url": self.chat_logger.data.get("issue_url"),
                                 },
-                            )
-                        except SystemExit:
-                            raise SystemExit
-                        except Exception as e:
-                            logger.warning(e)
-                    return output
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
-                    logger.warning(f"{e}\n{traceback.format_exc()}")
-                    time.sleep(time_to_sleep + backoff.random_jitter(5))
-
-        result = await fetch()
-        logger.info(f"Output to call openai:\n{result}")
-        return result
-
-    @property
-    def messages_dicts(self):
-        # Remove the key from the message object before sending to OpenAI
-        cleaned_messages = [message.to_openai() for message in self.messages]
-        return cleaned_messages
-
-    def undo(self):
-        if len(self.prev_message_states) > 0:
-            self.messages = self.prev_message_states.pop()
-        return self.messages
+                            global retry_counter
+                                            retry_counter += 1
+                                            token_sub = retry_counter * 200
+                                            try:
+                                                output = (
+                                                    (
+                                                        await openai.ChatCompletion.acreate(
+                                                            model=model,
+                                                            messages=self.messages.to_dicts(),
+                                                            max_tokens=max_tokens - token_sub,
+                                                            temperature=temperature,
+                                                        )
+                                                    )
+                                                    .choices[0]
+                                                    .message["content"]
+                                                )
+                                                if self.chat_logger is not None:
+                                                    self.chat_logger.add_chat(
+                                                        {
+                                                            "model": model,
+                                                            "messages": self.messages.to_dicts(),
+                                                            "max_tokens": max_tokens - token_sub,
+                                                            "temperature": temperature,
+                                                            "output": output,
+                                                        }
+                                                    )
+                                                if self.chat_logger:
+                                                    try:
+                                                        token_count = count_tokens(output)
+                                                        posthog.capture(
+                                                            self.chat_logger.data.get("username"),
+                                                            "call_openai",
+                                                            {
+                                                                "model": model,
+                                                                "max_tokens": max_tokens - token_sub,
+                                                                "input_tokens": messages_length,
+                                                                "output_tokens": token_count,
+                                                                "repo_full_name": self.chat_logger.data.get(
+                                                                    "repo_full_name"
+                                                                ),
+                                                                "username": self.chat_logger.data.get("username"),
+                                                                "pr_number": self.chat_logger.data.get("pr_number"),
+                                                                "issue_url": self.chat_logger.data.get("issue_url"),
+                                                            },
+                                                        )
+                                                    except SystemExit:
+                                                        raise SystemExit
+                                                    except Exception as e:
+                                                        logger.warning(e)
+                                                return output
+                                            except SystemExit:
+                                                raise SystemExit
+                                            except Exception as e:
+                                                logger.warning(f"{e}\n{traceback.format_exc()}")
+                                                time.sleep(time_to_sleep + backoff.random_jitter(5))
+                            
+                                    result = await fetch()
+                                    logger.info(f"Output to call openai:\n{result}")
+                                    return result
+                            
+                                def undo(self):
+                                    if len(self.prev_message_states) > 0:
+                                        self.messages = self.prev_message_states.pop()
+                                    return self.messages
