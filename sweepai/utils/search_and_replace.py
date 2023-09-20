@@ -62,6 +62,27 @@ def score_multiline(query: list[str], target: list[str]) -> float:
             scores.append((score_line(q_line, t_line), weight))
             q += 1
             t += 1
+        elif "..." in q_line:
+            # Case 3: ellipsis wildcard
+            lines_matched = 1
+            t += 1
+            if q + 1 == len(query):
+                scores.append((100 - (len(target) - t), weight))
+                q += 1
+                t = len(target)
+                break
+            max_score = 0
+            for i in range(t, len(target)):
+                # TODO: use radix to optimize
+                score, weight = score_multiline(query[q + 1 :], target[i:]), (
+                    100 - (i - t) / len(target) * 10
+                )
+                new_scores = scores + [(score, weight)]
+                total_score = sum(
+                    [value * weight for value, weight in new_scores]
+                ) / sum([weight for _, weight in new_scores])
+                max_score = max(max_score, total_score)
+            return max_score
         elif (
             t_line.strip() == ""
             or t_line.strip().startswith("#")
@@ -72,24 +93,6 @@ def score_multiline(query: list[str], target: list[str]) -> float:
             q += 1
             t += 2
             scores.append((90, weight))
-        elif "..." in q_line:
-            # Case 3: ellipsis wildcard
-            lines_matched = 1
-            t += 1
-            if q + 1 == len(query):
-                scores.append((100 - (len(target) - t), weight))
-                q += 1
-                t = len(target)
-                break
-            while t < len(target) and not match_without_whitespace(
-                query[q + 1], target[t]
-            ):
-                lines_matched += 1
-                t += 1
-            if t == len(target):
-                break
-            q += 1
-            scores.append(((100 - lines_matched), weight))
         else:
             break
 
