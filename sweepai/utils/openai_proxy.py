@@ -18,7 +18,7 @@ class OpenAIProxy:
     def __init__(self):
         pass
 
-    @file_cache(ignore_params=["max_tokens"])
+    @file_cache(ignore_params=[])
     def call_openai(self, model, messages, max_tokens, temperature):
         try:
             engine = None
