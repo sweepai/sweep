@@ -1,6 +1,7 @@
 import os
 import pickle
 import hashlib
+import logging
 
 from sweepai.config.server import GITHUB_BOT_USERNAME
 TEST_BOT_NAME = "sweep-nightly[bot]"
@@ -55,7 +56,7 @@ def file_cache(ignore_params=[]):
 
             # If cache exists, load and return it
             if os.path.exists(cache_file):
-                print("Used cache for function:" + func.__name__)
+                logging.info("Used cache for function:" + func.__name__)
                 with open(cache_file, 'rb') as f:
                     return pickle.load(f)
 
