@@ -2,7 +2,7 @@ import subprocess
 
 from logn import logger
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message
+from sweepai.core.entities import Message, Messages
 from sweepai.core.prompts import (
     code_repair_check_system_prompt,
     code_repair_check_prompt,
@@ -15,9 +15,9 @@ response_regex = r"```[^\n]*(?P<response>.+)```"
 
 class CodeRepairChecker(ChatGPT):
     def check_code(self, diff: str, user_code: str) -> bool:
-        self.messages = [
+        self.messages = Messages([
             Message(role="system", content=code_repair_check_system_prompt)
-        ]
+        ])
         self.model = "gpt-3.5-turbo-16k-0613"
         response = self.chat(
             code_repair_check_prompt.format(user_code=user_code),
@@ -77,11 +77,11 @@ class CodeRepairer(ChatGPT):
             return False
 
     def repair_code(self, diff: str, user_code: str, feature: str, retries=3) -> str:
-        self.messages = [
+        self.messages = Messages([
             Message(
                 role="system", content=code_repair_system_prompt.format(feature=feature)
             )
-        ]
+        ])
         self.model = "gpt-3.5-turbo-16k-0613"
         if self.code_repair_checker.check_code(diff, user_code):
             return user_code
@@ -98,7 +98,7 @@ class CodeRepairer(ChatGPT):
                 / len(user_code.splitlines())
                 > 0.15
             ):
-                self.delete_messages_from_chat(key_to_delete="code_repair")
+                self.messages.delete(key_to_delete="code_repair")
                 retry_count += 1
                 if retry_count == retries:
                     return user_code
