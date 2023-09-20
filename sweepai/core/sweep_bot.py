@@ -26,7 +26,7 @@ from sweepai.core.entities import (
     SectionRewrite,
     Snippet,
     NoFilesException,
-    Message,
+    Messages,
     MaxTokensExceeded,
 )
 
@@ -111,6 +111,8 @@ class ModifyBot:
         file_contents: str,
         file_change_request: FileChangeRequest,
     ):
+        old_system_prompt = self.fetch_snippets_bot.messages.system_prompt
+        self.fetch_snippets_bot.messages.switch_system_prompt(fetch_snippets_system_prompt)
         fetch_snippets_response = self.fetch_snippets_bot.chat(
             fetch_snippets_prompt.format(
                 code=file_contents,
@@ -118,6 +120,7 @@ class ModifyBot:
                 request=file_change_request.instructions,
             )
         )
+        self.fetch_snippets_bot.messages.switch_system_prompt(old_system_prompt)
 
         snippet_queries = []
         query_pattern = (
@@ -1328,8 +1331,17 @@ class SweepBot(CodeGenBot, GithubBot):
                 f"{file_name}, {commit_message}, {new_file_contents}, {branch}"
             )
 
+            # Import the Messages class
+            from entities import Messages
+            
+            # Initialize the Messages object
+            messages = Messages()
+            
             # Update the file with the new contents after all chunks have been processed
             try:
+                # Switch the system prompt
+                messages.prompt("Updating file...")
+            
                 result = self.repo.update_file(
                     file_name,
                     # commit_message.format(file_name=file_name),
@@ -1339,6 +1351,10 @@ class SweepBot(CodeGenBot, GithubBot):
                     branch=branch,
                 )
                 file_change_request.new_content = new_file_contents
+            
+                # Revert the system prompt
+                messages.prompt("File update complete.")
+            
                 return True, sandbox_error, result["commit"]
             except SystemExit:
                 raise SystemExit
