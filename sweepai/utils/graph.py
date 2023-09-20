@@ -182,6 +182,19 @@ class Graph(BaseModel):
             res += format_path(path, separator=" used in ") + "\n"
         return res
 
+    def topological_sort(self, file_paths: list[str]):
+        # Create a copy of the graph
+        graph = self.definitions_graph.copy()
+
+        # Filter out the nodes that are not in the file_paths
+        graph.remove_nodes_from([node for node in graph if node not in file_paths])
+
+        # Perform the topological sort
+        try:
+            return list(nx.algorithms.dag.topological_sort(graph))
+        except nx.NetworkXUnfeasible:
+            raise Exception("The dependency graph has at least one cycle.")
+
     def find_definitions(self, file_path: str):
         definition_paths = extract_degree_paths(self.definitions_graph, file_path)
         return definition_paths
@@ -230,3 +243,14 @@ if __name__ == "__main__":
         )
     )
     # Draw only those paths on the graph
+
+    # Create a Graph object
+    g = Graph.from_folder(folder_path)
+
+    # Perform a topological sort on the selected files
+    try:
+        sorted_files = g.topological_sort(selected_files)
+        print("\nTopological sort of the selected files:")
+        print("\n".join(sorted_files))
+    except Exception as e:
+        print(str(e))
