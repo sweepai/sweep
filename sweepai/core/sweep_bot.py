@@ -95,7 +95,7 @@ def match_indent(generated: str, original: str) -> str:
 
 
 class ModifyBot:
-    def __init__(self, additional_messages: list[Message] = [], chat_logger=None):
+    def __init__(self, additional_messages: Messages = Messages(), chat_logger=None):
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
             fetch_snippets_system_prompt, chat_logger=chat_logger
         )
@@ -819,7 +819,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     for file_path, file_contents in changed_files
                 ]
             )
-            self.messages.append(
+            self.messages.add(
                 Message(
                     content=changed_files_summary,
                     role="assistant",
@@ -962,7 +962,7 @@ class SweepBot(CodeGenBot, GithubBot):
             #         + "\nIf you do not wish to make changes to this file, please type `skip`.",
             #         message_key=key,
             #     )
-            #     self.delete_messages_from_chat(key)
+            #     self.messages.delete(key)
             #     self.messages[0].content = old_system_message
             # else:
             #     if line_count < RECREATE_LINE_LENGTH:
@@ -1232,11 +1232,9 @@ class SweepBot(CodeGenBot, GithubBot):
                         )
                     case "modify" | "rewrite":
                         # Remove snippets from this file if they exist
-                        snippet_msgs = [
-                            m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
-                        ]
-                        if len(snippet_msgs) > 0:  # Should always be true
-                            snippet_msg = snippet_msgs[0]
+                        snippet_msgs = self.messages.filter_by_key(BOT_ANALYSIS_SUMMARY)
+                        if snippet_msgs.has_messages():  # Should always be true
+                            snippet_msg = snippet_msgs.first()
                             # Use regex to remove this snippet from the message
                             file = re.escape(file_change_request.filename)
                             regex = rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
@@ -1306,7 +1304,7 @@ class SweepBot(CodeGenBot, GithubBot):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(f"Error in change_files_in_github {e}")
+                self.messages.error(f"Error in change_files_in_github {e}")
 
             if changed_file:
                 completed += 1
@@ -1343,7 +1341,7 @@ class SweepBot(CodeGenBot, GithubBot):
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.info(f"Error in handle_create_file: {e}")
+            self.messages.info(f"Error in handle_create_file: {e}")
             return False, None, None
 
     def handle_modify_file(
@@ -1461,7 +1459,7 @@ class SweepBot(CodeGenBot, GithubBot):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.info(f"Error in updating file, repulling and trying again {e}")
+                self.messages.info(f"Error in updating file, repulling and trying again {e}")
                 file = self.get_file(file_change_request.filename, branch=branch)
                 result = self.repo.update_file(
                     file_name,
@@ -1479,5 +1477,5 @@ class SweepBot(CodeGenBot, GithubBot):
             raise SystemExit
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")
+            self.messages.info(f"Error in handle_modify_file: {tb}")
             return False, sandbox_error, None
