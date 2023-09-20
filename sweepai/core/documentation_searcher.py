@@ -20,14 +20,14 @@ DOCS_ENDPOINTS = DOCS_ENDPOINTS
 class DocQueryRewriter(ChatGPT):
     # rewrite the query to be more relevant to the docs
     def rewrite_query(self, package: str, description: str, issue: str) -> str:
-        self.messages = [
+        self.messages = Messages(
             Message(
                 role="system",
                 content=doc_query_rewriter_system_prompt.format(
                     package=package, description=description
                 ),
             )
-        ]
+        )
         self.model = "gpt-3.5-turbo-16k-0613"  # can be optimized
         response = self.chat(doc_query_rewriter_prompt.format(issue=issue))
         self.undo()
@@ -71,13 +71,13 @@ class DocumentationSearcher(ChatGPT):
             chat_logger=chat_logger, model="gpt-3.5-turbo-16k-0613"
         ).rewrite_query(package=package, description=description, issue=content)
         urls, docs = docs_search(url, rewritten_problem)
-
-        self.messages = [
+    
+        self.messages = Messages(
             Message(
                 role="system",
                 content=docs_qa_system_prompt,
             ),
-        ]
+        )
         answer = self.chat(
             docs_qa_user_prompt.format(
                 snippets="\n\n".join(
