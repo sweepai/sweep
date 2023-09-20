@@ -327,7 +327,15 @@ class CodeGenBot(ChatGPT):
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            is_python_issue = sum([file_path.endswith(".py") for file_path in self.human_message.get_file_paths()]) > len(self.human_message.get_file_paths()) / 2
+            is_python_issue = (
+                sum(
+                    [
+                        file_path.endswith(".py")
+                        for file_path in self.human_message.get_file_paths()
+                    ]
+                )
+                > len(self.human_message.get_file_paths()) / 2
+            )
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
             plans: List[GraphContextAndPlan] = []
             if is_python_issue:
@@ -373,19 +381,36 @@ class CodeGenBot(ChatGPT):
 
                 with ThreadPoolExecutor() as executor:
                     # Create plan for relevant snippets first
-                    initial_files = set(s.file_path for s in self.human_message.snippets)
+                    initial_files = set(
+                        s.file_path for s in self.human_message.snippets
+                    )
                     relevant_snippet_futures = {}
                     for file_path in initial_files:
-                        other_snippets = [snippet for snippet in self.human_message.snippets if snippet.file_path != file_path]
-                        snippet = next(snippet for snippet in self.human_message.snippets if snippet.file_path == file_path)
+                        other_snippets = [
+                            snippet
+                            for snippet in self.human_message.snippets
+                            if snippet.file_path != file_path
+                        ]
+                        snippet = next(
+                            snippet
+                            for snippet in self.human_message.snippets
+                            if snippet.file_path == file_path
+                        )
 
                         relevant_symbol_list = []
                         for v in relevant_files_to_symbols.values():
                             relevant_symbol_list.extend(v)
-                        relevant_snippet_futures[executor.submit(worker, file_path,
-                                                                 relevant_symbol_list, issue_metadata,
-                                                                 self.human_message.render_snippet_array(other_snippets),
-                                                                 relevant_symbols_string, snippet.content)] = snippet.file_path
+                        relevant_snippet_futures[
+                            executor.submit(
+                                worker,
+                                file_path,
+                                relevant_symbol_list,
+                                issue_metadata,
+                                self.human_message.render_snippet_array(other_snippets),
+                                relevant_symbols_string,
+                                snippet.content,
+                            )
+                        ] = snippet.file_path
 
                     for future in as_completed(relevant_snippet_futures):
                         plan = future.result()

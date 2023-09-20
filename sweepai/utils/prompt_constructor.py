@@ -51,11 +51,11 @@ class HumanMessagePrompt(BaseModel):
         if joined_snippets.strip() == "":
             return ""
         return (
-                "<relevant_snippets_in_repo>"
-                + "\n"
-                + joined_snippets
-                + "\n"
-                + "</relevant_snippets_in_repo>"
+            "<relevant_snippets_in_repo>"
+            + "\n"
+            + joined_snippets
+            + "\n"
+            + "</relevant_snippets_in_repo>"
         )
 
     def render_snippets(self):
