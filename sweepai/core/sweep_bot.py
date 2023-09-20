@@ -377,6 +377,7 @@ class CodeGenBot(ChatGPT):
                     if not plan.changes_for_new_file or not plan.relevant_new_snippet:
                         return None
                     return plan
+
                 try:
                     with ThreadPoolExecutor() as executor:
                         # Create plan for relevant snippets first
@@ -405,7 +406,9 @@ class CodeGenBot(ChatGPT):
                                     file_path,
                                     relevant_symbol_list,
                                     issue_metadata,
-                                    self.human_message.render_snippet_array(other_snippets),
+                                    self.human_message.render_snippet_array(
+                                        other_snippets
+                                    ),
                                     relevant_symbols_string,
                                     snippet.content,
                                 )
@@ -434,7 +437,9 @@ class CodeGenBot(ChatGPT):
                             if plan is not None:
                                 plans.append(plan)
                 except RuntimeError as e:
-                    logger.warning("Failed to generate plans") # thread pool error which will occur if a ticket is being shut down
+                    logger.warning(
+                        "Failed to generate plans"
+                    )  # thread pool error which will occur if a ticket is being shut down
                     traceback.print_exc()
 
                 file_path_set = set()
@@ -453,7 +458,9 @@ class CodeGenBot(ChatGPT):
                 sorted_plans = []
                 for file_path in sorted_files:
                     sorted_plans.append(
-                        next(plan for plan in plans if plan.file_path == file_path) # TODO: use a dict instead
+                        next(
+                            plan for plan in plans if plan.file_path == file_path
+                        )  # TODO: use a dict instead
                     )
                 plans = sorted_plans
 
@@ -1180,14 +1187,14 @@ class SweepBot(CodeGenBot, GithubBot):
             changed_file = False
 
             # popping files too long
-            total_lines = 0
-            new_changed_files = []
-            for file_name, changed_file in changed_files:
-                if total_lines + len(changed_file.splitlines()) > LINE_CUTOFF:
-                    break
-                new_changed_files.append((file_name, changed_file))
-                total_lines += len(changed_file.splitlines())
-            changed_files = new_changed_files
+            # total_lines = 0
+            # new_changed_files = []
+            # for file_name, changed_file in changed_files:
+            #     if total_lines + len(changed_file.splitlines()) > LINE_CUTOFF:
+            #         break
+            #     new_changed_files.append((file_name, changed_file))
+            #     total_lines += len(changed_file.splitlines())
+            # changed_files = new_changed_files
 
             try:
                 commit = None
@@ -1218,7 +1225,10 @@ class SweepBot(CodeGenBot, GithubBot):
                             changed_files=changed_files,
                         )
                         changed_files.append(
-                            (file_change_request.filename, changed_file)
+                            (
+                                file_change_request.filename,
+                                file_change_request.new_content,
+                            )
                         )
                     case "modify" | "rewrite":
                         # Remove snippets from this file if they exist
@@ -1249,7 +1259,10 @@ class SweepBot(CodeGenBot, GithubBot):
                         )
                         # TODO: Should only contain diffs
                         changed_files.append(
-                            (file_change_request.filename, changed_file)
+                            (
+                                file_change_request.filename,
+                                file_change_request.new_content,
+                            )
                         )
                     case "delete":
                         contents = self.repo.get_contents(
