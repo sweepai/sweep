@@ -1,7 +1,7 @@
 import shutil
 import subprocess
 import github
-from logn import logger
+from logn import logger, file_cache
 
 from github.Repository import Repository
 from tqdm import tqdm
@@ -18,6 +18,7 @@ from sweepai.utils.scorer import merge_and_dedup_snippets
 from sweepai.utils.event_logger import posthog
 
 
+@file_cache(ignore_params=["cloned_repo", "sweep_config"])
 def search_snippets(
     cloned_repo: ClonedRepo,
     query: str,

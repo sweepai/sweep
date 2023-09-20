@@ -34,6 +34,8 @@ def file_cache(ignore_params=[]):
         def wrapper(*args, **kwargs):
             if GITHUB_BOT_USERNAME != TEST_BOT_NAME:
                 result = func(*args, **kwargs)
+                return result
+
             cache_dir = "cache"
             os.makedirs(cache_dir, exist_ok=True)
 
