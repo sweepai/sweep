@@ -149,7 +149,7 @@ def extract_python_span(code, entities):
         end_window = len(lines)
 
     if end_window - start_window < 2:
-        end_window = start_window + window_size
+        end_window = min(start_window + window_size, len(lines))
 
     # Extract lines in the window and mark where entity is mentioned
     code_with_line_numbers = ""
