@@ -189,17 +189,18 @@ class ChatGPT(BaseModel):
     ):
         self.messages.append(Message(role="user", content=content, key=message_key))
         model = model or self.model
-        self.messages.append(
-            Message(
-                role="assistant",
-                content=self.call_openai(
-                    model=model,
-                    temperature=temperature,
-                ),
-                key=message_key,
+        with self.messages.prompt() as prompt:
+            prompt.append(
+                Message(
+                    role="assistant",
+                    content=self.call_openai(
+                        model=model,
+                        temperature=temperature,
+                    ),
+                    key=message_key,
+                )
             )
-        )
-        self.prev_message_states.append(self.messages)
+        self.prev_message_states.append(deepcopy(self.messages))
         return self.messages[-1].content
 
     # Only works on functions without side effects
@@ -219,6 +220,7 @@ class ChatGPT(BaseModel):
                 )
             else:
                 model = "gpt-3.5-turbo-16k-0613"
+        messages_length = self.messages.token_count
 
         count_tokens = Tiktoken().count
         messages_length = sum(
@@ -335,10 +337,11 @@ class ChatGPT(BaseModel):
         self.messages.append(Message(role="user", content=content, key=message_key))
         model = model or self.model
         response = await self.acall_openai(model=model)
-        self.messages.append(
-            Message(role="assistant", content=response, key=message_key)
-        )
-        self.prev_message_states.append(self.messages)
+        with self.messages.prompt() as prompt:
+            prompt.append(
+                Message(role="assistant", content=response, key=message_key)
+            )
+        self.prev_message_states.append(deepcopy(self.messages))
         return self.messages[-1].content
 
     async def acall_openai(
@@ -355,6 +358,7 @@ class ChatGPT(BaseModel):
                 )
             else:
                 model = "gpt-3.5-turbo-16k-0613"
+        messages_length = self.messages.token_count
 
         count_tokens = Tiktoken().count
         messages_length = sum(
