@@ -1,4 +1,5 @@
 # Do not save logs for main process
+import traceback
 from logn import logger
 from sweepai.utils.buttons import check_button_activated
 from sweepai.utils.safe_pqueue import SafePriorityQueue
@@ -152,7 +153,6 @@ def run_get_deeplake_vs_from_repo(*args, **kwargs):
 
 def terminate_thread(thread):
     """Terminate a python threading.Thread."""
-    # Todo(lukejagg): for multiprocessing, see if .terminate is catched in try/catch
     try:
         if not thread.is_alive():
             return
@@ -164,15 +164,12 @@ def terminate_thread(thread):
         if res == 0:
             raise ValueError("Invalid thread ID")
         elif res != 1:
-            # Call with exception set to 0 is needed to cleanup properly.
             ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
             raise SystemError("PyThreadState_SetAsyncExc failed")
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.error(f"Failed to terminate thread: {e}")
-
-
+        logger.error(f"Failed to terminate thread: {e}, traceback: {traceback.format_exc()}")
 def call_on_ticket(*args, **kwargs):
     global on_ticket_events
     key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
@@ -181,7 +178,6 @@ def call_on_ticket(*args, **kwargs):
     # Check if a previous process exists for the same key, cancel it
     e = on_ticket_events.get(key, None)
     if e:
-        logger.info(f"Found previous thread for key {key} and cancelling it")
         terminate_thread(e)
 
     thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
@@ -446,6 +442,8 @@ async def webhook(raw_request: Request):
                     #     logger.info("Cancelling process")
                     #     process.cancel()
                     # stub.issue_lock[
+                    import traceback
+                    
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
                     call_on_ticket(
@@ -481,7 +479,6 @@ async def webhook(raw_request: Request):
                         .lower()
                         .startswith(GITHUB_LABEL_NAME)
                     ):
-                        logger.info("Comment does not start with 'Sweep', passing")
                         return {
                             "success": True,
                             "reason": "Comment does not start with 'Sweep', passing",
