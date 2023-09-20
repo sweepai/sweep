@@ -76,12 +76,12 @@ def format_for_anthropic(messages: list[Message]) -> str:
 
 
 class ChatGPT(BaseModel):
-    messages: list[Message] = [
+    messages: Messages = Messages(
         Message(
             role="system",
             content=system_message_prompt,
         )
-    ]
+    )
     prev_message_states: list[list[Message]] = []
     model: ChatModel = (
         "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
@@ -149,19 +149,9 @@ class ChatGPT(BaseModel):
     def delete_messages_from_chat(
         self, key_to_delete: str, delete_user=True, delete_assistant=True
     ):
-        self.messages = [
-            message
-            for message in self.messages
-            if not (
-                key_to_delete in (message.key or "")
-                and (
-                    delete_user
-                    and message.role == "user"
-                    or delete_assistant
-                    and message.role == "assistant"
-                )
-            )  # Only delete if message matches key to delete and role should be deleted
-        ]
+        self.messages.delete(
+            key_to_delete, delete_user=delete_user, delete_assistant=delete_assistant
+        )
 
     def delete_file_from_system_message(self, file_path: str):
         self.human_message.delete_file(file_path)
@@ -187,19 +177,16 @@ class ChatGPT(BaseModel):
         message_key: str | None = None,
         temperature=temperature,
     ):
-        self.messages.append(Message(role="user", content=content, key=message_key))
+        self.messages.append_user_message(content, key=message_key)
         model = model or self.model
-        self.messages.append(
-            Message(
-                role="assistant",
-                content=self.call_openai(
-                    model=model,
-                    temperature=temperature,
-                ),
-                key=message_key,
-            )
+        self.messages.append_assistant_message(
+            self.call_openai(
+                model=model,
+                temperature=temperature,
+            ),
+            key=message_key,
         )
-        self.prev_message_states.append(self.messages)
+        self.prev_message_states.append(deepcopy(self.messages))
         return self.messages[-1].content
 
     # Only works on functions without side effects
@@ -221,9 +208,7 @@ class ChatGPT(BaseModel):
                 model = "gpt-3.5-turbo-16k-0613"
 
         count_tokens = Tiktoken().count
-        messages_length = sum(
-            [count_tokens(message.content or "") for message in self.messages]
-        )
+        messages_length = self.messages.count_tokens()
         max_tokens = (
             model_to_max_tokens[model] - int(messages_length) - 400
         )  # this is for the function tokens
@@ -239,14 +224,10 @@ class ChatGPT(BaseModel):
                     f"Input to OpenAI:\n{self.messages_dicts}\n{traceback.format_exc()}"
                 )
                 raise ValueError(f"Message is too long, max tokens is {max_tokens}")
-        messages_raw = "\n".join([(message.content or "") for message in self.messages])
+        messages_raw = self.messages.to_string()
         logger.info(f"Input to call openai:\n{messages_raw}")
 
-        messages_dicts = [self.messages_dicts[0]]
-        for message_dict in self.messages_dicts[:1]:
-            if message_dict["role"] == messages_dicts[-1]["role"]:
-                messages_dicts[-1]["content"] += "\n" + message_dict["content"]
-            messages_dicts.append(message_dict)
+        messages_dicts = self.messages.to_dicts()
 
         gpt_4_buffer = 800
         if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
@@ -332,13 +313,11 @@ class ChatGPT(BaseModel):
         model: ChatModel | None = None,
         message_key: str | None = None,
     ):
-        self.messages.append(Message(role="user", content=content, key=message_key))
+        self.messages.append_user_message(content, key=message_key)
         model = model or self.model
         response = await self.acall_openai(model=model)
-        self.messages.append(
-            Message(role="assistant", content=response, key=message_key)
-        )
-        self.prev_message_states.append(self.messages)
+        self.messages.append_assistant_message(response, key=message_key)
+        self.prev_message_states.append(deepcopy(self.messages))
         return self.messages[-1].content
 
     async def acall_openai(
@@ -467,7 +446,7 @@ class ChatGPT(BaseModel):
     @property
     def messages_dicts(self):
         # Remove the key from the message object before sending to OpenAI
-        cleaned_messages = [message.to_openai() for message in self.messages]
+        cleaned_messages = self.messages.to_dicts()
         return cleaned_messages
 
     def undo(self):
