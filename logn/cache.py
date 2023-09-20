@@ -55,14 +55,15 @@ def file_cache(ignore_params=[]):
             args_dict = dict(zip(args_names, args))
 
             # Remove ignored params
+            kwargs_clone = kwargs.copy()
             for param in ignore_params:
                 args_dict.pop(param, None)
-                kwargs.pop(param, None)
+                kwargs_clone.pop(param, None)
 
             # Create hash based on function name and input arguments
             arg_hash = recursive_hash(
                 args_dict, ignore_params=ignore_params
-            ) + recursive_hash(kwargs, ignore_params=ignore_params)
+            ) + recursive_hash(kwargs_clone, ignore_params=ignore_params)
             cache_file = os.path.join(
                 cache_dir, f"{func.__module__}_{func.__name__}_{arg_hash}.pickle"
             )
