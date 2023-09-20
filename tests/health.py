@@ -8,7 +8,9 @@ from sweepai.config.server import SWEEP_HEALTH_URL, DISCORD_STATUS_WEBHOOK_URL
 def log_discord(message):
     data = {"content": message}
     headers = {"Content-Type": "application/json"}
-    response = requests.post(DISCORD_STATUS_WEBHOOK_URL, data=json.dumps(data), headers=headers)
+    response = requests.post(
+        DISCORD_STATUS_WEBHOOK_URL, data=json.dumps(data), headers=headers
+    )
 
 
 def track_status(delay=5, failed_requests=6):
@@ -28,7 +30,7 @@ def track_status(delay=5, failed_requests=6):
         except requests.exceptions.ConnectionError:
             healthy = False
 
-        print(f'State: {healthy} ', end='\r')
+        print(f"State: {healthy} ", end="\r")
 
         if not healthy:
             counter += 1

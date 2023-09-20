@@ -171,6 +171,7 @@ import os
 from whoosh import index
 from whoosh.fields import Schema, TEXT, NUMERIC
 
+
 def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
     from tqdm import tqdm
 

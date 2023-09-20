@@ -30,7 +30,9 @@ class ChatLogger(BaseModel):
         super().__init__(data=data)  # Call the BaseModel's __init__ method
         key = MONGODB_URI
         if key is None:
-            logger.warning("MONGODB_URI is not set. Chat history logger cannot connect to MongoDB.")
+            logger.warning(
+                "MONGODB_URI is not set. Chat history logger cannot connect to MongoDB."
+            )
             return
         try:
             client = MongoClient(
