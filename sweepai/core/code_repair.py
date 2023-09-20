@@ -15,9 +15,8 @@ response_regex = r"```[^\n]*(?P<response>.+)```"
 
 class CodeRepairChecker(ChatGPT):
     def check_code(self, diff: str, user_code: str) -> bool:
-        self.messages = [
-            Message(role="system", content=code_repair_check_system_prompt)
-        ]
+        with self.messages.prompt() as m:
+            m.append(Message(role="system", content=code_repair_check_system_prompt))
         self.model = "gpt-3.5-turbo-16k-0613"
         response = self.chat(
             code_repair_check_prompt.format(user_code=user_code),
