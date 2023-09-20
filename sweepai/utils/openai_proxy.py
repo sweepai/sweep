@@ -1,6 +1,6 @@
 import os
 import traceback as tb
-from logn import logger
+from logn import logger, file_cache
 import openai
 from sweepai.config.server import (
     AZURE_API_KEY,
@@ -18,6 +18,7 @@ class OpenAIProxy:
     def __init__(self):
         pass
 
+    @file_cache(ignore_params=["max_tokens"])
     def call_openai(self, model, messages, max_tokens, temperature):
         try:
             engine = None
