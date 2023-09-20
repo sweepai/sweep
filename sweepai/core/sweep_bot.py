@@ -361,90 +361,47 @@ class CodeGenBot(ChatGPT):
                     for file_path in relevant_files_to_symbols.keys()
                 }
 
-                def worker(
-                    file_path,
-                    entities,
-                    issue_metadata,
-                    relevant_snippets,
-                    relevant_symbols_string,
-                    file_contents,
-                ):
+                # Create plan for relevant snippets first
+                human_message_snippet_paths = set(
+                    s.file_path for s in self.human_message.snippets
+                )
+                non_human_message_snippet_paths = set()
+                for file_path in relevant_files_to_symbols.keys():
+                    non_human_message_snippet_paths.add(file_path) # TODO (luke) use trimmed context of initial files in this step instead of self.human_message.render_snippet_array(other_snippets)
+                for file_path in human_message_snippet_paths | non_human_message_snippet_paths:
+                    other_snippets = [
+                        snippet
+                        for snippet in self.human_message.snippets
+                        if snippet.file_path != file_path and file_path in human_message_snippet_paths # <- trim these once the human messages are parsed
+                    ]
+                    if file_path in human_message_snippet_paths:
+                        snippet = next(
+                            snippet
+                            for snippet in self.human_message.snippets
+                            if snippet.file_path == file_path
+                        )
+                    else:
+                        snippet = Snippet(
+                            file_path=file_path,
+                            start=0,
+                            end=0,
+                            content=file_paths_to_contents[file_path],
+                        )
+                    relevant_symbol_list = []
+                    for v in relevant_files_to_symbols.values(): relevant_symbol_list.extend(v)
                     plan_bot = GraphChildBot(chat_logger=self.chat_logger)
                     plan = plan_bot.code_plan_extraction(
-                        code=file_contents,
-                        file_path=file_path,
-                        entities=entities,
-                        issue_metadata=issue_metadata,
-                        previous_snippets=relevant_snippets,
-                        all_symbols_and_files=relevant_symbols_string,
+                        file_path,
+                        relevant_symbol_list,
+                        issue_metadata,
+                        self.human_message.render_snippet_array(
+                            other_snippets
+                        ),
+                        relevant_symbols_string,
+                        snippet.content,
                     )
                     if not plan.changes_for_new_file or not plan.relevant_new_snippet:
-                        return None
-                    return plan
-
-                try:
-                    with ThreadPoolExecutor() as executor:
-                        # Create plan for relevant snippets first
-                        initial_files = set(
-                            s.file_path for s in self.human_message.snippets
-                        )
-                        relevant_snippet_futures = {}
-                        for file_path in initial_files:
-                            other_snippets = [
-                                snippet
-                                for snippet in self.human_message.snippets
-                                if snippet.file_path != file_path
-                            ]
-                            snippet = next(
-                                snippet
-                                for snippet in self.human_message.snippets
-                                if snippet.file_path == file_path
-                            )
-
-                            relevant_symbol_list = []
-                            for v in relevant_files_to_symbols.values():
-                                relevant_symbol_list.extend(v)
-                            relevant_snippet_futures[
-                                executor.submit(
-                                    worker,
-                                    file_path,
-                                    relevant_symbol_list,
-                                    issue_metadata,
-                                    self.human_message.render_snippet_array(
-                                        other_snippets
-                                    ),
-                                    relevant_symbols_string,
-                                    snippet.content,
-                                )
-                            ] = snippet.file_path
-
-                        for future in as_completed(relevant_snippet_futures):
-                            plan = future.result()
-                            if plan is not None:
-                                plans.append(plan)
-
-                        # Then use plan for each reference
-                        future_to_file = {
-                            executor.submit(
-                                worker,
-                                file_path,
-                                entities,
-                                issue_metadata,
-                                relevant_snippets,
-                                relevant_symbols_string,
-                                file_paths_to_contents[file_path],
-                            ): file_path
-                            for file_path, entities in relevant_files_to_symbols.items()
-                        }
-                        for future in as_completed(future_to_file):
-                            plan = future.result()
-                            if plan is not None:
-                                plans.append(plan)
-                except RuntimeError as e:
-                    logger.warning(
-                        "Failed to generate plans"
-                    )  # thread pool error which will occur if a ticket is being shut down
-                    traceback.print_exc()
+                        plans.append(plan)
 
                 file_path_set = set()
                 deduped_plans = []
