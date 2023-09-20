@@ -63,7 +63,21 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 openai.api_key = OPENAI_API_KEY
 
-sweeping_gif = """<img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping">"""
+swing_animation = """
+<style>
+@keyframes swing {
+  0% { transform: rotate(0deg); }
+  50% { transform: rotate(10deg); }
+  100% { transform: rotate(-10deg); }
+}
+
+.swing {
+  animation: swing 1s infinite alternate;
+}
+</style>
+"""
+
+sweeping_gif = """<img class="swing" src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping">"""
 
 
 def center(text: str) -> str:
@@ -297,6 +311,8 @@ def on_ticket(
     )
 
     def get_comment_header(index, errored=False, pr_message="", done=False):
+        # existing code...
+        return f"{center(swing_animation + sweeping_gif)}<br/>{center(pbar)}"
         config_pr_message = (
             "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})"
             if config_pr_url is not None
