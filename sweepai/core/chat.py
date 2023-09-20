@@ -90,7 +90,7 @@ class ChatGPT(BaseModel):
     human_message: HumanMessagePrompt | None = None
     file_change_paths: list[str] = []
     sweep_context: SweepContext | None = None
-    cloned_repo: ClonedRepo | None = (None,)
+    cloned_repo: ClonedRepo | None = None
 
     @classmethod
     def from_system_message_content(
