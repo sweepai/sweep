@@ -2,6 +2,7 @@
 
 import os
 import ast
+import traceback
 
 from typing import Any
 from loguru import logger
@@ -200,7 +201,7 @@ class Graph(BaseModel):
         graph.remove_nodes_from(nodes_to_remove)
         # print graph as dictionary
         if nx.algorithms.dag.has_cycle(graph): # should never happen because imports dedupe classes and functions
-            logger.error(f"The dependency graph has at least one cycle. The file paths are {file_paths}")
+            logger.error(f"The dependency graph has at least one cycle. The file paths are {file_paths}. Traceback: {traceback.format_exc()}")
             return file_paths
 
         # Perform the topological sort
