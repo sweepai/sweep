@@ -110,12 +110,16 @@ class ModifyBot:
         file_path: str,
         file_contents: str,
         file_change_request: FileChangeRequest,
+        chunking: bool = False,
     ):
         fetch_snippets_response = self.fetch_snippets_bot.chat(
             fetch_snippets_prompt.format(
                 code=file_contents,
                 file_path=file_path,
                 request=file_change_request.instructions,
+                chunking_prompt='\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n'
+                if chunking
+                else "",
             )
         )
 
@@ -902,6 +906,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_path=file_change_request.filename,
                     file_contents=contents,
                     file_change_request=file_change_request,
+                    chunking=chunking,
                 )
             except SystemExit:
                 raise SystemExit
