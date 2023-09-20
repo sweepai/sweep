@@ -1002,7 +1002,7 @@ def on_ticket(
             review_message + "\n\nSuccess! 🚀",
             4,
             pr_message=(
-                f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}"
+                f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{center(payment_message)}"
             ),
             done=True,
         )
