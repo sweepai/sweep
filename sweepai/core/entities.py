@@ -506,6 +506,32 @@ class SweepContext(BaseModel):  # type: ignore
     def __str__(self):
         return f"{self.issue_url}, {self.use_faster_model}"
 
+class Messages(list):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+    def prompt(self, system_prompt, new_prompt, swap_prompt):
+        class PromptContextManager:
+            def __init__(self):
+                self.system_prompt = system_prompt
+                self.new_prompt = new_prompt
+                self.swap_prompt = swap_prompt
+                self.old_prompt = None
+
+            def __enter__(self):
+                if self.swap_prompt:
+                    self.old_prompt = self.system_prompt
+                    self.system_prompt = self.new_prompt
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                if self.swap_prompt:
+                    self.system_prompt = self.old_prompt
+
+        return PromptContextManager()
+
 
 @dataclass
 class SandboxExecution:
