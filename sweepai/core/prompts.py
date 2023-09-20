@@ -1161,32 +1161,7 @@ update_snippets_system_prompt = (
     " right."
 )
 
-update_snippets_prompt = """# Code
-File path: {file_path}
-```
-{code}
-```
-
-# Request
-{request}
-
-# Snippets
-{snippets}
-
-# Instructions
-For each snippet above, rewrite it according to their corresponding instructions.
-* Only rewrite within the scope of the snippet, as it will be replaced directly.
-* Do not delete whitespace or comments.
-* The output will be copied into the code LITERALLY so do not close all ending brackets
-* Remember to copy the original code for prepending.
-
-Respond in the following format:
-
-<updated_snippet id="i">
-```
 updated lines
-```
-</updated_snippet>"""
 
 # Initial agent is used when deciding to explore entities initially.
 # code_graph_initial_agent = CustomInstructions(
@@ -1218,7 +1193,9 @@ human.py:RandomEntity
 """
 
 # Todo: Add this to the end of files_to_change_prompt if using GPT-4
-gpt4_human_message_entity_plan_prompt = """\
+# Updated to use the 'Messages' class
+gpt4_human_message_entity_plan_prompt = Messages(
+    system_prompt="""\
 <files_to_explore>
 {file_name}
 ...
@@ -1228,11 +1205,17 @@ gpt4_human_message_entity_plan_prompt = """\
 {entity}
 </entities_to_explore>
 """
+)
 
-# Todo:
-# Explore agent will partake in the exploration.
-code_graph_explore_agent = CustomInstructions(
-    system_prompt="""You are a developer working on the following issue:
+# Updated to use the 'Messages' class and its methods
+class Messages:
+    def __init__(self, system_prompt):
+        self.system_prompt = system_prompt
+        self.old_prompt = None
+
+    def __enter__(self):
+        self.old_prompt = self.system_prompt
+        self.system_prompt = """You are a developer working on the following issue:
 
 <metadata>
 {metadata}
@@ -1258,16 +1241,9 @@ Paths to Explore:
 <entities_to_explore>
 {entity}
 </entities_to_explore>
-""",
-    user_prompt=[
-        """<entity name=\"{entity_name}\" file_path=\"{file_path}\">
-{entity}
-</entity>""",
-        """You have already explored the following entities:
-<explored_already>
-{explored}
-</explored_already>
+"""
+        return self
 
-You are currently exploring entity ChatGPT. Extract relevant content.""",
-    ],
-)
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.system_prompt = self.old_prompt
+        self.old_prompt = None
