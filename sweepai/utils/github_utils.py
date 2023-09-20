@@ -261,7 +261,7 @@ class ClonedRepo:
     def get_file_contents(self, file_path, ref=None):
         local_path = os.path.join(self.cache_dir, file_path)
         if os.path.exists(local_path):
-            with open(local_path, 'r', encoding='utf-8', errors='replace') as f:
+            with open(local_path, "r", encoding="utf-8", errors="replace") as f:
                 contents = f.read()
             return contents
         else:

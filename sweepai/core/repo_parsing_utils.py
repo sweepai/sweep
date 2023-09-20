@@ -56,7 +56,9 @@ def read_file(file_name):
 FILE_THRESHOLD = 100
 
 
-def repo_to_chunks(directory: str, sweep_config: SweepConfig) -> tuple[list: Snippet, list: str]:
+def repo_to_chunks(
+    directory: str, sweep_config: SweepConfig
+) -> tuple[list:Snippet, list:str]:
     dir_file_count = {}
 
     def is_dir_too_big(file_name):
