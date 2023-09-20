@@ -111,7 +111,13 @@ class ModifyBot:
         file_contents: str,
         file_change_request: FileChangeRequest,
     ):
-        fetch_snippets_response = self.fetch_snippets_bot.chat(
+        with self.fetch_snippets_bot.messages.prompt(
+            fetch_snippets_prompt.format(
+                code=file_contents,
+                file_path=file_path,
+                request=file_change_request.instructions,
+            )
+        ) as fetch_snippets_response:
             fetch_snippets_prompt.format(
                 code=file_contents,
                 file_path=file_path,
