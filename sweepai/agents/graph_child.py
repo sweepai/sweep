@@ -72,6 +72,8 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
             if ":" not in raw_snippet:
                 continue
             generated_file_path, lines = raw_snippet.split(":", 1)
+            if not generated_file_path or not lines.strip():
+                continue
             generated_file_path, lines = (
                 generated_file_path.strip(),
                 lines.split()[0].strip(),
