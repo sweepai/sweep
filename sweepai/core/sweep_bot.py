@@ -798,9 +798,27 @@ class SweepBot(CodeGenBot, GithubBot):
                 logger.error(traceback.format_exc())
         return content, sandbox_execution
 
-    def create_file(self, file_change_request: FileChangeRequest):
+    def create_file(
+        self,
+        file_change_request: FileChangeRequest,
+        changed_files: list[tuple[str, str]] = [],
+    ):
         file_change: FileCreation | None = None
         key = f"file_change_created_{file_change_request.filename}"
+        if changed_files:
+            changed_files_summary = "Changed files in this PR:\n\n" + "\n".join(
+                [
+                    f'<changed_file file_path="{file_path}">\n{file_contents}\n</changed_file>'
+                    for file_path, file_contents in changed_files
+                ]
+            )
+            self.messages.append(
+                Message(
+                    content=changed_files_summary,
+                    role="assistant",
+                    key="changed_files_summary",
+                )
+            )
         create_file_response = self.chat(
             create_file_prompt.format(
                 filename=file_change_request.filename,
@@ -808,6 +826,8 @@ class SweepBot(CodeGenBot, GithubBot):
             ),
             message_key=key,
         )
+        if changed_files:
+            self.delete_messages_from_chat(key="changed_files_summary")
         # Add file to list of changed_files
         self.file_change_paths.append(file_change_request.filename)
         # self.delete_file_from_system_message(file_path=file_change_request.filename)
@@ -867,6 +887,7 @@ class SweepBot(CodeGenBot, GithubBot):
         chunking: bool = False,
         chunk_offset: int = 0,
         sandbox=None,
+        changed_files: list[tuple[str, str]] = [],
     ):
         key = f"file_change_modified_{file_change_request.filename}"
         file_markdown = is_markdown(file_change_request.filename)
@@ -882,15 +903,34 @@ class SweepBot(CodeGenBot, GithubBot):
         # old_system_message = self.messages[0].content
         new_file = ""
         try:
-            modify_file_bot = ModifyBot(
-                additional_messages=[
+            changed_files_summary = "Changed files in this PR:\n\n" + "\n".join(
+                [
+                    f'<changed_file file_path="{file_path}">\n{file_contents}\n</changed_file>'
+                    for file_path, file_contents in changed_files
+                ]
+            )
+            additional_messages = (
+                [
+                    Message(
+                        content=changed_files_summary,
+                        role="assistant",
+                    )
+                ]
+                if changed_files
+                else []
+            )
+            additional_messages += (
+                [
                     Message(
                         content="This is one of the sections of code out of a larger body of code and the changes may not be in this file. If you do not wish to make changes to this file, please type `skip`.",
                         role="assistant",
                     )
                 ]
                 if chunking
-                else [],
+                else []
+            )
+            modify_file_bot = ModifyBot(
+                additional_messages=additional_messages,
                 chat_logger=self.chat_logger,
             )
             try:
@@ -1126,15 +1166,29 @@ class SweepBot(CodeGenBot, GithubBot):
     ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
-        num_fcr = len(file_change_requests)
+        # num_fcr = len(file_change_requests)
         completed = 0
         sandbox_execution = None
 
-        added_modify_hallucination = False
+        # added_modify_hallucination = False
+
+        LINE_CUTOFF = 600
+        changed_files: list[tuple[str, str]] = []
 
         for file_change_request in file_change_requests:
             logger.print(file_change_request.change_type, file_change_request.filename)
             changed_file = False
+
+            # popping files too long
+            total_lines = 0
+            new_changed_files = []
+            for file_name, changed_file in changed_files:
+                if total_lines + len(changed_file.splitlines()) > LINE_CUTOFF:
+                    break
+                new_changed_files.append((file_name, changed_file))
+                total_lines += len(changed_file.splitlines())
+            changed_files = new_changed_files
+
             try:
                 commit = None
                 # Todo(Sweep): add commit for each type of change type
@@ -1158,7 +1212,13 @@ class SweepBot(CodeGenBot, GithubBot):
                             sandbox_execution,
                             commit,
                         ) = self.handle_create_file(
-                            file_change_request, branch, sandbox=sandbox
+                            file_change_request,
+                            branch,
+                            sandbox=sandbox,
+                            changed_files=changed_files,
+                        )
+                        changed_files.append(
+                            (file_change_request.filename, changed_file)
                         )
                     case "modify" | "rewrite":
                         # Remove snippets from this file if they exist
@@ -1182,28 +1242,15 @@ class SweepBot(CodeGenBot, GithubBot):
                             sandbox_execution,
                             commit,
                         ) = self.handle_modify_file(
-                            file_change_request, branch, sandbox=sandbox
+                            file_change_request,
+                            branch,
+                            sandbox=sandbox,
+                            changed_files=changed_files,
                         )
-                    # case "rewrite":
-                    #     # Remove snippets from this file if they exist
-                    #     snippet_msgs = [
-                    #         m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
-                    #     ]
-                    #     if len(snippet_msgs) > 0:  # Should always be true
-                    #         snippet_msg = snippet_msgs[0]
-                    #         # Use regex to remove this snippet from the message
-                    #         file = re.escape(file_change_request.filename)
-                    #         regex = rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
-                    #         snippet_msg.content = re.sub(
-                    #             regex,
-                    #             "",
-                    #             snippet_msg.content,
-                    #             flags=re.DOTALL,
-                    #         )
-
-                    #     changed_file, sandbox_execution = self.rewrite_file(
-                    #         file_change_request, branch
-                    #     )
+                        # TODO: Should only contain diffs
+                        changed_files.append(
+                            (file_change_request.filename, changed_file)
+                        )
                     case "delete":
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch
@@ -1252,10 +1299,16 @@ class SweepBot(CodeGenBot, GithubBot):
                 completed += 1
 
     def handle_create_file(
-        self, file_change_request: FileChangeRequest, branch: str, sandbox=None
+        self,
+        file_change_request: FileChangeRequest,
+        branch: str,
+        sandbox=None,
+        changed_files: list[tuple[str, str]] = [],
     ) -> tuple[bool, None, Commit]:
         try:
-            file_change, sandbox_execution = self.create_file(file_change_request)
+            file_change, sandbox_execution = self.create_file(
+                file_change_request, changed_files=changed_files
+            )
             file_markdown = is_markdown(file_change_request.filename)
             file_change.code = format_contents(file_change.code, file_markdown)
             logger.debug(
@@ -1286,6 +1339,7 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str,
         commit_message: str = None,
         sandbox=None,
+        changed_files: list[tuple[str, str]] = [],
     ) -> tuple[str, Any, Commit]:
         CHUNK_SIZE = 800  # Number of lines to process at a time
         sandbox_error = None
@@ -1324,6 +1378,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             chunking=chunking,
                             chunk_offset=0,
                             sandbox=sandbox,
+                            changed_files=[],
                         )
                         commit_message = suggested_commit_message
                         # commit_message = commit_message or suggested_commit_message
@@ -1353,6 +1408,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 chunking=chunking,
                                 chunk_offset=i,
                                 sandbox=sandbox,
+                                changed_files=[],
                             )
                             # commit_message = commit_message or suggested_commit_message
                             commit_message = suggested_commit_message

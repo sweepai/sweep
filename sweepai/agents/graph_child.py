@@ -72,6 +72,8 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
             if ":" not in raw_snippet:
                 continue
             generated_file_path, lines = raw_snippet.split(":", 1)
+            if not generated_file_path or not lines.strip():
+                continue
             generated_file_path, lines = (
                 generated_file_path.strip(),
                 lines.split()[0].strip(),
@@ -157,9 +159,9 @@ def extract_python_span(code, entities):
             if entity in line:
                 mentioned_lines.append(i)
     # Calculate the window to show
-    window_size = 100
+    window_size = 50
     start_window = max(0, min(mentioned_lines)) if mentioned_lines else 0
-    end_window = max(mentioned_lines)
+    end_window = max(mentioned_lines) if mentioned_lines else 0
 
     # Extend end_window to the next line with no indent
     for i in range(end_window + 1, len(lines)):
