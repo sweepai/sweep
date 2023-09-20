@@ -836,7 +836,7 @@ def on_ticket(
                     (
                         (
                             f"`{filename}` ✅ Commit [`{commit_hash[:7]}`]({commit_url})",
-                            blockquote(instructions) + error_logs,
+                            instructions + error_logs,
                             "X",
                         )
                         if file_change_request.filename == filename
@@ -850,7 +850,7 @@ def on_ticket(
                     (
                         (
                             f"`{filename}` ❌ Failed",
-                            blockquote(instructions) + error_logs,
+                            instructions + error_logs,
                             "X",
                         )
                         if file_change_request.filename == filename
@@ -863,7 +863,7 @@ def on_ticket(
                     checkbox_template.format(
                         check=check,
                         filename=filename,
-                        instructions=instructions,
+                        instructions=blockquote(instructions),
                     )
                     for filename, instructions, check in checkboxes_progress
                 ]
