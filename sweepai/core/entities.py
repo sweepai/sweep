@@ -15,32 +15,33 @@ from sweepai.utils.event_logger import set_highlight_id
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
-class Message(BaseModel):
-    role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal[
-        "function"
-    ]
-    content: str | None = None
-    name: str | None = None
-    function_call: dict | None = None
-    key: str | None = None
+from typing import List
 
-    @classmethod
-    def from_tuple(cls, tup: tuple[str | None, str | None]) -> Self:
-        if tup[0] is None:
-            return cls(role="assistant", content=tup[1])
-        else:
-            return cls(role="user", content=tup[0])
+class Messages(BaseModel):
+    messages: List[Message]
 
-    def to_openai(self) -> str:
-        obj = {
-            "role": self.role,
-            "content": self.content,
-        }
-        if self.function_call:
-            obj["function_call"] = self.function_call
-        if self.role == "function":
-            obj["name"] = self.name
-        return obj
+    def __init__(self, messages: List[Message] = None):
+        self.messages = messages if messages else []
+
+    def __enter__(self):
+        self.old_system_prompt = self.messages[0].content
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.messages[0].content = self.old_system_prompt
+
+    def prompt(self, new_prompt: str):
+        self.old_system_prompt = self.messages[0].content
+        self.messages[0].content = new_prompt
+
+    def __getitem__(self, index: int):
+        return self.messages[index]
+
+    def append(self, message: Message):
+        self.messages.append(message)
+
+    def extend(self, messages: List[Message]):
+        self.messages.extend(messages)
 
 
 class Function(BaseModel):
@@ -557,7 +558,7 @@ class CustomInstructions(BaseModel):
                     if type(self.custom_instructions.user_prompt) == list:
                         for user_prompt in self.custom_instructions.user_prompt:
                             self.chatbot.messages.append(
-                                Message(
+                                Messages(
                                     role="user",
                                     content=user_prompt.format(**kwargs),
                                     key=key,
@@ -565,7 +566,7 @@ class CustomInstructions(BaseModel):
                             )
                     else:
                         self.chatbot.messages.append(
-                            Message(
+                            Messages(
                                 role="user",
                                 content=self.custom_instructions.user_prompt.format(
                                     **kwargs
