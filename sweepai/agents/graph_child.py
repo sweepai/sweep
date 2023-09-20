@@ -159,9 +159,9 @@ def extract_python_span(code, entities):
             if entity in line:
                 mentioned_lines.append(i)
     # Calculate the window to show
-    window_size = 100
+    window_size = 50
     start_window = max(0, min(mentioned_lines)) if mentioned_lines else 0
-    end_window = max(mentioned_lines)
+    end_window = max(mentioned_lines) if mentioned_lines else 0
 
     # Extend end_window to the next line with no indent
     for i in range(end_window + 1, len(lines)):
