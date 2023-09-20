@@ -1,6 +1,4 @@
 #!/bin/bash
-set -e
-
 
 # Remove old docker images only after 4 runs to allow for rollbacks.
 # Docker images also need to finish processing their requests before they can be removed.
@@ -13,7 +11,6 @@ if [ ! -z "$containers_to_remove" ]; then
 else
     echo "No old docker runs to remove"
 fi
-
 
 # Find next available port to deploy to
 PORT=8082
@@ -28,12 +25,10 @@ done
 
 echo "Found open port: $PORT"
 
-
 # Start new docker container on the next available port
 cd ~/sweep
 docker build -t sweepai/sweep:latest .
 docker run -v $(pwd)/logn_logs:/app/logn_logs --env-file .env -p $PORT:8080 -d sweepai/sweep:latest
-
 
 # Wait until webhook is available before rerouting traffic to it
 echo "Waiting for server to start..."
@@ -47,7 +42,6 @@ while true; do
         sleep 1
     fi
 done
-
 
 # Update the ngrok proxy to point to the new port
 screen -list | grep -q "\bngrok\b"
