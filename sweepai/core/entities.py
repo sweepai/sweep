@@ -15,32 +15,25 @@ from sweepai.utils.event_logger import set_highlight_id
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
-class Message(BaseModel):
-    role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal[
-        "function"
-    ]
-    content: str | None = None
-    name: str | None = None
-    function_call: dict | None = None
-    key: str | None = None
+class Messages(list):
+    def prompt(self, system_prompt, new_prompt, swap_prompt):
+        class PromptContext:
+            def __init__(self, messages, system_prompt, new_prompt):
+                self.messages = messages
+                self.system_prompt = system_prompt
+                self.new_prompt = new_prompt
 
-    @classmethod
-    def from_tuple(cls, tup: tuple[str | None, str | None]) -> Self:
-        if tup[0] is None:
-            return cls(role="assistant", content=tup[1])
-        else:
-            return cls(role="user", content=tup[0])
+            def __enter__(self):
+                for message in self.messages:
+                    if message.role == "system" and message.content == self.system_prompt:
+                        message.content = self.new_prompt
 
-    def to_openai(self) -> str:
-        obj = {
-            "role": self.role,
-            "content": self.content,
-        }
-        if self.function_call:
-            obj["function_call"] = self.function_call
-        if self.role == "function":
-            obj["name"] = self.name
-        return obj
+            def __exit__(self, exc_type, exc_value, traceback):
+                for message in self.messages:
+                    if message.role == "system" and message.content == self.new_prompt:
+                        message.content = self.system_prompt
+
+        return PromptContext(self, system_prompt, new_prompt)
 
 
 class Function(BaseModel):
