@@ -345,6 +345,7 @@ def on_ticket(
             + "\n"
             + payment_message_start
             + config_pr_message
+            + f"\n\n---\n{actions_message}"
         )
 
     # Find Sweep's previous comment
