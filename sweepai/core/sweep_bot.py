@@ -26,7 +26,7 @@ from sweepai.core.entities import (
     SectionRewrite,
     Snippet,
     NoFilesException,
-    Message,
+    Messages,
     MaxTokensExceeded,
 )
 
@@ -95,7 +95,7 @@ def match_indent(generated: str, original: str) -> str:
 
 
 class ModifyBot:
-    def __init__(self, additional_messages: list[Message] = [], chat_logger=None):
+    def __init__(self, additional_messages: Messages = Messages(), chat_logger=None):
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
             fetch_snippets_system_prompt, chat_logger=chat_logger
         )
@@ -297,7 +297,7 @@ class CodeGenBot(ChatGPT):
         self.delete_messages_from_chat("files_to_change", delete_assistant=False)
         self.delete_messages_from_chat("snippet_summarization")
 
-        msg = Message(content=msg_content, role="assistant", key=BOT_ANALYSIS_SUMMARY)
+        msg = Messages(content=msg_content, role="assistant", key=BOT_ANALYSIS_SUMMARY)
         self.messages.insert(-2, msg)
 
     def generate_subissues(self, retries: int = 3):
@@ -870,14 +870,14 @@ class SweepBot(CodeGenBot, GithubBot):
         new_file = ""
         try:
             modify_file_bot = ModifyBot(
-                additional_messages=[
+                additional_messages=Messages([
                     Message(
                         content="This is one of the sections of code out of a larger body of code and the changes may not be in this file. If you do not wish to make changes to this file, please type `skip`.",
                         role="assistant",
                     )
-                ]
+                ])
                 if chunking
-                else [],
+                else Messages([]),
                 chat_logger=self.chat_logger,
             )
             try:
