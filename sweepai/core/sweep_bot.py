@@ -99,11 +99,11 @@ class ModifyBot:
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
             fetch_snippets_system_prompt, chat_logger=chat_logger
         )
-        self.fetch_snippets_bot.messages.extend(additional_messages)
+        self.fetch_snippets_bot.messages.extend_messages(additional_messages)
         self.update_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
             update_snippets_system_prompt, chat_logger=chat_logger
         )
-        self.update_snippets_bot.messages.extend(additional_messages)
+        self.update_snippets_bot.messages.extend_messages(additional_messages)
 
     def update_file(
         self,
@@ -216,15 +216,15 @@ class ModifyBot:
 class CodeGenBot(ChatGPT):
     def summarize_snippets(self):
         # Custom system message for snippet replacement
-        old_msg = self.messages[0].content
-        self.messages[0].content = snippet_replacement_system_message
+        old_msg = self.messages.get_message(0).content
+        self.messages.update_message_content(0, snippet_replacement_system_message)
 
         snippet_summarization = self.chat(
             snippet_replacement,
             message_key="snippet_summarization",
         )  # maybe add relevant info
 
-        self.messages[0].content = old_msg
+        self.messages.update_message_content(0, old_msg)
 
         contextual_thought_match = re.search(
             "<contextual_thoughts>(?P<thoughts>.*)</contextual_thoughts>",
@@ -291,14 +291,14 @@ class CodeGenBot(ChatGPT):
             + "\n\n"
         )
 
-        self.delete_messages_from_chat("relevant_snippets")
-        self.delete_messages_from_chat("relevant_directories")
-        self.delete_messages_from_chat("relevant_tree")
-        self.delete_messages_from_chat("files_to_change", delete_assistant=False)
-        self.delete_messages_from_chat("snippet_summarization")
+        self.messages.delete_messages_from_chat("relevant_snippets")
+        self.messages.delete_messages_from_chat("relevant_directories")
+        self.messages.delete_messages_from_chat("relevant_tree")
+        self.messages.delete_messages_from_chat("files_to_change", delete_assistant=False)
+        self.messages.delete_messages_from_chat("snippet_summarization")
 
         msg = Message(content=msg_content, role="assistant", key=BOT_ANALYSIS_SUMMARY)
-        self.messages.insert(-2, msg)
+        self.messages.insert_message(-2, msg)
 
     def generate_subissues(self, retries: int = 3):
         subissues: list[ProposedIssue] = []
@@ -948,21 +948,15 @@ class SweepBot(CodeGenBot, GithubBot):
             # if chunking:
             #     # TODO (sweep): make chunking / streaming better
             #     message = chunking_prompt + message
-            #     old_system_message = self.messages[0].content
-            #     self.messages[0].content = modify_file_system_message
-            #     modify_file_response = self.chat(
-            #         message
-            #         + "\nIf you do not wish to make changes to this file, please type `skip`.",
-            #         message_key=key,
-            #     )
-            #     self.delete_messages_from_chat(key)
-            #     self.messages[0].content = old_system_message
-            # else:
-            #     if line_count < RECREATE_LINE_LENGTH:
-            #         message = modify_recreate_file_prompt_3.format(
-            #             filename=file_change_request.filename,
-            #             instructions=file_change_request.instructions,
-            #             code=contents_line_numbers,
+            old_system_message = self.messages.get_first().content
+            self.messages.update_first(modify_file_system_message)
+            modify_file_response = self.chat(
+                message
+                + "\nIf you do not wish to make changes to this file, please type `skip`.",
+                message_key=key,
+            )
+            self.delete_messages_from_chat(key)
+            self.messages.update_first(old_system_message)
             #             line_count=line_count,
             #         )
 
@@ -1060,8 +1054,8 @@ class SweepBot(CodeGenBot, GithubBot):
     ) -> FileCreation:
         section_rewrite: SectionRewrite | None = None
         key = f"file_change_created_{file_change_request.filename}"
-        old_system_message = self.messages[0].content
-        self.messages[0].content = rewrite_file_system_prompt
+        old_system_message = self.messages.get_first().content
+        self.messages.update_first(rewrite_file_system_prompt)
         rewrite_section_response = self.chat(
             rewrite_file_prompt.format(
                 filename=file_change_request.filename,
@@ -1071,7 +1065,7 @@ class SweepBot(CodeGenBot, GithubBot):
             ),
             message_key=key,
         )
-        self.messages[0].content = old_system_message
+        self.messages.update_first(old_system_message)
         self.file_change_paths.append(file_change_request.filename)
         try:
             section_rewrite = SectionRewrite.from_string(rewrite_section_response)
@@ -1222,11 +1216,9 @@ class SweepBot(CodeGenBot, GithubBot):
                         )
                     case "modify" | "rewrite":
                         # Remove snippets from this file if they exist
-                        snippet_msgs = [
-                            m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
-                        ]
-                        if len(snippet_msgs) > 0:  # Should always be true
-                            snippet_msg = snippet_msgs[0]
+                        snippet_msgs = self.messages.filter_by_key(BOT_ANALYSIS_SUMMARY)
+                        if snippet_msgs.count() > 0:  # Should always be true
+                            snippet_msg = snippet_msgs.first()
                             # Use regex to remove this snippet from the message
                             file = re.escape(file_change_request.filename)
                             regex = rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
