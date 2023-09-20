@@ -14,6 +14,9 @@ from sweepai.utils.event_logger import set_highlight_id
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
+class Messages(list):
+    pass
+
 
 class Message(BaseModel):
     role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal[
@@ -41,6 +44,10 @@ class Message(BaseModel):
         if self.role == "function":
             obj["name"] = self.name
         return obj
+
+class Messages(list):
+    def __getitem__(self, index):
+        return super().__getitem__(index)
 
 
 class Function(BaseModel):
@@ -71,6 +78,18 @@ class RegexMatchableBaseModel(BaseModel):
             **{k: (v if v else "").strip("\n") for k, v in match.groupdict().items()},
             **kwargs,
         )
+
+class Messages(list):
+    def __getitem__(self, index):
+        return super().__getitem__(index)
+
+    def __enter__(self):
+        self.old_system_prompt = self.system_prompt
+        self.system_prompt = self.new_system_prompt
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.system_prompt = self.old_system_prompt
 
 
 class IssueTitleAndDescription(RegexMatchableBaseModel):
@@ -113,6 +132,24 @@ class IssueTitleAndDescription(RegexMatchableBaseModel):
             issue_description=issue_description,
         )
 
+class Messages(list):
+    def __getitem__(self, index):
+        return super().__getitem__(index)
+
+    def __enter__(self):
+        self.old_system_prompt = self.system_prompt
+        self.system_prompt = self.new_system_prompt
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.system_prompt = self.old_system_prompt
+
+    def prompt(self, system_prompt, new_prompt, swap_prompt):
+        self.system_prompt = system_prompt
+        self.new_prompt = new_prompt
+        self.swap_prompt = swap_prompt
+        return self
+
 
 class ContextToPrune(RegexMatchableBaseModel):
     excluded_dirs: list[str] = []
@@ -152,6 +189,9 @@ class ContextToPrune(RegexMatchableBaseModel):
             excluded_dirs=excluded_dirs,
             excluded_snippets=excluded_snippets,
         )
+
+# Replace all instances of the messages variable in the ChatGPT class with an instance of the new Messages class.
+messages = Messages()
 
 
 class ExpandedPlan(RegexMatchableBaseModel):
