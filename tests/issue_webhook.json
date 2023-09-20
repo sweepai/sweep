@@ -1,5 +1,10 @@
 {
-  "action": "labeled",
+  "action": "edited",
+  "changes": {
+    "body": {
+      "from": "<div align='center'><img class=\"swing\" src=\"https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif\" width=\"100\" style=\"width:50px; margin-bottom:10px\" alt=\"Sweeping\"></div><br/><div align='center'>\n\n<img src='https://progress-bar.dev/0/?&title=Progress&width=600' alt='0%' /></div>\n\n💎 Sweep Pro: I'm creating this ticket using GPT-4. You have unlimited GPT-4 tickets.\n\n---\n## Actions (click)\n- [ ] ↻ Restart Sweep\n\n---\nI am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n\n---\n## Step 1: 🔎 Searching\nI'm searching for relevant snippets in your repository. If this is your first time using Sweep, I'm indexing your repository. This may take up to 5 minutes. I'll let you know when I'm done.\n\n---\n\n🎉 Latest improvements to Sweep:\n\n* Getting Sweep to run linters before committing! Check out [Sweep Sandbox Configs](https://docs.sweep.dev/usage/config) to set it up.\n* Added support for self-hosting! Check out [Self-hosting Sweep](https://docs.sweep.dev/deployment) to get started.\n* [Self Hosting] Multiple options to compute vector embeddings, configure your .env file using [VECTOR_EMBEDDING_SOURCE](https://github.com/sweepai/sweep/blob/main/sweepai/config/server.py#L144)\n\n\n---\n 💡 To recreate the pull request edit the issue title or description. To tweak the pull request, leave a comment on the pull request.\n<sup>[Join Our Discord](https://discord.com/invite/sweep)"
+    }
+  },
   "issue": {
     "url": "https://api.github.com/repos/sweepai/sweep/issues/1658",
     "repository_url": "https://api.github.com/repos/sweepai/sweep",
@@ -51,13 +56,59 @@
     "milestone": null,
     "comments": 1,
     "created_at": "2023-09-17T20:35:40Z",
-    "updated_at": "2023-09-17T21:28:19Z",
+    "updated_at": "2023-09-20T06:54:08Z",
     "closed_at": null,
     "author_association": "COLLABORATOR",
     "active_lock_reason": null,
-    "body": "### Details\n\nThe messages variable is currently a list of messages. Migrate this to a new type called Messages, but keep all of the functions used by lists. Move the Messages class to the entities python file. Allow this object to be indexed like a list.\r\n\r\nAlso, create a new feature for this class. Make the class support with statements. Example:\r\n```py\r\nwith self.messages.prompt(system_prompt=..., new_prompt=..., swap_prompt=True)\r\n```\r\n\r\nswap_prompt will switch the system_prompt for this new one, then it will revert it back to the old one after it is complete. This implementation will likely need a new class returned by the messages.prompt function, that contains the impl of __enter__ and __exit__\n\n### Files to change\n\n_No response_",
+    "body": "### Details\r\n\r\nThe messages variable is currently a list of messages. Migrate this to a new type called Messages, but keep all of the functions used by lists. Move the Messages class to the entities.py file. Allow this object to be indexed like a list.\r\n\r\nAlso, create a new feature for this class. Make the class support with statements. Example:\r\n```py\r\nwith self.messages.prompt(system_prompt=..., new_prompt=..., swap_prompt=True)\r\n```\r\n\r\nswap_prompt will switch the system_prompt for this new one, then it will revert it back to the old one after it is complete. This implementation will likely need a new class returned by the messages.prompt function, that contains the impl of __enter__ and __exit__",
     "reactions": {
       "url": "https://api.github.com/repos/sweepai/sweep/issues/1658/reactions",
+      "total_count": 1,
+      "+1": 0,
+      "-1": 0,
+      "laugh": 0,
+      "hooray": 0,
+      "confused": 0,
+      "heart": 0,
+      "rocket": 1,
+      "eyes": 0
+    },
+    "timeline_url": "https://api.github.com/repos/sweepai/sweep/issues/1658/timeline",
+    "performed_via_github_app": null,
+    "state_reason": null
+  },
+  "comment": {
+    "url": "https://api.github.com/repos/sweepai/sweep/issues/comments/1722562976",
+    "html_url": "https://github.com/sweepai/sweep/issues/1658#issuecomment-1722562976",
+    "issue_url": "https://api.github.com/repos/sweepai/sweep/issues/1658",
+    "id": 1722562976,
+    "node_id": "IC_kwDOJvTCgM5mrDmg",
+    "user": {
+      "login": "sweep-nightly[bot]",
+      "id": 131841235,
+      "node_id": "BOT_kgDOB9u80w",
+      "avatar_url": "https://avatars.githubusercontent.com/u/127925974?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/sweep-nightly%5Bbot%5D",
+      "html_url": "https://github.com/apps/sweep-nightly",
+      "followers_url": "https://api.github.com/users/sweep-nightly%5Bbot%5D/followers",
+      "following_url": "https://api.github.com/users/sweep-nightly%5Bbot%5D/following{/other_user}",
+      "gists_url": "https://api.github.com/users/sweep-nightly%5Bbot%5D/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/sweep-nightly%5Bbot%5D/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/sweep-nightly%5Bbot%5D/subscriptions",
+      "organizations_url": "https://api.github.com/users/sweep-nightly%5Bbot%5D/orgs",
+      "repos_url": "https://api.github.com/users/sweep-nightly%5Bbot%5D/repos",
+      "events_url": "https://api.github.com/users/sweep-nightly%5Bbot%5D/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/sweep-nightly%5Bbot%5D/received_events",
+      "type": "Bot",
+      "site_admin": false
+    },
+    "created_at": "2023-09-17T20:35:54Z",
+    "updated_at": "2023-09-20T06:54:08Z",
+    "author_association": "CONTRIBUTOR",
+    "body": "<div align='center'><img class=\"swing\" src=\"https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif\" width=\"100\" style=\"width:50px; margin-bottom:10px\" alt=\"Sweeping\"></div><br/><div align='center'>\n\n<img src='https://progress-bar.dev/0/?&title=Progress&width=600' alt='0%' /></div>\n\n💎 Sweep Pro: I'm creating this ticket using GPT-4. You have unlimited GPT-4 tickets.\n\n---\n## Actions (click)\n- [x] ↻ Restart Sweep\n\n---\nI am currently looking into this ticket! I will update the progress of the ticket in this comment. I am currently searching through your code, looking for relevant snippets.\n\n---\n## Step 1: 🔎 Searching\nI'm searching for relevant snippets in your repository. If this is your first time using Sweep, I'm indexing your repository. This may take up to 5 minutes. I'll let you know when I'm done.\n\n---\n\n🎉 Latest improvements to Sweep:\n\n* Getting Sweep to run linters before committing! Check out [Sweep Sandbox Configs](https://docs.sweep.dev/usage/config) to set it up.\n* Added support for self-hosting! Check out [Self-hosting Sweep](https://docs.sweep.dev/deployment) to get started.\n* [Self Hosting] Multiple options to compute vector embeddings, configure your .env file using [VECTOR_EMBEDDING_SOURCE](https://github.com/sweepai/sweep/blob/main/sweepai/config/server.py#L144)\n\n\n---\n 💡 To recreate the pull request edit the issue title or description. To tweak the pull request, leave a comment on the pull request.\n<sup>[Join Our Discord](https://discord.com/invite/sweep)",
+    "reactions": {
+      "url": "https://api.github.com/repos/sweepai/sweep/issues/comments/1722562976/reactions",
       "total_count": 1,
       "+1": 0,
       "-1": 0,
@@ -68,18 +119,7 @@
       "rocket": 0,
       "eyes": 1
     },
-    "timeline_url": "https://api.github.com/repos/sweepai/sweep/issues/1658/timeline",
-    "performed_via_github_app": null,
-    "state_reason": null
-  },
-  "label": {
-    "id": 5621414028,
-    "node_id": "LA_kwDOJvTCgM8AAAABTw_4jA",
-    "url": "https://api.github.com/repos/sweepai/sweep/labels/sweep",
-    "name": "sweep",
-    "color": "5320E7",
-    "default": false,
-    "description": "Assigns Sweep to an issue or pull request."
+    "performed_via_github_app": null
   },
   "repository": {
     "id": 653574784,
@@ -148,16 +188,16 @@
     "releases_url": "https://api.github.com/repos/sweepai/sweep/releases{/id}",
     "deployments_url": "https://api.github.com/repos/sweepai/sweep/deployments",
     "created_at": "2023-06-14T10:08:07Z",
-    "updated_at": "2023-09-17T20:22:18Z",
-    "pushed_at": "2023-09-17T21:24:41Z",
+    "updated_at": "2023-09-20T06:25:13Z",
+    "pushed_at": "2023-09-20T06:47:49Z",
     "git_url": "git://github.com/sweepai/sweep.git",
     "ssh_url": "git@github.com:sweepai/sweep.git",
     "clone_url": "https://github.com/sweepai/sweep.git",
     "svn_url": "https://github.com/sweepai/sweep",
     "homepage": "https://sweep.dev",
-    "size": 43899,
-    "stargazers_count": 5364,
-    "watchers_count": 5364,
+    "size": 44174,
+    "stargazers_count": 5381,
+    "watchers_count": 5381,
     "language": "Python",
     "has_issues": true,
     "has_projects": false,
@@ -165,11 +205,11 @@
     "has_wiki": false,
     "has_pages": false,
     "has_discussions": true,
-    "forks_count": 206,
+    "forks_count": 208,
     "mirror_url": null,
     "archived": false,
     "disabled": false,
-    "open_issues_count": 373,
+    "open_issues_count": 408,
     "license": {
       "key": "other",
       "name": "Other",
@@ -192,9 +232,9 @@
       "llm"
     ],
     "visibility": "public",
-    "forks": 206,
-    "open_issues": 373,
-    "watchers": 5364,
+    "forks": 208,
+    "open_issues": 408,
+    "watchers": 5381,
     "default_branch": "main"
   },
   "organization": {

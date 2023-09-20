@@ -24,7 +24,7 @@ relevant_snippet as small as possible. When writing the code changes keep in min
 </relevant_new_snippet>
 
 <changes_for_new_file>
-{Detailed natural language instructions of modifications to be made in new_file.}
+{Detailed natural language instructions of modifications to be made in new_file. Do not write code. Only mention changes that affect new_file.}
 </changes_for_new_file>
 """
 
@@ -72,6 +72,8 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
             if ":" not in raw_snippet:
                 continue
             generated_file_path, lines = raw_snippet.split(":", 1)
+            if not generated_file_path or not lines.strip():
+                continue
             generated_file_path, lines = (
                 generated_file_path.strip(),
                 lines.split()[0].strip(),
@@ -158,7 +160,7 @@ def extract_python_span(code, entities):
                 mentioned_lines.append(i)
     # Calculate the window to show
     window_size = 100
-    start_window = max(0, min(mentioned_lines))
+    start_window = max(0, min(mentioned_lines)) if mentioned_lines else 0
     end_window = max(mentioned_lines)
 
     # Extend end_window to the next line with no indent
