@@ -1134,9 +1134,7 @@ File path: {file_path}
 
 # Instructions
 Respond with a list of all non-overlapping snippet(s) to modify.
-
-The request may not apply to this section of the code. If so, reply with "No changes needed".
-
+{chunking_message}
 This is the format:
 
 <snippet instructions="detailed instructions for this snippet">
