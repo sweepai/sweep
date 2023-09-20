@@ -533,49 +533,27 @@ class EmptyRepository(Exception):
         pass
 
 
-class CustomInstructions(BaseModel):
-    user_prompt: str | List[str]
-    system_prompt: str = None
-    # Todo: add delete_after
-    # delete_after: bool = False
+class UnneededEditError(CustomInstructions):
+    """
+    Custom exception class for handling unneeded edit errors.
+    Inherits from the 'CustomInstructions' class.
+    """
+    def __init__(self, message="Unneeded edit detected"):
+        super().__init__(message)
 
-    def activate(self, chatbot, key: str, **kwargs):
-        # Create class for handling __enter__ and __exit__ methods
-        class CustomInstructionsContext:
-            def __init__(self, chatbot, custom_instructions: CustomInstructions):
-                self.chatbot = chatbot
-                self.custom_instructions = custom_instructions
-                self.old_system_prompt = chatbot.messages[0].content
+    def __exit__(self, exc_type, exc_value, traceback):
+        if isinstance(exc_value, AssertionError):
+            raise UnneededEditError from exc_value
 
-            def __enter__(self):
-                nonlocal key, kwargs
-                if self.custom_instructions.system_prompt:
-                    self.chatbot.messages[
-                        0
-                    ].content = self.custom_instructions.system_prompt.format(**kwargs)
-                if self.custom_instructions.user_prompt:
-                    if type(self.custom_instructions.user_prompt) == list:
-                        for user_prompt in self.custom_instructions.user_prompt:
-                            self.chatbot.messages.append(
-                                Message(
-                                    role="user",
-                                    content=user_prompt.format(**kwargs),
-                                    key=key,
-                                )
-                            )
-                    else:
-                        self.chatbot.messages.append(
-                            Message(
-                                role="user",
-                                content=self.custom_instructions.user_prompt.format(
-                                    **kwargs
-                                ),
-                                key=key,
-                            )
-                        )
 
-            def __exit__(self, exc_type, exc_value, traceback):
-                if self.old_system_prompt is not None:
-                    self.chatbot.messages[0].content = self.old_system_prompt
+class MatchingError(CustomInstructions):
+    """
+    Custom exception class for handling matching errors.
+    Inherits from the 'CustomInstructions' class.
+    """
+    def __init__(self, message="Matching error occurred"):
+        super().__init__(message)
 
-        return CustomInstructionsContext(chatbot, self)
+    def __exit__(self, exc_type, exc_value, traceback):
+        if isinstance(exc_value, AssertionError):
+            raise MatchingError from exc_value
