@@ -28,7 +28,7 @@ except ImportError:
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
-class Message(BaseModel):
+class Messages(BaseModel):
     role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal[
         "function"
     ]
@@ -36,6 +36,59 @@ class Message(BaseModel):
     name: str | None = None
     function_call: dict | None = None
     key: str | None = None
+    _messages: list = []
+
+    def append(self, item):
+        self._messages.append(item)
+
+    def extend(self, iterable):
+        self._messages.extend(iterable)
+
+    def insert(self, index, item):
+        self._messages.insert(index, item)
+
+    def remove(self, item):
+        self._messages.remove(item)
+
+    def pop(self, index=-1):
+        return self._messages.pop(index)
+
+    def clear(self):
+        self._messages.clear()
+
+    def index(self, item, start=0, end=None):
+        return self._messages.index(item, start, end)
+
+    def count(self, item):
+        return self._messages.count(item)
+
+    def sort(self, key=None, reverse=False):
+        self._messages.sort(key=key, reverse=reverse)
+
+    def reverse(self):
+        self._messages.reverse()
+
+    def copy(self):
+        return self._messages.copy()
+
+    def __getitem__(self, index):
+        return self._messages[index]
+
+    def __setitem__(self, index, value):
+        self._messages[index] = value
+
+    def prompt(self, system_prompt, new_prompt, swap_prompt):
+        class PromptContextManager:
+            def __enter__(self):
+                if swap_prompt:
+                    self.old_prompt = system_prompt
+                    system_prompt = new_prompt
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                if swap_prompt:
+                    system_prompt = self.old_prompt
+
+        return PromptContextManager()
 
     @classmethod
     def from_tuple(cls, tup: tuple[str | None, str | None]) -> Self:
