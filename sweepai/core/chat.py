@@ -75,14 +75,18 @@ def format_for_anthropic(messages: list[Message]) -> str:
     ) + (anthropic.AI_PROMPT if new_messages[-1].role != "assistant" else "")
 
 
+from sweepai.core.entities import Message, Function, SweepContext, Messages
+
 class ChatGPT(BaseModel):
-    messages: list[Message] = [
-        Message(
-            role="system",
-            content=system_message_prompt,
-        )
-    ]
-    prev_message_states: list[list[Message]] = []
+    messages: Messages = Messages(
+        [
+            Message(
+                role="system",
+                content=system_message_prompt,
+            )
+        ]
+    )
+    prev_message_states: list[Messages] = []
     model: ChatModel = (
         "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
     )
@@ -110,7 +114,7 @@ class ChatGPT(BaseModel):
             if repo_description:
                 logger.info(f"Repo description: {repo_description}")
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"
-        messages = [Message(role="system", content=content, key="system")]
+        messages = Messages([Message(role="system", content=content, key="system")])
 
         added_messages = human_message.construct_prompt()  # [ { role, content }, ... ]
         for msg in added_messages:
@@ -130,7 +134,7 @@ class ChatGPT(BaseModel):
         cls, prompt_string, chat_logger: ChatLogger, **kwargs
     ) -> Any:
         return cls(
-            messages=[Message(role="system", content=prompt_string, key="system")],
+            messages=Messages([Message(role="system", content=prompt_string, key="system")]),
             chat_logger=chat_logger,
             **kwargs,
         )
