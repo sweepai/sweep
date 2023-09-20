@@ -1147,7 +1147,7 @@ This is the format:
 ```
 first five lines of the snippet
 ...
-last five lines of the snippet
+last five lines of the snippet (must end on code)
 ```
 </snippet>"""
 
