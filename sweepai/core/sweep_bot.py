@@ -124,7 +124,7 @@ class ModifyBot:
             r'<snippet instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet>'
         )
         for instructions, code in re.findall(
-            query_pattern, fetch_snippets_response, re.DOTALL
+            query_pattern, fetch_snippets_response.get_content(), re.DOTALL
         ):
             snippet_queries.append((instructions, strip_backticks(code)))
 
@@ -188,29 +188,7 @@ class ModifyBot:
 
         updated_snippets = []
         updated_pattern = (
-            r"<updated_snippet id=\"(?P<id>.*?)\">(?P<code>.*?)</updated_snippet>"
-        )
-        for _id, code in re.findall(
-            updated_pattern, update_snippets_response, re.DOTALL
-        ):
-            updated_snippets.append(strip_backticks(code))
-
-        result = file_contents
-        for (_instructions, search), replace in zip(
-            selected_snippets, updated_snippets
-        ):
-            # print(f"replace >-------\n{search}\n============\n{replace}\nupdated  ---->")
-            result, _, _ = sliding_window_replacement(
-                result.splitlines(),
-                search.splitlines(),
-                match_indent(replace, search).splitlines(),
-            )
-            result = "\n".join(result)
-
-        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
-        result = result.rstrip("\n") + "\n" * ending_newlines
-
-        return result
+            r"<updated_snippet id=\"(?P<id>.*?)\">(?P<code>.*?)
 
 
 class CodeGenBot(ChatGPT):
@@ -224,11 +202,11 @@ class CodeGenBot(ChatGPT):
             message_key="snippet_summarization",
         )  # maybe add relevant info
 
-        self.messages[0].content = old_msg
+        self.messages[0].content = old_msg.get_content()
 
         contextual_thought_match = re.search(
             "<contextual_thoughts>(?P<thoughts>.*)</contextual_thoughts>",
-            snippet_summarization,
+            snippet_summarization.get_content(),
             re.DOTALL,
         )
         contextual_thought: str = (
@@ -238,7 +216,7 @@ class CodeGenBot(ChatGPT):
         )
         relevant_snippets_match = re.search(
             "<relevant_snippets>(?P<snippets>.*)</relevant_snippets>",
-            snippet_summarization,
+            snippet_summarization.get_content(),
             re.DOTALL,
         )
         relevant_snippets: str = (
@@ -506,7 +484,7 @@ class CodeGenBot(ChatGPT):
                     )
 
                 # Add triple quotes if not present
-                if not pr_text_response.strip().endswith('"""'):
+                if not pr_text_response.get_content().strip().endswith('"""'):
                     pr_text_response += '"""'
 
                 self.delete_messages_from_chat("pull_request")
@@ -519,7 +497,7 @@ class CodeGenBot(ChatGPT):
                 logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
                 self.delete_messages_from_chat("pull_request")
                 continue
-            pull_request = PullRequest.from_string(pr_text_response)
+            pull_request = PullRequest.from_string(pr_text_response.get_content())
 
             # Remove duplicate slashes from branch name (max 1)
             final_branch = pull_request.branch_name[:240]
@@ -870,6 +848,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_path=file_change_request.filename,
                     file_contents=contents,
                     file_change_request=file_change_request,
+                    messages=self.messages,
                 )
             except SystemExit:
                 raise SystemExit
@@ -914,15 +893,14 @@ class SweepBot(CodeGenBot, GithubBot):
             #         self.messages[0].content = old_system_message
         except SystemExit:
             raise SystemExit
-        except Exception as e:  # Check for max tokens error
-            if "max tokens" in str(e).lower():
-                logger.error(f"Max tokens exceeded for {file_change_request.filename}")
-                raise MaxTokensExceeded(file_change_request.filename)
-            else:
-                logger.error(f"Error: {e}")
-                logger.error(traceback.format_exc())
-                self.delete_messages_from_chat(key)
-                raise e
+        except MaxTokensExceeded as e:
+            logger.error(f"Max tokens exceeded for {file_change_request.filename}")
+            raise e
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            logger.error(traceback.format_exc())
+            self.delete_messages_from_chat(key)
+            raise e
         try:
             # logger.info(
             #     f"generate_new_file with contents: {contents} and"
@@ -1067,6 +1045,7 @@ class SweepBot(CodeGenBot, GithubBot):
             final_contents,
             sha=original_file.sha,
             branch=branch,
+            messages=self.messages,
         )
         return final_contents != original_contents, sandbox_execution
 
@@ -1378,6 +1357,9 @@ class SweepBot(CodeGenBot, GithubBot):
                 return True, sandbox_error, result["commit"]
         except MaxTokensExceeded as e:
             raise e
+        except MessagesException as me:
+            logger.error(f"Error due to changes in Messages class: {me}")
+            return False, sandbox_error, None
         except SystemExit:
             raise SystemExit
         except Exception as e:
