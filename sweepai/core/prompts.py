@@ -1177,7 +1177,8 @@ File path: {file_path}
 For each snippet above, rewrite it according to their corresponding instructions.
 * Only rewrite within the scope of the snippet, as it will be replaced directly.
 * Do not delete whitespace or comments.
-* The output will be copied into the code LITERALLY so do not close all ending brackets.
+* The output will be copied into the code LITERALLY so do not close all ending brackets
+* Remember to copy the original code for prepending.
 
 Respond in the following format:
 
