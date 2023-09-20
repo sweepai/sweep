@@ -63,7 +63,7 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 openai.api_key = OPENAI_API_KEY
 
-sweeping_gif = """<img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping">"""
+sweeping_gif = """<img class="swing" src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping">"""
 
 
 def center(text: str) -> str:
@@ -331,6 +331,7 @@ def on_ticket(
             + "\n"
             + payment_message_start
             + config_pr_message
+            + f"\n\n---\n{actions_message}"
         )
 
     # Find Sweep's previous comment
@@ -1001,7 +1002,7 @@ def on_ticket(
             review_message + "\n\nSuccess! 🚀",
             4,
             pr_message=(
-                f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{payment_message}"
+                f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{center(payment_message)}"
             ),
             done=True,
         )

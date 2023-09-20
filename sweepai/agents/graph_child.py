@@ -2,15 +2,15 @@ import re
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel, Snippet
 
-system_prompt = """You are a genius engineer tasked with solving the following GitHub issue. 
+system_prompt = """You are a genius engineer tasked with solving the following GitHub issue.
 Some relevant_snippets_from_repo have been provided. Assume any changes relevant to those snippets have been taken care of.
-Determine whether changes in the new_file are necessary. 
-If code changes need to be in this file, provide the relevant_new_snippet and the changes_for_new_file. 
+Determine whether changes in the new_file are necessary.
+If code changes need to be in this file, provide the relevant_new_snippet and the changes_for_new_file.
 Extract the code you deem necessary, and then describe the necessary code changes. Otherwise leave both sections blank.
 
 # Extraction
 
-Include only the relevant snippet that provides enough detail to solve the issue: Keep the 
+Include only the relevant snippet that provides enough detail to solve the issue: Keep the
 relevant_snippet as small as possible. When writing the code changes keep in mind the user can read the metadata and the relevant snippets.
 
 <code_analysis>
@@ -45,6 +45,7 @@ graph_user_prompt = """
 Provide the relevant snippets and changes from the new_file above.
 """
 
+
 class GraphContextAndPlan(RegexMatchableBaseModel):
     relevant_new_snippet: list[Snippet]
     changes_for_new_file: str
@@ -52,7 +53,7 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
     entities: str = None
 
     @classmethod
-    def from_string(cls, string: str, file_path:str, **kwargs):
+    def from_string(cls, string: str, file_path: str, **kwargs):
         snippets_pattern = r"""<relevant_new_snippet>(\n)?(?P<relevant_new_snippet>.*)</relevant_new_snippet>"""
         plan_pattern = r"""<changes_for_new_file>(\n)?(?P<changes_for_new_file>.*)</changes_for_new_file>"""
         snippets_match = re.search(snippets_pattern, string, re.DOTALL)
@@ -60,13 +61,21 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
         changes_for_new_file = ""
         relevant_new_snippet = []
         if not snippets_match:
-            return cls(relevant_new_snippet=relevant_new_snippet, changes_for_new_file=changes_for_new_file, file_path=file_path, **kwargs)
+            return cls(
+                relevant_new_snippet=relevant_new_snippet,
+                changes_for_new_file=changes_for_new_file,
+                file_path=file_path,
+                **kwargs,
+            )
         relevant_new_snippet_match = snippets_match.group("relevant_new_snippet")
         for raw_snippet in relevant_new_snippet_match.split("\n"):
             if ":" not in raw_snippet:
                 continue
             generated_file_path, lines = raw_snippet.split(":", 1)
-            generated_file_path, lines = generated_file_path.strip(), lines.split()[0].strip() # second one accounts for trailing text like "1-10 (message)"
+            generated_file_path, lines = (
+                generated_file_path.strip(),
+                lines.split()[0].strip(),
+            )  # second one accounts for trailing text like "1-10 (message)"
             if generated_file_path != file_path:
                 continue
             if "-" not in lines:
@@ -84,15 +93,25 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
         if plan_match:
             changes_for_new_file = plan_match.group("changes_for_new_file").strip()
         return cls(
-            relevant_new_snippet=relevant_new_snippet, changes_for_new_file=changes_for_new_file, file_path=file_path, **kwargs
+            relevant_new_snippet=relevant_new_snippet,
+            changes_for_new_file=changes_for_new_file,
+            file_path=file_path,
+            **kwargs,
         )
 
     def __str__(self) -> str:
         return f"{self.relevant_new_snippet}\n{self.changes_for_new_file}"
-    
+
+
 class GraphChildBot(ChatGPT):
     def code_plan_extraction(
-        self, code, file_path, entities, issue_metadata, previous_snippets, all_symbols_and_files
+        self,
+        code,
+        file_path,
+        entities,
+        issue_metadata,
+        previous_snippets,
+        all_symbols_and_files,
     ) -> GraphContextAndPlan:
         self.messages = [
             Message(
@@ -121,11 +140,13 @@ class GraphChildBot(ChatGPT):
         graph_plan.entities = entities
         return graph_plan
 
+
 def extract_int(s):
     match = re.search(r"\d+", s)
     if match:
         return int(match.group())
     return None
+
 
 def extract_python_span(code, entities):
     # Identify lines where entity is mentioned
@@ -149,7 +170,7 @@ def extract_python_span(code, entities):
         end_window = len(lines)
 
     if end_window - start_window < 2:
-        end_window = start_window + window_size
+        end_window = min(start_window + window_size, len(lines))
 
     # Extract lines in the window and mark where entity is mentioned
     code_with_line_numbers = ""
@@ -157,14 +178,19 @@ def extract_python_span(code, entities):
         line = lines[i]
         mentioned_entities = [entity for entity in entities if entity in line]
         if len(mentioned_entities) == 1:
-            code_with_line_numbers += f"{i + 1} {line}" + f" <- {mentioned_entities[0]} is mentioned here\n"
+            code_with_line_numbers += (
+                f"{i + 1} {line}" + f" <- {mentioned_entities[0]} is mentioned here\n"
+            )
         elif len(mentioned_entities) > 1:
             mentioned_entities = ", ".join(mentioned_entities)
-            code_with_line_numbers += f"{i + 1} {line}" + f" <- {mentioned_entities} are mentioned here\n"
+            code_with_line_numbers += (
+                f"{i + 1} {line}" + f" <- {mentioned_entities} are mentioned here\n"
+            )
         else:
             code_with_line_numbers += f"{i + 1} {line}\n"
     code_with_line_numbers = code_with_line_numbers.strip()
     return code_with_line_numbers
+
 
 if __name__ == "__main__":
     file = r"""import json
@@ -641,7 +667,7 @@ class ChatGPT(BaseModel):
         if len(self.prev_message_states) > 0:
             self.messages = self.prev_message_states.pop()
         return self.messages"""
-    
+
     print(extract_int("10, 10-11 (message)"))
     span = extract_python_span(file, ["ChatGPT"])
     print(span)

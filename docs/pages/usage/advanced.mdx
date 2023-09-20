@@ -1,4 +1,4 @@
-# Advanced Prompting: becoming a Sweep power user 🧠
+# Advanced Features: becoming a Power User 🧠
 
 ## Usage 📖
 
@@ -35,6 +35,17 @@ For more on configs, check out https://docs.sweep.dev/usage/config.
 
 ## Prompting 🗣️
 
+The amount of prompting you need to give Sweep directly scales with the complexity of the problem.
+
+For harder problems, try to provide the same information a human would need, and for simpler problems, providing a single line and a file name should suffice.
+
+### Prompting formats
+
+A good issue should include **where to look** (file name or entity name), **what to do** ("change the logic to do this"), and **additional context** (there's a bug/we need this feature/there's this dependency). Examples:
+* In `sweepai/app/ui.py`, use an os-agnostic temp directory.
+* In `on_comment.py`, we should not fire an event because it's possible that the comment is on a closed PR.
+* In the config loader in `packages/server/src/config.ts`, add a third option called "env" to load the config settings from environment variables. At present, there are two options:  1. ... and 2. ...
+
 ### Show by example
 
 Provide similar files for Sweep to look at, like "Write a unit test for `src/Menu.tsx` like `src/Navbar.test.tsx`". This is effective because the problem boils down to a translation task, and allows Sweep to very quickly learn by example without manually writing a lot of detail.
@@ -45,22 +56,15 @@ This means writing the comment as a command or instruction. For example, instead
 
 ### Be specific
 
-Don’t write “fix typos”, "write tests" or “fix the first error”. Sweep will get confused and might crash. Put a real issue that you would like solved in your codebase, with as much detail as you would provide a junior developer.
+Don’t write “fix typos”, "write tests" or “optimize the SEO”. Sweep will get confused and will crash. Put a real issue that you would like solved in your codebase, with as much detail as you would provide a junior developer.
 
-### Recipes
+In general, you should know about what the solution would look like before you ask Sweep to solve it.
 
-#### To get the best performance from Sweep, we recommend the following approach to writing GitHub issues.
-For harder problems, try to provide the same information a human would need. For simpler problems, providing a single line and a file name should suffice.
-
-A good issue might include:
-
-| Where to look <br/> **[file name or function name]**     | What to do <br/> **[change the logic to do this]**                                      | Additional Context (optional) <br/> **[there's a bug/we need this feature/there's this dependency]** |
+{/* | Where to look <br/> **[file name or function name]**     | What to do <br/> **[change the logic to do this]**                                      | Additional Context (optional) <br/> **[there's a bug/we need this feature/there's this dependency]** |
 |---------------------------------------------------------|----------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
 | In `sweepai/app/ui.py`                                  | use an os-agnostic temp directory                                                      | N/A                                                                                                 |
 | In `on_comment.py`                                      | we should not fire an event                                                            | because it's possible that the comment is on a closed PR                                            |
-| In the config loader in `packages/server/src/config.ts` | add a third option called "env" to load the config settings from environment variables | At present, there are two options:  1. ... and 2. ...                                               |
-
-If you want Sweep to use a file, try to mention the file path. Similarly, to have Sweep use a function, try to mention the class method or what it does.
+| In the config loader in `packages/server/src/config.ts` | add a third option called "env" to load the config settings from environment variables | At present, there are two options:  1. ... and 2. ...                                               | */}
 
 ### Limitations 🚫
 Sweep is unlikely to complete complex issues on the first try, similar to the average junior developer. Here are Sweep's limitations(for now):
