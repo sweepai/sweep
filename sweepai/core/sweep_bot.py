@@ -214,6 +214,10 @@ class ModifyBot:
 
 
 class CodeGenBot(ChatGPT):
+    def __init__(self, repo: Repository, additional_messages: list[Message] = [], chat_logger=None):
+        super().__init__(additional_messages, chat_logger)
+        self.cloned_repo = GithubBot(repo=repo)
+
     def summarize_snippets(self):
         # Custom system message for snippet replacement
         old_msg = self.messages[0].content
@@ -661,6 +665,10 @@ class GithubBot(BaseModel):
 
 
 class SweepBot(CodeGenBot, GithubBot):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.cloned_repo = GithubBot()
+
     @staticmethod
     def run_sandbox(
         repo_url: str,
