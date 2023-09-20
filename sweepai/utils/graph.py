@@ -69,7 +69,7 @@ def extract_entities(code):
     return imported_modules, defined_classes, defined_functions
 
 
-def traverse_folder(folder): # TODO(add excluded_dirs)
+def traverse_folder(folder):  # TODO(add excluded_dirs)
     definitions_graph = nx.DiGraph()
     references_graph = nx.DiGraph()
     for root, _, files in os.walk(folder):
@@ -204,10 +204,9 @@ class Graph(BaseModel):
         return references_path
 
     def paths_to_first_degree_entities(self, file_paths: list[str]):
-        return "\n".join([self.extract_first_degree(file_path) for file_path in file_paths])
-
-
-g = Graph()
+        return "\n".join(
+            [self.extract_first_degree(file_path) for file_path in file_paths]
+        )
 
 
 if __name__ == "__main__":

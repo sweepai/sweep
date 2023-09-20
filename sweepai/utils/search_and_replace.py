@@ -64,7 +64,7 @@ def score_multiline(query: list[str], target: list[str]) -> float:
             t += 1
         elif (
             t_line.strip() == ""
-            and t_line.strip().startswith("#")
+            or t_line.strip().startswith("#")
             or t_line.strip().startswith("//")
         ):
             # Case 2: skipped comment
@@ -158,7 +158,6 @@ def find_best_match(query: str, code_file: str):
     for num_indents in range(0, min(max_indents + 1, 20)):
         # Optimize later by using radix
         indented_query_lines = [indent * num_indents + line for line in query_lines]
-
         # for line in code_file_lines:
         #     # print(line)
         #     print(score_line(line, indented_query_lines[0]))
@@ -168,7 +167,7 @@ def find_best_match(query: str, code_file: str):
             for i, line in enumerate(code_file_lines)
             if score_line(line, indented_query_lines[0]) > 50
         ]
-        start_indices = [
+        start_indices = start_indices or [
             i
             for i in start_indices
             if score_multiline(indented_query_lines[:2], code_file_lines[i : i + 2])
@@ -201,6 +200,7 @@ def find_best_match(query: str, code_file: str):
                     best_match = current_match
 
     unique_top_matches: list[Match] = []
+    print(unique_top_matches)
     unique_spans = set()
     for top_match in sorted(top_matches, reverse=True):
         if (top_match.start, top_match.end) not in unique_spans:
