@@ -57,16 +57,18 @@ temperature = 0.0  # Lowered to 0 for mostly deterministic results for reproduci
 count_tokens = Tiktoken().count
 
 
-def format_for_anthropic(messages: list[Message]) -> str:
+def format_for_anthropic(messages: Messages) -> str:
     if len(messages) > 1:
-        new_messages: list[Message] = [
-            Message(
-                role="system", content=messages[0].content + "\n" + messages[1].content
-            )
-        ]
-        messages = messages[2:] if len(messages) >= 3 else []
+        new_messages: Messages = Messages(
+            [
+                Message(
+                    role="system", content=messages[0].content + "\n" + messages[1].content
+                )
+            ]
+        )
+        messages = messages[2:] if len(messages) >= 3 else Messages()
     else:
-        new_messages: list[Message] = []
+        new_messages: Messages = Messages()
     for message in messages:
         new_messages.append(message)
     return "\n".join(
@@ -143,29 +145,13 @@ class ChatGPT(BaseModel):
         self, message_key: str, message_role: str = None
     ):
         if message_role:
-            return [
-                message
-                for message in self.messages
-                if message.key == message_key and message.role == message_role
-            ][0]
-        return [message for message in self.messages if message.key == message_key][0]
+            return self.messages.get_message_by_key_and_role(message_key, message_role)
+        return self.messages.get_message_by_key(message_key)
 
     def delete_messages_from_chat(
         self, key_to_delete: str, delete_user=True, delete_assistant=True
     ):
-        self.messages = [
-            message
-            for message in self.messages
-            if not (
-                key_to_delete in (message.key or "")
-                and (
-                    delete_user
-                    and message.role == "user"
-                    or delete_assistant
-                    and message.role == "assistant"
-                )
-            )  # Only delete if message matches key to delete and role should be deleted
-        ]
+        self.messages.delete_messages_by_key_and_role(key_to_delete, delete_user, delete_assistant)
 
     def delete_file_from_system_message(self, file_path: str):
         self.human_message.delete_file(file_path)
@@ -203,13 +189,16 @@ class ChatGPT(BaseModel):
                 key=message_key,
             )
         )
-        self.prev_message_states.append(self.messages)
+        self.prev_message_states.append(deepcopy(self.messages))
         return self.messages[-1].content
 
     # Only works on functions without side effects
     # @file_cache(ignore_params=["chat_logger", "sweep_context", "cloned_repo"])
     def call_openai(
         self,
+        model: ChatModel | None = None,
+        temperature=temperature,
+    ):
         model: ChatModel | None = None,
         temperature=temperature,
     ):
@@ -473,6 +462,22 @@ class ChatGPT(BaseModel):
         # Remove the key from the message object before sending to OpenAI
         cleaned_messages = [message.to_openai() for message in self.messages]
         return cleaned_messages
+    
+    @property
+    def messages_prompt(self):
+        class PromptContextManager:
+            def __init__(self, messages):
+                self.messages = messages
+                self.old_prompt = None
+    
+            def __enter__(self):
+                self.old_prompt = self.messages.system_prompt
+                return self.messages
+    
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                self.messages.system_prompt = self.old_prompt
+    
+        return PromptContextManager(self.messages)
 
     def undo(self):
         if len(self.prev_message_states) > 0:
