@@ -15,6 +15,27 @@ from sweepai.utils.event_logger import set_highlight_id
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
 
+class Messages(list):
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.old_system_prompt = None
+
+    def prompt(self, new_prompt):
+        class PromptContext:
+            def __init__(self, messages, new_prompt):
+                self.messages = messages
+                self.new_prompt = new_prompt
+
+            def __enter__(self):
+                self.messages.old_system_prompt = self.messages[0].content
+                self.messages[0].content = self.new_prompt
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                self.messages[0].content = self.messages.old_system_prompt
+
+        return PromptContext(self, new_prompt)
+
+
 class Message(BaseModel):
     role: Literal["system"] | Literal["user"] | Literal["assistant"] | Literal[
         "function"
