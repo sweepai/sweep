@@ -307,12 +307,8 @@ class CodeGenBot(ChatGPT):
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            is_python_issue = False  # sum([file_path.endswith(".py") for file_path in self.human_message.get_file_paths()]) > len(self.human_message.get_file_paths()) / 2
+            is_python_issue = sum([file_path.endswith(".py") for file_path in self.human_message.get_file_paths()]) > len(self.human_message.get_file_paths()) / 2
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
-            from time import sleep
-            sleep(5)
-            is_python_issue = True
-
             plans: List[GraphContextAndPlan] = []
             if is_python_issue:
                 graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
@@ -342,7 +338,6 @@ class CodeGenBot(ChatGPT):
                     relevant_symbols_string,
                     file_contents,
                 ):
-                    print("CHILD", file_path, entities)
                     plan_bot = GraphChildBot(chat_logger=self.chat_logger)
                     plan = plan_bot.code_plan_extraction(
                         code=file_contents,
@@ -364,12 +359,11 @@ class CodeGenBot(ChatGPT):
                         other_snippets = [snippet for snippet in self.human_message.snippets if snippet.file_path != file_path]
                         snippet = next(snippet for snippet in self.human_message.snippets if snippet.file_path == file_path)
 
-                        # convert [[...], ] to []
-                        l = []
+                        relevant_symbol_list = []
                         for v in relevant_files_to_symbols.values():
-                            l.extend(v)
+                            relevant_symbol_list.extend(v)
                         relevant_snippet_futures[executor.submit(worker, file_path,
-                                                                 l, issue_metadata,
+                                                                 relevant_symbol_list, issue_metadata,
                                                                  self.human_message.render_snippet_array(other_snippets),
                                                                  relevant_symbols_string, snippet.content)] = snippet.file_path
 
@@ -377,22 +371,6 @@ class CodeGenBot(ChatGPT):
                         plan = future.result()
                         if plan is not None:
                             plans.append(plan)
-                            # relevant snippets, and the plan for file change
-
-                    plan_suggestions = []
-                    for plan in plans:
-                        plan_suggestions.append(
-                            f"<plan_suggestion file={plan.file_path}>\n{plan.changes_for_new_file}\n</plan_suggestion>"
-                        )
-
-                    for plan in plans:
-                        self.populate_snippets(plan.relevant_new_snippet)
-                        relevant_snippets.extend(plan.relevant_new_snippet)
-                    plan_suggestions = []
-                    for plan in plans:
-                        plan_suggestions.append(
-                            f"<plan_suggestion file={plan.file_path}>\n{plan.changes_for_new_file}\n</plan_suggestion>"
-                        )
 
                     # Then use plan for each reference
                     future_to_file = {
@@ -412,10 +390,22 @@ class CodeGenBot(ChatGPT):
                         if plan is not None:
                             plans.append(plan)
 
+                    file_path_set = set()
+                    deduped_plans = []
+                    for plan in plans:
+                        if plan.file_path not in file_path_set:
+                            file_path_set.add(plan.file_path)
+                            deduped_plans.append(plan)
+                        else:
+                            logger.info(f"Duplicate plan for {plan.file_path}")
+                    plans = deduped_plans
+
                 relevant_snippets = self.human_message.snippets
                 for plan in plans:
                     self.populate_snippets(plan.relevant_new_snippet)
                     relevant_snippets.extend(plan.relevant_new_snippet)
+
+                plan_suggestions = []
 
                 for plan in plans:
                     plan_suggestions.append(
