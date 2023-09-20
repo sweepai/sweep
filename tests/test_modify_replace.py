@@ -2,98 +2,119 @@ import re
 
 from sweepai.utils.diff import sliding_window_replacement
 
-file_contents = r'''
-# TODO: Add file validation
+file_contents = r"""
+class ChatGPT(BaseModel):
+    messages: list[Message] = [
+        Message(
+            role="system",
+            content=system_message_prompt,
+        )
+    ]
+    prev_message_states: list[list[Message]] = []
+    model: ChatModel = (
+        "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
+    )
+    chat_logger: ChatLogger | None
+    human_message: HumanMessagePrompt | None = None
+    file_change_paths: list[str] = []
+    sweep_context: SweepContext | None = None
+    cloned_repo: ClonedRepo | None = (None,)
 
-import math
-import re
-import traceback
-import openai
+    @classmethod
+    def from_system_message_content(
+        cls,
+        human_message: HumanMessagePrompt,
+        is_reply: bool = False,
+        chat_logger=None,
+        sweep_context=None,
+        cloned_repo: ClonedRepo | None = None,
+        **kwargs,
+    ) -> Any:
+        content = system_message_prompt
+        repo = kwargs.get("repo")
+        if repo:
+            logger.info(f"Repo: {repo}")
+            repo_description = get_description(repo)
+            if repo_description:
+                logger.info(f"Repo description: {repo_description}")
+                content += f"{repo_description_prefix_prompt}\n{repo_description}"
+        messages = [Message(role="system", content=content, key="system")]
 
-import github
-from github import GithubException, BadCredentialsException
-from tabulate import tabulate
-from tqdm import tqdm
+        added_messages = human_message.construct_prompt()  # [ { role, content }, ... ]
+        for msg in added_messages:
+            messages.append(Message(**msg))
 
-from logn import logger, LogTask
-from sweepai.core.context_pruning import ContextPruning
-from sweepai.core.documentation_searcher import extract_relevant_docs
-from sweepai.core.entities import (
-    ProposedIssue,
-    SandboxResponse,
-    Snippet,
-    NoFilesException,
-    SweepContext,
-    MaxTokensExceeded,
-    EmptyRepository,
-)
-from sweepai.core.external_searcher import ExternalSearcher
-from sweepai.core.slow_mode_expand import SlowModeBot
-from sweepai.core.sweep_bot import SweepBot
-from sweepai.core.prompts import issue_comment_prompt
+        return cls(
+            messages=messages,
+            human_message=human_message,
+            chat_logger=chat_logger,
+            sweep_context=sweep_context,
+            cloned_repo=cloned_repo,
+            **kwargs,
+        )
 
-# from sandbox.sandbox_utils import Sandbox
-from sweepai.handlers.create_pr import (
-    create_pr_changes,
-    create_config_pr,
-    safe_delete_sweep_branch,
-)
-from sweepai.handlers.on_comment import on_comment
-from sweepai.handlers.on_review import review_pr
-from sweepai.utils.buttons import create_action_buttons
-from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.client import (
-    SweepConfig,
-    get_documentation_dict,
-)
-from sweepai.config.server import (
-    ENV,
-    MONGODB_URI,
-    OPENAI_API_KEY,
-    GITHUB_BOT_USERNAME,
-    GITHUB_LABEL_NAME,
-    OPENAI_USE_3_5_MODEL_ONLY,
-    WHITELISTED_REPOS,
-)
-from sweepai.utils.ticket_utils import *
-from sweepai.utils.event_logger import posthog
-from sweepai.utils.github_utils import ClonedRepo, get_github_client
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.search_utils import search_snippets
-from sweepai.utils.tree_utils import DirectoryTree
-
-openai.api_key = OPENAI_API_KEY
-
-sweeping_gif = """<img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping">"""
-
-
-def center(text: str) -> str:
-    return f"<div align='center'>{text}</div>"
-'''
-
-updated_snippet = r'''
-sweeping_gif = """
-<div class="swing">
-    <img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping">
-</div>
-<style>
-.swing {
-    animation: swing ease-in-out 1s infinite alternate;
-    transform-origin: center -20px;
-    float:left;
-    box-shadow: 5px 5px 10px rgba(0,0,0,0.5);
-}
-@keyframes swing {
-    0% { transform: rotate(3deg); }
-    100% { transform: rotate(-3deg); }
-}
-</style>
+    @classmethod
+    def from_system_message_string(
+        cls, prompt_string, chat_logger: ChatLogger, **kwargs
+    ) -> Any:
+        return cls(
+            messages=[Message(role="system", content=prompt_string, key="system")],
+            chat_logger=chat_logger,
+            **kwargs,
+        )
 """
-'''
 
-selected_snippet = r'''
-sweeping_gif = """<img src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping">"""
-'''.strip()
+updated_snippet = r"""
+    def from_system_message_content(
+        cls,
+        human_message: HumanMessagePrompt,
+        is_reply: bool = False,
+        chat_logger=None,
+        sweep_context=None,
+        cloned_repo: ClonedRepo | None = None,
+        **kwargs,
+    ) -> Any:
+        content = system_message_prompt
+        repo = kwargs.get("repo")
+        if repo:
+            logger.info(f"Repo: {repo}")
+            repo_description = get_description(repo)
+            if repo_description:
+                logger.info(f"Repo description: {repo_description}")
+                content += f"{repo_description_prefix_prompt}\n{repo_description}"
+        messages = Messages([Message(role="system", content=content, key="system")])
+
+        added_messages = human_message.construct_prompt()  # [ { role, content }, ... ]
+        for msg in added_messages:
+            messages.append(Message(**msg))
+
+        return cls(
+            messages=messages,
+            human_message=human_message,
+            chat_logger=chat_logger,
+            sweep_context=sweep_context,
+            cloned_repo=cloned_repo,
+            **kwargs,
+        )
+""".strip(
+    "\n"
+)
+
+selected_snippet = r"""
+    def from_system_message_content(
+        cls,
+        human_message: HumanMessagePrompt,
+        is_reply: bool = False,
+        chat_logger=None,
+        sweep_context=None,
+        cloned_repo: ClonedRepo | None = None,
+        **kwargs,
+    ) -> Any:
+        content = system_message_prompt
+        repo = kwargs.get("repo")
+""".strip(
+    "\n"
+)
 
 
 def match_indent(generated: str, original: str) -> str:
@@ -113,6 +134,7 @@ def main():
     result, _, _ = sliding_window_replacement(
         result.splitlines(),
         selected_snippet.splitlines(),
+        updated_snippet.splitlines(),
         match_indent(updated_snippet, selected_snippet).splitlines(),
     )
     result = "\n".join(result)

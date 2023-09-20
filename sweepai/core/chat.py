@@ -202,7 +202,8 @@ class ChatGPT(BaseModel):
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 
-    @file_cache(ignore_params=["chat_logger", "sweep_context", "cloned_repo"])
+    # Only works on functions without side effects
+    # @file_cache(ignore_params=["chat_logger", "sweep_context", "cloned_repo"])
     def call_openai(
         self,
         model: ChatModel | None = None,
