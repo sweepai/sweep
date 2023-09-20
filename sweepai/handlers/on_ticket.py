@@ -329,7 +329,7 @@ def on_ticket(
             f"{center(sweeping_gif)}<br/>{center(pbar)}"
             + ("\n" + stars_suffix if index != -1 else "")
             + "\n"
-            + payment_message_start
+            + center(payment_message_start)
             + config_pr_message
             + f"\n\n---\n{actions_message}"
         )
@@ -1002,7 +1002,7 @@ def on_ticket(
             review_message + "\n\nSuccess! 🚀",
             4,
             pr_message=(
-                f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{center(payment_message)}"
+                f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{center(payment_message_start)}"
             ),
             done=True,
         )
