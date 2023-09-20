@@ -27,6 +27,7 @@ fi
 # Install packages with poetry
 echo "Installing packages with poetry..."
 poetry install
+source $(poetry env info --path)/bin/activate
 poetry shell
 # Install deeplake with pip
 echo "Installing deeplake with pip..."
