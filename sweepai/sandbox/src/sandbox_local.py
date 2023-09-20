@@ -275,7 +275,7 @@ async def run_sandbox(request: Request):
         "outputs": [execution.output for execution in executions],
         "executions": [asdict(execution) for execution in executions],
         "updated_content": updated_content,
-        "sandbox": sandbox.dict(),
+        # "sandbox": sandbox.dict(),
     }
 
 
