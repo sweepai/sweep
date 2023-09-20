@@ -91,35 +91,38 @@ class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
         )
 
 
+from sweepai.core.entities import Messages
+
 class GraphParentBot(ChatGPT):
     def relevant_files_to_symbols(
         self, issue_metadata: str, relevant_snippets: str, symbols_to_files: str
     ):
-        self.messages = [
-            Message(
-                role="system",
-                content=system_prompt,
-                key="system",
+        with Messages() as self.messages:
+            self.messages.append(
+                Message(
+                    role="system",
+                    content=system_prompt,
+                    key="system",
+                )
             )
-        ]
-        user_prompt = graph_user_prompt.format(
-            issue_metadata=issue_metadata,
-            relevant_snippets=relevant_snippets,
-            symbols_to_files=symbols_to_files,
-        )
-        self.model = (
-            "gpt-4-32k-0613"
-            if (self.chat_logger and self.chat_logger.is_paying_user())
-            else "gpt-3.5-turbo-16k-0613"
-        )
-        response = self.chat(user_prompt)
-        relevant_symbols_and_files = RelevantSymbolsAndFiles.from_string(
-            response, symbols_to_files
-        )
-        return (
-            relevant_symbols_and_files.relevant_files_to_symbols,
-            relevant_symbols_and_files.relevant_symbols_string,
-        )
+            user_prompt = graph_user_prompt.format(
+                issue_metadata=issue_metadata,
+                relevant_snippets=relevant_snippets,
+                symbols_to_files=symbols_to_files,
+            )
+            self.model = (
+                "gpt-4-32k-0613"
+                if (self.chat_logger and self.chat_logger.is_paying_user())
+                else "gpt-3.5-turbo-16k-0613"
+            )
+            response = self.chat(user_prompt)
+            relevant_symbols_and_files = RelevantSymbolsAndFiles.from_string(
+                response, symbols_to_files
+            )
+            return (
+                relevant_symbols_and_files.relevant_files_to_symbols,
+                relevant_symbols_and_files.relevant_symbols_string,
+            )
 
 
 if __name__ == "__main__":
