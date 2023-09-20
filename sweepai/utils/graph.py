@@ -172,6 +172,7 @@ class Graph(BaseModel):
         )
 
     def extract_first_degree(self, file_path: str) -> str:
+        # TODO: Add a check to see if the file exists
         definition_paths = self.find_definitions(file_path)
         references_path = self.find_references(file_path)
 
