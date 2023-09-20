@@ -1206,6 +1206,52 @@ Information needed from file:
 </entities_to_explore>
 
 
+class Messages:
+    def __init__(self):
+        self._messages = []
+
+    def __getitem__(self, index):
+        return self._messages[index]
+
+    def __setitem__(self, index, value):
+        self._messages[index] = value
+
+    def __delitem__(self, index):
+        del self._messages[index]
+
+    def __len__(self):
+        return len(self._messages)
+
+    def append(self, message):
+        self._messages.append(message)
+
+    def insert(self, index, message):
+        self._messages.insert(index, message)
+
+    def remove(self, message):
+        self._messages.remove(message)
+
+    def pop(self, index=-1):
+        return self._messages.pop(index)
+
+    def clear(self):
+        self._messages.clear()
+
+    def index(self, message, start=0, end=None):
+        return self._messages.index(message, start, end if end is not None else len(self._messages))
+
+    def count(self, message):
+        return self._messages.count(message)
+
+    def sort(self, key=None, reverse=False):
+        self._messages.sort(key=key, reverse=reverse)
+
+    def reverse(self):
+        self._messages.reverse()
+
+    def copy(self):
+        return self._messages.copy()
+
 <entities>
 chat.py:ChatGPT
 prompts.py:Messages
@@ -1227,6 +1273,22 @@ gpt4_human_message_entity_plan_prompt = """\
 
 # Todo:
 # Explore agent will partake in the exploration.
+class CustomInstructions:
+    def __init__(self, system_prompt, user_prompt):
+        self.system_prompt = system_prompt
+        self.user_prompt = user_prompt
+
+    def __enter__(self):
+        # Save the current system prompt
+        self.old_system_prompt = self.system_prompt
+        # Swap the system prompt
+        self.system_prompt = self.user_prompt
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Restore the old system prompt
+        self.system_prompt = self.old_system_prompt
+
 code_graph_explore_agent = CustomInstructions(
     system_prompt="""You are a developer working on the following issue:
 
