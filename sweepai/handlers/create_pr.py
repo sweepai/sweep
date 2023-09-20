@@ -42,6 +42,9 @@ INSTRUCTIONS_FOR_REVIEW = """\
 * Edit the original issue to get Sweep to recreate the PR from scratch"""
 
 
+def create_revert_button(file_name: str) -> str:
+    return f"[ ] Revert {file_name}"
+
 def create_pr_changes(
     file_change_requests: list[FileChangeRequest],
     pull_request: PullRequest,
@@ -398,65 +401,35 @@ def create_gha_pr(g, repo):
         repo.get_contents("sweep.yaml", ref=branch_name).decoded_content.decode()
         + "\ngha_enabled: True"
     )
-    repo.update_file(
-        "sweep.yaml",
-        "Enable GitHub Actions",
-        sweep_yaml_content,
-        repo.get_contents("sweep.yaml", ref=branch_name).sha,
-        branch=branch_name,
-    )
 
+    # Iterate over each file in the pull request
+    pr = repo.get_pulls(head=branch_name)[0]  # Assuming the PR exists and is the first one
+    files = pr.get_files()
+    revert_buttons = []
+    for file in files:
+        revert_buttons.append(create_revert_button(file.filename))
+
+    # Add the revert buttons to the pull request description
+    pr.edit(body=pr.body + "\n" + "\n".join(revert_buttons))
     # Create a PR from this branch to the main branch
-    pr = repo.create_pull(
-        title="Enable GitHub Actions",
-        body="This PR enables GitHub Actions for this repository.",
-        head=branch_name,
-        base=repo.default_branch,
-    )
-    return pr
+        pr = repo.create_pull(
+            title="Enable GitHub Actions",
+            body="This PR enables GitHub Actions for this repository.",
+            head=branch_name,
+            base=repo.default_branch,
+        )
+    
+        # Iterate over each file in the pull request
+        for file in pr.get_files():
+            # Call the create_revert_button function and add the returned button to the pull request description
+            revert_button = create_revert_button(file.filename)
+            pr.edit(body=pr.body + "\n" + revert_button)
+    
+        return pr
 
 
-REFACTOR_TEMPLATE = """\
-name: Refactor
-title: 'Sweep: '
-description: Write something like "Modify the ... api endpoint to use ... version and ... framework"
-labels: sweep
-body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Details
-      description: More details for Sweep
-      placeholder: We are migrating this function to ... version because ...
-"""
-
-BUGFIX_TEMPLATE = """\
-name: Bugfix
-title: 'Sweep: '
-description: Write something like "We notice ... behavior when ... happens instead of ...""
-labels: sweep
-body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Details
-      description: More details about the bug
-      placeholder: The bug might be in ... file
-"""
-
-FEATURE_TEMPLATE = """\
-name: Feature Request
-title: 'Sweep: '
-description: Write something like "Write an api endpoint that does "..." in the "..." file"
-labels: sweep
-body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Details
-      description: More details for Sweep
-      placeholder: The new endpoint should use the ... class from ... file because it contains ... logic
-"""
+def create_revert_button(file_name):
+    return f"- [ ] Revert {file_name}"
 
 SWEEP_TEMPLATE = """\
 name: Sweep Issue
