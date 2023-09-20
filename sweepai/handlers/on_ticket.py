@@ -279,7 +279,7 @@ def on_ticket(
         if not is_paying_user
         else "unlimited GPT-4 tickets"
     )
-    payment_message = (
+    payment_message = center(
         f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}."
         + (
             f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})"
@@ -287,7 +287,7 @@ def on_ticket(
             else ""
         )
     )
-    payment_message_start = (
+    payment_message_start = center(
         f"{user_type}: I'm creating this ticket using {model_name}. You have {gpt_tickets_left_message}{daily_message}."
         + (
             f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})"
