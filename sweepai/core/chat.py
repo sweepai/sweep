@@ -76,13 +76,13 @@ def format_for_anthropic(messages: list[Message]) -> str:
 
 
 class ChatGPT(BaseModel):
-    messages: list[Message] = [
+    messages: Messages = [
         Message(
             role="system",
             content=system_message_prompt,
         )
     ]
-    prev_message_states: list[list[Message]] = []
+    prev_message_states: list[Messages] = []
     model: ChatModel = (
         "gpt-4-32k-0613" if OPENAI_DO_HAVE_32K_MODEL_ACCESS else "gpt-4-0613"
     )
@@ -130,7 +130,7 @@ class ChatGPT(BaseModel):
         cls, prompt_string, chat_logger: ChatLogger, **kwargs
     ) -> Any:
         return cls(
-            messages=[Message(role="system", content=prompt_string, key="system")],
+            messages=Messages([Message(role="system", content=prompt_string, key="system")]),
             chat_logger=chat_logger,
             **kwargs,
         )
