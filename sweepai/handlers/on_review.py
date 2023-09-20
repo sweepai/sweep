@@ -8,6 +8,7 @@ from sweepai.core.entities import DiffSummarization, PullRequestComment
 from sweepai.core.prompts import review_prompt
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.prompt_constructor import (
     HumanMessageFinalPRComment,
     HumanMessagePromptReview,

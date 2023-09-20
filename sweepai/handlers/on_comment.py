@@ -293,6 +293,7 @@ def on_comment(
             chat_logger=chat_logger,
             model="gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4-32k-0613",
             sweep_context=sweep_context,
+            cloned_repo=cloned_repo,
         )
     except Exception as e:
         logger.error(traceback.format_exc())
@@ -431,6 +432,7 @@ def on_comment(
                     human_message=human_message,
                     repo=repo,
                     chat_logger=chat_logger,
+                    cloned_repo=cloned_repo,
                 )
             else:
                 file_change_requests, _ = sweep_bot.get_files_to_change(retries=1)
