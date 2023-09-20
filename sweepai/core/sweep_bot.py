@@ -1106,38 +1106,38 @@ class SweepBot(CodeGenBot, GithubBot):
                     f" {file_change_request.change_type}..."
                 )
                 match file_change_request.change_type:
-                    case "create":
-                        (
-                            changed_file,
-                            sandbox_execution,
-                            commit,
-                        ) = self.handle_create_file(
-                            file_change_request, branch, sandbox=sandbox
-                        )
-                    case "modify" | "rewrite":
-                        # Remove snippets from this file if they exist
-                        snippet_msgs = [
-                            m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
-                        ]
-                        if len(snippet_msgs) > 0:  # Should always be true
-                            snippet_msg = snippet_msgs[0]
-                            # Use regex to remove this snippet from the message
-                            file = re.escape(file_change_request.filename)
-                            regex = rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
-                            snippet_msg.content = re.sub(
-                                regex,
-                                "",
-                                snippet_msg.content,
-                                flags=re.DOTALL,
-                            )
-
-                        (
-                            changed_file,
-                            sandbox_execution,
-                            commit,
-                        ) = self.handle_modify_file(
-                            file_change_request, branch, sandbox=sandbox
-                        )
+                                    case "create":
+                                        (
+                                            changed_file,
+                                            sandbox_execution,
+                                            commit,
+                                        ) = self.handle_create_file(
+                                            file_change_request, branch, sandbox=sandbox
+                                        )
+                                    case "modify" | "rewrite":
+                                        # Remove snippets from this file if they exist
+                                        snippet_msgs = [
+                                            m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
+                                        ]
+                                        if len(snippet_msgs) > 0:  # Should always be true
+                                            snippet_msg = snippet_msgs[0]
+                                            # Use regex to remove this snippet from the message
+                                            file = re.escape(file_change_request.filename)
+                                            regex = rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
+                                            snippet_msg.content = re.sub(
+                                                regex,
+                                                "",
+                                                snippet_msg.content,
+                                                flags=re.DOTALL,
+                                            )
+                
+                                        (
+                                            changed_file,
+                                            sandbox_execution,
+                                            commit,
+                                        ) = self.handle_modify_file(
+                                            file_change_request, branch, sandbox=sandbox
+                                        )
                     # case "rewrite":
                     #     # Remove snippets from this file if they exist
                     #     snippet_msgs = [
