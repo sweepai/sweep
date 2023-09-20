@@ -63,21 +63,7 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 openai.api_key = OPENAI_API_KEY
 
-swing_animation = """
-<style>
-@keyframes swing {
-  0% { transform: rotate(0deg); }
-  50% { transform: rotate(10deg); }
-  100% { transform: rotate(-10deg); }
-}
-
-.swing {
-  animation: swing 1s infinite alternate;
-}
-</style>
-"""
-
-sweeping_gif = swing_animation + """<img class="swing" src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping">"""
+sweeping_gif = """<img class="swing" src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping">"""
 
 
 def center(text: str) -> str:
