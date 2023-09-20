@@ -99,11 +99,11 @@ class ModifyBot:
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
             fetch_snippets_system_prompt, chat_logger=chat_logger
         )
-        self.fetch_snippets_bot.messages.extend(additional_messages)
+        self.fetch_snippets_bot.messages = Messages(additional_messages)
         self.update_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
             update_snippets_system_prompt, chat_logger=chat_logger
         )
-        self.update_snippets_bot.messages.extend(additional_messages)
+        self.update_snippets_bot.messages = Messages(additional_messages)
 
     def update_file(
         self,
@@ -217,7 +217,8 @@ class CodeGenBot(ChatGPT):
     def summarize_snippets(self):
         # Custom system message for snippet replacement
         old_msg = self.messages[0].content
-        self.messages[0].content = snippet_replacement_system_message
+        with self.messages.switch_system_prompt(snippet_replacement_system_message):
+            # Rest of the code remains the same
 
         snippet_summarization = self.chat(
             snippet_replacement,
