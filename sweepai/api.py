@@ -1,4 +1,4 @@
-# Initialize logger at the beginning of the script
+# Initialize logger once at the beginning of the script
 from logn import logger
 from sweepai.utils.buttons import check_button_activated
 from sweepai.utils.safe_pqueue import SafePriorityQueue
@@ -158,11 +158,7 @@ def terminate_thread(thread):
             return
 
         # Use a flag to signal the thread to stop
-        thread_flag = threading.Event()
-        thread_flag.set()
-
-        if thread_flag.is_set():
-            thread.join()
+        thread._stop_event.set()
     except Exception as e:
         logger.error(f"Failed to terminate thread: {e}")
 
