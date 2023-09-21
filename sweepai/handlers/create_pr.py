@@ -1,5 +1,6 @@
 import datetime
 from typing import Generator
+import traceback
 
 import openai
 from github.Repository import Repository
@@ -145,6 +146,7 @@ def create_pr_changes(
             pr_title = "[config] " + pr_title
     except MaxTokensExceeded as e:
         logger.error(e)
+        logger.error(traceback.format_exc())
         posthog.capture(
             username,
             "failed",
@@ -157,6 +159,7 @@ def create_pr_changes(
         raise e
     except openai.error.InvalidRequestError as e:
         logger.error(e)
+        logger.error(traceback.format_exc())
         posthog.capture(
             username,
             "failed",
@@ -270,6 +273,7 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
             raise SystemExit
         except Exception as e:
             logger.error(e)
+            logger.error(traceback.format_exc())
     else:
         # Create branch based on default branch
         branch = repo.create_git_ref(
