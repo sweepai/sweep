@@ -465,53 +465,61 @@ def generate_new_file_from_patch(
         return search_and_replace[1]
 
     for search, replace in matches:
-        # Remove trailing tags
-        if search.lstrip().startswith("<old_file>") and replace.lstrip().startswith(
-            "<old_file>"
-        ):
-            search = search.lstrip()[len("<old_file>") :]
-            replace = replace.lstrip()[len("<old_file>") :]
-        # Remove trailing tags
-        if search.rstrip().endswith("</old_file>") and replace.rstrip().endswith(
-            "</old_file>"
-        ):
-            search = search.rstrip()[: -len("</old_file>")]
-            replace = replace.rstrip()[: -len("</old_file>")]
-        if replace.lstrip().startswith("<new_file>"):
-            replace = replace.lstrip()[len("<new_file>") :]
-        elif replace.lstrip().startswith("<updated_file>"):
-            replace = replace.lstrip()[len("<updated_file>") :]
-        if replace.rstrip().endswith("</new_file>"):
-            replace = replace.rstrip()[: -len("</new_file>")]
-        elif replace.rstrip().endswith("</updated_file>"):
-            replace = replace.rstrip()[: -len("</updated_file>")]
-        if replace.endswith("===="):
-            replace = replace[: -len("====")]
+        search, replace = remove_trailing_tags(search, replace)
         old_file_lines, best_match, status = sliding_window_replacement(
             old_file_lines, search.split("\n"), replace.split("\n")
         )
 
         if status is not None:
-            s = search.replace("`", "\\`")
-            r = replace.replace("`", "\\`")
-            errors.append(f"- {status}\n```\n{s}\n```\n\n```\n{r}\n```")
+            errors.append(format_error_message(search, replace, status))
 
-    if len(errors) > 0:
-        log = "\n\n".join(errors)
-        if sweep_context:
-            discord_log_error(
-                f"{sweep_context.issue_url}\nModify Parsing Errors {'gpt3.5' if sweep_context.use_faster_model else 'gpt4'}: \n"
-                + log,
-                priority=2 if sweep_context.use_faster_model else 0,
-            )
-        else:
-            discord_log_error(
-                f"Modify Parsing Errors gpt3.5: \n" + log,
-                priority=2,
-            )
+    if errors:
+        log_errors(errors, sweep_context)
 
     result = "\n".join(old_file_lines)
     return result, errors
+
+
+def remove_trailing_tags(search, replace):
+    # Remove trailing tags
+    if search.lstrip().startswith("<old_file>") and replace.lstrip().startswith("<old_file>"):
+        search = search.lstrip()[len("<old_file>") :]
+        replace = replace.lstrip()[len("<old_file>") :]
+    if search.rstrip().endswith("</old_file>") and replace.rstrip().endswith("</old_file>"):
+        search = search.rstrip()[: -len("</old_file>")]
+        replace = replace.rstrip()[: -len("</old_file>")]
+    if replace.lstrip().startswith("<new_file>"):
+        replace = replace.lstrip()[len("<new_file>") :]
+    elif replace.lstrip().startswith("<updated_file>"):
+        replace = replace.lstrip()[len("<updated_file>") :]
+    if replace.rstrip().endswith("</new_file>"):
+        replace = replace.rstrip()[: -len("</new_file>")]
+    elif replace.rstrip().endswith("</updated_file>"):
+        replace = replace.rstrip()[: -len("</updated_file>")]
+    if replace.endswith("===="):
+        replace = replace[: -len("====")]
+    return search, replace
+
+
+def format_error_message(search, replace, status):
+    s = search.replace("`", "\\`")
+    r = replace.replace("`", "\\`")
+    return f"- {status}\n```\n{s}\n```\n\n```\n{r}\n```"
+
+
+def log_errors(errors, sweep_context):
+    log = "\n\n".join(errors)
+    if sweep_context:
+        discord_log_error(
+            f"{sweep_context.issue_url}\nModify Parsing Errors {'gpt3.5' if sweep_context.use_faster_model else 'gpt4'}: \n"
+            + log,
+            priority=2 if sweep_context.use_faster_model else 0,
+        )
+    else:
+        discord_log_error(
+            f"Modify Parsing Errors gpt3.5: \n" + log,
+            priority=2,
+        )
 
 
 def join_contents_k(first, second, k):
