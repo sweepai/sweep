@@ -77,7 +77,10 @@ class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
                 symbols = strip_markdown(symbol)
                 file_paths = strip_markdown(file_path)
                 for file_path in file_paths:
-                    relevant_files_to_symbols[file_path] = symbols
+                    if file_path in relevant_files_to_symbols:
+                        relevant_files_to_symbols[file_path].extend(symbols)
+                    else:
+                        relevant_files_to_symbols[file_path] = symbols
             for line in symbols_to_files_string.split("\n"):
                 if not line:
                     continue
