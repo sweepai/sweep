@@ -3,10 +3,10 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import requests
-from geopy import Nominatim
+from geopy import Nominatim, exc
 from logn import logger
 from pydantic import BaseModel, Field
-from pymongo import MongoClient
+from pymongo import MongoClient, errors
 
 from sweepai.config.server import (
     MONGODB_URI,
@@ -48,10 +48,16 @@ class ChatLogger(BaseModel):
             self.ticket_collection = db["tickets"]
             self.create_indexes()
             self.set_expiration()
+        except errors.ServerSelectionTimeoutError as e:
+            logger.warning("Chat history could not connect to MongoDB due to server selection timeout")
+            logger.warning(e)
+        except errors.ConnectionFailure as e:
+            logger.warning("Chat history could not connect to MongoDB due to connection failure")
+            logger.warning(e)
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning("Chat history could not connect to MongoDB")
+            logger.warning("Chat history could not connect to MongoDB due to an unknown error")
             logger.warning(e)
     
     def create_indexes(self):
@@ -149,11 +155,16 @@ class ChatLogger(BaseModel):
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
             return True
+    
+        use_faster = False
         if self.is_paying_user():
-            return self.get_ticket_count() >= 500
-        if self.is_trial_user():
-            return self.get_ticket_count() >= 15
-        return self.check_location_and_ticket_count(g)
+            use_faster = self.get_ticket_count() >= 500
+        elif self.is_trial_user():
+            use_faster = self.get_ticket_count() >= 15
+        else:
+            use_faster = self.check_location_and_ticket_count(g)
+    
+        return use_faster
     
     def check_location_and_ticket_count(self, g):
         try:
@@ -167,10 +178,17 @@ class ChatLogger(BaseModel):
                     self.get_ticket_count() >= 5
                     or self.get_ticket_count(use_date=True) >= 1
                 )
+        except exc.GeocoderTimedOut as e:
+            logger.warning("Geolocation service timed out")
+            logger.warning(e)
+        except exc.GeocoderServiceError as e:
+            logger.warning("Geolocation service error occurred")
+            logger.warning(e)
         except SystemExit:
             raise SystemExit
-        except:
-            pass
+        except Exception as e:
+            logger.warning("An unknown error occurred during geolocation")
+            logger.warning(e)
     
         # Non-trial users can only create 2 GPT-4 tickets per day
         return self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) > 3
@@ -198,8 +216,11 @@ def discord_log_error(content, priority=0):
         response = requests.post(url, data=json.dumps(data), headers=headers)
         if response.status_code != 204:
             logger.error(f"Failed to log to Discord: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to send HTTP request to Discord")
+        logger.error(e)
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.error(f"Could not log to Discord: {e}")
-        pass
+        logger.error(f"An unknown error occurred while logging to Discord")
+        logger.error(e)
