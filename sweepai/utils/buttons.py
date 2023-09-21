@@ -7,8 +7,7 @@ def create_button(label: str, selected: bool = False):
     return f"- [{'x' if selected else ' '}] {label}"
 
 
-def create_action_buttons(labels: List[str]):
-    header = "## Actions (click)\n"
+def create_action_buttons(labels: List[str], header="## Actions (click)\n"):
     buttons = "\n".join(create_button(label) for label in labels)
     return header + buttons
 
