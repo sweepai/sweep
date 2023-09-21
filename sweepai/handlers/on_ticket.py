@@ -196,7 +196,7 @@ def on_ticket(
     logger.info(f"Getting repo {repo_full_name}")
 
     if current_issue.state == "closed":
-        logger.warning(f"Issue {issue_number} is closed")
+        logger.warning(f"Issue {issue_number} is closed, traceback: {traceback.format_exc()}")
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
     current_issue.edit(body=summary)
@@ -438,7 +438,7 @@ def on_ticket(
                 f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
             )
         except BadCredentialsException:
-            logger.error("Bad credentials, refreshing token")
+            logger.error(f"Bad credentials, refreshing token, traceback: {traceback.format_exc()}")
             _user_token, g = get_github_client(installation_id)
             repo = g.get_repo(repo_full_name)
             issue_comment = repo.get_issue(current_issue.number)
@@ -607,9 +607,7 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             logger.error(
-                "Failed to create new branch for sweep.yaml file.\n",
-                e,
-                traceback.format_exc(),
+                f"Failed to create new branch for sweep.yaml file.\n{e}\nTraceback: {traceback.format_exc()}",
             )
     else:
         logger.info("sweep.yaml file already exists.")
@@ -946,8 +944,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"{traceback.format_exc()}\n{e}")
 
         if changes_required:
             edit_sweep_comment(
@@ -1064,8 +1061,7 @@ def on_ticket(
         delete_branch = True
         raise e
     except openai.error.InvalidRequestError as e:
-        logger.error(traceback.format_exc())
-        logger.error(e)
+        logger.error(f"{traceback.format_exc()}\n{e}")
         edit_sweep_comment(
             (
                 "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1157,8 +1153,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(e)
-            logger.error(traceback.format_exc())
+            logger.error(f"{traceback.format_exc()}\n{e}")
             logger.print("Deleted branch", pull_request.branch_name)
 
     posthog.capture(username, "success", properties={**metadata})
