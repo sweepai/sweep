@@ -459,6 +459,8 @@ async def webhook(raw_request: Request):
                         installation_id=request.installation.id,
                         comment_id=None,
                     )
+                else:
+                    logger.warning(f"Issue labeled, but not a sweep issue, traceback: {traceback.format_exc()}")
             case "issue_comment", "created":
                 request = IssueCommentRequest(**request_dict)
                 if (
@@ -564,6 +566,8 @@ async def webhook(raw_request: Request):
                         },
                     )
                     call_on_comment(**pr_change_request.params)
+                else:
+                    logger.error(f"Failed to handle comment on PR: {request.pull_request.number}, traceback: {traceback.format_exc()}")
                 # Todo: update index on comments
             case "pull_request_review", "submitted":
                 # request = ReviewSubmittedRequest(**request_dict)
@@ -712,7 +716,7 @@ async def webhook(raw_request: Request):
                     f"Unhandled event: {event} {request_dict.get('action', None)}"
                 )
     except ValidationError as e:
-        logger.warning(f"Failed to parse request: {e}")
+        logger.warning(f"Failed to parse request: {e}, traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
 
@@ -771,9 +775,9 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                 raise SystemExit
             except Exception as e:
                 logger.error(
-                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
+                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}, traceback: {traceback.format_exc()}"
                 )
     except SystemExit:
         raise SystemExit
     except:
-        logger.warning(f"Failed to update sweep PRs")
+        logger.warning(f"Failed to update sweep PRs, traceback: {traceback.format_exc()}")
