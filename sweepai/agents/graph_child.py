@@ -26,7 +26,7 @@ relevant_snippet as small as possible. When writing the code changes keep in min
 </relevant_new_snippet>
 
 <changes_for_new_file>
-{Detailed natural language instructions of modifications to be made in new_file. Do not write code. Only mention changes that affect new_file.}
+{Detailed natural language instructions of modifications to be made in new_file. Do not write code. The relevant_snippets_in_repo are read-only and should not be modified in this description. Read them and describe the changes in natural language.}
 </changes_for_new_file>
 """
 
@@ -73,7 +73,7 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
         for raw_snippet in relevant_new_snippet_match.split("\n"):
             if ":" not in raw_snippet:
                 continue
-            generated_file_path, lines = raw_snippet.split(":", 1)
+            generated_file_path, lines = raw_snippet.split(":")[-2], raw_snippet.split(":")[-1] # solves issue with new_file:snippet:line1-line2
             if not generated_file_path or not lines.strip():
                 continue
             generated_file_path, lines = (
