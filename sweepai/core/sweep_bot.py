@@ -1449,5 +1449,5 @@ class SweepBot(CodeGenBot, GithubBot):
             raise SystemExit
         except Exception as e:
             tb = traceback.format_exc()
-            logger.info(f"Error in handle_modify_file: {tb}")
+            logger.error(f"Error in handle_modify_file: {e}\nTraceback: {tb}")
             return False, sandbox_error, None

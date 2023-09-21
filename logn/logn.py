@@ -370,17 +370,17 @@ class _LogN(_Logger):
         self[print](*args, **kwargs)
 
     def info(self, *args, **kwargs):
-        self[loguru_logger.info](*args, **kwargs)
-
+        self[loguru_logger.info](*args, traceback.format_exc(), **kwargs)
+    
     def error(self, *args, **kwargs):
-        self[loguru_logger.error](*args, **kwargs)
-
+        self[loguru_logger.error](*args, traceback.format_exc(), **kwargs)
+    
     def warning(self, *args, **kwargs):
-        self[loguru_logger.warning](*args, **kwargs)
-
+        self[loguru_logger.warning](*args, traceback.format_exc(), **kwargs)
+    
     def debug(self, *args, **kwargs):
         # Todo: add debug level
-        self[loguru_logger.info](*args, **kwargs)
+        self[loguru_logger.info](*args, traceback.format_exc(), **kwargs)
 
     @staticmethod
     def close(state="Done", exception=None):
