@@ -340,7 +340,6 @@ class CodeGenBot(ChatGPT):
                 > len(self.human_message.get_file_paths()) / 2
             )
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
-            plans: List[GraphContextAndPlan] = []
             if is_python_issue:
                 graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
                 graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
@@ -370,6 +369,7 @@ class CodeGenBot(ChatGPT):
                     non_human_message_snippet_paths.add(
                         file_path
                     )  # TODO (luke) use trimmed context of initial files in this step instead of self.human_message.render_snippet_array(other_snippets)
+                plans: List[GraphContextAndPlan] = []
                 for file_path in (
                     human_message_snippet_paths | non_human_message_snippet_paths
                 ):
@@ -407,7 +407,7 @@ class CodeGenBot(ChatGPT):
                         ),
                         all_symbols_and_files=relevant_symbols_string,
                     )
-                    if not plan.changes_for_new_file or not plan.relevant_new_snippet:
+                    if plan.changes_for_new_file and plan.relevant_new_snippet:
                         plans.append(plan)
 
                 file_path_set = set()
@@ -670,6 +670,7 @@ class GithubBot(BaseModel):
                 raise SystemExit
             except Exception as e:
                 logger.info(traceback.format_exc())
+        file_change_requests = [file_change_request for file_change_request in file_change_requests if file_change_request.instructions.strip()]
         return file_change_requests
 
 
