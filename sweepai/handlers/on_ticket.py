@@ -84,7 +84,6 @@ def on_ticket(
     repo_full_name: str,
     repo_description: str,
     installation_id: int,
-    is_python_issue: bool,
     comment_id: int = None,
     edited: bool = False,
 ):
@@ -158,9 +157,6 @@ def on_ticket(
     if fast_mode:
         use_faster_model = True
 
-    # Determine if the issue is related to Python
-    is_python_issue = "python" in title.lower() or "python" in summary.lower()
-
     sweep_context = SweepContext.create(
         username=username,
         issue_url=issue_url,
@@ -200,9 +196,6 @@ def on_ticket(
     }
     # logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
-
-    # Log the is_python_issue status
-    posthog.capture(username, "python_issue_status", properties={"is_python_issue": is_python_issue})
 
     logger.info(f"Getting repo {repo_full_name}")
 
@@ -354,7 +347,7 @@ def on_ticket(
             issue_comment = comment
 
     try:
-        config = SweepConfig.get_config(repo, is_python_issue)
+        config = SweepConfig.get_config(repo)
     except EmptyRepository as e:
         logger.info("Empty repo")
         first_comment = (
@@ -605,6 +598,15 @@ def on_ticket(
     for content_file in repo.get_contents(""):
         if content_file.name == "sweep.yaml":
             sweep_yml_exists = True
+
+    # Get files to change and determine if it's a python issue
+    file_change_requests, plan, is_python_issue = sweep_bot.get_files_to_change()
+
+    # Log is_python_issue to posthog
+    posthog.capture('is_python_issue_determined', {
+        'is_python_issue': is_python_issue,
+        'metadata': metadata
+    })
             break
 
     # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
@@ -696,13 +698,15 @@ def on_ticket(
         # COMMENT ON ISSUE
         # TODO: removed issue commenting here
         # TODO(william, luke) planning here
-        
-        # Determine if the issue is related to Python
-        is_python_issue = any('python' in label.name.lower() for label in current_issue.get_labels())
 
         logger.info("Fetching files to modify/create...")
-        # Pass is_python_issue to get_files_to_change function
-        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
+        file_change_requests, plan, is_python_issue = sweep_bot.get_files_to_change()
+
+        # Log is_python_issue to posthog
+        posthog.capture('is_python_issue_determined', {
+            'is_python_issue': is_python_issue,
+            'metadata': metadata
+        })
 
         if not file_change_requests:
             if len(title + summary) < 60:
