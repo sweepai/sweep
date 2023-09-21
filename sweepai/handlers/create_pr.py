@@ -280,7 +280,7 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
             ref=f"refs/heads/{branch_name}",
             sha=repo.get_branch(repo.default_branch).commit.sha,
         )
-
+    
         try:
             repo.create_file(
                 "sweep.yaml",
@@ -310,6 +310,7 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
             raise SystemExit
         except Exception as e:
             logger.error(e)
+            logger.error(traceback.format_exc())
 
     repo = sweep_bot.repo if sweep_bot is not None else repo
     # Check if the pull request from this branch to main already exists.
