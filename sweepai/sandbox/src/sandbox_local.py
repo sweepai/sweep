@@ -155,6 +155,7 @@ async def run_sandbox(request: Request):
     success, error_messages, updated_content = False, [], ""
     executions: list[SandboxExecution] = []
     username, _repo_name = sandbox_request.repo_url.split("/")[-2:]
+    sandbox = {}
 
     try:
         if sandbox_request.token:
@@ -275,7 +276,7 @@ async def run_sandbox(request: Request):
         "outputs": [execution.output for execution in executions],
         "executions": [asdict(execution) for execution in executions],
         "updated_content": updated_content,
-        # "sandbox": sandbox.dict(),
+        "sandbox": sandbox.dict(),
     }
 
 
