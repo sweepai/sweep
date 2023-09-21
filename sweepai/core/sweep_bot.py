@@ -325,21 +325,16 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    def get_files_to_change(self, retries=1) -> tuple[list[FileChangeRequest], str]:
+    def get_files_to_change(self, is_python_issue: bool, retries=1) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            is_python_issue = (
-                sum(
-                    [
-                        file_path.endswith(".py")
-                        for file_path in self.human_message.get_file_paths()
-                    ]
-                )
-                > len(self.human_message.get_file_paths()) / 2
-            )
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+            posthog.capture('is_python_issue_determined', {
+                'is_python_issue': is_python_issue,
+                'metadata': self.on_ticket.metadata
+            })
             if is_python_issue:
                 graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
                 graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
@@ -1224,6 +1219,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         ) = self.handle_modify_file(
                             file_change_request,
                             branch,
+                            is_python_issue,
                             sandbox=sandbox,
                             changed_files=changed_files,
                         )
@@ -1280,28 +1276,6 @@ class SweepBot(CodeGenBot, GithubBot):
 
             if changed_file:
                 completed += 1
-
-    def handle_create_file(
-        self,
-        file_change_request: FileChangeRequest,
-        branch: str,
-        sandbox=None,
-        changed_files: list[tuple[str, str]] = [],
-    ) -> tuple[bool, None, Commit]:
-        try:
-            file_change, sandbox_execution = self.create_file(
-                file_change_request, changed_files=changed_files
-            )
-            file_markdown = is_markdown(file_change_request.filename)
-            file_change.code = format_contents(file_change.code, file_markdown)
-            logger.debug(
-                f"{file_change_request.filename},"
-                f" {f'Create {file_change_request.filename}'}, {file_change.code},"
-                f" {branch}"
-            )
-
-            result = self.repo.create_file(
-                file_change_request.filename,
                 file_change.commit_message,
                 file_change.code,
                 branch=branch,
@@ -1385,6 +1359,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 file_change_request,
                                 contents=chunk_contents,
                                 branch=branch,
+                                is_python_issue,
                                 contents_line_numbers=chunk_contents
                                 if USING_DIFF
                                 else "\n".join(contents_line_numbers),
@@ -1408,6 +1383,20 @@ class SweepBot(CodeGenBot, GithubBot):
             # If the original file content is identical to the new file content, log a warning and return
             if file_contents == new_file_contents:
                 logger.warning(
+                    f"No changes made to {file_change_request.filename}. Skipping file"
+                    " update."
+                )
+                posthog.capture(
+                    'python_issue',
+                    {
+                        'is_python_issue': is_python_issue,
+                        'metadata': metadata
+                    }
+                )
+                return False, sandbox_error, "No changes made to file."
+            logger.debug(
+                f"{file_name}, {commit_message}, {new_file_contents}, {branch}"
+            )
                     f"No changes made to {file_change_request.filename}. Skipping file"
                     " update."
                 )
