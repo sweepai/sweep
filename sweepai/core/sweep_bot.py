@@ -452,7 +452,7 @@ class CodeGenBot(ChatGPT):
                     username=self.human_message.username,
                     title=self.human_message.title,
                     summary=self.human_message.summary,
-                    snippets=relevant_snippets,
+                    snippets=[],
                     tree=self.human_message.tree,
                     repo_description=self.human_message.repo_description,
                     plan_suggestions=plan_suggestions,
