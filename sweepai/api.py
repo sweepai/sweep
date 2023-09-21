@@ -152,7 +152,6 @@ def run_get_deeplake_vs_from_repo(*args, **kwargs):
 
 def terminate_thread(thread):
     """Terminate a python threading.Thread."""
-    # Todo(lukejagg): for multiprocessing, see if .terminate is catched in try/catch
     try:
         if not thread.is_alive():
             return
