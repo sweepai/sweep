@@ -712,7 +712,7 @@ async def webhook(raw_request: Request):
                             #
                             """
                             lines = body.split("\n")
-                            if lines[0].startswith("### PR Feedback"):
+                            if not lines[0].startswith("### PR Feedback"):
                                 return None
                             # Find when the second # occurs
                             i = 0
