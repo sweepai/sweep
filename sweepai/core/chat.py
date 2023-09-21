@@ -186,23 +186,23 @@ class ChatGPT(BaseModel):
         model: ChatModel | None = None,
         message_key: str | None = None,
         temperature=temperature,
+        async_chat=False,
     ):
         self.messages.append(Message(role="user", content=content, key=message_key))
         model = model or self.model
+        if async_chat:
+            response = await self.acall_openai(model=model)
+        else:
+            response = self.call_openai(model=model, temperature=temperature)
         self.messages.append(
             Message(
                 role="assistant",
-                content=self.call_openai(
-                    model=model,
-                    temperature=temperature,
-                ),
+                content=response,
                 key=message_key,
             )
         )
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
-
-    # Only works on functions without side effects
     # @file_cache(ignore_params=["chat_logger", "sweep_context", "cloned_repo"])
     def call_openai(
         self,
@@ -263,8 +263,6 @@ class ChatGPT(BaseModel):
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
-        global retry_counter
-        retry_counter = 0
 
         @backoff.on_exception(
             backoff.expo,
@@ -272,8 +270,7 @@ class ChatGPT(BaseModel):
             max_tries=16,
             jitter=backoff.random_jitter,
         )
-        def fetch():
-            global retry_counter
+        def fetch(retry_counter=0):
             retry_counter += 1
             token_sub = retry_counter * 200
             try:
@@ -399,12 +396,8 @@ class ChatGPT(BaseModel):
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
-        global retry_counter
-        retry_counter = 0
-
-        async def fetch():
+        async def fetch(retry_counter=0):
             for time_to_sleep in [10, 10, 20, 30, 60]:
-                global retry_counter
                 retry_counter += 1
                 token_sub = retry_counter * 200
                 try:
