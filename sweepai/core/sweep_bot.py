@@ -367,12 +367,18 @@ class CodeGenBot(ChatGPT):
                 )
                 non_human_message_snippet_paths = set()
                 for file_path in relevant_files_to_symbols.keys():
-                    non_human_message_snippet_paths.add(file_path) # TODO (luke) use trimmed context of initial files in this step instead of self.human_message.render_snippet_array(other_snippets)
-                for file_path in human_message_snippet_paths | non_human_message_snippet_paths:
+                    non_human_message_snippet_paths.add(
+                        file_path
+                    )  # TODO (luke) use trimmed context of initial files in this step instead of self.human_message.render_snippet_array(other_snippets)
+                for file_path in (
+                    human_message_snippet_paths | non_human_message_snippet_paths
+                ):
                     other_snippets = [
                         snippet
                         for snippet in self.human_message.snippets
-                        if snippet.file_path != file_path and file_path in human_message_snippet_paths # <- trim these once the human messages are parsed
+                        if snippet.file_path != file_path
+                        and file_path
+                        in human_message_snippet_paths  # <- trim these once the human messages are parsed
                     ]
                     if file_path in human_message_snippet_paths:
                         snippet = next(
@@ -388,17 +394,18 @@ class CodeGenBot(ChatGPT):
                             content=file_paths_to_contents[file_path],
                         )
                     relevant_symbol_list = []
-                    for v in relevant_files_to_symbols.values(): relevant_symbol_list.extend(v)
+                    for v in relevant_files_to_symbols.values():
+                        relevant_symbol_list.extend(v)
                     plan_bot = GraphChildBot(chat_logger=self.chat_logger)
                     plan = plan_bot.code_plan_extraction(
-                        file_path,
-                        relevant_symbol_list,
-                        issue_metadata,
-                        self.human_message.render_snippet_array(
+                        code=snippet.content,
+                        file_path=file_path,
+                        entities=relevant_symbol_list,
+                        issue_metadata=issue_metadata,
+                        previous_snippets=self.human_message.render_snippet_array(
                             other_snippets
                         ),
-                        relevant_symbols_string,
-                        snippet.content,
+                        all_symbols_and_files=relevant_symbols_string,
                     )
                     if not plan.changes_for_new_file or not plan.relevant_new_snippet:
                         plans.append(plan)
