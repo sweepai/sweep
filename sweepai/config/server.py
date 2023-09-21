@@ -3,7 +3,9 @@ import os
 
 from dotenv import load_dotenv
 
-from logn import logger
+from loguru import logger
+
+logger.print = logger.info
 
 load_dotenv(dotenv_path=".env")
 
