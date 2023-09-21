@@ -614,8 +614,7 @@ def on_ticket(
     else:
         logger.info("sweep.yaml file already exists.")
 
-    try:
-        # ANALYZE SNIPPETS
+    def analyze_snippets(snippets, external_results, docs_results):
         newline = "\n"
         edit_sweep_comment(
             "I found the following snippets in your repository. I will now analyze"
@@ -643,7 +642,8 @@ def on_ticket(
             + (f"\n\n{docs_results}\n\n" if docs_results else ""),
             1,
         )
-
+    
+    def create_subissues(do_map, subissues):
         if do_map:
             subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
             edit_sweep_comment(
@@ -681,14 +681,11 @@ def on_ticket(
             edit_sweep_comment(f"N/A", 4)
             edit_sweep_comment(f"I finished creating all the subissues.", 5)
             return {"success": True}
-
-        # COMMENT ON ISSUE
-        # TODO: removed issue commenting here
-        # TODO(william, luke) planning here
-
+    
+    def fetch_files_to_modify(title, summary):
         logger.info("Fetching files to modify/create...")
         file_change_requests, plan = sweep_bot.get_files_to_change()
-
+    
         if not file_change_requests:
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -708,9 +705,9 @@ def on_ticket(
                     -1,
                 )
             raise Exception("No files to modify.")
-
+    
         sweep_bot.summarize_snippets()
-
+    
         file_change_requests = sweep_bot.validate_file_change_requests(
             file_change_requests
         )
@@ -732,7 +729,8 @@ def on_ticket(
         #     " following modifications:\n\n" + table + "\n\n",
         #     2,
         # )
-
+    
+    def generate_pr():
         # TODO(lukejagg): Generate PR after modifications are made
         # CREATE PR METADATA
         logger.info("Generating PR...")
@@ -747,8 +745,14 @@ def on_ticket(
         #     ),
         #     3,
         # )
-
+    
         logger.info("Making PR...")
+    
+    try:
+        analyze_snippets(snippets, external_results, docs_results)
+        create_subissues(do_map, subissues)
+        fetch_files_to_modify(title, summary)
+        generate_pr()
 
         files_progress: list[tuple[str, str, str, str]] = [
             (
