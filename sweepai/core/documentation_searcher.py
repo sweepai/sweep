@@ -6,15 +6,13 @@ from sweepai.core.documentation import DOCS_ENDPOINTS, search_vector_store
 from sweepai.core.entities import Message
 from sweepai.core.prompts import docs_qa_system_prompt, docs_qa_user_prompt
 
-from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message
 from sweepai.core.prompts import (
     doc_query_rewriter_system_prompt,
     doc_query_rewriter_prompt,
 )
 from sweepai.utils.chat_logger import ChatLogger
 
-DOCS_ENDPOINTS = DOCS_ENDPOINTS
+# DOCS_ENDPOINTS = DOCS_ENDPOINTS
 
 
 class DocQueryRewriter(ChatGPT):
@@ -60,13 +58,7 @@ class DocumentationSearcher(ChatGPT):
     ) -> str:
         # MVP
         docs_search = search_vector_store
-        description = ""
-        package = ""
-        for framework, (package_url, description) in DOCS_ENDPOINTS.items():
-            if package_url == url:
-                package = framework
-                description = description
-                break
+        package, description = self.get_package_description(url)
         rewritten_problem = DocQueryRewriter(
             chat_logger=chat_logger, model="gpt-3.5-turbo-16k-0613"
         ).rewrite_query(package=package, description=description, issue=content)
@@ -91,6 +83,16 @@ class DocumentationSearcher(ChatGPT):
             + "\n\n".join([f"* {url}" for url in urls])
         )
 
+    def get_package_description(self, url: str) -> tuple[str, str]:
+        description = ""
+        package = ""
+        for framework, (package_url, description) in DOCS_ENDPOINTS.items():
+            if package_url == url:
+                package = framework
+                description = description
+                break
+        return package, description
+
 
 def extract_relevant_docs(content: str, user_dict: dict, chat_logger: ChatLogger):
     links = extract_docs_links(content, user_dict)
@@ -109,6 +111,10 @@ def extract_relevant_docs(content: str, user_dict: dict, chat_logger: ChatLogger
             result += "> " + summary.replace("\n", "\n> ") + "\n\n"
         except SystemExit:
             raise SystemExit
+        except ConnectionError as e:
+            logger.error(f"Docs search error: {e}, could not connect to the server.")
+        except TimeoutError as e:
+            logger.error(f"Docs search error: {e}, the server did not respond in time.")
         except Exception as e:
-            logger.error(f"Docs search error: {e}")
+            logger.error(f"Unexpected error: {e}")
     return result
