@@ -94,46 +94,30 @@ class OpenAIProxy:
 
     def call_openai(self, model, messages, max_tokens, temperature):
         try:
-            engine = None
-            if (
-                model == "gpt-3.5-turbo-16k"
-                or model == "gpt-3.5-turbo-16k-0613"
-                and os.getenv("OPENAI_API_ENGINE_GPT35") is not None
-            ):
-                engine = os.getenv("OPENAI_API_ENGINE_GPT35")
-            elif (
-                model == "gpt-4"
-                or model == "gpt-4-0613"
-                and os.getenv("OPENAI_API_ENGINE_GPT4") is not None
-            ):
-                engine = os.getenv("OPENAI_API_ENGINE_GPT4")
-            elif (
-                model == "gpt-4-32k"
-                or model == "gpt-4-32k-0613"
-                and os.getenv("OPENAI_API_ENGINE_GPT4_32K") is not None
-            ):
-                engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
+            model_engine_mapping = {
+                "gpt-3.5-turbo-16k": "OPENAI_API_ENGINE_GPT35",
+                "gpt-3.5-turbo-16k-0613": "OPENAI_API_ENGINE_GPT35",
+                "gpt-4": "OPENAI_API_ENGINE_GPT4",
+                "gpt-4-0613": "OPENAI_API_ENGINE_GPT4",
+                "gpt-4-32k": "OPENAI_API_ENGINE_GPT4_32K",
+                "gpt-4-32k-0613": "OPENAI_API_ENGINE_GPT4_32K",
+            }
+            engine = os.getenv(model_engine_mapping.get(model)) if model_engine_mapping.get(model) else None
             if os.getenv("OPENAI_API_TYPE") is None or engine is None:
                 openai.api_key = os.getenv("OPENAI_API_KEY")
                 openai.api_base = "https://api.openai.com/v1"
                 openai.api_version = None
                 openai.api_type = "open_ai"
                 logger.info(f"Calling {model} on OpenAI.")
-                response = openai.ChatCompletion.create(
-                    model=model,
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
+            else:
+                OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
+                logger.info(
+                    f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
                 )
-                return response["choices"][0].message.content
-            OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
-            logger.info(
-                f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
-            )
-            openai.api_type = os.getenv("OPENAI_API_TYPE")
-            openai.api_base = os.getenv("OPENAI_API_BASE")
-            openai.api_version = os.getenv("OPENAI_API_VERSION")
-            openai.api_key = os.getenv("AZURE_API_KEY")
+                openai.api_type = os.getenv("OPENAI_API_TYPE")
+                openai.api_base = os.getenv("OPENAI_API_BASE")
+                openai.api_version = os.getenv("OPENAI_API_VERSION")
+                openai.api_key = os.getenv("AZURE_API_KEY")
             response = openai.ChatCompletion.create(
                 engine=engine,
                 model=model,
