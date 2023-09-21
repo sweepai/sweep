@@ -3,6 +3,41 @@ from typing import Any, Literal, Dict
 from pydantic import BaseModel
 
 
+class Changes(BaseModel):
+    body: Dict[str, str]
+
+    @property
+    def body_from(self):
+        return self.body.get("from")
+
+
+class PREdited(BaseModel):
+    class Repository(BaseModel):
+        full_name: str
+
+    class PullRequest(BaseModel):
+        class User(BaseModel):
+            login: str
+
+        html_url: str
+        title: str
+        body: str
+
+        user: User
+        commits: int = 0
+        additions: int = 0
+        deletions: int = 0
+        changed_files: int = 0
+
+    class Sender(BaseModel):
+        login: str
+
+    changes: Changes
+    pull_request: PullRequest
+    sender: Sender
+    repository: Repository
+
+
 class Account(BaseModel):
     id: int
     login: str
@@ -106,12 +141,7 @@ class IssueRequest(BaseModel):
 
 
 class IssueCommentChanges(BaseModel):
-    "changes/body/from"
-
-    class Body(BaseModel):
-        body: Dict[str, str]
-
-    changes: Body
+    changes: Changes
 
 
 class IssueCommentRequest(IssueRequest):

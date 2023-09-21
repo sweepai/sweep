@@ -44,6 +44,7 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import (
     SweepConfig,
     get_documentation_dict,
+    RESTART_SWEEP_BUTTON,
 )
 from sweepai.config.server import (
     ENV,
@@ -304,7 +305,7 @@ def on_ticket(
         )
         actions_message = create_action_buttons(
             [
-                "↻ Restart Sweep",
+                RESTART_SWEEP_BUTTON,
             ]
         )
 
