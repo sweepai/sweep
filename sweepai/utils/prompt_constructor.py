@@ -28,10 +28,9 @@ class HumanMessagePrompt(BaseModel):
         ]
 
     def get_relevant_directories(self):
-        deduped_paths = []
+        deduped_paths = set()
         for snippet in self.snippets:
-            if snippet.file_path not in deduped_paths:
-                deduped_paths.append(snippet.file_path)
+            deduped_paths.add(snippet.file_path)
         if len(deduped_paths) == 0:
             return ""
         return (
@@ -47,7 +46,7 @@ class HumanMessagePrompt(BaseModel):
 
     @staticmethod
     def render_snippet_array(snippets):
-        joined_snippets = "\n".join([snippet.xml for snippet in snippets])
+        joined_snippets = "\n".join(snippet.xml for snippet in snippets)
         if joined_snippets.strip() == "":
             return ""
         return (
@@ -129,14 +128,11 @@ class HumanMessagePromptReview(HumanMessagePrompt):
     plan: str
 
     def format_diffs(self):
-        formatted_diffs = []
-        for file_name, file_patch in self.diffs:
-            if not file_name and not file_patch:
-                continue
-            format_diff = diff_section_prompt.format(
-                diff_file_path=file_name, diffs=file_patch
-            )
-            formatted_diffs.append(format_diff)
+        formatted_diffs = (
+            diff_section_prompt.format(diff_file_path=file_name, diffs=file_patch)
+            for file_name, file_patch in self.diffs
+            if file_name and file_patch
+        )
         return "\n".join(formatted_diffs)
 
     def construct_prompt(self):
