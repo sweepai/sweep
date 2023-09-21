@@ -1,7 +1,3 @@
-# import os
-# import loguru
-# from logtail import LogtailHandler
-# import logging
 from logn import logger
 
 # import loguru
@@ -21,11 +17,6 @@ if POSTHOG_API_KEY is None or POSTHOG_API_KEY.lower() == "none":
 else:
     posthog = Posthog(project_api_key=POSTHOG_API_KEY, host="https://app.posthog.com")
 
-# if LOGTAIL_SOURCE_KEY:
-#     logger = logger.bind(pid=os.getpid())
-#     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
-#     logger.add(handler)
-#     logger.info("Initialized LogtailHandler")
 
 
 def set_highlight_id(id):
@@ -35,12 +26,4 @@ def set_highlight_id(id):
             instrument_logging=False,
         )
 
-        """
-        logger.add(
-            H.logging_handler,
-            format=str(id) + " {message}",
-            level="INFO",
-            backtrace=True,
-            serialize=True,
-        )
-        """
+        
