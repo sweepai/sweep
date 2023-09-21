@@ -155,6 +155,7 @@ class _Task:
         child_task: str | None = None,
         function_name: str | None = None,
         exception: str | None = None,
+        traceback: str | None = None,
     ):
         if state is not None:
             self.state = state
@@ -164,12 +165,10 @@ class _Task:
             self.function_name = function_name
         if exception is not None:
             self.exception = exception
+            self.traceback = traceback.format_exc()
         if not self.create_file:
             return
-
-        # Todo: keep track of state, and allow metadata updates
-        # state: str | None
-        # self.state = state
+    
         with open(self.meta_path, "w") as f:
             f.write(
                 json.dumps(
@@ -178,13 +177,13 @@ class _Task:
                         "logs": self.log_path,
                         "datetime": str(datetime.datetime.now()),
                         "metadata": self.metadata if self.metadata is not None else {},
-                        # Todo: Write parent task in here
                         "function_name": self.function_name,
                         "parent_task": self.parent_task.meta_path
                         if self.parent_task is not None
                         else None,
                         "children": self.children,
                         "exception": self.exception,
+                        "traceback": self.traceback,
                         "state": state,
                     }
                 )
@@ -391,7 +390,7 @@ class _LogN(_Logger):
             if type(exc_type) == SystemExit:
                 self.close(state="Exited", exception=type(exc_type).__name__)
             else:
-                self.close(state="Errored", exception=type(exc_type).__name__)
+                self.close(state="Errored", exception=type(exc_type).__name__, traceback=traceback.format_exc())
         else:
             self.close()
 
