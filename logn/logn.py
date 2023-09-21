@@ -13,22 +13,29 @@ END_OF_LINE = "󰀀{level}󰀀\n"
 
 
 # Add logtail support
-from logtail import LogtailHandler
-from sweepai.config.server import LOGTAIL_SOURCE_KEY
+try:
+    from logtail import LogtailHandler
+    from sweepai.config.server import LOGTAIL_SOURCE_KEY
 
-handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
+    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
 
+    def get_logtail_logger(logger_name):
+        try:
+            logger = logging.getLogger(logger_name)
+            logger.setLevel(logging.INFO)
+            logger.handlers = []
+            logger.addHandler(handler)
+            return logger
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
+            return None
 
-def get_logtail_logger(logger_name):
-    try:
-        logger = logging.getLogger(logger_name)
-        logger.setLevel(logging.INFO)
-        logger.handlers = []
-        logger.addHandler(handler)
-        return logger
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
+except Exception as e:
+    print("Failed to import logtail")
+    print(e)
+
+    def get_logtail_logger(logger_name):
         return None
 
 
