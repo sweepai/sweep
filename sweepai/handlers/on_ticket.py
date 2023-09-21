@@ -189,6 +189,7 @@ def on_ticket(
         "subissues_mode": subissues_mode,
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
+        "is_python_issue": is_python_issue,
     }
     # logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
@@ -479,7 +480,7 @@ def on_ticket(
         # Create new branch
         # Send request to endpoint
         for file_path in []:
-            SweepBot.run_sandbox(
+            is_python_issue, other_return_values = SweepBot.run_sandbox(
                 repo.html_url, file_path, None, user_token, only_lint=True
             )
 
@@ -687,7 +688,9 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan, is_python_issue = sweep_bot.get_files_to_change()
+
+        posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
 
         if not file_change_requests:
             if len(title + summary) < 60:
@@ -711,7 +714,7 @@ def on_ticket(
 
         sweep_bot.summarize_snippets()
 
-        file_change_requests = sweep_bot.validate_file_change_requests(
+        file_change_requests, is_python_issue = sweep_bot.validate_file_change_requests(
             file_change_requests
         )
         table = tabulate(
