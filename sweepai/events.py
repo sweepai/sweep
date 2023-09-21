@@ -11,6 +11,17 @@ class Changes(BaseModel):
         return self.body.get("from")
 
 
+class Account(BaseModel):
+    id: int
+    login: str
+    type: str
+
+
+class Installation(BaseModel):
+    id: Any | None = None
+    account: Account | None = None
+
+
 class PREdited(BaseModel):
     class Repository(BaseModel):
         full_name: str
@@ -36,17 +47,7 @@ class PREdited(BaseModel):
     pull_request: PullRequest
     sender: Sender
     repository: Repository
-
-
-class Account(BaseModel):
-    id: int
-    login: str
-    type: str
-
-
-class Installation(BaseModel):
-    id: Any | None = None
-    account: Account | None = None
+    installation: Installation
 
 
 class InstallationCreatedRequest(BaseModel):
