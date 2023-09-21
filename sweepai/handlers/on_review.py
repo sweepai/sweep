@@ -36,12 +36,13 @@ def get_pr_diffs(repo, pr):
             file.status == "added"
             or file.status == "modified"
             or file.status == "removed"
+            or file.status == "renamed"
         ):
             pr_diffs.append((file.filename, diff))
         else:
             logger.info(
                 f"File status {file.status} not recognized"
-            )  # TODO(sweep): We don't handle renamed files
+            )
     return pr_diffs
 
 
@@ -93,12 +94,6 @@ def review_pr(
                 "issue_url": issue_url,
                 "username": username,
                 "repo_description": repo_description,
-                "issue_url": issue_url,
-                "username": username,
-                "repo_description": repo_description,
-                "title": title,
-                "summary": summary,
-                "replies_text": replies_text,
                 "tree": tree,
                 "type": "review",
             }
