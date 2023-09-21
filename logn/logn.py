@@ -269,18 +269,24 @@ class _Logger:
 
     def _log(self, *args, **kwargs):
         task = _Task.get_task()
-
+    
         parser = None
         level = 0
         if self.printfn in logging_parsers:
             parser = logging_parsers[self.printfn]
             log = parser.parse(*args, **kwargs)
-
+    
             print(log)
             task.write_log(parser.level, log)
         else:
-            self.printfn(*args, **kwargs)
-            task.write_log(0, *args, **kwargs)
+            try:
+                self.printfn(*args, **kwargs)
+                task.write_log(0, *args, **kwargs)
+            except Exception as e:
+                tb = traceback.format_exc()
+                error_message = f"An error occurred: {str(e)}\nTraceback: {tb}"
+                self.printfn(error_message)
+                task.write_log(0, error_message)
 
     def init(self, metadata, create_file):
         task = _Task.set_metadata(metadata=metadata, create_file=create_file)
@@ -299,17 +305,36 @@ class _LogN(_Logger):
         self[print](*args, **kwargs)
 
     def info(self, *args, **kwargs):
-        self[loguru_logger.info](*args, **kwargs)
-
+        try:
+            self[loguru_logger.info](*args, **kwargs)
+        except Exception as e:
+            tb = traceback.format_exc()
+            error_message = f"An error occurred: {str(e)}\nTraceback: {tb}"
+            self[loguru_logger.info](error_message)
+    
     def error(self, *args, **kwargs):
-        self[loguru_logger.error](*args, **kwargs)
-
+        try:
+            self[loguru_logger.error](*args, **kwargs)
+        except Exception as e:
+            tb = traceback.format_exc()
+            error_message = f"An error occurred: {str(e)}\nTraceback: {tb}"
+            self[loguru_logger.error](error_message)
+    
     def warning(self, *args, **kwargs):
-        self[loguru_logger.warning](*args, **kwargs)
-
+        try:
+            self[loguru_logger.warning](*args, **kwargs)
+        except Exception as e:
+            tb = traceback.format_exc()
+            error_message = f"An error occurred: {str(e)}\nTraceback: {tb}"
+            self[loguru_logger.warning](error_message)
+    
     def debug(self, *args, **kwargs):
-        # Todo: add debug level
-        self[loguru_logger.info](*args, **kwargs)
+        try:
+            self[loguru_logger.info](*args, **kwargs)
+        except Exception as e:
+            tb = traceback.format_exc()
+            error_message = f"An error occurred: {str(e)}\nTraceback: {tb}"
+            self[loguru_logger.info](error_message)
 
     @staticmethod
     def close(state="Done", exception=None):
