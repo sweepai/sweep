@@ -700,6 +700,47 @@ async def webhook(raw_request: Request):
                             },
                         )
 
+                        def remove_buttons_from_description(body):
+                            """
+                            Replace:
+                            ### PR Feedback...
+                            ...
+                            # (until it hits the next #)
+
+                            with
+                            ### PR Feedback: {emoji}
+                            #
+                            """
+                            lines = body.split("\n")
+                            if lines[0].startswith("### PR Feedback"):
+                                return None
+                            # Find when the second # occurs
+                            i = 0
+                            for i, line in enumerate(lines):
+                                if line.startswith("#") and i > 0:
+                                    break
+
+                            return "\n".join(
+                                [
+                                    f"### PR Feedback: {emoji}",
+                                    *lines[i:],
+                                ]
+                            )
+
+                        # Update PR description to remove buttons
+                        try:
+                            _, g = get_github_client(request.installation.id)
+                            repo = g.get_repo(request.repository.full_name)
+                            pr = repo.get_pull(request.pull_request.number)
+                            new_body = remove_buttons_from_description(
+                                request.pull_request.body
+                            )
+                            if new_body is not None:
+                                pr.edit(body=new_body)
+                        except SystemExit:
+                            raise SystemExit
+                        except Exception as e:
+                            logger.error(f"Failed to edit PR description: {e}")
                     pass
                 pass
             case "pull_request", "closed":
