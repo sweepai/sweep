@@ -27,16 +27,13 @@ class CodeRepairChecker(ChatGPT):
 
 
 class CodeRepairer(ChatGPT):
-    # idk why this part breaks
-    # messages: list[Message] = [Message(role="system", content=code_repair_system_prompt)]
-    # model = "gpt-3.5-turbo-16k-0613"
+    messages: list[Message] = [Message(role="system", content=code_repair_system_prompt)]
+    model = "gpt-3.5-turbo-16k-0613"
     code_repair_checker: CodeRepairChecker = CodeRepairChecker()
 
     @staticmethod
     def check_syntax(old_code, file_extension: str) -> bool:
-        return False
-        # this is WIP
-        filename = ""
+        filename = old_code
         if file_extension == ".py":
             # Use Python's built-in formatter "Black"
             result = subprocess.run(
@@ -91,6 +88,9 @@ class CodeRepairer(ChatGPT):
                 code_repair_prompt.format(user_code=user_code),
                 message_key="code_repair",
             )
+            retry_count += 1
+            if retry_count >= retries:
+                break
             # Check if the length of the response does not differ by more than 15% from the input
             if (
                 len(user_code.splitlines()) > 50
