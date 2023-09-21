@@ -753,7 +753,7 @@ def on_ticket(
         create_subissues(do_map, subissues)
         fetch_files_to_modify(title, summary)
         generate_pr()
-
+    
         files_progress: list[tuple[str, str, str, str]] = [
             (
                 file_change_request.filename,
@@ -761,7 +761,7 @@ def on_ticket(
                 "⏳ In Progress",
                 "",
             )
-            for file_change_request in file_change_requests
+            for file_change_request in sweep_bot.get_file_change_requests()
         ]
 
         checkboxes_progress: list[tuple[str, str, str]] = [
