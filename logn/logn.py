@@ -5,10 +5,38 @@ import threading
 import datetime
 import inspect
 import traceback
+import logging
 
 LOG_PATH = "logn_logs/logs"
 META_PATH = "logn_logs/meta"
 END_OF_LINE = "󰀀{level}󰀀\n"
+
+
+# Add logtail support
+try:
+    from logtail import LogtailHandler
+    from sweepai.config.server import LOGTAIL_SOURCE_KEY
+
+    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
+
+    def get_logtail_logger(logger_name):
+        try:
+            logger = logging.getLogger(logger_name)
+            logger.setLevel(logging.INFO)
+            logger.handlers = []
+            logger.addHandler(handler)
+            return logger
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
+            return None
+
+except Exception as e:
+    print("Failed to import logtail")
+    print(e)
+
+    def get_logtail_logger(logger_name):
+        return None
 
 
 class LogParser:
@@ -106,6 +134,19 @@ class _Task:
         self.function_name = function_name
         self.exception = None
         self.write_metadata(state="Created")
+
+        self.logtail_logger = get_logtail_logger(
+            self.log_path.split("/")[-1].replace(".txt", "")
+        )
+
+    def get_logtail_metadata(self):
+        return {
+            "metadata": self.metadata,
+            "function_name": self.function_name,
+            "state": self.state,
+            "children": self.children,
+            "exception": self.exception,
+        }
 
     @staticmethod
     def create(metadata, create_file=True):
@@ -242,7 +283,7 @@ class _Task:
                 logn_parent_task=parent_task,
                 metadata={
                     **parent_task.metadata,
-                    "name": parent_task.metadata["name"] + "_" + name,
+                    "name": parent_task.metadata.get("name", "NO_NAME") + "_" + name,
                 },
                 function_name=function_name,
             )
@@ -263,6 +304,8 @@ class _Logger:
     def __call__(self, *args, **kwargs):
         try:
             self._log(*args, **kwargs)
+        except SystemExit:
+            raise SystemExit
         except Exception as e:
             print(traceback.format_exc())
             print("Failed to write log")
@@ -270,15 +313,43 @@ class _Logger:
     def _log(self, *args, **kwargs):
         task = _Task.get_task()
 
-        parser = None
-        level = 0
         if self.printfn in logging_parsers:
             parser = logging_parsers[self.printfn]
             log = parser.parse(*args, **kwargs)
 
+            if task.logtail_logger is not None:
+                try:
+                    # switch case
+                    match parser.level:
+                        case 0:
+                            task.logtail_logger.info(
+                                log, extra=task.get_logtail_metadata()
+                            )
+                        case 1:
+                            task.logtail_logger.info(
+                                log, extra=task.get_logtail_metadata()
+                            )
+                        case 2:
+                            task.logtail_logger.error(
+                                log, extra=task.get_logtail_metadata()
+                            )
+                        case 3:
+                            task.logtail_logger.warning(
+                                log, extra=task.get_logtail_metadata()
+                            )
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    pass
+
             print(log)
             task.write_log(parser.level, log)
         else:
+            print(
+                "Warning: no parser found for printfn:",
+                self.printfn.__module__,
+                self.printfn.__name__,
+            )
             self.printfn(*args, **kwargs)
             task.write_log(0, *args, **kwargs)
 
@@ -321,6 +392,7 @@ class _LogN(_Logger):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit will close the logger after leaving the with statement."""
         # Check if it errored
         if exc_type is not None:
             if type(exc_type) == SystemExit:
