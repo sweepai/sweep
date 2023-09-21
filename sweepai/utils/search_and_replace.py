@@ -39,8 +39,6 @@ def line_cost(line: str) -> float:
 
 
 def score_multiline(query: list[str], target: list[str]) -> float:
-    # TODO: add weighting on first and last lines
-
     q, t = 0, 0  # indices for query and target
     scores: list[tuple[float, float]] = []
     skipped_comments = 0
@@ -48,7 +46,7 @@ def score_multiline(query: list[str], target: list[str]) -> float:
     def get_weight(q: int) -> float:
         # Prefers lines at beginning and end of query
         # Sequence: 1, 2/3, 1/2, 2/5...
-        index = min(q, len(query) - q)
+        index = min(q, len(query) - q - 1)
         return 100 / (index / 2 + 1)
 
     while q < len(query) and t < len(target):
@@ -73,7 +71,6 @@ def score_multiline(query: list[str], target: list[str]) -> float:
                 break
             max_score = 0
             for i in range(t, len(target)):
-                # TODO: use radix to optimize
                 score, weight = score_multiline(query[q + 1 :], target[i:]), (
                     100 - (i - t) / len(target) * 10
                 )
@@ -159,11 +156,7 @@ def find_best_match(query: str, code_file: str):
         return best_match
 
     for num_indents in range(0, min(max_indents + 1, 20)):
-        # Optimize later by using radix
         indented_query_lines = [indent * num_indents + line for line in query_lines]
-        # for line in code_file_lines:
-        #     # print(line)
-        #     print(score_line(line, indented_query_lines[0]))
 
         start_indices = [
             i
@@ -203,102 +196,43 @@ def find_best_match(query: str, code_file: str):
                     best_match = current_match
 
     unique_top_matches: list[Match] = []
-    print(unique_top_matches)
     unique_spans = set()
     for top_match in sorted(top_matches, reverse=True):
         if (top_match.start, top_match.end) not in unique_spans:
             unique_top_matches.append(top_match)
             unique_spans.add((top_match.start, top_match.end))
     for top_match in unique_top_matches[:5]:
-        logger.print(top_match)
+        logger.info(top_match)
 
     return unique_top_matches[0]
 
 
-code_file = """
-# Import libraries
-import os
-import sys
+if __name__ == "__main__":
+    code_file = """
+    # Import libraries
+    import os
+    import sys
 
-# Initialize
-def initialize():
-    print("Initializing...")
-    x = 1
-    y = 2
-    print("Done!")
+    # Initialize
+    def initialize():
+        print("Initializing...")
+        x = 1
+        y = 2
+        print("Done!")
 
-# Main function
-def main():
-    print("Hello, World!")
-"""
+    # Main function
+    def main():
+        print("Hello, World!")
+    """
 
-# Sample target snippet
-target = """
-# Initialize
-def initialize():
-    ...
-    print("Done!")
-""".strip()
+    # Sample target snippet
+    target = """
+    # Initialize
+    def initialize():
+        ...
+        print("Done!")
+    """.strip()
 
-# query = """\
-# foo()
-# print("hello world")
-# ...
-# bar()\
-# """
-
-# target = """\
-# foo()
-# // this is a comment
-# print("hello world")
-# xyz()
-# test()
-# bar()\
-# """
-
-# query = """\
-# foo()
-# print("hello world")
-# ...\
-# """
-
-# target = """\
-# foo()
-# // this is a comment
-# print("hello world")
-# xyz()
-# test()\
-# """
-
-# query = """\
-# # Initialize
-# def initialize():
-#     ...
-#     print("Done!")\
-# """
-
-# target = """\
-# # Initialize
-# def initialize():
-#     print("Initializing...")
-#     x = 1
-#     y = 2
-#     print("Done!")
-# \
-# """
-
-# print(score_multiline(query.split("\n"), target.split("\n")))
-
-# Find the best match
-# best_span = find_best_match(target, code_file)
-# print(f"Best match line numbers: {best_span}")
-
-# if __name__ == "__main__":
-#     string1 = "hello world"
-#     string2 = "hello   world!"
-
-#     string1 = "     hello world"
-#     string2 = "hello world"
-
-# score = line_scoring(string1, string2)
-#     print(f"Score: {score}%")
+    # Find the best match
+    best_span = find_best_match(target, code_file)
+    print(f"Best match line numbers: {best_span}")
