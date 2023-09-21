@@ -195,6 +195,7 @@ def on_ticket(
         "fast_mode": fast_mode,
     }
     # logger.bind(**metadata)
+    metadata['is_python_issue'] = str(is_python_issue)
     posthog.capture(username, "started", properties=metadata)
 
     logger.info(f"Getting repo {repo_full_name}")
@@ -554,6 +555,15 @@ def on_ticket(
         snippets=snippets,
         tree=tree,
     )
+    is_python_issue = (
+        sum(
+            [
+                file_path.endswith(".py")
+                for file_path in human_message.get_file_paths()
+            ]
+        )
+        > len(human_message.get_file_paths()) / 2
+    )
 
     context_pruning = ContextPruning(chat_logger=chat_logger)
     (
@@ -591,6 +601,7 @@ def on_ticket(
         chat_logger=chat_logger,
         sweep_context=sweep_context,
         cloned_repo=cloned_repo,
+        is_python_issue=is_python_issue,
     )
 
     # Check repository for sweep.yml file.
@@ -599,12 +610,23 @@ def on_ticket(
         if content_file.name == "sweep.yaml":
             sweep_yml_exists = True
 
-    # Get files to change and determine if it's a python issue
-    file_change_requests, plan, is_python_issue = sweep_bot.get_files_to_change()
+    # Determine if it's a python issue
+    is_python_issue = (
+        sum(
+            [
+                file_path.endswith(".py")
+                for file_path in self.human_message.get_file_paths()
+            ]
+        )
+        > len(self.human_message.get_file_paths()) / 2
+    )
+
+    # Get files to change
+    file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
     # Log is_python_issue to posthog
     posthog.capture('is_python_issue_determined', {
-        'is_python_issue': is_python_issue,
+        'is_python_issue': str(is_python_issue),
         'metadata': metadata
     })
             break
@@ -700,10 +722,10 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan, is_python_issue = sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         posthog.capture('is_python_issue_determined', {
-            'is_python_issue': is_python_issue,
+            'is_python_issue': str(is_python_issue),
             'metadata': metadata
         })
 
@@ -1163,7 +1185,7 @@ def on_ticket(
         posthog.capture(
             username,
             "failed",
-            properties={"error": str(e), "reason": "Generic error", **metadata},
+            properties={"error": str(e), "reason": "Generic error", 'is_python_issue': str(is_python_issue), **metadata},
         )
         raise e
     else:
@@ -1192,6 +1214,6 @@ def on_ticket(
             logger.error(traceback.format_exc())
             logger.print("Deleted branch", pull_request.branch_name)
 
-    posthog.capture(username, "success", properties={**metadata})
+    posthog.capture(username, "success", properties={'is_python_issue': str(is_python_issue), **metadata})
     logger.info("on_ticket success")
     return {"success": True}
