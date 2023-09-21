@@ -90,3 +90,5 @@ class OpenAIProxy:
                 except Exception as e:
                     logger.error(f"OpenAI API Key found but error: {e}")
             logger.error(f"OpenAI API Key not found and Azure Error: {e}")
+            # Raise exception to report error
+            raise e
