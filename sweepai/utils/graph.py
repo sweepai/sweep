@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from pydantic import BaseModel
 
 
-def extract_degree_paths(graph, start_node, degree=3):
+def extract_degree_paths(graph, start_node, degree=4):
     paths = []
 
     def dfs(node, visited, path):
@@ -224,17 +224,14 @@ class Graph(BaseModel):
 
 
 if __name__ == "__main__":
+    import sys
+
     # Replace this with the actual path you want to traverse
     folder_path = os.getcwd()
     definitions_graph, references_graph = traverse_folder(folder_path)
 
     # Select one file to extract degree 4 paths (you can loop over all files if needed)
-    selected_files = (
-        "sweepai/core/code_repair.py",
-        "sweepai/core/sweep_bot.py",
-        "sweepai/core/chat.py",
-        "sweepai/core/prompts.py",
-    )
+    selected_files = sys.argv[1:]
 
     def get_entities_for_file(selected_file):
         definition_paths = extract_degree_paths(definitions_graph, selected_file)
@@ -260,19 +257,6 @@ if __name__ == "__main__":
     # Create a Graph object
     g = Graph.from_folder(folder_path)
 
-    selected_files = (
-    "sweepai/core/entities.py",
-    "sweepai/core/chat.py",
-    "sweepai/core/sweep_bot.py",
-    "sweepai/core/code_repair.py",
-    "sweepai/core/slow_mode_expand.py",
-    "sweepai/core/post_merge.py",
-    "sweepai/core/gha_extraction.py",
-    "sweepai/core/context_pruning.py",
-    "sweepai/core/external_searcher.py",
-    "sweepai/core/documentation_searcher.py",
-    "tests/test_naive_chunker.py"
-)
     # Perform a topological sort on the selected files
     try:
         sorted_files = g.topological_sort(selected_files)

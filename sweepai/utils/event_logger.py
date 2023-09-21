@@ -8,6 +8,7 @@ from logn import logger
 # from loguru import logger
 from posthog import Posthog
 import highlight_io
+import logging
 
 from sweepai.config.server import POSTHOG_API_KEY, HIGHLIGHT_API_KEY, LOGTAIL_SOURCE_KEY
 
@@ -35,12 +36,10 @@ def set_highlight_id(id):
             instrument_logging=False,
         )
 
-        """
-        logger.add(
+        logging.getLogger().addHandler(
             H.logging_handler,
             format=str(id) + " {message}",
             level="INFO",
             backtrace=True,
             serialize=True,
         )
-        """

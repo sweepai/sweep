@@ -36,7 +36,7 @@ def tokenize_call(code):
                             text=part.lower(),
                             pos=pos,
                             startchar=span_start + offset,
-                            end_pos=pos + 1,
+                            pos=pos + 1,
                             endchar=span_start + len(part) + offset,
                         )
                     )
@@ -67,7 +67,7 @@ def tokenize_call(code):
                         text=text.lower(),
                         pos=pos,
                         startchar=span_start,
-                        end_pos=pos + 1,
+                        pos=pos + 1,
                         endchar=span_start + len(text),
                     )
                 )
@@ -93,7 +93,7 @@ def construct_bigrams(tokens):
                 text=prev_token.text + "_" + token.text,
                 pos=prev_token.pos,
                 startchar=prev_token.startchar,
-                end_pos=token.end_pos,
+                pos=token.pos,
                 endchar=token.endchar,
             )
             res.append(joined_token)
@@ -111,7 +111,7 @@ def construct_trigrams(tokens):
                 text=prev_prev_token.text + "_" + prev_token.text + "_" + token.text,
                 pos=prev_prev_token.pos,
                 startchar=prev_prev_token.startchar,
-                end_pos=token.end_pos,
+                pos=token.pos,
                 endchar=token.endchar,
             )
             res.append(joined_token)
@@ -285,6 +285,6 @@ def search_index(query, ix):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.print(e)
+        logger.error(e)
         traceback.print_exc()
         return {}

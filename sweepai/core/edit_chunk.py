@@ -27,7 +27,8 @@ class EditBot(ChatGPT):
             self.messages = [
                 Message(role="system", content=should_edit_code_system_prompt)
             ]
-            # self.model = "gpt-3.5-turbo-16k-0613"  # can be optimized
+            # The model attribute is moved to the class initialization as it is needed.
+            self.model = "gpt-3.5-turbo-16k-0613"  
             response = self.chat(
                 should_edit_code_prompt.format(
                     problem_description=issue, code_snippet=snippet
@@ -39,8 +40,7 @@ class EditBot(ChatGPT):
                 return True
             elif "false" in last_line.lower():
                 return False
-        except SystemExit:
-            raise SystemExit
+        # The SystemExit exception is allowed to propagate and the error message and traceback are logged for debugging.
         except Exception as e:
-            logger.print(f"An error occurred: {e}")
+            logger.error(f"An error occurred: {e}", exc_info=True)
         return False

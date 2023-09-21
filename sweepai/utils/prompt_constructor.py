@@ -21,17 +21,20 @@ class HumanMessagePrompt(BaseModel):
     tree: str
     repo_description: str = ""
 
+    class Snippet(BaseModel):
+        file_path: str
+        xml: str
+    
     def delete_file(self, file_path):
         # Remove the snippets from the main list
         self.snippets = [
             snippet for snippet in self.snippets if snippet.file_path != file_path
         ]
-
+    
     def get_relevant_directories(self):
-        deduped_paths = []
+        deduped_paths = set()
         for snippet in self.snippets:
-            if snippet.file_path not in deduped_paths:
-                deduped_paths.append(snippet.file_path)
+            deduped_paths.add(snippet.file_path)
         if len(deduped_paths) == 0:
             return ""
         return (
@@ -41,13 +44,13 @@ class HumanMessagePrompt(BaseModel):
             + "\n"
             + "</relevant_paths_in_repo>"
         )
-
+    
     def get_file_paths(self):
         return [snippet.file_path for snippet in self.snippets]
-
+    
     @staticmethod
     def render_snippet_array(snippets):
-        joined_snippets = "\n".join([snippet.xml for snippet in snippets])
+        joined_snippets = "\n".join(snippet.xml for snippet in snippets)
         if joined_snippets.strip() == "":
             return ""
         return (
@@ -61,7 +64,7 @@ class HumanMessagePrompt(BaseModel):
     def render_snippets(self):
         return self.render_snippet_array(self.snippets)
 
-    def construct_prompt(self):
+    def construct_prompt(self, prompt_type):
         human_messages = [
             {
                 "role": msg["role"],
@@ -80,7 +83,7 @@ class HumanMessagePrompt(BaseModel):
                 ),
                 "key": msg.get("key"),
             }
-            for msg in human_message_prompt
+            for msg in prompt_type
         ]
         return human_messages
 
@@ -127,16 +130,13 @@ class HumanMessagePromptReview(HumanMessagePrompt):
     pr_message: str = ""
     diffs: list
     plan: str
-
+    
     def format_diffs(self):
-        formatted_diffs = []
-        for file_name, file_patch in self.diffs:
-            if not file_name and not file_patch:
-                continue
-            format_diff = diff_section_prompt.format(
-                diff_file_path=file_name, diffs=file_patch
-            )
-            formatted_diffs.append(format_diff)
+        formatted_diffs = (
+            diff_section_prompt.format(diff_file_path=file_name, diffs=file_patch)
+            for file_name, file_patch in self.diffs
+            if file_name and file_patch
+        )
         return "\n".join(formatted_diffs)
 
     def construct_prompt(self):
@@ -171,7 +171,7 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
     pr_file_path: str | None
     pr_chunk: str | None
     original_line: str | None
-
+    
     def format_diffs(self):
         formatted_diffs = []
         for file_name, file_patch in self.diffs:

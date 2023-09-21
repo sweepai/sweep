@@ -40,11 +40,13 @@ num_extended_snippets = 2
 ERROR_FORMAT = "❌ {title}\n\nPlease join our [Discord](https://discord.gg/sweep) to report this issue."
 
 
-def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3):
+def expand_snippets(snippets: list[Snippet]):
+    expanded_snippets = []
     for snippet in snippets[:num_full_files]:
-        snippet = snippet.expand()
+        expanded_snippets.append(snippet.expand())
+    return expanded_snippets
 
-    # snippet fusing
+def fuse_snippets(snippets: list[Snippet]):
     i = 0
     while i < len(snippets):
         j = i + 1
@@ -55,8 +57,9 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
             else:
                 j += 1
         i += 1
+    return snippets
 
-    # truncating snippets based on character length
+def truncate_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3):
     result_snippets = []
     total_length = 0
     for snippet in snippets:
@@ -65,6 +68,13 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
             break
         result_snippets.append(snippet)
     return result_snippets[:max_num_of_snippets]
+
+def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3):
+    snippets_copy = snippets.copy()
+    snippets_copy = expand_snippets(snippets_copy)
+    snippets_copy = fuse_snippets(snippets_copy)
+    snippets_copy = truncate_snippets(snippets_copy, max_num_of_snippets)
+    return snippets_copy
 
 
 @LogTask()
@@ -85,6 +95,8 @@ def on_comment(
     type: str = "comment",
 ):
     # Flow:
+    # This function is quite complex and long. It would be beneficial to break it down into smaller, more manageable functions.
+    # This will improve readability and maintainability of the code.
     # 1. Get relevant files
     # 2: Get human message
     # 3. Get files to change

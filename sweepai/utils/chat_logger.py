@@ -32,6 +32,9 @@ class ChatLogger(BaseModel):
 
     def __init__(self, data: dict):
         super().__init__(data=data)  # Call the BaseModel's __init__ method
+        self.initialize_mongodb()
+    
+    def initialize_mongodb(self):
         key = MONGODB_URI
         if key is None:
             logger.warning("Chat history logger has no key")
@@ -43,18 +46,24 @@ class ChatLogger(BaseModel):
             db = client["llm"]
             self.chat_collection = db["chat_history"]
             self.ticket_collection = db["tickets"]
-            self.ticket_collection.create_index("username")
-            self.chat_collection.create_index(
-                "expiration", expireAfterSeconds=2419200
-            )  # 28 days data persistence
-            self.expiration = datetime.utcnow() + timedelta(
-                days=1
-            )  # 1 day since historical use case
+            self.create_indexes()
+            self.set_expiration()
         except SystemExit:
             raise SystemExit
         except Exception as e:
             logger.warning("Chat history could not connect to MongoDB")
             logger.warning(e)
+    
+    def create_indexes(self):
+        self.ticket_collection.create_index("username")
+        self.chat_collection.create_index(
+            "expiration", expireAfterSeconds=2419200
+        )  # 28 days data persistence
+    
+    def set_expiration(self):
+        self.expiration = datetime.utcnow() + timedelta(
+            days=1
+        )  # 1 day since historical use case
 
     def get_chat_history(self, filters):
         return (
@@ -144,18 +153,15 @@ class ChatLogger(BaseModel):
             return self.get_ticket_count() >= 500
         if self.is_trial_user():
             return self.get_ticket_count() >= 15
-
+        return self.check_location_and_ticket_count(g)
+    
+    def check_location_and_ticket_count(self, g):
         try:
             loc_user = g.get_user(self.data["username"]).location
             loc = Nominatim(user_agent="location_checker").geocode(
                 loc_user, exactly_one=True
             )
-            g = False
-            for c in SUPPORT_COUNTRY:
-                if c.lower() in loc.raw.get("display_name").lower():
-                    g = True
-                    break
-            if not g:
+            if not self.is_supported_country(loc):
                 logger.print("G EXCEPTION", loc_user)
                 return (
                     self.get_ticket_count() >= 5
@@ -165,9 +171,15 @@ class ChatLogger(BaseModel):
             raise SystemExit
         except:
             pass
-
+    
         # Non-trial users can only create 2 GPT-4 tickets per day
         return self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) > 3
+    
+    def is_supported_country(self, loc):
+        for c in SUPPORT_COUNTRY:
+            if c.lower() in loc.raw.get("display_name").lower():
+                return True
+        return False
 
 
 def discord_log_error(content, priority=0):
@@ -184,7 +196,8 @@ def discord_log_error(content, priority=0):
         data = {"content": content}
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, data=json.dumps(data), headers=headers)
-        # Success: response.status_code == 204:
+        if response.status_code != 204:
+            logger.error(f"Failed to log to Discord: {response.status_code}")
     except SystemExit:
         raise SystemExit
     except Exception as e:

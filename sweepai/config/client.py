@@ -153,10 +153,6 @@ class SweepConfig(BaseModel):
 def get_gha_enabled(repo: Repository) -> bool:
     try:
         contents = repo.get_contents("sweep.yaml")
-        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "gha_enabled", True
-        )
-        return gha_enabled
     except SystemExit:
         raise SystemExit
     except Exception as e:
@@ -165,19 +161,14 @@ def get_gha_enabled(repo: Repository) -> bool:
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            try:
-                contents = repo.get_contents(".github/sweep.yaml")
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.warning(
-                    f"Error when getting gha enabled: {e}, falling back to True"
-                )
-                return True
-        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "gha_enabled", True
-        )
-        return gha_enabled
+            logger.warning(
+                f"Error when getting gha enabled: {e}, falling back to True"
+            )
+            return True
+    gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
+        "gha_enabled", True
+    )
+    return gha_enabled
 
 
 @lru_cache(maxsize=None)
@@ -195,79 +186,19 @@ def get_description(repo: Repository) -> str:
 
 
 @lru_cache(maxsize=None)
-def get_sandbox_config(repo: Repository):
-    try:
-        contents = repo.get_contents("sweep.yaml")
-        description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "sandbox", {}
-        )
-        return description
-    except SystemExit:
-        raise SystemExit
-    except Exception:
-        return {}
-
-
-@lru_cache(maxsize=None)
-def get_branch_name_config(repo: Repository):
-    try:
-        contents = repo.get_contents("sweep.yaml")
-        description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "branch_use_underscores", False
-        )
-        return description
-    except SystemExit:
-        raise SystemExit
-    except Exception:
-        return False
-
-
-@lru_cache(maxsize=None)
-def get_documentation_dict(repo: Repository):
+def get_config_value(repo: Repository, key: str, default=None):
     try:
         sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
             "utf-8"
         )
         sweep_yaml = yaml.safe_load(sweep_yaml_content)
-        docs = sweep_yaml.get("docs", {})
-        return docs
+        value = sweep_yaml.get(key, default)
+        return value
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.warning(f"Error when getting docs: {e}, returning empty dict")
-        return {}
-
-
-@lru_cache(maxsize=None)
-def get_blocked_dirs(repo: Repository):
-    try:
-        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
-            "utf-8"
-        )
-        sweep_yaml = yaml.safe_load(sweep_yaml_content)
-        dirs = sweep_yaml.get("blocked_dirs", [])
-        return dirs
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.warning(f"Error when getting docs: {e}, returning empty dict")
-        return []
-
-
-@lru_cache(maxsize=None)
-def get_rules(repo: Repository):
-    try:
-        sweep_yaml_content = repo.get_contents("sweep.yaml").decoded_content.decode(
-            "utf-8"
-        )
-        sweep_yaml = yaml.safe_load(sweep_yaml_content)
-        rules = sweep_yaml.get("rules", [])
-        return rules
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.warning(f"Error when getting rules: {e}, returning empty array")
-        return []
+        logger.warning(f"Error when getting {key}: {e}, returning default value")
+        return default
 
 
 # optional, can leave env var blank

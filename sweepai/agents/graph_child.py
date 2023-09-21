@@ -1001,37 +1001,19 @@ class SweepBot(CodeGenBot, GithubBot):
             return True
 
         # GPT-4 generated conditions
-        # Checking for unimplemented Python code with NotImplementedError
-        if "raise NotImplementedError" in new_content:
-            return False
+        
 
-        # Checking for TODO or FIXME comments
-        if "TODO" in new_content or "FIXME" in new_content:
-            return False
+        
 
-        # Checking for Python functions with only a 'pass' statement
-        if "def " in new_content and ":\n    pass\n" in new_content:
-            return False
+        
 
-        # Checking for TypeScript/JavaScript functions that are empty
-        if "function" in new_content and "){}" in new_content:
-            return False
+        
 
-        # Checking for TypeScript/JavaScript arrow functions that are empty
-        if ") => {}" in new_content:
-            return False
+        
 
-        # Checking for abstract methods in TypeScript
-        if "abstract" in new_content and "): void;" in new_content:
-            return False
+        
 
-        # Checking for TypeScript/JavaScript methods that only contain a comment
-        if (
-            "function" in new_content
-            and "){\n    // " in new_content
-            and " \n}" in new_content
-        ):
-            return False
+        
 
         return True
 
@@ -1198,14 +1180,7 @@ class SweepBot(CodeGenBot, GithubBot):
             #             message_key=key,
             #         )
             #         recreate_file = True
-            #         self.messages[0].content = old_system_message
-            #     else:
-            #         self.messages[0].content = modify_file_system_message
-            #         modify_file_response = self.chat(
-            #             message,
-            #             message_key=key,
-            #         )
-            #         self.messages[0].content = old_system_message
+            
         except SystemExit:
             raise SystemExit
         except Exception as e:  # Check for max tokens error
@@ -1218,45 +1193,13 @@ class SweepBot(CodeGenBot, GithubBot):
                 self.delete_messages_from_chat(key)
                 raise e
         try:
-            # logger.info(
-            #     f"generate_new_file with contents: {contents} and"
-            #     f" modify_file_response: {modify_file_response}"
-            # )
-            # if recreate_file:
-            #     # Todo(lukejagg): Discord logging on error
-            #     new_file = re.findall(
-            #         r"<new_file>\n(.*?)\n?</new_file>", modify_file_response, re.DOTALL
-            #     )[0]
-            # else:
-            #     new_file, errors = generate_new_file_from_patch(
-            #         modify_file_response,
-            #         contents,
-            #         chunk_offset=chunk_offset,
-            #         sweep_context=self.sweep_context,
-            #     )
-            #     if errors:
-            #         logger.error(errors)
+            
 
-            # try:
-            #     for _, replace in get_matches(modify_file_response):
-            #         implemented = self.check_completion(  # can use async
-            #             file_change_request.filename, replace
-            #         )
-            #         if not implemented:
-            #             discord_log_error(
-            #                 f"{self.sweep_context.issue_url}\nUnimplemented Modify Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
-            #                 priority=2 if self.sweep_context.use_faster_model else 0,
-            #             )
-            # except SystemExit:
-            #     raise SystemExit
-            # except Exception as e:
-            #     logger.error(f"Error: {e}")
+            
 
             new_file = format_contents(new_file, file_markdown)
 
-            # commit_message_match = re.search(
-            #     'Commit message: "(?P<commit_message>.*)"', modify_file_response
-            # )
+            
             commit_message_match = None
             if commit_message_match:
                 commit_message = commit_message_match.group("commit_message")
@@ -1450,26 +1393,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         ) = self.handle_modify_file(
                             file_change_request, branch, sandbox=sandbox
                         )
-                    # case "rewrite":
-                    #     # Remove snippets from this file if they exist
-                    #     snippet_msgs = [
-                    #         m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
-                    #     ]
-                    #     if len(snippet_msgs) > 0:  # Should always be true
-                    #         snippet_msg = snippet_msgs[0]
-                    #         # Use regex to remove this snippet from the message
-                    #         file = re.escape(file_change_request.filename)
-                    #         regex = rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
-                    #         snippet_msg.content = re.sub(
-                    #             regex,
-                    #             "",
-                    #             snippet_msg.content,
-                    #             flags=re.DOTALL,
-                    #         )
-
-                    #     changed_file, sandbox_execution = self.rewrite_file(
-                    #         file_change_request, branch
-                    #     )
+                    
                     case "delete":
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch
@@ -1599,12 +1523,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             contents_line_numbers = "\n".join(
                                 all_lines_numbered[i : i + CHUNK_SIZE]
                             )
-                            # if not EditBot().should_edit(
-                            #     issue=file_change_request.instructions,
-                            #     snippet=chunk_contents,
-                            # ):
-                            #     new_chunk = chunk_contents
-                            # else:
+                            
                             (
                                 new_chunk,
                                 suggested_commit_message,

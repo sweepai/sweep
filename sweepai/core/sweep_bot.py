@@ -112,20 +112,123 @@ class ModifyBot:
         file_change_request: FileChangeRequest,
         chunking: bool = False,
     ):
-        fetch_snippets_response = self.fetch_snippets_bot.chat(
-            fetch_snippets_prompt.format(
+        fetch_snippets_response = self.fetch_snippets(file_contents, file_path, file_change_request, chunking)
+        snippet_queries = self.extract_snippet_queries(fetch_snippets_response)
+        self.validate_snippet_queries(snippet_queries)
+        best_matches = self.find_best_matches(snippet_queries, file_contents)
+        self.validate_best_matches(best_matches)
+        best_matches = self.sort_best_matches(best_matches)
+        deduped_matches = self.deduplicate_matches(best_matches)
+        selected_snippets = self.select_snippets(deduped_matches, file_contents)
+        self.log_deduped_matches(deduped_matches)
+        update_snippets_response = self.update_snippets(selected_snippets, file_contents, file_path, file_change_request)
+        updated_snippets = self.extract_updated_snippets(update_snippets_response)
+        result = self.replace_in_file(selected_snippets, updated_snippets, file_contents)
+        return result
+    
+    def validate_snippet_queries(self, snippet_queries):
+        assert len(snippet_queries) > 0, "No snippets found in file"
+    
+    def validate_best_matches(self, best_matches):
+        assert len(best_matches) > 0, "No matches found in file"
+    
+    def sort_best_matches(self, best_matches):
+        return best_matches.sort(key=lambda x: x[1].start + x[1].end * 0.001)
+    
+    def log_deduped_matches(self, deduped_matches):
+        print(deduped_matches)
+
+    def fetch_snippets(self, file_contents, file_path, file_change_request, chunking):
+        formatted_prompt = self.format_fetch_snippets_prompt(file_contents, file_path, file_change_request, chunking)
+        return self.fetch_snippets_bot.chat(formatted_prompt)
+    
+    def format_fetch_snippets_prompt(self, file_contents, file_path, file_change_request, chunking):
+        chunking_prompt = self.get_chunking_prompt(chunking)
+        return fetch_snippets_prompt.format(
+            code=file_contents,
+            file_path=file_path,
+            request=file_change_request.instructions,
+            chunking_prompt=chunking_prompt,
+        )
+    
+    def get_chunking_prompt(self, chunking):
+        return '\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n' if chunking else ""
+
+    def extract_snippet_queries(self, fetch_snippets_response):
+        snippet_queries = []
+        query_pattern = self.get_query_pattern()
+        for instructions, code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
+            snippet_queries.append((instructions, strip_backticks(code)))
+        return snippet_queries
+    
+    def get_query_pattern(self):
+        return r'<snippet instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet>'
+        )
+        for instructions, code in re.findall(
+            query_pattern, fetch_snippets_response, re.DOTALL
+        ):
+            snippet_queries.append((instructions, strip_backticks(code)))
+        return snippet_queries
+
+    def find_best_matches(self, snippet_queries, file_contents):
+        best_matches = []
+        for instructions, query in snippet_queries:
+            _match = find_best_match(query, file_contents)
+            if _match.score > 50:
+                best_matches.append((instructions, _match))
+        return best_matches
+
+    def deduplicate_matches(self, best_matches):
+        current_instructions, current_match = best_matches[0]
+        deduped_matches = []
+        for instructions, _match in best_matches:
+            if current_match.end > _match.start:
+                current_instructions = f"{current_instructions}. {instructions}"
+                current_match = self.fuse_matches(current_match, _match)
+            else:
+                deduped_matches.append((current_instructions, current_match))
+                current_instructions = instructions
+                current_match = _match
+        deduped_matches.append((current_instructions, current_match))
+        return deduped_matches
+
+    def fuse_matches(self, a: Match, b: Match) -> Match:
+        return Match(
+            start=min(a.start, b.start),
+            end=max(a.end, b.end),
+            score=min(a.score, b.score),
+        )
+
+    def select_snippets(self, deduped_matches, file_contents):
+        selected_snippets = []
+        for instructions, _match in deduped_matches:
+            selected_snippets.append(
+                (
+                    instructions,
+                    "\n".join(file_contents.splitlines()[_match.start : _match.end]),
+                )
+            )
+        return selected_snippets
+
+    def update_snippets(self, selected_snippets, file_contents, file_path, file_change_request):
+        return self.update_snippets_bot.chat(
+            update_snippets_prompt.format(
                 code=file_contents,
                 file_path=file_path,
+                snippets="\n\n".join(
+                    [
+                        f'<snippet id="{i}" instructions="{instructions}">\n{snippet}\n</snippet>'
+                        for i, (instructions, snippet) in enumerate(selected_snippets)
+                    ]
+                ),
                 request=file_change_request.instructions,
-                chunking_prompt='\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n'
-                if chunking
-                else "",
             )
         )
 
-        snippet_queries = []
-        query_pattern = (
-            r'<snippet instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet>'
+    def extract_updated_snippets(self, update_snippets_response):
+        updated_snippets = []
+        updated_pattern = (
+            r"<updated_snippet id=\"(?P<id>.*?)\">(?P<code>.*?)
         )
         for instructions, code in re.findall(
             query_pattern, fetch_snippets_response, re.DOTALL
@@ -327,168 +430,180 @@ class CodeGenBot(ChatGPT):
 
     def get_files_to_change(self, retries=1) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
-        # Todo: put retries into a constants file
-        # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            is_python_issue = (
-                sum(
-                    [
-                        file_path.endswith(".py")
-                        for file_path in self.human_message.get_file_paths()
-                    ]
-                )
-                > len(self.human_message.get_file_paths()) / 2
-            )
+            is_python_issue = self.is_python_issue()
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
-            plans: List[GraphContextAndPlan] = []
             if is_python_issue:
-                graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
-                graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
-                issue_metadata = self.human_message.get_issue_metadata()
-                relevant_snippets = self.human_message.render_snippets()
-                symbols_to_files = graph.paths_to_first_degree_entities(
-                    self.human_message.get_file_paths()
-                )
-                (
-                    relevant_files_to_symbols,
-                    relevant_symbols_string,
-                ) = graph_parent_bot.relevant_files_to_symbols(
-                    issue_metadata, relevant_snippets, symbols_to_files
-                )
-
-                file_paths_to_contents = {
-                    file_path: self.cloned_repo.get_file_contents(file_path)
-                    for file_path in relevant_files_to_symbols.keys()
-                }
-
-                # Create plan for relevant snippets first
-                human_message_snippet_paths = set(
-                    s.file_path for s in self.human_message.snippets
-                )
-                non_human_message_snippet_paths = set()
-                for file_path in relevant_files_to_symbols.keys():
-                    non_human_message_snippet_paths.add(
-                        file_path
-                    )  # TODO (luke) use trimmed context of initial files in this step instead of self.human_message.render_snippet_array(other_snippets)
-                for file_path in (
-                    human_message_snippet_paths | non_human_message_snippet_paths
-                ):
-                    other_snippets = [
-                        snippet
-                        for snippet in self.human_message.snippets
-                        if snippet.file_path != file_path
-                        and file_path
-                        in human_message_snippet_paths  # <- trim these once the human messages are parsed
-                    ]
-                    if file_path in human_message_snippet_paths:
-                        snippet = next(
-                            snippet
-                            for snippet in self.human_message.snippets
-                            if snippet.file_path == file_path
-                        )
-                    else:
-                        snippet = Snippet(
-                            file_path=file_path,
-                            start=0,
-                            end=0,
-                            content=file_paths_to_contents[file_path],
-                        )
-                    relevant_symbol_list = []
-                    for v in relevant_files_to_symbols.values():
-                        relevant_symbol_list.extend(v)
-                    plan_bot = GraphChildBot(chat_logger=self.chat_logger)
-                    plan = plan_bot.code_plan_extraction(
-                        code=snippet.content,
-                        file_path=file_path,
-                        entities=relevant_symbol_list,
-                        issue_metadata=issue_metadata,
-                        previous_snippets=self.human_message.render_snippet_array(
-                            other_snippets
-                        ),
-                        all_symbols_and_files=relevant_symbols_string,
-                    )
-                    if not plan.changes_for_new_file or not plan.relevant_new_snippet:
-                        plans.append(plan)
-
-                file_path_set = set()
-                deduped_plans = []
-                for plan in plans:
-                    if plan.file_path not in file_path_set:
-                        file_path_set.add(plan.file_path)
-                        deduped_plans.append(plan)
-                    else:
-                        logger.info(f"Duplicate plan for {plan.file_path}")
-                plans = deduped_plans
-
-                # topologically sort the plans so that we can apply them in order
-                file_paths = [plan.file_path for plan in plans]
-                sorted_files = graph.topological_sort(file_paths)
-                sorted_plans = []
-                for file_path in sorted_files:
-                    sorted_plans.append(
-                        next(
-                            plan for plan in plans if plan.file_path == file_path
-                        )  # TODO: use a dict instead
-                    )
-                plans = sorted_plans
-
-                relevant_snippets = self.human_message.snippets
-                for plan in plans:
-                    self.populate_snippets(plan.relevant_new_snippet)
-                    relevant_snippets.extend(plan.relevant_new_snippet)
-
-                plan_suggestions = []
-
-                for plan in plans:
-                    plan_suggestions.append(
-                        f"<plan_suggestion file={plan.file_path}>\n{plan.changes_for_new_file}\n</plan_suggestion>"
-                    )
-
-                python_human_message = PythonHumanMessagePrompt(
-                    repo_name=self.human_message.repo_name,
-                    issue_url=self.human_message.issue_url,
-                    username=self.human_message.username,
-                    title=self.human_message.title,
-                    summary=self.human_message.summary,
-                    snippets=relevant_snippets,
-                    tree=self.human_message.tree,
-                    repo_description=self.human_message.repo_description,
-                    plan_suggestions=plan_suggestions,
-                )
-                prompt_message_dicts = python_human_message.construct_prompt()
-                new_messages = [self.messages[0]]
-                for message_dict in prompt_message_dicts:
-                    new_messages.append(Message(**message_dict))
-                self.messages = new_messages
-                file_change_requests = []
-                for plan in plans:
-                    file_change_requests.append(
-                        FileChangeRequest(
-                            filename=plan.file_path,
-                            instructions=plan.changes_for_new_file,
-                            change_type="modify",
-                        )
-                    )
+                file_change_requests, plan_suggestions = self.handle_python_issue()
                 return file_change_requests, " ".join(plan_suggestions)
             else:
-                # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
-                files_to_change_response = self.chat(
-                    files_to_change_prompt, message_key="files_to_change"
-                )  # Dedup files to change here
-            file_change_requests = []
-            for re_match in re.finditer(
-                FileChangeRequest._regex, files_to_change_response, re.DOTALL
-            ):
-                file_change_requests.append(
-                    FileChangeRequest.from_string(re_match.group(0))
-                )
-            if file_change_requests:
-                return file_change_requests, files_to_change_response
+                file_change_requests = self.handle_non_python_issue()
+                if file_change_requests:
+                    return file_change_requests, files_to_change_response
         except RegexMatchError as e:
             logger.print(e)
             logger.warning("Failed to parse! Retrying...")
             self.delete_messages_from_chat("files_to_change")
         raise NoFilesException()
+
+    def is_python_issue(self):
+        return sum(
+            [
+                file_path.endswith(".py")
+                for file_path in self.human_message.get_file_paths()
+            ]
+        ) > len(self.human_message.get_file_paths()) / 2
+
+    def handle_python_issue(self):
+        graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
+        graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
+        issue_metadata = self.human_message.get_issue_metadata()
+        relevant_snippets = self.human_message.render_snippets()
+        symbols_to_files = graph.paths_to_first_degree_entities(
+            self.human_message.get_file_paths()
+        )
+        (
+            relevant_files_to_symbols,
+            relevant_symbols_string,
+        ) = graph_parent_bot.relevant_files_to_symbols(
+            issue_metadata, relevant_snippets, symbols_to_files
+        )
+
+        file_paths_to_contents = {
+            file_path: self.cloned_repo.get_file_contents(file_path)
+            for file_path in relevant_files_to_symbols.keys()
+        }
+
+        plans = self.create_plans(relevant_files_to_symbols, relevant_symbols_string, file_paths_to_contents)
+        plans = self.deduplicate_plans(plans)
+
+        file_paths = [plan.file_path for plan in plans]
+        sorted_files = graph.topological_sort(file_paths)
+        plans = self.sort_plans(plans, sorted_files)
+
+        relevant_snippets = self.human_message.snippets
+        for plan in plans:
+            self.populate_snippets(plan.relevant_new_snippet)
+            relevant_snippets.extend(plan.relevant_new_snippet)
+
+        plan_suggestions = []
+
+        for plan in plans:
+            plan_suggestions.append(
+                f"<plan_suggestion file={plan.file_path}>\n{plan.changes_for_new_file}\n</plan_suggestion>"
+            )
+
+        python_human_message = PythonHumanMessagePrompt(
+            repo_name=self.human_message.repo_name,
+            issue_url=self.human_message.issue_url,
+            username=self.human_message.username,
+            title=self.human_message.title,
+            summary=self.human_message.summary,
+            snippets=relevant_snippets,
+            tree=self.human_message.tree,
+            repo_description=self.human_message.repo_description,
+            plan_suggestions=plan_suggestions,
+        )
+        prompt_message_dicts = python_human_message.construct_prompt()
+        new_messages = [self.messages[0]]
+        for message_dict in prompt_message_dicts:
+            new_messages.append(Message(**message_dict))
+        self.messages = new_messages
+        file_change_requests = []
+        for plan in plans:
+            file_change_requests.append(
+                FileChangeRequest(
+                    filename=plan.file_path,
+                    instructions=plan.changes_for_new_file,
+                    change_type="modify",
+                )
+            )
+        return file_change_requests, plan_suggestions
+
+    def create_plans(self, relevant_files_to_symbols, relevant_symbols_string, file_paths_to_contents):
+        plans = []
+        human_message_snippet_paths = set(
+            s.file_path for s in self.human_message.snippets
+        )
+        non_human_message_snippet_paths = set()
+        for file_path in relevant_files_to_symbols.keys():
+            non_human_message_snippet_paths.add(
+                file_path
+            )
+        for file_path in (
+            human_message_snippet_paths | non_human_message_snippet_paths
+        ):
+            other_snippets = [
+                snippet
+                for snippet in self.human_message.snippets
+                if snippet.file_path != file_path
+                and file_path
+                in human_message_snippet_paths
+            ]
+            if file_path in human_message_snippet_paths:
+                snippet = next(
+                    snippet
+                    for snippet in self.human_message.snippets
+                    if snippet.file_path == file_path
+                )
+            else:
+                snippet = Snippet(
+                    file_path=file_path,
+                    start=0,
+                    end=0,
+                    content=file_paths_to_contents[file_path],
+                )
+            relevant_symbol_list = []
+            for v in relevant_files_to_symbols.values():
+                relevant_symbol_list.extend(v)
+            plan_bot = GraphChildBot(chat_logger=self.chat_logger)
+            plan = plan_bot.code_plan_extraction(
+                code=snippet.content,
+                file_path=file_path,
+                entities=relevant_symbol_list,
+                issue_metadata=issue_metadata,
+                previous_snippets=self.human_message.render_snippet_array(
+                    other_snippets
+                ),
+                all_symbols_and_files=relevant_symbols_string,
+            )
+            if not plan.changes_for_new_file or not plan.relevant_new_snippet:
+                plans.append(plan)
+        return plans
+
+    def deduplicate_plans(self, plans):
+        file_path_set = set()
+        deduped_plans = []
+        for plan in plans:
+            if plan.file_path not in file_path_set:
+                file_path_set.add(plan.file_path)
+                deduped_plans.append(plan)
+            else:
+                logger.info(f"Duplicate plan for {plan.file_path}")
+        return deduped_plans
+
+    def sort_plans(self, plans, sorted_files):
+        sorted_plans = []
+        for file_path in sorted_files:
+            sorted_plans.append(
+                next(
+                    plan for plan in plans if plan.file_path == file_path
+                )
+            )
+        return sorted_plans
+
+    def handle_non_python_issue(self):
+        files_to_change_response = self.chat(
+            files_to_change_prompt, message_key="files_to_change"
+        )
+        file_change_requests = []
+        for re_match in re.finditer(
+            FileChangeRequest._regex, files_to_change_response, re.DOTALL
+        ):
+            file_change_requests.append(
+                FileChangeRequest.from_string(re_match.group(0))
+            )
+        return file_change_requests
 
     def generate_pull_request(self, retries=2) -> PullRequest:
         for count in range(retries):
@@ -513,8 +628,6 @@ class CodeGenBot(ChatGPT):
                     pr_text_response += '"""'
 
                 self.delete_messages_from_chat("pull_request")
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 e_str = str(e)
                 if "too long" in e_str:
@@ -563,8 +676,6 @@ class GithubBot(BaseModel):
         try:
             self.get_contents(path, branch)
             return True
-        except SystemExit:
-            raise SystemExit
         except Exception:
             return False
 
@@ -587,8 +698,6 @@ class GithubBot(BaseModel):
                 branch = branch.replace(
                     "/", "_"
                 )  # Replace sweep/ with sweep_ (temp fix)
-            except SystemExit:
-                raise SystemExit
             except Exception:
                 pass
 
@@ -766,8 +875,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 sandbox_execution = SandboxResponse(**output)
                 if output["success"]:
                     content = output["updated_content"]
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.error(f"Sandbox Error: {e}")
                 logger.error(traceback.format_exc())
@@ -833,8 +940,6 @@ class SweepBot(CodeGenBot, GithubBot):
                         f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
                         priority=2 if self.sweep_context.use_faster_model else 0,
                     )
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.error(f"Error: {e}")
 
@@ -843,8 +948,6 @@ class SweepBot(CodeGenBot, GithubBot):
             )
 
             return file_change, sandbox_execution
-        except SystemExit:
-            raise SystemExit
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
             logger.info(traceback.format_exc())
@@ -1020,8 +1123,6 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_change_request.filename, new_file
                 )
             return new_file, commit_message, sandbox_execution
-        except SystemExit:
-            raise SystemExit
         except Exception as e:
             tb = traceback.format_exc()
             logger.warning(f"Failed to parse." f" {e}\n{tb}")
@@ -1062,13 +1163,10 @@ class SweepBot(CodeGenBot, GithubBot):
                         f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
                         priority=2 if self.sweep_context.use_faster_model else 0,
                     )
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.error(f"Error: {e}")
 
             return section_rewrite
-        except SystemExit:
             raise SystemExit
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
@@ -1199,7 +1297,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 file_change_request.new_content,
                             )
                         )
-                    case "modify" | "rewrite":
+                    case _ if "modify" in file_change_request.change_type or "rewrite" in file_change_request.change_type:
                         # Remove snippets from this file if they exist
                         snippet_msgs = [
                             m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
@@ -1233,7 +1331,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 file_change_request.new_content,
                             )
                         )
-                    case "delete":
+                    case _ if "delete" in file_change_request.change_type:
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch
                         )
@@ -1244,7 +1342,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             branch=branch,
                         )
                         changed_file = True
-                    case "rename":
+                    case _ if "rename" in file_change_request.change_type:
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch
                         )
