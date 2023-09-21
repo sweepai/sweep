@@ -1262,6 +1262,6 @@ Paths to Explore:
 {explored}
 </explored_already>
 
-You are currently exploring entity ChatGPT. Extract relevant content.""",
+You are currently exploring entity {entity_name}. Extract relevant content.""",
     ],
 )
