@@ -52,48 +52,14 @@ def create_pr_changes(
     sandbox=None,
     chat_logger: ChatLogger = None,
 ) -> Generator[tuple[FileChangeRequest, int, Commit], None, dict]:
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
-    chat_logger = (
-        chat_logger
-        if chat_logger is not None
-        else ChatLogger(
-            {
-                "username": username,
-                "installation_id": installation_id,
-                "repo_full_name": sweep_bot.repo.full_name,
-                "title": pull_request.title,
-                "summary": "",
-                "issue_url": "",
-            }
-        )
-        if MONGODB_URI
-        else None
-    )
+    chat_logger = setup_chat_logger(chat_logger, username, installation_id, sweep_bot, pull_request)
     sweep_bot.chat_logger = chat_logger
-    organization, repo_name = sweep_bot.repo.full_name.split("/")
-    metadata = {
-        "repo_full_name": sweep_bot.repo.full_name,
-        "organization": organization,
-        "repo_name": repo_name,
-        "repo_description": sweep_bot.repo.description,
-        "username": username,
-        "installation_id": installation_id,
-        "function": "create_pr",
-        "mode": ENV,
-        "issue_number": issue_number,
-    }
+    metadata = setup_metadata(sweep_bot, username, installation_id, issue_number)
     posthog.capture(username, "started", properties=metadata)
 
     try:
-        logger.info("Making PR...")
         pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
         completed_count, fcr_count = 0, len(file_change_requests)
-
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
 
         for (
@@ -110,75 +76,18 @@ def create_pr_changes(
             completed_count += changed_file
             logger.info(f"Completed {completed_count}/{fcr_count} files")
             yield file_change_request, changed_file, sandbox_error, commit
-        if completed_count == 0 and fcr_count != 0:
-            logger.info("No changes made")
-            posthog.capture(
-                username,
-                "failed",
-                properties={
-                    "error": "No changes made",
-                    "reason": "No changes made",
-                    **metadata,
-                },
-            )
 
-            # Todo: if no changes were made, delete branch
-            error_msg = "No changes made"
-            commits = sweep_bot.repo.get_commits(pull_request.branch_name)
-            if commits.totalCount == 0:
-                branch = sweep_bot.repo.get_git_ref(f"heads/{pull_request.branch_name}")
-                branch.delete()
-                error_msg = "No changes made. Branch deleted."
+        handle_no_changes(completed_count, fcr_count, username, metadata, sweep_bot, pull_request)
 
-            return
-        # Include issue number in PR description
-        if issue_number:
-            # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)
-            pr_description = (
-                f"{pull_request.content}\n\nFixes"
-                f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
-            )
-        else:
-            pr_description = f"{pull_request.content}"
-        pr_title = pull_request.title
-        if "sweep.yaml" in pr_title:
-            pr_title = "[config] " + pr_title
+        pr_description = setup_pr_description(issue_number, pull_request)
+        pr_title = setup_pr_title(pull_request)
+
     except MaxTokensExceeded as e:
-        logger.error(e)
-        posthog.capture(
-            username,
-            "failed",
-            properties={
-                "error": str(e),
-                "reason": "Max tokens exceeded",
-                **metadata,
-            },
-        )
-        raise e
+        handle_exception(e, username, metadata, "Max tokens exceeded")
     except openai.error.InvalidRequestError as e:
-        logger.error(e)
-        posthog.capture(
-            username,
-            "failed",
-            properties={
-                "error": str(e),
-                "reason": "Invalid request error / context length",
-                **metadata,
-            },
-        )
-        raise e
+        handle_exception(e, username, metadata, "Invalid request error / context length")
     except Exception as e:
-        logger.error(e)
-        posthog.capture(
-            username,
-            "failed",
-            properties={
-                "error": str(e),
-                "reason": "Unexpected error",
-                **metadata,
-            },
-        )
-        raise e
+        handle_exception(e, username, metadata, "Unexpected error")
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("create_pr success")
@@ -197,6 +106,91 @@ def create_pr_changes(
     }
     yield result  # Doing this because sometiems using StopIteration doesn't work, kinda jank tho tbh
     return
+
+def setup_chat_logger(chat_logger, username, installation_id, sweep_bot, pull_request):
+    return (
+        chat_logger
+        if chat_logger is not None
+        else ChatLogger(
+            {
+                "username": username,
+                "installation_id": installation_id,
+                "repo_full_name": sweep_bot.repo.full_name,
+                "title": pull_request.title,
+                "summary": "",
+                "issue_url": "",
+            }
+        )
+        if MONGODB_URI
+        else None
+    )
+
+def setup_metadata(sweep_bot, username, installation_id, issue_number):
+    organization, repo_name = sweep_bot.repo.full_name.split("/")
+    return {
+        "repo_full_name": sweep_bot.repo.full_name,
+        "organization": organization,
+        "repo_name": repo_name,
+        "repo_description": sweep_bot.repo.description,
+        "username": username,
+        "installation_id": installation_id,
+        "function": "create_pr",
+        "mode": ENV,
+        "issue_number": issue_number,
+    }
+
+def handle_no_changes(completed_count, fcr_count, username, metadata, sweep_bot, pull_request):
+    if completed_count == 0 and fcr_count != 0:
+        logger.info("No changes made")
+        posthog.capture(
+            username,
+            "failed",
+            properties={
+                "error": "No changes made",
+                "reason": "No changes made",
+                **metadata,
+            },
+        )
+
+        # Todo: if no changes were made, delete branch
+        error_msg = "No changes made"
+        commits = sweep_bot.repo.get_commits(pull_request.branch_name)
+        if commits.totalCount == 0:
+            branch = sweep_bot.repo.get_git_ref(f"heads/{pull_request.branch_name}")
+            branch.delete()
+            error_msg = "No changes made. Branch deleted."
+
+        return
+
+def setup_pr_description(issue_number, pull_request):
+    # Include issue number in PR description
+    if issue_number:
+        # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)
+        return (
+            f"{pull_request.content}\n\nFixes"
+            f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
+        )
+    else:
+        return f"{pull_request.content}"
+
+def setup_pr_title(pull_request):
+    pr_title = pull_request.title
+    if "sweep.yaml" in pr_title:
+        return "[config] " + pr_title
+    return pr_title
+
+def handle_exception(e, username, metadata, reason):
+    logger.error(e)
+    posthog.capture(
+        username,
+        "failed",
+        properties={
+            "error": str(e),
+            "reason": reason,
+            **metadata,
+        },
+    )
+    raise e
 
 
 def safe_delete_sweep_branch(
@@ -242,30 +236,7 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
     if sweep_bot is not None:
         branch_name = sweep_bot.create_branch(branch_name, retry=False)
         try:
-            sweep_bot.repo.create_file(
-                "sweep.yaml",
-                "Create sweep.yaml",
-                GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
-                branch=branch_name,
-            )
-            sweep_bot.repo.create_file(
-                ".github/ISSUE_TEMPLATE/sweep-template.yml",
-                "Create sweep template",
-                SWEEP_TEMPLATE,
-                branch=branch_name,
-            )
-            sweep_bot.repo.create_file(
-                ".github/ISSUE_TEMPLATE/sweep-slow-template.yml",
-                "Create sweep slow template",
-                SWEEP_SLOW_TEMPLATE,
-                branch=branch_name,
-            )
-            sweep_bot.repo.create_file(
-                ".github/ISSUE_TEMPLATE/sweep-fast-template.yml",
-                "Create sweep fast template",
-                SWEEP_FAST_TEMPLATE,
-                branch=branch_name,
-            )
+            create_sweep_files(sweep_bot, branch_name)
         except SystemExit:
             raise SystemExit
         except Exception as e:
@@ -278,30 +249,7 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
         )
 
         try:
-            repo.create_file(
-                "sweep.yaml",
-                "Create sweep.yaml",
-                GITHUB_DEFAULT_CONFIG.format(branch=repo.default_branch),
-                branch=branch_name,
-            )
-            repo.create_file(
-                ".github/ISSUE_TEMPLATE/sweep-template.yml",
-                "Create sweep template",
-                SWEEP_TEMPLATE,
-                branch=branch_name,
-            )
-            repo.create_file(
-                ".github/ISSUE_TEMPLATE/sweep-slow-template.yml",
-                "Create sweep slow template",
-                SWEEP_SLOW_TEMPLATE,
-                branch=branch_name,
-            )
-            repo.create_file(
-                ".github/ISSUE_TEMPLATE/sweep-fast-template.yml",
-                "Create sweep fast template",
-                SWEEP_FAST_TEMPLATE,
-                branch=branch_name,
-            )
+            create_sweep_files(repo, branch_name)
         except SystemExit:
             raise SystemExit
         except Exception as e:
@@ -325,7 +273,38 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
 
     logger.print("Default branch", repo.default_branch)
     logger.print("New branch", branch_name)
-    pr = repo.create_pull(
+    pr = create_pull_request(repo, branch_name, title, sweep_bot)
+    pr.add_to_labels(GITHUB_LABEL_NAME)
+    return pr
+
+def create_sweep_files(repo, branch_name):
+    repo.create_file(
+        "sweep.yaml",
+        "Create sweep.yaml",
+        GITHUB_DEFAULT_CONFIG.format(branch=repo.default_branch),
+        branch=branch_name,
+    )
+    repo.create_file(
+        ".github/ISSUE_TEMPLATE/sweep-template.yml",
+        "Create sweep template",
+        SWEEP_TEMPLATE,
+        branch=branch_name,
+    )
+    repo.create_file(
+        ".github/ISSUE_TEMPLATE/sweep-slow-template.yml",
+        "Create sweep slow template",
+        SWEEP_SLOW_TEMPLATE,
+        branch=branch_name,
+    )
+    repo.create_file(
+        ".github/ISSUE_TEMPLATE/sweep-fast-template.yml",
+        "Create sweep fast template",
+        SWEEP_FAST_TEMPLATE,
+        branch=branch_name,
+    )
+
+def create_pull_request(repo, branch_name, title, sweep_bot):
+    return repo.create_pull(
         title=title,
         body="""🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
 
@@ -343,8 +322,6 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
         if sweep_bot is not None
         else repo.default_branch,
     )
-    pr.add_to_labels(GITHUB_LABEL_NAME)
-    return pr
 
 
 def add_config_to_top_repos(installation_id, username, repositories, max_repos=3):
