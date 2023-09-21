@@ -29,6 +29,7 @@ def get_logtail_logger(logger_name):
     except SystemExit:
         raise SystemExit
     except Exception as e:
+        print(f"Failed to get logtail logger for {logger_name}. Error: {str(e)}")
         return None
 
 
@@ -42,7 +43,7 @@ class LogParser:
 
 
 def print2(message, level="INFO"):
-    if level is None:
+    if level == None:
         return message
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
@@ -151,10 +152,10 @@ class _Task:
 
     def write_metadata(
         self,
-        state: str | None = None,
-        child_task: str | None = None,
-        function_name: str | None = None,
-        exception: str | None = None,
+        state: Optional[str] = None,
+        child_task: Optional[str] = None,
+        function_name: Optional[str] = None,
+        exception: Optional[str] = None,
     ):
         if state is not None:
             self.state = state
@@ -261,15 +262,7 @@ class _Task:
     def create_child_task(name: str, function_name: str = None):
         # Todo: make child task metadata
         parent_task = _Task.get_task(create_if_not_exist=False)
-        if parent_task is None:
-            task_key = get_task_key()
-            child_task = _Task(
-                logn_task_key=None,
-                logn_parent_task=parent_task,
-                metadata={"name": name},
-                function_name=function_name,
-            )
-        else:
+        if parent_task is not None:
             task_key = parent_task.task_key
             child_task = _Task(
                 logn_task_key=parent_task.task_key,
@@ -280,8 +273,8 @@ class _Task:
                 },
                 function_name=function_name,
             )
-        _task_dictionary[task_key] = child_task
-        return task_key, parent_task, child_task
+            _task_dictionary[task_key] = child_task
+            return task_key, parent_task, child_task
 
 
 class _Logger:
@@ -432,8 +425,8 @@ class _LogTask:
 
 class LogN:
     @staticmethod
-    def print():
-        pass
+    def print(message):
+        print(message)
 
 
 # Export logger
