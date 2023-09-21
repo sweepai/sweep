@@ -17,6 +17,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
 import requests
+import traceback
 
 from sweepai.config.client import SweepConfig, get_documentation_dict
 from sweepai.config.server import (
@@ -169,7 +170,7 @@ def terminate_thread(thread):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.error(f"Failed to terminate thread: {e}")
+        logger.error(f"Failed to terminate thread: {e}, traceback: {traceback.format_exc()}")
 
 
 def call_on_ticket(*args, **kwargs):
@@ -180,7 +181,7 @@ def call_on_ticket(*args, **kwargs):
     # Check if a previous process exists for the same key, cancel it
     e = on_ticket_events.get(key, None)
     if e:
-        logger.info(f"Found previous thread for key {key} and cancelling it")
+        logger.info(f"Found previous thread for key {key} and cancelling it, traceback: {traceback.format_exc()}")
         terminate_thread(e)
 
     thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
@@ -598,11 +599,13 @@ async def webhook(raw_request: Request):
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.error(f"Failed to add config to top repos: {e}")
-
-                posthog.capture(
-                    "installation_repositories", "started", properties={**metadata}
-                )
+                    import traceback
+                    
+                                        logger.error(f"Failed to add config to top repos: {e}")
+                    
+                                    posthog.capture(
+                                        "installation_repositories", "started", properties={**metadata}
+                                    )
                 for repo in repos_added_request.repositories_added:
                     organization, repo_name = repo.full_name.split("/")
                     posthog.capture(
@@ -712,7 +715,7 @@ async def webhook(raw_request: Request):
                     f"Unhandled event: {event} {request_dict.get('action', None)}"
                 )
     except ValidationError as e:
-        logger.warning(f"Failed to parse request: {e}")
+        logger.warning(f"Failed to parse request: {e}, traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
 
@@ -771,7 +774,7 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                 raise SystemExit
             except Exception as e:
                 logger.error(
-                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
+                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}, traceback: {traceback.format_exc()}"
                 )
     except SystemExit:
         raise SystemExit
