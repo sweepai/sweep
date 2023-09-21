@@ -63,11 +63,6 @@ class PostMerge(ChatGPT):
                 file_contents=file_contents,
                 rule_sections=rule_sections,
             )
-            self.model = (
-                "gpt-4-32k"
-                if (self.chat_logger and self.chat_logger.is_paying_user())
-                else "gpt-3.5-turbo-16k-0613"
-            )
             response = self.chat(issues_prompt)
             issue_title_and_description = IssueTitleAndDescription.from_string(response)
             if issue_title_and_description.changes_required:
@@ -77,9 +72,9 @@ class PostMerge(ChatGPT):
                 )
             else:
                 logger.info("No issues found")
-                return "", ""
+                return None, None
         except SystemExit:
             raise SystemExit
         except Exception as e:
             logger.error(f"An error occurred: {traceback.print_exc()}")
-            return "", ""
+            raise e
