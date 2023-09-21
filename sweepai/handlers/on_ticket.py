@@ -84,6 +84,7 @@ def on_ticket(
     repo_full_name: str,
     repo_description: str,
     installation_id: int,
+    is_python_issue: bool,
     comment_id: int = None,
     edited: bool = False,
 ):
@@ -157,6 +158,9 @@ def on_ticket(
     if fast_mode:
         use_faster_model = True
 
+    # Determine if the issue is related to Python
+    is_python_issue = "python" in title.lower() or "python" in summary.lower()
+
     sweep_context = SweepContext.create(
         username=username,
         issue_url=issue_url,
@@ -196,6 +200,9 @@ def on_ticket(
     }
     # logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
+
+    # Log the is_python_issue status
+    posthog.capture(username, "python_issue_status", properties={"is_python_issue": is_python_issue})
 
     logger.info(f"Getting repo {repo_full_name}")
 
@@ -347,7 +354,7 @@ def on_ticket(
             issue_comment = comment
 
     try:
-        config = SweepConfig.get_config(repo)
+        config = SweepConfig.get_config(repo, is_python_issue)
     except EmptyRepository as e:
         logger.info("Empty repo")
         first_comment = (
@@ -689,9 +696,13 @@ def on_ticket(
         # COMMENT ON ISSUE
         # TODO: removed issue commenting here
         # TODO(william, luke) planning here
+        
+        # Determine if the issue is related to Python
+        is_python_issue = any('python' in label.name.lower() for label in current_issue.get_labels())
 
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        # Pass is_python_issue to get_files_to_change function
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
