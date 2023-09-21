@@ -172,9 +172,29 @@ class _Task:
             self.function_name = function_name
         if exception is not None:
             self.exception = exception
-            self.traceback = traceback.format_exc()
+            self.traceback = traceback
         if not self.create_file:
             return
+    
+        with open(self.meta_path, "w") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "task_key": self.name,
+                        "logs": self.log_path,
+                        "datetime": str(datetime.datetime.now()),
+                        "metadata": self.metadata if self.metadata is not None else {},
+                        "function_name": self.function_name,
+                        "parent_task": self.parent_task.meta_path
+                        if self.parent_task is not None
+                        else None,
+                        "children": self.children,
+                        "exception": self.exception,
+                        "traceback": self.traceback,
+                        "state": state,
+                    }
+                )
+            )
     
         with open(self.meta_path, "w") as f:
             f.write(
@@ -365,7 +385,7 @@ class _LogN(_Logger):
     def __getitem__(self, printfn):
         return _Logger(printfn=printfn)
 
-    def print(self, *args, **kwargs):
+    def print_func(self, *args, **kwargs):
         self[print](*args, **kwargs)
 
     def info(self, *args, **kwargs):
@@ -397,7 +417,7 @@ class _LogN(_Logger):
             if type(exc_type) == SystemExit:
                 self.close(state="Exited", exception=type(exc_type).__name__)
             else:
-                self.close(state="Errored", exception=type(exc_type).__name__, traceback=traceback.format_exc())
+                self.close(state="Errored", exception=type(exc_type).__name__)
         else:
             self.close()
 
