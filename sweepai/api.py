@@ -1,4 +1,4 @@
-# Do not save logs for main process
+# Initialize logger once at the beginning of the script
 from logn import logger
 from sweepai.utils.buttons import check_button_activated
 from sweepai.utils.safe_pqueue import SafePriorityQueue
@@ -157,18 +157,8 @@ def terminate_thread(thread):
         if not thread.is_alive():
             return
 
-        exc = ctypes.py_object(SystemExit)
-        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
-            ctypes.c_long(thread.ident), exc
-        )
-        if res == 0:
-            raise ValueError("Invalid thread ID")
-        elif res != 1:
-            # Call with exception set to 0 is needed to cleanup properly.
-            ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
-            raise SystemError("PyThreadState_SetAsyncExc failed")
-    except SystemExit:
-        raise SystemExit
+        # Use a flag to signal the thread to stop
+        thread._stop_event.set()
     except Exception as e:
         logger.error(f"Failed to terminate thread: {e}")
 
@@ -628,8 +618,6 @@ async def webhook(raw_request: Request):
                         repos_added_request.installation.account.login,
                         repos_added_request.repositories,
                     )
-                except SystemExit:
-                    raise SystemExit
                 except Exception as e:
                     logger.error(f"Failed to add config to top repos: {e}")
 
@@ -730,8 +718,6 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
 
     try:
         branch_ttl = int(config.get("branch_ttl", 7))
-    except SystemExit:
-        raise SystemExit
     except:
         branch_ttl = 7
     branch_ttl = max(branch_ttl, 1)
@@ -768,13 +754,9 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                 if pr.title == "Configure Sweep" and pr.merged:
                     # Create a new PR to add "gha_enabled: True" to sweep.yaml
                     create_gha_pr(g, repo)
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.error(
                     f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
                 )
-    except SystemExit:
-        raise SystemExit
     except:
         logger.warning("Failed to update sweep PRs")
