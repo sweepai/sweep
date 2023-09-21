@@ -1112,6 +1112,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 raise SystemExit
             except Exception as e:
                 logger.error(f"Error: {e}")
+                logger.error(traceback.format_exc())
 
             file_change.code, sandbox_execution = self.check_sandbox(
                 file_change_request.filename, file_change.code
@@ -1517,6 +1518,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 raise SystemExit
             except Exception as e:
                 logger.error(f"Error in change_files_in_github {e}")
+                logger.error(traceback.format_exc())
 
             if changed_file:
                 completed += 1
