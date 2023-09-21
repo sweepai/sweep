@@ -32,53 +32,52 @@ def get_pr_diffs(repo, pr):
     pr_diffs = []
     for file in file_diffs:
         diff = file.patch
-        if (
-            file.status == "added"
-            or file.status == "modified"
-            or file.status == "removed"
-            or file.status == "renamed"
-        ):
-            pr_diffs.append((file.filename, diff))
-        else:
+        if file.status not in ["added", "modified", "removed", "renamed"]:
             logger.info(
                 f"File status {file.status} not recognized"
             )
+        else:
+            pr_diffs.append((file.filename, diff))
     return pr_diffs
 
 
+class PRDetails:
+    def __init__(self, repo, issue_url, username, repo_description, title, summary, replies_text, tree, plan):
+        self.repo = repo
+        self.issue_url = issue_url
+        self.username = username
+        self.repo_description = repo_description
+        self.title = title
+        self.summary = summary
+        self.replies_text = replies_text
+        self.tree = tree
+        self.plan = plan
+
 def review_pr(
-    repo,
+    pr_details,
     pr,
-    issue_url,
-    username,
-    repo_description,
-    title,
-    summary,
-    replies_text,
-    tree,
-    plan,
     lint_output=None,
     chat_logger=None,
 ):
-    repo_name = repo.full_name
+    repo_name = pr_details.repo.full_name
     logger.info("Getting PR diffs...")
-    diffs = get_pr_diffs(repo, pr)
+    diffs = get_pr_diffs(pr_details.repo, pr)
     if len(diffs) == 0:
         logger.info("No diffs found.")
         return False, None
     human_message = HumanMessagePromptReview(
         repo_name=repo_name,
-        issue_url=issue_url,
-        username=username,
-        repo_description=repo_description,
-        title=title,
-        summary=summary + replies_text,
+        issue_url=pr_details.issue_url,
+        username=pr_details.username,
+        repo_description=pr_details.repo_description,
+        title=pr_details.title,
+        summary=pr_details.summary + pr_details.replies_text,
         snippets=[],
-        tree=tree,
+        tree=pr_details.tree,
         diffs=diffs,
         pr_title=pr.title,
         pr_message=pr.body or "",
-        plan=plan,
+        plan=pr_details.plan,
     )
 
     summarization_replies = []
@@ -89,12 +88,12 @@ def review_pr(
         else ChatLogger(
             {
                 "repo_name": repo_name,
-                "title": "(Review) " + title,
-                "summary": summary + replies_text,
-                "issue_url": issue_url,
-                "username": username,
-                "repo_description": repo_description,
-                "tree": tree,
+                "title": "(Review) " + pr_details.title,
+                "summary": pr_details.summary + pr_details.replies_text,
+                "issue_url": pr_details.issue_url,
+                "username": pr_details.username,
+                "repo_description": pr_details.repo_description,
+                "tree": pr_details.tree,
                 "type": "review",
             }
         )
@@ -103,18 +102,18 @@ def review_pr(
     )
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
-        repo=repo,
+        repo=pr_details.repo,
         is_reply=False,
         chat_logger=chat_logger,
     )
     summarization_reply = sweep_bot.chat(
         review_prompt.format(
             repo_name=repo_name,
-            repo_description=repo_description,
-            issue_url=issue_url,
-            username=username,
-            title=title,
-            description=summary + replies_text,
+            repo_description=pr_details.repo_description,
+            issue_url=pr_details.issue_url,
+            username=pr_details.username,
+            title=pr_details.title,
+            description=pr_details.summary + pr_details.replies_text,
         ),
         message_key="review",
     )
