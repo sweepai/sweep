@@ -74,7 +74,7 @@ events = {}
 on_ticket_events = {}
 
 
-def run_on_ticket(*args, **kwargs):
+def run_on_ticket(*args, is_python_issue=False, **kwargs):
     logger.init(
         metadata={
             **kwargs,
@@ -83,7 +83,7 @@ def run_on_ticket(*args, **kwargs):
         create_file=False,
     )
     with logger:
-        on_ticket(*args, **kwargs)
+        on_ticket(*args, is_python_issue=is_python_issue, **kwargs)
 
 
 def run_on_comment(*args, **kwargs):
@@ -182,7 +182,7 @@ def terminate_thread(thread):
         logger.error(f"Failed to terminate thread: {e}")
 
 
-def call_on_ticket(*args, **kwargs):
+def call_on_ticket(*args, is_python_issue=False, **kwargs):
     global on_ticket_events
     key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
 
@@ -193,7 +193,7 @@ def call_on_ticket(*args, **kwargs):
         logger.info(f"Found previous thread for key {key} and cancelling it")
         terminate_thread(e)
 
-    thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs, is_python_issue=is_python_issue)
     on_ticket_events[key] = thread
     thread.start()
 
@@ -285,6 +285,7 @@ async def webhook(raw_request: Request):
         action = request_dict.get("action", None)
         # logger.bind(event=event, action=action)
         logger.info(f"Received event: {event}, {action}")
+        is_python_issue = request_dict.get("is_python_issue", False)
         match event, action:
             case "issues", "opened":
                 request = IssueRequest(**request_dict)
@@ -307,6 +308,15 @@ async def webhook(raw_request: Request):
                         )
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
+                posthog.capture(
+                    request.installation.id,
+                    "issue_opened",
+                    properties={
+                        "issue_number": request.issue.number,
+                        "repo_full_name": request.repository.full_name,
+                        "is_python_issue": is_python_issue,
+                    },
+                )
             case "issue_comment", "edited":
                 request = IssueCommentRequest(**request_dict)
                 changes = IssueCommentChanges(**request_dict)
@@ -611,7 +621,7 @@ async def webhook(raw_request: Request):
                     logger.error(f"Failed to add config to top repos: {e}")
 
                 posthog.capture(
-                    "installation_repositories", "started", properties={**metadata}
+                    "installation_repositories", "started", properties={**metadata, "is_python_issue": is_python_issue}
                 )
                 for repo in repos_added_request.repositories_added:
                     organization, repo_name = repo.full_name.split("/")
@@ -622,6 +632,7 @@ async def webhook(raw_request: Request):
                             "repo_name": repo_name,
                             "organization": organization,
                             "repo_full_name": repo.full_name,
+                            "is_python_issue": is_python_issue,
                         },
                     )
                     index_full_repository(
@@ -693,6 +704,7 @@ async def webhook(raw_request: Request):
                                 "username": request.sender.login,
                                 "good_button": good_button,
                                 "bad_button": bad_button,
+                                "is_python_issue": is_python_issue,
                             },
                         )
 
@@ -723,6 +735,7 @@ async def webhook(raw_request: Request):
                             "deletions": pr_request.pull_request.deletions,
                             "total_changes": pr_request.pull_request.additions
                             + pr_request.pull_request.deletions,
+                            "is_python_issue": is_python_issue,
                         },
                     )
                 chat_logger = ChatLogger({"username": merged_by})
