@@ -486,18 +486,37 @@ class CodeGenBot(ChatGPT):
             too_long = False
             try:
                 logger.info(f"Generating for the {count}th time...")
-                if (
-                    too_long or count >= retries - 1
-                ):  # if on last try, use gpt4-32k (improved context window)
-                    pr_text_response = self.chat(
-                        pull_request_prompt, message_key="pull_request"
-                    )
-                else:
-                    pr_text_response = self.chat(
-                        pull_request_prompt,
-                        message_key="pull_request",
-                        model=SECONDARY_MODEL,
-                    )
+                pr_text_response = self._get_pr_text_response(too_long, count, retries)
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                e_str = str(e)
+                if "too long" in e_str:
+                    too_long = True
+                logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
+                self.delete_messages_from_chat("pull_request")
+                continue
+            pull_request = PullRequest.from_string(pr_text_response)
+    
+            # Remove duplicate slashes from branch name (max 1)
+            final_branch = pull_request.branch_name[:240]
+            final_branch = final_branch.split("/", 1)[-1]
+    
+            use_underscores = get_branch_name_config(self.repo)
+            if use_underscores:
+                final_branch = final_branch.replace("/", "_")
+    
+            pull_request.branch_name = (
+                "sweep/" if not use_underscores else "sweep_"
+            ) + final_branch
+            return pull_request
+        raise Exception("Could not generate PR text")
+    
+    def _get_pr_text_response(self, too_long: bool, count: int, retries: int) -> str:
+        if too_long or count >= retries - 1:  # if on last try, use gpt4-32k (improved context window)
+            return self.chat(pull_request_prompt, message_key="pull_request")
+        else:
+            return self.chat(pull_request_prompt, message_key="pull_request", model=SECONDARY_MODEL)
 
                 # Add triple quotes if not present
                 if not pr_text_response.strip().endswith('"""'):
