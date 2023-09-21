@@ -2,7 +2,6 @@ import datetime
 import json
 import os
 import threading
-import datetime
 import inspect
 import traceback
 import logging
@@ -175,26 +174,6 @@ class _Task:
             self.traceback = traceback
         if not self.create_file:
             return
-    
-        with open(self.meta_path, "w") as f:
-            f.write(
-                json.dumps(
-                    {
-                        "task_key": self.name,
-                        "logs": self.log_path,
-                        "datetime": str(datetime.datetime.now()),
-                        "metadata": self.metadata if self.metadata is not None else {},
-                        "function_name": self.function_name,
-                        "parent_task": self.parent_task.meta_path
-                        if self.parent_task is not None
-                        else None,
-                        "children": self.children,
-                        "exception": self.exception,
-                        "traceback": self.traceback,
-                        "state": state,
-                    }
-                )
-            )
     
         with open(self.meta_path, "w") as f:
             f.write(
@@ -457,9 +436,7 @@ class _LogTask:
 
 
 class LogN:
-    @staticmethod
-    def print():
-        pass
+    pass
 
 
 # Export logger
