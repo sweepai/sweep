@@ -114,34 +114,55 @@ class ModifyBot:
     ):
         fetch_snippets_response = self.fetch_snippets(file_contents, file_path, file_change_request, chunking)
         snippet_queries = self.extract_snippet_queries(fetch_snippets_response)
-        assert len(snippet_queries) > 0, "No snippets found in file"
+        self.validate_snippet_queries(snippet_queries)
         best_matches = self.find_best_matches(snippet_queries, file_contents)
-        assert len(best_matches) > 0, "No matches found in file"
-        best_matches.sort(key=lambda x: x[1].start + x[1].end * 0.001)
+        self.validate_best_matches(best_matches)
+        best_matches = self.sort_best_matches(best_matches)
         deduped_matches = self.deduplicate_matches(best_matches)
         selected_snippets = self.select_snippets(deduped_matches, file_contents)
-        print(deduped_matches)
+        self.log_deduped_matches(deduped_matches)
         update_snippets_response = self.update_snippets(selected_snippets, file_contents, file_path, file_change_request)
         updated_snippets = self.extract_updated_snippets(update_snippets_response)
         result = self.replace_in_file(selected_snippets, updated_snippets, file_contents)
         return result
+    
+    def validate_snippet_queries(self, snippet_queries):
+        assert len(snippet_queries) > 0, "No snippets found in file"
+    
+    def validate_best_matches(self, best_matches):
+        assert len(best_matches) > 0, "No matches found in file"
+    
+    def sort_best_matches(self, best_matches):
+        return best_matches.sort(key=lambda x: x[1].start + x[1].end * 0.001)
+    
+    def log_deduped_matches(self, deduped_matches):
+        print(deduped_matches)
 
     def fetch_snippets(self, file_contents, file_path, file_change_request, chunking):
-        return self.fetch_snippets_bot.chat(
-            fetch_snippets_prompt.format(
-                code=file_contents,
-                file_path=file_path,
-                request=file_change_request.instructions,
-                chunking_prompt='\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n'
-                if chunking
-                else "",
-            )
+        formatted_prompt = self.format_fetch_snippets_prompt(file_contents, file_path, file_change_request, chunking)
+        return self.fetch_snippets_bot.chat(formatted_prompt)
+    
+    def format_fetch_snippets_prompt(self, file_contents, file_path, file_change_request, chunking):
+        chunking_prompt = self.get_chunking_prompt(chunking)
+        return fetch_snippets_prompt.format(
+            code=file_contents,
+            file_path=file_path,
+            request=file_change_request.instructions,
+            chunking_prompt=chunking_prompt,
         )
+    
+    def get_chunking_prompt(self, chunking):
+        return '\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n' if chunking else ""
 
     def extract_snippet_queries(self, fetch_snippets_response):
         snippet_queries = []
-        query_pattern = (
-            r'<snippet instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet>'
+        query_pattern = self.get_query_pattern()
+        for instructions, code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
+            snippet_queries.append((instructions, strip_backticks(code)))
+        return snippet_queries
+    
+    def get_query_pattern(self):
+        return r'<snippet instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet>'
         )
         for instructions, code in re.findall(
             query_pattern, fetch_snippets_response, re.DOTALL
@@ -607,8 +628,6 @@ class CodeGenBot(ChatGPT):
                     pr_text_response += '"""'
 
                 self.delete_messages_from_chat("pull_request")
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 e_str = str(e)
                 if "too long" in e_str:
@@ -657,8 +676,6 @@ class GithubBot(BaseModel):
         try:
             self.get_contents(path, branch)
             return True
-        except SystemExit:
-            raise SystemExit
         except Exception:
             return False
 
@@ -681,8 +698,6 @@ class GithubBot(BaseModel):
                 branch = branch.replace(
                     "/", "_"
                 )  # Replace sweep/ with sweep_ (temp fix)
-            except SystemExit:
-                raise SystemExit
             except Exception:
                 pass
 
@@ -860,8 +875,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 sandbox_execution = SandboxResponse(**output)
                 if output["success"]:
                     content = output["updated_content"]
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.error(f"Sandbox Error: {e}")
                 logger.error(traceback.format_exc())
@@ -927,8 +940,6 @@ class SweepBot(CodeGenBot, GithubBot):
                         f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
                         priority=2 if self.sweep_context.use_faster_model else 0,
                     )
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.error(f"Error: {e}")
 
@@ -937,8 +948,6 @@ class SweepBot(CodeGenBot, GithubBot):
             )
 
             return file_change, sandbox_execution
-        except SystemExit:
-            raise SystemExit
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
             logger.info(traceback.format_exc())
@@ -1114,8 +1123,6 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_change_request.filename, new_file
                 )
             return new_file, commit_message, sandbox_execution
-        except SystemExit:
-            raise SystemExit
         except Exception as e:
             tb = traceback.format_exc()
             logger.warning(f"Failed to parse." f" {e}\n{tb}")
@@ -1156,13 +1163,10 @@ class SweepBot(CodeGenBot, GithubBot):
                         f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
                         priority=2 if self.sweep_context.use_faster_model else 0,
                     )
-            except SystemExit:
-                raise SystemExit
             except Exception as e:
                 logger.error(f"Error: {e}")
 
             return section_rewrite
-        except SystemExit:
             raise SystemExit
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
@@ -1293,7 +1297,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 file_change_request.new_content,
                             )
                         )
-                    elif "modify" in file_change_request.change_type or "rewrite" in file_change_request.change_type:
+                    case _ if "modify" in file_change_request.change_type or "rewrite" in file_change_request.change_type:
                         # Remove snippets from this file if they exist
                         snippet_msgs = [
                             m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
@@ -1327,7 +1331,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 file_change_request.new_content,
                             )
                         )
-                    elif "delete" in file_change_request.change_type:
+                    case _ if "delete" in file_change_request.change_type:
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch
                         )
@@ -1338,7 +1342,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             branch=branch,
                         )
                         changed_file = True
-                    elif "rename" in file_change_request.change_type:
+                    case _ if "rename" in file_change_request.change_type:
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch
                         )
@@ -1358,7 +1362,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             branch=branch,
                         )
                         changed_file = True
-                    else:
+                    case _:
                         raise Exception(
                             f"Unknown change type {file_change_request.change_type}"
                         )
