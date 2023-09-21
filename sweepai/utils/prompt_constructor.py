@@ -64,7 +64,7 @@ class HumanMessagePrompt(BaseModel):
     def render_snippets(self):
         return self.render_snippet_array(self.snippets)
 
-    def construct_prompt(self):
+    def construct_prompt(self, prompt_type):
         human_messages = [
             {
                 "role": msg["role"],
@@ -83,7 +83,7 @@ class HumanMessagePrompt(BaseModel):
                 ),
                 "key": msg.get("key"),
             }
-            for msg in human_message_prompt
+            for msg in prompt_type
         ]
         return human_messages
 
@@ -130,10 +130,6 @@ class HumanMessagePromptReview(HumanMessagePrompt):
     pr_message: str = ""
     diffs: list
     plan: str
-
-    class Diff(BaseModel):
-        file_name: str
-        file_patch: str
     
     def format_diffs(self):
         formatted_diffs = (
@@ -175,10 +171,6 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
     pr_file_path: str | None
     pr_chunk: str | None
     original_line: str | None
-
-    class Diff(BaseModel):
-        file_name: str
-        file_patch: str
     
     def format_diffs(self):
         formatted_diffs = []
