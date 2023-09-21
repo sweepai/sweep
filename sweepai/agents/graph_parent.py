@@ -71,9 +71,10 @@ class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
         if symbols_to_files_match:
             symbols_to_files = symbols_to_files_match.group("symbols_to_files")
             for line in symbols_to_files.split("\n"):
-                if not line:
+                split = line.split(":")
+                if not line or len(split) != 2:
                     continue
-                symbol, file_path = line.split(":")
+                symbol, file_path = split
                 symbols = strip_markdown(symbol)
                 file_paths = strip_markdown(file_path)
                 for file_path in file_paths:
