@@ -327,8 +327,6 @@ class CodeGenBot(ChatGPT):
 
     def get_files_to_change(self, is_python_issue: bool, retries=1) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
-        # Todo: put retries into a constants file
-        # also, this retries multiple times as the calls for this function are in a for loop
         try:
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
             posthog.capture('is_python_issue_determined', {
