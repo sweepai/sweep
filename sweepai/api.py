@@ -1,4 +1,6 @@
 # Do not save logs for main process
+import json
+
 from logn import logger
 from sweepai.utils.buttons import check_button_activated
 from sweepai.utils.safe_pqueue import SafePriorityQueue
@@ -18,7 +20,13 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
 import requests
 
-from sweepai.config.client import SweepConfig, get_documentation_dict
+from sweepai.config.client import (
+    SweepConfig,
+    get_documentation_dict,
+    RESTART_SWEEP_BUTTON,
+    SWEEP_GOOD_FEEDBACK,
+    SWEEP_BAD_FEEDBACK,
+)
 from sweepai.config.server import (
     API_MODAL_INST_NAME,
     BOT_TOKEN_NAME,
@@ -28,6 +36,7 @@ from sweepai.config.server import (
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
+    DISCORD_FEEDBACK_WEBHOOK_URL,
 )
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest, SweepContext
@@ -41,6 +50,7 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
     IssueCommentChanges,
+    PREdited,
 )
 from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  # type: ignore
 from sweepai.handlers.create_pr import create_pr_changes, safe_delete_sweep_branch
@@ -305,9 +315,9 @@ async def webhook(raw_request: Request):
                 if (
                     request.comment.user.type == "Bot"
                     and GITHUB_BOT_USERNAME in request.comment.user.login
-                    and changes.changes.body.get("from") is not None
+                    and changes.changes.body_from is not None
                     and check_button_activated(
-                        "↻ Restart Sweep", request.comment.body, changes
+                        RESTART_SWEEP_BUTTON, request.comment.body, changes.changes
                     )
                     and GITHUB_LABEL_NAME
                     in [label.name.lower() for label in request.issue.labels]
@@ -638,6 +648,56 @@ async def webhook(raw_request: Request):
                         repo.full_name,
                         installation_id=repos_added_request.installation.id,
                     )
+            case "pull_request", "edited":
+                request = PREdited(**request_dict)
+
+                if (
+                    request.pull_request.user.login == GITHUB_BOT_USERNAME
+                    and not request.sender.login.endswith("[bot]")
+                    and DISCORD_FEEDBACK_WEBHOOK_URL is not None
+                ):
+                    good_button = check_button_activated(
+                        SWEEP_GOOD_FEEDBACK, request.pull_request.body, request.changes
+                    )
+                    bad_button = check_button_activated(
+                        SWEEP_BAD_FEEDBACK, request.pull_request.body, request.changes
+                    )
+
+                    if good_button or bad_button:
+                        emoji = "😕"
+                        if good_button:
+                            emoji = "👍"
+                        elif bad_button:
+                            emoji = "👎"
+                        data = {
+                            "content": f"{emoji} {request.pull_request.html_url} ({request.sender.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
+                        }
+                        headers = {"Content-Type": "application/json"}
+                        response = requests.post(
+                            DISCORD_FEEDBACK_WEBHOOK_URL,
+                            data=json.dumps(data),
+                            headers=headers,
+                        )
+
+                        # Send feedback to PostHog
+                        posthog.capture(
+                            request.sender.login,
+                            "feedback",
+                            properties={
+                                "repo_name": request.repository.full_name,
+                                "pr_url": request.pull_request.html_url,
+                                "pr_commits": request.pull_request.commits,
+                                "pr_additions": request.pull_request.additions,
+                                "pr_deletions": request.pull_request.deletions,
+                                "pr_changed_files": request.pull_request.changed_files,
+                                "username": request.sender.login,
+                                "good_button": good_button,
+                                "bad_button": bad_button,
+                            },
+                        )
+
+                    pass
+                pass
             case "pull_request", "closed":
                 pr_request = PRRequest(**request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")
