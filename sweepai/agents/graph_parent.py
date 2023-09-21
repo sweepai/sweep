@@ -50,7 +50,7 @@ graph_user_prompt = """<metadata>
 
 
 def strip_markdown(contents):
-    contents.replace("`", "")
+    contents = contents.replace("`", "")
     contents = contents.split(" ")
     contents = [content for content in contents if content]
     return contents
@@ -76,8 +76,12 @@ class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
                 symbol, file_path = line.split(":")
                 symbols = strip_markdown(symbol)
                 file_paths = strip_markdown(file_path)
-                for file_path in file_paths:
-                    relevant_files_to_symbols[file_path] = symbols
+                for symbol in symbols:
+                    if file_path not in relevant_files_to_symbols:
+                        relevant_files_to_symbols[file_path] = [symbol]
+                    else:
+                        if symbol not in relevant_files_to_symbols[file_path]:
+                            relevant_files_to_symbols[file_path].append(symbol)
             for line in symbols_to_files_string.split("\n"):
                 if not line:
                     continue
@@ -113,13 +117,16 @@ class GraphParentBot(ChatGPT):
             else "gpt-3.5-turbo-16k-0613"
         )
         response = self.chat(user_prompt)
-        relevant_symbols_and_files = RelevantSymbolsAndFiles.from_string(
-            response, symbols_to_files
-        )
-        return (
-            relevant_symbols_and_files.relevant_files_to_symbols,
-            relevant_symbols_and_files.relevant_symbols_string,
-        )
+        if response:
+            relevant_symbols_and_files = RelevantSymbolsAndFiles.from_string(
+                response, symbols_to_files
+            )
+            return (
+                relevant_symbols_and_files.relevant_files_to_symbols,
+                relevant_symbols_and_files.relevant_symbols_string,
+            )
+        else:
+            return {}, ""
 
 
 if __name__ == "__main__":
