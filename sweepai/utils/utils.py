@@ -46,15 +46,17 @@ class Span:
         return "\n".join(s.splitlines()[self.start : self.end])
 
     def __add__(self, other: Span | int) -> Span:
-        # e.g. Span(1, 2) + Span(2, 4) = Span(1, 4) (concatenation)
-        # There are no safety checks: Span(a, b) + Span(c, d) = Span(a, d)
-        # and there are no requirements for b = c.
-        if isinstance(other, int):
-            return Span(self.start + other, self.end + other)
-        elif isinstance(other, Span):
-            return Span(self.start, other.end)
-        else:
-            raise NotImplementedError()
+            # This method allows adding an integer or another Span instance to the current instance.
+            # When adding an integer, it increments both the start and end of the current Span by the integer.
+            # When adding another Span, it keeps the start of the current Span and takes the end of the other Span.
+            # Note: This method assumes that the other Span's start is greater than or equal to the current Span's end.
+            #       If this is not the case, the resulting Span might not represent a valid range.
+            if isinstance(other, int):
+                return Span(self.start + other, self.end + other)
+            elif isinstance(other, Span):
+                return Span(self.start, other.end)
+            else:
+                raise NotImplementedError()
 
     def __len__(self) -> int:
         # i.e. Span(a, b) = b - a
@@ -70,6 +72,9 @@ def chunk_tree(
     from tree_sitter import Node
 
     # 1. Recursively form chunks based on the last post (https://docs.sweep.dev/blogs/chunking-2m-files)
+    # This function traverses the tree and forms chunks of nodes where each chunk's length is less than MAX_CHARS.
+    # If a child node's length is greater than MAX_CHARS, it starts a new chunk.
+    # If adding a child node to the current chunk would exceed MAX_CHARS, it ends the current chunk and starts a new one.
     def chunk_node(node: Node) -> list[Span]:
         chunks: list[Span] = []
         current_chunk: Span = Span(node.start_byte, node.start_byte)
@@ -90,6 +95,7 @@ def chunk_tree(
     chunks = chunk_node(tree.root_node)
 
     # 2. Filling in the gaps
+    # This step ensures that there are no gaps between chunks by setting the end of each chunk to the start of the next one.
     if len(chunks) == 0:
         return []
     if len(chunks) < 2:
@@ -99,6 +105,7 @@ def chunk_tree(
     curr.start = tree.root_node.end_byte
 
     # 3. Combining small chunks with bigger ones
+    # This step combines small chunks (less than coalesce characters) with the next chunk.
     new_chunks = []
     current_chunk = Span(0, 0)
     for chunk in chunks:
@@ -112,6 +119,7 @@ def chunk_tree(
         new_chunks.append(current_chunk)
 
     # 4. Changing line numbers
+    # This step converts the byte-based chunks to line-based chunks.
     line_chunks = [
         Span(
             get_line_number(chunk.start, source_code),
@@ -121,9 +129,11 @@ def chunk_tree(
     ]
 
     # 5. Eliminating empty chunks
+    # This step removes any chunks that don't contain any lines.
     line_chunks = [chunk for chunk in line_chunks if len(chunk) > 0]
 
     # 6. Coalescing last chunk if it's too small
+    # If the last chunk is too small (less than coalesce lines), it gets combined with the previous chunk.
     if line_chunks and len(line_chunks[-1]) < coalesce:
         line_chunks[-2] += line_chunks[-1]
         line_chunks.pop()
@@ -191,6 +201,7 @@ def chunk_code(
         language = extension_to_language[ext]
     else:
         # Fallback to naive chunking if tree_sitter fails
+        # The tree_sitter might fail if the language of the code is not supported or if there's a problem with the code itself (e.g., syntax error).
         chunks = naive_chunker(code)
         snippets = []
         for idx, chunk in enumerate(chunks):
