@@ -33,6 +33,7 @@ class PREdited(BaseModel):
         html_url: str
         title: str
         body: str
+        number: int
 
         user: User
         commits: int = 0
