@@ -19,7 +19,7 @@ from src.sandbox_utils import Sandbox
 app = typer.Typer(name="sweep-sandbox")
 
 posthog = Posthog(
-    project_api_key="phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n",
+    project_api_key=os.getenv("POSTHOG_API_KEY"),
     host="https://app.posthog.com",
 )
 
@@ -31,10 +31,11 @@ client = docker.from_env()
 
 def copy_to(container):
     try:
-        spec = pathspec.PathSpec.from_lines(
-            pathspec.patterns.GitWildMatchPattern,
-            open(".gitignore").read().splitlines(),
-        )
+        with open(".gitignore") as gitignore_file:
+            spec = pathspec.PathSpec.from_lines(
+                pathspec.patterns.GitWildMatchPattern,
+                gitignore_file.read().splitlines(),
+            )
     except FileNotFoundError:
         spec = pathspec.PathSpec.from_lines(pathspec.patterns.GitWildMatchPattern, [])
     files_to_copy = (
@@ -61,7 +62,8 @@ def copy_to(container):
 
 def get_sandbox_from_config():
     if os.path.exists("sweep.yaml"):
-        config = yaml.load(open("sweep.yaml", "r"), Loader=yaml.FullLoader)
+        with open("sweep.yaml", "r") as sweep_file:
+            config = yaml.load(sweep_file, Loader=yaml.FullLoader)
         return Sandbox(**config.get("sandbox", {}))
     else:
         return Sandbox()
@@ -145,7 +147,6 @@ def sandbox(file_path: Path, telemetry: bool = True):
             raise SystemExit
         except Exception as e:
             print(f"Error: {e}", style="bold red")
-            raise e
 
 
 if __name__ == "__main__":
