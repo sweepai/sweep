@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 from loguru import logger
 
 logger.print = logger.info
-# from logn import logger
 
 load_dotenv(dotenv_path=".env")
 
