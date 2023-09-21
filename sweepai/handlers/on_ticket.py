@@ -45,6 +45,8 @@ from sweepai.config.client import (
     SweepConfig,
     get_documentation_dict,
     RESTART_SWEEP_BUTTON,
+    SWEEP_BAD_FEEDBACK,
+    SWEEP_GOOD_FEEDBACK,
 )
 from sweepai.config.server import (
     ENV,
@@ -54,6 +56,7 @@ from sweepai.config.server import (
     GITHUB_LABEL_NAME,
     OPENAI_USE_3_5_MODEL_ONLY,
     WHITELISTED_REPOS,
+    DISCORD_FEEDBACK_WEBHOOK_URL,
 )
 from sweepai.utils.ticket_utils import *
 from sweepai.utils.event_logger import posthog
@@ -958,11 +961,24 @@ def on_ticket(
                 3,
             )
 
+        pr_actions_message = (
+            create_action_buttons(
+                [
+                    SWEEP_GOOD_FEEDBACK,
+                    SWEEP_BAD_FEEDBACK,
+                ],
+                header="### PR Feedback (click)\n",
+            )
+            + "\n"
+            if DISCORD_FEEDBACK_WEBHOOK_URL is not None
+            else ""
+        )
+
         is_draft = config.get("draft", False)
         try:
             pr = repo.create_pull(
                 title=pr_changes.title,
-                body=pr_changes.body,
+                body=pr_actions_message + pr_changes.body,
                 head=pr_changes.pr_head,
                 base=SweepConfig.get_branch(repo),
                 draft=is_draft,
@@ -971,7 +987,7 @@ def on_ticket(
             is_draft = False
             pr = repo.create_pull(
                 title=pr_changes.title,
-                body=pr_changes.body,
+                body=pr_actions_message + pr_changes.body,
                 head=pr_changes.pr_head,
                 base=SweepConfig.get_branch(repo),
                 draft=is_draft,
