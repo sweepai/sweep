@@ -1,20 +1,18 @@
 from __future__ import annotations
 
 import re
+import traceback
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 
 system_prompt = """You are an experienced software engineer working on a GitHub issue. Use the issue_metadata, relevant_snippets_in_repo, and symbols to determine the best additional sfiles to explore.
-
-The issue metadata, code, symbols, and files will be provided in the below format:
-
-<issue_metadata>
-repository metadata
-issue title
-issue description
-</issue_metadata>
-
-<relevant_snippets_in_repo>
+...
+class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
+    relevant_files_to_symbols: dict[str, list[str]] = {}
+    relevant_symbols_string = ""
+...
+class GraphParentBot(ChatGPT):
+...
 <snippet source="file_path_1:start_line-end_line">
 relevant code snippet 1
 </snippet source>
@@ -60,6 +58,8 @@ class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
     relevant_files_to_symbols: dict[str, list[str]] = {}
     relevant_symbols_string = ""
 
+    import traceback
+    
     @classmethod
     def from_string(
         cls, string: str, symbols_to_files_string: str, **kwargs
@@ -69,21 +69,25 @@ class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
         symbols_to_files_match = re.search(symbols_to_files_pattern, string, re.DOTALL)
         relevant_symbols_string = ""
         if symbols_to_files_match:
-            symbols_to_files = symbols_to_files_match.group("symbols_to_files")
-            for line in symbols_to_files.split("\n"):
-                if not line:
-                    continue
-                symbol, file_path = line.split(":")
-                symbols = strip_markdown(symbol)
-                file_paths = strip_markdown(file_path)
-                for file_path in file_paths:
-                    relevant_files_to_symbols[file_path] = symbols
-            for line in symbols_to_files_string.split("\n"):
-                if not line:
-                    continue
-                symbol, file_path = line.split(" ")[0], line.split(" ")[-1]
-                if file_path in relevant_files_to_symbols:
-                    relevant_symbols_string += line + "\n"
+            try:
+                symbols_to_files = symbols_to_files_match.group("symbols_to_files")
+                for line in symbols_to_files.split("\n"):
+                    if not line:
+                        continue
+                    symbol, file_path = line.split(":")
+                    symbols = strip_markdown(symbol)
+                    file_paths = strip_markdown(file_path)
+                    for file_path in file_paths:
+                        relevant_files_to_symbols[file_path] = symbols
+                for line in symbols_to_files_string.split("\n"):
+                    if not line:
+                        continue
+                    symbol, file_path = line.split(" ")[0], line.split(" ")[-1]
+                    if file_path in relevant_files_to_symbols:
+                        relevant_symbols_string += line + "\n"
+            except Exception as e:
+                print(f"Error occurred: {e}")
+                print(traceback.format_exc())
         return cls(
             relevant_files_to_symbols=relevant_files_to_symbols,
             relevant_symbols_string=relevant_symbols_string,
@@ -92,6 +96,8 @@ class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
 
 
 class GraphParentBot(ChatGPT):
+    import traceback
+    
     def relevant_files_to_symbols(
         self, issue_metadata: str, relevant_snippets: str, symbols_to_files: str
     ):
@@ -112,7 +118,11 @@ class GraphParentBot(ChatGPT):
             if (self.chat_logger and self.chat_logger.is_paying_user())
             else "gpt-3.5-turbo-16k-0613"
         )
-        response = self.chat(user_prompt)
+        try:
+            response = self.chat(user_prompt)
+        except Exception as e:
+            print(f"Error occurred: {e}")
+            print(traceback.format_exc())
         relevant_symbols_and_files = RelevantSymbolsAndFiles.from_string(
             response, symbols_to_files
         )
