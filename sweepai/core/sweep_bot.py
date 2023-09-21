@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import field
 import traceback
@@ -57,6 +58,7 @@ from sweepai.config.server import DB_MODAL_INST_NAME, SANDBOX_URL, SECONDARY_MOD
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import (
     format_contents,
+    generate_diff,
     generate_new_file_from_patch,
     is_markdown,
     get_matches,
@@ -868,21 +870,20 @@ class SweepBot(CodeGenBot, GithubBot):
         key = f"file_change_modified_{file_change_request.filename}"
         file_markdown = is_markdown(file_change_request.filename)
         # TODO(sweep): edge case at empty file
-        line_count = contents.count("\n") + 1
-        # message = modify_file_prompt_3.format(
-        #     filename=file_change_request.filename,
-        #     instructions=file_change_request.instructions,
-        #     code=contents_line_numbers,
-        #     line_count=line_count,
-        # )
-        # recreate_file = False
-        # old_system_message = self.messages[0].content
         new_file = ""
         try:
-            changed_files_summary = "Changed files in this PR:\n\n" + "\n".join(
+            file_path_to_contents = OrderedDict()
+            for file_path, diffs in changed_files:
+                if not diffs.strip():
+                    continue
+                if file_path in file_path_to_contents:
+                    file_path_to_contents[file_path] += diffs
+                else:
+                    file_path_to_contents[file_path] = diffs
+            changed_files_summary = "We previously changed these files:\n" + "\n".join(
                 [
-                    f'<changed_file file_path="{file_path}">\n{file_contents}\n</changed_file>'
-                    for file_path, file_contents in changed_files
+                    f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
+                    for file_path, diffs in file_path_to_contents.items()
                 ]
             )
             additional_messages = (
@@ -920,43 +921,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 raise SystemExit
             except Exception as e:
                 if chunking:
-                    return contents, "", None
+                    return contents, "", None, changed_files
                 raise e
-            # if chunking:
-            #     # TODO (sweep): make chunking / streaming better
-            #     message = chunking_prompt + message
-            #     old_system_message = self.messages[0].content
-            #     self.messages[0].content = modify_file_system_message
-            #     modify_file_response = self.chat(
-            #         message
-            #         + "\nIf you do not wish to make changes to this file, please type `skip`.",
-            #         message_key=key,
-            #     )
-            #     self.delete_messages_from_chat(key)
-            #     self.messages[0].content = old_system_message
-            # else:
-            #     if line_count < RECREATE_LINE_LENGTH:
-            #         message = modify_recreate_file_prompt_3.format(
-            #             filename=file_change_request.filename,
-            #             instructions=file_change_request.instructions,
-            #             code=contents_line_numbers,
-            #             line_count=line_count,
-            #         )
-
-            #         self.messages[0].content = modify_recreate_file_system_message
-            #         modify_file_response = self.chat(
-            #             message,
-            #             message_key=key,
-            #         )
-            #         recreate_file = True
-            #         self.messages[0].content = old_system_message
-            #     else:
-            #         self.messages[0].content = modify_file_system_message
-            #         modify_file_response = self.chat(
-            #             message,
-            #             message_key=key,
-            #         )
-            #         self.messages[0].content = old_system_message
         except SystemExit:
             raise SystemExit
         except Exception as e:  # Check for max tokens error
@@ -969,45 +935,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 self.delete_messages_from_chat(key)
                 raise e
         try:
-            # logger.info(
-            #     f"generate_new_file with contents: {contents} and"
-            #     f" modify_file_response: {modify_file_response}"
-            # )
-            # if recreate_file:
-            #     # Todo(lukejagg): Discord logging on error
-            #     new_file = re.findall(
-            #         r"<new_file>\n(.*?)\n?</new_file>", modify_file_response, re.DOTALL
-            #     )[0]
-            # else:
-            #     new_file, errors = generate_new_file_from_patch(
-            #         modify_file_response,
-            #         contents,
-            #         chunk_offset=chunk_offset,
-            #         sweep_context=self.sweep_context,
-            #     )
-            #     if errors:
-            #         logger.error(errors)
-
-            # try:
-            #     for _, replace in get_matches(modify_file_response):
-            #         implemented = self.check_completion(  # can use async
-            #             file_change_request.filename, replace
-            #         )
-            #         if not implemented:
-            #             discord_log_error(
-            #                 f"{self.sweep_context.issue_url}\nUnimplemented Modify Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
-            #                 priority=2 if self.sweep_context.use_faster_model else 0,
-            #             )
-            # except SystemExit:
-            #     raise SystemExit
-            # except Exception as e:
-            #     logger.error(f"Error: {e}")
-
             new_file = format_contents(new_file, file_markdown)
-
-            # commit_message_match = re.search(
-            #     'Commit message: "(?P<commit_message>.*)"', modify_file_response
-            # )
             commit_message_match = None
             if commit_message_match:
                 commit_message = commit_message_match.group("commit_message")
@@ -1020,7 +948,13 @@ class SweepBot(CodeGenBot, GithubBot):
                 new_file, sandbox_execution = self.check_sandbox(
                     file_change_request.filename, new_file
                 )
-            return new_file, commit_message, sandbox_execution
+            changed_files.append(
+                (
+                    file_change_request.filename,
+                    generate_diff(contents, new_file),
+                )
+            )
+            return new_file, commit_message, sandbox_execution, changed_files
         except SystemExit:
             raise SystemExit
         except Exception as e:
@@ -1216,23 +1150,17 @@ class SweepBot(CodeGenBot, GithubBot):
                                 snippet_msg.content,
                                 flags=re.DOTALL,
                             )
-
+                        file_change_request.new_content
                         (
                             changed_file,
                             sandbox_execution,
                             commit,
+                            changed_files,
                         ) = self.handle_modify_file(
                             file_change_request,
                             branch,
                             sandbox=sandbox,
                             changed_files=changed_files,
-                        )
-                        # TODO: Should only contain diffs
-                        changed_files.append(
-                            (
-                                file_change_request.filename,
-                                file_change_request.new_content,
-                            )
                         )
                     case "delete":
                         contents = self.repo.get_contents(
@@ -1323,7 +1251,7 @@ class SweepBot(CodeGenBot, GithubBot):
         commit_message: str = None,
         sandbox=None,
         changed_files: list[tuple[str, str]] = [],
-    ) -> tuple[str, Any, Commit]:
+    ) -> tuple[str, Any, Commit, list]:
         CHUNK_SIZE = 800  # Number of lines to process at a time
         sandbox_error = None
         try:
@@ -1351,6 +1279,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             new_file_contents,
                             suggested_commit_message,
                             sandbox_error,
+                            changed_files,
                         ) = self.modify_file(
                             file_change_request,
                             contents="\n".join(lines),
@@ -1361,7 +1290,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             chunking=chunking,
                             chunk_offset=0,
                             sandbox=sandbox,
-                            changed_files=[],
+                            changed_files=changed_files,
                         )
                         commit_message = suggested_commit_message
                         # commit_message = commit_message or suggested_commit_message
@@ -1381,6 +1310,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 new_chunk,
                                 suggested_commit_message,
                                 sandbox_error,
+                                changed_files,
                             ) = self.modify_file(
                                 file_change_request,
                                 contents=chunk_contents,
@@ -1391,7 +1321,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 chunking=chunking,
                                 chunk_offset=i,
                                 sandbox=sandbox,
-                                changed_files=[],
+                                changed_files=changed_files,
                             )
                             # commit_message = commit_message or suggested_commit_message
                             commit_message = suggested_commit_message
@@ -1411,7 +1341,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     f"No changes made to {file_change_request.filename}. Skipping file"
                     " update."
                 )
-                return False, sandbox_error, "No changes made to file."
+                return False, sandbox_error, "No changes made to file.", changed_files
             logger.debug(
                 f"{file_name}, {commit_message}, {new_file_contents}, {branch}"
             )
@@ -1427,7 +1357,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     branch=branch,
                 )
                 file_change_request.new_content = new_file_contents
-                return True, sandbox_error, result["commit"]
+                return True, sandbox_error, result["commit"], changed_files
             except SystemExit:
                 raise SystemExit
             except Exception as e:
@@ -1442,7 +1372,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     branch=branch,
                 )
                 file_change_request.new_content = new_file_contents
-                return True, sandbox_error, result["commit"]
+                return True, sandbox_error, result["commit"], changed_files
         except MaxTokensExceeded as e:
             raise e
         except SystemExit:
@@ -1450,4 +1380,4 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
-            return False, sandbox_error, None
+            return False, sandbox_error, None, changed_files

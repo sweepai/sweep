@@ -5,9 +5,9 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel, Snippet
 
 system_prompt = """You are a genius engineer tasked with solving the following GitHub issue.
-Some relevant_snippets_from_repo have been provided. Assume any changes relevant to those snippets have been taken care of.
-Determine whether changes in the new_file are necessary.
-If code changes need to be in this file, provide the relevant_new_snippet and the changes_for_new_file.
+relevant_snippets_from_repo have been provided. Assume any changes needed in those snippets will be taken care of separately.
+Determine whether changes in new_file are necessary.
+If code changes need to be made in new_file, provide the relevant_new_snippet and the changes_for_new_file.
 Extract the code you deem necessary, and then describe the necessary code changes. Otherwise leave both sections blank.
 
 # Extraction
@@ -25,8 +25,9 @@ relevant_snippet as small as possible. When writing the code changes keep in min
 ...
 </relevant_new_snippet>
 
-<changes_for_new_file>
-{Detailed natural language instructions of modifications to be made in new_file. Do not write code. The relevant_snippets_in_repo are read-only and should not be modified in this description. Read them and describe the changes in natural language.}
+
+<changes_for_new_file file_path="file_path">
+{The changes should be constrained to the file_path and code mentioned in new_file only. These are clear and detailed natural language instructions of modifications to be made in new_file. The relevant_snippets_in_repo are read-only for this change but we can and should make references to them.}
 </changes_for_new_file>
 """
 
@@ -91,6 +92,9 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
             start = int(start)
             end = int(end) - 1
             end = min(end, start + 200)
+            if end - start < 20: # don't allow small snippets
+                start = start - 10
+                end = start + 10
             snippet = Snippet(file_path=file_path, start=start, end=end, content="")
             relevant_new_snippet.append(snippet)
         plan_match = re.search(plan_pattern, string, re.DOTALL)

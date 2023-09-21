@@ -32,6 +32,8 @@ def diff_contains_dups_or_removals(diff, new_code):
 
 
 def generate_diff(old_code, new_code):
+    if old_code == new_code:
+        return ""
     old_code = old_code.strip()
     new_code = new_code.strip()
 
