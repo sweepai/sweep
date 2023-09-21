@@ -112,7 +112,39 @@ class ModifyBot:
         file_change_request: FileChangeRequest,
         chunking: bool = False,
     ):
-        fetch_snippets_response = self.fetch_snippets_bot.chat(
+        fetch_snippets_response = self._fetch_snippets(
+            file_contents, file_path, file_change_request, chunking
+        )
+    
+        snippet_queries = self._extract_snippet_queries(fetch_snippets_response)
+    
+        assert len(snippet_queries) > 0, "No snippets found in file"
+    
+        best_matches = self._find_best_matches(snippet_queries, file_contents)
+    
+        assert len(best_matches) > 0, "No matches found in file"
+    
+        deduped_matches = self._deduplicate_matches(best_matches)
+    
+        selected_snippets = self._select_snippets(deduped_matches, file_contents)
+    
+        print(deduped_matches)
+    
+        update_snippets_response = self._update_snippets(
+            file_contents, file_path, file_change_request, selected_snippets
+        )
+    
+        updated_snippets = self._extract_updated_snippets(update_snippets_response)
+    
+        result = self._replace_in_file(selected_snippets, updated_snippets, file_contents)
+    
+        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
+        result = result.rstrip("\n") + "\n" * ending_newlines
+    
+        return result
+    
+    def _fetch_snippets(self, file_contents, file_path, file_change_request, chunking):
+        return self.fetch_snippets_bot.chat(
             fetch_snippets_prompt.format(
                 code=file_contents,
                 file_path=file_path,
@@ -122,10 +154,81 @@ class ModifyBot:
                 else "",
             )
         )
-
+    
+    def _extract_snippet_queries(self, fetch_snippets_response):
         snippet_queries = []
         query_pattern = (
             r'<snippet instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet>'
+        )
+        for instructions, code in re.findall(
+            query_pattern, fetch_snippets_response, re.DOTALL
+        ):
+            snippet_queries.append((instructions, strip_backticks(code)))
+        return snippet_queries
+    
+    def _find_best_matches(self, snippet_queries, file_contents):
+        best_matches = []
+        for instructions, query in snippet_queries:
+            _match = find_best_match(query, file_contents)
+            if _match.score > 50:
+                best_matches.append((instructions, _match))
+        return best_matches
+    
+    def _deduplicate_matches(self, best_matches):
+        best_matches.sort(key=lambda x: x[1].start + x[1].end * 0.001)
+    
+        def fuse_matches(a: Match, b: Match) -> Match:
+            return Match(
+                start=min(a.start, b.start),
+                end=max(a.end, b.end),
+                score=min(a.score, b.score),
+            )
+    
+        current_instructions, current_match = best_matches[0]
+        deduped_matches = []
+    
+        # Fuse & dedup
+        for instructions, _match in best_matches:
+            if current_match.end > _match.start:
+                current_instructions = f"{current_instructions}. {instructions}"
+                current_match = fuse_matches(current_match, _match)
+            else:
+                deduped_matches.append((current_instructions, current_match))
+                current_instructions = instructions
+                current_match = _match
+        deduped_matches.append((current_instructions, current_match))
+        return deduped_matches
+    
+    def _select_snippets(self, deduped_matches, file_contents):
+        selected_snippets = []
+        for instructions, _match in deduped_matches:
+            selected_snippets.append(
+                (
+                    instructions,
+                    "\n".join(file_contents.splitlines()[_match.start : _match.end]),
+                )
+            )
+        return selected_snippets
+    
+    def _update_snippets(self, file_contents, file_path, file_change_request, selected_snippets):
+        return self.update_snippets_bot.chat(
+            update_snippets_prompt.format(
+                code=file_contents,
+                file_path=file_path,
+                snippets="\n\n".join(
+                    [
+                        f'<snippet id="{i}" instructions="{instructions}">\n{snippet}\n</snippet>'
+                        for i, (instructions, snippet) in enumerate(selected_snippets)
+                    ]
+                ),
+                request=file_change_request.instructions,
+            )
+        )
+    
+    def _extract_updated_snippets(self, update_snippets_response):
+        updated_snippets = []
+        updated_pattern = (
+            r"<updated_snippet id=\"(?P<id>.*?)\">(?P<code>.*?)
         )
         for instructions, code in re.findall(
             query_pattern, fetch_snippets_response, re.DOTALL
@@ -1143,11 +1246,8 @@ class SweepBot(CodeGenBot, GithubBot):
     ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
-        # num_fcr = len(file_change_requests)
         completed = 0
         sandbox_execution = None
-
-        # added_modify_hallucination = False
 
         LINE_CUTOFF = 600
         changed_files: list[tuple[str, str]] = []
@@ -1156,48 +1256,61 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.print(file_change_request.change_type, file_change_request.filename)
             changed_file = False
 
-            # popping files too long
-            # total_lines = 0
-            # new_changed_files = []
-            # for file_name, changed_file in changed_files:
-            #     if total_lines + len(changed_file.splitlines()) > LINE_CUTOFF:
-            #         break
-            #     new_changed_files.append((file_name, changed_file))
-            #     total_lines += len(changed_file.splitlines())
-            # changed_files = new_changed_files
+            if self.is_file_blocked(file_change_request.filename, blocked_dirs):
+                continue
 
-            try:
-                commit = None
-                # Todo(Sweep): add commit for each type of change type
-                if self.is_blocked(file_change_request.filename, blocked_dirs)[
-                    "success"
-                ]:
-                    logger.info(
-                        f"Skipping {file_change_request.filename} because it is"
-                        " blocked."
+            logger.print(
+                f"Processing {file_change_request.filename} for change type"
+                f" {file_change_request.change_type}..."
+            )
+
+            changed_file, sandbox_execution, commit = self.process_file_change_request(
+                file_change_request, branch, sandbox, changed_files
+            )
+
+            if changed_file:
+                changed_files.append(
+                    (
+                        file_change_request.filename,
+                        file_change_request.new_content,
                     )
-                    continue
-
-                logger.print(
-                    f"Processing {file_change_request.filename} for change type"
-                    f" {file_change_request.change_type}..."
                 )
-                match file_change_request.change_type:
-                    case "create":
-                        (
-                            changed_file,
-                            sandbox_execution,
-                            commit,
-                        ) = self.handle_create_file(
-                            file_change_request,
-                            branch,
-                            sandbox=sandbox,
-                            changed_files=changed_files,
-                        )
-                        changed_files.append(
-                            (
-                                file_change_request.filename,
-                                file_change_request.new_content,
+
+            yield file_change_request, changed_file
+
+    def is_file_blocked(self, filename: str, blocked_dirs: list[str]) -> bool:
+        if self.is_blocked(filename, blocked_dirs)["success"]:
+            logger.info(
+                f"Skipping {filename} because it is blocked."
+            )
+            return True
+        return False
+
+    def process_file_change_request(
+        self,
+        file_change_request: FileChangeRequest,
+        branch: str,
+        sandbox=None,
+        changed_files: list[tuple[str, str]],
+    ) -> tuple[bool, Any, Any]:
+        commit = None
+        changed_file = False
+        sandbox_execution = None
+
+        match file_change_request.change_type:
+            case "create":
+                (
+                    changed_file,
+                    sandbox_execution,
+                    commit,
+                ) = self.handle_create_file(
+                    file_change_request,
+                    branch,
+                    sandbox=sandbox,
+                    changed_files=changed_files,
+                )
+
+        return changed_file, sandbox_execution, commit
                             )
                         )
                     case "modify" | "rewrite":
@@ -1292,29 +1405,33 @@ class SweepBot(CodeGenBot, GithubBot):
             file_change, sandbox_execution = self.create_file(
                 file_change_request, changed_files=changed_files
             )
-            file_markdown = is_markdown(file_change_request.filename)
-            file_change.code = format_contents(file_change.code, file_markdown)
-            logger.debug(
-                f"{file_change_request.filename},"
-                f" {f'Create {file_change_request.filename}'}, {file_change.code},"
-                f" {branch}"
-            )
-
-            result = self.repo.create_file(
-                file_change_request.filename,
-                file_change.commit_message,
-                file_change.code,
-                branch=branch,
-            )
-
+            file_change = self.format_file_change(file_change, file_change_request)
+            result = self.create_file_in_repo(file_change, file_change_request, branch)
             file_change_request.new_content = file_change.code
-
             return True, sandbox_execution, result["commit"]
         except SystemExit:
             raise SystemExit
         except Exception as e:
             logger.info(f"Error in handle_create_file: {e}")
             return False, None, None
+
+    def format_file_change(self, file_change, file_change_request):
+        file_markdown = is_markdown(file_change_request.filename)
+        file_change.code = format_contents(file_change.code, file_markdown)
+        logger.debug(
+            f"{file_change_request.filename},"
+            f" {f'Create {file_change_request.filename}'}, {file_change.code},"
+            f" {branch}"
+        )
+        return file_change
+
+    def create_file_in_repo(self, file_change, file_change_request, branch):
+        return self.repo.create_file(
+            file_change_request.filename,
+            file_change.commit_message,
+            file_change.code,
+            branch=branch,
+        )
 
     def handle_modify_file(
         self,
@@ -1327,122 +1444,9 @@ class SweepBot(CodeGenBot, GithubBot):
         CHUNK_SIZE = 800  # Number of lines to process at a time
         sandbox_error = None
         try:
-            file = self.get_file(file_change_request.filename, branch=branch)
-            file_contents = file.decoded_content.decode("utf-8")
-            lines = file_contents.split("\n")
-
-            new_file_contents = ""
-            all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
-            # Todo(lukejagg): Use when only using chunking
-            chunk_sizes = [
-                # 800,
-                600,
-                400,
-                # 300,
-            ]  # Define the chunk sizes for the backoff mechanism
-            for CHUNK_SIZE in chunk_sizes:
-                try:
-                    chunking = (
-                        len(lines) > CHUNK_SIZE
-                    )  # Only chunk if the file is large enough
-                    file_name = file_change_request.filename
-                    if not chunking:
-                        (
-                            new_file_contents,
-                            suggested_commit_message,
-                            sandbox_error,
-                        ) = self.modify_file(
-                            file_change_request,
-                            contents="\n".join(lines),
-                            branch=branch,
-                            contents_line_numbers=file_contents
-                            if USING_DIFF
-                            else "\n".join(all_lines_numbered),
-                            chunking=chunking,
-                            chunk_offset=0,
-                            sandbox=sandbox,
-                            changed_files=[],
-                        )
-                        commit_message = suggested_commit_message
-                        # commit_message = commit_message or suggested_commit_message
-                    else:
-                        for i in range(0, len(lines), CHUNK_SIZE):
-                            chunk_contents = "\n".join(lines[i : i + CHUNK_SIZE])
-                            contents_line_numbers = "\n".join(
-                                all_lines_numbered[i : i + CHUNK_SIZE]
-                            )
-                            # if not EditBot().should_edit(
-                            #     issue=file_change_request.instructions,
-                            #     snippet=chunk_contents,
-                            # ):
-                            #     new_chunk = chunk_contents
-                            # else:
-                            (
-                                new_chunk,
-                                suggested_commit_message,
-                                sandbox_error,
-                            ) = self.modify_file(
-                                file_change_request,
-                                contents=chunk_contents,
-                                branch=branch,
-                                contents_line_numbers=chunk_contents
-                                if USING_DIFF
-                                else "\n".join(contents_line_numbers),
-                                chunking=chunking,
-                                chunk_offset=i,
-                                sandbox=sandbox,
-                                changed_files=[],
-                            )
-                            # commit_message = commit_message or suggested_commit_message
-                            commit_message = suggested_commit_message
-                            if i + CHUNK_SIZE < len(lines):
-                                new_file_contents += new_chunk + "\n"
-                            else:
-                                new_file_contents += new_chunk
-                    break  # If the chunking was successful, break the loop
-                except Exception as e:
-                    logger.print(e)
-                    raise e
-
-                    continue  # If the chunking was not successful, continue to the next chunk size
-            # If the original file content is identical to the new file content, log a warning and return
-            if file_contents == new_file_contents:
-                logger.warning(
-                    f"No changes made to {file_change_request.filename}. Skipping file"
-                    " update."
-                )
-                return False, sandbox_error, "No changes made to file."
-            logger.debug(
-                f"{file_name}, {commit_message}, {new_file_contents}, {branch}"
-            )
-
-            # Update the file with the new contents after all chunks have been processed
-            try:
-                result = self.repo.update_file(
-                    file_name,
-                    # commit_message.format(file_name=file_name),
-                    commit_message,
-                    new_file_contents,
-                    file.sha,
-                    branch=branch,
-                )
-                file_change_request.new_content = new_file_contents
-                return True, sandbox_error, result["commit"]
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.info(f"Error in updating file, repulling and trying again {e}")
-                file = self.get_file(file_change_request.filename, branch=branch)
-                result = self.repo.update_file(
-                    file_name,
-                    # commit_message.format(file_name=file_name),
-                    commit_message,
-                    new_file_contents,
-                    file.sha,
-                    branch=branch,
-                )
-                file_change_request.new_content = new_file_contents
-                return True, sandbox_error, result["commit"]
+            file, file_contents, lines = self.get_file_and_contents(file_change_request, branch)
+            new_file_contents, commit_message = self.process_file_chunks(file_change_request, branch, lines, commit_message, sandbox, changed_files)
+            return self.update_file_if_changed(file_change_request, file, new_file_contents, commit_message, branch, sandbox_error)
         except MaxTokensExceeded as e:
             raise e
         except SystemExit:
@@ -1451,3 +1455,127 @@ class SweepBot(CodeGenBot, GithubBot):
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
             return False, sandbox_error, None
+
+    def get_file_and_contents(self, file_change_request, branch):
+        file = self.get_file(file_change_request.filename, branch=branch)
+        file_contents = file.decoded_content.decode("utf-8")
+        lines = file_contents.split("\n")
+        return file, file_contents, lines
+
+    def process_file_chunks(self, file_change_request, branch, lines, commit_message, sandbox, changed_files):
+        new_file_contents = ""
+        all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
+        chunk_sizes = [
+            # 800,
+            600,
+            400,
+            # 300,
+        ]  # Define the chunk sizes for the backoff mechanism
+        for CHUNK_SIZE in chunk_sizes:
+            try:
+                new_file_contents, commit_message = self.process_chunks_based_on_size(file_change_request, branch, lines, commit_message, sandbox, changed_files, CHUNK_SIZE, all_lines_numbered)
+                break  # If the chunking was successful, break the loop
+            except Exception as e:
+                logger.print(e)
+                raise e
+        return new_file_contents, commit_message
+
+    def process_chunks_based_on_size(self, file_change_request, branch, lines, commit_message, sandbox, changed_files, CHUNK_SIZE, all_lines_numbered):
+        new_file_contents = ""
+        chunking = (
+            len(lines) > CHUNK_SIZE
+        )  # Only chunk if the file is large enough
+        file_name = file_change_request.filename
+        if not chunking:
+            new_file_contents, commit_message = self.process_single_chunk(file_change_request, branch, lines, commit_message, sandbox, changed_files, all_lines_numbered)
+        else:
+            new_file_contents, commit_message = self.process_multiple_chunks(file_change_request, branch, lines, commit_message, sandbox, changed_files, CHUNK_SIZE, all_lines_numbered)
+        return new_file_contents, commit_message
+
+    def process_single_chunk(self, file_change_request, branch, lines, commit_message, sandbox, changed_files, all_lines_numbered):
+        (
+            new_file_contents,
+            suggested_commit_message,
+            sandbox_error,
+        ) = self.modify_file(
+            file_change_request,
+            contents="\n".join(lines),
+            branch=branch,
+            contents_line_numbers=file_contents
+            if USING_DIFF
+            else "\n".join(all_lines_numbered),
+            chunking=chunking,
+            chunk_offset=0,
+            sandbox=sandbox,
+            changed_files=[],
+        )
+        commit_message = suggested_commit_message
+        return new_file_contents, commit_message
+
+    def process_multiple_chunks(self, file_change_request, branch, lines, commit_message, sandbox, changed_files, CHUNK_SIZE, all_lines_numbered):
+        new_file_contents = ""
+        for i in range(0, len(lines), CHUNK_SIZE):
+            chunk_contents = "\n".join(lines[i : i + CHUNK_SIZE])
+            contents_line_numbers = "\n".join(
+                all_lines_numbered[i : i + CHUNK_SIZE]
+            )
+            (
+                new_chunk,
+                suggested_commit_message,
+                sandbox_error,
+            ) = self.modify_file(
+                file_change_request,
+                contents=chunk_contents,
+                branch=branch,
+                contents_line_numbers=chunk_contents
+                if USING_DIFF
+                else "\n".join(contents_line_numbers),
+                chunking=chunking,
+                chunk_offset=i,
+                sandbox=sandbox,
+                changed_files=[],
+            )
+            commit_message = suggested_commit_message
+            if i + CHUNK_SIZE < len(lines):
+                new_file_contents += new_chunk + "\n"
+            else:
+                new_file_contents += new_chunk
+        return new_file_contents, commit_message
+
+    def update_file_if_changed(self, file_change_request, file, new_file_contents, commit_message, branch, sandbox_error):
+        if file_contents == new_file_contents:
+            logger.warning(
+                f"No changes made to {file_change_request.filename}. Skipping file"
+                " update."
+            )
+            return False, sandbox_error, "No changes made to file."
+        logger.debug(
+            f"{file_name}, {commit_message}, {new_file_contents}, {branch}"
+        )
+        return self.update_file_in_repo(file_change_request, file, new_file_contents, commit_message, branch, sandbox_error)
+
+    def update_file_in_repo(self, file_change_request, file, new_file_contents, commit_message, branch, sandbox_error):
+        try:
+            result = self.repo.update_file(
+                file_name,
+                commit_message,
+                new_file_contents,
+                file.sha,
+                branch=branch,
+            )
+            file_change_request.new_content = new_file_contents
+            return True, sandbox_error, result["commit"]
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
+            logger.info(f"Error in updating file, repulling and trying again {e}")
+            file = self.get_file(file_change_request.filename, branch=branch)
+            result = self.repo.update_file(
+                file_name,
+                commit_message,
+                new_file_contents,
+                file.sha,
+                branch=branch,
+            )
+            file_change_request.new_content = new_file_contents
+            return True, sandbox_error, result["commit"]
