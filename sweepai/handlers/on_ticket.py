@@ -711,7 +711,7 @@ def on_ticket(
                 )
             raise Exception("No files to modify.")
 
-        sweep_bot.summarize_snippets()
+        # sweep_bot.summarize_snippets()
 
         file_change_requests = sweep_bot.validate_file_change_requests(
             file_change_requests
