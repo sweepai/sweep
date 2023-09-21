@@ -598,6 +598,15 @@ def on_ticket(
     for content_file in repo.get_contents(""):
         if content_file.name == "sweep.yaml":
             sweep_yml_exists = True
+
+    # Get files to change and determine if it's a python issue
+    file_change_requests, plan, is_python_issue = sweep_bot.get_files_to_change()
+
+    # Log is_python_issue to posthog
+    posthog.capture('is_python_issue_determined', {
+        'is_python_issue': is_python_issue,
+        'metadata': metadata
+    })
             break
 
     # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
@@ -691,7 +700,12 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan, is_python_issue = sweep_bot.get_files_to_change()
+
+        posthog.capture('is_python_issue_determined', {
+            'is_python_issue': is_python_issue,
+            'metadata': metadata
+        })
 
         if not file_change_requests:
             if len(title + summary) < 60:
