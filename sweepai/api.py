@@ -183,43 +183,43 @@ def call_on_ticket(*args, **kwargs):
     if e:
         logger.info(f"Found previous thread for key {key} and cancelling it, traceback: {traceback.format_exc()}")
         terminate_thread(e)
-        
-        thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
-        on_ticket_events[key] = thread
-        thread.start()
-        
-        
-        def call_on_check_suite(*args, **kwargs):
-            repo_full_name = kwargs["request"].repository.full_name
-            pr_number = kwargs["request"].check_run.pull_requests[0].number
-            key = f"{repo_full_name}-{pr_number}"
-            thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
-            thread.start()
-        
-        
-        def call_on_comment(
-            *args, **kwargs
-        ):  # TODO: if its a GHA delete all previous GHA and append to the end
-            def worker():
-                while not events[key].empty():
-                    task_args, task_kwargs = events[key].get()
-                    run_on_comment(*task_args, **task_kwargs)
-        
-            global events
-            repo_full_name = kwargs["repo_full_name"]
-            pr_id = kwargs["pr_number"]
-            key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
-        
-            comment_type = kwargs["comment_type"]
-            priority = (
-                0 if comment_type == "comment" else 1
-            )  # set priority to 0 if comment, 1 if GHA
-            logger.info(f"Received comment type: {comment_type}, traceback: {traceback.format_exc()}")
-        
-            if key not in events:
-                events[key] = SafePriorityQueue()
-        
-            events[key].put(priority, (args, kwargs))
+
+    thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
+    on_ticket_events[key] = thread
+    thread.start()
+
+
+def call_on_check_suite(*args, **kwargs):
+    repo_full_name = kwargs["request"].repository.full_name
+    pr_number = kwargs["request"].check_run.pull_requests[0].number
+    key = f"{repo_full_name}-{pr_number}"
+    thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
+    thread.start()
+
+
+def call_on_comment(
+    *args, **kwargs
+):  # TODO: if its a GHA delete all previous GHA and append to the end
+    def worker():
+        while not events[key].empty():
+            task_args, task_kwargs = events[key].get()
+            run_on_comment(*task_args, **task_kwargs)
+
+    global events
+    repo_full_name = kwargs["repo_full_name"]
+    pr_id = kwargs["pr_number"]
+    key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
+
+    comment_type = kwargs["comment_type"]
+    priority = (
+        0 if comment_type == "comment" else 1
+    )  # set priority to 0 if comment, 1 if GHA
+    logger.info(f"Received comment type: {comment_type}")
+
+    if key not in events:
+        events[key] = SafePriorityQueue()
+
+    events[key].put(priority, (args, kwargs))
 
     # If a thread isn't running, start one
     if not any(
@@ -633,7 +633,7 @@ async def webhook(raw_request: Request):
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.error(f"Failed to add config to top repos: {e}")
+                    logger.error(f"Failed to add config to top repos: {e}, traceback: {traceback.format_exc()}")
 
                 # Index all repos
                 for repo in repos_added_request.repositories:
