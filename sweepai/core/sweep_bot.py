@@ -112,20 +112,36 @@ class ModifyBot:
         file_change_request: FileChangeRequest,
         chunking: bool = False,
     ):
-        fetch_snippets_response = self.fetch_snippets_bot.chat(
-            fetch_snippets_prompt.format(
-                code=file_contents,
-                file_path=file_path,
-                request=file_change_request.instructions,
-                chunking_prompt='\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n'
-                if chunking
-                else "",
-            )
+        fetch_snippets_response = self._fetch_snippets(
+            file_contents, file_path, file_change_request, chunking
         )
-
-        snippet_queries = []
-        query_pattern = (
-            r'<snippet instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet>'
+    
+        snippet_queries = self._extract_snippet_queries(fetch_snippets_response)
+    
+        assert len(snippet_queries) > 0, "No snippets found in file"
+    
+        best_matches = self._find_best_matches(snippet_queries, file_contents)
+    
+        assert len(best_matches) > 0, "No matches found in file"
+    
+        deduped_matches = self._deduplicate_matches(best_matches)
+    
+        selected_snippets = self._select_snippets(deduped_matches, file_contents)
+    
+        print(deduped_matches)
+    
+        update_snippets_response = self._update_snippets(
+            file_contents, file_path, file_change_request, selected_snippets
+        )
+    
+        updated_snippets = self._extract_updated_snippets(update_snippets_response)
+    
+        result = self._replace_in_file(selected_snippets, updated_snippets, file_contents)
+    
+        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
+        result = result.rstrip("\n") + "\n" * ending_newlines
+    
+        return result
         )
         for instructions, code in re.findall(
             query_pattern, fetch_snippets_response, re.DOTALL
@@ -495,23 +511,12 @@ class CodeGenBot(ChatGPT):
             too_long = False
             try:
                 logger.info(f"Generating for the {count}th time...")
-                if (
-                    too_long or count >= retries - 1
-                ):  # if on last try, use gpt4-32k (improved context window)
-                    pr_text_response = self.chat(
-                        pull_request_prompt, message_key="pull_request"
-                    )
-                else:
-                    pr_text_response = self.chat(
-                        pull_request_prompt,
-                        message_key="pull_request",
-                        model=SECONDARY_MODEL,
-                    )
-
+                pr_text_response = self._generate_pr_text(too_long, count, retries)
+    
                 # Add triple quotes if not present
                 if not pr_text_response.strip().endswith('"""'):
                     pr_text_response += '"""'
-
+    
                 self.delete_messages_from_chat("pull_request")
             except SystemExit:
                 raise SystemExit
@@ -523,18 +528,9 @@ class CodeGenBot(ChatGPT):
                 self.delete_messages_from_chat("pull_request")
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
-
-            # Remove duplicate slashes from branch name (max 1)
-            final_branch = pull_request.branch_name[:240]
-            final_branch = final_branch.split("/", 1)[-1]
-
-            use_underscores = get_branch_name_config(self.repo)
-            if use_underscores:
-                final_branch = final_branch.replace("/", "_")
-
-            pull_request.branch_name = (
-                "sweep/" if not use_underscores else "sweep_"
-            ) + final_branch
+    
+            pull_request.branch_name = self._format_branch_name(pull_request.branch_name)
+    
             return pull_request
         raise Exception("Could not generate PR text")
 
@@ -1140,66 +1136,71 @@ class SweepBot(CodeGenBot, GithubBot):
         blocked_dirs: list[str],
         sandbox=None,
     ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
-        # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
-        # num_fcr = len(file_change_requests)
-        completed = 0
         sandbox_execution = None
-
-        # added_modify_hallucination = False
-
-        LINE_CUTOFF = 600
         changed_files: list[tuple[str, str]] = []
 
         for file_change_request in file_change_requests:
             logger.print(file_change_request.change_type, file_change_request.filename)
             changed_file = False
 
-            # popping files too long
-            # total_lines = 0
-            # new_changed_files = []
-            # for file_name, changed_file in changed_files:
-            #     if total_lines + len(changed_file.splitlines()) > LINE_CUTOFF:
-            #         break
-            #     new_changed_files.append((file_name, changed_file))
-            #     total_lines += len(changed_file.splitlines())
-            # changed_files = new_changed_files
+            if self.is_file_blocked(file_change_request.filename, blocked_dirs):
+                continue
 
-            try:
-                commit = None
-                # Todo(Sweep): add commit for each type of change type
-                if self.is_blocked(file_change_request.filename, blocked_dirs)[
-                    "success"
-                ]:
-                    logger.info(
-                        f"Skipping {file_change_request.filename} because it is"
-                        " blocked."
+            logger.print(
+                f"Processing {file_change_request.filename} for change type"
+                f" {file_change_request.change_type}..."
+            )
+
+            changed_file, sandbox_execution, commit = self.process_file_change_request(
+                file_change_request, branch, sandbox, changed_files
+            )
+
+            if changed_file:
+                changed_files.append(
+                    (
+                        file_change_request.filename,
+                        file_change_request.new_content,
                     )
-                    continue
-
-                logger.print(
-                    f"Processing {file_change_request.filename} for change type"
-                    f" {file_change_request.change_type}..."
                 )
-                match file_change_request.change_type:
-                    case "create":
-                        (
-                            changed_file,
-                            sandbox_execution,
-                            commit,
-                        ) = self.handle_create_file(
-                            file_change_request,
-                            branch,
-                            sandbox=sandbox,
-                            changed_files=changed_files,
+
+            yield file_change_request, changed_file
+
+    def is_file_blocked(self, filename: str, blocked_dirs: list[str]) -> bool:
+        if self.is_blocked(filename, blocked_dirs)["success"]:
+            logger.info(
+                f"Skipping {filename} because it is blocked."
+            )
+            return True
+        return False
+
+    def process_file_change_request(
+        self,
+        file_change_request: FileChangeRequest,
+        branch: str,
+        sandbox=None,
+        changed_files: list[tuple[str, str]] = [],
+    ) -> tuple[bool, Any, Any]:
+        commit = None
+        changed_file = False
+        sandbox_execution = None
+
+        match file_change_request.change_type:
+            case "create":
+                (
+                    changed_file,
+                    sandbox_execution,
+                    commit,
+                ) = self.handle_create_file(
+                    file_change_request,
+                    branch,
+                    sandbox=sandbox,
+                    changed_files=changed_files,
+                )
+
+        return changed_file, sandbox_execution, commit
                         )
-                        changed_files.append(
-                            (
-                                file_change_request.filename,
-                                file_change_request.new_content,
-                            )
-                        )
-                    case "modify" | "rewrite":
+                    elif file_change_request.change_type == "modify" or file_change_request.change_type == "rewrite":
                         # Remove snippets from this file if they exist
                         snippet_msgs = [
                             m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
@@ -1233,7 +1234,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 file_change_request.new_content,
                             )
                         )
-                    case "delete":
+                    elif file_change_request.change_type == "delete":
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch
                         )
@@ -1244,7 +1245,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             branch=branch,
                         )
                         changed_file = True
-                    case "rename":
+                    elif file_change_request.change_type == "rename":
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch
                         )
@@ -1264,7 +1265,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             branch=branch,
                         )
                         changed_file = True
-                    case _:
+                    else:
                         raise Exception(
                             f"Unknown change type {file_change_request.change_type}"
                         )
@@ -1339,6 +1340,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 400,
                 # 300,
             ]  # Define the chunk sizes for the backoff mechanism
+            USING_DIFF = False  # Define the USING_DIFF variable
             for CHUNK_SIZE in chunk_sizes:
                 try:
                     chunking = (
