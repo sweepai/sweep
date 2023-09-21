@@ -1,6 +1,6 @@
 from typing import List
 
-from sweepai.events import IssueCommentChanges
+from sweepai.events import IssueCommentChanges, Changes
 
 
 def create_button(label: str, selected: bool = False):
@@ -13,14 +13,14 @@ def create_action_buttons(labels: List[str]):
     return header + buttons
 
 
-def get_toggled_state(label: str, changes_request: IssueCommentChanges) -> bool:
-    old_content = changes_request.changes.body["from"]
+def get_toggled_state(label: str, changes_request: Changes) -> bool:
+    old_content = changes_request.body_from
     button = create_button(label, selected=True)
     return button.lower() in old_content.lower()
 
 
 def check_button_activated(
-    label: str, body: str, changes_request: IssueCommentChanges | None = None
+    label: str, body: str, changes_request: Changes | None = None
 ) -> bool:
     if changes_request:
         if get_toggled_state(label, changes_request):

@@ -280,3 +280,7 @@ UPDATES_MESSAGE = """\
 * Added support for self-hosting! Check out [Self-hosting Sweep](https://docs.sweep.dev/deployment) to get started.
 * [Self Hosting] Multiple options to compute vector embeddings, configure your .env file using [VECTOR_EMBEDDING_SOURCE](https://github.com/sweepai/sweep/blob/main/sweepai/config/server.py#L144)
 """
+
+RESTART_SWEEP_BUTTON = "↻ Restart Sweep"
+SWEEP_GOOD_FEEDBACK = "👍 Sweep Did Well"
+SWEEP_BAD_FEEDBACK = "👎 Sweep Needs Improvement"
