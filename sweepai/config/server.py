@@ -7,14 +7,7 @@ from logn import logger
 
 load_dotenv(dotenv_path=".env")
 
-os.environ["GITHUB_APP_PEM"] = (
-    os.environ.get(
-        "GITHUB_APP_PEM",
-        base64.b64decode(os.environ.get("GITHUB_APP_PEM_BASE64", "")).decode("utf-8"),
-    )
-    .replace("\\n", "\n")
-    .strip('"')
-)
+# No code here as the first instance of setting GITHUB_APP_PEM is removed
 
 os.environ["TRANSFORMERS_CACHE"] = os.environ.get(
     "TRANSFORMERS_CACHE", "/tmp/cache/model"
@@ -55,27 +48,7 @@ DISCORD_STATUS_WEBHOOK_URL = os.environ.get("DISCORD_STATUS_WEBHOOK_URL")
 
 # goes under Modal 'github' secret name
 GITHUB_APP_ID = os.environ.get("GITHUB_APP_ID", os.environ.get("APP_ID"))
-# deprecated: old logic transfer so upstream can use this
-if GITHUB_APP_ID is None:
-    if ENV == "prod":
-        GITHUB_APP_ID = "307814"
-    elif ENV == "dev":
-        GITHUB_APP_ID = "324098"
-    elif ENV == "staging":
-        GITHUB_APP_ID = "327588"
-print("GitHub app ID:", GITHUB_APP_ID)
-GITHUB_BOT_USERNAME = os.environ.get("GITHUB_BOT_USERNAME")
-
-# deprecated: left to support old logic
-if not GITHUB_BOT_USERNAME:
-    if ENV == "prod":
-        GITHUB_BOT_USERNAME = "sweep-ai[bot]"
-    elif ENV == "dev":
-        GITHUB_BOT_USERNAME = "sweep-nightly[bot]"
-    elif ENV == "staging":
-        GITHUB_BOT_USERNAME = "sweep-canary[bot]"
-elif not GITHUB_BOT_USERNAME.endswith("[bot]"):
-    GITHUB_BOT_USERNAME = GITHUB_BOT_USERNAME + "[bot]"
+# Removed deprecated code for setting GITHUB_APP_ID and GITHUB_BOT_USERNAME
 
 GITHUB_LABEL_NAME = os.environ.get("GITHUB_LABEL_NAME", "sweep")
 GITHUB_LABEL_COLOR = os.environ.get("GITHUB_LABEL_COLOR", "9400D3")
@@ -153,9 +126,7 @@ MONGODB_URI = os.environ.get("MONGODB_URI")
 
 # goes under Modal 'redis_url' secret name (optional, can leave env var blank)
 REDIS_URL = os.environ.get("REDIS_URL")
-# deprecated: old logic transfer so upstream can use this
-if not REDIS_URL:
-    REDIS_URL = os.environ.get("redis_url", "redis://0.0.0.0:6379/0")
+# Removed deprecated code for setting REDIS_URL
 
 ORG_ID = os.environ.get("ORG_ID", None)
 # goes under Modal 'posthog' secret name (optional, can leave env var blank)
