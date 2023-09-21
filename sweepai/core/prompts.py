@@ -1221,6 +1221,10 @@ gpt4_human_message_entity_plan_prompt = """\
 <entities_to_explore>
 {entity}
 </entities_to_explore>
+
+<entities>
+{entity}
+</entities>
 """
 
 # Todo:
@@ -1252,6 +1256,10 @@ Paths to Explore:
 <entities_to_explore>
 {entity}
 </entities_to_explore>
+
+<entities>
+{entity}
+</entities>
 """,
     user_prompt=[
         """<entity name=\"{entity_name}\" file_path=\"{file_path}\">
