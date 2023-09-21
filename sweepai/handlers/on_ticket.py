@@ -195,12 +195,62 @@ def on_ticket(
         "fast_mode": fast_mode,
     }
     # logger.bind(**metadata)
+    # Calculate is_python_issue boolean
+    is_python_issue = repo.language == "Python"
+    
+    metadata = {
+        "issue_url": issue_url,
+        "repo_full_name": repo_full_name,
+        "organization": organization,
+        "repo_name": repo_name,
+        "repo_description": repo_description,
+        "username": username,
+        "comment_id": comment_id,
+        "title": title,
+        "installation_id": installation_id,
+        "function": "on_ticket",
+        "edited": edited,
+        "model": "gpt-3.5" if use_faster_model else "gpt-4",
+        "tier": "pro" if is_paying_user else "free",
+        "mode": ENV,
+        "slow_mode": slow_mode,
+        "do_map": do_map,
+        "subissues_mode": subissues_mode,
+        "sandbox_mode": sandbox_mode,
+        "fast_mode": fast_mode,
+        "is_python_issue": is_python_issue,
+    }
     posthog.capture(username, "started", properties=metadata)
 
     logger.info(f"Getting repo {repo_full_name}")
 
     if current_issue.state == "closed":
         logger.warning(f"Issue {issue_number} is closed")
+        # Calculate is_python_issue boolean
+        is_python_issue = repo.language == "Python"
+        
+        metadata = {
+            "issue_url": issue_url,
+            "repo_full_name": repo_full_name,
+            "organization": organization,
+            "repo_name": repo_name,
+            "repo_description": repo_description,
+            "username": username,
+            "comment_id": comment_id,
+            "title": title,
+            "installation_id": installation_id,
+            "function": "on_ticket",
+            "edited": edited,
+            "model": "gpt-3.5" if use_faster_model else "gpt-4",
+            "tier": "pro" if is_paying_user else "free",
+            "mode": ENV,
+            "slow_mode": slow_mode,
+            "do_map": do_map,
+            "subissues_mode": subissues_mode,
+            "sandbox_mode": sandbox_mode,
+            "fast_mode": fast_mode,
+            "is_python_issue": is_python_issue,
+        }
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
     current_issue.edit(body=summary)
@@ -1110,6 +1160,7 @@ def on_ticket(
             properties={
                 "error": str(e),
                 "reason": "Invalid request error / context length",
+                "is_python_issue": is_python_issue,
                 **metadata,
             },
         )
@@ -1152,7 +1203,12 @@ def on_ticket(
         posthog.capture(
             username,
             "failed",
-            properties={"error": str(e), "reason": "Generic error", **metadata},
+            properties={
+                "error": str(e), 
+                "reason": "Generic error", 
+                "is_python_issue": is_python_issue,
+                **metadata
+            },
         )
         raise e
     else:
@@ -1181,6 +1237,6 @@ def on_ticket(
             logger.error(traceback.format_exc())
             logger.print("Deleted branch", pull_request.branch_name)
 
-    posthog.capture(username, "success", properties={**metadata})
+    posthog.capture(username, "success", properties={"is_python_issue": is_python_issue, **metadata})
     logger.info("on_ticket success")
     return {"success": True}
