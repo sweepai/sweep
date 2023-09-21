@@ -21,12 +21,16 @@ class HumanMessagePrompt(BaseModel):
     tree: str
     repo_description: str = ""
 
+    class Snippet(BaseModel):
+        file_path: str
+        xml: str
+    
     def delete_file(self, file_path):
         # Remove the snippets from the main list
         self.snippets = [
             snippet for snippet in self.snippets if snippet.file_path != file_path
         ]
-
+    
     def get_relevant_directories(self):
         deduped_paths = set()
         for snippet in self.snippets:
@@ -40,10 +44,10 @@ class HumanMessagePrompt(BaseModel):
             + "\n"
             + "</relevant_paths_in_repo>"
         )
-
+    
     def get_file_paths(self):
         return [snippet.file_path for snippet in self.snippets]
-
+    
     @staticmethod
     def render_snippet_array(snippets):
         joined_snippets = "\n".join(snippet.xml for snippet in snippets)
@@ -127,6 +131,10 @@ class HumanMessagePromptReview(HumanMessagePrompt):
     diffs: list
     plan: str
 
+    class Diff(BaseModel):
+        file_name: str
+        file_patch: str
+    
     def format_diffs(self):
         formatted_diffs = (
             diff_section_prompt.format(diff_file_path=file_name, diffs=file_patch)
@@ -168,6 +176,10 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
     pr_chunk: str | None
     original_line: str | None
 
+    class Diff(BaseModel):
+        file_name: str
+        file_patch: str
+    
     def format_diffs(self):
         formatted_diffs = []
         for file_name, file_patch in self.diffs:
