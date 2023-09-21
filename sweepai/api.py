@@ -270,12 +270,12 @@ async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
-        logger.info(f"Received request: {request_dict.keys()}")
+        logger.info(f"Received request: {request_dict.keys()}, traceback: {traceback.format_exc()}")
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
         action = request_dict.get("action", None)
         # logger.bind(event=event, action=action)
-        logger.info(f"Received event: {event}, {action}")
+        logger.info(f"Received event: {event}, {action}, traceback: {traceback.format_exc()}")
         match event, action:
             case "issues", "opened":
                 request = IssueRequest(**request_dict)
@@ -599,10 +599,8 @@ async def webhook(raw_request: Request):
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    import traceback
-                    logger.error(f"Failed to add config to top repos: {e}, traceback: {traceback.format_exc()}")
-                    
-                    posthog.capture(
+                    logger.error(f"Failed to add config to top repos: {e}")
+                                    posthog.capture(
                                         "installation_repositories", "started", properties={**metadata}
                                     )
                 for repo in repos_added_request.repositories_added:
@@ -632,7 +630,7 @@ async def webhook(raw_request: Request):
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.error(f"Failed to add config to top repos: {e}, traceback: {traceback.format_exc()}")
+                    logger.error(f"Failed to add config to top repos: {e}")
 
                 # Index all repos
                 for repo in repos_added_request.repositories:
@@ -714,7 +712,7 @@ async def webhook(raw_request: Request):
                     f"Unhandled event: {event} {request_dict.get('action', None)}"
                 )
     except ValidationError as e:
-        logger.warning(f"Failed to parse request: {e}, traceback: {traceback.format_exc()}")
+        logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
 
@@ -773,9 +771,9 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                 raise SystemExit
             except Exception as e:
                 logger.error(
-                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}, traceback: {traceback.format_exc()}"
+                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
                 )
     except SystemExit:
         raise SystemExit
     except:
-        logger.warning(f"Failed to update sweep PRs, traceback: {traceback.format_exc()}")
+        logger.warning(f"Failed to update sweep PRs")
