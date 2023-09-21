@@ -3,7 +3,10 @@ import os
 
 from dotenv import load_dotenv
 
-from logn import logger
+from loguru import logger
+
+logger.print = logger.info
+# from logn import logger
 
 load_dotenv(dotenv_path=".env")
 
@@ -162,6 +165,8 @@ ORG_ID = os.environ.get("ORG_ID", None)
 POSTHOG_API_KEY = os.environ.get(
     "POSTHOG_API_KEY", "phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n"
 )
+
+LOGTAIL_SOURCE_KEY = os.environ.get("LOGTAIL_SOURCE_KEY")
 
 E2B_API_KEY = os.environ.get("E2B_API_KEY")
 
