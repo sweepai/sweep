@@ -21,8 +21,6 @@ if POSTHOG_API_KEY is None or POSTHOG_API_KEY.lower() == "none":
 else:
     posthog = Posthog(project_api_key=POSTHOG_API_KEY, host="https://app.posthog.com")
 
-logger.print = logger.info
-
 # if LOGTAIL_SOURCE_KEY:
 #     logger = logger.bind(pid=os.getpid())
 #     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
