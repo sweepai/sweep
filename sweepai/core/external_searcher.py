@@ -15,11 +15,11 @@ class ExternalSearcher(ChatGPT):
         pattern = r"\b(?:(?:https?|ftp)://|www\.)\S+\b"
         return list(set(re.findall(pattern, content)))
 
-    def extract_summary_from_link(self, url: str, problem: str) -> str:
+    def extract_summary_from_link(self, url: str, problem: str, model_name: str = "gpt-3.5-turbo-16k-0613") -> str:
         page_metadata = extract_info(url)
-
+    
         self.messages = [Message(role="system", content=external_search_system_prompt)]
-        self.model = "gpt-3.5-turbo-16k-0613"  # can be optimized
+        self.model = model_name
         response = self.chat(
             external_search_prompt.format(
                 page_metadata=page_metadata,
@@ -36,6 +36,7 @@ class ExternalSearcher(ChatGPT):
         if not links:
             return ""
         result = "\n\n**Summaries of links found in the content:**\n\n"
+        external_searcher = ExternalSearcher()
         for link in links:
             logger.info(f"Extracting summary from {link}")
             try:
