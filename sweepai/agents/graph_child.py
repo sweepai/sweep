@@ -58,7 +58,7 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
     @classmethod
     def from_string(cls, string: str, file_path: str, **kwargs):
         snippets_pattern = r"""<relevant_new_snippet>(\n)?(?P<relevant_new_snippet>.*)</relevant_new_snippet>"""
-        plan_pattern = r"""<changes_for_new_file>(\n)?(?P<changes_for_new_file>.*)</changes_for_new_file>"""
+        plan_pattern = r"""<changes_for_new_file.*?>(\n)?(?P<changes_for_new_file>.*)</changes_for_new_file>"""
         snippets_match = re.search(snippets_pattern, string, re.DOTALL)
         relevant_new_snippet_match = None
         changes_for_new_file = ""
@@ -1689,3 +1689,36 @@ class SweepBot(CodeGenBot, GithubBot):
     print("\nExtracting Span:")
     span = extract_python_span(file, ["ModifyBot"])
     print(span)
+
+    # test response for plan
+    response = """<code_analysis>
+The issue requires moving the is_python_issue bool in sweep_bot to the on_ticket.py flow. The is_python_issue bool is used in the get_files_to_change function in sweep_bot.py to determine if the issue is related to a Python file. This information is then logged and used to generate a plan for the relevant snippets. 
+
+In the on_ticket.py file, the get_files_to_change function is called, but the is_python_issue bool is not currently used or logged. The issue also requires using the metadata in on_ticket to log this event to posthog, which is a platform for product analytics. 
+
+The posthog.capture function is used in on_ticket.py to log events with specific properties. The properties include various metadata about the issue and the user. The issue requires passing the is_python_issue bool to get_files_to_change and then logging this as an event to posthog.
+</code_analysis>
+
+<relevant_new_snippet>
+sweepai/handlers/on_ticket.py:590-618
+</relevant_new_snippet>
+
+<changes_for_new_file file_path="sweepai/handlers/on_ticket.py">
+First, you need to modify the get_files_to_change function call in on_ticket.py to pass the is_python_issue bool. You can do this by adding an argument to the function call at line 690. The argument should be a key-value pair where the key is 'is_python_issue' and the value is the is_python_issue bool.
+
+Next, you need to log the is_python_issue bool as an event to posthog. You can do this by adding a new posthog.capture function call after the get_files_to_change function call. The first argument to posthog.capture should be 'username', the second argument should be a string describing the event (for example, 'is_python_issue'), and the third argument should be a dictionary with the properties to log. The properties should include 'is_python_issue' and its value.
+
+Here is an example of how to make these changes:
+
+```python
+# Add is_python_issue to get_files_to_change function call
+file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue=is_python_issue)
+
+# Log is_python_issue to posthog
+posthog.capture(username, 'is_python_issue', properties={'is_python_issue': is_python_issue})
+```
+Please replace 'is_python_issue' with the actual value of the bool.
+</changes_for_new_file>"""
+    gc_and_plan = GraphContextAndPlan.from_string(response, "sweepai/handlers/on_ticket.py")
+    print(gc_and_plan.changes_for_new_file)
+    # import pdb; pdb.set_trace()
