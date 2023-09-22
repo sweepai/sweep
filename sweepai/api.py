@@ -86,7 +86,7 @@ def run_on_ticket(*args, is_python_issue=False, **kwargs):
         on_ticket(*args, is_python_issue=is_python_issue, **kwargs)
 
 
-def call_on_ticket(*args, **kwargs):
+def call_on_ticket(*args, is_python_issue=False, **kwargs):
     global on_ticket_events
     key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
 
@@ -97,7 +97,7 @@ def call_on_ticket(*args, **kwargs):
         logger.info(f"Found previous thread for key {key} and cancelling it")
         terminate_thread(e)
 
-    thread = threading.Thread(target=run_on_ticket, args=args, kwargs={**kwargs, 'is_python_issue': kwargs.get('is_python_issue', False)})
+    thread = threading.Thread(target=run_on_ticket, args=args, kwargs={**kwargs, 'is_python_issue': is_python_issue})
     on_ticket_events[key] = thread
     thread.start()
 
