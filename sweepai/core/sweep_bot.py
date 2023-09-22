@@ -1362,6 +1362,8 @@ class ModifyBot:
         for instructions, code in re.findall(
             query_pattern, fetch_snippets_response, re.DOTALL
         ):
+            if len(instructions) < 25: # "No changes needed" in the snippet instructions
+                continue
             snippet_queries.append((instructions, strip_backticks(code)))
 
         assert len(snippet_queries) > 0, "No snippets found in file"
