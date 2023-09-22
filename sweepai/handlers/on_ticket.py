@@ -89,6 +89,7 @@ def on_ticket(
     is_python_issue: bool = False,
 ):
 ):
+):
     (
         title,
         slow_mode,
@@ -628,6 +629,7 @@ def on_ticket(
         sweep_context=sweep_context,
         cloned_repo=cloned_repo,
         is_python_issue=is_python_issue,
+    )
     )
     )
     )
