@@ -90,6 +90,7 @@ def on_ticket(
 ):
 ):
 ):
+):
     (
         title,
         slow_mode,
@@ -644,6 +645,7 @@ def on_ticket(
     )
     )
     )
+    )
 
     # Check repository for sweep.yml file.
     sweep_yml_exists = False
@@ -808,6 +810,7 @@ def on_ticket(
             comment_id: int = None,
             edited: bool = False,
             is_python_issue: bool = False,
+        ):
         ):
         ):
         ):
