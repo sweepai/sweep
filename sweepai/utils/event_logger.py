@@ -1,7 +1,5 @@
-# import os
-# import loguru
-# from logtail import LogtailHandler
-# import logging
+from sweepai.core.sweep_bot import on_ticket, get_files_to_change
+from sweepai.core.sweep_bot import is_python_issue
 from logn import logger
 
 # import loguru
@@ -20,6 +18,7 @@ if POSTHOG_API_KEY is None or POSTHOG_API_KEY.lower() == "none":
     )
 else:
     posthog = Posthog(project_api_key=POSTHOG_API_KEY, host="https://app.posthog.com")
+    posthog.capture('is_python_issue', {'value': is_python_issue})
 
 # if LOGTAIL_SOURCE_KEY:
 #     logger = logger.bind(pid=os.getpid())
@@ -44,3 +43,4 @@ def set_highlight_id(id):
             serialize=True,
         )
         """
+    get_files_to_change(is_python_issue)
