@@ -373,16 +373,6 @@ def on_comment(
                             sha=current_content.sha,
                             branch=branch_name,
                         )
-                        # Add pr diffs
-                        if pr_diff_string is not None:
-                            sweep_bot.messages.insert(
-                                1,
-                                Message(
-                                    role="user",
-                                    content=pr_diff_string,
-                                    key="pr_diffs",
-                                ),
-                            )
                     else:
                         logger.info("Deleting file...")
                         sweep_bot.repo.delete_file(
@@ -467,7 +457,9 @@ def on_comment(
                     cloned_repo=cloned_repo,
                 )
             else:
-                file_change_requests, _ = sweep_bot.get_files_to_change(retries=1)
+                file_change_requests, _ = sweep_bot.get_files_to_change(
+                    retries=1, pr_diffs=pr_diff_string
+                )
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name
                 )
