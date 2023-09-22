@@ -3,9 +3,14 @@ from sweepai.utils.github_utils import get_github_client
 from sweepai.core.post_merge import PostMerge
 from logn import logger, LogTask
 from sweepai.utils.event_logger import posthog
+from sweepai.utils.safe_priority_queue import SafePriorityQueue
+from sweepai.utils.redis_client import redis_client
 
 # change threshold for number of lines changed
 CHANGE_THRESHOLD = 25
+
+# global dictionary to track the last time a rule was activated for each repo
+last_rule_call_times = SafePriorityQueue()
 
 
 @LogTask()
@@ -34,10 +39,16 @@ def on_merge(request_dict, chat_logger):
     ] != SweepConfig.get_branch(repo):
         logger.info("Not a merge to master")
         return None
-    rules = get_rules(repo)
-    if not rules:
-        logger.info("No rules found")
-        return None
+    last_rule_call_time = redis_client.get(f"{repo.full_name}_last_rule_call_time")
+    current_time = time.time()
+    if last_rule_call_time is not None and current_time - float(last_rule_call_time) < 30:
+        last_rule_call_times.put((current_time + 30, repo))
+    else:
+        rules = get_rules(repo)
+        if not rules:
+            logger.info("No rules found")
+            return None
+        redis_client.set(f"{repo.full_name}_last_rule_call_time", current_time)
     full_commit = repo.get_commit(head_commit["id"])
     total_lines_changed = full_commit.stats.total
     if total_lines_changed < CHANGE_THRESHOLD:
@@ -63,6 +74,12 @@ def on_merge(request_dict, chat_logger):
                 assignees=[commit_author],
             )
             total_prs += 1
+        # Check the SafePriorityQueue for any rules calls that are due and call them
+        while not last_rule_call_times.empty() and last_rule_call_times.queue[0][0] <= time.time():
+            _, due_repo = last_rule_call_times.get()
+            due_rules = get_rules(due_repo)
+            if due_rules:
+                redis_client.set(f"{due_repo.full_name}_last_rule_call_time", time.time())
     if rules:
         posthog.capture(
             commit_author,
@@ -73,3 +90,5 @@ def on_merge(request_dict, chat_logger):
                 "total_files_changed": total_files_changed,
             },
         )
+    # Update the time of the last rules call in the redis_client after each rules call
+    redis_client.set(f"{repo.full_name}_last_rule_call_time", time.time())
