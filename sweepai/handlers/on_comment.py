@@ -259,9 +259,14 @@ def on_comment(
                 + "\n".join(pr_lines[pr_line_position:end])
             )
             if comment_id:
-                bot_comment = pr.create_review_comment_reply(
-                    comment_id, "Working on it..."
-                )
+                try:
+                    bot_comment = pr.create_review_comment_reply(
+                        comment_id, "Working on it..."
+                    )
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    print(e)
         else:
             formatted_pr_chunk = None  # pr_file
             bot_comment = pr.create_issue_comment("Working on it...")
@@ -312,11 +317,6 @@ def on_comment(
             sweep_context=sweep_context,
             cloned_repo=cloned_repo,
         )
-        # Add pr_diff_string to sweep_bot messages after first message
-        if pr_diff_string is not None:
-            sweep_bot.messages.insert(
-                1, Message(role="user", content=pr_diff_string, key="pr_diffs")
-            )
     except Exception as e:
         logger.error(traceback.format_exc())
         capture_posthog_event(
@@ -493,6 +493,7 @@ def on_comment(
 
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
 
+        sweep_bot.comment_pr_diff_str = pr_diff_string
         changes_made = sum(
             [
                 change_made
