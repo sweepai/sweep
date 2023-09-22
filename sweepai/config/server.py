@@ -36,7 +36,7 @@ BATCH_SIZE = int(
 ENV = os.environ.get("ENV", "dev")
 # ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
 
-print(f"Using environment: {ENV}")
+logger.info(f"Using environment: {ENV}")
 # ENV = PREFIX
 # ENVIRONMENT = PREFIX
 
@@ -66,7 +66,7 @@ if GITHUB_APP_ID is None:
         GITHUB_APP_ID = "324098"
     elif ENV == "staging":
         GITHUB_APP_ID = "327588"
-print("GitHub app ID:", GITHUB_APP_ID)
+logger.info("GitHub app ID:", GITHUB_APP_ID)
 GITHUB_BOT_USERNAME = os.environ.get("GITHUB_BOT_USERNAME")
 
 # deprecated: left to support old logic
@@ -181,7 +181,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
 SANDBOX_URL = os.environ.get("SANDBOX_URL", "http://sandbox-web:8080")
 if SANDBOX_URL is not None:
-    logger.print(f"Using Sandbox URL: {SANDBOX_URL}")
+    logger.info(f"Using Sandbox URL: {SANDBOX_URL}")
 
 HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY", None)
 
