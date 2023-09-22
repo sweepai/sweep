@@ -527,6 +527,13 @@ class MaxTokensExceeded(Exception):
     def __init__(self, filename):
         self.filename = filename
 
+class UnneededEditError(Exception):
+    def __init__(self, filename):
+        self.filename = filename
+
+class MatchingError(Exception):
+    def __init__(self, filename):
+        self.filename = filename
 
 class EmptyRepository(Exception):
     def __init__(self):
