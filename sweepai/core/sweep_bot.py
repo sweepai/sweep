@@ -702,6 +702,8 @@ class GithubBot(BaseModel):
 
 
 class SweepBot(CodeGenBot, GithubBot):
+    comment_pr_diff_str: str | None = None
+
     @staticmethod
     def run_sandbox(
         repo_url: str,
@@ -891,7 +893,6 @@ class SweepBot(CodeGenBot, GithubBot):
         chunk_offset: int = 0,
         sandbox=None,
         changed_files: list[tuple[str, str]] = [],
-        initial_additional_messages: list[str] = [],
     ):
         key = f"file_change_modified_{file_change_request.filename}"
         file_markdown = is_markdown(file_change_request.filename)
@@ -912,7 +913,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     for file_path, diffs in file_path_to_contents.items()
                 ]
             )
-            additional_messages = initial_additional_messages + (
+            additional_messages = (
                 [
                     Message(
                         content=changed_files_summary,
@@ -933,7 +934,13 @@ class SweepBot(CodeGenBot, GithubBot):
                 else []
             )
             modify_file_bot = ModifyBot(
-                additional_messages=additional_messages,
+                additional_messages=[
+                    Message(
+                        role="user", content=self.comment_pr_diff_str, key="pr_diffs"
+                    )
+                ]
+                if self.comment_pr_diff_str
+                else [],
                 chat_logger=self.chat_logger,
             )
             try:
