@@ -705,6 +705,7 @@ async def webhook(raw_request: Request):
                                 "username": request.sender.login,
                                 "good_button": good_button,
                                 "bad_button": bad_button,
+                                "revert_button": revert_button,
                             },
                         )
 
