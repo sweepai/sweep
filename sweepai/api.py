@@ -86,102 +86,6 @@ def run_on_ticket(*args, is_python_issue=False, **kwargs):
         on_ticket(*args, is_python_issue=is_python_issue, **kwargs)
 
 
-def run_on_comment(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "comment_" + kwargs["username"],
-        },
-        create_file=False,
-    )
-
-    with logger:
-        on_comment(*args, **kwargs)
-
-
-def run_on_merge(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "merge_" + args[0]["pusher"]["name"],
-        },
-        create_file=False,
-    )
-    with logger:
-        on_merge(*args, **kwargs)
-
-
-def run_on_write_docs(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "docs_scrape",
-        },
-        create_file=False,
-    )
-    with logger:
-        write_documentation(*args, **kwargs)
-
-
-def run_on_check_suite(*args, **kwargs):
-    logger.init(
-        metadata={
-            "name": "check",
-        },
-        create_file=False,
-    )
-
-    request = kwargs["request"]
-    pr_change_request = on_check_suite(request)
-    if pr_change_request:
-        logger.init(
-            metadata={
-                **pr_change_request.params,
-                "name": "check_" + pr_change_request.params["username"],
-            },
-            create_file=False,
-        )
-        with logger:
-            call_on_comment(**pr_change_request.params, comment_type="github_action")
-        logger.info("Done with on_check_suite")
-    else:
-        logger.info("Skipping on_check_suite as no pr_change_request was returned")
-
-
-def run_get_deeplake_vs_from_repo(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "deeplake",
-        },
-        create_file=False,
-    )
-    with logger:
-        get_deeplake_vs_from_repo(*args, **kwargs)
-
-
-def terminate_thread(thread):
-    """Terminate a python threading.Thread."""
-    try:
-        if not thread.is_alive():
-            return
-
-        exc = ctypes.py_object(SystemExit)
-        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
-            ctypes.c_long(thread.ident), exc
-        )
-        if res == 0:
-            raise ValueError("Invalid thread ID")
-        elif res != 1:
-            # Call with exception set to 0 is needed to cleanup properly.
-            ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
-            raise SystemError("PyThreadState_SetAsyncExc failed")
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.error(f"Failed to terminate thread: {e}")
-
-
 def call_on_ticket(*args, is_python_issue=False, **kwargs):
     global on_ticket_events
     key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
@@ -193,7 +97,7 @@ def call_on_ticket(*args, is_python_issue=False, **kwargs):
         logger.info(f"Found previous thread for key {key} and cancelling it")
         terminate_thread(e)
 
-    thread = threading.Thread(target=run_on_ticket, args=args, is_python_issue=is_python_issue, kwargs=kwargs)
+    thread = threading.Thread(target=run_on_ticket, args=args, kwargs={**kwargs, 'is_python_issue': is_python_issue})
     on_ticket_events[key] = thread
     thread.start()
 
