@@ -205,21 +205,12 @@ class CodeGenBot(ChatGPT):
         raise NoFilesException()
 
     def get_files_to_change(
-        self, retries=1, pr_diffs: str | None = None
+        self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            is_python_issue = (
-                sum(
-                    [
-                        file_path.endswith(".py")
-                        for file_path in self.human_message.get_file_paths()
-                    ]
-                )
-                > len(self.human_message.get_file_paths()) / 2
-            )
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
             python_issue_worked = True
             if is_python_issue:
@@ -974,7 +965,7 @@ class SweepBot(CodeGenBot, GithubBot):
         completed = 0
 
         for _, changed_file in self.change_files_in_github_iterator(
-            file_change_requests, branch, blocked_dirs, sandbox=sandbox
+            file_change_requests, branch, blocked_dirs, sandbox=sandbox, is_python_issue=is_python_issue
         ):
             if changed_file:
                 completed += 1
@@ -986,6 +977,7 @@ class SweepBot(CodeGenBot, GithubBot):
         branch: str,
         blocked_dirs: list[str],
         sandbox=None,
+        is_python_issue: bool
     ) -> Generator[tuple[FileChangeRequest, bool], None, None]:
         # should check if branch exists, if not, create it
         logger.debug(file_change_requests)
@@ -1203,6 +1195,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             chunk_offset=0,
                             sandbox=sandbox,
                             changed_files=changed_files,
+                            is_python_issue=is_python_issue,
                         )
                         commit_message = suggested_commit_message
                         # commit_message = commit_message or suggested_commit_message
@@ -1234,6 +1227,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 chunk_offset=i,
                                 sandbox=sandbox,
                                 changed_files=changed_files,
+                                is_python_issue=is_python_issue,
                             )
                             # commit_message = commit_message or suggested_commit_message
                             commit_message = suggested_commit_message
@@ -1293,143 +1287,6 @@ class SweepBot(CodeGenBot, GithubBot):
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
             return False, sandbox_error, None, changed_files
-
-
-class ModifyBot:
-    def __init__(
-        self,
-        additional_messages: list[Message] = [],
-        chat_logger=None,
-        parent_bot: SweepBot = None,
-    ):
-        self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
-            fetch_snippets_system_prompt, chat_logger=chat_logger
-        )
-        self.fetch_snippets_bot.messages.extend(additional_messages)
-        self.update_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
-            update_snippets_system_prompt, chat_logger=chat_logger
-        )
-        self.update_snippets_bot.messages.extend(additional_messages)
-        self.parent_bot = parent_bot
-
-    def try_update_file(
-        self,
-        file_path: str,
-        file_contents: str,
-        file_change_request: FileChangeRequest,
-        chunking: bool = False,
-    ):
-        snippet_queries = self.get_snippets_to_modify(
-            file_path=file_path,
-            file_contents=file_contents,
-            file_change_request=file_change_request,
-            chunking=chunking,
-        )
-
-        #
-
-        # best_matches = []
-        # for instructions, query in snippet_queries:
-        #     _match = find_best_match(query, file_contents)
-        #     if _match.score > 50:
-        #         best_matches.append((instructions, _match))
-
-        new_file = self.update_file(
-            file_path=file_path,
-            file_contents=file_contents,
-            file_change_request=file_change_request,
-            snippet_queries=snippet_queries,
-            chunking=chunking,
-        )
-        return new_file
-
-    def get_snippets_to_modify(
-        self,
-        file_path: str,
-        file_contents: str,
-        file_change_request: FileChangeRequest,
-        chunking: bool = False,
-    ):
-        fetch_snippets_response = self.fetch_snippets_bot.chat(
-            fetch_snippets_prompt.format(
-                code=file_contents,
-                file_path=file_path,
-                request=file_change_request.instructions,
-                chunking_prompt='\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n'
-                if chunking
-                else "",
-            )
-        )
-
-        snippet_queries = []
-        query_pattern = r'<snippet_to_modify instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet_to_modify>'
-        for instructions, code in re.findall(
-            query_pattern, fetch_snippets_response, re.DOTALL
-        ):
-            snippet_queries.append((instructions, strip_backticks(code)))
-
-        assert len(snippet_queries) > 0, "No snippets found in file"
-        return snippet_queries
-
-    def update_file(
-        self,
-        file_path: str,
-        file_contents: str,
-        file_change_request: FileChangeRequest,
-        snippet_queries: List[Tuple[str, str]],
-        chunking: bool = False,
-    ):
-        best_matches = []
-        for instructions, query in snippet_queries:
-            _match = find_best_match(query, file_contents)
-            if _match.score > 50:
-                best_matches.append((instructions, _match))
-
-        assert len(best_matches) > 0, "No matches found in file"
-
-        # Todo: check multiple files for matches using PR changed files
-
-        best_matches.sort(key=lambda x: x[1].start + x[1].end * 0.001)
-
-        def fuse_matches(a: Match, b: Match) -> Match:
-            return Match(
-                start=min(a.start, b.start),
-                end=max(a.end, b.end),
-                score=min(a.score, b.score),
-            )
-
-        current_instructions, current_match = best_matches[0]
-        deduped_matches = []
-
-        # Fuse & dedup
-        for instructions, _match in best_matches:
-            if current_match.end > _match.start:
-                current_instructions = f"{current_instructions}. {instructions}"
-                current_match = fuse_matches(current_match, _match)
-            else:
-                deduped_matches.append((current_instructions, current_match))
-                current_instructions = instructions
-                current_match = _match
-        deduped_matches.append((current_instructions, current_match))
-
-        selected_snippets = []
-        for instructions, _match in deduped_matches:
-            selected_snippets.append(
-                (
-                    instructions,
-                    "\n".join(file_contents.splitlines()[_match.start : _match.end]),
-                )
-            )
-
-        print(deduped_matches)
-
-        update_snippets_response = self.update_snippets_bot.chat(
-            update_snippets_prompt.format(
-                code=file_contents,
-                file_path=file_path,
-                snippets="\n\n".join(
-                    [
-                        f'<snippet id="{i}" instructions="{instructions}">\n{snippet}\n</snippet>'
                         for i, (instructions, snippet) in enumerate(selected_snippets)
                     ]
                 ),
