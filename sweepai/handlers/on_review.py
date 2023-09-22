@@ -2,8 +2,9 @@
 Take a PR and provide an AI generated review of the PR.
 """
 from logn import logger
+import requests
 
-from sweepai.config.server import MONGODB_URI
+from sweepai.config.server import MONGODB_URI, DISCORD_FEEDBACK_WEBHOOK_URL
 from sweepai.core.entities import DiffSummarization, PullRequestComment
 from sweepai.core.prompts import review_prompt
 from sweepai.core.sweep_bot import SweepBot
@@ -44,6 +45,11 @@ def get_pr_diffs(repo, pr):
             )  # TODO(sweep): We don't handle renamed files
     return pr_diffs
 
+def send_feedback_to_discord(feedback):
+    data = {"content": feedback}
+    response = requests.post(DISCORD_FEEDBACK_WEBHOOK_URL, json=data)
+    if response.status_code != 200:
+        logger.error(f"Failed to send feedback to discord: {response.text}")
 
 def review_pr(
     repo,
@@ -133,5 +139,8 @@ def review_pr(
     review_comment = PullRequestComment.from_string(reply)
     pr.create_review(body=review_comment.content, event="COMMENT", comments=[])
     changes_required = "yes" in review_comment.changes_required.lower()
+    
+    if review_comment.content.startswith("Feedback: "):
+        send_feedback_to_discord(review_comment.content)
     logger.info(f"Changes required: {changes_required}")
     return changes_required, review_comment.content
