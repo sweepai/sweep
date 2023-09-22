@@ -85,6 +85,7 @@ def on_comment(
     repo: Any = None,
     comment_type: str = "comment",
     type: str = "comment",
+    is_python_issue: bool = False,
 ):
     # Flow:
     # 1. Get relevant files
@@ -316,13 +317,13 @@ def on_comment(
         logger.info(f"Human prompt{human_message.construct_prompt()}")
 
         sweep_bot = SweepBot.from_system_message_content(
-            # human_message=human_message, model="claude-v1.3-100k", repo=repo
             human_message=human_message,
             repo=repo,
             chat_logger=chat_logger,
             model="gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4-32k-0613",
             sweep_context=sweep_context,
             cloned_repo=cloned_repo,
+            is_python_issue=is_python_issue,
         )
     except Exception as e:
         logger.error(traceback.format_exc())
