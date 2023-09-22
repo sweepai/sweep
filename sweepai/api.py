@@ -2,7 +2,7 @@
 import json
 
 from logn import logger
-from sweepai.utils.buttons import check_button_activated
+from sweepai.utils.buttons import check_button_activated, create_button
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
 logger.init(
@@ -122,6 +122,20 @@ def run_on_write_docs(*args, **kwargs):
     with logger:
         write_documentation(*args, **kwargs)
 
+
+def create_revert_button(file_path):
+    return create_button(
+        name="Revert",
+        value=file_path,
+        text=f"Revert {file_path}",
+        style="danger",
+        confirm={
+            "title": "Are you sure?",
+            "text": f"Are you sure you want to revert {file_path}?",
+            "ok_text": "Yes",
+            "dismiss_text": "No",
+        },
+    )
 
 def run_on_check_suite(*args, **kwargs):
     logger.init(
@@ -325,6 +339,14 @@ async def webhook(raw_request: Request):
                 ):
                     # Restart Sweep on this issue
                     restart_sweep = True
+
+                # Check if a revert button was clicked
+                for file_path in request.pull_request.files:
+                    if check_button_activated(
+                        create_revert_button(file_path), request.comment.body, changes.changes
+                    ):
+                        # Revert the file
+                        revert_file(file_path)
 
                 if (
                     request.issue is not None
@@ -663,6 +685,11 @@ async def webhook(raw_request: Request):
                         SWEEP_BAD_FEEDBACK, request.pull_request.body, request.changes
                     )
 
+                    # Iterate over the files in the pull request and create revert buttons
+                    for file in request.pull_request.files:
+                        revert_button = create_revert_button(file.path)
+                        request.pull_request.body += revert_button
+
                     if good_button or bad_button:
                         emoji = "😕"
                         if good_button:
@@ -696,33 +723,6 @@ async def webhook(raw_request: Request):
                             },
                         )
 
-                        def remove_buttons_from_description(body):
-                            """
-                            Replace:
-                            ### PR Feedback...
-                            ...
-                            # (until it hits the next #)
-
-                            with
-                            ### PR Feedback: {emoji}
-                            #
-                            """
-                            lines = body.split("\n")
-                            if not lines[0].startswith("### PR Feedback"):
-                                return None
-                            # Find when the second # occurs
-                            i = 0
-                            for i, line in enumerate(lines):
-                                if line.startswith("#") and i > 0:
-                                    break
-
-                            return "\n".join(
-                                [
-                                    f"### PR Feedback: {emoji}",
-                                    *lines[i:],
-                                ]
-                            )
-
                         # Update PR description to remove buttons
                         try:
                             _, g = get_github_client(request.installation.id)
@@ -733,6 +733,14 @@ async def webhook(raw_request: Request):
                             )
                             if new_body is not None:
                                 pr.edit(body=new_body)
+                
+                            # Check if a revert button was clicked and revert the corresponding file
+                            for file in request.pull_request.files:
+                                revert_button = check_button_activated(
+                                    create_revert_button(file.path), request.pull_request.body, request.changes
+                                )
+                                if revert_button:
+                                    revert_file(file.path)
                         except SystemExit:
                             raise SystemExit
                         except Exception as e:
@@ -770,6 +778,15 @@ async def webhook(raw_request: Request):
                 # this makes it faster for everyone because the queue doesn't get backed up
                 # active users also should not see a delay
 
+                from sweepai.utils.buttons import create_button, create_action_buttons
+                
+                def create_revert_button(file_path):
+                    return create_button(f"Revert {file_path}", f"revert_{file_path}")
+                
+                def revert_file(file_path):
+                    # Use git revert command or similar functionality provided by the GitHub API to revert the file
+                    pass
+                
                 # Todo: fix update index for pro users
                 # if chat_logger.is_paying_user():
                 #     update_index(
