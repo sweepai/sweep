@@ -595,6 +595,7 @@ def on_ticket(
         is_python_issue=is_python_issue,
     )
     )
+    )
 
     # Check repository for sweep.yml file.
     sweep_yml_exists = False
