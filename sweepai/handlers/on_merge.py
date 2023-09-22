@@ -37,11 +37,12 @@ def on_merge(request_dict, chat_logger):
         logger.info("Not a merge to master")
         return None
     
+    safe_priority_queue = SafePriorityQueue()
     last_rules_call_time = redis_client.get(f"last_rules_call_{repo.full_name}")
     current_time = time.time()
     if last_rules_call_time is not None and current_time - float(last_rules_call_time) < 30:
         rules_call_priority = current_time + 30
-        SafePriorityQueue().put((rules_call_priority, repo))
+        safe_priority_queue.put((rules_call_priority, repo))
     else:
         rules = get_rules(repo)
         redis_client.set(f"last_rules_call_{repo.full_name}", current_time)
@@ -53,14 +54,17 @@ def on_merge(request_dict, chat_logger):
     if total_lines_changed < CHANGE_THRESHOLD:
         return None
     
-    while not SafePriorityQueue().empty():
-        priority, repo = SafePriorityQueue().get()
-        if priority <= time.time():
-            get_rules(repo)
-            redis_client.set(f"last_rules_call_{repo.full_name}", time.time())
-        else:
-            SafePriorityQueue().put((priority, repo))
-            break
+    def handle_priority_queue(safe_priority_queue):
+        while not safe_priority_queue.empty():
+            priority, repo = safe_priority_queue.get()
+            if priority <= time.time():
+                get_rules(repo)
+                redis_client.set(f"last_rules_call_{repo.full_name}", time.time())
+            else:
+                safe_priority_queue.put((priority, repo))
+                break
+    
+    handle_priority_queue(safe_priority_queue)
     commit_author = head_commit["author"]["username"]
     total_prs = 0
     total_files_changed = len(changed_files)
