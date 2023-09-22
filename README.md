@@ -119,7 +119,7 @@ Every user receives unlimited GPT-3.5 tickets and 5 GPT-4 tickets per month. To 
 For professionals who want more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month. In addition, we're also offering 15 PRs for $60 as a one-time purchase for anyone interested in eventually purchasing Sweep Pro. You can purchase this [here](https://buy.stripe.com/7sI4jlaCR3PaabebIP).
 
 ## Roadmap
-We plan on rapidly improving Sweep. To see what we're working on, check out our [Roadmap](https://docs.sweep.dev/roadmap).
+We plan on rapidly improving Sweep. To see what we're working on, check out our [Roadmap](https://docs.sweep.dev/about/roadmap).
 
 ---
 
