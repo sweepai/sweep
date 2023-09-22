@@ -205,21 +205,12 @@ class CodeGenBot(ChatGPT):
         raise NoFilesException()
 
     def get_files_to_change(
-        self, retries=1, pr_diffs: str | None = None
+        self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            is_python_issue = (
-                sum(
-                    [
-                        file_path.endswith(".py")
-                        for file_path in self.human_message.get_file_paths()
-                    ]
-                )
-                > len(self.human_message.get_file_paths()) / 2
-            )
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
             python_issue_worked = True
             if is_python_issue:
@@ -438,6 +429,22 @@ class CodeGenBot(ChatGPT):
             return pull_request
         raise Exception("Could not generate PR text")
 
+    # Calculate is_python_issue
+    is_python_issue = (
+        sum(
+            [
+                file_path.endswith(".py")
+                for file_path in self.human_message.get_file_paths()
+            ]
+        )
+        > len(self.human_message.get_file_paths()) / 2
+    )
+
+    # Add is_python_issue to metadata
+    metadata['is_python_issue'] = is_python_issue
+
+    # Pass is_python_issue to get_files_to_change
+    file_change_requests, files_to_change_response = sweep_bot.get_files_to_change(is_python_issue)
 
 class GithubBot(BaseModel):
     class Config:
