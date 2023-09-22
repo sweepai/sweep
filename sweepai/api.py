@@ -1085,6 +1085,7 @@ async def webhook(raw_request: Request):
                                 "revert_button": revert_button,
                             },
                         )
+                        )
                     # ] =
                     call_on_ticket(
                         title=request.issue.title,
@@ -1328,6 +1329,9 @@ async def webhook(raw_request: Request):
                     revert_button = check_button_activated(
                         REVERT_BUTTON, request.pull_request.body, request.changes
                     )
+                    revert_button = check_button_activated(
+                        REVERT_BUTTON, request.pull_request.body, request.changes
+                    )
 
                     if good_button or bad_button or revert_button:
                         emoji = "😕"
@@ -1448,8 +1452,10 @@ async def webhook(raw_request: Request):
                 # Todo: fix update index for pro users
                 # if chat_logger.is_paying_user():
                 #     update_index(
-                REVERT_BUTTON = "Revert Changes"
                 #         request_dict["repository"]["full_name"],
+                #         installation_id=request_dict["installation"]["id"],
+                #     )
+                from sweepai.utils.buttons import check_button_activated, REVERT_BUTTON
                 #         installation_id=request_dict["installation"]["id"],
                 #     )
             case "push", None:
