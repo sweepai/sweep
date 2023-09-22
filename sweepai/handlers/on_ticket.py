@@ -89,8 +89,6 @@ def on_ticket(
     is_python_issue: bool = False,
 ):
 ):
-):
-):
     (
         title,
         slow_mode,
@@ -642,6 +640,7 @@ def on_ticket(
     )
     )
     )
+    )
 
     # Check repository for sweep.yml file.
     sweep_yml_exists = False
@@ -793,16 +792,20 @@ def on_ticket(
         pull_request = sweep_bot.generate_pull_request()
         # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
         # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
-        # edit_sweep_comment(
-        #     (
-        #         "I have created a plan for writing the pull request. I am now working"
-        #         " my plan and coding the required changes to address this issue. Here"
-        #         f" is the planned pull request:\n\n{pull_request_summary}"
-        #     ),
-        #     3,
-        # )
-
-        logger.info("Making PR...")
+        def on_ticket(
+            repo_full_name: str,
+            repo_description: str,
+            title: str,
+            summary: str,
+            username: str,
+            issue_number: int,
+            issue_url: str,
+            organization: str,
+            installation_id: int,
+            comment_id: int = None,
+            edited: bool = False,
+            is_python_issue: bool = False,
+        ):
 
         files_progress: list[tuple[str, str, str, str]] = [
             (
