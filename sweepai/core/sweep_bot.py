@@ -214,11 +214,11 @@ class CodeGenBot(ChatGPT):
             is_python_issue = (
                 sum(
                     [
-                        file_path.endswith(".py")
+                        not file_path.endswith(".py")
                         for file_path in self.human_message.get_file_paths()
                     ]
                 )
-                > len(self.human_message.get_file_paths()) / 2
+                < 2
             )
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
             python_issue_worked = True
