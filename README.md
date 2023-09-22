@@ -40,7 +40,7 @@ Describe bugs, small features, and refactors like you would to a junior develope
 * Uses embedding-based code & online document search
 * Validates its changes with GitHub Actions and self-review
 
-### How Sweep is different
+### How Sweep is Different
 
 Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the **entire flow end-to-end**. Unlike ChatGPT, Sweep is able to automatically understand and search through your code base, removing the need to tediously copy-and-paste files. Check out examples [here](https://docs.sweep.dev/about/examples)!
 
@@ -64,6 +64,7 @@ Unlike Copilot, which only provides IDE-based autocompletion, Sweep handles the 
 
 ## Getting Started
 
+### GitHub App
 Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep-ai) to your desired repositories.
 
 * For more details, visit our [Installation](docs/installation.md) page.
@@ -72,9 +73,11 @@ Install Sweep by adding the [**Sweep GitHub App**](https://github.com/apps/sweep
 
 * We support all languages GPT-4 supports, including Python, JS/TS, Rust, Go, Java, C# and C++.
 
-## Self-hosting
+### Self-Hosting
 
-You can self-host Sweep with the Docker image (`https://hub.docker.com/r/sweepai/sweep`). The setup instructions are at [Deployment](https://docs.sweep.dev/deployment).
+You can self-host Sweep with the Docker image (`https://hub.docker.com/r/sweepai/sweep`). The instructions are on our [Deployment page](https://docs.sweep.dev/deployment).
+
+---
 
 ## Limitations of Sweep
 
