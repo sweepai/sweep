@@ -581,7 +581,7 @@ class GithubBot(BaseModel):
 
 class SweepBot(CodeGenBot, GithubBot):
     comment_pr_diff_str: str | None = None
-    comment_pr_files_modified: List[str] | None = None
+    comment_pr_files_modified: Dict[str, str] | None = None
 
     @staticmethod
     def run_sandbox(
@@ -820,7 +820,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 ]
                 if self.comment_pr_diff_str
                 else [],
-                parenet_bot=self,
+                parent_bot=self,
                 chat_logger=self.chat_logger,
             )
             try:
@@ -1296,9 +1296,12 @@ class SweepBot(CodeGenBot, GithubBot):
 
 
 class ModifyBot:
-    parent_bot: SweepBot = None
-
-    def __init__(self, additional_messages: list[Message] = [], chat_logger=None):
+    def __init__(
+        self,
+        additional_messages: list[Message] = [],
+        chat_logger=None,
+        parent_bot: SweepBot = None,
+    ):
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
             fetch_snippets_system_prompt, chat_logger=chat_logger
         )
@@ -1307,6 +1310,7 @@ class ModifyBot:
             update_snippets_system_prompt, chat_logger=chat_logger
         )
         self.update_snippets_bot.messages.extend(additional_messages)
+        self.parent_bot = parent_bot
 
     def update_file(
         self,
