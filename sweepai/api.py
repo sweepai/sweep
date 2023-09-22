@@ -601,7 +601,7 @@ async def webhook(raw_request: Request):
                     ],
 
 from logn import logger
-from sweepai.utils.buttons import check_button_activated, revert_file, REVERT_BUTTON
+from sweepai.utils.buttons import check_button_activated, REVERT_BUTTON
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
 logger.init(
@@ -619,6 +619,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
 import requests
 
+from sweepai.utils.buttons import check_button_activated, revert_file, REVERT_BUTTON
 from sweepai.config.client import (
     SweepConfig,
     get_documentation_dict,
@@ -1277,7 +1278,7 @@ async def webhook(raw_request: Request):
                             repo = g.get_repo(request.repository.full_name)
                             pr = repo.get_pull(request.pull_request.number)
                             pr.create_issue_comment(f"Reverting changes in {request.changes.filename}")
-                            revert_file(request.changes.filename, pr.head.sha)
+                            repo.revert_file_changes(request.changes.filename, pr.head.sha)
                             emoji = "↩️"
                         data = {
                             "content": f"{emoji} {request.pull_request.html_url} ({request.sender.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
