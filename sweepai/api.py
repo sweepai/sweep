@@ -26,6 +26,7 @@ from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     SWEEP_GOOD_FEEDBACK,
     SWEEP_BAD_FEEDBACK,
+    REVERT_BUTTON,
 )
 from sweepai.config.server import (
     API_MODAL_INST_NAME,
@@ -662,13 +663,24 @@ async def webhook(raw_request: Request):
                     bad_button = check_button_activated(
                         SWEEP_BAD_FEEDBACK, request.pull_request.body, request.changes
                     )
+                    revert_button = check_button_activated(
+                        REVERT_BUTTON, request.pull_request.body, request.changes
+                    )
 
-                    if good_button or bad_button:
+                    if good_button or bad_button or revert_button:
                         emoji = "😕"
                         if good_button:
                             emoji = "👍"
                         elif bad_button:
                             emoji = "👎"
+                        elif revert_button:
+                            # Use the GitHub API to revert the changes
+                            _, g = get_github_client(request.installation.id)
+                            repo = g.get_repo(request.repository.full_name)
+                            pr = repo.get_pull(request.pull_request.number)
+                            pr.create_issue_comment(f"Reverting changes in {request.changes.filename}")
+                            repo.revert_file_changes(request.changes.filename, pr.head.sha)
+                            emoji = "↩️"
                         data = {
                             "content": f"{emoji} {request.pull_request.html_url} ({request.sender.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
                         }
@@ -732,7 +744,7 @@ async def webhook(raw_request: Request):
                                 request.pull_request.body
                             )
                             if new_body is not None:
-                                pr.edit(body=new_body)
+                                pr.edit(body=f"{new_body}\n\n[ ] Revert {request.changes.filename}")
                         except SystemExit:
                             raise SystemExit
                         except Exception as e:
@@ -773,6 +785,7 @@ async def webhook(raw_request: Request):
                 # Todo: fix update index for pro users
                 # if chat_logger.is_paying_user():
                 #     update_index(
+                REVERT_BUTTON = "Revert Changes"
                 #         request_dict["repository"]["full_name"],
                 #         installation_id=request_dict["installation"]["id"],
                 #     )
