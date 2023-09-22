@@ -1262,7 +1262,7 @@ async def webhook(raw_request: Request):
                         SWEEP_BAD_FEEDBACK, request.pull_request.body, request.changes
                     )
                     revert_button = check_button_activated(
-                        REVERT_BUTTON, request.pull_request.body, request.changes
+                        REVERT_BUTTON, request.pull_request.body, request.changes, request.changes.filename, pr.head.sha
                     )
 
                     if good_button or bad_button or revert_button:
