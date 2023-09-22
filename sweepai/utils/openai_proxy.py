@@ -87,8 +87,8 @@ class OpenAIProxy:
                     return response["choices"][0].message.content
                 except SystemExit:
                     raise SystemExit
-                except Exception as e:
-                    logger.error(f"OpenAI API Key found but error: {e}")
+                except Exception as _e:
+                    logger.error(f"OpenAI API Key found but error: {_e}")
             logger.error(f"OpenAI API Key not found and Azure Error: {e}")
             # Raise exception to report error
             raise e
