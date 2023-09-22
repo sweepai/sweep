@@ -5,7 +5,6 @@ from sweepai.events import IssueCommentChanges, Changes
 
 REVERT_BUTTON = "Revert"
 
-
 REVERT_BUTTON = "Revert"
 
 def create_button(label: str, selected: bool = False):
