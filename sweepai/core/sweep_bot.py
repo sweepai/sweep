@@ -327,7 +327,9 @@ class CodeGenBot(ChatGPT):
                 continue
         raise NoFilesException()
 
-    def get_files_to_change(self, retries=1) -> tuple[list[FileChangeRequest], str]:
+    def get_files_to_change(
+        self, retries=1, pr_diffs: str | None = None
+    ) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
@@ -346,6 +348,12 @@ class CodeGenBot(ChatGPT):
             if is_python_issue:
                 graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
                 graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
+                if pr_diffs is not None:
+                    self.delete_messages_from_chat("pr_diffs")
+                    graph_parent_bot.messages.insert(
+                        1, Message(role="user", content=pr_diffs, key="pr_diffs")
+                    )
+
                 issue_metadata = self.human_message.get_issue_metadata()
                 relevant_snippets = self.human_message.render_snippets()
                 symbols_to_files = graph.paths_to_first_degree_entities(
@@ -479,6 +487,12 @@ class CodeGenBot(ChatGPT):
                     return file_change_requests, " ".join(plan_suggestions)
             if not is_python_issue or not python_issue_worked:
                 # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
+                if pr_diffs is not None:
+                    self.delete_messages_from_chat("pr_diffs")
+                    self.messages.insert(
+                        1, Message(role="user", content=pr_diffs, key="pr_diffs")
+                    )
+
                 files_to_change_response = self.chat(
                     files_to_change_prompt, message_key="files_to_change"
                 )  # Dedup files to change here
@@ -495,6 +509,8 @@ class CodeGenBot(ChatGPT):
             logger.print(e)
             logger.warning("Failed to parse! Retrying...")
             self.delete_messages_from_chat("files_to_change")
+            self.delete_messages_from_chat("pr_diffs")
+
         raise NoFilesException()
 
     def generate_pull_request(self, retries=2) -> PullRequest:
@@ -875,6 +891,7 @@ class SweepBot(CodeGenBot, GithubBot):
         chunk_offset: int = 0,
         sandbox=None,
         changed_files: list[tuple[str, str]] = [],
+        initial_additional_messages: list[str] = [],
     ):
         key = f"file_change_modified_{file_change_request.filename}"
         file_markdown = is_markdown(file_change_request.filename)
@@ -895,7 +912,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     for file_path, diffs in file_path_to_contents.items()
                 ]
             )
-            additional_messages = (
+            additional_messages = initial_additional_messages + (
                 [
                     Message(
                         content=changed_files_summary,
