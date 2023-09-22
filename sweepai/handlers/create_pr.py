@@ -48,6 +48,7 @@ def create_pr_changes(
     sweep_bot: SweepBot,
     username: str,
     installation_id: int,
+    is_python_issue: bool,
     issue_number: int | None = None,
     sandbox=None,
     chat_logger: ChatLogger = None,
@@ -87,7 +88,7 @@ def create_pr_changes(
         "mode": ENV,
         "issue_number": issue_number,
     }
-    posthog.capture(username, "started", properties=metadata)
+    posthog.capture(username, "started", properties={**metadata, "is_python_issue": is_python_issue})
 
     try:
         logger.info("Making PR...")
@@ -180,7 +181,7 @@ def create_pr_changes(
         )
         raise e
 
-    posthog.capture(username, "success", properties={**metadata})
+    posthog.capture(username, "success", properties={**metadata, "is_python_issue": is_python_issue})
     logger.info("create_pr success")
     result = {
         "success": True,
@@ -226,7 +227,11 @@ def safe_delete_sweep_branch(
         return False
 
 
-def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
+def create_config_pr(
+    sweep_bot: SweepBot | None = None,
+    repo: Repository | None = None,
+    is_python_issue: bool,
+) -> PullRequest:
     if repo is not None:
         # Check if file exists in repo
         try:
@@ -347,7 +352,7 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
     return pr
 
 
-def add_config_to_top_repos(installation_id, username, repositories, max_repos=3):
+def add_config_to_top_repos(installation_id, username, repositories, is_python_issue, max_repos=3):
     user_token, g = get_github_client(installation_id)
 
     repo_activity = {}
@@ -377,7 +382,7 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
     for repo in sorted_repos:
         try:
             logger.print("Creating config for", repo.full_name)
-            create_config_pr(None, repo=repo)
+            create_config_pr(None, repo=repo, is_python_issue=is_python_issue)
         except SystemExit:
             raise SystemExit
         except Exception as e:
