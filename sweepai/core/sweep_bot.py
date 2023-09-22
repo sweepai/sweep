@@ -711,7 +711,7 @@ class SweepBot(CodeGenBot, GithubBot):
             message_key=key,
         )
         if changed_files:
-            self.delete_messages_from_chat(key="changed_files_summary")
+            self.delete_messages_from_chat(key_to_delete="changed_files_summary")
         # Add file to list of changed_files
         self.file_change_paths.append(file_change_request.filename)
         # self.delete_file_from_system_message(file_path=file_change_request.filename)
@@ -804,10 +804,10 @@ class SweepBot(CodeGenBot, GithubBot):
             )
             if self.comment_pr_diff_str:
                 additional_messages += [
-                        Message(
-                            role="user", content=self.comment_pr_diff_str, key="pr_diffs"
-                        )
-                    ]
+                    Message(
+                        role="user", content=self.comment_pr_diff_str, key="pr_diffs"
+                    )
+                ]
             additional_messages += (
                 [
                     Message(
@@ -1463,6 +1463,7 @@ class ModifyBot:
 
         return result
 
+
 if __name__ == "__main__":
     response = """
 ```python
@@ -1480,4 +1481,3 @@ def get_files_to_change(
 ```"""
     stripped = strip_backticks(response)
     print(stripped)
-    
