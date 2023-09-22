@@ -239,6 +239,8 @@ def call_on_comment(
 
 
 def call_on_merge(*args, **kwargs):
+    import time
+    time.sleep(30)
     thread = threading.Thread(target=run_on_merge, args=args, kwargs=kwargs)
     thread.start()
 
