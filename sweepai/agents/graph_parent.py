@@ -117,10 +117,9 @@ class GraphParentBot(ChatGPT):
         )
         try:
             response = self.chat(user_prompt)
-        except UnneededEditError:
-            logger.info(f"No changes needed for file {file_path}")
-        except MatchingError:
-            logger.info(f"No more snippets found after matching for file {file_path}")
+        except (UnneededEditError, MatchingError) as e:
+            logger.error(f"Error: {e}")
+            return {}, ""
         relevant_symbols_and_files = RelevantSymbolsAndFiles.from_string(
             response, symbols_to_files
         )
