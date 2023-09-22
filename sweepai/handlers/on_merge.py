@@ -3,6 +3,8 @@ from sweepai.utils.github_utils import get_github_client
 from sweepai.core.post_merge import PostMerge
 from logn import logger, LogTask
 from sweepai.utils.event_logger import posthog
+from sweepai.utils.safe_priority_queue import SafePriorityQueue
+from sweepai.utils.redis_client import redis_client
 
 # change threshold for number of lines changed
 CHANGE_THRESHOLD = 25
@@ -34,7 +36,15 @@ def on_merge(request_dict, chat_logger):
     ] != SweepConfig.get_branch(repo):
         logger.info("Not a merge to master")
         return None
-    rules = get_rules(repo)
+    
+    last_rules_call_time = redis_client.get(f"last_rules_call_{repo.full_name}")
+    current_time = time.time()
+    if last_rules_call_time is not None and current_time - float(last_rules_call_time) < 30:
+        rules_call_priority = current_time + 30
+        SafePriorityQueue().put((rules_call_priority, repo))
+    else:
+        rules = get_rules(repo)
+        redis_client.set(f"last_rules_call_{repo.full_name}", current_time)
     if not rules:
         logger.info("No rules found")
         return None
@@ -42,6 +52,15 @@ def on_merge(request_dict, chat_logger):
     total_lines_changed = full_commit.stats.total
     if total_lines_changed < CHANGE_THRESHOLD:
         return None
+    
+    while not SafePriorityQueue().empty():
+        priority, repo = SafePriorityQueue().get()
+        if priority <= time.time():
+            get_rules(repo)
+            redis_client.set(f"last_rules_call_{repo.full_name}", time.time())
+        else:
+            SafePriorityQueue().put((priority, repo))
+            break
     commit_author = head_commit["author"]["username"]
     total_prs = 0
     total_files_changed = len(changed_files)
