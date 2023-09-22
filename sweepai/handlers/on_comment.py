@@ -87,6 +87,7 @@ def on_comment(
     type: str = "comment",
     is_python_issue: bool = False,
 ):
+):
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -324,6 +325,7 @@ def on_comment(
             sweep_context=sweep_context,
             cloned_repo=cloned_repo,
             is_python_issue=is_python_issue,
+        )
         )
     except Exception as e:
         logger.error(traceback.format_exc())
