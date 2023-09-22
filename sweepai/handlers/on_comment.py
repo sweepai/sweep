@@ -230,11 +230,14 @@ def on_comment(
 
         # Generate diffs for this PR
         pr_diff_string = None
+        pr_files_modified = None
         if pr_number:
             patches = []
+            pr_files_modified = []
             files = pr.get_files()
             for file in files:
                 if file.status == "modified":
+                    pr_files_modified.append(file.filename)
                     patches.append(
                         f'<file file_path="{file.filename}">\n{file.patch}\n</file>'
                     )
@@ -450,7 +453,7 @@ def on_comment(
                 )
 
                 logger.info(f"Human prompt{human_message.construct_prompt()}")
-                sweep_bot = SweepBot.from_system_message_content(
+                sweep_bot: SweepBot = SweepBot.from_system_message_content(
                     human_message=human_message,
                     repo=repo,
                     chat_logger=chat_logger,
@@ -494,6 +497,7 @@ def on_comment(
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
 
         sweep_bot.comment_pr_diff_str = pr_diff_string
+        sweep_bot.comment_pr_files_modified = pr_files_modified
         changes_made = sum(
             [
                 change_made
