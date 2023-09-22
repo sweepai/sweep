@@ -1,5 +1,7 @@
 import datetime
 from typing import Generator
+import discord
+from discord_webhook import DiscordWebhook
 
 import openai
 from github.Repository import Repository
@@ -41,6 +43,11 @@ INSTRUCTIONS_FOR_REVIEW = """\
 * Leave a comment in the code will only modify the file
 * Edit the original issue to get Sweep to recreate the PR from scratch"""
 
+
+def report_feedback_to_discord(comment):
+    if comment.startswith("Feedback: "):
+        webhook = DiscordWebhook(url=DISCORD_FEEDBACK_WEBHOOK_URL, content=comment)
+        webhook.execute()
 
 def create_pr_changes(
     file_change_requests: list[FileChangeRequest],
@@ -182,6 +189,9 @@ def create_pr_changes(
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("create_pr success")
+    report_feedback_to_discord(pull_request.comment)
+    feedback_button = create_action_buttons("PR Feedback", "Leave feedback for this PR")
+    pull_request.add_button(feedback_button)
     result = {
         "success": True,
         "pull_request": MockPR(
