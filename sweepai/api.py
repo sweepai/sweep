@@ -74,7 +74,7 @@ events = {}
 on_ticket_events = {}
 
 
-def run_on_ticket(*args, **kwargs):
+def run_on_ticket(*args, is_python_issue=False, **kwargs):
     logger.init(
         metadata={
             **kwargs,
@@ -83,7 +83,7 @@ def run_on_ticket(*args, **kwargs):
         create_file=False,
     )
     with logger:
-        on_ticket(*args, **kwargs, is_python_issue=False)
+        on_ticket(*args, is_python_issue=is_python_issue, **kwargs)
 
 
 def run_on_comment(*args, **kwargs):
