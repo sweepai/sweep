@@ -315,9 +315,11 @@ class ChatGPT(BaseModel):
                         )
                     except SystemExit:
                         raise SystemExit
-                    except Exception as e:
-                        logger.warning(e)
+                    except Exception as e2:
+                        logger.warning(e2)
                 return output
+            except SystemExit:
+                raise SystemExit
             except Exception as e:
                 logger.warning(f"{e}\n{traceback.format_exc()}")
                 raise e
