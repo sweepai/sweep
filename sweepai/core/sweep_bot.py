@@ -710,7 +710,7 @@ class SweepBot(CodeGenBot, GithubBot):
             message_key=key,
         )
         if changed_files:
-            self.delete_messages_from_chat(key="changed_files_summary")
+            self.delete_messages_from_chat(key_to_delete="changed_files_summary")
         # Add file to list of changed_files
         self.file_change_paths.append(file_change_request.filename)
         # self.delete_file_from_system_message(file_path=file_change_request.filename)
@@ -785,7 +785,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_path_to_contents[file_path] += diffs
                 else:
                     file_path_to_contents[file_path] = diffs
-            changed_files_summary = "We previously changed these files:\n" + "\n".join(
+            changed_files_summary = "We have previously changed these files:\n" + "\n".join(
                 [
                     f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
                     for file_path, diffs in file_path_to_contents.items()
@@ -795,12 +795,18 @@ class SweepBot(CodeGenBot, GithubBot):
                 [
                     Message(
                         content=changed_files_summary,
-                        role="assistant",
+                        role="user",
                     )
                 ]
                 if changed_files
                 else []
             )
+            if self.comment_pr_diff_str:
+                additional_messages += [
+                    Message(
+                        role="user", content=self.comment_pr_diff_str, key="pr_diffs"
+                    )
+                ]
             additional_messages += (
                 [
                     Message(
@@ -812,13 +818,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 else []
             )
             modify_file_bot = ModifyBot(
-                additional_messages=[
-                    Message(
-                        role="user", content=self.comment_pr_diff_str, key="pr_diffs"
-                    )
-                ]
-                if self.comment_pr_diff_str
-                else [],
+                additional_messages,
                 parent_bot=self,
                 chat_logger=self.chat_logger,
             )
@@ -1362,9 +1362,7 @@ class ModifyBot:
         )
 
         snippet_queries = []
-        query_pattern = (
-            r'<snippet instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet>'
-        )
+        query_pattern = r'<snippet_to_modify instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet_to_modify>'
         for instructions, code in re.findall(
             query_pattern, fetch_snippets_response, re.DOTALL
         ):
@@ -1464,3 +1462,22 @@ class ModifyBot:
         result = result.rstrip("\n") + "\n" * ending_newlines
 
         return result
+
+
+if __name__ == "__main__":
+    response = """
+```python
+def get_files_to_change(
+    self, retries=1, pr_diffs: str | None = None, is_python_issue: bool = False
+) -> tuple[list[FileChangeRequest], str]:
+    file_change_requests: list[FileChangeRequest] = []
+    # Todo: put retries into a constants file
+    # also, this retries multiple times as the calls for this function are in a for loop
+    try:
+        logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+        python_issue_worked = True
+        if is_python_issue:
+            ...
+```"""
+    stripped = strip_backticks(response)
+    print(stripped)
