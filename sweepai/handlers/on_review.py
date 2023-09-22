@@ -111,6 +111,7 @@ def review_pr(
         repo=repo,
         is_reply=False,
         chat_logger=chat_logger,
+        is_python_issue=True,  # or False, depending on the context
     )
     summarization_reply = sweep_bot.chat(
         review_prompt.format(
