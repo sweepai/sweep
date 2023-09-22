@@ -96,129 +96,6 @@ def match_indent(generated: str, original: str) -> str:
     return generated
 
 
-class ModifyBot:
-    def __init__(self, additional_messages: list[Message] = [], chat_logger=None):
-        self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
-            fetch_snippets_system_prompt, chat_logger=chat_logger
-        )
-        self.fetch_snippets_bot.messages.extend(additional_messages)
-        self.update_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
-            update_snippets_system_prompt, chat_logger=chat_logger
-        )
-        self.update_snippets_bot.messages.extend(additional_messages)
-
-    def update_file(
-        self,
-        file_path: str,
-        file_contents: str,
-        file_change_request: FileChangeRequest,
-        chunking: bool = False,
-    ):
-        fetch_snippets_response = self.fetch_snippets_bot.chat(
-            fetch_snippets_prompt.format(
-                code=file_contents,
-                file_path=file_path,
-                request=file_change_request.instructions,
-                chunking_prompt='\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n'
-                if chunking
-                else "",
-            )
-        )
-
-        snippet_queries = []
-        query_pattern = (
-            r'<snippet instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet>'
-        )
-        for instructions, code in re.findall(
-            query_pattern, fetch_snippets_response, re.DOTALL
-        ):
-            snippet_queries.append((instructions, strip_backticks(code)))
-
-        assert len(snippet_queries) > 0, "No snippets found in file"
-
-        best_matches = []
-        for instructions, query in snippet_queries:
-            _match = find_best_match(query, file_contents)
-            if _match.score > 50:
-                best_matches.append((instructions, _match))
-
-        assert len(best_matches) > 0, "No matches found in file"
-
-        best_matches.sort(key=lambda x: x[1].start + x[1].end * 0.001)
-
-        def fuse_matches(a: Match, b: Match) -> Match:
-            return Match(
-                start=min(a.start, b.start),
-                end=max(a.end, b.end),
-                score=min(a.score, b.score),
-            )
-
-        current_instructions, current_match = best_matches[0]
-        deduped_matches = []
-
-        # Fuse & dedup
-        for instructions, _match in best_matches:
-            if current_match.end > _match.start:
-                current_instructions = f"{current_instructions}. {instructions}"
-                current_match = fuse_matches(current_match, _match)
-            else:
-                deduped_matches.append((current_instructions, current_match))
-                current_instructions = instructions
-                current_match = _match
-        deduped_matches.append((current_instructions, current_match))
-
-        selected_snippets = []
-        for instructions, _match in deduped_matches:
-            selected_snippets.append(
-                (
-                    instructions,
-                    "\n".join(file_contents.splitlines()[_match.start : _match.end]),
-                )
-            )
-
-        print(deduped_matches)
-
-        update_snippets_response = self.update_snippets_bot.chat(
-            update_snippets_prompt.format(
-                code=file_contents,
-                file_path=file_path,
-                snippets="\n\n".join(
-                    [
-                        f'<snippet id="{i}" instructions="{instructions}">\n{snippet}\n</snippet>'
-                        for i, (instructions, snippet) in enumerate(selected_snippets)
-                    ]
-                ),
-                request=file_change_request.instructions,
-            )
-        )
-
-        updated_snippets = []
-        updated_pattern = (
-            r"<updated_snippet id=\"(?P<id>.*?)\">(?P<code>.*?)</updated_snippet>"
-        )
-        for _id, code in re.findall(
-            updated_pattern, update_snippets_response, re.DOTALL
-        ):
-            updated_snippets.append(strip_backticks(code))
-
-        result = file_contents
-        for (_instructions, search), replace in zip(
-            selected_snippets, updated_snippets
-        ):
-            # print(f"replace >-------\n{search}\n============\n{replace}\nupdated  ---->")
-            result, _, _ = sliding_window_replacement(
-                result.splitlines(),
-                search.splitlines(),
-                match_indent(replace, search).splitlines(),
-            )
-            result = "\n".join(result)
-
-        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
-        result = result.rstrip("\n") + "\n" * ending_newlines
-
-        return result
-
-
 class CodeGenBot(ChatGPT):
     def summarize_snippets(self):
         # Custom system message for snippet replacement
@@ -941,6 +818,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 ]
                 if self.comment_pr_diff_str
                 else [],
+                parenet_bot=self,
                 chat_logger=self.chat_logger,
             )
             try:
@@ -1414,3 +1292,130 @@ class SweepBot(CodeGenBot, GithubBot):
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
             return False, sandbox_error, None, changed_files
+
+
+class ModifyBot:
+    parent_bot: SweepBot = None
+
+    def __init__(self, additional_messages: list[Message] = [], chat_logger=None):
+        self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
+            fetch_snippets_system_prompt, chat_logger=chat_logger
+        )
+        self.fetch_snippets_bot.messages.extend(additional_messages)
+        self.update_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
+            update_snippets_system_prompt, chat_logger=chat_logger
+        )
+        self.update_snippets_bot.messages.extend(additional_messages)
+
+    def update_file(
+        self,
+        file_path: str,
+        file_contents: str,
+        file_change_request: FileChangeRequest,
+        chunking: bool = False,
+    ):
+        fetch_snippets_response = self.fetch_snippets_bot.chat(
+            fetch_snippets_prompt.format(
+                code=file_contents,
+                file_path=file_path,
+                request=file_change_request.instructions,
+                chunking_prompt='\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n'
+                if chunking
+                else "",
+            )
+        )
+
+        snippet_queries = []
+        query_pattern = (
+            r'<snippet instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet>'
+        )
+        for instructions, code in re.findall(
+            query_pattern, fetch_snippets_response, re.DOTALL
+        ):
+            snippet_queries.append((instructions, strip_backticks(code)))
+
+        assert len(snippet_queries) > 0, "No snippets found in file"
+
+        best_matches = []
+        for instructions, query in snippet_queries:
+            _match = find_best_match(query, file_contents)
+            if _match.score > 50:
+                best_matches.append((instructions, _match))
+
+        assert len(best_matches) > 0, "No matches found in file"
+
+        # Todo: check multiple files for matches using PR changed files
+
+        best_matches.sort(key=lambda x: x[1].start + x[1].end * 0.001)
+
+        def fuse_matches(a: Match, b: Match) -> Match:
+            return Match(
+                start=min(a.start, b.start),
+                end=max(a.end, b.end),
+                score=min(a.score, b.score),
+            )
+
+        current_instructions, current_match = best_matches[0]
+        deduped_matches = []
+
+        # Fuse & dedup
+        for instructions, _match in best_matches:
+            if current_match.end > _match.start:
+                current_instructions = f"{current_instructions}. {instructions}"
+                current_match = fuse_matches(current_match, _match)
+            else:
+                deduped_matches.append((current_instructions, current_match))
+                current_instructions = instructions
+                current_match = _match
+        deduped_matches.append((current_instructions, current_match))
+
+        selected_snippets = []
+        for instructions, _match in deduped_matches:
+            selected_snippets.append(
+                (
+                    instructions,
+                    "\n".join(file_contents.splitlines()[_match.start : _match.end]),
+                )
+            )
+
+        print(deduped_matches)
+
+        update_snippets_response = self.update_snippets_bot.chat(
+            update_snippets_prompt.format(
+                code=file_contents,
+                file_path=file_path,
+                snippets="\n\n".join(
+                    [
+                        f'<snippet id="{i}" instructions="{instructions}">\n{snippet}\n</snippet>'
+                        for i, (instructions, snippet) in enumerate(selected_snippets)
+                    ]
+                ),
+                request=file_change_request.instructions,
+            )
+        )
+
+        updated_snippets = []
+        updated_pattern = (
+            r"<updated_snippet id=\"(?P<id>.*?)\">(?P<code>.*?)</updated_snippet>"
+        )
+        for _id, code in re.findall(
+            updated_pattern, update_snippets_response, re.DOTALL
+        ):
+            updated_snippets.append(strip_backticks(code))
+
+        result = file_contents
+        for (_instructions, search), replace in zip(
+            selected_snippets, updated_snippets
+        ):
+            # print(f"replace >-------\n{search}\n============\n{replace}\nupdated  ---->")
+            result, _, _ = sliding_window_replacement(
+                result.splitlines(),
+                search.splitlines(),
+                match_indent(replace, search).splitlines(),
+            )
+            result = "\n".join(result)
+
+        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
+        result = result.rstrip("\n") + "\n" * ending_newlines
+
+        return result
