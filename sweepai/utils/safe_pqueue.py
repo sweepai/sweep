@@ -24,6 +24,6 @@ class SafePriorityQueue:
         temp_q = queue.PriorityQueue()
         while not self.q.empty():
             p, e = self.q.get()
-            if p <= priority:
+            if p >= priority:
                 temp_q.put((p, e))
         self.q = temp_q
