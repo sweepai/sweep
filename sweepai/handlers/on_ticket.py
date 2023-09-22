@@ -605,6 +605,14 @@ def on_ticket(
         chat_logger=chat_logger,
         sweep_context=sweep_context,
         cloned_repo=cloned_repo,
+    )
+        human_message=human_message,
+        is_python_issue=is_python_issue,
+        repo=repo,
+        is_reply=bool(comments),
+        chat_logger=chat_logger,
+        sweep_context=sweep_context,
+        cloned_repo=cloned_repo,
         is_python_issue=is_python_issue,
     )
 
