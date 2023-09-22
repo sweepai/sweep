@@ -83,7 +83,7 @@ def run_on_ticket(*args, **kwargs):
         create_file=False,
     )
     with logger:
-        on_ticket(*args, **kwargs)
+        on_ticket(*args, **kwargs, is_python_issue=False)
 
 
 def run_on_comment(*args, **kwargs):
@@ -604,6 +604,7 @@ async def webhook(raw_request: Request):
                         repos_added_request.installation.id,
                         repos_added_request.installation.account.login,
                         repos_added_request.repositories_added,
+                        is_python_issue=False,
                     )
                 except SystemExit:
                     raise SystemExit
