@@ -440,18 +440,22 @@ def on_ticket(
             suffix = bot_suffix  # don't include discord suffix for error messages
 
         # Update the issue comment
+        msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
         try:
-            issue_comment.edit(
-                f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
-            )
+            issue_comment.edit(msg)
         except BadCredentialsException:
             logger.error("Bad credentials, refreshing token")
             _user_token, g = get_github_client(installation_id)
             repo = g.get_repo(repo_full_name)
-            issue_comment = repo.get_issue(current_issue.number)
-            issue_comment.edit(
-                f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
-            )
+
+            for comment in comments:
+                if comment.user.login == GITHUB_BOT_USERNAME:
+                    issue_comment = comment
+
+            if issue_comment is None:
+                issue_comment = current_issue.create_comment(msg)
+            else:
+                issue_comment.edit(msg)
 
     if len(title + summary) < 20:
         logger.info("Issue too short")
