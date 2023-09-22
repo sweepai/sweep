@@ -145,6 +145,18 @@ def on_ticket(
         else None
     )
 
+    # Check if a feedback button was clicked
+    feedback_emoji = check_button_activated(SWEEP_GOOD_FEEDBACK, SWEEP_BAD_FEEDBACK)
+    if feedback_emoji:
+        # Send a message to discord with the PR details and the feedback emoji
+        import requests
+        import json
+        pr_details = {
+            "content": f"{feedback_emoji} {request.pull_request.html_url} ({request.sender.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
+        }
+        headers = {"Content-Type": "application/json"}
+        requests.post(DISCORD_FEEDBACK_WEBHOOK_URL, data=json.dumps(pr_details), headers=headers)
+
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
         is_trial_user = chat_logger.is_trial_user()
@@ -1017,6 +1029,17 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             logger.error(e)
+
+        # Check if a feedback button was clicked
+        feedback_emoji = check_button_activated(SWEEP_GOOD_FEEDBACK, SWEEP_BAD_FEEDBACK)
+        if feedback_emoji:
+            # Send a message to discord with the PR details and the feedback emoji
+            import requests, json
+            pr_details = {
+                "content": f"{feedback_emoji} {pr.html_url} ({username})\n{pr.commits} commits, {pr.changed_files} files: +{pr.additions}, -{pr.deletions}"
+            }
+            headers = {"Content-Type": "application/json"}
+            requests.post(DISCORD_FEEDBACK_WEBHOOK_URL, data=json.dumps(pr_details), headers=headers)
 
         # Completed code review
         edit_sweep_comment(
