@@ -86,6 +86,7 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None,
     edited: bool = False,
+    is_python_issue: bool = False,
 ):
     (
         title,
@@ -591,6 +592,7 @@ def on_ticket(
         chat_logger=chat_logger,
         sweep_context=sweep_context,
         cloned_repo=cloned_repo,
+        is_python_issue=is_python_issue,
     )
 
     # Check repository for sweep.yml file.
@@ -691,7 +693,7 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue=is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
