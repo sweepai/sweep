@@ -6,6 +6,9 @@ import re
 import requests
 from typing import Generator, Any, Dict, List, Tuple
 from logn import logger
+import discord
+from discord.ext import commands
+from discord import Webhook, RequestsWebhookAdapter
 
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
@@ -582,6 +585,10 @@ class SweepBot(CodeGenBot, GithubBot):
     comment_pr_diff_str: str | None = None
     comment_pr_files_modified: Dict[str, str] | None = None
 
+    def send_feedback_to_discord(self, feedback: str):
+        webhook = Webhook.from_url(DISCORD_FEEDBACK_WEBHOOK_URL, adapter=RequestsWebhookAdapter())
+        webhook.send(feedback)
+
     @staticmethod
     def run_sandbox(
         repo_url: str,
@@ -598,15 +605,24 @@ class SweepBot(CodeGenBot, GithubBot):
             json={
                 "token": token,
                 "repo_url": repo_url,
+        )
+
+        if response.status_code == 200:
+            feedback = response.json().get('feedback')
+            if feedback and feedback.startswith('Feedback: '):
+                self.send_feedback_to_discord(feedback)
+                import discord
+                from discord_webhook import DiscordWebhook
+                
                 "file_path": file_path,
                 "content": content,
                 "only_lint": only_lint,
-            },
-            timeout=(5, 600),
-        )
-        response.raise_for_status()
-        output = response.json()
-        return output
+                },
+                timeout=(5, 600),
+                )
+                response.raise_for_status()
+                output = response.json()
+                return output
 
     def check_completion(self, file_name: str, new_content: str) -> bool:
         can_check = False
@@ -652,6 +668,10 @@ class SweepBot(CodeGenBot, GithubBot):
 
         return True
 
+    def send_feedback_to_discord(self, feedback: str):
+        webhook = DiscordWebhook(url=DISCORD_FEEDBACK_WEBHOOK_URL, content=feedback)
+        webhook.execute()
+    
     def check_sandbox(
         self,
         file_path: str,
@@ -729,9 +749,9 @@ class SweepBot(CodeGenBot, GithubBot):
             file_change.commit_message = file_change.commit_message[
                 : min(len(file_change.commit_message), 50)
             ]
-
+    
             self.delete_messages_from_chat(key_to_delete=key)
-
+    
             try:
                 implemented = self.check_completion(  # use async
                     file_change_request.filename, file_change.code
@@ -741,15 +761,16 @@ class SweepBot(CodeGenBot, GithubBot):
                         f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
                         priority=2 if self.sweep_context.use_faster_model else 0,
                     )
+                    self.send_feedback_to_discord(f"Unimplemented Create Section: {file_change_request.filename}")
             except SystemExit:
                 raise SystemExit
             except Exception as e:
                 logger.error(f"Error: {e}")
-
+    
             file_change.code, sandbox_execution = self.check_sandbox(
                 file_change_request.filename, file_change.code
             )
-
+    
             return file_change, sandbox_execution
         except SystemExit:
             raise SystemExit
@@ -854,7 +875,7 @@ class SweepBot(CodeGenBot, GithubBot):
             else:
                 commit_message = f"feat: Updated {file_change_request.filename}"
             commit_message = commit_message[: min(len(commit_message), 50)]
-
+    
             sandbox_execution = None
             if not chunking:
                 new_file, sandbox_execution = self.check_sandbox(
