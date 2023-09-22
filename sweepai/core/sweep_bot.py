@@ -580,6 +580,7 @@ class GithubBot(BaseModel):
 
 class SweepBot(CodeGenBot, GithubBot):
     comment_pr_diff_str: str | None = None
+    comment_pr_files_modified: List[str] | None = None
 
     @staticmethod
     def run_sandbox(
