@@ -193,7 +193,7 @@ def call_on_ticket(*args, **kwargs):
         logger.info(f"Found previous thread for key {key} and cancelling it")
         terminate_thread(e)
 
-    thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=run_on_ticket, args=args, is_python_issue=kwargs.get('is_python_issue', False), kwargs=kwargs)
     on_ticket_events[key] = thread
     thread.start()
 
