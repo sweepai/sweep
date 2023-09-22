@@ -15,10 +15,12 @@ from sweepai.core.entities import (
     MockPR,
     FileChangeRequest,
     SweepContext,
+    Message,
 )
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.diff import generate_diff
 from sweepai.config.server import (
     GITHUB_BOT_USERNAME,
     ENV,
@@ -225,6 +227,21 @@ def on_comment(
             pr.head.ref if pr_number else pr.pr_head  # pylint: disable=no-member
         )
         cloned_repo = ClonedRepo(repo_full_name, installation_id, branch=branch_name)
+
+        # Generate diffs for this PR
+        pr_diff_string = None
+        if pr_number:
+            patches = []
+            files = pr.get_files()
+            for file in files:
+                if file.status == "modified":
+                    patches.append(
+                        f'<file file_path="{file.filename}">\n{file.patch}\n</file>'
+                    )
+            pr_diff_string = (
+                "<files_changed>\n" + "\n".join(patches) + "\n</files_changed>"
+            )
+
         # This means it's a comment on a file
         if file_comment:
             pr_file = repo.get_contents(
@@ -295,6 +312,14 @@ def on_comment(
             sweep_context=sweep_context,
             cloned_repo=cloned_repo,
         )
+        # Add pr_diff_string to sweep_bot messages after first message
+        if pr_diff_string is not None:
+            sweep_bot.messages.insert(
+                1, Message(role="user", content=pr_diff_string, key="pr_diffs")
+            )
+        import pdb
+
+        pdb.set_trace()
     except Exception as e:
         logger.error(traceback.format_exc())
         capture_posthog_event(
