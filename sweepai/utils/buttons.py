@@ -16,14 +16,14 @@ def create_button(name: str, value: str, text: str, style: str, confirm: dict, s
 
 
 def create_action_buttons(labels: List[str], header="## Actions (click)\n"):
-    buttons = "\n".join(create_button(label, "value", "text", "style", {}) for label in labels)
-    return header + buttons
+    buttons = [create_button(label, "value", "text", "style", {}) for label in labels]
+    return {"header": header, "buttons": buttons}
 
 
 def get_toggled_state(label: str, changes_request: Changes) -> bool:
     old_content = changes_request.body_from
     button = create_button(label, "value", "text", "style", {}, selected=True)
-    return button['name'].lower() in old_content.lower()
+    return button['name'].lower() in old_content
 
 
 def check_button_activated(
@@ -34,4 +34,4 @@ def check_button_activated(
             # If the issue was previously activated, do not activate it again
             return False
 
-    return button['name'].lower() in body.lower()
+    return button['name'].lower() in body
