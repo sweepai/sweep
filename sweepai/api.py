@@ -2,7 +2,7 @@
 import json
 
 from logn import logger
-from sweepai.utils.buttons import check_button_activated
+from sweepai.utils.buttons import check_button_activated, REVERT_BUTTON
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
 logger.init(
