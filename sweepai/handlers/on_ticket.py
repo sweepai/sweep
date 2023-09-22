@@ -586,6 +586,21 @@ def on_ticket(
         tree=tree,
     )
 
+    # Calculate is_python_issue
+    is_python_issue = (
+        sum(
+            [
+                not file_path.endswith(".py")
+                for file_path in human_message.get_file_paths()
+            ]
+        )
+        < 2
+    )
+
+    # Log is_python_issue to posthog
+    metadata["is_python_issue"] = is_python_issue
+    posthog.capture(username, "is_python_issue", properties=metadata)
+
     _user_token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
     sweep_bot = SweepBot.from_system_message_content(
@@ -598,6 +613,8 @@ def on_ticket(
     )
 
     # Check repository for sweep.yml file.
+    # Pass is_python_issue to the get_files_to_change method
+    file_change_requests, pr_diffs = sweep_bot.get_files_to_change_with_python_issue(is_python_issue)
     sweep_yml_exists = False
     for content_file in repo.get_contents(""):
         if content_file.name == "sweep.yaml":
