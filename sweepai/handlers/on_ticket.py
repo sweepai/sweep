@@ -641,6 +641,7 @@ def on_ticket(
     )
     )
     )
+    )
 
     # Check repository for sweep.yml file.
     sweep_yml_exists = False
@@ -1213,6 +1214,26 @@ def on_ticket(
     finally:
         cloned_repo.delete()
     
+    if delete_branch:
+        try:
+            if pull_request.branch_name.startswith("sweep"):
+                repo.get_git_ref(f"heads/{pull_request.branch_name}").delete()
+            else:
+                raise Exception(
+                    f"Branch name {pull_request.branch_name} does not start with sweep/"
+                )
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
+            logger.error(e)
+            logger.error(traceback.format_exc())
+            logger.print("Deleted branch", pull_request.branch_name)
+    
+    file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue=is_python_issue)
+    
+    posthog.capture(username, "success", properties={**metadata})
+    logger.info("on_ticket success")
+    return {"success": True}
     if delete_branch:
         try:
             if pull_request.branch_name.startswith("sweep"):
