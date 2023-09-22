@@ -12,9 +12,6 @@ CHANGE_THRESHOLD = 25
 # dictionary to map from github repo to the last time a rule was activated
 merge_rule_debounce = {}
 
-# change threshold for number of lines changed
-CHANGE_THRESHOLD = 25
-
 
 @LogTask()
 def on_merge(request_dict, chat_logger):
