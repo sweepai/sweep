@@ -212,7 +212,8 @@ def find_best_match(query: str, code_file: str):
     for top_match in unique_top_matches[:5]:
         logger.print(top_match)
 
-    return unique_top_matches[0]
+    # Todo: on_comment file comments able to modify multiple files
+    return unique_top_matches[0] if unique_top_matches else Match(-1, -1, 0)
 
 
 code_file = """
