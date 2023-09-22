@@ -233,11 +233,15 @@ def on_comment(
         pr_files_modified = None
         if pr_number:
             patches = []
-            pr_files_modified = []
+            pr_files_modified = {}
             files = pr.get_files()
             for file in files:
                 if file.status == "modified":
-                    pr_files_modified.append(file.filename)
+                    # Get the entire file contents, not just the patch
+                    pr_files_modified[file.filename] = repo.get_contents(
+                        file.filename, ref=branch_name
+                    ).decoded_content.decode("utf-8")
+
                     patches.append(
                         f'<file file_path="{file.filename}">\n{file.patch}\n</file>'
                     )
