@@ -1204,6 +1204,15 @@ def on_ticket(
             logger.error(traceback.format_exc())
             logger.print("Deleted branch", pull_request.branch_name)
 
-    posthog.capture(username, "success", properties={**metadata})
+    # Calculate is_python_issue
+    is_python_issue = any(file.endswith(".py") for file in repo.get_contents(""))
+    
+    # Log is_python_issue event to Posthog
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+    
+    # Pass is_python_issue to get_files_to_change method
+    file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
+    
+    posthog.capture(username, "success", properties={**metadata, "is_python_issue": is_python_issue})
     logger.info("on_ticket success")
     return {"success": True}
