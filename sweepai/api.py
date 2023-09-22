@@ -20,6 +20,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
 import requests
 
+from sweepai.utils.buttons import revert_file, REVERT_BUTTON
 from sweepai.config.client import (
     SweepConfig,
     get_documentation_dict,
@@ -618,13 +619,13 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
 import requests
 
+from sweepai.utils.buttons import check_button_activated, revert_file, REVERT_BUTTON
 from sweepai.config.client import (
     SweepConfig,
     get_documentation_dict,
     RESTART_SWEEP_BUTTON,
     SWEEP_GOOD_FEEDBACK,
     SWEEP_BAD_FEEDBACK,
-    REVERT_BUTTON,
 )
 from sweepai.config.server import (
     API_MODAL_INST_NAME,
@@ -1262,7 +1263,7 @@ async def webhook(raw_request: Request):
                         SWEEP_BAD_FEEDBACK, request.pull_request.body, request.changes
                     )
                     revert_button = check_button_activated(
-                        REVERT_BUTTON, request.pull_request.body, request.changes, request.changes.filename, pr.head.sha
+                        REVERT_BUTTON, request.pull_request.body, request.changes
                     )
 
                     if good_button or bad_button or revert_button:
