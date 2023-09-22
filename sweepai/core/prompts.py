@@ -1139,9 +1139,9 @@ This is the format:
 
 <snippet instructions="detailed instructions for this snippet">
 ```
-first five lines of the snippet
+first five lines of the original snippet
 ...
-last five lines of the snippet (must end on code)
+last five lines of the original snippet (must end on code)
 ```
 </snippet>"""
 
