@@ -598,6 +598,604 @@ async def webhook(raw_request: Request):
                         repo.full_name
                         for repo in repos_added_request.repositories_added
                     ],
+
+from logn import logger
+from sweepai.utils.buttons import check_button_activated
+from sweepai.utils.safe_pqueue import SafePriorityQueue
+
+logger.init(
+    metadata=None,
+    create_file=False,
+)
+
+import ctypes
+from queue import Queue
+import sys
+import threading
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import ValidationError
+import requests
+
+from sweepai.config.client import (
+    SweepConfig,
+    get_documentation_dict,
+    RESTART_SWEEP_BUTTON,
+    SWEEP_GOOD_FEEDBACK,
+    SWEEP_BAD_FEEDBACK,
+    REVERT_BUTTON,
+)
+from sweepai.config.server import (
+    API_MODAL_INST_NAME,
+    BOT_TOKEN_NAME,
+    DB_MODAL_INST_NAME,
+    DOCS_MODAL_INST_NAME,
+    GITHUB_BOT_USERNAME,
+    GITHUB_LABEL_COLOR,
+    GITHUB_LABEL_DESCRIPTION,
+    GITHUB_LABEL_NAME,
+    DISCORD_FEEDBACK_WEBHOOK_URL,
+)
+from sweepai.core.documentation import write_documentation
+from sweepai.core.entities import PRChangeRequest, SweepContext
+from sweepai.core.vector_db import get_deeplake_vs_from_repo
+from sweepai.events import (
+    CheckRunCompleted,
+    CommentCreatedRequest,
+    InstallationCreatedRequest,
+    IssueCommentRequest,
+    IssueRequest,
+    PRRequest,
+    ReposAddedRequest,
+    IssueCommentChanges,
+    PREdited,
+)
+from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  # type: ignore
+from sweepai.handlers.create_pr import create_pr_changes, safe_delete_sweep_branch
+from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
+from sweepai.handlers.on_comment import on_comment
+from sweepai.handlers.on_merge import on_merge
+from sweepai.handlers.on_ticket import on_ticket
+from sweepai.redis_init import redis_client
+from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.search_utils import index_full_repository
+
+app = FastAPI()
+
+import tracemalloc
+
+tracemalloc.start()
+
+events = {}
+on_ticket_events = {}
+
+
+def run_on_ticket(*args, **kwargs):
+    logger.init(
+        metadata={
+            **kwargs,
+            "name": "ticket_" + kwargs["username"],
+        },
+        create_file=False,
+    )
+    with logger:
+        on_ticket(*args, **kwargs)
+
+
+def run_on_comment(*args, **kwargs):
+    logger.init(
+        metadata={
+            **kwargs,
+            "name": "comment_" + kwargs["username"],
+        },
+        create_file=False,
+    )
+
+    with logger:
+        on_comment(*args, **kwargs)
+
+
+def run_on_merge(*args, **kwargs):
+    logger.init(
+        metadata={
+            **kwargs,
+            "name": "merge_" + args[0]["pusher"]["name"],
+        },
+        create_file=False,
+    )
+    with logger:
+        on_merge(*args, **kwargs)
+
+
+def run_on_write_docs(*args, **kwargs):
+    logger.init(
+        metadata={
+            **kwargs,
+            "name": "docs_scrape",
+        },
+        create_file=False,
+    )
+    with logger:
+        write_documentation(*args, **kwargs)
+
+
+def run_on_check_suite(*args, **kwargs):
+    logger.init(
+        metadata={
+            "name": "check",
+        },
+        create_file=False,
+    )
+
+    request = kwargs["request"]
+    pr_change_request = on_check_suite(request)
+    if pr_change_request:
+        logger.init(
+            metadata={
+                **pr_change_request.params,
+                "name": "check_" + pr_change_request.params["username"],
+            },
+            create_file=False,
+        )
+        with logger:
+            call_on_comment(**pr_change_request.params, comment_type="github_action")
+        logger.info("Done with on_check_suite")
+    else:
+        logger.info("Skipping on_check_suite as no pr_change_request was returned")
+
+
+def run_get_deeplake_vs_from_repo(*args, **kwargs):
+    logger.init(
+        metadata={
+            **kwargs,
+            "name": "deeplake",
+        },
+        create_file=False,
+    )
+    with logger:
+        get_deeplake_vs_from_repo(*args, **kwargs)
+
+
+def terminate_thread(thread):
+    """Terminate a python threading.Thread."""
+    try:
+        if not thread.is_alive():
+            return
+
+        exc = ctypes.py_object(SystemExit)
+        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+            ctypes.c_long(thread.ident), exc
+        )
+        if res == 0:
+            raise ValueError("Invalid thread ID")
+        elif res != 1:
+            # Call with exception set to 0 is needed to cleanup properly.
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(thread.ident, 0)
+            raise SystemError("PyThreadState_SetAsyncExc failed")
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        logger.error(f"Failed to terminate thread: {e}")
+
+
+def call_on_ticket(*args, **kwargs):
+    global on_ticket_events
+    key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
+
+    # Use multithreading
+    # Check if a previous process exists for the same key, cancel it
+    e = on_ticket_events.get(key, None)
+    if e:
+        logger.info(f"Found previous thread for key {key} and cancelling it")
+        terminate_thread(e)
+
+    thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
+    on_ticket_events[key] = thread
+    thread.start()
+
+
+def call_on_check_suite(*args, **kwargs):
+    repo_full_name = kwargs["request"].repository.full_name
+    pr_number = kwargs["request"].check_run.pull_requests[0].number
+    key = f"{repo_full_name}-{pr_number}"
+    thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
+    thread.start()
+
+
+def call_on_comment(
+    *args, **kwargs
+):  # TODO: if its a GHA delete all previous GHA and append to the end
+    def worker():
+        while not events[key].empty():
+            task_args, task_kwargs = events[key].get()
+            run_on_comment(*task_args, **task_kwargs)
+
+    global events
+    repo_full_name = kwargs["repo_full_name"]
+    pr_id = kwargs["pr_number"]
+    key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
+
+    comment_type = kwargs["comment_type"]
+    priority = (
+        0 if comment_type == "comment" else 1
+    )  # set priority to 0 if comment, 1 if GHA
+    logger.info(f"Received comment type: {comment_type}")
+
+    if key not in events:
+        events[key] = SafePriorityQueue()
+
+    events[key].put(priority, (args, kwargs))
+
+    # If a thread isn't running, start one
+    if not any(
+        thread.name == key and thread.is_alive() for thread in threading.enumerate()
+    ):
+        thread = threading.Thread(target=worker, name=key)
+        thread.start()
+
+
+def call_on_merge(*args, **kwargs):
+    thread = threading.Thread(target=run_on_merge, args=args, kwargs=kwargs)
+    thread.start()
+
+
+def call_on_write_docs(*args, **kwargs):
+    thread = threading.Thread(target=run_on_write_docs, args=args, kwargs=kwargs)
+    thread.start()
+
+
+def call_get_deeplake_vs_from_repo(*args, **kwargs):
+    thread = threading.Thread(
+        target=run_get_deeplake_vs_from_repo, args=args, kwargs=kwargs
+    )
+    thread.start()
+
+
+@app.get("/health")
+def health_check():
+    return JSONResponse(
+        status_code=200,
+        content={"status": "UP", "port": sys.argv[-1] if len(sys.argv) > 0 else -1},
+    )
+
+
+@app.get("/", response_class=HTMLResponse)
+def home():
+    return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
+
+
+@app.post("/")
+async def webhook(raw_request: Request):
+    # Do not create logs for api
+    logger.init(
+        metadata=None,
+        create_file=False,
+    )
+
+    """Handle a webhook request from GitHub."""
+    try:
+        request_dict = await raw_request.json()
+        logger.info(f"Received request: {request_dict.keys()}")
+        event = raw_request.headers.get("X-GitHub-Event")
+        assert event is not None
+        action = request_dict.get("action", None)
+        # logger.bind(event=event, action=action)
+        logger.info(f"Received event: {event}, {action}")
+        match event, action:
+            case "issues", "opened":
+                request = IssueRequest(**request_dict)
+                issue_title_lower = request.issue.title.lower()
+                if (
+                    issue_title_lower.startswith("sweep")
+                    or "sweep:" in issue_title_lower
+                ):
+                    _, g = get_github_client(request.installation.id)
+                    repo = g.get_repo(request.repository.full_name)
+
+                    labels = repo.get_labels()
+                    label_names = [label.name for label in labels]
+
+                    if GITHUB_LABEL_NAME not in label_names:
+                        repo.create_label(
+                            name=GITHUB_LABEL_NAME,
+                            color=GITHUB_LABEL_COLOR,
+                            description=GITHUB_LABEL_DESCRIPTION,
+                        )
+                    current_issue = repo.get_issue(number=request.issue.number)
+                    current_issue.add_to_labels(GITHUB_LABEL_NAME)
+            case "issue_comment", "edited":
+                request = IssueCommentRequest(**request_dict)
+                changes = IssueCommentChanges(**request_dict)
+
+                restart_sweep = False
+                if (
+                    request.comment.user.type == "Bot"
+                    and GITHUB_BOT_USERNAME in request.comment.user.login
+                    and changes.changes.body_from is not None
+                    and check_button_activated(
+                        RESTART_SWEEP_BUTTON, request.comment.body, changes.changes
+                    )
+                    and GITHUB_LABEL_NAME
+                    in [label.name.lower() for label in request.issue.labels]
+                    and request.sender.type == "User"
+                ):
+                    # Restart Sweep on this issue
+                    restart_sweep = True
+
+                if (
+                    request.issue is not None
+                    and GITHUB_LABEL_NAME
+                    in [label.name.lower() for label in request.issue.labels]
+                    and request.comment.user.type == "User"
+                    and not request.comment.user.login.startswith("sweep")
+                    and not (
+                        request.issue.pull_request and request.issue.pull_request.url
+                    )
+                    or restart_sweep
+                ):
+                    logger.info("New issue comment edited")
+                    request.issue.body = request.issue.body or ""
+                    request.repository.description = (
+                        request.repository.description or ""
+                    )
+
+                    if (
+                        not request.comment.body.strip()
+                        .lower()
+                        .startswith(GITHUB_LABEL_NAME)
+                        and not restart_sweep
+                    ):
+                        logger.info("Comment does not start with 'Sweep', passing")
+                        return {
+                            "success": True,
+                            "reason": "Comment does not start with 'Sweep', passing",
+                        }
+
+                    # Update before we handle the ticket to make sure index is up to date
+                    # other ways suboptimal
+
+                    key = (request.repository.full_name, request.issue.number)
+
+                    call_on_ticket(
+                        title=request.issue.title,
+                        summary=request.issue.body,
+                        issue_number=request.issue.number,
+                        issue_url=request.issue.html_url,
+                        username=request.issue.user.login,
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        installation_id=request.installation.id,
+                        comment_id=request.comment.id,
+                        edited=True,
+                    )
+                elif (
+                    request.issue.pull_request and request.comment.user.type == "User"
+                ):  # TODO(sweep): set a limit
+                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
+                    _, g = get_github_client(request.installation.id)
+                    repo = g.get_repo(request.repository.full_name)
+                    pr = repo.get_pull(request.issue.number)
+                    labels = pr.get_labels()
+                    comment = request.comment.body
+                    if comment.lower().startswith("sweep:") or any(
+                        label.name.lower() == "sweep" for label in labels
+                    ):
+                        pr_change_request = PRChangeRequest(
+                            params={
+                                "comment_type": "comment",
+                                "repo_full_name": request.repository.full_name,
+                                "repo_description": request.repository.description,
+                                "comment": request.comment.body,
+                                "pr_path": None,
+                                "pr_line_position": None,
+                                "username": request.comment.user.login,
+                                "installation_id": request.installation.id,
+                                "pr_number": request.issue.number,
+                                "comment_id": request.comment.id,
+                                "g": g,
+                                "repo": repo,
+                            },
+                        )
+                        # push_to_queue(
+                        #     repo_full_name=request.repository.full_name,
+                        #     pr_id=request.issue.number,
+                        #     pr_change_request=pr_change_request,
+                        # )
+            case "issues", "edited":
+                request = IssueRequest(**request_dict)
+                if (
+                    GITHUB_LABEL_NAME
+                    in [label.name.lower() for label in request.issue.labels]
+                    and request.sender.type == "User"
+                    and not request.sender.login.startswith("sweep")
+                ):
+                    logger.info("New issue edited")
+                    key = (request.repository.full_name, request.issue.number)
+                    # logger.info(f"Checking if {key} is in {stub.issue_lock}")
+                    # process = stub.issue_lock[key] if key in stub.issue_lock else None
+                    # if process:
+                    #     logger.info("Cancelling process")
+                    #     process.cancel()
+                    # stub.issue_lock[
+                    #     (request.repository.full_name, request.issue.number)
+                    # ] =
+                    call_on_ticket(
+                        title=request.issue.title,
+                        summary=request.issue.body,
+                        issue_number=request.issue.number,
+                        issue_url=request.issue.html_url,
+                        username=request.issue.user.login,
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        installation_id=request.installation.id,
+                        comment_id=None,
+                    )
+                else:
+                    logger.info("Issue edited, but not a sweep issue")
+            case "issues", "labeled":
+                request = IssueRequest(**request_dict)
+                if (
+                    "label" in request_dict
+                    and str.lower(request_dict["label"]["name"]) == GITHUB_LABEL_NAME
+                ):
+                    request.issue.body = request.issue.body or ""
+                    request.repository.description = (
+                        request.repository.description or ""
+                    )
+                    # Update before we handle the ticket to make sure index is up to date
+                    # other ways suboptimal
+                    key = (request.repository.full_name, request.issue.number)
+                    # logger.info(f"Checking if {key} is in {stub.issue_lock}")
+                    # process = stub.issue_lock[key] if key in stub.issue_lock else None
+                    # if process:
+                    #     logger.info("Cancelling process")
+                    #     process.cancel()
+                    # stub.issue_lock[
+                    #     (request.repository.full_name, request.issue.number)
+                    # ] =
+                    call_on_ticket(
+                        title=request.issue.title,
+                        summary=request.issue.body,
+                        issue_number=request.issue.number,
+                        issue_url=request.issue.html_url,
+                        username=request.issue.user.login,
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        installation_id=request.installation.id,
+                        comment_id=None,
+                    )
+            case "issue_comment", "created":
+                request = IssueCommentRequest(**request_dict)
+                if (
+                    request.issue is not None
+                    and GITHUB_LABEL_NAME
+                    in [label.name.lower() for label in request.issue.labels]
+                    and request.comment.user.type == "User"
+                    and not (
+                        request.issue.pull_request and request.issue.pull_request.url
+                    )
+                ):
+                    logger.info("New issue comment created")
+                    request.issue.body = request.issue.body or ""
+                    request.repository.description = (
+                        request.repository.description or ""
+                    )
+
+                    if (
+                        not request.comment.body.strip()
+                        .lower()
+                        .startswith(GITHUB_LABEL_NAME)
+                    ):
+                        logger.info("Comment does not start with 'Sweep', passing")
+                        return {
+                            "success": True,
+                            "reason": "Comment does not start with 'Sweep', passing",
+                        }
+
+                    # Update before we handle the ticket to make sure index is up to date
+                    # other ways suboptimal
+                    key = (request.repository.full_name, request.issue.number)
+                    # logger.info(f"Checking if {key} is in {stub.issue_lock}")
+                    # process = stub.issue_lock[key] if key in stub.issue_lock else None
+                    # if process:
+                    #     logger.info("Cancelling process")
+                    #     process.cancel()
+                    # stub.issue_lock[
+                    #     (request.repository.full_name, request.issue.number)
+                    # ] =
+                    call_on_ticket(
+                        title=request.issue.title,
+                        summary=request.issue.body,
+                        issue_number=request.issue.number,
+                        issue_url=request.issue.html_url,
+                        username=request.issue.user.login,
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        installation_id=request.installation.id,
+                        comment_id=request.comment.id,
+                    )
+                elif (
+                    request.issue.pull_request and request.comment.user.type == "User"
+                ):  # TODO(sweep): set a limit
+                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
+                    _, g = get_github_client(request.installation.id)
+                    repo = g.get_repo(request.repository.full_name)
+                    pr = repo.get_pull(request.issue.number)
+                    labels = pr.get_labels()
+                    comment = request.comment.body
+                    if comment.lower().startswith("sweep:") or any(
+                        label.name.lower() == "sweep" for label in labels
+                    ):
+                        pr_change_request = PRChangeRequest(
+                            params={
+                                "comment_type": "comment",
+                                "repo_full_name": request.repository.full_name,
+                                "repo_description": request.repository.description,
+                                "comment": request.comment.body,
+                                "pr_path": None,
+                                "pr_line_position": None,
+                                "username": request.comment.user.login,
+                                "installation_id": request.installation.id,
+                                "pr_number": request.issue.number,
+                                "comment_id": request.comment.id,
+                            },
+                        )
+                        call_on_comment(**pr_change_request.params)
+            case "pull_request_review_comment", "created":
+                # Add a separate endpoint for this
+                request = CommentCreatedRequest(**request_dict)
+                logger.info(f"Handling comment on PR: {request.pull_request.number}")
+                _, g = get_github_client(request.installation.id)
+                repo = g.get_repo(request.repository.full_name)
+                pr = repo.get_pull(request.pull_request.number)
+                labels = pr.get_labels()
+                comment = request.comment.body
+                if (
+                    comment.lower().startswith("sweep:")
+                    or any(label.name.lower() == "sweep" for label in labels)
+                ) and request.comment.user.type == "User":
+                    pr_change_request = PRChangeRequest(
+                        params={
+                            "comment_type": "comment",
+                            "repo_full_name": request.repository.full_name,
+                            "repo_description": request.repository.description,
+                            "comment": request.comment.body,
+                            "pr_path": request.comment.path,
+                            "pr_line_position": request.comment.original_line,
+                            "username": request.comment.user.login,
+                            "installation_id": request.installation.id,
+                            "pr_number": request.pull_request.number,
+                            "comment_id": request.comment.id,
+                        },
+                    )
+                    call_on_comment(**pr_change_request.params)
+                # Todo: update index on comments
+            case "pull_request_review", "submitted":
+                # request = ReviewSubmittedRequest(**request_dict)
+                pass
+            case "check_run", "completed":
+                request = CheckRunCompleted(**request_dict)
+                logger.info(f"Handling check suite for {request.repository.full_name}")
+                _, g = get_github_client(request.installation.id)
+                repo = g.get_repo(request.repository.full_name)
+                pull_requests = request.check_run.pull_requests
+                if pull_requests:
+                    pr = repo.get_pull(pull_requests[0].number)
+                    if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
+                        call_on_check_suite(request=request)
+                else:
+                    logger.info("No pull requests, passing")
+            case "installation_repositories", "added":
+                repos_added_request = ReposAddedRequest(**request_dict)
+                metadata = {
+                    "installation_id": repos_added_request.installation.id,
+                    "repositories": [
+                        repo.full_name
+                        for repo in repos_added_request.repositories_added
+                    ],
                 }
 
                 try:
