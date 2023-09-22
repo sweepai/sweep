@@ -89,6 +89,7 @@ def on_ticket(
     is_python_issue: bool = False,
 ):
 ):
+):
     (
         title,
         slow_mode,
@@ -495,6 +496,40 @@ def on_ticket(
             cloned_repo,
             f"{title}\n{summary}\n{replies_text}",
             num_files=num_of_snippets_to_query,
+            is_python_issue=is_python_issue
+        )
+        assert len(snippets) > 0
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        trace = traceback.format_exc()
+        logger.error(e)
+        logger.error(trace)
+        edit_sweep_comment(
+            (
+                "It looks like an issue has occurred around fetching the files."
+                " Perhaps the repo has not been initialized. If this error persists"
+                f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch."
+            ),
+            -1,
+        )
+        log_error(
+            is_paying_user,
+            is_trial_user,
+            username,
+            issue_url,
+            "File Fetch",
+            str(e) + "\n" + traceback.format_exc(),
+            priority=1,
+        )
+        raise e
+
+    logger.info("Fetching relevant files...")
+    try:
+        snippets, tree = search_snippets(
+            cloned_repo,
+            f"{title}\n{summary}\n{replies_text}",
+            num_files=num_of_snippets_to_query,
         )
         assert len(snippets) > 0
     except SystemExit:
@@ -594,6 +629,7 @@ def on_ticket(
         sweep_context=sweep_context,
         cloned_repo=cloned_repo,
         is_python_issue=is_python_issue,
+    )
     )
     )
     )
@@ -1124,6 +1160,70 @@ def on_ticket(
         logger.error(traceback.format_exc())
         logger.error(e)
         # title and summary are defined elsewhere
+        if len(title + summary) < 60:
+            edit_sweep_comment(
+                (
+                    "I'm sorry, but it looks like an error has occurred due to"
+                    " insufficient information. Be sure to create a more detailed issue"
+                    " so I can better address it. If this error persists report it at"
+                    " https://discord.gg/sweep."
+                ),
+                -1,
+            )
+        else:
+            edit_sweep_comment(
+                (
+                    "I'm sorry, but it looks like an error has occurred. Try changing"
+                    " the issue description to re-trigger Sweep. If this error persists"
+                    " contact team@sweep.dev."
+                ),
+                -1,
+            )
+        log_error(
+            is_paying_user,
+            is_trial_user,
+            username,
+            issue_url,
+            "Workflow",
+            str(e) + "\n" + traceback.format_exc(),
+            priority=1,
+        )
+        posthog.capture(
+            username,
+            "failed",
+            properties={"error": str(e), "reason": "Generic error", **metadata},
+        )
+        delete_branch = True
+        raise e
+    else:
+        try:
+            item_to_react_to.delete_reaction(eyes_reaction.id)
+            item_to_react_to.create_reaction("rocket")
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
+            logger.error(e)
+    finally:
+        cloned_repo.delete()
+    
+    if delete_branch:
+        try:
+            if pull_request.branch_name.startswith("sweep"):
+                repo.get_git_ref(f"heads/{pull_request.branch_name}").delete()
+            else:
+                raise Exception(
+                    f"Branch name {pull_request.branch_name} does not start with sweep/"
+                )
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
+            logger.error(e)
+            logger.error(traceback.format_exc())
+            logger.print("Deleted branch", pull_request.branch_name)
+    
+    posthog.capture(username, "success", properties={**metadata})
+    logger.info("on_ticket success")
+    return {"success": True}
         if len(title + summary) < 60:
             edit_sweep_comment(
                 (
