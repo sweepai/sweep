@@ -4,7 +4,7 @@ from dataclasses import field
 import traceback
 import re
 import requests
-from typing import Generator, Any, Dict, List
+from typing import Generator, Any, Dict, List, Tuple
 from logn import logger
 
 from github.ContentFile import ContentFile
@@ -823,7 +823,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 chat_logger=self.chat_logger,
             )
             try:
-                new_file = modify_file_bot.update_file(
+                new_file = modify_file_bot.try_update_file(
                     file_path=file_change_request.filename,
                     file_contents=contents,
                     file_change_request=file_change_request,
@@ -1312,7 +1312,38 @@ class ModifyBot:
         self.update_snippets_bot.messages.extend(additional_messages)
         self.parent_bot = parent_bot
 
-    def update_file(
+    def try_update_file(
+        self,
+        file_path: str,
+        file_contents: str,
+        file_change_request: FileChangeRequest,
+        chunking: bool = False,
+    ):
+        snippet_queries = self.get_snippets_to_modify(
+            file_path=file_path,
+            file_contents=file_contents,
+            file_change_request=file_change_request,
+            chunking=chunking,
+        )
+
+        #
+
+        # best_matches = []
+        # for instructions, query in snippet_queries:
+        #     _match = find_best_match(query, file_contents)
+        #     if _match.score > 50:
+        #         best_matches.append((instructions, _match))
+
+        new_file = self.update_file(
+            file_path=file_path,
+            file_contents=file_contents,
+            file_change_request=file_change_request,
+            snippet_queries=snippet_queries,
+            chunking=chunking,
+        )
+        return new_file
+
+    def get_snippets_to_modify(
         self,
         file_path: str,
         file_contents: str,
@@ -1340,7 +1371,16 @@ class ModifyBot:
             snippet_queries.append((instructions, strip_backticks(code)))
 
         assert len(snippet_queries) > 0, "No snippets found in file"
+        return snippet_queries
 
+    def update_file(
+        self,
+        file_path: str,
+        file_contents: str,
+        file_change_request: FileChangeRequest,
+        snippet_queries: List[Tuple[str, str]],
+        chunking: bool = False,
+    ):
         best_matches = []
         for instructions, query in snippet_queries:
             _match = find_best_match(query, file_contents)
