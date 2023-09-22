@@ -5,8 +5,7 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel, Snippet
 
 system_prompt = """You are a genius engineer tasked with solving the following GitHub issue.
-relevant_snippets_from_repo have been provided. Assume any changes needed in those snippets will be taken care of separately.
-Determine whether changes in new_file are necessary.
+relevant_snippets_from_repo have been provided. Do not propose changes to those files. Determine whether changes in new_file are necessary.
 If code changes need to be made in new_file, provide the relevant_new_snippet and the changes_for_new_file.
 Extract the code you deem necessary, and then describe the necessary code changes. Otherwise leave both sections blank.
 
@@ -25,14 +24,11 @@ relevant_snippet as small as possible. When writing the code changes keep in min
 ...
 </relevant_new_snippet>
 
-
-<changes_for_new_file file_path="file_path">
+<changes_for_new_file source="new_file">
 {The changes should be constrained to the file_path and code mentioned in new_file only. These are clear and detailed natural language instructions of modifications to be made in new_file. The relevant_snippets_in_repo are read-only for this change but we can and should make references to them.}
-</changes_for_new_file>
-"""
+</changes_for_new_file>"""
 
-graph_user_prompt = """
-<metadata>
+graph_user_prompt = """<metadata>
 {issue_metadata}
 </metadata>
 
@@ -41,7 +37,7 @@ graph_user_prompt = """
 <all_symbols_and_files>
 {all_symbols_and_files}</all_symbols_and_files>
 
-<new_file file_path=\"{file_path}\" entities=\"{entities}\">
+<new_file source=\"{file_path}\" entities=\"{entities}\">
 {code}
 </new_file>
 
