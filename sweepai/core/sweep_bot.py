@@ -205,21 +205,12 @@ class CodeGenBot(ChatGPT):
         raise NoFilesException()
 
     def get_files_to_change(
-        self, retries=1, pr_diffs: str | None = None
+        self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            is_python_issue = (
-                sum(
-                    [
-                        not file_path.endswith(".py")
-                        for file_path in self.human_message.get_file_paths()
-                    ]
-                )
-                < 2
-            )
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
             python_issue_worked = True
             if is_python_issue:
@@ -1002,11 +993,16 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.print(file_change_request.change_type, file_change_request.filename)
             changed_file = False
 
-            # popping files too long
-            # total_lines = 0
-            # new_changed_files = []
-            # for file_name, changed_file in changed_files:
-            #     if total_lines + len(changed_file.splitlines()) > LINE_CUTOFF:
+            def get_files_to_change(
+                self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
+            ) -> tuple[list[FileChangeRequest], str]:
+                file_change_requests: list[FileChangeRequest] = []
+                # Todo: put retries into a constants file
+                # also, this retries multiple times as the calls for this function are in a for loop
+                try:
+                    logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+                    python_issue_worked = True
+                    if is_python_issue:
             #         break
             #     new_changed_files.append((file_name, changed_file))
             #     total_lines += len(changed_file.splitlines())
