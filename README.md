@@ -143,3 +143,6 @@ Contributions are welcome and greatly appreciated! To get set up, see [Developme
 <p align="center">
     and, of course, Sweep!
 </p>
+<p align="center">
+    Thanks for reading
+</p>
