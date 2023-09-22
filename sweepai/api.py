@@ -405,6 +405,11 @@ async def webhook(raw_request: Request):
                         #     pr_id=request.issue.number,
                         #     pr_change_request=pr_change_request,
                         # )
+                        report_feedback_to_discord(request.comment.body, DISCORD_FEEDBACK_WEBHOOK_URL)
+                        #     repo_full_name=request.repository.full_name,
+                        #     pr_id=request.issue.number,
+                        #     pr_change_request=pr_change_request,
+                        # )
             case "issues", "edited":
                 request = IssueRequest(**request_dict)
                 if (
@@ -808,6 +813,9 @@ async def webhook(raw_request: Request):
                     )
             case "ping", None:
                 return {"message": "pong"}
+            case "issue_comment", "created":
+                comment_request = IssueCommentCreatedRequest(**request_dict)
+                report_feedback_to_discord(comment_request.comment.body, DISCORD_FEEDBACK_WEBHOOK_URL)
             case _:
                 logger.info(
                     f"Unhandled event: {event} {request_dict.get('action', None)}"
@@ -878,3 +886,9 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
         raise SystemExit
     except:
         logger.warning("Failed to update sweep PRs")
+
+def report_feedback_to_discord(comment: str, webhook_url: str):
+    if comment.startswith("Feedback: "):
+        data = {"content": comment}
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(webhook_url, data=json.dumps(data), headers=headers)
