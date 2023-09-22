@@ -317,9 +317,6 @@ def on_comment(
             sweep_bot.messages.insert(
                 1, Message(role="user", content=pr_diff_string, key="pr_diffs")
             )
-        import pdb
-
-        pdb.set_trace()
     except Exception as e:
         logger.error(traceback.format_exc())
         capture_posthog_event(
