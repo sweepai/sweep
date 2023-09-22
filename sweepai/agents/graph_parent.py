@@ -103,28 +103,32 @@ class GraphParentBot(ChatGPT):
     def relevant_files_to_symbols(
         self, issue_metadata: str, relevant_snippets: str, symbols_to_files: str
     ):
-        self.messages = [
-            Message(
-                role="system",
-                content=system_prompt,
-                key="system",
-            )
-        ]
+        ...
         user_prompt = graph_user_prompt.format(
             issue_metadata=issue_metadata,
             relevant_snippets=relevant_snippets,
-            symbols_to_files=symbols_to_files,
+            symbols_to_files=symbols_to_files
         )
+        try:
+            response = self.chat(user_prompt)
+        except Exception as e:
+            self.logger.warning(f"Error in relevant_files_to_symbols: {e}")
+            self.logger.warning(self.traceback.format_exc())
+            raise e
+        ...
+        issue_metadata=issue_metadata,
+        relevant_snippets=relevant_snippets,
+        symbols_to_files=symbols_to_files
         self.model = (
-            "gpt-4-32k-0613"
+        ...
             if (self.chat_logger and self.chat_logger.is_paying_user())
             else "gpt-3.5-turbo-16k-0613"
         )
         try:
             response = self.chat(user_prompt)
         except Exception as e:
-            logger.warning(f"Error in relevant_files_to_symbols: {e}")
-            logger.warning(traceback.format_exc())
+            self.logger.warning(f"Error in relevant_files_to_symbols: {e}")
+            self.logger.warning(self.traceback.format_exc())
             raise e
         relevant_symbols_and_files = RelevantSymbolsAndFiles.from_string(
             response, symbols_to_files
