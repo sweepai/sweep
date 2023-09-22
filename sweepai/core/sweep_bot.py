@@ -829,6 +829,12 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_change_request=file_change_request,
                     chunking=chunking,
                 )
+                if file_change_request.filename not in new_files:
+                    logger.error(
+                        f"File tried to modify in another file: {new_files.keys()} instead of {file_change_request.filename}"
+                    )
+                    raise NoFilesException()
+
                 new_file = new_files[file_change_request.filename]
             except SystemExit:
                 raise SystemExit
@@ -1337,7 +1343,7 @@ class ModifyBot:
         remove = []
         for q in snippet_queries:
             instructions, query = q
-            _match = find_best_match(query, file_path)
+            _match = find_best_match(query, file_contents)
             if _match.score > 50:
                 matches_per_file[file_path].append(query)
                 remove.append(q)
@@ -1351,15 +1357,16 @@ class ModifyBot:
         for q in snippet_queries:
             instructions, query = q
             best_match, best_path = None, None
-            for path in self.parent_bot.comment_pr_files_modified:
-                _match = find_best_match(query, path)
+            for path, pr_content in self.parent_bot.comment_pr_files_modified.items():
+                _match = find_best_match(query, pr_content)
                 if _match.score > 50 and (
                     best_match is None or _match.score > best_match.score
                 ):
                     best_match = _match
                     best_path = path
+
             # Modify the best matched file
-            matches_per_file[best_path].append(query)
+            matches_per_file[best_path].append(q)
 
         # best_matches = []
         # for instructions, query in snippet_queries:
