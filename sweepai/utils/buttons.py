@@ -4,12 +4,14 @@ import subprocess
 from sweepai.events import IssueCommentChanges, Changes
 
 
+REVERT_BUTTON = "Revert"
+
 def create_button(label: str, selected: bool = False):
     return f"- [{'x' if selected else ' '}] {label}"
 
-def revert_file(file_path: str):
+def revert_file(file_path: str, commit_hash: str):
     try:
-        subprocess.check_call(['git', 'checkout', '--', file_path])
+        subprocess.check_call(['git', 'checkout', commit_hash, '--', file_path])
     except subprocess.CalledProcessError as e:
         print(f"Error reverting file {file_path}: {str(e)}")
 
@@ -26,7 +28,7 @@ def get_toggled_state(label: str, changes_request: Changes) -> bool:
 
 
 def check_button_activated(
-    label: str, body: str, changes_request: Changes | None = None, file_path: str = None
+    label: str, body: str, changes_request: Changes | None = None, file_path: str = None, commit_hash: str = None
 ) -> bool:
     if changes_request:
         if get_toggled_state(label, changes_request):
@@ -35,7 +37,7 @@ def check_button_activated(
 
     button = create_button(label, selected=True)
     if button.lower() in body.lower():
-        if file_path:
-            revert_file(file_path)
+        if label == REVERT_BUTTON and file_path and commit_hash:
+            revert_file(file_path, commit_hash)
         return True
     return False
