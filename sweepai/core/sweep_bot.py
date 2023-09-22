@@ -211,7 +211,6 @@ class CodeGenBot(ChatGPT):
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            # Calculation of 'is_python_issue' has been moved to 'on_ticket' flow
             python_issue_worked = True
             if is_python_issue:
                 graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
@@ -381,7 +380,7 @@ class CodeGenBot(ChatGPT):
 
         raise NoFilesException()
 
-    def generate_pull_request(self, retries=2) -> PullRequest:
+    def generate_pull_request(self, is_python_issue: bool, retries=2) -> PullRequest:
         for count in range(retries):
             too_long = False
             try:
@@ -466,7 +465,7 @@ class GithubBot(BaseModel):
 
         return branch
 
-    def create_branch(self, branch: str, retry=True) -> str:
+    def create_branch(self, is_python_issue: bool, branch: str, retry=True) -> str:
         # Generate PR if nothing is supplied maybe
         branch = self.clean_branch_name(branch)
         base_branch = self.repo.get_branch(SweepConfig.get_branch(self.repo))
@@ -1001,10 +1000,10 @@ class SweepBot(CodeGenBot, GithubBot):
                 # new_changed_files = []
                 # for file_name, changed_file in changed_files:
                 #     if total_lines + len(changed_file.splitlines()) > LINE_CUTOFF:
-            #         break
-            #     new_changed_files.append((file_name, changed_file))
-            #     total_lines += len(changed_file.splitlines())
-            # changed_files = new_changed_files
+                #         break
+                #     new_changed_files.append((file_name, changed_file))
+                #     total_lines += len(changed_file.splitlines())
+                # changed_files = new_changed_files
 
             try:
                 commit = None
