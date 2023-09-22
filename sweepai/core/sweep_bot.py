@@ -823,12 +823,13 @@ class SweepBot(CodeGenBot, GithubBot):
                 chat_logger=self.chat_logger,
             )
             try:
-                new_file = modify_file_bot.try_update_file(
+                new_files = modify_file_bot.try_update_file(
                     file_path=file_change_request.filename,
                     file_contents=contents,
                     file_change_request=file_change_request,
                     chunking=chunking,
                 )
+                new_file = new_files[file_change_request.filename]
             except SystemExit:
                 raise SystemExit
             except Exception as e:
@@ -1326,7 +1327,39 @@ class ModifyBot:
             chunking=chunking,
         )
 
-        #
+        matches_per_file = {
+            path: []
+            for path in (self.parent_bot.comment_pr_files_modified or [file_path])
+        }
+        # Try to match with the file_path first before trying self.parent_bot.comment_pr_files_modified
+        # Use the _match.score > 0 to try to assign. If it is assigned, remove it from the snippet_queries, and
+        # add it to the matches_per_file[file_path].append((snippet_query))
+        remove = []
+        for q in snippet_queries:
+            instructions, query = q
+            _match = find_best_match(query, file_path)
+            if _match.score > 50:
+                matches_per_file[file_path].append(query)
+                remove.append(q)
+
+        for q in remove:
+            snippet_queries.remove(q)
+
+        # For the remaining snippets, find the best match in the self.parent_bot.comment_pr_files_modified
+        # Use the _match.score > 0 to try to assign. If it is assigned, remove it from the snippet_queries, and
+        # add it to the matches_per_file[file_path].append((snippet_query))
+        for q in snippet_queries:
+            instructions, query = q
+            best_match, best_path = None, None
+            for path in self.parent_bot.comment_pr_files_modified:
+                _match = find_best_match(query, path)
+                if _match.score > 50 and (
+                    best_match is None or _match.score > best_match.score
+                ):
+                    best_match = _match
+                    best_path = path
+            # Modify the best matched file
+            matches_per_file[best_path].append(query)
 
         # best_matches = []
         # for instructions, query in snippet_queries:
@@ -1334,14 +1367,27 @@ class ModifyBot:
         #     if _match.score > 50:
         #         best_matches.append((instructions, _match))
 
-        new_file = self.update_file(
-            file_path=file_path,
-            file_contents=file_contents,
-            file_change_request=file_change_request,
-            snippet_queries=snippet_queries,
-            chunking=chunking,
-        )
-        return new_file
+        updated_files: Dict[str, str] = {}
+        for path, queries in matches_per_file.items():
+            contents = self.parent_bot.comment_pr_files_modified[path]
+            if len(queries) > 0:
+                file_contents = self.update_file(
+                    file_path=path,
+                    file_contents=contents,
+                    file_change_request=file_change_request,
+                    snippet_queries=queries,
+                    chunking=chunking,
+                )
+                updated_files[path] = file_contents
+
+        # new_file = self.update_file(
+        #     file_path=file_path,
+        #     file_contents=file_contents,
+        #     file_change_request=file_change_request,
+        #     snippet_queries=snippet_queries,
+        #     chunking=chunking,
+        # )
+        return updated_files
 
     def get_snippets_to_modify(
         self,
