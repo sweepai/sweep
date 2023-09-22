@@ -1362,9 +1362,7 @@ class ModifyBot:
         )
 
         snippet_queries = []
-        query_pattern = (
-            r'<snippet instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet>'
-        )
+        query_pattern = r'<snippet_to_modify instructions="(?P<instructions>.*?)">(?P<code>.*?)</snippet_to_modify>'
         for instructions, code in re.findall(
             query_pattern, fetch_snippets_response, re.DOTALL
         ):

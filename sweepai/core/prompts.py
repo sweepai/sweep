@@ -1133,17 +1133,17 @@ File path: {file_path}
 {request}
 
 # Instructions
-Respond with a list of all non-overlapping snippet(s) to modify.
+Respond with a list of all non-overlapping snippet(s) from the file above to you would like to modify.
 {chunking_prompt}
-This is the format:
+Respond in the following format:
 
-<snippet instructions="detailed instructions for this snippet">
+<snippet_to_modify instructions="detailed instructions for this snippet">
 ```
 first five lines of the original snippet
 ...
 last five lines of the original snippet (must end on code)
 ```
-</snippet>"""
+</snippet_to_modify>"""
 
 update_snippets_system_prompt = (
     "You are a brilliant and meticulous engineer assigned to"
