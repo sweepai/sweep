@@ -182,7 +182,7 @@ def terminate_thread(thread):
         logger.error(f"Failed to terminate thread: {e}")
 
 
-def call_on_ticket(*args, **kwargs):
+def call_on_ticket(*args, is_python_issue=False, **kwargs):
     global on_ticket_events
     key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
 
@@ -193,7 +193,7 @@ def call_on_ticket(*args, **kwargs):
         logger.info(f"Found previous thread for key {key} and cancelling it")
         terminate_thread(e)
 
-    thread = threading.Thread(target=run_on_ticket, args=args, is_python_issue=kwargs.get('is_python_issue', False), kwargs=kwargs)
+    thread = threading.Thread(target=run_on_ticket, args=args, is_python_issue=is_python_issue, kwargs=kwargs)
     on_ticket_events[key] = thread
     thread.start()
 
