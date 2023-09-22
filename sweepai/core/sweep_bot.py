@@ -158,7 +158,7 @@ class CodeGenBot(ChatGPT):
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error in summarize_snippets: {e}. Likely failed to parse")
+            logger.warning(f"Error in summarize_snippets: {e}. Likely failed to parse\n{traceback.format_exc()}")
             snippets_text = self.get_message_content_from_message_key(
                 "relevant_snippets"
             )
@@ -199,7 +199,7 @@ class CodeGenBot(ChatGPT):
                 if subissues:
                     return subissues
             except RegexMatchError:
-                logger.warning("Failed to parse! Retrying...")
+                logger.warning(f"Failed to parse! Retrying...\n{traceback.format_exc()}")
                 self.delete_messages_from_chat("files_to_change")
                 continue
         raise NoFilesException()
@@ -384,7 +384,7 @@ class CodeGenBot(ChatGPT):
                 return file_change_requests, files_to_change_response
         except RegexMatchError as e:
             logger.print(e)
-            logger.warning("Failed to parse! Retrying...")
+            logger.warning(f"Failed to parse! Retrying...\n{traceback.format_exc()}")
             self.delete_messages_from_chat("files_to_change")
             self.delete_messages_from_chat("pr_diffs")
 
@@ -419,7 +419,7 @@ class CodeGenBot(ChatGPT):
                 e_str = str(e)
                 if "too long" in e_str:
                     too_long = True
-                logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
+                logger.warning(f"Exception {e_str}. Failed to parse! Retrying...\n{traceback.format_exc()}")
                 self.delete_messages_from_chat("pull_request")
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
@@ -466,6 +466,7 @@ class GithubBot(BaseModel):
         except SystemExit:
             raise SystemExit
         except Exception:
+            logger.warning(f"Exception occurred\n{traceback.format_exc()}")
             return False
 
     def clean_branch_name(self, branch: str) -> str:
@@ -495,7 +496,7 @@ class GithubBot(BaseModel):
             self.repo.create_git_ref(f"refs/heads/{branch}", base_branch.commit.sha)
             return branch
         except GithubException as e:
-            logger.error(f"Error: {e}, trying with other branch names...")
+            logger.error(f"Error: {e}, trying with other branch names...\n{traceback.format_exc()}")
             logger.warning(
                 f"{branch}\n{base_branch}, {base_branch.name}\n{base_branch.commit.sha}"
             )
@@ -524,7 +525,7 @@ class GithubBot(BaseModel):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(snippet)
+                logger.error(f"Exception occurred with snippet: {snippet}\n{traceback.format_exc()}")
 
     @staticmethod
     def is_blocked(file_path: str, blocked_dirs: list[str]):
@@ -569,7 +570,7 @@ class GithubBot(BaseModel):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.info(traceback.format_exc())
+                logger.info(f"Exception occurred\n{traceback.format_exc()}")
         file_change_requests = [
             file_change_request
             for file_change_request in file_change_requests
@@ -756,7 +757,7 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
             logger.info(traceback.format_exc())
-            logger.warning(e)
+            logger.warning(f"{e}\n{traceback.format_exc()}")
             logger.warning(f"Failed to parse. Retrying for the 1st time...")
             self.delete_messages_from_chat(key)
         raise Exception("Failed to parse response after 5 attempts.")
@@ -871,7 +872,7 @@ class SweepBot(CodeGenBot, GithubBot):
             raise SystemExit
         except Exception as e:
             tb = traceback.format_exc()
-            logger.warning(f"Failed to parse." f" {e}\n{tb}")
+            logger.warning(f"Failed to parse. {e}\n{tb}")
             self.delete_messages_from_chat(key)
         raise Exception(f"Failed to parse response after 1 attempt.")
 
@@ -1153,7 +1154,7 @@ class SweepBot(CodeGenBot, GithubBot):
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.info(f"Error in handle_create_file: {e}")
+            logger.info(f"Error in handle_create_file: {e}\n{traceback.format_exc()}")
             return False, None, None
 
     def handle_modify_file(
@@ -1250,8 +1251,7 @@ class SweepBot(CodeGenBot, GithubBot):
             # If the original file content is identical to the new file content, log a warning and return
             if file_contents == new_file_contents:
                 logger.warning(
-                    f"No changes made to {file_change_request.filename}. Skipping file"
-                    " update."
+                    f"No changes made to {file_change_request.filename}. Skipping file update.\n{traceback.format_exc()}"
                 )
                 return False, sandbox_error, "No changes made to file.", changed_files
             logger.debug(
