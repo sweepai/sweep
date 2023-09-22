@@ -89,6 +89,7 @@ def on_ticket(
     is_python_issue: bool = False,
 ):
 ):
+):
     (
         title,
         slow_mode,
