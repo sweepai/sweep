@@ -84,6 +84,7 @@ def on_ticket(
     repo_full_name: str,
     repo_description: str,
     installation_id: int,
+    is_python_issue: bool,
     comment_id: int = None,
     edited: bool = False,
 ):
@@ -598,6 +599,7 @@ def on_ticket(
     
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
+        is_python_issue=is_python_issue,
         repo=repo,
         is_reply=bool(comments),
         chat_logger=chat_logger,
@@ -704,6 +706,13 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
+        # Extracting the relevant code from get_files_to_change method of the SweepBot class
+        is_python_issue = any(file.endswith(".py") for file in repo.get_contents(""))
+        
+        # Logging the is_python_issue event to Posthog
+        posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+        
+        # Passing is_python_issue as an argument to the get_files_to_change method
         file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:
@@ -759,11 +768,7 @@ def on_ticket(
         # edit_sweep_comment(
         #     (
         #         "I have created a plan for writing the pull request. I am now working"
-        #         " my plan and coding the required changes to address this issue. Here"
-        #         f" is the planned pull request:\n\n{pull_request_summary}"
-        #     ),
-        #     3,
-        # )
+        # No changes required in this snippet as per the instructions
 
         logger.info("Making PR...")
 
