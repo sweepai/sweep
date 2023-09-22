@@ -1446,6 +1446,12 @@ async def webhook(raw_request: Request):
                 # this makes it faster for everyone because the queue doesn't get backed up
                 # active users also should not see a delay
 
+                # Todo: fix update index for pro users
+                # if chat_logger.is_paying_user():
+                #     update_index(
+                #         request_dict["repository"]["full_name"],
+                #         installation_id=request_dict["installation"]["id"],
+                #     )
                 from sweepai.utils.buttons import check_button_activated, REVERT_BUTTON
                 #         installation_id=request_dict["installation"]["id"],
                 #     )
