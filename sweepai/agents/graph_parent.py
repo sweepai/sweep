@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message, RegexMatchableBaseModel
+from sweepai.core.entities import Message, RegexMatchableBaseModel, UnneededEditError, MatchingError
 
 system_prompt = """You are an experienced software engineer working on a GitHub issue. Use the issue_metadata, relevant_snippets_in_repo, and symbols to determine the best additional sfiles to explore.
 
@@ -115,7 +115,12 @@ class GraphParentBot(ChatGPT):
             if (self.chat_logger and self.chat_logger.is_paying_user())
             else "gpt-3.5-turbo-16k-0613"
         )
-        response = self.chat(user_prompt)
+        try:
+            response = self.chat(user_prompt)
+        except UnneededEditError:
+            logger.info(f"No changes needed for file {file_path}")
+        except MatchingError:
+            logger.info(f"No more snippets found after matching for file {file_path}")
         relevant_symbols_and_files = RelevantSymbolsAndFiles.from_string(
             response, symbols_to_files
         )
