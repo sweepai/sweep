@@ -97,6 +97,9 @@ def on_ticket(
         lint_mode,
     ) = strip_sweep(title)
 
+    # Define the is_python_issue boolean based on the issue being processed
+    is_python_issue = ".py" in title or ".py" in summary
+
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -193,6 +196,7 @@ def on_ticket(
         "subissues_mode": subissues_mode,
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
+        "is_python_issue": is_python_issue,  # Add is_python_issue to metadata
     }
     # logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
@@ -591,6 +595,7 @@ def on_ticket(
         chat_logger=chat_logger,
         sweep_context=sweep_context,
         cloned_repo=cloned_repo,
+        is_python_issue=is_python_issue,  # Pass is_python_issue to SweepBot
     )
 
     # Check repository for sweep.yml file.
@@ -693,6 +698,8 @@ def on_ticket(
         logger.info("Fetching files to modify/create...")
         file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue=is_python_issue)
         
+        # Log is_python_issue to posthog
+        posthog.capture(username, 'is_python_issue', properties={'is_python_issue': is_python_issue})
         # Log is_python_issue to posthog
         posthog.capture(username, 'is_python_issue', properties={'is_python_issue': is_python_issue})
 
