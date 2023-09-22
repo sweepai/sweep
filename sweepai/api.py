@@ -601,7 +601,7 @@ async def webhook(raw_request: Request):
                     ],
 
 from logn import logger
-from sweepai.utils.buttons import check_button_activated, REVERT_BUTTON
+from sweepai.utils.buttons import check_button_activated, revert_file, REVERT_BUTTON
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
 logger.init(
@@ -619,7 +619,6 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
 import requests
 
-from sweepai.utils.buttons import check_button_activated, revert_file, REVERT_BUTTON
 from sweepai.config.client import (
     SweepConfig,
     get_documentation_dict,
@@ -1017,11 +1016,43 @@ async def webhook(raw_request: Request):
                     key = (request.repository.full_name, request.issue.number)
                     # logger.info(f"Checking if {key} is in {stub.issue_lock}")
                     # process = stub.issue_lock[key] if key in stub.issue_lock else None
-                    # if process:
-                    #     logger.info("Cancelling process")
-                    #     process.cancel()
-                    # stub.issue_lock[
-                    #     (request.repository.full_name, request.issue.number)
+                    revert_button = check_button_activated(
+                        REVERT_BUTTON, request.pull_request.body, request.changes
+                    )
+                    if good_button or bad_button or revert_button:
+                        emoji = "😕"
+                        if good_button:
+                            emoji = "👍"
+                        elif bad_button:
+                            emoji = "👎"
+                        elif revert_button:
+                            # Use the GitHub API to revert the changes
+                            _, g = get_github_client(request.installation.id)
+                            repo = g.get_repo(request.repository.full_name)
+                            pr = repo.get_pull(request.pull_request.number)
+                            pr.create_issue_comment(f"Reverting changes in {request.changes.filename}")
+                            revert_file(request.changes.filename, pr.head.sha)
+                            emoji = "↩️"
+                        data = {
+                            "content": f"{emoji} {request.pull_request.html_url} ({request.sender.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
+                        }
+                        requests.post(DISCORD_FEEDBACK_WEBHOOK_URL, data=data)
+                        posthog.capture(
+                            request.sender.login,
+                            "feedback",
+                            properties={
+                                "repo_name": request.repository.full_name,
+                                "pr_url": request.pull_request.html_url,
+                                "pr_commits": request.pull_request.commits,
+                                "pr_additions": request.pull_request.additions,
+                                "pr_deletions": request.pull_request.deletions,
+                                "pr_changed_files": request.pull_request.changed_files,
+                                "username": request.sender.login,
+                                "good_button": good_button,
+                                "bad_button": bad_button,
+                                "revert_button": revert_button,
+                            },
+                        )
                     # ] =
                     call_on_ticket(
                         title=request.issue.title,
@@ -1278,7 +1309,7 @@ async def webhook(raw_request: Request):
                             repo = g.get_repo(request.repository.full_name)
                             pr = repo.get_pull(request.pull_request.number)
                             pr.create_issue_comment(f"Reverting changes in {request.changes.filename}")
-                            repo.revert_file_changes(request.changes.filename, pr.head.sha)
+                            revert_file(request.changes.filename, pr.head.sha)
                             emoji = "↩️"
                         data = {
                             "content": f"{emoji} {request.pull_request.html_url} ({request.sender.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
