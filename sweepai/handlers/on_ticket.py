@@ -75,6 +75,25 @@ def center(text: str) -> str:
 
 
 @LogTask()
+from github import GithubException
+
+def create_revert_button(file_path: str) -> str:
+    return f"[ ] Revert {file_path}"
+
+def check_button_activated(button_label: str, files_in_pr: list) -> bool:
+    if button_label.startswith("[ ] Revert"):
+        file_path = button_label.replace("[ ] Revert ", "")
+        if file_path in files_in_pr:
+            return True
+    return False
+
+def handle_revert_action(pull_request, file_path: str):
+    try:
+        contents = pull_request.get_file_contents(file_path)
+        pull_request.update_file(file_path, "Revert changes", contents, branch="master")
+    except GithubException as e:
+        logger.error(f"Failed to revert changes for file {file_path}: {str(e)}")
+
 def on_ticket(
     title: str,
     summary: str,
@@ -87,136 +106,20 @@ def on_ticket(
     comment_id: int = None,
     edited: bool = False,
 ):
-    (
-        title,
-        slow_mode,
-        do_map,
-        subissues_mode,
-        sandbox_mode,
-        fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
+    # ... existing code ...
 
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
+    # Get all files in the pull request
+    files_in_pr = [file.filename for file in pull_request.get_files()]
 
-    summary = summary or ""
-    # Check for \r since GitHub issues may have \r\n
-    summary = re.sub(
-        "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
-        "",
-        summary,
-        flags=re.DOTALL,
-    ).strip()
-    summary = re.sub(
-        "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
-    ).strip()
+    # Create revert buttons for each file in the pull request
+    revert_buttons = [create_revert_button(file_path) for file_path in files_in_pr]
 
-    repo_name = repo_full_name
-    user_token, g = get_github_client(installation_id)
-    repo = g.get_repo(repo_full_name)
-    current_issue = repo.get_issue(number=issue_number)
-    assignee = current_issue.assignee.login if current_issue.assignee else None
-    if assignee is None:
-        assignee = current_issue.user.login
+    # Check if any revert button has been activated
+    for button in revert_buttons:
+        if check_button_activated(button, files_in_pr):
+            handle_revert_action(pull_request, button.replace("[ ] Revert ", ""))
 
-    chat_logger = (
-        ChatLogger(
-            {
-                "repo_name": repo_name,
-                "title": title,
-                "summary": summary,
-                "issue_number": issue_number,
-                "issue_url": issue_url,
-                "username": username if not username.startswith("sweep") else assignee,
-                "repo_full_name": repo_full_name,
-                "repo_description": repo_description,
-                "installation_id": installation_id,
-                "type": "ticket",
-                "mode": ENV,
-                "comment_id": comment_id,
-                "edited": edited,
-            }
-        )
-        if MONGODB_URI
-        else None
-    )
-
-    if chat_logger:
-        is_paying_user = chat_logger.is_paying_user()
-        is_trial_user = chat_logger.is_trial_user()
-        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
-    else:
-        is_paying_user = True
-        is_trial_user = False
-        use_faster_model = False
-
-    if fast_mode:
-        use_faster_model = True
-
-    sweep_context = SweepContext.create(
-        username=username,
-        issue_url=issue_url,
-        use_faster_model=use_faster_model,
-        is_paying_user=is_paying_user,
-        repo=repo,
-        token=user_token,
-    )
-    logger.print(sweep_context)
-
-    if not comment_id and not edited and chat_logger:
-        chat_logger.add_successful_ticket(
-            gpt3=use_faster_model
-        )  # moving higher, will increment the issue regardless of whether it's a success or not
-
-    organization, repo_name = repo_full_name.split("/")
-    metadata = {
-        "issue_url": issue_url,
-        "repo_full_name": repo_full_name,
-        "organization": organization,
-        "repo_name": repo_name,
-        "repo_description": repo_description,
-        "username": username,
-        "comment_id": comment_id,
-        "title": title,
-        "installation_id": installation_id,
-        "function": "on_ticket",
-        "edited": edited,
-        "model": "gpt-3.5" if use_faster_model else "gpt-4",
-        "tier": "pro" if is_paying_user else "free",
-        "mode": ENV,
-        "slow_mode": slow_mode,
-        "do_map": do_map,
-        "subissues_mode": subissues_mode,
-        "sandbox_mode": sandbox_mode,
-        "fast_mode": fast_mode,
-    }
-    # logger.bind(**metadata)
-    posthog.capture(username, "started", properties=metadata)
-
-    logger.info(f"Getting repo {repo_full_name}")
-
-    if current_issue.state == "closed":
-        logger.warning(f"Issue {issue_number} is closed")
-        posthog.capture(username, "issue_closed", properties=metadata)
-        return {"success": False, "reason": "Issue is closed"}
-
-    # Add :eyes: emoji to ticket
-    item_to_react_to = (
-        current_issue.get_comment(comment_id) if comment_id else current_issue
-    )
-    eyes_reaction = item_to_react_to.create_reaction("eyes")
-    # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
-    reactions = item_to_react_to.get_reactions()
-    for reaction in reactions:
-        if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
-            item_to_react_to.delete_reaction(reaction.id)
-
-    current_issue.edit(body=summary)
+    # ... existing code ...
 
     replies_text = ""
     comments = list(current_issue.get_comments())
