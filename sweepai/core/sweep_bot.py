@@ -299,7 +299,7 @@ class CodeGenBot(ChatGPT):
                             ),
                             all_symbols_and_files=relevant_symbols_string,
                         )
-                        if plan.changes_for_new_file and plan.relevant_new_snippet:
+                        if plan.code_change_description and plan.relevant_new_snippet:
                             plans.append(plan)
 
                     file_path_set = set()
@@ -333,7 +333,7 @@ class CodeGenBot(ChatGPT):
 
                     for plan in plans:
                         plan_suggestions.append(
-                            f"<plan_suggestion file={plan.file_path}>\n{plan.changes_for_new_file}\n</plan_suggestion>"
+                            f"<plan_suggestion file={plan.file_path}>\n{plan.code_change_description}\n</plan_suggestion>"
                         )
 
                     python_human_message = PythonHumanMessagePrompt(
@@ -354,16 +354,15 @@ class CodeGenBot(ChatGPT):
                     self.messages = new_messages
                     file_change_requests = []
                     for plan in plans:
-                        for snippet in plan.relevant_new_snippet:
-                            file_change_requests.append(
-                                FileChangeRequest(
-                                    filename=snippet.file_path,
-                                    instructions=plan.changes_for_new_file,
-                                    change_type="modify",
-                                    start_line=snippet.start,
-                                    end_line=snippet.end,
-                                )
+                        start_and_end_lines = [(s.start, s.end) for s in plan.relevant_new_snippet]
+                        file_change_requests.append(
+                            FileChangeRequest(
+                                filename=snippet.file_path,
+                                instructions=plan.code_change_description,
+                                change_type="modify",
+                                start_and_end_lines=start_and_end_lines,
                             )
+                        )
                     return file_change_requests, " ".join(plan_suggestions)
             if not is_python_issue or not python_issue_worked:
                 # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
@@ -1187,7 +1186,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 400,
                 # 300,
             ]  # Define the chunk sizes for the backoff mechanism
-            if file_change_request.start_line is not None and file_change_request.end_line is not None:
+            if file_change_request.start_and_end_lines:
                 chunk_sizes = [10000] # dont chunk if we know the start and end lines already
             for CHUNK_SIZE in chunk_sizes:
                 try:
@@ -1362,7 +1361,7 @@ class ModifyBot:
         )
 
         snippet_queries = []
-        query_pattern = r'<snippet_to_modify>(?P<code>.*?)</snippet_to_modify>'
+        query_pattern = r'<snippet_to_modify.*?>(?P<code>.*?)</snippet_to_modify>'
         for code in re.findall(
             query_pattern, fetch_snippets_response, re.DOTALL
         ):
@@ -1417,11 +1416,13 @@ class ModifyBot:
             selected_snippets.append(current_contents)
 
         print(deduped_matches)
-        if file_change_request.start_line is not None and file_change_request.end_line is not None:
-            split_file_contents = "\n".join(file_contents.split("\n")[file_change_request.start_line - 1: file_change_request.end_line])
+        if file_change_request.start_and_end_lines:
             plan_extracted_contents = ""
-            for idx, line in enumerate(split_file_contents.split("\n")):
-                plan_extracted_contents += f"{idx + file_change_request.start_line}: {line}\n"
+            for start_line, end_line in file_change_request.start_and_end_lines:
+                split_file_contents = "\n".join(file_contents.split("\n")[start_line - 1: end_line])
+                for idx, line in enumerate(split_file_contents.split("\n")):
+                    plan_extracted_contents += f"{idx + start_line}: {line}\n"
+                plan_extracted_contents += "...\n"
         else:
             plan_extracted_contents = file_contents
         update_snippets_response = self.update_snippets_bot.chat(
