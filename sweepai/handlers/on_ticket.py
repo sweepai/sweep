@@ -986,6 +986,8 @@ def on_ticket(
         )
 
         is_draft = config.get("draft", False)
+        from sweepai.api import check_feedback_comments
+        
         try:
             pr = repo.create_pull(
                 title=pr_changes.title,
@@ -994,6 +996,7 @@ def on_ticket(
                 base=SweepConfig.get_branch(repo),
                 draft=is_draft,
             )
+            check_feedback_comments(pr)
         except GithubException as e:
             is_draft = False
             pr = repo.create_pull(
