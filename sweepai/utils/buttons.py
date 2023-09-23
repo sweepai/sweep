@@ -1,4 +1,5 @@
 from typing import List
+import requests
 
 from sweepai.events import IssueCommentChanges, Changes
 
@@ -8,7 +9,15 @@ def create_button(label: str, selected: bool = False):
 
 
 def create_action_buttons(labels: List[str], header="## Actions (click)\n"):
+    DISCORD_FEEDBACK_WEBHOOK_URL = 'https://discordapp.com/api/webhooks/1234567890'
     buttons = "\n".join(create_button(label) for label in labels)
+    for label in labels:
+        if label.startswith('Feedback: '):
+            feedback = label.replace('Feedback: ', '')
+            data = {
+                "content": f"### PR Feedback: {feedback}\nReply with `Feedback: ...` to leave more detailed feedback."
+            }
+            requests.post(DISCORD_FEEDBACK_WEBHOOK_URL, data=data)
     return header + buttons
 
 
