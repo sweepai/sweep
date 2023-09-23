@@ -1,3 +1,7 @@
+"""
+This file contains the on_merge handler which is called when a pull request is merged to master.
+on_merge is called by sweepai/api.py
+"""
 import time
 
 from sweepai.config.client import get_rules, SweepConfig
@@ -39,17 +43,17 @@ def on_merge(request_dict, chat_logger):
     ] != SweepConfig.get_branch(repo):
         logger.info("Not a merge to master")
         return None
-    
+
     # check if the current repo is in the merge_rule_debounce dictionary
     # and if the difference between the current time and the time stored in the dictionary is less than 30 seconds
     if repo in merge_rule_debounce and time.time() - merge_rule_debounce[repo] < 30:
         return
-    
+
     rules = get_rules(repo)
-    
+
     # update the merge_rule_debounce dictionary with the current time for the current repo
     merge_rule_debounce[repo] = time.time()
-    
+
     if not rules:
         logger.info("No rules found")
         return None

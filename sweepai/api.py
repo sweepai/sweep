@@ -369,7 +369,7 @@ async def webhook(raw_request: Request):
                         repo_full_name=request.repository.full_name,
                         repo_description=request.repository.description,
                         installation_id=request.installation.id,
-                        comment_id=request.comment.id,
+                        comment_id=request.comment.id if not restart_sweep else None,
                         edited=True,
                     )
                 elif (
