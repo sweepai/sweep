@@ -592,6 +592,9 @@ def on_ticket(
     is_python_issue = any(file.endswith('.py') for file in cloned_repo.get_all_files())
     posthog.capture('is_python_issue', {'is_python_issue': is_python_issue})
     
+    # Pass is_python_issue to get_files_to_change
+    file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
+    
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
         repo=repo,
