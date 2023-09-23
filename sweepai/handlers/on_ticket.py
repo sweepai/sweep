@@ -204,6 +204,7 @@ def on_ticket(
     if current_issue.state == "closed":
         logger.warning(f"Issue {issue_number} is closed")
         posthog.capture(username, "issue_closed", properties=metadata)
+        posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
         return {"success": False, "reason": "Issue is closed"}
     current_issue.edit(body=summary)
     item_to_react_to = (
