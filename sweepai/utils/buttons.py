@@ -9,16 +9,19 @@ def create_button(label: str, selected: bool = False):
 
 
 def create_action_buttons(labels: List[str], header="## Actions (click)\n"):
-    DISCORD_FEEDBACK_WEBHOOK_URL = 'https://discordapp.com/api/webhooks/1234567890'
     buttons = "\n".join(create_button(label) for label in labels)
     for label in labels:
         if label.startswith('Feedback: '):
-            feedback = label.replace('Feedback: ', '')
-            data = {
-                "content": f"### PR Feedback: {feedback}\nReply with `Feedback: ...` to leave more detailed feedback."
-            }
-            requests.post(DISCORD_FEEDBACK_WEBHOOK_URL, data=data)
+            feedback = label[len('Feedback: '):]
+            send_feedback_to_discord(feedback)
     return header + buttons
+
+def send_feedback_to_discord(message: str):
+    discord_webhook_url = 'https://discordapp.com/api/webhooks/1234567890'
+    data = {
+        "content": f"### PR Feedback: {message}\nReply with `Feedback: ...` to leave more detailed feedback."
+    }
+    requests.post(discord_webhook_url, data=data)
 
 
 def get_toggled_state(label: str, changes_request: Changes) -> bool:
