@@ -35,7 +35,7 @@ Concise explanation of relevant symbol's usage and why it is highly relevant to 
 </symbol_analysis>
 
 <relevant_symbols_to_files>
-{{symbol}}:{{file_path}}
+{symbol}:{file_path}
 ...
 </relevant_symbols_to_files>"""
 
