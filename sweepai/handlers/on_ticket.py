@@ -193,6 +193,7 @@ def on_ticket(
         "subissues_mode": subissues_mode,
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
+        "is_python_issue": is_python_issue,
     }
     # logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
@@ -588,6 +589,16 @@ def on_ticket(
 
     _user_token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
+    is_python_issue = (
+        sum(
+            [
+                file_path.endswith(".py")
+                for file_path in sweep_bot.human_message.get_file_paths()
+            ]
+        )
+        > len(sweep_bot.human_message.get_file_paths()) / 2
+    )
+    
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
         repo=repo,
@@ -651,6 +662,8 @@ def on_ticket(
             + (f"\n\n{docs_results}\n\n" if docs_results else ""),
             1,
         )
+    
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if do_map:
             subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
