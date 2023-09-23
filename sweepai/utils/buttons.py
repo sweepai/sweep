@@ -3,14 +3,17 @@ from typing import List
 from sweepai.events import IssueCommentChanges, Changes
 
 
-def create_button(label: str, selected: bool = False) -> str:
+def create_button(label: str, selected: bool = False, emoji: str = '') -> str:
     """Create a button for the issue body."""
-    return f"- [{'x' if selected else ' '}] {label}"
+    button = f"- [{'x' if selected else ' '}] {label}"
+    if selected:
+        button += f"\n### PR Feedback: {emoji}\nReply with `Feedback: ...` to leave more detailed feedback."
+    return button
 
 
-def create_action_buttons(labels: List[str], header="## Actions (click)\n") -> str:
+def create_action_buttons(labels: List[str], header="## Actions (click)\n", emojis: List[str] = []) -> str:
     """Create a list of buttons for the issue body."""
-    buttons = "\n".join(create_button(label) for label in labels)
+    buttons = "\n".join(create_button(label, emoji=emoji) for label, emoji in zip(labels, emojis))
     return header + buttons
 
 
