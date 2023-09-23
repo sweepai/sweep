@@ -242,6 +242,10 @@ def call_on_merge(*args, **kwargs):
     thread = threading.Thread(target=run_on_merge, args=args, kwargs=kwargs)
     thread.start()
 
+def send_feedback_to_discord(feedback):
+    # Implement the function here or import it from another module
+    pass
+
 
 def call_on_write_docs(*args, **kwargs):
     thread = threading.Thread(target=run_on_write_docs, args=args, kwargs=kwargs)
@@ -650,7 +654,7 @@ async def webhook(raw_request: Request):
                     )
             case "pull_request", "edited":
                 request = PREdited(**request_dict)
-
+            
                 if (
                     request.pull_request.user.login == GITHUB_BOT_USERNAME
                     and not request.sender.login.endswith("[bot]")
@@ -662,22 +666,15 @@ async def webhook(raw_request: Request):
                     bad_button = check_button_activated(
                         SWEEP_BAD_FEEDBACK, request.pull_request.body, request.changes
                     )
-
+            
                     if good_button or bad_button:
                         emoji = "😕"
                         if good_button:
                             emoji = "👍"
                         elif bad_button:
                             emoji = "👎"
-                        data = {
-                            "content": f"{emoji} {request.pull_request.html_url} ({request.sender.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
-                        }
-                        headers = {"Content-Type": "application/json"}
-                        response = requests.post(
-                            DISCORD_FEEDBACK_WEBHOOK_URL,
-                            data=json.dumps(data),
-                            headers=headers,
-                        )
+                        feedback = f"{emoji} {request.pull_request.html_url} ({request.pull_request.user.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
+                        send_feedback_to_discord(feedback)
 
                         # Send feedback to PostHog
                         posthog.capture(
