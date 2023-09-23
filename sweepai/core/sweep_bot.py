@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import field
 import traceback
 import re
+from typing import List
 import requests
 from typing import Generator, Any, Dict, List, Tuple
 from logn import logger
@@ -855,6 +856,9 @@ class SweepBot(CodeGenBot, GithubBot):
         LINE_CUTOFF = 600
         changed_files: list[tuple[str, str]] = []
 
+        file_paths = [file_change_request.file_path for file_change_request in file_change_requests]
+        is_python_issue = sum([file_path.endswith(".py") for file_path in file_paths]) > len(file_paths) / 2
+        posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
         for file_change_request in file_change_requests:
             logger.print(file_change_request.change_type, file_change_request.filename)
             changed_file = False
