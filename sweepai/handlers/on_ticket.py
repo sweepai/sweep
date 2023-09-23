@@ -74,131 +74,220 @@ def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
 
 
-@LogTask()
-def on_ticket(
-    title: str,
-    summary: str,
-    issue_number: int,
-    issue_url: str,
-    username: str,
-    repo_full_name: str,
-    repo_description: str,
-    installation_id: int,
-    comment_id: int = None,
-    edited: bool = False,
-):
-    (
-        title,
-        slow_mode,
-        do_map,
-        subissues_mode,
-        sandbox_mode,
-        fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
-
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
-
-    summary = summary or ""
-    # Check for \r since GitHub issues may have \r\n
-    summary = re.sub(
-        "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
-        "",
-        summary,
-        flags=re.DOTALL,
-    ).strip()
-    summary = re.sub(
-        "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
-    ).strip()
-
-    repo_name = repo_full_name
-    user_token, g = get_github_client(installation_id)
-    repo = g.get_repo(repo_full_name)
-    current_issue = repo.get_issue(number=issue_number)
-    assignee = current_issue.assignee.login if current_issue.assignee else None
-    if assignee is None:
-        assignee = current_issue.user.login
-
-    chat_logger = (
-        ChatLogger(
-            {
-                "repo_name": repo_name,
-                "title": title,
-                "summary": summary,
-                "issue_number": issue_number,
-                "issue_url": issue_url,
-                "username": username if not username.startswith("sweep") else assignee,
-                "repo_full_name": repo_full_name,
-                "repo_description": repo_description,
-                "installation_id": installation_id,
-                "type": "ticket",
-                "mode": ENV,
-                "comment_id": comment_id,
-                "edited": edited,
-            }
-        )
-        if MONGODB_URI
-        else None
-    )
-
-    if chat_logger:
-        is_paying_user = chat_logger.is_paying_user()
-        is_trial_user = chat_logger.is_trial_user()
-        use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
-    else:
-        is_paying_user = True
-        is_trial_user = False
-        use_faster_model = False
-
-    if fast_mode:
-        use_faster_model = True
-
-    sweep_context = SweepContext.create(
-        username=username,
-        issue_url=issue_url,
-        use_faster_model=use_faster_model,
-        is_paying_user=is_paying_user,
-        repo=repo,
-        token=user_token,
-    )
-    logger.print(sweep_context)
-
-    if not comment_id and not edited and chat_logger:
-        chat_logger.add_successful_ticket(
-            gpt3=use_faster_model
-        )  # moving higher, will increment the issue regardless of whether it's a success or not
-
-    organization, repo_name = repo_full_name.split("/")
-    metadata = {
-        "issue_url": issue_url,
-        "repo_full_name": repo_full_name,
-        "organization": organization,
-        "repo_name": repo_name,
-        "repo_description": repo_description,
-        "username": username,
-        "comment_id": comment_id,
-        "title": title,
-        "installation_id": installation_id,
-        "function": "on_ticket",
-        "edited": edited,
-        "model": "gpt-3.5" if use_faster_model else "gpt-4",
-        "tier": "pro" if is_paying_user else "free",
-        "mode": ENV,
-        "slow_mode": slow_mode,
-        "do_map": do_map,
-        "subissues_mode": subissues_mode,
-        "sandbox_mode": sandbox_mode,
-        "fast_mode": fast_mode,
-    }
-    # logger.bind(**metadata)
-    posthog.capture(username, "started", properties=metadata)
-
-    logger.info(f"Getting repo {repo_full_name}")
+78: def on_ticket(
+79:     title: str,
+80:     summary: str,
+81:     issue_number: int,
+82:     issue_url: str,
+83:     username: str,
+84:     repo_full_name: str,
+85:     repo_description: str,
+86:     installation_id: int,
+87:     comment_id: int = None,
+88:     edited: bool = False,
+89: ):
+90:     (
+91:         title,
+92:         slow_mode,
+93:         do_map,
+94:         subissues_mode,
+95:         sandbox_mode,
+96:         fast_mode,
+97:         lint_mode,
+98:     ) = strip_sweep(title)
+99: 
+100:     # Flow:
+101:     # 1. Get relevant files
+102:     # 2: Get human message
+103:     # 3. Get files to change
+104:     # 4. Get file changes
+105:     # 5. Create PR
+106: 
+107:     summary = summary or ""
+108:     # Check for \r since GitHub issues may have \r\n
+109:     summary = re.sub(
+110:         "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
+111:         "",
+112:         summary,
+113:         flags=re.DOTALL,
+114:     ).strip()
+115:     summary = re.sub(
+116:         "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
+117:     ).strip()
+118: 
+119:     repo_name = repo_full_name
+120:     user_token, g = get_github_client(installation_id)
+121:     repo = g.get_repo(repo_full_name)
+122:     current_issue = repo.get_issue(number=issue_number)
+123:     assignee = current_issue.assignee.login if current_issue.assignee else None
+124:     if assignee is None:
+125:         assignee = current_issue.user.login
+126: 
+127:     chat_logger = (
+128:         ChatLogger(
+129:             {
+130:                 "repo_name": repo_name,
+131:                 "title": title,
+132:                 "summary": summary,
+133:                 "issue_number": issue_number,
+134:                 "issue_url": issue_url,
+135:                 "username": username if not username.startswith("sweep") else assignee,
+136:                 "repo_full_name": repo_full_name,
+137:                 "repo_description": repo_description,
+138:                 "installation_id": installation_id,
+139:                 "type": "ticket",
+140:                 "mode": ENV,
+141:                 "comment_id": comment_id,
+142:                 "edited": edited,
+143:             }
+144:         )
+145:         if MONGODB_URI
+146:         else None
+147:     )
+148: 
+149:     if chat_logger:
+150:         is_paying_user = chat_logger.is_paying_user()
+151:         is_trial_user = chat_logger.is_trial_user()
+152:         use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
+153:     else:
+154:         is_paying_user = True
+155:         is_trial_user = False
+156:         use_faster_model = False
+157: 
+158:     if fast_mode:
+159:         use_faster_model = True
+160: 
+161:     sweep_context = SweepContext.create(
+162:         username=username,
+163:         issue_url=issue_url,
+164:         use_faster_model=use_faster_model,
+165:         is_paying_user=is_paying_user,
+166:         repo=repo,
+167:         token=user_token,
+168:     )
+169:     logger.print(sweep_context)
+170: 
+171:     if not comment_id and not edited and chat_logger:
+172:         chat_logger.add_successful_ticket(
+173:             gpt3=use_faster_model
+174:         )  # moving higher, will increment the issue regardless of whether it's a success or not
+175: 
+176:     organization, repo_name = repo_full_name.split("/")
+177:     metadata = {
+178:         "issue_url": issue_url,
+179:         "repo_full_name": repo_full_name,
+180:         "organization": organization,
+181:         "repo_name": repo_name,
+182:         "repo_description": repo_description,
+183:         "username": username,
+184:         "comment_id": comment_id,
+185:         "title": title,
+186:         "installation_id": installation_id,
+187:         "function": "on_ticket",
+188:         "edited": edited,
+189:         "model": "gpt-3.5" if use_faster_model else "gpt-4",
+190:         "tier": "pro" if is_paying_user else "free",
+191:         "mode": ENV,
+192:         "slow_mode": slow_mode,
+193:         "do_map": do_map,
+194:         "subissues_mode": subissues_mode,
+195:         "sandbox_mode": sandbox_mode,
+196:         "fast_mode": fast_mode,
+197:     }
+198:     # logger.bind(**metadata)
+199:     posthog.capture(username, "started", properties=metadata)
+200: 
+201:     logger.info(f"Getting repo {repo_full_name}")
+202: 
+203:     if current_issue.state == "closed":
+204:         logger.warning(f"Issue {issue_number} is closed")
+205:         posthog.capture(username, "issue_closed", properties=metadata)
+206:         return {"success": False, "reason": "Issue is closed"}
+207: 
+208:     # Add :eyes: emoji to ticket
+209:     item_to_react_to = (
+210:         current_issue.get_comment(comment_id) if comment_id else current_issue
+211:     )
+212:     eyes_reaction = item_to_react_to.create_reaction("eyes")
+213:     # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
+214:     reactions = item_to_react_to.get_reactions()
+215:     for reaction in reactions:
+216:         if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
+217:             item_to_react_to.delete_reaction(reaction.id)
+218: 
+219:     current_issue.edit(body=summary)
+220: 
+221:     replies_text = ""
+222:     comments = list(current_issue.get_comments())
+223:     if comment_id:
+224:         logger.info(f"Replying to comment {comment_id}...")
+225:         replies_text = "\nComments:\n" + "\n".join(
+226:             [
+227:                 issue_comment_prompt.format(
+228:                     username=comment.user.login,
+229:                     reply=comment.body,
+230:                 )
+231:                 for comment in comments
+232:                 if comment.user.type == "User"
+233:             ]
+234:         )
+235:     summary = summary if summary else ""
+236: 
+237:     prs = repo.get_pulls(
+238:         state="open", sort="created", base=SweepConfig.get_branch(repo)
+239:     )
+240:     for pr in prs:
+241:         # Check if this issue is mentioned in the PR, and pr is owned by bot
+242:         # This is done in create_pr, (pr_description = ...)
+243:         if (
+244:             pr.user.login == GITHUB_BOT_USERNAME
+245:             and f"Fixes #{issue_number}.\n" in pr.body
+246:         ):
+247:             success = safe_delete_sweep_branch(pr, repo)
+248: 
+249:     # Extract the list of files in the pull request
+250:     pr_files = pr.get_files()
+251:     revert_buttons = []
+252:     for file in pr_files:
+253:         # Create a button for each file to revert changes
+254:         revert_button = Button(label=f"Revert {file.filename}", action=lambda: revert_file_changes(file))
+255:         revert_buttons.append(revert_button)
+256: 
+257:     # Add the revert buttons to the issue
+258:     for button in revert_buttons:
+259:         current_issue.add_button(button)
+260: 
+261:     # Removed 1, 3
+262:     progress_headers = [
+263:         None,
+264:         "Step 1: 🔎 Searching",
+265:         "Step 2: ⌨️ Coding",
+266:         "Step 3: 🔁 Code Review",
+267:     ]
+268: 
+269:     config_pr_url = None
+270: 
+271:     # Find the first comment made by the bot
+272:     issue_comment = None
+273:     tickets_allocated = 5
+274:     if is_trial_user:
+275:         tickets_allocated = 15
+276:     if is_paying_user:
+277:         tickets_allocated = 500
+278:     ticket_count = (
+279:         max(tickets_allocated - chat_logger.get_ticket_count(), 0)
+280:         if chat_logger
+281:         else 999
+282:     )
+283:     daily_ticket_count = (
+284:         (3 - chat_logger.get_ticket_count(use_date=True) if not use_faster_model else 0)
+285:         if chat_logger
+286:         else 999
+287:     )
+288: 
+289:     model_name = "GPT-3.5" if use_faster_model else "GPT-4"
+290:     payment_link = "https://buy.stripe.com/6oE5npbGVbhC97afZ4"
+...
 
     if current_issue.state == "closed":
         logger.warning(f"Issue {issue_number} is closed")
