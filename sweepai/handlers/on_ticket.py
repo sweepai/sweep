@@ -179,9 +179,9 @@ def on_ticket(
         "issue_url": issue_url,
         "repo_full_name": repo_full_name,
         "is_python_issue": is_python_issue,
-    }
         "organization": organization,
         "repo_name": repo_name,
+    }
         "repo_description": repo_description,
         "username": username,
         "comment_id": comment_id,
@@ -203,7 +203,7 @@ def on_ticket(
     posthog.capture(username, "started", properties=metadata)
     
     logger.info(f"Getting repo {repo_full_name}")
-
+    
     if current_issue.state == "closed":
         logger.warning(f"Issue {issue_number} is closed")
         posthog.capture(username, "issue_closed", properties={"is_python_issue": is_python_issue, **metadata})
