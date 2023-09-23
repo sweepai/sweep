@@ -5,6 +5,7 @@ from functools import lru_cache
 from typing import Dict
 
 import yaml
+import requests
 from github.Repository import Repository
 from pydantic import BaseModel
 
@@ -278,8 +279,16 @@ UPDATES_MESSAGE = """\
 
 * Getting Sweep to run linters before committing! Check out [Sweep Sandbox Configs](https://docs.sweep.dev/usage/config) to set it up.
 * Added support for self-hosting! Check out [Self-hosting Sweep](https://docs.sweep.dev/deployment) to get started.
+
 * [Self Hosting] Multiple options to compute vector embeddings, configure your .env file using [VECTOR_EMBEDDING_SOURCE](https://github.com/sweepai/sweep/blob/main/sweepai/config/server.py#L144)
 """
+def send_feedback_to_discord(feedback):
+    webhook_url = os.environ.get("DISCORD_FEEDBACK_WEBHOOK_URL")
+    if webhook_url:
+        data = {"content": feedback}
+        response = requests.post(webhook_url, json=data)
+        if response.status_code != 200:
+            logger.warning(f"Failed to send feedback to discord: {response.content}")
 
 RESTART_SWEEP_BUTTON = "↻ Restart Sweep"
 SWEEP_GOOD_FEEDBACK = "👍 Sweep Did Well"
