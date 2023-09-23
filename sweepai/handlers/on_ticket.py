@@ -8,6 +8,7 @@ import math
 import re
 import traceback
 import openai
+import posthog
 
 import github
 from github import GithubException, BadCredentialsException
@@ -196,6 +197,16 @@ def on_ticket(
     }
     # logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
+    is_python_issue = (
+        sum(
+            [
+                file_path.endswith(".py")
+                for file_path in human_message.get_file_paths()
+            ]
+        )
+        > len(human_message.get_file_paths()) / 2
+    )
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
 
     logger.info(f"Getting repo {repo_full_name}")
 
@@ -558,6 +569,16 @@ def on_ticket(
         snippets=snippets,
         tree=tree,
     )
+    is_python_issue = (
+        sum(
+            [
+                file_path.endswith(".py")
+                for file_path in human_message.get_file_paths()
+            ]
+        )
+        > len(human_message.get_file_paths()) / 2
+    )
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
 
     context_pruning = ContextPruning(chat_logger=chat_logger)
     (
