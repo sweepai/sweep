@@ -54,11 +54,12 @@ DISCORD_MEDIUM_PRIORITY_URL = os.environ.get("DISCORD_MEDIUM_PRIORITY_URL")
 DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
 DISCORD_FEEDBACK_WEBHOOK_URL = os.environ.get("DISCORD_FEEDBACK_WEBHOOK_URL")
 
-# Function to handle PR feedback clicks
-def handle_feedback_click(comment):
+def call_on_comment(*args, **kwargs):
+    ...
+    comment = kwargs["comment"]
     if comment.startswith("Feedback: "):
-        # Send feedback to discord
-        requests.post(DISCORD_FEEDBACK_WEBHOOK_URL, data = {"content": comment})
+        requests.post(DISCORD_FEEDBACK_WEBHOOK_URL, data={"content": comment})
+    ...
 
 SWEEP_HEALTH_URL = os.environ.get("SWEEP_HEALTH_URL")
 DISCORD_STATUS_WEBHOOK_URL = os.environ.get("DISCORD_STATUS_WEBHOOK_URL")
