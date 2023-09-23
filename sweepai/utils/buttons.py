@@ -15,11 +15,15 @@ from sweepai.events import IssueCommentChanges, Changes
 
 DISCORD_FEEDBACK_WEBHOOK_URL = "your_webhook_url_here"
 
+def generate_feedback_message(emoji: str) -> str:
+    """Generate a feedback message with the given emoji."""
+    return f"### PR Feedback: {emoji}\nReply with `Feedback: ...` to leave more detailed feedback."
+
 def create_action_buttons(labels: List[str], header="## Actions (click)\n") -> str:
     """Create a list of buttons for the issue body."""
     buttons = "\n".join(create_button(label) for label in labels)
     feedback_button = create_button("PR Feedback")
-    feedback_message = "### PR Feedback: {emoji}\nReply with `Feedback: ...` to leave more detailed feedback."
+    feedback_message = generate_feedback_message("👍")
     if feedback_button in buttons:
         buttons = buttons.replace(feedback_button, feedback_message)
     return header + buttons
@@ -27,8 +31,12 @@ def create_action_buttons(labels: List[str], header="## Actions (click)\n") -> s
 def send_feedback_to_discord(feedback: str):
     """Send the feedback to discord using the webhook url."""
     data = {"content": feedback}
-    response = requests.post(DISCORD_FEEDBACK_WEBHOOK_URL, data=data)
-    return response.status_code
+    try:
+        response = requests.post(DISCORD_FEEDBACK_WEBHOOK_URL, data=data)
+        return response.status_code
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to send feedback to discord: {e}")
+        return None
 
 
 def get_toggled_state(label: str, changes_request: Changes) -> bool:
