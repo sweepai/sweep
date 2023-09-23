@@ -592,6 +592,16 @@ def on_ticket(
 
     _user_token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
+    is_python_issue = (
+        sum(
+            [
+                not file_path.endswith(".py")
+                for file_path in human_message.get_file_paths()
+            ]
+        )
+        < 2
+    )
+    
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
         repo=repo,
@@ -599,6 +609,7 @@ def on_ticket(
         chat_logger=chat_logger,
         sweep_context=sweep_context,
         cloned_repo=cloned_repo,
+        is_python_issue=is_python_issue,
     )
 
     # Check repository for sweep.yml file.
@@ -748,7 +759,7 @@ def on_ticket(
         # TODO(lukejagg): Generate PR after modifications are made
         # CREATE PR METADATA
         logger.info("Generating PR...")
-        pull_request = sweep_bot.generate_pull_request()
+        pull_request = sweep_bot.generate_pull_request(is_python_issue)
         # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
         # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
         # edit_sweep_comment(
