@@ -1419,7 +1419,10 @@ class ModifyBot:
 
         print(deduped_matches)
         if file_change_request.start_line is not None and file_change_request.end_line is not None:
-            plan_extracted_contents = "\n".join(file_contents.split("\n")[file_change_request.start_line - 1: file_change_request.end_line])
+            split_file_contents = "\n".join(file_contents.split("\n")[file_change_request.start_line - 1: file_change_request.end_line])
+            plan_extracted_contents = ""
+            for idx, line in enumerate(split_file_contents.split("\n")):
+                plan_extracted_contents += f"{idx + file_change_request.start_line}: {line}\n"
         else:
             plan_extracted_contents = file_contents
         update_snippets_response = self.update_snippets_bot.chat(
@@ -1465,17 +1468,6 @@ class ModifyBot:
 if __name__ == "__main__":
     response = """
 ```python
-def get_files_to_change(
-    self, retries=1, pr_diffs: str | None = None, is_python_issue: bool = False
-) -> tuple[list[FileChangeRequest], str]:
-    file_change_requests: list[FileChangeRequest] = []
-    # Todo: put retries into a constants file
-    # also, this retries multiple times as the calls for this function are in a for loop
-    try:
-        logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
-        python_issue_worked = True
-        if is_python_issue:
-            ...
 ```"""
     stripped = strip_backticks(response)
     print(stripped)
