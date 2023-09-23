@@ -70,7 +70,6 @@ def file_cache(ignore_params=[]):
 
             # If cache exists, load and return it
             if os.path.exists(cache_file):
-                print("Used cache for function:" + func.__name__)
                 with open(cache_file, "rb") as f:
                     return pickle.load(f)
 
@@ -105,7 +104,7 @@ if __name__ == "__main__":
     print(example_function(obj, 1, 4))
 
     @file_cache()
-    def example_function(self, a, b):
+    def example_function2(self, a, b):
         return a + b + self.state
 
     obj.state = 0
