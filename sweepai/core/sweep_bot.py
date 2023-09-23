@@ -587,6 +587,7 @@ class GithubBot(BaseModel):
 class SweepBot(CodeGenBot, GithubBot):
     comment_pr_diff_str: str | None = None
     comment_pr_files_modified: Dict[str, str] | None = None
+    discord_webhook_url: str = os.environ.get("DISCORD_FEEDBACK_WEBHOOK_URL", "")
 
     @staticmethod
     def run_sandbox(
