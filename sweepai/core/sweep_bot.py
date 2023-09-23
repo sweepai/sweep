@@ -211,18 +211,27 @@ class CodeGenBot(ChatGPT):
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            is_python_issue = (
-                sum(
-                    [
-                        not file_path.endswith(".py")
-                        for file_path in self.human_message.get_file_paths()
-                    ]
+            # File path: sweepai/core/on_ticket.py
+            def on_ticket(self, ticket: Ticket):
+                # Existing code...
+                
+                is_python_issue = (
+                    sum(
+                        [
+                            not file_path.endswith(".py")
+                            for file_path in self.human_message.get_file_paths()
+                        ]
+                    )
+                    < 2
                 )
-                < 2
-            )
-            logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
-            python_issue_worked = True
-            if is_python_issue:
+                logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+                posthog.capture('is_python_issue', {'value': is_python_issue})
+                
+                # Existing code...
+                
+                file_change_requests, files_to_change_response = self.get_files_to_change(is_python_issue)
+                
+                # Existing code...
                 graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
                 graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
                 if pr_diffs is not None:
