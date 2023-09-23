@@ -1,7 +1,7 @@
 """
-On Github ticket, get ChatGPT to deal with it
+on_ticket is the main function that is called when a new issue is created.
+It is only called by the webhook handler in sweepai/api.py.
 """
-
 # TODO: Add file validation
 
 import math
@@ -105,14 +105,15 @@ def on_ticket(
     # 5. Create PR
 
     summary = summary or ""
+    # Check for \r since GitHub issues may have \r\n
     summary = re.sub(
-        "<details (open)?>\n<summary>Checklist</summary>.*",
+        "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
         "",
         summary,
         flags=re.DOTALL,
     ).strip()
     summary = re.sub(
-        "---\s+Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL
+        "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
     ).strip()
 
     repo_name = repo_full_name
@@ -203,10 +204,20 @@ def on_ticket(
         logger.warning(f"Issue {issue_number} is closed")
         posthog.capture(username, "issue_closed", properties=metadata)
         return {"success": False, "reason": "Issue is closed"}
-    current_issue.edit(body=summary)
+
+    # Add :eyes: emoji to ticket
     item_to_react_to = (
         current_issue.get_comment(comment_id) if comment_id else current_issue
     )
+    eyes_reaction = item_to_react_to.create_reaction("eyes")
+    # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
+    reactions = item_to_react_to.get_reactions()
+    for reaction in reactions:
+        if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
+            item_to_react_to.delete_reaction(reaction.id)
+
+    current_issue.edit(body=summary)
+
     replies_text = ""
     comments = list(current_issue.get_comments())
     if comment_id:
@@ -234,13 +245,6 @@ def on_ticket(
             and f"Fixes #{issue_number}.\n" in pr.body
         ):
             success = safe_delete_sweep_branch(pr, repo)
-
-    eyes_reaction = item_to_react_to.create_reaction("eyes")
-    # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
-    reactions = item_to_react_to.get_reactions()
-    for reaction in reactions:
-        if reaction.content == "rocket" and reaction.user.login == GITHUB_BOT_USERNAME:
-            item_to_react_to.delete_reaction(reaction.id)
 
     # Removed 1, 3
     progress_headers = [
@@ -437,18 +441,22 @@ def on_ticket(
             suffix = bot_suffix  # don't include discord suffix for error messages
 
         # Update the issue comment
+        msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
         try:
-            issue_comment.edit(
-                f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
-            )
+            issue_comment.edit(msg)
         except BadCredentialsException:
             logger.error("Bad credentials, refreshing token")
             _user_token, g = get_github_client(installation_id)
             repo = g.get_repo(repo_full_name)
-            issue_comment = repo.get_issue(current_issue.number)
-            issue_comment.edit(
-                f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
-            )
+
+            for comment in comments:
+                if comment.user.login == GITHUB_BOT_USERNAME:
+                    issue_comment = comment
+
+            if issue_comment is None:
+                issue_comment = current_issue.create_comment(msg)
+            else:
+                issue_comment.edit(msg)
 
     if len(title + summary) < 20:
         logger.info("Issue too short")
@@ -535,7 +543,7 @@ def on_ticket(
     docs_results = ""
     try:
         docs_results = extract_relevant_docs(
-            title + message_summary, user_dict, chat_logger
+            title + "\n" + message_summary, user_dict, chat_logger
         )
         if docs_results:
             message_summary += "\n\n" + docs_results

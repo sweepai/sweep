@@ -4,69 +4,69 @@ from tree_sitter_languages import get_parser
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel, Snippet
 
-system_prompt = """You are a genius engineer tasked with solving the following GitHub issue.
-relevant_snippets_from_repo have been provided. Assume any changes needed in those snippets will be taken care of separately.
-Determine whether changes in new_file are necessary.
-If code changes need to be made in new_file, provide the relevant_new_snippet and the changes_for_new_file.
+system_prompt = """You are a genius engineer tasked with extracting the code and planning the solution to the following GitHub issue.
+Decide whether the file_path {file_path} needs to be modified to solve this issue.
+
+First determine whether changes in file_path are necessary.
+Then, if code changes need to be made in file_path, extract the relevant_new_snippet and plan code_change_description.
 Extract the code you deem necessary, and then describe the necessary code changes. Otherwise leave both sections blank.
 
 # Extraction
 
-Include only the relevant snippet that provides enough detail to solve the issue: Keep the
-relevant_snippet as small as possible. When writing the code changes keep in mind the user can read the metadata and the relevant snippets.
+Include only the relevant snippet that provides enough detail to solve the issue.
+When writing the plan for code changes to file_path keep in mind the user can read the metadata and the relevant snippets.
 
 <code_analysis>
-{thought about potentially relevant snippet and its relevance to the issue}
+{{thought about potentially relevant snippet and its relevance to the issue}}
 ...
 </code_analysis>
 
 <relevant_new_snippet>
-{relevant snippet from the new_file in the format file_path:start_idx-end_idx}
+{{relevant snippet from new_file in the format file_path:start_idx-end_idx}}
 ...
 </relevant_new_snippet>
 
+<code_change_description file_path=\"{file_path}\">
+{{The changes should be constrained to the file_path and code mentioned in new_file. 
+These are clear and detailed natural language descriptions of modifications to be made in new_file.
+The relevant_snippets_in_repo are read-only so focus on how .}}
+</code_change_description>"""
 
-<changes_for_new_file file_path="file_path">
-{The changes should be constrained to the file_path and code mentioned in new_file only. These are clear and detailed natural language instructions of modifications to be made in new_file. The relevant_snippets_in_repo are read-only for this change but we can and should make references to them.}
-</changes_for_new_file>
-"""
-
-graph_user_prompt = """
-<metadata>
+graph_user_prompt = """<metadata>
 {issue_metadata}
 </metadata>
-
+<READONLY>
 {previous_snippets}
 
 <all_symbols_and_files>
 {all_symbols_and_files}</all_symbols_and_files>
+</READONLY>
 
-<new_file file_path=\"{file_path}\" entities=\"{entities}\">
+<file_path source=\"{file_path}\" entities=\"{entities}\">
 {code}
-</new_file>
+</file_path>
 
-Provide the relevant snippets and changes from the new_file above.
-"""
+Provide the relevant snippets and changes from the file_path above."""
 
 
 class GraphContextAndPlan(RegexMatchableBaseModel):
     relevant_new_snippet: list[Snippet]
-    changes_for_new_file: str
+    code_change_description: str
     file_path: str
     entities: str = None
 
     @classmethod
     def from_string(cls, string: str, file_path: str, **kwargs):
         snippets_pattern = r"""<relevant_new_snippet>(\n)?(?P<relevant_new_snippet>.*)</relevant_new_snippet>"""
-        plan_pattern = r"""<changes_for_new_file.*?>(\n)?(?P<changes_for_new_file>.*)</changes_for_new_file>"""
+        plan_pattern = r"""<code_change_description.*?>(\n)?(?P<code_change_description>.*)</code_change_description>"""
         snippets_match = re.search(snippets_pattern, string, re.DOTALL)
         relevant_new_snippet_match = None
-        changes_for_new_file = ""
+        code_change_description = ""
         relevant_new_snippet = []
         if not snippets_match:
             return cls(
                 relevant_new_snippet=relevant_new_snippet,
-                changes_for_new_file=changes_for_new_file,
+                code_change_description=code_change_description,
                 file_path=file_path,
                 **kwargs,
             )
@@ -99,16 +99,16 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
             relevant_new_snippet.append(snippet)
         plan_match = re.search(plan_pattern, string, re.DOTALL)
         if plan_match:
-            changes_for_new_file = plan_match.group("changes_for_new_file").strip()
+            code_change_description = plan_match.group("code_change_description").strip()
         return cls(
             relevant_new_snippet=relevant_new_snippet,
-            changes_for_new_file=changes_for_new_file,
+            code_change_description=code_change_description,
             file_path=file_path,
             **kwargs,
         )
 
     def __str__(self) -> str:
-        return f"{self.relevant_new_snippet}\n{self.changes_for_new_file}"
+        return f"{self.relevant_new_snippet}\n{self.code_change_description}"
 
 
 class GraphChildBot(ChatGPT):
@@ -124,7 +124,7 @@ class GraphChildBot(ChatGPT):
         self.messages = [
             Message(
                 role="system",
-                content=system_prompt,
+                content=system_prompt.format(file_path=file_path),
                 key="system",
             )
         ]
@@ -648,7 +648,7 @@ class CodeGenBot(ChatGPT):
                         previous_snippets=relevant_snippets,
                         all_symbols_and_files=relevant_symbols_string,
                     )
-                    if not plan.changes_for_new_file or not plan.relevant_new_snippet:
+                    if not plan.code_change_description or not plan.relevant_new_snippet:
                         return None
                     return plan
 
@@ -736,7 +736,7 @@ class CodeGenBot(ChatGPT):
 
                 for plan in plans:
                     plan_suggestions.append(
-                        f"<plan_suggestion file={plan.file_path}>\n{plan.changes_for_new_file}\n</plan_suggestion>"
+                        f"<plan_suggestion file={plan.file_path}>\n{plan.code_change_description}\n</plan_suggestion>"
                     )
 
                 python_human_message = PythonHumanMessagePrompt(
@@ -760,7 +760,7 @@ class CodeGenBot(ChatGPT):
                     file_change_requests.append(
                         FileChangeRequest(
                             filename=plan.file_path,
-                            instructions=plan.changes_for_new_file,
+                            instructions=plan.code_change_description,
                             change_type="modify",
                         )
                     )
@@ -1701,7 +1701,7 @@ The posthog.capture function is used in on_ticket.py to log events with specific
 sweepai/handlers/on_ticket.py:590-618
 </relevant_new_snippet>
 
-<changes_for_new_file file_path="sweepai/handlers/on_ticket.py">
+<code_change_description file_path="sweepai/handlers/on_ticket.py">
 First, you need to modify the get_files_to_change function call in on_ticket.py to pass the is_python_issue bool. You can do this by adding an argument to the function call at line 690. The argument should be a key-value pair where the key is 'is_python_issue' and the value is the is_python_issue bool.
 
 Next, you need to log the is_python_issue bool as an event to posthog. You can do this by adding a new posthog.capture function call after the get_files_to_change function call. The first argument to posthog.capture should be 'username', the second argument should be a string describing the event (for example, 'is_python_issue'), and the third argument should be a dictionary with the properties to log. The properties should include 'is_python_issue' and its value.
@@ -1716,7 +1716,7 @@ file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue=is_py
 posthog.capture(username, 'is_python_issue', properties={'is_python_issue': is_python_issue})
 ```
 Please replace 'is_python_issue' with the actual value of the bool.
-</changes_for_new_file>"""
+</code_change_description>"""
     gc_and_plan = GraphContextAndPlan.from_string(response, "sweepai/handlers/on_ticket.py")
-    print(gc_and_plan.changes_for_new_file)
+    print(gc_and_plan.code_change_description)
     # import pdb; pdb.set_trace()

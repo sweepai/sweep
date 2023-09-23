@@ -1,3 +1,6 @@
+"""
+This module is responsible for handling the check suite event, called from sweepai/api.py
+"""
 import io
 import os
 import zipfile
@@ -145,15 +148,7 @@ def on_check_suite(request: CheckRunCompleted):
     # logs_list = [extract_logs_from_comment(comment.body) for comment in comments]
     # current_logs = extract_logs_from_comment(problematic_logs)
 
-    if all(
-        [
-            comment.body.lstrip().startswith(
-                "GitHub actions yielded the following error."
-            )
-            or comment.body.lstrip().startswith("## 🚀 Wrote Changes")
-            for comment in comments[-2:]
-        ]
-    ):
+    if all([comment.user.login.startswith("sweep") for comment in comments[-2:]]):
         comment = pr.as_issue().create_comment(
             log_message.format(error_logs=problematic_logs)
             + "\n\nI'm getting the same errors 3 times in a row, so I will stop working"

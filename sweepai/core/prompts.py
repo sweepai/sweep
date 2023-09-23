@@ -1121,7 +1121,18 @@ summarize_snippet_prompt = """# Code
 # Instructions
 Losslessly summarize the code in a ordered list for an engineer to search for relevant code to solve the above GitHub issue."""
 
-fetch_snippets_system_prompt = "You are a masterful engineer. Your job is to determine snippets that should be modified but don't actually modify them. Always intend on making the least amount of changes, but ensure everything is implemented in full: there will be no unimplemented functions or classes."
+fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original lines from the code that should be modified. The snippets will be modified after extraction so make sure we can match the snippets to the original code.
+Select the smallest spans that let you handle the request. There should not be any unimplemented functions or classes.
+
+Respond in the format:
+<snippet_to_modify>
+```
+first five lines of the original snippet
+...
+last five lines of the original snippet (must end on code)
+```
+</snippet_to_modify>
+"""
 
 fetch_snippets_prompt = """# Code
 File path: {file_path}
@@ -1133,17 +1144,17 @@ File path: {file_path}
 {request}
 
 # Instructions
-Respond with a list of all non-overlapping snippet(s) to modify.
+Respond with a list of all non-overlapping snippet(s) from the file above to you would like to modify.
 {chunking_prompt}
-This is the format:
+Respond in the following format:
 
-<snippet instructions="detailed instructions for this snippet">
+<snippet_to_modify reason="justification for modifying this snippet">
 ```
-first five lines of the snippet
+first five lines of the original snippet
 ...
-last five lines of the snippet (must end on code)
+last five lines of the original snippet (must end on code)
 ```
-</snippet>"""
+</snippet_to_modify>"""
 
 update_snippets_system_prompt = (
     "You are a brilliant and meticulous engineer assigned to"
@@ -1153,6 +1164,14 @@ update_snippets_system_prompt = (
     " class will be fully implemented. Take into account the current repository's"
     " language, frameworks, and dependencies. It is very important that you get this"
     " right."
+    """
+Respond in the following format:
+
+<updated_snippet>
+```
+updated lines
+```
+</updated_snippet>"""
 )
 
 update_snippets_prompt = """# Code
@@ -1176,7 +1195,7 @@ For each snippet above, rewrite it according to their corresponding instructions
 
 Respond in the following format:
 
-<updated_snippet id="i">
+<updated_snippet>
 ```
 updated lines
 ```
