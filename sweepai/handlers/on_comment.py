@@ -1,3 +1,7 @@
+"""
+on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
+It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
+"""
 import re
 import traceback
 
