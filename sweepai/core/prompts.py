@@ -1148,7 +1148,7 @@ Respond with a list of all non-overlapping snippet(s) from the file above to you
 {chunking_prompt}
 Respond in the following format:
 
-<snippet_to_modify>
+<snippet_to_modify reason="justification for modifying this snippet">
 ```
 first five lines of the original snippet
 ...
