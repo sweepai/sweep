@@ -28,15 +28,27 @@ def create_action_buttons(labels: List[str], header="## Actions (click)\n") -> s
         buttons = buttons.replace(feedback_button, feedback_message)
     return header + buttons
 
-def send_feedback_to_discord(feedback: str):
-    """Send the feedback to discord using the webhook url."""
-    data = {"content": feedback}
-    try:
-        response = requests.post(DISCORD_FEEDBACK_WEBHOOK_URL, data=data)
-        return response.status_code
-    except requests.exceptions.RequestException as e:
-        print(f"Failed to send feedback to discord: {e}")
-        return None
+from sweepai.utils.buttons import send_feedback_to_discord
+
+def webhook(request):
+    event = request.headers.get("X-GitHub-Event")
+    payload = request.json
+
+    if event == "issue_comment":
+        action = payload["action"]
+        comment_body = payload["comment"]["body"]
+
+        if action in ["created", "edited"] and comment_body.startswith("Feedback: "):
+            handle_feedback_comment(comment_body)
+
+    # ... rest of the function ...
+
+def handle_feedback_comment(comment_body):
+    feedback = comment_body.replace("Feedback: ", "", 1)
+    status_code = send_feedback_to_discord(feedback)
+
+    if status_code != 200:
+        print(f"Failed to send feedback to discord: status code {status_code}")
 
 
 def get_toggled_state(label: str, changes_request: Changes) -> bool:
