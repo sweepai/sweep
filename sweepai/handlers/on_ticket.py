@@ -596,6 +596,20 @@ def on_ticket(
         sweep_context=sweep_context,
         cloned_repo=cloned_repo,
     )
+    
+    # Determine if the issue is a Python issue
+    is_python_issue = (
+        sum(
+            [
+                not file_path.endswith(".py")
+                for file_path in sweep_bot.human_message.get_file_paths()
+            ]
+        )
+        < 2
+    )
+    
+    # Log the is_python_issue value to posthog
+    log_event_to_posthog(is_python_issue)
 
     # Check repository for sweep.yml file.
     sweep_yml_exists = False
