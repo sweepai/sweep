@@ -84,6 +84,7 @@ def on_ticket(
     repo_full_name: str,
     repo_description: str,
     installation_id: int,
+    is_python_issue: bool = False,
     comment_id: int = None,
     edited: bool = False,
 ):
@@ -196,6 +197,7 @@ def on_ticket(
     }
     # logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
 
     logger.info(f"Getting repo {repo_full_name}")
 
@@ -695,7 +697,7 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        # Determine if the issue is related to a Python file
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue=is_python_issue)
         is_python_issue = any(file.endswith('.py') for file in files)
         
         # Log the event to Posthog
