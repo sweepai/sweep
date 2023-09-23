@@ -273,8 +273,6 @@ def home():
 def create_revert_button(file_path: str) -> str:
     return f"[ ] Revert {file_path}"
 
-# Modify the check_button_activated function to handle the activation of these new revert buttons
-
 # New function to handle the action when a revert button is activated
 def handle_revert_button_activation(pull_request: PullRequest, file_path: str):
     _, g = get_github_client(pull_request.installation.id)
