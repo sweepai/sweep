@@ -4,12 +4,14 @@ import json
 from logn import logger
 from sweepai.utils.buttons import check_button_activated
 from sweepai.utils.safe_pqueue import SafePriorityQueue
-
-logger.init(
-    metadata=None,
-    create_file=False,
-)
-
+...
+def create_action_buttons(file_names):
+    from sweepai.utils.buttons import check_button_activated
+    from sweepai.utils.safe_pqueue import SafePriorityQueue
+    ...
+    ...
+    file_names = []  # Add this line
+    create_action_buttons(file_names)
 import ctypes
 from queue import Queue
 import sys
@@ -832,13 +834,11 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
     # Get the repository
     repo = g.get_repo(repo_full_name)
     config = SweepConfig.get_config(repo)
-
-    # Add revert buttons for each file in the pull request
-    for pr in repo.get_pulls():
-        file_names = [file.filename for file in pr.get_files()]
-        revert_buttons = create_action_buttons(file_names)
-        pr.body += f"\n{revert_buttons}"
-        pr.edit(body=pr.body)
+    file_names = []  # Add this line
+    create_action_buttons(file_names)
+    pr = repo.get_pulls(state="open", head="sweep", sort="updated", direction="desc")[0]  # Add this line
+    pr.body += f"\n"
+    pr.edit(body=pr.body)
 
     try:
         branch_ttl = int(config.get("branch_ttl", 7))
@@ -890,9 +890,3 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
         raise SystemExit
     except:
         logger.warning("Failed to update sweep PRs")
-
-def create_action_buttons(file_names):
-    buttons = []
-    for file_name in file_names:
-        buttons.append(f"- [ ] Revert {file_name}")
-    return "\n".join(buttons)
