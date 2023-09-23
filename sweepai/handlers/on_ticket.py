@@ -105,14 +105,15 @@ def on_ticket(
     # 5. Create PR
 
     summary = summary or ""
+    # Check for \r since GitHub issues may have \r\n
     summary = re.sub(
-        "<details (open)?>\n<summary>Checklist</summary>.*",
+        "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
         "",
         summary,
         flags=re.DOTALL,
     ).strip()
     summary = re.sub(
-        "---\s+Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL
+        "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
     ).strip()
 
     repo_name = repo_full_name
