@@ -588,6 +588,10 @@ def on_ticket(
 
     _user_token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
+    # Calculate is_python_issue and log it as an event to Posthog
+    is_python_issue = any(file.endswith('.py') for file in cloned_repo.get_all_files())
+    posthog.capture('is_python_issue', {'is_python_issue': is_python_issue})
+    
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
         repo=repo,
@@ -695,7 +699,8 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        # Pass is_python_issue to get_files_to_change
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
