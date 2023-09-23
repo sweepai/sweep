@@ -19,7 +19,7 @@ class OpenAIProxy:
         pass
 
     @file_cache(ignore_params=[])
-    def call_openai(self, model, messages, max_tokens, temperature):
+    def call_openai(self, model, messages, max_tokens, temperature) -> str:
         try:
             engine = None
             if (
