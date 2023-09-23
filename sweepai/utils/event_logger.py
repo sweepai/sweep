@@ -11,6 +11,10 @@ import highlight_io
 
 from sweepai.config.server import POSTHOG_API_KEY, HIGHLIGHT_API_KEY, LOGTAIL_SOURCE_KEY
 
+def log_event_to_posthog(is_python_issue):
+    event_properties = {'is_python_issue': is_python_issue}
+    posthog.capture('python_issue_event', event_properties)
+
 if POSTHOG_API_KEY is None or POSTHOG_API_KEY.lower() == "none":
     posthog = Posthog(
         project_api_key="none", disabled=True, host="https://app.posthog.com"
