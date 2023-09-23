@@ -496,6 +496,17 @@ async def webhook(raw_request: Request):
                             "reason": "Comment does not start with 'Sweep', passing",
                         }
 
+                    # Check if the comment starts with "Feedback: "
+                    if request.comment.body.strip().lower().startswith("feedback: "):
+                        # Extract the feedback from the comment
+                        feedback = request.comment.body.strip()[len("feedback: "):]
+
+                        # Report the feedback to discord
+                        try:
+                            requests.post(DISCORD_FEEDBACK_WEBHOOK_URL, json={"content": feedback})
+                        except Exception as e:
+                            logger.error(f"Failed to report feedback to discord: {e}")
+
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
                     key = (request.repository.full_name, request.issue.number)
@@ -545,37 +556,6 @@ async def webhook(raw_request: Request):
                             },
                         )
                         call_on_comment(**pr_change_request.params)
-            case "pull_request_review_comment", "created":
-                # Add a separate endpoint for this
-                request = CommentCreatedRequest(**request_dict)
-                logger.info(f"Handling comment on PR: {request.pull_request.number}")
-                _, g = get_github_client(request.installation.id)
-                repo = g.get_repo(request.repository.full_name)
-                pr = repo.get_pull(request.pull_request.number)
-                labels = pr.get_labels()
-                comment = request.comment.body
-                if (
-                    comment.lower().startswith("sweep:")
-                    or any(label.name.lower() == "sweep" for label in labels)
-                ) and request.comment.user.type == "User":
-                    pr_change_request = PRChangeRequest(
-                        params={
-                            "comment_type": "comment",
-                            "repo_full_name": request.repository.full_name,
-                            "repo_description": request.repository.description,
-                            "comment": request.comment.body,
-                            "pr_path": request.comment.path,
-                            "pr_line_position": request.comment.original_line,
-                            "username": request.comment.user.login,
-                            "installation_id": request.installation.id,
-                            "pr_number": request.pull_request.number,
-                            "comment_id": request.comment.id,
-                        },
-                    )
-                    call_on_comment(**pr_change_request.params)
-                # Todo: update index on comments
-            case "pull_request_review", "submitted":
-                # request = ReviewSubmittedRequest(**request_dict)
                 pass
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
