@@ -8,9 +8,16 @@ def create_button(label: str, selected: bool = False) -> str:
     return f"- [{'x' if selected else ' '}] {label}"
 
 
-def create_action_buttons(labels: List[str], header="## Actions (click)\n") -> str:
+def create_revert_buttons(file_paths: List[str], header="## Revert Actions (click)\n") -> str:
+    """Create a list of revert buttons for each file."""
+    buttons = "\n".join(create_button(f"Revert {file_path}") for file_path in file_paths)
+    return header + buttons
+
+def create_action_buttons(labels: List[str], file_paths: List[str] = None, header="## Actions (click)\n") -> str:
     """Create a list of buttons for the issue body."""
     buttons = "\n".join(create_button(label) for label in labels)
+    if file_paths:
+        buttons += "\n" + create_revert_buttons(file_paths)
     return header + buttons
 
 
