@@ -22,12 +22,12 @@ def get_toggled_state(label: str, changes_request: Changes) -> bool:
     return button.lower() in old_content.lower()
 
 
-def create_revert_button(file_path: str) -> str:
-    """Create a revert button for a file."""
-    return f"[ ] Revert {file_path}"
+def create_revert_buttons(pull_request: PullRequest) -> List[str]:
+    """Create a revert button for each file in a pull request."""
+    return [f"[ ] Revert {file.filename}" for file in pull_request.get_files()]
 
 def check_button_activated(
-    label: str, body: str, changes_request: Changes | None = None
+    label: str, body: str, changes_request: Changes | None = None, pull_request: PullRequest | None = None
 ) -> bool:
     """Check if a button is activated based on its current and past state."""
     if changes_request:
@@ -37,9 +37,9 @@ def check_button_activated(
 
     if label.startswith("[ ] Revert"):
         file_path = label.split(" ")[2]
-        if file_path in changes_request.files:
-            button = create_revert_button(file_path)
-            return button.lower() in body.lower()
+        if pull_request:
+            revert_buttons = create_revert_buttons(pull_request)
+            return any(button.lower() in body.lower() for button in revert_buttons)
 
     button = create_button(label, selected=True)
     return button.lower() in body.lower()
