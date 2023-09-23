@@ -178,6 +178,8 @@ def on_ticket(
     metadata = {
         "issue_url": issue_url,
         "repo_full_name": repo_full_name,
+        "is_python_issue": is_python_issue,
+    }
         "organization": organization,
         "repo_name": repo_name,
         "repo_description": repo_description,
@@ -199,12 +201,12 @@ def on_ticket(
     }
     # logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
-
+    
     logger.info(f"Getting repo {repo_full_name}")
 
     if current_issue.state == "closed":
         logger.warning(f"Issue {issue_number} is closed")
-        posthog.capture(username, "issue_closed", properties=metadata)
+        posthog.capture(username, "issue_closed", properties={"is_python_issue": is_python_issue, **metadata})
         return {"success": False, "reason": "Issue is closed"}
     current_issue.edit(body=summary)
     item_to_react_to = (
@@ -699,7 +701,7 @@ def on_ticket(
 
         logger.info("Fetching files to modify/create...")
         file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
-
+        
         if not file_change_requests:
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1156,7 +1158,7 @@ def on_ticket(
         posthog.capture(
             username,
             "failed",
-            properties={"error": str(e), "reason": "Generic error", **metadata},
+            properties={"error": str(e), "reason": "Generic error", "is_python_issue": is_python_issue, **metadata},
         )
         raise e
     else:
@@ -1185,6 +1187,6 @@ def on_ticket(
             logger.error(traceback.format_exc())
             logger.print("Deleted branch", pull_request.branch_name)
 
-    posthog.capture(username, "success", properties={**metadata})
+    posthog.capture(username, "success", properties={"is_python_issue": is_python_issue, **metadata})
     logger.info("on_ticket success")
     return {"success": True}
