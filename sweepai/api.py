@@ -696,13 +696,13 @@ async def webhook(raw_request: Request):
                             },
                         )
 
-                        def remove_buttons_from_description(body):
+                        def remove_buttons_from_description(body, file_path):
                             """
                             Replace:
                             ### PR Feedback...
                             ...
                             # (until it hits the next #)
-
+                        
                             with
                             ### PR Feedback: {emoji}
                             #
@@ -715,7 +715,10 @@ async def webhook(raw_request: Request):
                             for i, line in enumerate(lines):
                                 if line.startswith("#") and i > 0:
                                     break
-
+                        
+                            # Remove the revert button for the specific file
+                            lines = [line for line in lines if f"Revert {file_path}" not in line]
+                        
                             return "\n".join(
                                 [
                                     f"### PR Feedback: {emoji}",
@@ -728,8 +731,10 @@ async def webhook(raw_request: Request):
                             _, g = get_github_client(request.installation.id)
                             repo = g.get_repo(request.repository.full_name)
                             pr = repo.get_pull(request.pull_request.number)
+                            # Assuming 'file_path' should be the path of the file associated with the pull request
+                            file_path = pr.get_files()[0].filename
                             new_body = remove_buttons_from_description(
-                                request.pull_request.body
+                                request.pull_request.body, file_path
                             )
                             if new_body is not None:
                                 pr.edit(body=new_body)
@@ -827,6 +832,12 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
     # Get the repository
     repo = g.get_repo(repo_full_name)
     config = SweepConfig.get_config(repo)
+
+    # Add revert buttons for each file in the pull request
+    for pr in repo.get_pulls():
+        for file in pr.get_files():
+            pr.body += f"\n- [ ] Revert {file.filename}"
+        pr.edit(body=pr.body)
 
     try:
         branch_ttl = int(config.get("branch_ttl", 7))
