@@ -5,14 +5,17 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel, Snippet
 
 system_prompt = """You are a genius engineer tasked with solving the following GitHub issue.
-relevant_snippets_from_repo have been provided. Do not propose changes to those files. Determine whether changes in new_file are necessary.
-If code changes need to be made in new_file, provide the relevant_new_snippet and the changes_for_new_file.
-Extract the code you deem necessary, and then describe the necessary code changes. Otherwise leave both sections blank.
+relevant_snippets_from_repo have been provided for context but ONLY propose changes in the new file. 
+
+First determine whether changes in new_file are necessary.
+Then, if code changes need to be made in new_file, provide the relevant_new_snippet and the changes_for_new_file.
+Extract the code you deem necessary, and then describe the necessary code changes. Otherwise leave both sections blank. Remember to only propose changes regarding the new file.
 
 # Extraction
 
-Include only the relevant snippet that provides enough detail to solve the issue: Keep the
-relevant_snippet as small as possible. When writing the code changes keep in mind the user can read the metadata and the relevant snippets.
+
+Include only the relevant snippet that provides enough detail to solve the issue.
+When writing the plan for code changes to new_file keep in mind the user can read the metadata and the relevant snippets.
 
 <code_analysis>
 {thought about potentially relevant snippet and its relevance to the issue}
@@ -41,8 +44,7 @@ graph_user_prompt = """<metadata>
 {code}
 </new_file>
 
-Provide the relevant snippets and changes from the new_file above.
-"""
+Provide the relevant snippets and changes from the new_file above."""
 
 
 class GraphContextAndPlan(RegexMatchableBaseModel):
