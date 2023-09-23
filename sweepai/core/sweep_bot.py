@@ -1469,9 +1469,7 @@ class ModifyBot:
 if __name__ == "__main__":
     response = """
 ```python
-def get_files_to_change(
-    self, retries=1, pr_diffs: str | None = None, is_python_issue: bool = False
-) -> tuple[list[FileChangeRequest], str]:
+def get_files_to_change(self, is_python_issue: bool, retries=1) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
     # Todo: put retries into a constants file
     # also, this retries multiple times as the calls for this function are in a for loop
