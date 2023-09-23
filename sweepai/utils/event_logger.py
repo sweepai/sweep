@@ -27,6 +27,8 @@ else:
 #     logger.add(handler)
 #     logger.info("Initialized LogtailHandler")
 
+def log_event_to_posthog(event_name, properties):
+    posthog.capture(event_name, properties)
 
 def set_highlight_id(id):
     if HIGHLIGHT_API_KEY is not None:
