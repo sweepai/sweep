@@ -87,6 +87,7 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None,
     edited: bool = False,
+    is_python_issue: bool = False,
 ):
     (
         title,
@@ -116,8 +117,14 @@ def on_ticket(
         "---\s+Checklist:\n\n- \[[ X]\].*", "", summary, flags=re.DOTALL
     ).strip()
 
+    # Determine if the issue is related to Python
+    is_python_issue = "Python" in summary
+
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
+
+    # Log the event to Posthog
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
     repo = g.get_repo(repo_full_name)
     current_issue = repo.get_issue(number=issue_number)
     assignee = current_issue.assignee.login if current_issue.assignee else None
@@ -716,7 +723,7 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
