@@ -198,11 +198,11 @@ def on_ticket(
     is_python_issue = (
         sum(
             [
-                file_path.endswith(".py")
-                for file_path in current_issue.get_file_paths()
+                not file_path.endswith(".py")
+                for file_path in human_message.get_file_paths()
             ]
         )
-        > len(current_issue.get_file_paths()) / 2
+        < 2
     )
     
     metadata["is_python_issue"] = is_python_issue
@@ -229,7 +229,7 @@ def on_ticket(
     
     metadata["is_python_issue"] = is_python_issue
     # logger.bind(**metadata)
-    posthog.capture(username, "started", properties=metadata)
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
 
     logger.info(f"Getting repo {repo_full_name}")
 
@@ -595,6 +595,8 @@ def on_ticket(
         snippets=snippets,
         tree=tree,
     )
+    
+    file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
     context_pruning = ContextPruning(chat_logger=chat_logger)
     (
