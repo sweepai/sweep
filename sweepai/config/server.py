@@ -54,11 +54,17 @@ DISCORD_MEDIUM_PRIORITY_URL = os.environ.get("DISCORD_MEDIUM_PRIORITY_URL")
 DISCORD_LOW_PRIORITY_URL = os.environ.get("DISCORD_LOW_PRIORITY_URL")
 DISCORD_FEEDBACK_WEBHOOK_URL = os.environ.get("DISCORD_FEEDBACK_WEBHOOK_URL")
 
+import requests
+from requests.exceptions import RequestException
+
 def call_on_comment(*args, **kwargs):
     ...
     comment = kwargs["comment"]
     if comment.startswith("Feedback: "):
-        requests.post(DISCORD_FEEDBACK_WEBHOOK_URL, data={"content": comment})
+        try:
+            requests.post(DISCORD_FEEDBACK_WEBHOOK_URL, data={"content": comment})
+        except RequestException as e:
+            print(f"An error occurred while sending feedback: {e}")
     ...
 
 SWEEP_HEALTH_URL = os.environ.get("SWEEP_HEALTH_URL")
