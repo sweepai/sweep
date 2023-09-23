@@ -354,10 +354,12 @@ class CodeGenBot(ChatGPT):
                     self.messages = new_messages
                     file_change_requests = []
                     for plan in plans:
-                        start_and_end_lines = [(s.start, s.end) for s in plan.relevant_new_snippet]
+                        start_and_end_lines = [
+                            (s.start, s.end) for s in plan.relevant_new_snippet
+                        ]
                         file_change_requests.append(
                             FileChangeRequest(
-                                filename=snippet.file_path,
+                                filename=plan.file_path,
                                 instructions=plan.code_change_description,
                                 change_type="modify",
                                 start_and_end_lines=start_and_end_lines,
@@ -382,7 +384,7 @@ class CodeGenBot(ChatGPT):
                 file_change_requests.append(
                     FileChangeRequest.from_string(re_match.group(0))
                 )
-                
+
             if file_change_requests:
                 return file_change_requests, files_to_change_response
         except RegexMatchError as e:
@@ -1186,7 +1188,9 @@ class SweepBot(CodeGenBot, GithubBot):
                 # 300,
             ]  # Define the chunk sizes for the backoff mechanism
             if file_change_request.start_and_end_lines:
-                chunk_sizes = [10000] # dont chunk if we know the start and end lines already
+                chunk_sizes = [
+                    10000
+                ]  # dont chunk if we know the start and end lines already
             for CHUNK_SIZE in chunk_sizes:
                 try:
                     chunking = (
@@ -1332,7 +1336,7 @@ class ModifyBot:
             file_change_request=file_change_request,
             chunking=chunking,
         )
-        
+
         new_file = self.update_file(
             file_path=file_path,
             file_contents=file_contents,
@@ -1361,10 +1365,8 @@ class ModifyBot:
         )
 
         snippet_queries = []
-        query_pattern = r'<snippet_to_modify.*?>(?P<code>.*?)</snippet_to_modify>'
-        for code in re.findall(
-            query_pattern, fetch_snippets_response, re.DOTALL
-        ):
+        query_pattern = r"<snippet_to_modify.*?>(?P<code>.*?)</snippet_to_modify>"
+        for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
             snippet_queries.append(strip_backticks(code))
 
         assert len(snippet_queries) > 0, "No snippets found in file"
@@ -1412,26 +1414,31 @@ class ModifyBot:
         # import pdb; pdb.set_trace()
         selected_snippets = []
         for _match in deduped_matches:
-            current_contents = "\n".join(file_contents.split("\n")[_match.start : _match.end])
+            current_contents = "\n".join(
+                file_contents.split("\n")[_match.start : _match.end]
+            )
             selected_snippets.append(current_contents)
 
         print(deduped_matches)
         if file_change_request.start_and_end_lines:
             plan_extracted_contents = ""
             for start_line, end_line in file_change_request.start_and_end_lines:
-                split_file_contents = "\n".join(file_contents.split("\n")[start_line - 1: end_line])
+                split_file_contents = "\n".join(
+                    file_contents.split("\n")[start_line - 1 : end_line]
+                )
                 for idx, line in enumerate(split_file_contents.split("\n")):
                     plan_extracted_contents += f"{idx + start_line}: {line}\n"
                 plan_extracted_contents += "...\n"
         else:
             plan_extracted_contents = file_contents
+
         update_snippets_response = self.update_snippets_bot.chat(
             update_snippets_prompt.format(
                 code=plan_extracted_contents,
                 file_path=file_path,
                 snippets="\n\n".join(
                     [
-                        f'<snippet>\n{snippet}\n</snippet>'
+                        f"<snippet>\n{snippet}\n</snippet>"
                         for i, snippet in enumerate(selected_snippets)
                     ]
                 ),
@@ -1440,18 +1447,12 @@ class ModifyBot:
         )
 
         updated_snippets = []
-        updated_pattern = (
-            r"<updated_snippet>(?P<code>.*?)</updated_snippet>"
-        )
-        for code in re.findall(
-            updated_pattern, update_snippets_response, re.DOTALL
-        ):
+        updated_pattern = r"<updated_snippet>(?P<code>.*?)</updated_snippet>"
+        for code in re.findall(updated_pattern, update_snippets_response, re.DOTALL):
             updated_snippets.append(strip_backticks(code))
 
         result = file_contents
-        for search, replace in zip(
-            selected_snippets, updated_snippets
-        ):
+        for search, replace in zip(selected_snippets, updated_snippets):
             result, _, _ = sliding_window_replacement(
                 result.splitlines(),
                 search.splitlines(),
