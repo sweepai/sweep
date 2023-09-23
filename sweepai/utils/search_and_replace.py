@@ -145,6 +145,8 @@ def find_best_match(query: str, code_file: str):
 
     code_file_lines = code_file.split("\n")
     query_lines = query.split("\n")
+    if len(query_lines) > 0 and query_lines[-1].strip() == "...":
+        query_lines = query_lines[:-1]
     indent = get_indent_type(code_file)
     max_indents = get_max_indent(code_file, indent)
 
