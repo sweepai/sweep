@@ -312,19 +312,26 @@ async def webhook(raw_request: Request):
                 changes = IssueCommentChanges(**request_dict)
 
                 restart_sweep = False
+                revert_changes = False
                 if (
                     request.comment.user.type == "Bot"
                     and GITHUB_BOT_USERNAME in request.comment.user.login
                     and changes.changes.body_from is not None
-                    and check_button_activated(
+                ):
+                    if check_button_activated(
                         RESTART_SWEEP_BUTTON, request.comment.body, changes.changes
                     )
                     and GITHUB_LABEL_NAME
                     in [label.name.lower() for label in request.issue.labels]
                     and request.sender.type == "User"
-                ):
-                    # Restart Sweep on this issue
-                    restart_sweep = True
+                    ):
+                        # Restart Sweep on this issue
+                        restart_sweep = True
+                    elif check_button_activated(
+                        REVERT_CHANGES_BUTTON, request.comment.body, changes.changes
+                    ):
+                        # Revert changes on this issue
+                        revert_changes = True
 
                 if (
                     request.issue is not None
@@ -336,6 +343,7 @@ async def webhook(raw_request: Request):
                         request.issue.pull_request and request.issue.pull_request.url
                     )
                     or restart_sweep
+                    or revert_changes
                 ):
                     logger.info("New issue comment edited")
                     request.issue.body = request.issue.body or ""
@@ -348,6 +356,7 @@ async def webhook(raw_request: Request):
                         .lower()
                         .startswith(GITHUB_LABEL_NAME)
                         and not restart_sweep
+                        and not revert_changes
                     ):
                         logger.info("Comment does not start with 'Sweep', passing")
                         return {
@@ -371,6 +380,7 @@ async def webhook(raw_request: Request):
                         installation_id=request.installation.id,
                         comment_id=request.comment.id,
                         edited=True,
+                        revert_changes=revert_changes,
                     )
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
