@@ -144,13 +144,10 @@ def on_check_suite(request: CheckRunCompleted):
 
     # logs_list = [extract_logs_from_comment(comment.body) for comment in comments]
     # current_logs = extract_logs_from_comment(problematic_logs)
-
+    
     if all(
         [
-            comment.body.lstrip().startswith(
-                "GitHub actions yielded the following error."
-            )
-            or comment.body.lstrip().startswith("## 🚀 Wrote Changes")
+            comment.user.login.startswith("sweep")
             for comment in comments[-2:]
         ]
     ):
