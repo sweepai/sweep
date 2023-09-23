@@ -835,8 +835,9 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
 
     # Add revert buttons for each file in the pull request
     for pr in repo.get_pulls():
-        for file in pr.get_files():
-            pr.body += f"\n- [ ] Revert {file.filename}"
+        file_names = [file.filename for file in pr.get_files()]
+        revert_buttons = create_action_buttons(file_names)
+        pr.body += f"\n{revert_buttons}"
         pr.edit(body=pr.body)
 
     try:
@@ -889,3 +890,9 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
         raise SystemExit
     except:
         logger.warning("Failed to update sweep PRs")
+
+def create_action_buttons(file_names):
+    buttons = []
+    for file_name in file_names:
+        buttons.append(f"- [ ] Revert {file_name}")
+    return "\n".join(buttons)
