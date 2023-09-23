@@ -695,7 +695,14 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        # Determine if the issue is related to a Python file
+        is_python_issue = any(file.endswith('.py') for file in files)
+        
+        # Log the event to Posthog
+        posthog.capture('python_issue', { 'is_python_issue': is_python_issue })
+        
+        # Pass the 'is_python_issue' variable to the 'get_files_to_change' method
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
