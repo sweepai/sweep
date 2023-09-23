@@ -173,6 +173,8 @@ def on_ticket(
         )  # moving higher, will increment the issue regardless of whether it's a success or not
 
     organization, repo_name = repo_full_name.split("/")
+    is_python_issue = 'python' in sweep_bot.human_message.lower()
+    
     metadata = {
         "issue_url": issue_url,
         "repo_full_name": repo_full_name,
@@ -193,6 +195,7 @@ def on_ticket(
         "subissues_mode": subissues_mode,
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
+        "is_python_issue": is_python_issue,
     }
     # logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
@@ -695,7 +698,7 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
