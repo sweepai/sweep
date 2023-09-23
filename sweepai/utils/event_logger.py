@@ -27,8 +27,23 @@ else:
 #     logger.add(handler)
 #     logger.info("Initialized LogtailHandler")
 
-def log_event_to_posthog(event_name, properties):
-    posthog.capture(event_name, properties)
+# Calculate is_python_issue
+is_python_issue = (
+    sum(
+        [
+            file_path.endswith(".py")
+            for file_path in sweep_bot.human_message.get_file_paths()
+        ]
+    )
+    > len(sweep_bot.human_message.get_file_paths()) / 2
+)
+logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+
+# Log the is_python_issue event to posthog
+posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue, **metadata})
+
+# Pass the is_python_issue bool to the get_files_to_change function
+file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
 def set_highlight_id(id):
     if HIGHLIGHT_API_KEY is not None:
