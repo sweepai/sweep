@@ -8,6 +8,7 @@ import math
 import re
 import traceback
 import openai
+import posthog
 
 import github
 from github import GithubException, BadCredentialsException
@@ -76,6 +77,7 @@ def center(text: str) -> str:
 
 @LogTask()
 def on_ticket(
+    is_python_issue: bool,
     title: str,
     summary: str,
     issue_number: int,
@@ -194,6 +196,7 @@ def on_ticket(
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
     }
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
     # logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
 
@@ -695,7 +698,7 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
