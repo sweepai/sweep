@@ -1,6 +1,7 @@
 import re
 from tree_sitter_languages import get_parser
 
+from logn import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel, Snippet
 
@@ -27,12 +28,15 @@ When writing the plan for code changes to file_path keep in mind the user can re
 </relevant_new_snippet>
 
 <code_change_description file_path=\"{file_path}\">
-{{The changes should be constrained to the file_path and code mentioned in new_file. 
+{{The changes should be constrained to the file_path and code mentioned in new_file.
 These are clear and detailed natural language descriptions of modifications to be made in new_file.
 The relevant_snippets_in_repo are read-only so focus on how .}}
 </code_change_description>"""
 
-graph_user_prompt = """<metadata>
+NO_MODS_KWD = "#NONE"
+
+graph_user_prompt = (
+    """<metadata>
 {issue_metadata}
 </metadata>
 <READONLY>
@@ -46,12 +50,15 @@ graph_user_prompt = """<metadata>
 {code}
 </file_path>
 
-Provide the relevant snippets and changes from the file_path above."""
+Provide the relevant snippets and changes from the file_path above.
+If there are no relevant snippets or changes, end your message with """
+    + NO_MODS_KWD
+)
 
 
 class GraphContextAndPlan(RegexMatchableBaseModel):
     relevant_new_snippet: list[Snippet]
-    code_change_description: str
+    code_change_description: str | None
     file_path: str
     entities: str = None
 
@@ -71,10 +78,15 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
                 **kwargs,
             )
         relevant_new_snippet_match = snippets_match.group("relevant_new_snippet")
-        for raw_snippet in relevant_new_snippet_match.split("\n"):
+        for raw_snippet in relevant_new_snippet_match.strip().split("\n"):
+            if raw_snippet.strip() == NO_MODS_KWD:
+                continue
             if ":" not in raw_snippet:
                 continue
-            generated_file_path, lines = raw_snippet.split(":")[-2], raw_snippet.split(":")[-1] # solves issue with new_file:snippet:line1-line2
+            generated_file_path, lines = (
+                raw_snippet.split(":")[-2],
+                raw_snippet.split(":")[-1],
+            )  # solves issue with new_file:snippet:line1-line2
             if not generated_file_path or not lines.strip():
                 continue
             generated_file_path, lines = (
@@ -92,14 +104,21 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
             start = int(start)
             end = int(end) - 1
             end = min(end, start + 200)
-            if end - start < 20: # don't allow small snippets
+            if end - start < 20:  # don't allow small snippets
                 start = start - 10
                 end = start + 10
             snippet = Snippet(file_path=file_path, start=start, end=end, content="")
             relevant_new_snippet.append(snippet)
         plan_match = re.search(plan_pattern, string, re.DOTALL)
         if plan_match:
-            code_change_description = plan_match.group("code_change_description").strip()
+            code_change_description = plan_match.group(
+                "code_change_description"
+            ).strip()
+            if code_change_description.endswith(NO_MODS_KWD):
+                logger.warning(
+                    "NO_MODS_KWD found in code_change_description for " + file_path
+                )
+                code_change_description = None
         return cls(
             relevant_new_snippet=relevant_new_snippet,
             code_change_description=code_change_description,
@@ -1690,9 +1709,9 @@ class SweepBot(CodeGenBot, GithubBot):
 
     # test response for plan
     response = """<code_analysis>
-The issue requires moving the is_python_issue bool in sweep_bot to the on_ticket.py flow. The is_python_issue bool is used in the get_files_to_change function in sweep_bot.py to determine if the issue is related to a Python file. This information is then logged and used to generate a plan for the relevant snippets. 
+The issue requires moving the is_python_issue bool in sweep_bot to the on_ticket.py flow. The is_python_issue bool is used in the get_files_to_change function in sweep_bot.py to determine if the issue is related to a Python file. This information is then logged and used to generate a plan for the relevant snippets.
 
-In the on_ticket.py file, the get_files_to_change function is called, but the is_python_issue bool is not currently used or logged. The issue also requires using the metadata in on_ticket to log this event to posthog, which is a platform for product analytics. 
+In the on_ticket.py file, the get_files_to_change function is called, but the is_python_issue bool is not currently used or logged. The issue also requires using the metadata in on_ticket to log this event to posthog, which is a platform for product analytics.
 
 The posthog.capture function is used in on_ticket.py to log events with specific properties. The properties include various metadata about the issue and the user. The issue requires passing the is_python_issue bool to get_files_to_change and then logging this as an event to posthog.
 </code_analysis>
@@ -1717,6 +1736,8 @@ posthog.capture(username, 'is_python_issue', properties={'is_python_issue': is_p
 ```
 Please replace 'is_python_issue' with the actual value of the bool.
 </code_change_description>"""
-    gc_and_plan = GraphContextAndPlan.from_string(response, "sweepai/handlers/on_ticket.py")
+    gc_and_plan = GraphContextAndPlan.from_string(
+        response, "sweepai/handlers/on_ticket.py"
+    )
     print(gc_and_plan.code_change_description)
     # import pdb; pdb.set_trace()
