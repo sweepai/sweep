@@ -206,6 +206,16 @@ def on_ticket(
     )
     
     metadata["is_python_issue"] = is_python_issue
+        sum(
+            [
+                file_path.endswith(".py")
+                for file_path in current_issue.get_file_paths()
+            ]
+        )
+        > len(current_issue.get_file_paths()) / 2
+    )
+    
+    metadata["is_python_issue"] = is_python_issue
     # logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
 
@@ -535,6 +545,8 @@ def on_ticket(
             priority=1,
         )
         raise e
+    
+    file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
     snippets = post_process_snippets(
         snippets, max_num_of_snippets=2 if use_faster_model else 5
