@@ -223,18 +223,8 @@ class CodeGenBot(ChatGPT):
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            is_python_issue = (
-                sum(
-                    [
-                        not file_path.endswith(".py")
-                        for file_path in self.human_message.get_file_paths()
-                    ]
-                )
-                < 2
-            )
-            logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
             python_issue_worked = True
-            if is_python_issue:
+            if self.is_python_issue:
                 graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
                 graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
                 if pr_diffs is not None:
@@ -242,7 +232,7 @@ class CodeGenBot(ChatGPT):
                     graph_parent_bot.messages.insert(
                         1, Message(role="user", content=pr_diffs, key="pr_diffs")
                     )
-
+    
                 issue_metadata = self.human_message.get_issue_metadata()
                 relevant_snippets = self.human_message.render_snippets()
                 symbols_to_files = graph.paths_to_first_degree_entities(
@@ -250,7 +240,7 @@ class CodeGenBot(ChatGPT):
                 )
                 if len(symbols_to_files) <= 1:
                     python_issue_worked = False
-
+    
                 if python_issue_worked:
                     (
                         relevant_files_to_symbols,
@@ -258,12 +248,12 @@ class CodeGenBot(ChatGPT):
                     ) = graph_parent_bot.relevant_files_to_symbols(
                         issue_metadata, relevant_snippets, symbols_to_files
                     )
-
+    
                     file_paths_to_contents = {
                         file_path: self.cloned_repo.get_file_contents(file_path)
                         for file_path in relevant_files_to_symbols.keys()
                     }
-
+    
                     # Create plan for relevant snippets first
                     human_message_snippet_paths = set(
                         s.file_path for s in self.human_message.snippets
@@ -313,7 +303,7 @@ class CodeGenBot(ChatGPT):
                         )
                         if plan.code_change_description and plan.relevant_new_snippet:
                             plans.append(plan)
-
+    
                     file_path_set = set()
                     deduped_plans = []
                     for plan in plans:
@@ -323,7 +313,7 @@ class CodeGenBot(ChatGPT):
                         else:
                             logger.info(f"Duplicate plan for {plan.file_path}")
                     plans = deduped_plans
-
+    
                     # topologically sort the plans so that we can apply them in order
                     file_paths = [plan.file_path for plan in plans]
                     sorted_files = graph.topological_sort(file_paths)
@@ -335,19 +325,19 @@ class CodeGenBot(ChatGPT):
                             )  # TODO: use a dict instead
                         )
                     plans = sorted_plans
-
+    
                     relevant_snippets = self.human_message.snippets
                     for plan in plans:
                         self.populate_snippets(plan.relevant_new_snippet)
                         relevant_snippets.extend(plan.relevant_new_snippet)
-
+    
                     plan_suggestions = []
-
+    
                     for plan in plans:
                         plan_suggestions.append(
                             f"<plan_suggestion file={plan.file_path}>\n{plan.code_change_description}\n</plan_suggestion>"
                         )
-
+    
                     python_human_message = PythonHumanMessagePrompt(
                         repo_name=self.human_message.repo_name,
                         issue_url=self.human_message.issue_url,
@@ -378,14 +368,14 @@ class CodeGenBot(ChatGPT):
                             )
                         )
                     return file_change_requests, " ".join(plan_suggestions)
-            if not is_python_issue or not python_issue_worked:
+            if not self.is_python_issue or not python_issue_worked:
                 # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
                 if pr_diffs is not None:
                     self.delete_messages_from_chat("pr_diffs")
                     self.messages.insert(
                         1, Message(role="user", content=pr_diffs, key="pr_diffs")
                     )
-
+    
                 files_to_change_response = self.chat(
                     files_to_change_prompt, message_key="files_to_change"
                 )  # Dedup files to change here
@@ -396,7 +386,7 @@ class CodeGenBot(ChatGPT):
                 file_change_requests.append(
                     FileChangeRequest.from_string(re_match.group(0))
                 )
-
+    
             if file_change_requests:
                 return file_change_requests, files_to_change_response
         except RegexMatchError as e:
@@ -404,7 +394,7 @@ class CodeGenBot(ChatGPT):
             logger.warning("Failed to parse! Retrying...")
             self.delete_messages_from_chat("files_to_change")
             self.delete_messages_from_chat("pr_diffs")
-
+    
         raise NoFilesException()
 
     def generate_pull_request(self, retries=2) -> PullRequest:
