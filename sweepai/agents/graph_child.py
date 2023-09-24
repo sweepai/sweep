@@ -30,7 +30,7 @@ When writing the plan for code changes to file_path keep in mind the user can re
 <code_change_description file_path=\"{file_path}\">
 {{The changes should be constrained to the file_path and code mentioned in new_file.
 These are clear and detailed natural language descriptions of modifications to be made in new_file.
-The relevant_snippets_in_repo are read-only so focus on how .}}
+The relevant_snippets_in_repo are read-only.}}
 </code_change_description>"""
 
 NO_MODS_KWD = "#NONE"
