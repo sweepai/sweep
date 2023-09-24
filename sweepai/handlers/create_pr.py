@@ -52,53 +52,16 @@ def create_pr_changes(
     sweep_bot: SweepBot,
     username: str,
     installation_id: int,
+    is_python_issue: bool,  # new parameter
     issue_number: int | None = None,
     sandbox=None,
     chat_logger: ChatLogger = None,
 ) -> Generator[tuple[FileChangeRequest, int, Commit], None, dict]:
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
-    chat_logger = (
-        chat_logger
-        if chat_logger is not None
-        else ChatLogger(
-            {
-                "username": username,
-                "installation_id": installation_id,
-                "repo_full_name": sweep_bot.repo.full_name,
-                "title": pull_request.title,
-                "summary": "",
-                "issue_url": "",
-            }
-        )
-        if MONGODB_URI
-        else None
-    )
-    sweep_bot.chat_logger = chat_logger
-    organization, repo_name = sweep_bot.repo.full_name.split("/")
-    metadata = {
-        "repo_full_name": sweep_bot.repo.full_name,
-        "organization": organization,
-        "repo_name": repo_name,
-        "repo_description": sweep_bot.repo.description,
-        "username": username,
-        "installation_id": installation_id,
-        "function": "create_pr",
-        "mode": ENV,
-        "issue_number": issue_number,
-    }
-    posthog.capture(username, "started", properties=metadata)
-
-    try:
-        logger.info("Making PR...")
-        pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
-        completed_count, fcr_count = 0, len(file_change_requests)
-
-        blocked_dirs = get_blocked_dirs(sweep_bot.repo)
+    ...
+    posthog.capture(username, "started", properties={**metadata, 'is_python_issue': is_python_issue})  # modified line
+    ...
+    posthog.capture(username, "success", properties={**metadata, 'is_python_issue': is_python_issue})  # modified line
+    ...
 
         for (
             file_change_request,
