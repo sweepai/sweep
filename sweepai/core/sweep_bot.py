@@ -213,14 +213,13 @@ class CodeGenBot(ChatGPT):
         try:
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
             python_issue_worked = True
-            if is_python_issue:
-                graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
-                graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
-                if pr_diffs is not None:
-                    self.delete_messages_from_chat("pr_diffs")
-                    graph_parent_bot.messages.insert(
-                        1, Message(role="user", content=pr_diffs, key="pr_diffs")
-                    )
+            graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
+            graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
+            if pr_diffs is not None:
+                self.delete_messages_from_chat("pr_diffs")
+                graph_parent_bot.messages.insert(
+                    1, Message(role="user", content=pr_diffs, key="pr_diffs")
+                )
     
                 issue_metadata = self.human_message.get_issue_metadata()
                 relevant_snippets = self.human_message.render_snippets()
@@ -357,13 +356,12 @@ class CodeGenBot(ChatGPT):
                             )
                         )
                     return file_change_requests, " ".join(plan_suggestions)
-            if not is_python_issue or not python_issue_worked:
-                # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
-                if pr_diffs is not None:
-                    self.delete_messages_from_chat("pr_diffs")
-                    self.messages.insert(
-                        1, Message(role="user", content=pr_diffs, key="pr_diffs")
-                    )
+            # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
+            if pr_diffs is not None:
+                self.delete_messages_from_chat("pr_diffs")
+                self.messages.insert(
+                    1, Message(role="user", content=pr_diffs, key="pr_diffs")
+                )
     
                 files_to_change_response = self.chat(
                     files_to_change_prompt, message_key="files_to_change"
