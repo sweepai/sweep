@@ -76,16 +76,11 @@ events = {}
 on_ticket_events = {}
 
 
-def run_on_ticket(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "ticket_" + kwargs["username"],
-        },
-        create_file=False,
-    )
-    with logger:
-        on_ticket(*args, **kwargs)
+
+
+def create_revert_buttons(pull_request):
+    # Code to create revert buttons goes here
+    pass
 
 
 def run_on_comment(*args, **kwargs):
@@ -183,6 +178,18 @@ def terminate_thread(thread):
     except Exception as e:
         logger.error(f"Failed to terminate thread: {e}")
 
+
+def run_on_ticket(*args, **kwargs):
+    logger.init(
+        metadata={
+            **kwargs,
+            "name": "ticket_" + kwargs["username"],
+        },
+        create_file=False,
+    )
+
+    with logger:
+        on_ticket(*args, **kwargs)
 
 def call_on_ticket(*args, **kwargs):
     global on_ticket_events
