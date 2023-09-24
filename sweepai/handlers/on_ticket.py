@@ -166,6 +166,7 @@ def on_ticket(
         repo=repo,
         token=user_token,
     )
+    sweep_context.is_python_issue = len([f for f in sweep_context.files if f.endswith('.py')]) > len(sweep_context.files) / 2
     logger.print(sweep_context)
 
     if not comment_id and not edited and chat_logger:
@@ -194,7 +195,7 @@ def on_ticket(
         "subissues_mode": subissues_mode,
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
-        "is_python_issue": is_python_issue,
+        "is_python_issue": sweep_context.is_python_issue,
     }
     posthog.capture(username, "started", properties=metadata)
 
@@ -699,8 +700,8 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue=is_python_issue)
-        
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue=sweep_context.is_python_issue)
+                
         if not file_change_requests:
             if len(title + summary) < 60:
                 edit_sweep_comment(
