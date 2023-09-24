@@ -8,7 +8,7 @@ def create_button(label: str, selected: bool = False) -> str:
     return f"- [{'x' if selected else ' '}] {label}"
 
 
-def create_revert_buttons(file_list: List[str], header="## Revert Actions (click)\n") -> List[str]:
+def create_revert_buttons(file_list: List[str], header="## Revert Actions (click)\n") -> str:
     """Create a list of revert buttons for each file in the pull request."""
     revert_buttons = [create_button(f"Revert {file}") for file in file_list]
     return header + "\n".join(revert_buttons)
