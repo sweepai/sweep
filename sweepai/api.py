@@ -19,6 +19,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
 import requests
+import traceback
 
 from sweepai.config.client import (
     SweepConfig,
@@ -181,7 +182,7 @@ def terminate_thread(thread):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.error(f"Failed to terminate thread: {e}")
+        logger.error(f"Failed to terminate thread: {e}, traceback: {traceback.format_exc()}")
 
 
 def call_on_ticket(*args, **kwargs):
@@ -192,45 +193,45 @@ def call_on_ticket(*args, **kwargs):
     # Check if a previous process exists for the same key, cancel it
     e = on_ticket_events.get(key, None)
     if e:
-        logger.info(f"Found previous thread for key {key} and cancelling it")
+        logger.info(f"Found previous thread for key {key} and cancelling it, traceback: {traceback.format_exc()}")
         terminate_thread(e)
-
-    thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
-    on_ticket_events[key] = thread
-    thread.start()
-
-
-def call_on_check_suite(*args, **kwargs):
-    repo_full_name = kwargs["request"].repository.full_name
-    pr_number = kwargs["request"].check_run.pull_requests[0].number
-    key = f"{repo_full_name}-{pr_number}"
-    thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
-    thread.start()
-
-
-def call_on_comment(
-    *args, **kwargs
-):  # TODO: if its a GHA delete all previous GHA and append to the end
-    def worker():
-        while not events[key].empty():
-            task_args, task_kwargs = events[key].get()
-            run_on_comment(*task_args, **task_kwargs)
-
-    global events
-    repo_full_name = kwargs["repo_full_name"]
-    pr_id = kwargs["pr_number"]
-    key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
-
-    comment_type = kwargs["comment_type"]
-    priority = (
-        0 if comment_type == "comment" else 1
-    )  # set priority to 0 if comment, 1 if GHA
-    logger.info(f"Received comment type: {comment_type}")
-
-    if key not in events:
-        events[key] = SafePriorityQueue()
-
-    events[key].put(priority, (args, kwargs))
+        
+        thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
+        on_ticket_events[key] = thread
+        thread.start()
+        
+        
+        def call_on_check_suite(*args, **kwargs):
+            repo_full_name = kwargs["request"].repository.full_name
+            pr_number = kwargs["request"].check_run.pull_requests[0].number
+            key = f"{repo_full_name}-{pr_number}"
+            thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
+            thread.start()
+        
+        
+        def call_on_comment(
+            *args, **kwargs
+        ):  # TODO: if its a GHA delete all previous GHA and append to the end
+            def worker():
+                while not events[key].empty():
+                    task_args, task_kwargs = events[key].get()
+                    run_on_comment(*task_args, **task_kwargs)
+        
+            global events
+            repo_full_name = kwargs["repo_full_name"]
+            pr_id = kwargs["pr_number"]
+            key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
+        
+            comment_type = kwargs["comment_type"]
+            priority = (
+                0 if comment_type == "comment" else 1
+            )  # set priority to 0 if comment, 1 if GHA
+            logger.info(f"Received comment type: {comment_type}, traceback: {traceback.format_exc()}")
+        
+            if key not in events:
+                events[key] = SafePriorityQueue()
+        
+            events[key].put(priority, (args, kwargs))
 
     # If a thread isn't running, start one
     if not any(
@@ -281,7 +282,7 @@ async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
-        logger.info(f"Received request: {request_dict.keys()}")
+        logger.info(f"Received request: {request_dict.keys()}, traceback: {traceback.format_exc()}")
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
 
@@ -299,7 +300,7 @@ async def webhook(raw_request: Request):
 
         action = request_dict.get("action", None)
         # logger.bind(event=event, action=action)
-        logger.info(f"Received event: {event}, {action}")
+        logger.info(f"Received event: {event}, {action}, traceback: {traceback.format_exc()}")
         match event, action:
             case "issues", "opened":
                 request = IssueRequest(**request_dict)
@@ -483,6 +484,8 @@ async def webhook(raw_request: Request):
                         installation_id=request.installation.id,
                         comment_id=None,
                     )
+                else:
+                    logger.warning(f"Issue labeled, but not a sweep issue, traceback: {traceback.format_exc()}")
             case "issue_comment", "created":
                 request = IssueCommentRequest(**request_dict)
                 if (
@@ -588,6 +591,8 @@ async def webhook(raw_request: Request):
                         },
                     )
                     call_on_comment(**pr_change_request.params)
+                else:
+                    logger.error(f"Failed to handle comment on PR: {request.pull_request.number}, traceback: {traceback.format_exc()}")
                 # Todo: update index on comments
             case "pull_request_review", "submitted":
                 # request = ReviewSubmittedRequest(**request_dict)
@@ -624,10 +629,9 @@ async def webhook(raw_request: Request):
                     raise SystemExit
                 except Exception as e:
                     logger.error(f"Failed to add config to top repos: {e}")
-
-                posthog.capture(
-                    "installation_repositories", "started", properties={**metadata}
-                )
+                                    posthog.capture(
+                                        "installation_repositories", "started", properties={**metadata}
+                                    )
                 for repo in repos_added_request.repositories_added:
                     organization, repo_name = repo.full_name.split("/")
                     posthog.capture(
@@ -828,7 +832,7 @@ async def webhook(raw_request: Request):
                     f"Unhandled event: {event} {request_dict.get('action', None)}"
                 )
     except ValidationError as e:
-        logger.warning(f"Failed to parse request: {e}")
+        logger.warning(f"Failed to parse request: {e}, traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
 
@@ -887,9 +891,9 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                 raise SystemExit
             except Exception as e:
                 logger.error(
-                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
+                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}, traceback: {traceback.format_exc()}"
                 )
     except SystemExit:
         raise SystemExit
     except:
-        logger.warning("Failed to update sweep PRs")
+        logger.warning(f"Failed to update sweep PRs, traceback: {traceback.format_exc()}")
