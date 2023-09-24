@@ -223,16 +223,36 @@ class CodeGenBot(ChatGPT):
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
+            # sweepai/core/sweep_bot.py
+            219:     def get_files_to_change(
+            220:         self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
+            221:     ) -> tuple[list[FileChangeRequest], str]:
+            222:         file_change_requests: list[FileChangeRequest] = []
+            223:         # Todo: put retries into a constants file
+            224:         # also, this retries multiple times as the calls for this function are in a for loop
+            225:         try:
+            226:             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+            227:             python_issue_worked = True
+            228:             if is_python_issue:
+            ...
+            
+            # on_ticket.py
+            ...
+            # Calculate 'is_python_issue' boolean
             is_python_issue = (
                 sum(
                     [
                         not file_path.endswith(".py")
-                        for file_path in self.human_message.get_file_paths()
+                        for file_path in ticket.get_file_paths()
                     ]
                 )
                 < 2
             )
-            logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+            # Log 'is_python_issue' event to posthog
+            posthog.capture('is_python_issue', {'value': is_python_issue})
+            # Call 'get_files_to_change' method with 'is_python_issue' boolean
+            sweep_bot.get_files_to_change(is_python_issue, retries, pr_diffs)
+            ...
             python_issue_worked = True
             if is_python_issue:
                 graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
