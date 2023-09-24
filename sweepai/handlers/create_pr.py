@@ -52,6 +52,7 @@ def create_pr_changes(
     sweep_bot: SweepBot,
     username: str,
     installation_id: int,
+    is_python_issue: bool,
     issue_number: int | None = None,
     sandbox=None,
     chat_logger: ChatLogger = None,
@@ -90,6 +91,7 @@ def create_pr_changes(
         "function": "create_pr",
         "mode": ENV,
         "issue_number": issue_number,
+        "is_python_issue": is_python_issue,
     }
     posthog.capture(username, "started", properties=metadata)
 
