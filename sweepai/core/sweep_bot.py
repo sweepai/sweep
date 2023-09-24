@@ -377,9 +377,6 @@ class CodeGenBot(ChatGPT):
                                 start_and_end_lines=start_and_end_lines,
                             )
                         )
-                    import pdb
-
-                    pdb.set_trace()
                     return file_change_requests, " ".join(plan_suggestions)
             if not is_python_issue or not python_issue_worked:
                 # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
