@@ -207,3 +207,10 @@ class CheckRunCompleted(BaseModel):
     installation: Installation
     repository: Repository
     sender: Sender
+
+
+class GithubRequest(IssueRequest):
+    class Sender(BaseModel):
+        login: str
+
+    sender: Sender
