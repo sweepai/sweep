@@ -103,9 +103,60 @@ def on_ticket(
     # 3. Get files to change
     # 4. Get file changes
     # 5. Create PR
+    # 6. Create revert buttons for each file in the PR
 
     summary = summary or ""
     # Check for \r since GitHub issues may have \r\n
+    summary = re.sub(
+        "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
+        "",
+        summary,
+        flags=re.DOTALL,
+    ).strip()
+    summary = re.sub(
+        "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
+    ).strip()
+
+    repo_name = repo_full_name
+    user_token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    current_issue = repo.get_issue(number=issue_number)
+    assignee = current_issue.assignee.login if current_issue.assignee else None
+    if assignee is None:
+        assignee = current_issue.user.login
+
+    # Get the list of files in the PR
+    pr_files = get_pr_files(issue_number)
+
+    # Create revert buttons for each file in the PR
+    revert_buttons = create_revert_buttons(pr_files)
+
+    # Add the revert buttons to the issue body
+    issue_body = current_issue.body
+    issue_body += "\n" + revert_buttons
+    current_issue.edit(body=issue_body)
+
+    chat_logger = (
+        ChatLogger(
+            {
+                "repo_name": repo_name,
+                "title": title,
+                "summary": summary,
+                "issue_number": issue_number,
+                "issue_url": issue_url,
+                "username": username if not username.startswith("sweep") else assignee,
+                "repo_full_name": repo_full_name,
+                "repo_description": repo_description,
+                "installation_id": installation_id,
+                "type": "ticket",
+                "mode": ENV,
+                "comment_id": comment_id,
+                "edited": edited,
+            }
+        )
+        if MONGODB_URI
+        else None
+    )
     summary = re.sub(
         "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
         "",
