@@ -37,6 +37,7 @@ from sweepai.config.server import (
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
     DISCORD_FEEDBACK_WEBHOOK_URL,
+    WHITELISTED_USERS,
 )
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest, SweepContext
@@ -51,6 +52,7 @@ from sweepai.events import (
     ReposAddedRequest,
     IssueCommentChanges,
     PREdited,
+    GithubRequest,
 )
 from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  # type: ignore
 from sweepai.handlers.create_pr import create_pr_changes, safe_delete_sweep_branch
@@ -282,6 +284,18 @@ async def webhook(raw_request: Request):
         logger.info(f"Received request: {request_dict.keys()}")
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
+
+        # Check if user is in Whitelist
+        gh_request = GithubRequest(**request_dict)
+        if (
+            WHITELISTED_USERS is not None
+            and gh_request.sender.login not in WHITELISTED_USERS
+        ):
+            return {
+                "success": True,
+                "reason": "User not in whitelist",
+            }
+
         action = request_dict.get("action", None)
         # logger.bind(event=event, action=action)
         logger.info(f"Received event: {event}, {action}")
