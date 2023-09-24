@@ -289,6 +289,7 @@ async def webhook(raw_request: Request):
         gh_request = GithubRequest(**request_dict)
         if (
             WHITELISTED_USERS is not None
+            and len(WHITELISTED_USERS) > 0
             and gh_request.sender.login not in WHITELISTED_USERS
         ):
             return {
