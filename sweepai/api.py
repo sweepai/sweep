@@ -95,6 +95,9 @@ def run_on_comment(*args, **kwargs):
     with logger:
         on_comment(*args, **kwargs)
 
+def handle_revert_button_click(event):
+    # Code to handle revert button clicks goes here
+    pass
 
 def run_on_merge(*args, **kwargs):
     logger.init(
@@ -106,18 +109,6 @@ def run_on_merge(*args, **kwargs):
     )
     with logger:
         on_merge(*args, **kwargs)
-
-
-def run_on_write_docs(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "docs_scrape",
-        },
-        create_file=False,
-    )
-    with logger:
-        write_documentation(*args, **kwargs)
 
 
 def run_on_check_suite(*args, **kwargs):
@@ -190,6 +181,8 @@ def run_on_ticket(*args, **kwargs):
 
     with logger:
         on_ticket(*args, **kwargs)
+        # Call the function to create revert buttons after the issue is created
+        create_revert_buttons(kwargs['pull_request'])
 
 def call_on_ticket(*args, **kwargs):
     global on_ticket_events
@@ -222,6 +215,8 @@ def call_on_comment(
         while not events[key].empty():
             task_args, task_kwargs = events[key].get()
             run_on_comment(*task_args, **task_kwargs)
+            # Call the function to handle revert button clicks after the comment is created
+            handle_revert_button_click(task_kwargs['event'])
 
     global events
     repo_full_name = kwargs["repo_full_name"]
@@ -251,6 +246,10 @@ def call_on_merge(*args, **kwargs):
     thread = threading.Thread(target=run_on_merge, args=args, kwargs=kwargs)
     thread.start()
 
+
+def run_on_write_docs(*args, **kwargs):
+    # Define the function here
+    pass
 
 def call_on_write_docs(*args, **kwargs):
     thread = threading.Thread(target=run_on_write_docs, args=args, kwargs=kwargs)
