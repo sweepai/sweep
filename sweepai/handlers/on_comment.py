@@ -82,6 +82,7 @@ def on_comment(
     pr_line_position: int | None,
     username: str,
     installation_id: int,
+    is_python_issue: bool,  # new parameter
     pr_number: int = None,
     comment_id: int | None = None,
     chat_logger: Any = None,
@@ -188,7 +189,7 @@ def on_comment(
     }
     # logger.bind(**metadata)
 
-    capture_posthog_event(username, "started", properties=metadata)
+    capture_posthog_event(username, "started", properties={**metadata}, is_python_issue=is_python_issue)  # modified line
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = bool(pr_path) and bool(pr_line_position)
 
@@ -334,6 +335,7 @@ def on_comment(
             username,
             "failed",
             properties={"error": str(e), "reason": "Failed to get files", **metadata},
+            is_python_issue=is_python_issue
         )
         edit_comment(ERROR_FORMAT.format(title="Failed to get files"))
         raise e
@@ -544,6 +546,7 @@ def on_comment(
                 "reason": "No files to change",
                 **metadata,
             },
+            is_python_issue=is_python_issue
         )
         edit_comment(ERROR_FORMAT.format(title="Could not find files to change"))
         return {"success": True, "message": "No files to change."}
@@ -557,6 +560,7 @@ def on_comment(
                 "reason": "Failed to make changes",
                 **metadata,
             },
+            is_python_issue=is_python_issue
         )
         edit_comment(ERROR_FORMAT.format(title="Failed to make changes"))
         raise e
@@ -587,10 +591,10 @@ def on_comment(
     except Exception as e:
         pass
 
-    capture_posthog_event(username, "success", properties={**metadata})
+    capture_posthog_event(username, "success", properties={**metadata}, is_python_issue=is_python_issue)
     logger.info("on_comment success")
     return {"success": True}
 
 
-def capture_posthog_event(username, event, properties):
-    posthog.capture(username, event, properties=properties)
+def capture_posthog_event(username, event, properties, is_python_issue: bool):  # new parameter
+    posthog.capture(username, event, properties={**properties, 'is_python_issue': is_python_issue})  # modified line
