@@ -1125,6 +1125,12 @@ fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to e
 Select the smallest spans that let you handle the request. There should not be any unimplemented functions or classes.
 
 Respond in the format:
+
+Step-by-step thoughts:
+1.
+2.
+3.
+
 <snippet_to_modify>
 ```
 first five lines of the original snippet
@@ -1136,9 +1142,11 @@ last five lines of the original snippet (must end on code)
 
 fetch_snippets_prompt = """# Code
 File path: {file_path}
+<old_code>
 ```
 {code}
 ```
+</old_code>
 
 # Request
 {request}
@@ -1147,6 +1155,11 @@ File path: {file_path}
 Respond with a list of all non-overlapping snippet(s) from the file above to you would like to modify.
 {chunking_prompt}
 Respond in the following format:
+
+Step-by-step thoughts:
+1.
+2.
+3.
 
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
@@ -1158,7 +1171,7 @@ last five lines of the original snippet (must end on code)
 
 update_snippets_system_prompt = (
     "You are a brilliant and meticulous engineer assigned to"
-    " write code for the following Github issue. When you write code, the code works on"
+    " write code to complete the user's request. When you write code, the code works on"
     " the first try, is syntactically perfect and is complete. You have the utmost care"
     " for the code that you write, so you do not make mistakes and every function and"
     " class will be fully implemented. Take into account the current repository's"
@@ -1166,6 +1179,11 @@ update_snippets_system_prompt = (
     " right."
     """
 Respond in the following format:
+
+Step-by-step thoughts:
+1.
+2.
+3.
 
 <updated_snippet>
 ```
@@ -1176,9 +1194,11 @@ updated lines
 
 update_snippets_prompt = """# Code
 File path: {file_path}
+<old_code>
 ```
 {code}
 ```
+</old_code>
 
 # Request
 {request}
@@ -1194,6 +1214,11 @@ For each snippet above, rewrite it according to their corresponding instructions
 * Remember to copy the original code for prepending.
 
 Respond in the following format:
+
+Step-by-step thoughts:
+1.
+2.
+3.
 
 <updated_snippet>
 ```

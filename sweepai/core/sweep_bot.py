@@ -821,11 +821,14 @@ class SweepBot(CodeGenBot, GithubBot):
                 else []
             )
             if self.comment_pr_diff_str:
-                additional_messages += [
+                additional_messages = [
                     Message(
-                        role="user", content=self.comment_pr_diff_str, key="pr_diffs"
+                        role="user",
+                        content="The following are the changes in the PR:\n"
+                        + self.comment_pr_diff_str,
+                        key="pr_diffs",
                     )
-                ]
+                ] + additional_messages
             additional_messages += (
                 [
                     Message(
@@ -840,6 +843,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 additional_messages,
                 parent_bot=self,
                 chat_logger=self.chat_logger,
+                is_pr=bool(self.comment_pr_diff_str),
             )
             try:
                 new_file = modify_file_bot.try_update_file(
@@ -1324,6 +1328,7 @@ class ModifyBot:
         additional_messages: list[Message] = [],
         chat_logger=None,
         parent_bot: SweepBot = None,
+        is_pr: bool = False,
     ):
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
             fetch_snippets_system_prompt, chat_logger=chat_logger

@@ -279,7 +279,7 @@ def extract_python_span(code, entities):
         if mentioned_entities:
             mentioned_entities_str = ", ".join(mentioned_entities)
             result.append(
-                f"{i + 1} {line} <- {mentioned_entities_str} is mentioned here"
+                f"{i + 1} {line} ### USER COMMENT: {mentioned_entities_str} is mentioned here ###"
             )
         else:
             result.append(f"{i + 1} {line}")
