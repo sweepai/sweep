@@ -4,9 +4,9 @@ It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its o
 """
 import re
 import traceback
-
 import openai
 from logn import logger, LogTask
+from sweepai.utils.event_logger import posthog
 
 from typing import Any
 from tabulate import tabulate
@@ -174,6 +174,8 @@ def on_comment(
         "repo_description": repo_description,
         "installation_id": installation_id,
         "username": username if not username.startswith("sweep") else assignee,
+    }
+    posthog.capture(username, "started", properties=metadata)
         "function": "on_comment",
         "model": "gpt-3.5" if use_faster_model else "gpt-4",
         "tier": "pro" if is_paying_user else "free",
@@ -320,7 +322,6 @@ def on_comment(
         logger.info(f"Human prompt{human_message.construct_prompt()}")
 
         sweep_bot = SweepBot.from_system_message_content(
-            # human_message=human_message, model="claude-v1.3-100k", repo=repo
             human_message=human_message,
             repo=repo,
             chat_logger=chat_logger,
@@ -328,6 +329,7 @@ def on_comment(
             sweep_context=sweep_context,
             cloned_repo=cloned_repo,
         )
+        sweep_bot.is_python_issue = len([f for f in human_message.files if f.endswith('.py')]) > len(human_message.files) / 2
     except Exception as e:
         logger.error(traceback.format_exc())
         capture_posthog_event(
@@ -440,7 +442,7 @@ def on_comment(
                     ]
                 logger.print(file_change_requests)
                 file_change_requests = sweep_bot.validate_file_change_requests(
-                    file_change_requests, branch=branch_name
+                    file_change_requests, branch=branch_name, is_python_issue=sweep_bot.is_python_issue
                 )
 
                 logger.info("Getting response from ChatGPT...")
@@ -469,10 +471,10 @@ def on_comment(
                 )
             else:
                 file_change_requests, _ = sweep_bot.get_files_to_change(
-                    retries=1, pr_diffs=pr_diff_string
+                    retries=1, pr_diffs=pr_diff_string, is_python_issue=sweep_bot.is_python_issue
                 )
                 file_change_requests = sweep_bot.validate_file_change_requests(
-                    file_change_requests, branch=branch_name
+                    file_change_requests, branch=branch_name, is_python_issue=sweep_bot.is_python_issue
                 )
 
             sweep_response = "I couldn't find any relevant files to change."
@@ -536,7 +538,7 @@ def on_comment(
 
         logger.info("Done!")
     except NoFilesException:
-        capture_posthog_event(
+        posthog.capture(
             username,
             "failed",
             properties={
@@ -586,6 +588,8 @@ def on_comment(
         raise SystemExit
     except Exception as e:
         pass
+    
+    posthog.capture(username, "success", properties=metadata)
 
     capture_posthog_event(username, "success", properties={**metadata})
     logger.info("on_comment success")
