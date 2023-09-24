@@ -101,7 +101,6 @@ class SweepConfig(BaseModel):
         return cls.parse_obj(data)
 
     @staticmethod
-    @lru_cache(maxsize=None)
     def get_branch(repo: Repository) -> str:
         default_branch = repo.default_branch
         try:

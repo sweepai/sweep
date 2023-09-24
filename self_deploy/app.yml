@@ -132,7 +132,7 @@ default_permissions:
   workflows: write
 
 # The name of the GitHub App. Defaults to the name specified in package.json
-name: Sweep (self-hosted)
+name: sweep-example-name
 
 # The homepage of your GitHub App.
 url: https://docs.sweep.dev/usage/deployment
@@ -142,6 +142,6 @@ description: Self-hosted Sweep, an AI-powered junior developer
 
 # Set to true when your GitHub App is available to the public or false when it is only accessible to the owner of the app.
 # Default: true
-public: false
+public: true
 
 # redirect_url: https://github.com/sweepai/sweep/blob/main/docs/installation.md
