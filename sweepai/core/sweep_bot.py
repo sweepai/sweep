@@ -84,6 +84,18 @@ def strip_backticks(s: str) -> str:
     return s.strip("\n")
 
 
+def remove_line_numbers(s: str) -> str:
+    # Check if more than 50% of lines have line numbers
+    # Remove line numbers with spaces after (e.g. "1: {code}")
+    if len(re.findall(r"\d+?: ", s)) > len(s.split("\n")) / 2:
+        return re.sub(r"\d+?: ", "", s, flags=re.MULTILINE)
+
+    # Remove line numbers with no space after (e.g. "112:{code}")
+    if len(re.findall(r"\d+?:", s)) > len(s.split("\n")) / 2:
+        return re.sub(r"\d+?:", "", s, flags=re.MULTILINE)
+    return s
+
+
 def match_indent(generated: str, original: str) -> str:
     indent_type = "\t" if "\t" in original[:5] else " "
     generated_indents = len(generated) - len(generated.lstrip())
@@ -365,6 +377,9 @@ class CodeGenBot(ChatGPT):
                                 start_and_end_lines=start_and_end_lines,
                             )
                         )
+                    import pdb
+
+                    pdb.set_trace()
                     return file_change_requests, " ".join(plan_suggestions)
             if not is_python_issue or not python_issue_worked:
                 # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
@@ -1449,7 +1464,9 @@ class ModifyBot:
         updated_snippets = []
         updated_pattern = r"<updated_snippet>(?P<code>.*?)</updated_snippet>"
         for code in re.findall(updated_pattern, update_snippets_response, re.DOTALL):
-            updated_snippets.append(strip_backticks(code))
+            formatted_code = strip_backticks(code)
+            formatted_code = remove_line_numbers(formatted_code)
+            updated_snippets.append(formatted_code)
 
         result = file_contents
         for search, replace in zip(selected_snippets, updated_snippets):
