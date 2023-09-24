@@ -95,6 +95,11 @@ class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
 
 
 class GraphParentBot(ChatGPT):
+    import traceback
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
     def relevant_files_to_symbols(
         self, issue_metadata: str, relevant_snippets: str, symbols_to_files: str
     ):
@@ -115,7 +120,12 @@ class GraphParentBot(ChatGPT):
             if (self.chat_logger and self.chat_logger.is_paying_user())
             else "gpt-3.5-turbo-16k-0613"
         )
-        response = self.chat(user_prompt)
+        try:
+            response = self.chat(user_prompt)
+        except Exception as e:
+            self.logger.warning(f"Error in relevant_files_to_symbols: {e}")
+            self.logger.warning(self.traceback.format_exc())
+            raise e
         relevant_symbols_and_files = RelevantSymbolsAndFiles.from_string(
             response, symbols_to_files
         )

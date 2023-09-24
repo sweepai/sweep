@@ -31,5 +31,6 @@ class SlowModeBot(ChatGPT):
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"An error occurred: {e}")
+            import traceback
+            logger.error(f"An error occurred: {e}, traceback: {traceback.format_exc()}")
         return [], ""
