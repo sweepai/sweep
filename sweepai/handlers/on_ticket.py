@@ -124,6 +124,16 @@ def on_ticket(
     if assignee is None:
         assignee = current_issue.user.login
 
+    # Compute is_python_issue
+    is_python_issue = any(file.filename.endswith('.py') for file in repo.get_contents(''))
+
+    # Log is_python_issue to Posthog
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+
+    # Pass is_python_issue to get_files_to_change
+    # Assuming get_files_to_change is called later in this function
+    # get_files_to_change(is_python_issue=is_python_issue)
+
     chat_logger = (
         ChatLogger(
             {
@@ -697,8 +707,14 @@ def on_ticket(
         # TODO: removed issue commenting here
         # TODO(william, luke) planning here
 
+        # Compute is_python_issue
+        is_python_issue = any(file.filename.endswith('.py') for file in repo.get_contents(''))
+
+        # Log is_python_issue to Posthog
+        posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue=is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
