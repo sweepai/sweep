@@ -64,6 +64,7 @@ from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.search_utils import search_snippets
 from sweepai.utils.tree_utils import DirectoryTree
+import posthog
 
 openai.api_key = OPENAI_API_KEY
 
@@ -233,6 +234,8 @@ def on_ticket(
             ]
         )
     summary = summary if summary else ""
+    is_python_issue = 'python' in title.lower() or 'python' in summary.lower()
+    posthog.capture('is_python_issue_computed', {'is_python_issue': is_python_issue})
 
     prs = repo.get_pulls(
         state="open", sort="created", base=SweepConfig.get_branch(repo)
@@ -715,7 +718,7 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue=is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
@@ -764,7 +767,7 @@ def on_ticket(
         # TODO(lukejagg): Generate PR after modifications are made
         # CREATE PR METADATA
         logger.info("Generating PR...")
-        pull_request = sweep_bot.generate_pull_request()
+        pull_request = sweep_bot.generate_pull_request(is_python_issue=is_python_issue)
         # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
         # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
         # edit_sweep_comment(
@@ -1230,6 +1233,6 @@ def on_ticket(
             logger.error(traceback.format_exc())
             logger.print("Deleted branch", pull_request.branch_name)
 
-    posthog.capture(username, "success", properties={**metadata})
+    posthog.capture(username, "success", properties={**metadata, 'is_python_issue': is_python_issue})
     logger.info("on_ticket success")
     return {"success": True}
