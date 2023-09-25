@@ -1,6 +1,7 @@
 import html
 import time
 import requests
+import typer
 
 from github import Github
 from logn.cache import file_cache
@@ -27,22 +28,17 @@ def wait_for_server(host: str):
         print(f"Waited for server to start ({i+1}s)")
 
 
-host = "http://127.0.0.1:8080"
-issue_url = "https://github.com/sweepai/sweep/issues/1794"
-
-(
-    protocol_name,
-    _,
-    _base_url,
-    org_name,
-    repo_name,
-    _issues,
-    issue_number,
-) = issue_url.split("/")
-
-
 @file_cache()
 def fetch_issue_request(issue_url: str, __version__: str = "0"):
+    (
+        protocol_name,
+        _,
+        _base_url,
+        org_name,
+        repo_name,
+        _issues,
+        issue_number,
+    ) = issue_url.split("/")
     print("Fetching installation ID...")
     installation_id = get_installation_id(org_name)
     print("Fetching access token...")
@@ -92,7 +88,11 @@ def fetch_issue_request(issue_url: str, __version__: str = "0"):
     return issue_request
 
 
-if __name__ == "__main__":
+def main(
+    issue_url="https://github.com/sweepai/sweep/issues/1794",
+    host="http://127.0.0.1:8080",
+    better_stack_prefix="https://logs.betterstack.com/team/199101/tail?rf=now-30m&q=metadata.issue_url%3A",
+):
     print(f"\nHandling {issue_url}...")
     print(f"Fetching issue metdata...")
     issue_request = fetch_issue_request(issue_url)
@@ -104,5 +104,9 @@ if __name__ == "__main__":
         headers={"X-GitHub-Event": "issues"},
     )
     print(response)
-    better_stack_link = f"https://logs.betterstack.com/team/199101/tail?rf=now-30m&q=metadata.issue_url%3A{html.escape(issue_url)}"
+    better_stack_link = f"{better_stack_prefix}{html.escape(issue_url)}"
     print(f"Track the logs at the following link:\n{better_stack_link}")
+
+
+if __name__ == "__main__":
+    typer.run(main)
