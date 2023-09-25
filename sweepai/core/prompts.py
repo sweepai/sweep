@@ -54,11 +54,6 @@ python_human_message_prompt = [
     },
     {
         "role": "user",
-        "content": """{plan_suggestions}""",
-        "key": "plan_suggestions",
-    },
-    {
-        "role": "user",
         "content": """<repo_tree>
 {tree}
 </repo_tree>""",
