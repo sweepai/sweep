@@ -565,7 +565,25 @@ class GithubBot(BaseModel):
                         branch or SweepConfig.get_branch(self.repo),
                     )
                 except UnknownObjectException:
-                    exists = False
+                    for prefix in [
+                        self.repo.full_name,
+                        self.repo.owner.login,
+                        self.repo.name,
+                    ]:
+                        try:
+                            new_filename = file_change_request.filename.replace(
+                                prefix + "/", "", 1
+                            )
+                            exists = self.repo.get_contents(
+                                new_filename,
+                                branch or SweepConfig.get_branch(self.repo),
+                            )
+                            file_change_request.filename = new_filename
+                            break
+                        except UnknownObjectException:
+                            pass
+                    else:
+                        exists = False
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
@@ -589,6 +607,7 @@ class GithubBot(BaseModel):
                 raise SystemExit
             except Exception as e:
                 logger.info(traceback.format_exc())
+                raise e
         file_change_requests = [
             file_change_request
             for file_change_request in file_change_requests
@@ -810,16 +829,13 @@ class SweepBot(CodeGenBot, GithubBot):
                     for file_path, diffs in file_path_to_contents.items()
                 ]
             )
-            additional_messages = (
-                [
-                    Message(
-                        content=changed_files_summary,
-                        role="user",
-                    )
-                ]
-                if changed_files
-                else []
-            )
+            additional_messages = [
+                Message(
+                    role="user",
+                    content=self.human_message.get_issue_metadata(),
+                    key="issue_metadata",
+                )
+            ]
             if self.comment_pr_diff_str:
                 additional_messages = [
                     Message(
@@ -828,17 +844,21 @@ class SweepBot(CodeGenBot, GithubBot):
                         + self.comment_pr_diff_str,
                         key="pr_diffs",
                     )
-                ] + additional_messages
-            additional_messages += (
-                [
+                ]
+            if changed_files:
+                additional_messages += [
+                    Message(
+                        content=changed_files_summary,
+                        role="user",
+                    )
+                ]
+            if chunking:
+                additional_messages += [
                     Message(
                         content="This is one of the sections of code out of a larger body of code and the changes may not be in this file. If you do not wish to make changes to this file, please type `skip`.",
                         role="assistant",
                     )
                 ]
-                if chunking
-                else []
-            )
             modify_file_bot = ModifyBot(
                 additional_messages,
                 parent_bot=self,
