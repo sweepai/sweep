@@ -2,10 +2,13 @@ from typing import List
 
 from sweepai.events import Changes
 
-
 def create_button(label: str, selected: bool = False) -> str:
-    """Create a button for the issue body."""
-    return f"- [{'x' if selected else ' '}] {label}"
+    """Create a button with the given label."""
+    return f"{'[x]' if selected else '[ ]'} {label}"
+
+def create_revert_button(filename: str) -> str:
+    """Create a button for reverting a file."""
+    return create_button(f"Revert {filename}")
 
 
 def create_action_buttons(labels: List[str], header="## Actions (click)\n") -> str:
