@@ -227,20 +227,20 @@ class CodeGenBot(ChatGPT):
             raise NoFilesException()
             
             def get_files_to_change(
-            self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
+                self, is_python_issue: bool, retries=1, pr_diffs: str | None = None
             ) -> tuple[list[FileChangeRequest], str]:
-            file_change_requests: list[FileChangeRequest] = []
-            # Todo: put retries into a constants file
-            # also, this retries multiple times as the calls for this function are in a for loop
-            try:
-            if is_python_issue:
-                graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
-                graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
-                if pr_diffs is not None:
-                    self.delete_messages_from_chat("pr_diffs")
-                    graph_parent_bot.messages.insert(
-                        1, Message(role="user", content=pr_diffs, key="pr_diffs")
-                    )
+                file_change_requests: list[FileChangeRequest] = []
+                # Todo: put retries into a constants file
+                # also, this retries multiple times as the calls for this function are in a for loop
+                try:
+                    if is_python_issue:
+                        graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
+                        graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
+                        if pr_diffs is not None:
+                            self.delete_messages_from_chat("pr_diffs")
+                            graph_parent_bot.messages.insert(
+                                1, Message(role="user", content=pr_diffs, key="pr_diffs")
+                            )
             if not is_python_issue or not python_issue_worked:
                 # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
                 if pr_diffs is not None:
