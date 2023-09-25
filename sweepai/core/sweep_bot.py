@@ -210,8 +210,12 @@ class CodeGenBot(ChatGPT):
                     subissues.append(ProposedIssue.from_string(re_match.group(0)))
                 if subissues:
                     return subissues
+            import traceback
+            
+            # ...
+            
             except RegexMatchError:
-                logger.warning("Failed to parse! Retrying...")
+                logger.warning(f"Failed to parse! Retrying...\n{traceback.format_exc()}")
                 self.delete_messages_from_chat("files_to_change")
                 continue
         raise NoFilesException()
@@ -388,9 +392,8 @@ class CodeGenBot(ChatGPT):
 
             if file_change_requests:
                 return file_change_requests, files_to_change_response
-        except RegexMatchError as e:
-            logger.print(e)
-            logger.warning("Failed to parse! Retrying...")
+        except RegexMatchError:
+            logger.warning(f"Failed to parse! Retrying...\n{traceback.format_exc()}")
             self.delete_messages_from_chat("files_to_change")
             self.delete_messages_from_chat("pr_diffs")
 
