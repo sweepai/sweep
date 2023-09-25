@@ -1,4 +1,5 @@
 run = "redis-server --bind 0.0.0.0 --port 6379 & uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --workers 5"
+modules = ["python-3.10:v18-20230807-322e88b"]
 
 hidden = [".pythonlibs"]
 
@@ -7,3 +8,4 @@ channel = "stable-23_05"
 
 [deployment]
 run = ["sh", "-c", "redis-server --bind 0.0.0.0 --port 6379 & uvicorn sweepai.api:app --host 0.0.0.0 --port 8080 --workers 5"]
+deploymentTarget = "cloudrun"
