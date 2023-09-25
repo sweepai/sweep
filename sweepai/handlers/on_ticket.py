@@ -200,6 +200,13 @@ def on_ticket(
 
     logger.info(f"Getting repo {repo_full_name}")
 
+    # Compute is_python_issue
+    is_python_issue = any(file.filename.endswith('.py') for file in repo.get_contents(''))
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+
+    # Pass is_python_issue to get_files_to_change
+    file_changes = get_files_to_change(is_python_issue)
+
     if current_issue.state == "closed":
         logger.warning(f"Issue {issue_number} is closed")
         posthog.capture(username, "issue_closed", properties=metadata)
