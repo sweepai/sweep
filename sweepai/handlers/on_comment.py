@@ -20,6 +20,7 @@ from sweepai.core.entities import (
     FileChangeRequest,
     SweepContext,
     Message,
+    is_python_issue,
 )
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
@@ -320,13 +321,13 @@ def on_comment(
         logger.info(f"Human prompt{human_message.construct_prompt()}")
 
         sweep_bot = SweepBot.from_system_message_content(
-            # human_message=human_message, model="claude-v1.3-100k", repo=repo
             human_message=human_message,
             repo=repo,
             chat_logger=chat_logger,
             model="gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4-32k-0613",
             sweep_context=sweep_context,
             cloned_repo=cloned_repo,
+            is_python_issue=is_python_issue,
         )
     except Exception as e:
         logger.error(traceback.format_exc())
@@ -440,7 +441,7 @@ def on_comment(
                     ]
                 logger.print(file_change_requests)
                 file_change_requests = sweep_bot.validate_file_change_requests(
-                    file_change_requests, branch=branch_name
+                    file_change_requests, branch=branch_name, is_python_issue=is_python_issue
                 )
 
                 logger.info("Getting response from ChatGPT...")
@@ -466,10 +467,11 @@ def on_comment(
                     repo=repo,
                     chat_logger=chat_logger,
                     cloned_repo=cloned_repo,
+                    is_python_issue=is_python_issue,
                 )
             else:
                 file_change_requests, _ = sweep_bot.get_files_to_change(
-                    retries=1, pr_diffs=pr_diff_string
+                    retries=1, pr_diffs=pr_diff_string, is_python_issue=is_python_issue
                 )
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name
@@ -502,15 +504,15 @@ def on_comment(
                 # pr.create_issue_comment(response_for_user)
         logger.info("Making Code Changes...")
 
-        blocked_dirs = get_blocked_dirs(sweep_bot.repo)
+        blocked_dirs = get_blocked_dirs(sweep_bot.repo, is_python_issue=is_python_issue)
 
-        sweep_bot.comment_pr_diff_str = pr_diff_string
-        sweep_bot.comment_pr_files_modified = pr_files_modified
+        sweep_bot.comment_pr_diff_str = pr_diff_string, is_python_issue=is_python_issue
+        sweep_bot.comment_pr_files_modified = pr_files_modified, is_python_issue=is_python_issue
         changes_made = sum(
             [
                 change_made
                 for _, change_made, _, _ in sweep_bot.change_files_in_github_iterator(
-                    file_change_requests, branch_name, blocked_dirs
+                    file_change_requests, branch_name, blocked_dirs, is_python_issue=is_python_issue
                 )
             ]
         )
@@ -587,10 +589,10 @@ def on_comment(
     except Exception as e:
         pass
 
-    capture_posthog_event(username, "success", properties={**metadata})
+    capture_posthog_event(username, "success", properties={**metadata, 'is_python_issue': is_python_issue})
     logger.info("on_comment success")
     return {"success": True}
 
 
 def capture_posthog_event(username, event, properties):
-    posthog.capture(username, event, properties=properties)
+    posthog.capture(username, event, properties={**properties, 'is_python_issue': is_python_issue})
