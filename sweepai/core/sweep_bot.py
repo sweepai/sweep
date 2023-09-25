@@ -223,15 +223,17 @@ class CodeGenBot(ChatGPT):
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            # The rest of the code remains the same
-            if is_python_issue:
-                graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
-                graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
-                if pr_diffs is not None:
-                    self.delete_messages_from_chat("pr_diffs")
-                    graph_parent_bot.messages.insert(
-                        1, Message(role="user", content=pr_diffs, key="pr_diffs")
-                    )
+            file_change_requests: list[FileChangeRequest] = []
+            try:
+                # The rest of the code remains the same
+                if is_python_issue:
+                    graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
+                    graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
+                    if pr_diffs is not None:
+                        self.delete_messages_from_chat("pr_diffs")
+                        graph_parent_bot.messages.insert(
+                            1, Message(role="user", content=pr_diffs, key="pr_diffs")
+                        )
 
                 issue_metadata = self.human_message.get_issue_metadata()
                 relevant_snippets = self.human_message.render_snippets()
