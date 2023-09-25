@@ -162,6 +162,8 @@ def run_get_deeplake_vs_from_repo(*args, **kwargs):
         get_deeplake_vs_from_repo(*args, **kwargs)
 
 
+import traceback
+
 def terminate_thread(thread):
     """Terminate a python threading.Thread."""
     try:
@@ -181,7 +183,25 @@ def terminate_thread(thread):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.error(f"Failed to terminate thread: {e}")
+        logger.error(f"Failed to terminate thread: {e}, traceback: {traceback.format_exc()}")
+
+@app.post("/")
+async def webhook(raw_request: Request):
+    # Do not create logs for api
+    logger.init(
+        metadata=None,
+        create_file=False,
+    )
+
+    """Handle a webhook request from GitHub."""
+    try:
+        # ... (rest of the code)
+    except ValidationError as e:
+        logger.warning(f"Failed to parse request: {e}")
+        raise HTTPException(status_code=422, detail="Failed to parse request")
+    except Exception as e:
+        logger.error(f"Failed to add config to top repos: {e}, traceback: {traceback.format_exc()}")
+    return {"success": True}
 
 
 def call_on_ticket(*args, **kwargs):
