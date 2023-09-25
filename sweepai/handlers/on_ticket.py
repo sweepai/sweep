@@ -106,7 +106,7 @@ def center(text: str) -> str:
             priority=1,
         )
         raise e
-
+    
     # Compute is_python_issue boolean
     is_python_issue = any(file.endswith('.py') for file in cloned_repo.get_file_paths())
     
