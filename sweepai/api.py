@@ -722,6 +722,10 @@ async def webhook(raw_request: Request):
                             logger.error(f"Failed to process webhook: {e}, traceback: {traceback.format_exc()}")
 
                         # Update PR description to remove buttons
+                        import traceback
+                        
+                        ...
+                        
                         try:
                             _, g = get_github_client(request.installation.id)
                             repo = g.get_repo(request.repository.full_name)
@@ -734,7 +738,14 @@ async def webhook(raw_request: Request):
                         except SystemExit:
                             raise SystemExit
                         except Exception as e:
-                            logger.error(f"Failed to edit PR description: {e}")
+                            logger.error(f"Failed to edit PR description: {e}, traceback: {traceback.format_exc()}")
+                        
+                        ...
+                        
+                        except ValidationError as e:
+                            logger.warning(f"Failed to parse request: {e}, traceback: {traceback.format_exc()}")
+                            raise HTTPException(status_code=422, detail="Failed to parse request")
+                        return {"success": True}
                     pass
                 pass
             case "pull_request", "closed":
