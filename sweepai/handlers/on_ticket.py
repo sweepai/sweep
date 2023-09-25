@@ -531,7 +531,6 @@ def on_ticket(
     snippets = post_process_snippets(
         snippets, max_num_of_snippets=2 if use_faster_model else 5
     )
-
     if not repo_description:
         repo_description = "No description provided."
 
@@ -788,7 +787,7 @@ def on_ticket(
 
         condensed_checkboxes_contents = "\n".join(
             [
-                create_checkbox(f"`{filename}`", "", check == "X")
+                create_checkbox(f"`{filename}`", "", check == "X").strip()
                 for filename, instructions, check in checkboxes_progress
             ]
         )
@@ -903,7 +902,7 @@ def on_ticket(
                         check=check,
                         filename=filename,
                         instructions="",
-                    )
+                    ).strip()
                     for filename, instructions, check in checkboxes_progress
                 ]
             )
