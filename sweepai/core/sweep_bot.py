@@ -217,26 +217,21 @@ class CodeGenBot(ChatGPT):
         raise NoFilesException()
 
     def get_files_to_change(
-        self, retries=1, pr_diffs: str | None = None
+        self, is_python_issue, retries=1, pr_diffs: str | None = None
     ) -> tuple[list[FileChangeRequest], str]:
         file_change_requests: list[FileChangeRequest] = []
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            def get_files_to_change(
-                self, is_python_issue, retries=1, pr_diffs: str | None = None
-            ) -> tuple[list[FileChangeRequest], str]:
-                file_change_requests: list[FileChangeRequest] = []
-                try:
-                    # The rest of the code remains the same
-                    if is_python_issue:
-                        graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
-                        graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
-                        if pr_diffs is not None:
-                            self.delete_messages_from_chat("pr_diffs")
-                            graph_parent_bot.messages.insert(
-                                1, Message(role="user", content=pr_diffs, key="pr_diffs")
-                            )
+            # The rest of the code remains the same
+            if is_python_issue:
+                graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
+                graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
+                if pr_diffs is not None:
+                    self.delete_messages_from_chat("pr_diffs")
+                    graph_parent_bot.messages.insert(
+                        1, Message(role="user", content=pr_diffs, key="pr_diffs")
+                    )
 
                 issue_metadata = self.human_message.get_issue_metadata()
                 relevant_snippets = self.human_message.render_snippets()
