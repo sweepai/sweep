@@ -213,4 +213,4 @@ class GithubRequest(IssueRequest):
     class Sender(BaseModel):
         login: str
 
-    sender: Sender
+    sender: Sender | None
