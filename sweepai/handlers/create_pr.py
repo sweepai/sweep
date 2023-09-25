@@ -352,6 +352,7 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
 
 
 def add_config_to_top_repos(installation_id, username, repositories, max_repos=3):
+    import traceback
     user_token, g = get_github_client(installation_id)
 
     repo_activity = {}
@@ -385,7 +386,8 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.print(e)
+            logger.error(f"Failed to create config for repo: {e}, traceback: {traceback.format_exc()}")
+            logger.error(f"Failed to create config for repo: {e}, traceback: {traceback.format_exc()}")
     logger.print("Finished creating configs for top repos")
 
 
