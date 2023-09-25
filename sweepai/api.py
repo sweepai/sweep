@@ -88,7 +88,7 @@ def run_on_ticket(*args, **kwargs):
         with logger:
             on_ticket(*args, **kwargs)
     except Exception as e:
-        logger.error(f"Error in run_on_ticket: {e}, traceback: {traceback.format_exc()}")
+        logger.exception("Error in run_on_ticket")
         raise
 
 
@@ -113,7 +113,7 @@ def terminate_thread(thread):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.error(f"Failed to terminate thread: {e}, traceback: {traceback.format_exc()}")
+        logger.exception("Failed to terminate thread")
 
 @app.post("/")
 async def webhook(raw_request: Request):
@@ -127,10 +127,10 @@ async def webhook(raw_request: Request):
     try:
         # ... (rest of the code)
     except ValidationError as e:
-        logger.warning(f"Failed to parse request: {e}, traceback: {traceback.format_exc()}")
+        logger.exception("Failed to parse request")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     except Exception as e:
-        logger.error(f"Failed to add config to top repos: {e}, traceback: {traceback.format_exc()}")
+        logger.exception("Failed to add config to top repos")
     return {"success": True}
 
 
