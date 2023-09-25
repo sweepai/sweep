@@ -570,13 +570,27 @@ def on_ticket(
         snippets=snippets,
         tree=tree,
     )
-
+    
+    # Compute the is_python_issue boolean
+    is_python_issue = (
+        sum(
+            [
+                not file_path.endswith(".py")
+                for file_path in human_message.get_file_paths()
+            ]
+        )
+        < 2
+    )
+    
+    # Log the is_python_issue event to Posthog
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+    
     context_pruning = ContextPruning(chat_logger=chat_logger)
     (
         snippets_to_ignore,
         excluded_dirs,
     ) = context_pruning.prune_context(  # TODO, ignore directories
-        human_message, repo=repo
+        human_message, repo=repo, is_python_issue=is_python_issue
     )
     snippets = post_process_snippets(
         snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
@@ -706,8 +720,22 @@ def on_ticket(
         # TODO: removed issue commenting here
         # TODO(william, luke) planning here
 
+        # Compute the is_python_issue boolean
+        is_python_issue = (
+            sum(
+                [
+                    not file_path.endswith(".py")
+                    for file_path in human_message.get_file_paths()
+                ]
+            )
+            < 2
+        )
+        
+        # Log the is_python_issue event to Posthog
+        posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+        
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
