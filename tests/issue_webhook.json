@@ -1,5 +1,5 @@
 {
-  "action": "labeled",
+  "action": "edited",
   "issue": {
     "url": "https://api.github.com/repos/sweepai/sweep/issues/1747",
     "repository_url": "https://api.github.com/repos/sweepai/sweep",
@@ -49,16 +49,16 @@
 
     ],
     "milestone": null,
-    "comments": 0,
+    "comments": 1,
     "created_at": "2023-09-21T00:11:58Z",
-    "updated_at": "2023-09-21T00:11:58Z",
+    "updated_at": "2023-09-24T23:15:37Z",
     "closed_at": null,
     "author_association": "CONTRIBUTOR",
     "active_lock_reason": null,
-    "body": "### Details\n\nMove the is_python_issue bool in sweep_bot to the on_ticket.py flow. Use the metadata in on_ticket to log this as an event to posthog, and then pass this to get_files_to_change",
+    "body": "### Details\r\n\r\nMove the computation of the is_python_issue bool from get_files_to_change in sweep_bot to on_ticket.py. Log this as an event to posthog in on_ticket, and then pass this to get_files_to_change where it was previously computed.",
     "reactions": {
       "url": "https://api.github.com/repos/sweepai/sweep/issues/1747/reactions",
-      "total_count": 0,
+      "total_count": 1,
       "+1": 0,
       "-1": 0,
       "laugh": 0,
@@ -66,20 +66,16 @@
       "confused": 0,
       "heart": 0,
       "rocket": 0,
-      "eyes": 0
+      "eyes": 1
     },
     "timeline_url": "https://api.github.com/repos/sweepai/sweep/issues/1747/timeline",
     "performed_via_github_app": null,
     "state_reason": null
   },
-  "label": {
-    "id": 5621414028,
-    "node_id": "LA_kwDOJvTCgM8AAAABTw_4jA",
-    "url": "https://api.github.com/repos/sweepai/sweep/labels/sweep",
-    "name": "sweep",
-    "color": "5320E7",
-    "default": false,
-    "description": "Assigns Sweep to an issue or pull request."
+  "changes": {
+    "body": {
+      "from": "### Details\r\n\r\nMove the computation of the is_python_issue bool from sweep_bot to on_ticket.py. Log this as an event to posthog in on_ticket, and then pass this to get_files_to_change where it was previously computed."
+    }
   },
   "repository": {
     "id": 653574784,
@@ -148,16 +144,16 @@
     "releases_url": "https://api.github.com/repos/sweepai/sweep/releases{/id}",
     "deployments_url": "https://api.github.com/repos/sweepai/sweep/deployments",
     "created_at": "2023-06-14T10:08:07Z",
-    "updated_at": "2023-09-20T19:55:17Z",
-    "pushed_at": "2023-09-21T00:10:19Z",
+    "updated_at": "2023-09-24T20:24:47Z",
+    "pushed_at": "2023-09-24T22:55:32Z",
     "git_url": "git://github.com/sweepai/sweep.git",
     "ssh_url": "git@github.com:sweepai/sweep.git",
     "clone_url": "https://github.com/sweepai/sweep.git",
     "svn_url": "https://github.com/sweepai/sweep",
     "homepage": "https://sweep.dev",
-    "size": 44321,
-    "stargazers_count": 5389,
-    "watchers_count": 5389,
+    "size": 44992,
+    "stargazers_count": 5411,
+    "watchers_count": 5411,
     "language": "Python",
     "has_issues": true,
     "has_projects": false,
@@ -165,11 +161,11 @@
     "has_wiki": false,
     "has_pages": false,
     "has_discussions": true,
-    "forks_count": 208,
+    "forks_count": 210,
     "mirror_url": null,
     "archived": false,
     "disabled": false,
-    "open_issues_count": 415,
+    "open_issues_count": 442,
     "license": {
       "key": "other",
       "name": "Other",
@@ -192,9 +188,9 @@
       "llm"
     ],
     "visibility": "public",
-    "forks": 208,
-    "open_issues": 415,
-    "watchers": 5389,
+    "forks": 210,
+    "open_issues": 442,
+    "watchers": 5411,
     "default_branch": "main"
   },
   "organization": {
