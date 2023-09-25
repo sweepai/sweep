@@ -279,26 +279,18 @@ async def webhook(raw_request: Request):
     )
 
     """Handle a webhook request from GitHub."""
+    import traceback
+    ...
     try:
-        request_dict = await raw_request.json()
-        event = raw_request.headers.get("X-GitHub-Event")
-        assert event is not None
-
-        # # Check if user is in Whitelist
-        # gh_request = GithubRequest(**request_dict)
-        # if (
-        #     WHITELISTED_USERS is not None
-        #     and len(WHITELISTED_USERS) > 0
-        #     and gh_request.sender is not None
-        #     and gh_request.sender.login not in WHITELISTED_USERS
-        # ):
-        #     return {
-        #         "success": True,
-        #         "reason": "User not in whitelist",
-        #     }
-
-        action = request_dict.get("action", None)
-        # logger.bind(event=event, action=action)
+        add_config_to_top_repos(
+            repos_added_request.installation.id,
+            repos_added_request.installation.account.login,
+            repos_added_request.repositories_added,
+        )
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        logger.error(f"Failed to add config to top repos: {e}, traceback: {traceback.format_exc()}")
         logger.info(f"Received event: {event}, {action}")
         match event, action:
             case "issues", "opened":
@@ -614,16 +606,18 @@ async def webhook(raw_request: Request):
                     ],
                 }
 
+                import traceback
+                ...
                 try:
                     add_config_to_top_repos(
                         repos_added_request.installation.id,
                         repos_added_request.installation.account.login,
-                        repos_added_request.repositories_added,
+                        repos_added_request.repositories,
                     )
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.error(f"Failed to add config to top repos: {e}")
+                    logger.error(f"Failed to add config to top repos: {e}, traceback: {traceback.format_exc()}")
 
                 posthog.capture(
                     "installation_repositories", "started", properties={**metadata}
@@ -646,16 +640,20 @@ async def webhook(raw_request: Request):
             case "installation", "created":
                 repos_added_request = InstallationCreatedRequest(**request_dict)
 
+                import traceback
+                ...
                 try:
-                    add_config_to_top_repos(
-                        repos_added_request.installation.id,
-                        repos_added_request.installation.account.login,
-                        repos_added_request.repositories,
+                    repo = g.get_repo(request.repository.full_name)
+                    pr = repo.get_pull(request.pull_request.number)
+                    new_body = remove_buttons_from_description(
+                        request.pull_request.body
                     )
+                    if new_body is not None:
+                        pr.edit(body=new_body)
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.error(f"Failed to add config to top repos: {e}")
+                    logger.error(f"Failed to edit PR description: {e}, traceback: {traceback.format_exc()}")
 
                 # Index all repos
                 for repo in repos_added_request.repositories:
@@ -711,32 +709,17 @@ async def webhook(raw_request: Request):
                             },
                         )
 
-                        def remove_buttons_from_description(body):
-                            """
-                            Replace:
-                            ### PR Feedback...
+                        import traceback
+                        ...
+                        try:
+                            request_dict = await raw_request.json()
+                            event = raw_request.headers.get("X-GitHub-Event")
+                            assert event is not None
                             ...
-                            # (until it hits the next #)
-
-                            with
-                            ### PR Feedback: {emoji}
-                            #
-                            """
-                            lines = body.split("\n")
-                            if not lines[0].startswith("### PR Feedback"):
-                                return None
-                            # Find when the second # occurs
-                            i = 0
-                            for i, line in enumerate(lines):
-                                if line.startswith("#") and i > 0:
-                                    break
-
-                            return "\n".join(
-                                [
-                                    f"### PR Feedback: {emoji}",
-                                    *lines[i:],
-                                ]
-                            )
+                        except SystemExit:
+                            raise SystemExit
+                        except Exception as e:
+                            logger.error(f"Failed to process webhook: {e}, traceback: {traceback.format_exc()}")
 
                         # Update PR description to remove buttons
                         try:
