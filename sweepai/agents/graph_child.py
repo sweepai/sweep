@@ -65,7 +65,7 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
 
     @classmethod
     def from_string(cls, string: str, file_path: str, **kwargs):
-        snippets_pattern = r"""<relevant_new_snippet>(\n)?(?P<relevant_new_snippet>.*)</relevant_new_snippet>"""
+        snippets_pattern = r"""<relevant_new_snippets.*?>(\n)?(?P<relevant_new_snippet>.*)</relevant_new_snippets>"""
         plan_pattern = r"""<code_change_description.*?>(\n)?(?P<code_change_description>.*)</code_change_description>"""
         snippets_match = re.search(snippets_pattern, string, re.DOTALL)
         relevant_new_snippet_match = None
