@@ -626,80 +626,78 @@ def on_ticket(
     else:
         logger.info("sweep.yaml file already exists.")
 
-    try:
-        # ANALYZE SNIPPETS
-        newline = "\n"
-        edit_sweep_comment(
-            "I found the following snippets in your repository. I will now analyze"
-            " these snippets and come up with a plan."
-            + "\n\n"
-            + create_collapsible(
-                "Some code snippets I looked at (click to expand). If some file is"
-                " missing from here, you can mention the path in the ticket"
-                " description.",
-                "\n".join(
-                    [
-                        f"https://github.com/{organization}/{repo_name}/blob/{repo.get_commits()[0].sha}/{snippet.file_path}#L{max(snippet.start, 1)}-L{min(snippet.end, snippet.content.count(newline) - 1)}\n"
-                        for snippet in snippets
-                    ]
-                ),
-            )
-            + (
-                create_collapsible(
-                    "I also found the following external resources that might be helpful:",
-                    f"\n\n{external_results}\n\n",
+    ENV,
+    MONGODB_URI,
+    OPENAI_API_KEY,
+    GITHUB_BOT_USERNAME,
+    GITHUB_LABEL_NAME,
+    OPENAI_USE_3_5_MODEL_ONLY,
+    WHITELISTED_REPOS,
+    DISCORD_FEEDBACK_WEBHOOK_URL,
+)
+from sweepai.utils.ticket_utils import *
+from sweepai.utils.event_logger import posthog
+...
+    metadata = {
+        "issue_url": issue_url,
+        "repo_full_name": repo_full_name,
+        "organization": organization,
+        "repo_name": repo_name,
+        "repo_description": repo_description,
+        "username": username,
+        "comment_id": comment_id,
+        "title": title,
+        "installation_id": installation_id,
+        "function": "on_ticket",
+        "edited": edited,
+        "model": "gpt-3.5" if use_faster_model else "gpt-4",
+        "tier": "pro" if is_paying_user else "free",
+        "mode": ENV,
+        "slow_mode": slow_mode,
+        "do_map": do_map,
+        "subissues_mode": subissues_mode,
+        "sandbox_mode": sandbox_mode,
+        "fast_mode": fast_mode,
+    }
+    # logger.bind(**metadata)
+...
+                header = "No header\n"
+            msg = header + (past_messages.get(i) or "Working on it...")
+            if agg_message is None:
+                agg_message = msg
+            else:
+                agg_message = agg_message + f"\n{sep}" + msg
+
+        suffix = bot_suffix + discord_suffix
+        if errored:
+            agg_message = (
+                "## ❌ Unable to Complete PR"
+...
+                raise Exception(
+                    f"Branch name {pull_request.branch_name} does not start with sweep/"
                 )
-                if external_results
-                else ""
-            )
-            + (f"\n\n{docs_results}\n\n" if docs_results else ""),
-            1,
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
+            logger.error(e)
+            logger.error(traceback.format_exc())
+            logger.print("Deleted branch", pull_request.branch_name)
+
+    # Compute 'is_python_issue'
+    is_python_issue = (
+        sum(
+            [
+                not file_path.endswith(".py")
+                for file_path in sweep_bot.human_message.get_file_paths()
+            ]
         )
-
-        if do_map:
-            subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
-            edit_sweep_comment(
-                f"I'm creating the following subissues:\n\n"
-                + "\n\n".join(
-                    [
-                        f"#{subissue.title}:\n" + blockquote(subissue.body)
-                        for subissue in subissues
-                    ]
-                ),
-                2,
-            )
-            for subissue in tqdm(subissues):
-                subissue.issue_id = repo.create_issue(
-                    title="Sweep: " + subissue.title,
-                    body=subissue.body + f"\n\nParent issue: #{issue_number}",
-                    assignee=username,
-                ).number
-            subissues_checklist = "\n\n".join(
-                [
-                    f"- [ ] #{subissue.issue_id}\n\n"
-                    + blockquote(f"**{subissue.title}**\n{subissue.body}")
-                    for subissue in subissues
-                ]
-            )
-            current_issue.edit(
-                body=summary + "\n\n---\n\nChecklist:\n\n" + subissues_checklist
-            )
-            edit_sweep_comment(
-                f"I finished creating the subissues! Track them at:\n\n"
-                + "\n".join(f"* #{subissue.issue_id}" for subissue in subissues),
-                3,
-                done=True,
-            )
-            edit_sweep_comment(f"N/A", 4)
-            edit_sweep_comment(f"I finished creating all the subissues.", 5)
-            return {"success": True}
-
-        # COMMENT ON ISSUE
-        # TODO: removed issue commenting here
-        # TODO(william, luke) planning here
-
-        logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        < 2
+    )
+    # Log 'is_python_issue' to posthog
+    posthog.capture(username, "is_python_issue", properties={**metadata, "is_python_issue": is_python_issue})
+    # Pass 'is_python_issue' to 'get_files_to_change'
+    file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
+...
 
         if not file_change_requests:
             if len(title + summary) < 60:
