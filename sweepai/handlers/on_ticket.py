@@ -655,6 +655,19 @@ def on_ticket(
             1,
         )
 
+        # Compute 'is_python_issue'
+        is_python_issue = (
+            sum(
+                [
+                    file_change_request.file_path.endswith(".py")
+                    for file_change_request in file_change_requests
+                ]
+            )
+            < 2
+        )
+        # Log 'is_python_issue' to posthog
+        posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+
         if do_map:
             subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
             edit_sweep_comment(
@@ -698,7 +711,7 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
