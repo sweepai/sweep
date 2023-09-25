@@ -611,8 +611,12 @@ class CodeGenBot(ChatGPT):
         
         # ...
         
+        import traceback
+        
+        # ...
+        
         except RegexMatchError as e:
-            logger.warning(f"Failed to parse! Retrying...\n{traceback.format_exc()}")
+            logger.warning(f"Error in summarize_snippets: {e}. Traceback: {traceback.format_exc()}. Likely failed to parse")
             self.delete_messages_from_chat("files_to_change")
             self.delete_messages_from_chat("pr_diffs")
 
