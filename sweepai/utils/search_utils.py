@@ -90,6 +90,7 @@ def search_snippets(
         else:
             non_boosted_snippets.append(snippet)
     snippets = boosted_snippets + non_boosted_snippets
+    snippet_paths = [snippet.file_path for snippet in snippets]
     snippet_paths = list(set(snippet_paths))
     tree = cloned_repo.get_tree_and_file_list(
         snippet_paths=snippet_paths, excluded_directories=excluded_directories
