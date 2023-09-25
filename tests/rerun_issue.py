@@ -89,9 +89,9 @@ def fetch_issue_request(issue_url: str, __version__: str = "0"):
 
 
 def main(
-    issue_url="https://github.com/sweepai/sweep/issues/1794",
-    host="http://127.0.0.1:8080",
-    better_stack_prefix="https://logs.betterstack.com/team/199101/tail?rf=now-30m&q=metadata.issue_url%3A",
+    issue_url: str,
+    host: str = "http://127.0.0.1:8080",
+    better_stack_prefix: str = "https://logs.betterstack.com/team/199101/tail?rf=now-30m&q=metadata.issue_url%3A",
 ):
     print(f"\nHandling {issue_url}...")
     print(f"Fetching issue metdata...")
