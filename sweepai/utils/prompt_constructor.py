@@ -122,7 +122,7 @@ class PythonHumanMessagePrompt(HumanMessagePrompt):
     def render_snippets(self):
         res = ""
         for snippet in self.snippets:
-            snippet_text = f"<snippet source={snippet.file_path}>{snippet.content}</snippet>\n"
+            snippet_text = f"<snippet source={snippet.file_path}>\n{snippet.content}\n</snippet>\n"
             res += snippet_text
         return res
 
