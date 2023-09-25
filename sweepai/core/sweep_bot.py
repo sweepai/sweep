@@ -223,16 +223,7 @@ class CodeGenBot(ChatGPT):
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            is_python_issue = (
-                sum(
-                    [
-                        not file_path.endswith(".py")
-                        for file_path in self.human_message.get_file_paths()
-                    ]
-                )
-                < 2
-            )
-            logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+            # Removed lines that compute is_python_issue
             python_issue_worked = True
             if is_python_issue:
                 graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
