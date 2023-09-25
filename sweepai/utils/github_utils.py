@@ -71,11 +71,11 @@ def get_token(installation_id: int):
 
 
 def get_github_client(installation_id: int):
-    token = get_token(installation_id)
+    token: str = get_token(installation_id)
     return token, Github(token)
 
 
-def get_installation_id(username: str):
+def get_installation_id(username: str) -> str:
     jwt = get_jwt()
     response = requests.get(
         f"https://api.github.com/users/{username}/installation",

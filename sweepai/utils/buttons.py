@@ -1,6 +1,6 @@
 from typing import List
 
-from sweepai.events import IssueCommentChanges, Changes
+from sweepai.events import Changes
 
 
 def create_button(label: str, selected: bool = False) -> str:
