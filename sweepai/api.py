@@ -57,7 +57,7 @@ from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  #
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
-from sweepai.handlers.on_ticket import on_ticket
+from sweepai.handlers.on_ticket import on_ticket, revert_file_changes
 from sweepai.redis_init import redis_client
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -267,6 +267,10 @@ def health_check():
 def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
+@app.post("/revert-file-changes")
+async def revert_file_changes_route(raw_request: Request):
+    request_data = await raw_request.json()
+    revert_file_changes(request_data)
 
 @app.post("/")
 async def webhook(raw_request: Request):
