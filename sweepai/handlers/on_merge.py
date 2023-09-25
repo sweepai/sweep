@@ -46,7 +46,11 @@ def on_merge(request_dict, chat_logger):
 
     # check if the current repo is in the merge_rule_debounce dictionary
     # and if the difference between the current time and the time stored in the dictionary is less than 30 seconds
-    if repo in merge_rule_debounce and time.time() - merge_rule_debounce[repo] < 30:
+    # After import statements, declare DEBOUNCE_TIME and set its value to 120
+    DEBOUNCE_TIME = 120
+    
+    # Replace 30 with DEBOUNCE_TIME in the on_merge function
+    if repo in merge_rule_debounce and time.time() - merge_rule_debounce[repo] < DEBOUNCE_TIME:
         return
 
     rules = get_rules(repo)
