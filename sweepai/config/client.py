@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import threading
 from functools import lru_cache
 from typing import Dict
 
@@ -11,6 +12,9 @@ from pydantic import BaseModel
 from logn import logger
 from sweepai.config.server import ENV
 from sweepai.core.entities import EmptyRepository
+
+
+branch_overrides = {}  # type: Dict[(Thread, str), str]
 
 
 class SweepConfig(BaseModel):
@@ -101,7 +105,20 @@ class SweepConfig(BaseModel):
         return cls.parse_obj(data)
 
     @staticmethod
-    def get_branch(repo: Repository) -> str:
+    def get_branch(repo: Repository, override_branch: str | None = None) -> str:
+        key = (threading.current_thread(), repo.full_name)
+        if override_branch:
+            branch_name = override_branch
+            try:
+                repo.get_branch(branch_name)
+                branch_overrides[key] = branch_name
+                return branch_name
+            except SystemExit:
+                raise SystemExit
+
+        if key in branch_overrides:
+            return branch_overrides[key]
+
         default_branch = repo.default_branch
         try:
             try:
