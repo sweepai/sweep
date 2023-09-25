@@ -44,9 +44,12 @@ def on_merge(request_dict, chat_logger):
         logger.info("Not a merge to master")
         return None
 
+    # define debounce time
+    DEBOUNCE_TIME = 120
+    
     # check if the current repo is in the merge_rule_debounce dictionary
-    # and if the difference between the current time and the time stored in the dictionary is less than 30 seconds
-    if repo in merge_rule_debounce and time.time() - merge_rule_debounce[repo] < 30:
+    # and if the difference between the current time and the time stored in the dictionary is less than DEBOUNCE_TIME seconds
+    if repo in merge_rule_debounce and time.time() - merge_rule_debounce[repo] < DEBOUNCE_TIME:
         return
 
     rules = get_rules(repo)
