@@ -1,5 +1,6 @@
 # Modifying the script to graph only the paths of degree 4 originating from a file.
 
+import importlib
 import os
 import ast
 
@@ -50,7 +51,7 @@ def condense_paths(paths):
     return condensed_paths
 
 
-def extract_entities(code):
+def extract_entities(code: str):
     tree = ast.parse(code)
     imported_modules = []
     defined_classes = []
@@ -197,11 +198,17 @@ class Graph(BaseModel):
                 neighbors.update(graph.neighbors(node))
 
         # Filter out the nodes that are not in file_paths or not neighbors
-        nodes_to_remove = [node for node in graph if node not in file_paths and node not in neighbors]
+        nodes_to_remove = [
+            node for node in graph if node not in file_paths and node not in neighbors
+        ]
         graph.remove_nodes_from(nodes_to_remove)
         # print graph as dictionary
-        if nx.algorithms.dag.has_cycle(graph): # should never happen because imports dedupe classes and functions
-            logger.error(f"The dependency graph has at least one cycle. The file paths are {file_paths}")
+        if nx.algorithms.dag.has_cycle(
+            graph
+        ):  # should never happen because imports dedupe classes and functions
+            logger.error(
+                f"The dependency graph has at least one cycle. The file paths are {file_paths}"
+            )
             return file_paths
 
         # Perform the topological sort
@@ -261,18 +268,18 @@ if __name__ == "__main__":
     g = Graph.from_folder(folder_path)
 
     selected_files = (
-    "sweepai/core/entities.py",
-    "sweepai/core/chat.py",
-    "sweepai/core/sweep_bot.py",
-    "sweepai/core/code_repair.py",
-    "sweepai/core/slow_mode_expand.py",
-    "sweepai/core/post_merge.py",
-    "sweepai/core/gha_extraction.py",
-    "sweepai/core/context_pruning.py",
-    "sweepai/core/external_searcher.py",
-    "sweepai/core/documentation_searcher.py",
-    "tests/test_naive_chunker.py"
-)
+        "sweepai/core/entities.py",
+        "sweepai/core/chat.py",
+        "sweepai/core/sweep_bot.py",
+        "sweepai/core/code_repair.py",
+        "sweepai/core/slow_mode_expand.py",
+        "sweepai/core/post_merge.py",
+        "sweepai/core/gha_extraction.py",
+        "sweepai/core/context_pruning.py",
+        "sweepai/core/external_searcher.py",
+        "sweepai/core/documentation_searcher.py",
+        "tests/test_naive_chunker.py",
+    )
     # Perform a topological sort on the selected files
     try:
         sorted_files = g.topological_sort(selected_files)
