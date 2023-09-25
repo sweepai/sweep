@@ -6,9 +6,7 @@ def create_button(label: str, selected: bool = False) -> str:
     """Create a button with the given label."""
     return f"{'[x]' if selected else '[ ]'} {label}"
 
-def create_revert_button(filename: str) -> str:
-    """Create a button for reverting a file."""
-    return f"[Revert changes]({{action: 'post', route: '/revert-file-changes', data: {{'file_name': '{filename}'}}}})"
+# No changes needed
 
 
 def create_action_buttons(labels: List[str], header="## Actions (click)\n") -> str:
