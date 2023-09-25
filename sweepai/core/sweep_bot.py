@@ -169,11 +169,50 @@ class CodeGenBot(ChatGPT):
             snippets_text = "\n".join([snippet.xml for snippet in snippets])
         except SystemExit:
             raise SystemExit
+        import traceback
+        
+        ...
+        
         except Exception as e:
-            logger.warning(f"Error in summarize_snippets: {e}. Likely failed to parse")
+            logger.error(f"Error in summarize_snippets: {e}. Traceback: {traceback.format_exc()}")
             snippets_text = self.get_message_content_from_message_key(
                 "relevant_snippets"
             )
+        
+        ...
+        
+        except RegexMatchError:
+            logger.error(f"Failed to parse! Retrying...\n{traceback.format_exc()}")
+            self.delete_messages_from_chat("files_to_change")
+            continue
+        
+        ...
+        
+        except RegexMatchError:
+            logger.error(f"Failed to parse! Retrying...\n{traceback.format_exc()}")
+            self.delete_messages_from_chat("files_to_change")
+            self.delete_messages_from_chat("pr_diffs")
+        
+        ...
+        
+        except Exception as e:
+            e_str = str(e)
+            if "too long" in e_str:
+                too_long = True
+            logger.error(f"Exception {e_str}. Failed to parse! Retrying...\n{traceback.format_exc()}")
+            self.delete_messages_from_chat("pull_request")
+            continue
+        
+        ...
+        
+        except Exception as e:
+            logger.error(f"Error with path: {path}. Traceback: {traceback.format_exc()}")
+            raise e
+        
+        ...
+        
+        except Exception as e:
+            logger.error(f"Sandbox Error: {e}. Traceback: {traceback.format_exc()}")
 
         # Remove line numbers (1:line) from snippets
         snippets_text = re.sub(r"^\d+?:", "", snippets_text, flags=re.MULTILINE)
