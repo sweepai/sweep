@@ -223,15 +223,13 @@ class CodeGenBot(ChatGPT):
         # Todo: put retries into a constants file
         # also, this retries multiple times as the calls for this function are in a for loop
         try:
-            is_python_issue = (
-                sum(
-                    [
-                        not file_path.endswith(".py")
-                        for file_path in self.human_message.get_file_paths()
-                    ]
-                )
-                < 2
-            )
+            # sweepai/core/sweep_bot.py
+            def get_files_to_change(
+                self, is_python_issue, retries=1, pr_diffs: str | None = None
+            ) -> tuple[list[FileChangeRequest], str]:
+                file_change_requests: list[FileChangeRequest] = []
+                try:
+                    # The rest of the code remains the same
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
             python_issue_worked = True
             if is_python_issue:
