@@ -591,6 +591,21 @@ def on_ticket(
 
     _user_token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
+
+    # Compute is_python_issue
+    is_python_issue = (
+        sum(
+            [
+                not file_path.endswith(".py")
+                for file_path in human_message.get_file_paths()
+            ]
+        )
+        < 2
+    )
+
+    # Log is_python_issue to Posthog
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
         repo=repo,
@@ -598,6 +613,8 @@ def on_ticket(
         chat_logger=chat_logger,
         sweep_context=sweep_context,
         cloned_repo=cloned_repo,
+        is_python_issue=is_python_issue,  # Pass is_python_issue as an argument
+    )
     )
 
     # Check repository for sweep.yml file.
@@ -697,8 +714,22 @@ def on_ticket(
         # TODO: removed issue commenting here
         # TODO(william, luke) planning here
 
+        # Compute is_python_issue
+        is_python_issue = (
+            sum(
+                [
+                    not file_path.endswith(".py")
+                    for file_path in human_message.get_file_paths()
+                ]
+            )
+            < 2
+        )
+
+        # Log is_python_issue to Posthog
+        posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
