@@ -234,21 +234,13 @@ async def webhook(raw_request: Request):
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
 
-        # # Check if user is in Whitelist
-        # gh_request = GithubRequest(**request_dict)
-        # if (
-        #     WHITELISTED_USERS is not None
-        #     and len(WHITELISTED_USERS) > 0
-        #     and gh_request.sender is not None
-        #     and gh_request.sender.login not in WHITELISTED_USERS
-        # ):
-        #     return {
-        #         "success": True,
-        #         "reason": "User not in whitelist",
-        #     }
-
         action = request_dict.get("action", None)
-        # logger.bind(event=event, action=action)
+    except ValidationError as e:
+        logger.exception("Failed to parse request")
+        raise HTTPException(status_code=422, detail="Failed to parse request")
+    except Exception as e:
+        logger.exception("Failed to add config to top repos")
+    return {"success": True}
         logger.info(f"Received event: {event}, {action}")
         match event, action:
             case "issues", "opened":
