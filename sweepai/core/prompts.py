@@ -1214,6 +1214,7 @@ Step-by-step thoughts:
 1.
 2.
 3.
+...
 
 <updated_snippet>
 ```
