@@ -52,6 +52,8 @@ from sweepai.core.prompts import (
     update_snippets_system_prompt,
     update_snippets_prompt,
     python_files_to_change_prompt,
+    use_chunking_message,
+    dont_use_chunking_message,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DB_MODAL_INST_NAME, SANDBOX_URL, SECONDARY_MODEL
@@ -355,7 +357,7 @@ class CodeGenBot(ChatGPT):
                         new_messages.append(Message(**message_dict))
                     self.messages = new_messages
                     files_to_change_response = self.chat(
-                    files_to_change_prompt, message_key="files_to_change"
+                        files_to_change_prompt, message_key="files_to_change"
                     )  # Dedup files to change here
                     file_change_requests = []
                     for re_match in re.finditer(
@@ -364,7 +366,6 @@ class CodeGenBot(ChatGPT):
                         file_change_requests.append(
                             FileChangeRequest.from_string(re_match.group(0))
                         )
-                    
 
                     if file_change_requests:
                         return file_change_requests, files_to_change_response
@@ -1384,9 +1385,9 @@ class ModifyBot:
                 code=file_contents,
                 file_path=file_path,
                 request=file_change_request.instructions,
-                chunking_prompt='\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n'
+                chunking_prompt=use_chunking_message
                 if chunking
-                else "",
+                else dont_use_chunking_message,
             )
         )
 
@@ -1450,7 +1451,9 @@ class ModifyBot:
                 split_file_contents = "\n".join(
                     file_contents.split("\n")[start_line - 1 : end_line]
                 )
-                plan_extracted_contents += f"<{file_change_request.filename}:{start_line}-{end_line}>\n"
+                plan_extracted_contents += (
+                    f"<{file_change_request.filename}:{start_line}-{end_line}>\n"
+                )
                 plan_extracted_contents += split_file_contents
                 plan_extracted_contents += "...\n"
         else:

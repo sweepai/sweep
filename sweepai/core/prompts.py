@@ -1120,6 +1120,11 @@ Step-by-step thoughts:
 1.
 2.
 3.
+...
+
+Changes needed: Yes/No
+
+Snippets to modify:
 
 <snippet_to_modify>
 ```
@@ -1142,14 +1147,19 @@ File path: {file_path}
 {request}
 
 # Instructions
-Respond with a list of all non-overlapping snippet(s) from the file above to you would like to modify.
-{chunking_prompt}
+{chunking_message}
+
 Respond in the following format:
 
 Step-by-step thoughts:
 1.
 2.
 3.
+...
+
+Changes needed: Yes/No
+
+Snippets to modify:
 
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
@@ -1158,6 +1168,15 @@ first five lines of the original snippet
 last five lines of the original snippet (must end on code)
 ```
 </snippet_to_modify>"""
+
+use_chunking_message = """\
+This is just one section of the file. Determine whether the request is asking to edit this chunk of the file. If not, respond with "No" to "Changes needed".
+
+Otherwise, respond with a list of the MINIMUM snippet(s) from old_code that should be modified."""
+
+dont_use_chunking_message = """\
+Respond with a list of the MINIMUM snippet(s) from old_code that should be modified.
+"""
 
 update_snippets_system_prompt = (
     "You are a brilliant and meticulous engineer assigned to"
