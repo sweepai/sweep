@@ -10,6 +10,7 @@ Decide whether the file_path {file_path} needs to be modified to solve this issu
 
 First determine whether changes in file_path are necessary.
 Then, if code changes need to be made in file_path, extract the relevant_new_snippets and write the code_change_description.
+In code_change_description, mention each relevant_new_snippet and how to modify it.
 
 1. Analyze the code and extract the relevant_new_snippets.
 Extract only the relevant_new_snippets that allow us to write code_change_description for file_path.
