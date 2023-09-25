@@ -1213,18 +1213,18 @@ def on_ticket(
         cloned_repo.delete()
     
     def revert_file_changes(request_data: dict):
-    # Parse the request data
-    file_name = request_data['file_name']
-    pr_number = request_data['pr_number']
-    
-    # Get the pull request
-    pr = repo.get_pull(pr_number)
-    
-    # Get the file in the pull request
-    pr_file = [file for file in pr.get_files() if file.filename == file_name][0]
-    
-    # Revert the changes made to the file
-    pr_file.edit(pr_file.sha, "")
+        # Parse the request data
+        file_name = request_data['file_name']
+        pr_number = request_data['pr_number']
+        
+        # Get the pull request
+        pr = repo.get_pull(pr_number)
+        
+        # Get the file in the pull request
+        pr_file = [file for file in pr.get_files() if file.filename == file_name][0]
+        
+        # Revert the changes made to the file
+        pr_file.edit(pr_file.sha, "")
 
     if delete_branch:
         try:
