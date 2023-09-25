@@ -174,6 +174,10 @@ def on_ticket(
             gpt3=use_faster_model
         )  # moving higher, will increment the issue regardless of whether it's a success or not
 
+    # Import the necessary module for logging events to Posthog
+    import posthog
+    
+    # Compute the `is_python_issue` boolean in the `on_ticket` function
     organization, repo_name = repo_full_name.split("/")
     is_python_issue = (
         sum(
@@ -184,6 +188,8 @@ def on_ticket(
         )
         < 2
     )
+    
+    # Add `is_python_issue` to the metadata dictionary
     metadata = {
         "issue_url": issue_url,
         "repo_full_name": repo_full_name,
@@ -204,9 +210,10 @@ def on_ticket(
         "subissues_mode": subissues_mode,
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
-        "is_python_issue": is_python_issue,
+        "is_python_issue": is_python_issue,  # Add `is_python_issue` to the metadata
     }
-    # logger.bind(**metadata)
+    
+    # Log the `is_python_issue` as an event to Posthog
     posthog.capture(username, "started", properties=metadata)
 
     logger.info(f"Getting repo {repo_full_name}")
