@@ -256,7 +256,7 @@ Step-by-step thoughts with explanations:
 </create>
 ...
 
-<modify file="file_path_2">
+<modify file="file_path_2" entity="name of function or class to modify (optional)">
 * Instruction 1 for file_path_3
 * Instruction 2 for file_path_3
 ...
