@@ -125,12 +125,13 @@ def on_ticket(
         assignee = current_issue.user.login
 
     # Check body for "branch: <branch_name>\n" using regex
-    branch_match = re.search(r"branch: (.*)\n", summary)
+    branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
     if branch_match:
         branch_name = branch_match.group(1)
-        summary = re.sub(r"branch: (.*)\n", "", summary)
         SweepConfig.get_branch(repo, branch_name)
         logger.info(f"Overrides Branch name: {branch_name}")
+    else:
+        logger.info(f"Overrides not detected for branch {summary}")
 
     chat_logger = (
         ChatLogger(
