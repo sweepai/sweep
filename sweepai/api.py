@@ -162,6 +162,8 @@ def run_get_deeplake_vs_from_repo(*args, **kwargs):
         get_deeplake_vs_from_repo(*args, **kwargs)
 
 
+import traceback
+...
 def terminate_thread(thread):
     """Terminate a python threading.Thread."""
     try:
@@ -181,7 +183,109 @@ def terminate_thread(thread):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.error(f"Failed to terminate thread: {e}")
+        logger.error(f"Failed to terminate thread: {e}, traceback: {traceback.format_exc()}")
+...
+@app.post("/")
+async def webhook(raw_request: Request):
+    # Do not create logs for api
+    logger.init(
+        metadata=None,
+        create_file=False,
+    )
+
+    """Handle a webhook request from GitHub."""
+    import traceback
+    ...
+    try:
+        add_config_to_top_repos(
+            repos_added_request.installation.id,
+            repos_added_request.installation.account.login,
+            repos_added_request.repositories_added,
+        )
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        logger.error(f"Failed to add config to top repos: {e}, traceback: {traceback.format_exc()}")
+        logger.info(f"Received event: {event}, {action}")
+        match event, action:
+            case "issues", "opened":
+                request = IssueRequest(**request_dict)
+                issue_title_lower = request.issue.title.lower()
+                if (
+                    issue_title_lower.startswith("sweep")
+                    or "sweep:" in issue_title_lower
+                ):
+                    _, g = get_github_client(request.installation.id)
+                    repo = g.get_repo(request.repository.full_name)
+
+                    labels = repo.get_labels()
+                    label_names = [label.name for label in labels]
+
+                    if GITHUB_LABEL_NAME not in label_names:
+                        repo.create_label(
+                            name=GITHUB_LABEL_NAME,
+                            color=GITHUB_LABEL_COLOR,
+                            description=GITHUB_LABEL_DESCRIPTION,
+                        )
+                    current_issue = repo.get_issue(number=request.issue.number)
+                    current_issue.add_to_labels(GITHUB_LABEL_NAME)
+            case "issue_comment", "edited":
+                request = IssueCommentRequest(**request_dict)
+                changes = IssueCommentChanges(**request_dict)
+
+                restart_sweep = False
+                if (
+                    request.comment.user.type == "Bot"
+                    and GITHUB_BOT_USERNAME in request.comment.user.login
+                    and changes.changes.body_from is not None
+                    and check_button_activated(
+                        RESTART_SWEEP_BUTTON, request.comment.body, changes.changes
+                    )
+                    and GITHUB_LABEL_NAME
+                    in [label.name.lower() for label in request.issue.labels]
+                    and request.sender.type == "User"
+                ):
+                    # Restart Sweep on this issue
+                    restart_sweep = True
+
+                if (
+                    request.issue is not None
+                    and GITHUB_LABEL_NAME
+                    in [label.name.lower() for label in request.issue.labels]
+                    and request.comment.user.type == "User"
+                    and not request.comment.user.login.startswith("sweep")
+                    and not (
+                        request.issue.pull_request and request.issue.pull_request.url
+                    )
+                    or restart_sweep
+                ):
+                    logger.info("New issue comment edited")
+                    request.issue.body = request.issue.body or ""
+                    request.repository.description = (
+                        request.repository.description or ""
+                    )
+
+                    if (
+                        not request.comment.body.strip()
+                        .lower()
+                        .startswith(GITHUB_LABEL_NAME)
+                        and not restart_sweep
+                    ):
+                        logger.info("Comment does not start with 'Sweep', passing")
+                        return {
+                            "success": True,
+                            "reason": "Comment does not start with 'Sweep', passing",
+                        }
+
+                    # Update before we handle the ticket to make sure index is up to date
+                    # other ways suboptimal
+
+                    key = (request.repository.full_name, request.issue.number)
+...
+except ValidationError as e:
+    logger.warning(f"Failed to parse request: {e}, traceback: {traceback.format_exc()}")
+    raise HTTPException(status_code=422, detail="Failed to parse request")
+return {"success": True}
 
 
 def call_on_ticket(*args, **kwargs):
@@ -508,18 +612,115 @@ async def webhook(raw_request: Request):
                     key = (request.repository.full_name, request.issue.number)
                     # logger.info(f"Checking if {key} is in {stub.issue_lock}")
                     # process = stub.issue_lock[key] if key in stub.issue_lock else None
-                    import traceback
-                    ...
-                    try:
-                        add_config_to_top_repos(
-                            repos_added_request.installation.id,
-                            repos_added_request.installation.account.login,
-                            repos_added_request.repositories,
+                    # if process:
+                    #     logger.info("Cancelling process")
+                    #     process.cancel()
+                    # stub.issue_lock[
+                    #     (request.repository.full_name, request.issue.number)
+                    # ] =
+                    call_on_ticket(
+                        title=request.issue.title,
+                        summary=request.issue.body,
+                        issue_number=request.issue.number,
+                        issue_url=request.issue.html_url,
+                        username=request.issue.user.login,
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        installation_id=request.installation.id,
+                        comment_id=request.comment.id,
+                    )
+                elif (
+                    request.issue.pull_request and request.comment.user.type == "User"
+                ):  # TODO(sweep): set a limit
+                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
+                    _, g = get_github_client(request.installation.id)
+                    repo = g.get_repo(request.repository.full_name)
+                    pr = repo.get_pull(request.issue.number)
+                    labels = pr.get_labels()
+                    comment = request.comment.body
+                    if comment.lower().startswith("sweep:") or any(
+                        label.name.lower() == "sweep" for label in labels
+                    ):
+                        pr_change_request = PRChangeRequest(
+                            params={
+                                "comment_type": "comment",
+                                "repo_full_name": request.repository.full_name,
+                                "repo_description": request.repository.description,
+                                "comment": request.comment.body,
+                                "pr_path": None,
+                                "pr_line_position": None,
+                                "username": request.comment.user.login,
+                                "installation_id": request.installation.id,
+                                "pr_number": request.issue.number,
+                                "comment_id": request.comment.id,
+                            },
                         )
-                    except SystemExit:
-                        raise SystemExit
-                    except Exception as e:
-                        logger.error(f"Failed to add config to top repos: {e}, traceback: {traceback.format_exc()}")
+                        call_on_comment(**pr_change_request.params)
+            case "pull_request_review_comment", "created":
+                # Add a separate endpoint for this
+                request = CommentCreatedRequest(**request_dict)
+                logger.info(f"Handling comment on PR: {request.pull_request.number}")
+                _, g = get_github_client(request.installation.id)
+                repo = g.get_repo(request.repository.full_name)
+                pr = repo.get_pull(request.pull_request.number)
+                labels = pr.get_labels()
+                comment = request.comment.body
+                if (
+                    comment.lower().startswith("sweep:")
+                    or any(label.name.lower() == "sweep" for label in labels)
+                ) and request.comment.user.type == "User":
+                    pr_change_request = PRChangeRequest(
+                        params={
+                            "comment_type": "comment",
+                            "repo_full_name": request.repository.full_name,
+                            "repo_description": request.repository.description,
+                            "comment": request.comment.body,
+                            "pr_path": request.comment.path,
+                            "pr_line_position": request.comment.original_line,
+                            "username": request.comment.user.login,
+                            "installation_id": request.installation.id,
+                            "pr_number": request.pull_request.number,
+                            "comment_id": request.comment.id,
+                        },
+                    )
+                    call_on_comment(**pr_change_request.params)
+                # Todo: update index on comments
+            case "pull_request_review", "submitted":
+                # request = ReviewSubmittedRequest(**request_dict)
+                pass
+            case "check_run", "completed":
+                request = CheckRunCompleted(**request_dict)
+                logger.info(f"Handling check suite for {request.repository.full_name}")
+                _, g = get_github_client(request.installation.id)
+                repo = g.get_repo(request.repository.full_name)
+                pull_requests = request.check_run.pull_requests
+                if pull_requests:
+                    pr = repo.get_pull(pull_requests[0].number)
+                    if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
+                        call_on_check_suite(request=request)
+                else:
+                    logger.info("No pull requests, passing")
+            case "installation_repositories", "added":
+                repos_added_request = ReposAddedRequest(**request_dict)
+                metadata = {
+                    "installation_id": repos_added_request.installation.id,
+                    "repositories": [
+                        repo.full_name
+                        for repo in repos_added_request.repositories_added
+                    ],
+                }
+
+                import traceback
+                ...
+                try:
+                    add_config_to_top_repos(
+                        repos_added_request.installation.id,
+                        repos_added_request.installation.account.login,
+                        repos_added_request.repositories,
+                    )
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
                     logger.error(f"Failed to add config to top repos: {e}, traceback: {traceback.format_exc()}")
 
                 posthog.capture(
@@ -626,7 +827,9 @@ async def webhook(raw_request: Request):
 
                         # Update PR description to remove buttons
                         import traceback
+                        
                         ...
+                        
                         try:
                             _, g = get_github_client(request.installation.id)
                             repo = g.get_repo(request.repository.full_name)
@@ -639,7 +842,6 @@ async def webhook(raw_request: Request):
                         except SystemExit:
                             raise SystemExit
                         except Exception as e:
-                            logger.error(f"Failed to edit PR description: {e}, traceback: {traceback.format_exc()}")
                             logger.error(f"Failed to edit PR description: {e}, traceback: {traceback.format_exc()}")
                         
                         ...
