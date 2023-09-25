@@ -91,7 +91,7 @@ def center(text: str) -> str:
         < 2
     )
     logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
-
+    
     # Check body for "branch: <branch_name>\n" using regex
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
     if branch_match:
@@ -100,7 +100,7 @@ def center(text: str) -> str:
         logger.info(f"Overrides Branch name: {branch_name}")
     else:
         logger.info(f"Overrides not detected for branch {summary}")
-
+    
     chat_logger = (
         ChatLogger(
             {
@@ -122,7 +122,7 @@ def center(text: str) -> str:
         if MONGODB_URI
         else None
     )
-
+    
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
         is_trial_user = chat_logger.is_trial_user()
@@ -131,10 +131,10 @@ def center(text: str) -> str:
         is_paying_user = True
         is_trial_user = False
         use_faster_model = False
-
+    
     if fast_mode:
         use_faster_model = True
-
+    
     sweep_context = SweepContext.create(
         username=username,
         issue_url=issue_url,
@@ -144,12 +144,12 @@ def center(text: str) -> str:
         token=user_token,
     )
     logger.print(sweep_context)
-
+    
     if not comment_id and not edited and chat_logger:
         chat_logger.add_successful_ticket(
             gpt3=use_faster_model
         )  # moving higher, will increment the issue regardless of whether it's a success or not
-
+    
     organization, repo_name = repo_full_name.split("/")
     metadata = {
         "issue_url": issue_url,
