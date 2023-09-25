@@ -74,38 +74,116 @@ def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
 
 
-@LogTask()
-def on_ticket(
-    title: str,
-    summary: str,
-    issue_number: int,
-    issue_url: str,
-    username: str,
-    repo_full_name: str,
-    repo_description: str,
-    installation_id: int,
-    comment_id: int = None,
-    edited: bool = False,
-):
+    # Fetching relevant files...
+    try:
+        snippets, tree = search_snippets(
+            cloned_repo,
+            f"{title}\n{summary}\n{replies_text}",
+            num_files=num_of_snippets_to_query,
+        )
+        assert len(snippets) > 0
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        trace = traceback.format_exc()
+        logger.error(e)
+        logger.error(trace)
+        edit_sweep_comment(
+            (
+                "It looks like an issue has occurred around fetching the files."
+                " Perhaps the repo has not been initialized. If this error persists"
+                f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch."
+            ),
+            -1,
+        )
+        log_error(
+            is_paying_user,
+            is_trial_user,
+            username,
+            issue_url,
+            "File Fetch",
+            str(e) + "\n" + traceback.format_exc(),
+            priority=1,
+        )
+        raise e
+
+    # Compute is_python_issue boolean
+    is_python_issue = any(file.endswith('.py') for file in cloned_repo.get_file_paths())
+    
+    # Log is_python_issue to Posthog
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+
+    snippets = post_process_snippets(
+        snippets, max_num_of_snippets=2 if use_faster_model else 5
+    )
+    if not repo_description:
+        repo_description = "No description provided."
+
+    message_summary = summary + replies_text
+    external_results = ExternalSearcher.extract_summaries(message_summary)
+    if external_results:
+        message_summary += "\n\n" + external_results
+    user_dict = get_documentation_dict(repo)
+    docs_results = ""
+    try:
+        docs_results = extract_relevant_docs(
+            title + "\n" + message_summary, user_dict, chat_logger
+        )
+        if docs_results:
+            message_summary += "\n\n" + docs_results
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        logger.error(f"Failed to extract docs: {e}")
+
+    human_message = HumanMessagePrompt(
+        repo_name=repo_name,
+        issue_url=issue_url,
+        username=username,
+        repo_description=repo_description.strip(),
+        title=title,
+        summary=message_summary,
+        snippets=snippets,
+        tree=tree,
+    )
+
+    context_pruning = ContextPruning(chat_logger=chat_logger)
     (
-        title,
-        slow_mode,
-        do_map,
-        subissues_mode,
-        sandbox_mode,
-        fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
+        snippets_to_ignore,
+        excluded_dirs,
+    ) = context_pruning.prune_context(  # TODO, ignore directories
+        human_message, repo=repo
+    )
+    snippets = post_process_snippets(
+        snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
+    )
+    dir_obj = DirectoryTree()
+    dir_obj.parse(tree)
+    dir_obj.remove_multiple(excluded_dirs)
+    tree = str(dir_obj)
+    logger.info(f"New snippets: {snippets}")
+    logger.info(f"New tree: {tree}")
+    human_message = HumanMessagePrompt(
+        repo_name=repo_name,
+        issue_url=issue_url,
+        username=username,
+        repo_description=repo_description.strip(),
+        title=title,
+        summary=message_summary,
+        snippets=snippets,
+        tree=tree,
+    )
 
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
-
-    summary = summary or ""
-    # Check for \r since GitHub issues may have \r\n
+    _user_token, g = get_github_client(installation_id)
+    repo = g.get_repo(repo_full_name)
+    sweep_bot = SweepBot.from_system_message_content(
+        human_message=human_message,
+        repo=repo,
+        is_reply=bool(comments),
+        chat_logger=chat_logger,
+        sweep_context=sweep_context,
+        cloned_repo=cloned_repo,
+        is_python_issue=is_python_issue,
     summary = re.sub(
         "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
         "",
@@ -697,8 +775,14 @@ def on_ticket(
         # TODO: removed issue commenting here
         # TODO(william, luke) planning here
 
+        # Compute is_python_issue boolean
+        is_python_issue = any(file.endswith('.py') for file in cloned_repo.get_file_paths())
+        
+        # Log is_python_issue to Posthog
+        posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
@@ -1212,6 +1296,12 @@ def on_ticket(
             logger.error(e)
             logger.error(traceback.format_exc())
             logger.print("Deleted branch", pull_request.branch_name)
+
+    # Compute is_python_issue boolean
+    is_python_issue = any(file.endswith('.py') for file in cloned_repo.get_file_paths())
+    
+    # Log is_python_issue to Posthog
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
