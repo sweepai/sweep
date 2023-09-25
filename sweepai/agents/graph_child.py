@@ -6,52 +6,53 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel, Snippet
 
 system_prompt = """You are a genius engineer tasked with extracting the code and planning the solution to the following GitHub issue.
-Decide whether the file_path {file_path} needs to be modified to solve this issue.
+Decide whether the file_path {file_path} needs to be modified to solve this issue and the proposed solution.
 
 First determine whether changes in file_path are necessary.
-Then, if code changes need to be made in file_path, extract the relevant_new_snippet and plan code_change_description.
-Extract the code you deem necessary, and then describe the necessary code changes. Otherwise leave both sections blank.
+Then, if code changes need to be made in file_path, extract the relevant_new_snippets and write the code_change_description.
 
-# Extraction
+1. Analyze the code and extract the relevant_new_snippets.
+Extract only the relevant_new_snippets that allow us to write code_change_description for file_path.
 
-Include only the relevant snippet that provides enough detail to solve the issue.
-When writing the plan for code changes to file_path keep in mind the user can read the metadata and the relevant snippets.
-
-<code_analysis>
+<code_analysis file_path=\"{file_path}\">
 {{thought about potentially relevant snippet and its relevance to the issue}}
 ...
 </code_analysis>
 
-<relevant_new_snippet>
-{{relevant snippet from new_file in the format file_path:start_idx-end_idx}}
+<relevant_new_snippets file_path=\"{file_path}\">
+{{relevant snippet from file_path in the format file_path:start_idx-end_idx}}
 ...
-</relevant_new_snippet>
+</relevant_new_snippets>
+
+2. Generate a code_change_description for \"{file_path}\".
+When writing the plan for code changes to \"{file_path}\" keep in mind the user will read the metadata and the relevant_new_snippets.
 
 <code_change_description file_path=\"{file_path}\">
-{{The changes should be constrained to the file_path and code mentioned in new_file.
-These are clear and detailed natural language descriptions of modifications to be made in new_file.
+{{The changes are constrained to the file_path and code mentioned in file_path.
+These are clear and detailed natural language descriptions of modifications to be made in file_path.
 The relevant_snippets_in_repo are read-only.}}
 </code_change_description>"""
 
 NO_MODS_KWD = "#NONE"
 
 graph_user_prompt = (
-    """<metadata>
-{issue_metadata}
-</metadata>
+    """\
 <READONLY>
+<issue_metadata>
+{issue_metadata}
+</issue_metadata>
 {previous_snippets}
 
 <all_symbols_and_files>
 {all_symbols_and_files}</all_symbols_and_files>
 </READONLY>
 
-<file_path source=\"{file_path}\" entities=\"{entities}\">
+<file_path=\"{file_path}\" entities=\"{entities}\">
 {code}
 </file_path>
 
-Provide the relevant snippets and changes from the file_path above.
-If there are no relevant snippets or changes, end your message with """
+Provide the relevant_new_snippets and code_change_description to the file_path above.
+If there are no relevant_new_snippets or code_change_description, end your message with """
     + NO_MODS_KWD
 )
 
@@ -86,7 +87,7 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
             generated_file_path, lines = (
                 raw_snippet.split(":")[-2],
                 raw_snippet.split(":")[-1],
-            )  # solves issue with new_file:snippet:line1-line2
+            )  # solves issue with file_path:snippet:line1-line2
             if not generated_file_path or not lines.strip():
                 continue
             generated_file_path, lines = (
@@ -1740,4 +1741,3 @@ Please replace 'is_python_issue' with the actual value of the bool.
         response, "sweepai/handlers/on_ticket.py"
     )
     print(gc_and_plan.code_change_description)
-    # import pdb; pdb.set_trace()

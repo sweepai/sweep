@@ -80,14 +80,16 @@ def search_snippets(
         for query_file_name in query_file_names:
             if query_file_name in file_path:
                 query_match_files.append(file_path)
-    if multi_query:
-        snippet_paths = [snippet.file_path for snippet in snippets] + query_match_files[
-            :20
-        ]
-    else:
-        snippet_paths = [snippet.file_path for snippet in snippets] + query_match_files[
-            :10
-        ]
+    # boost the rank of any files that are mentioned in the query, move them to the top positions
+    boosted_snippets = []
+    non_boosted_snippets = []
+    for snippet in snippets:
+        for query_match_file in query_match_files:
+            if snippet.file_path == query_match_file:
+                boosted_snippets.append(snippet)
+        else:
+            non_boosted_snippets.append(snippet)
+    snippets = boosted_snippets + non_boosted_snippets
     snippet_paths = list(set(snippet_paths))
     tree = cloned_repo.get_tree_and_file_list(
         snippet_paths=snippet_paths, excluded_directories=excluded_directories
