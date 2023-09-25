@@ -146,3 +146,9 @@ Contributions are welcome and greatly appreciated! To get set up, see [Developme
 <p align="center">
     and, of course, Sweep!
 </p>
+
+---
+
+## Footer
+
+This is a placeholder for the footer content.
