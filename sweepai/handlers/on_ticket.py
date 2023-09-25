@@ -785,8 +785,19 @@ def on_ticket(
         checkboxes_collapsible = create_collapsible(
             "Checklist", checkboxes_contents, opened=True
         )
+
+        condensed_checkboxes_contents = "\n".join(
+            [
+                create_checkbox(f"`{filename}`", "", check == "X")
+                for filename, instructions, check in checkboxes_progress
+            ]
+        )
+        condensed_checkboxes_collapsible = create_collapsible(
+            "Checklist", condensed_checkboxes_contents, opened=True
+        )
+
         issue = repo.get_issue(number=issue_number)
-        issue.edit(body=summary + "\n\n" + checkboxes_collapsible)
+        issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
 
         delete_branch = False
         generator = create_pr_changes(  # make this async later
@@ -885,8 +896,25 @@ def on_ticket(
                 body=checkboxes_contents,
                 opened="open",
             )
+
+            condensed_checkboxes_contents = "\n".join(
+                [
+                    checkbox_template.format(
+                        check=check,
+                        filename=filename,
+                        instructions="",
+                    )
+                    for filename, instructions, check in checkboxes_progress
+                ]
+            )
+            condensed_checkboxes_collapsible = collapsible_template.format(
+                summary="Checklist",
+                body=condensed_checkboxes_contents,
+                opened="open",
+            )
+
             issue = repo.get_issue(number=issue_number)
-            issue.edit(body=summary + "\n\n" + checkboxes_collapsible)
+            issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
 
             logger.info(files_progress)
             logger.info(f"Edited {file_change_request.filename}")
