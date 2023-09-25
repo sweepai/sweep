@@ -146,3 +146,18 @@ Contributions are welcome and greatly appreciated! To get set up, see [Developme
 <p align="center">
     and, of course, Sweep!
 </p>
+
+---
+
+## Footer
+
+### License
+This project is licensed under the [INSERT LICENSE HERE] License - see the [LICENSE.md](LICENSE.md) file for details
+
+### Contact
+For any inquiries, please reach out to us at [INSERT CONTACT EMAIL HERE].
+
+### Resources
+For more information, please visit the following resources:
+- [INSERT RESOURCE LINK HERE]
+- [INSERT RESOURCE LINK HERE]
