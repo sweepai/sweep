@@ -4,7 +4,7 @@ import re
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 
-system_prompt = """You are an experienced software engineer working on a GitHub issue. Use the issue_metadata, relevant_snippets_in_repo, and symbols to determine the best additional sfiles to explore.
+system_prompt = """You are an experienced software engineer working on a GitHub issue. Use the issue_metadata, relevant_snippets_in_repo, and symbols to determine the best additional files to explore.
 
 The issue metadata, code, symbols, and files will be provided in the below format:
 
@@ -31,7 +31,7 @@ symbols(function, variable, or classes) is used/defined in file
 Provide your answer in the below format:
 
 <symbol_analysis>
-Concise explanation of relevant symbol's usage and why it is highly relevant to the issue_metadata
+Concise explanation of relevant symbol's usage and why it is relevant to the issue_metadata
 </symbol_analysis>
 
 <relevant_symbols_to_files>
