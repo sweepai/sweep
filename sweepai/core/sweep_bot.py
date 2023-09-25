@@ -311,9 +311,8 @@ class CodeGenBot(ChatGPT):
                             ),
                             all_symbols_and_files=relevant_symbols_string,
                         )
-                        if plan.code_change_description and plan.relevant_new_snippet:
+                        if plan.relevant_new_snippet:
                             plans.append(plan)
-
                     file_path_set = set()
                     deduped_plans = []
                     for plan in plans:
@@ -336,17 +335,9 @@ class CodeGenBot(ChatGPT):
                         )
                     plans = sorted_plans
 
-                    relevant_snippets = self.human_message.snippets
+                    relevant_snippets = []
                     for plan in plans:
-                        self.populate_snippets(plan.relevant_new_snippet)
                         relevant_snippets.extend(plan.relevant_new_snippet)
-
-                    plan_suggestions = []
-
-                    for plan in plans:
-                        plan_suggestions.append(
-                            f"<plan_suggestion file={plan.file_path}>\n{plan.code_change_description}\n</plan_suggestion>"
-                        )
 
                     python_human_message = PythonHumanMessagePrompt(
                         repo_name=self.human_message.repo_name,
@@ -354,32 +345,30 @@ class CodeGenBot(ChatGPT):
                         username=self.human_message.username,
                         title=self.human_message.title,
                         summary=self.human_message.summary,
-                        snippets=[],
+                        snippets=relevant_snippets,
                         tree=self.human_message.tree,
                         repo_description=self.human_message.repo_description,
-                        plan_suggestions=plan_suggestions,
                     )
                     prompt_message_dicts = python_human_message.construct_prompt()
                     new_messages = [self.messages[0]]
                     for message_dict in prompt_message_dicts:
                         new_messages.append(Message(**message_dict))
                     self.messages = new_messages
+                    files_to_change_response = self.chat(
+                    files_to_change_prompt, message_key="files_to_change"
+                    )  # Dedup files to change here
                     file_change_requests = []
-                    for plan in plans:
-                        start_and_end_lines = [
-                            (s.start, s.end) for s in plan.relevant_new_snippet
-                        ]
+                    for re_match in re.finditer(
+                        FileChangeRequest._regex, files_to_change_response, re.DOTALL
+                    ):
                         file_change_requests.append(
-                            FileChangeRequest(
-                                filename=plan.file_path,
-                                instructions=plan.code_change_description,
-                                change_type="modify",
-                                start_and_end_lines=start_and_end_lines,
-                            )
+                            FileChangeRequest.from_string(re_match.group(0))
                         )
-                    return file_change_requests, " ".join(plan_suggestions)
+                    
+
+                    if file_change_requests:
+                        return file_change_requests, files_to_change_response
             if not is_python_issue or not python_issue_worked:
-                # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
                 if pr_diffs is not None:
                     self.delete_messages_from_chat("pr_diffs")
                     self.messages.insert(
@@ -1447,8 +1436,6 @@ class ModifyBot:
                 deduped_matches.append(current_match)
                 current_match = _match
         deduped_matches.append(current_match)
-
-        # import pdb; pdb.set_trace()
         selected_snippets = []
         for _match in deduped_matches:
             current_contents = "\n".join(
@@ -1463,8 +1450,8 @@ class ModifyBot:
                 split_file_contents = "\n".join(
                     file_contents.split("\n")[start_line - 1 : end_line]
                 )
-                for idx, line in enumerate(split_file_contents.split("\n")):
-                    plan_extracted_contents += f"{idx + start_line}: {line}\n"
+                plan_extracted_contents += f"<{file_change_request.filename}:{start_line}-{end_line}>\n"
+                plan_extracted_contents += split_file_contents
                 plan_extracted_contents += "...\n"
         else:
             plan_extracted_contents = file_contents

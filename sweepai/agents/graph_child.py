@@ -20,8 +20,8 @@ Extract only the relevant_new_snippets that allow us to write code_change_descri
 ...
 </code_analysis>
 
-<relevant_new_snippets file_path=\"{file_path}\">
-{{relevant snippet from file_path in the format file_path:start_idx-end_idx}}
+<relevant_new_snippets>
+{{relevant snippet from \"{file_path}\" in the format file_path:start_idx-end_idx. Do not delete any relevant entities.}}
 ...
 </relevant_new_snippets>
 
@@ -142,32 +142,14 @@ class GraphChildBot(ChatGPT):
         previous_snippets,
         all_symbols_and_files,
     ) -> GraphContextAndPlan:
-        self.messages = [
-            Message(
-                role="system",
-                content=system_prompt.format(file_path=file_path),
-                key="system",
-            )
-        ]
-        code_with_line_numbers = extract_python_span(code, entities)
-
-        user_prompt = graph_user_prompt.format(
-            code=code_with_line_numbers,
+        
+        python_snippet = extract_python_span(code, entities)
+        python_snippet.file_path = file_path
+        return GraphContextAndPlan(
+            relevant_new_snippet=[python_snippet],
+            code_change_description="",
             file_path=file_path,
-            entities=entities,
-            issue_metadata=issue_metadata,
-            previous_snippets=previous_snippets,
-            all_symbols_and_files=all_symbols_and_files,
         )
-        self.model = (
-            "gpt-4-32k-0613"
-            if (self.chat_logger and self.chat_logger.is_paying_user())
-            else "gpt-3.5-turbo-16k-0613"
-        )
-        response = self.chat(user_prompt)
-        graph_plan = GraphContextAndPlan.from_string(response, file_path=file_path)
-        graph_plan.entities = entities
-        return graph_plan
 
 
 def extract_int(s):
@@ -179,117 +161,20 @@ def extract_int(s):
 
 def extract_python_span(code, entities):
     lines = code.split("\n")
-    line_usages = {i: set() for i, line in enumerate(lines)}
-
-    # Identify lines where entities are declared as variables
-    variables_with_entity = set()
-    for i, line in enumerate(lines):
-        for entity in entities:
-            if (
-                entity in line
-                and "=" in line
-                and not line.lstrip().startswith(("class ", "def "))
-            ):
-                variable_name = line.split("=")[0].strip()
-                variables_with_entity.add(variable_name)
-                line_usages[i].add(variable_name)
-
-    # Identify lines where these variables are used
-    for i, line in enumerate(lines):
-        for variable in variables_with_entity:
-            if variable in line:
-                line_usages[i].add(variable)
-
-    captured_lines = set()
-
-    # Capture lines around the variable usage
-    for i, line in enumerate(lines):
-        for variable in variables_with_entity:
-            if variable in line:
-                captured_lines.update(range(max(0, i - 20), min(len(lines), i + 21)))
-
-    parser = get_parser("python")
-    tree = parser.parse(code.encode("utf-8"))
-
-    # Capturing entire subscope for class and function definitions using tree-sitter
-    def get_subscope_lines(node):
-        start_line = node.start_point[0]
-        end_line = node.end_point[0]
-        return range(start_line, end_line + 1)
-
-    def walk_tree(node):
-        if node.type in ["class_definition", "function_definition"]:
-            # Check if the entity is in the first line (class Entity or class Class(Entity), etc)
-            if any(
-                entity in node.text.decode("utf-8").split("\n")[0]
-                for entity in entities
-            ):
-                captured_lines.update(get_subscope_lines(node))
-        for child in node.children:
-            walk_tree(child)
-
-    try:
-        walk_tree(tree.root_node)
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        print("Failed to parse python file. Using for loop instead.")
-        # Capture entire subscope for class and function definitions
-        for i, line in enumerate(lines):
-            if any(
-                entity in line and line.lstrip().startswith(keyword)
-                for entity in entities
-                for keyword in ["class ", "def "]
-            ):
-                indent_level = len(line) - len(line.lstrip())
-                captured_lines.add(i)
-
-                # Add subsequent lines until a line with a lower indent level is encountered
-                j = i + 1
-                while j < len(lines):
-                    current_indent = len(lines[j]) - len(lines[j].lstrip())
-                    if current_indent > indent_level and len(lines[j].lstrip()) > 0:
-                        captured_lines.add(j)
-                        j += 1
-                    else:
-                        break
-            # For non-variable lines with the entity, capture ±20 lines
-            elif any(entity in line for entity in entities):
-                captured_lines.update(range(max(0, i - 20), min(len(lines), i + 21)))
-
-    # For non-variable lines with the entity (like imports), capture ±20 lines
-    for i, line in enumerate(lines):
-        if any(entity in line for entity in entities) and not any(
-            keyword in line.lstrip() for keyword in ["class ", "def ", "="]
-        ):
-            captured_lines.update(range(max(0, i - 20), min(len(lines), i + 21)))
-
-    captured_lines = sorted(list(captured_lines))
-    result = []
-
-    previous_line_number = -1  # Initialized to an impossible value
-
-    # Construct the result with line numbers and mentions
-    for i in captured_lines:
-        line = lines[i]
-
-        # Add "..." to indicate skipped lines
-        if previous_line_number != -1 and i - previous_line_number > 1:
-            result.append("...")
-
-        mentioned_entities = line_usages.get(i, [])
+    code_with_line_numbers = "\n"
+    mention_count = 0
+    for idx, line in enumerate(lines):
+        mentioned_entities = [entity for entity in entities if entity in line]
         if mentioned_entities:
-            mentioned_entities_str = ", ".join(mentioned_entities)
-            result.append(
-                f"{i + 1} {line} ### USER COMMENT: {mentioned_entities_str} is mentioned here ###"
-            )
+            mention_count = 50
         else:
-            result.append(f"{i + 1} {line}")
-
-        previous_line_number = i
-
-    return "\n".join(result)
-
+            mention_count -= 1
+            if mention_count == -1:
+                code_with_line_numbers += f"...\n"
+        if mention_count > 0:
+            code_with_line_numbers += f"{idx + 1} {line}\n"
+    code_with_line_numbers = code_with_line_numbers.strip()
+    return Snippet(file_path="", start=0, end=0, content=code_with_line_numbers)
 
 if __name__ == "__main__":
     file = r'''import ModifyBot

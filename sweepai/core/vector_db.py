@@ -360,7 +360,7 @@ def get_relevant_snippets(
             lexical_scores.append(0.3)
     vector_scores = results["score"]
     combined_scores = [
-        code_score + vector_score + lexical_score
+        code_score * 1.5 + vector_score + lexical_score * 2.5 # increase weight of lexical search
         for code_score, vector_score, lexical_score in zip(
             code_scores, vector_scores, lexical_scores
         )
