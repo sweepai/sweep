@@ -384,8 +384,10 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
             create_config_pr(None, repo=repo)
         except SystemExit:
             raise SystemExit
+        import traceback
+        ...
         except Exception as e:
-            logger.print(e)
+            logger.error(f"Failed to create config for repo: {e}, traceback: {traceback.format_exc()}")
     logger.print("Finished creating configs for top repos")
 
 
