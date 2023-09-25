@@ -1213,6 +1213,13 @@ def on_ticket(
             logger.error(traceback.format_exc())
             logger.print("Deleted branch", pull_request.branch_name)
 
+    # Check if a button was clicked
+    if 'button' in event:
+        # Extract the filename from the label of the button
+        filename = event['button']['label'].replace("Revert ", "")
+        # Call a function to revert the changes made to the file in the pull request
+        revert_file_changes(filename, pull_request)
+
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
     return {"success": True}
