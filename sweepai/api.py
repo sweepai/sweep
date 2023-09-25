@@ -508,115 +508,18 @@ async def webhook(raw_request: Request):
                     key = (request.repository.full_name, request.issue.number)
                     # logger.info(f"Checking if {key} is in {stub.issue_lock}")
                     # process = stub.issue_lock[key] if key in stub.issue_lock else None
-                    # if process:
-                    #     logger.info("Cancelling process")
-                    #     process.cancel()
-                    # stub.issue_lock[
-                    #     (request.repository.full_name, request.issue.number)
-                    # ] =
-                    call_on_ticket(
-                        title=request.issue.title,
-                        summary=request.issue.body,
-                        issue_number=request.issue.number,
-                        issue_url=request.issue.html_url,
-                        username=request.issue.user.login,
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        installation_id=request.installation.id,
-                        comment_id=request.comment.id,
-                    )
-                elif (
-                    request.issue.pull_request and request.comment.user.type == "User"
-                ):  # TODO(sweep): set a limit
-                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
-                    _, g = get_github_client(request.installation.id)
-                    repo = g.get_repo(request.repository.full_name)
-                    pr = repo.get_pull(request.issue.number)
-                    labels = pr.get_labels()
-                    comment = request.comment.body
-                    if comment.lower().startswith("sweep:") or any(
-                        label.name.lower() == "sweep" for label in labels
-                    ):
-                        pr_change_request = PRChangeRequest(
-                            params={
-                                "comment_type": "comment",
-                                "repo_full_name": request.repository.full_name,
-                                "repo_description": request.repository.description,
-                                "comment": request.comment.body,
-                                "pr_path": None,
-                                "pr_line_position": None,
-                                "username": request.comment.user.login,
-                                "installation_id": request.installation.id,
-                                "pr_number": request.issue.number,
-                                "comment_id": request.comment.id,
-                            },
+                    import traceback
+                    ...
+                    try:
+                        add_config_to_top_repos(
+                            repos_added_request.installation.id,
+                            repos_added_request.installation.account.login,
+                            repos_added_request.repositories,
                         )
-                        call_on_comment(**pr_change_request.params)
-            case "pull_request_review_comment", "created":
-                # Add a separate endpoint for this
-                request = CommentCreatedRequest(**request_dict)
-                logger.info(f"Handling comment on PR: {request.pull_request.number}")
-                _, g = get_github_client(request.installation.id)
-                repo = g.get_repo(request.repository.full_name)
-                pr = repo.get_pull(request.pull_request.number)
-                labels = pr.get_labels()
-                comment = request.comment.body
-                if (
-                    comment.lower().startswith("sweep:")
-                    or any(label.name.lower() == "sweep" for label in labels)
-                ) and request.comment.user.type == "User":
-                    pr_change_request = PRChangeRequest(
-                        params={
-                            "comment_type": "comment",
-                            "repo_full_name": request.repository.full_name,
-                            "repo_description": request.repository.description,
-                            "comment": request.comment.body,
-                            "pr_path": request.comment.path,
-                            "pr_line_position": request.comment.original_line,
-                            "username": request.comment.user.login,
-                            "installation_id": request.installation.id,
-                            "pr_number": request.pull_request.number,
-                            "comment_id": request.comment.id,
-                        },
-                    )
-                    call_on_comment(**pr_change_request.params)
-                # Todo: update index on comments
-            case "pull_request_review", "submitted":
-                # request = ReviewSubmittedRequest(**request_dict)
-                pass
-            case "check_run", "completed":
-                request = CheckRunCompleted(**request_dict)
-                logger.info(f"Handling check suite for {request.repository.full_name}")
-                _, g = get_github_client(request.installation.id)
-                repo = g.get_repo(request.repository.full_name)
-                pull_requests = request.check_run.pull_requests
-                if pull_requests:
-                    pr = repo.get_pull(pull_requests[0].number)
-                    if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
-                        call_on_check_suite(request=request)
-                else:
-                    logger.info("No pull requests, passing")
-            case "installation_repositories", "added":
-                repos_added_request = ReposAddedRequest(**request_dict)
-                metadata = {
-                    "installation_id": repos_added_request.installation.id,
-                    "repositories": [
-                        repo.full_name
-                        for repo in repos_added_request.repositories_added
-                    ],
-                }
-
-                import traceback
-                ...
-                try:
-                    add_config_to_top_repos(
-                        repos_added_request.installation.id,
-                        repos_added_request.installation.account.login,
-                        repos_added_request.repositories,
-                    )
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
+                    except SystemExit:
+                        raise SystemExit
+                    except Exception as e:
+                        logger.error(f"Failed to add config to top repos: {e}, traceback: {traceback.format_exc()}")
                     logger.error(f"Failed to add config to top repos: {e}, traceback: {traceback.format_exc()}")
 
                 posthog.capture(
@@ -723,9 +626,7 @@ async def webhook(raw_request: Request):
 
                         # Update PR description to remove buttons
                         import traceback
-                        
                         ...
-                        
                         try:
                             _, g = get_github_client(request.installation.id)
                             repo = g.get_repo(request.repository.full_name)
@@ -738,6 +639,7 @@ async def webhook(raw_request: Request):
                         except SystemExit:
                             raise SystemExit
                         except Exception as e:
+                            logger.error(f"Failed to edit PR description: {e}, traceback: {traceback.format_exc()}")
                             logger.error(f"Failed to edit PR description: {e}, traceback: {traceback.format_exc()}")
                         
                         ...
