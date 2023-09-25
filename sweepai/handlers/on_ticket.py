@@ -591,6 +591,20 @@ def on_ticket(
 
     _user_token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
+    def revert_file_changes(request_data: dict):
+        # Parse the request data
+        file_name = request_data['file_name']
+        pr_number = request_data['pr_number']
+    
+        # Get the pull request
+        pr = repo.get_pull(pr_number)
+    
+        # Get the file in the pull request
+        pr_file = [file for file in pr.get_files() if file.filename == file_name][0]
+    
+        # Revert the changes made to the file
+        pr_file.edit(pr_file.sha, "")
+    
     sweep_bot = SweepBot.from_system_message_content(
         human_message=human_message,
         repo=repo,
@@ -1197,6 +1211,20 @@ def on_ticket(
             logger.error(e)
     finally:
         cloned_repo.delete()
+    
+    def revert_file_changes(request_data: dict):
+    # Parse the request data
+    file_name = request_data['file_name']
+    pr_number = request_data['pr_number']
+    
+    # Get the pull request
+    pr = repo.get_pull(pr_number)
+    
+    # Get the file in the pull request
+    pr_file = [file for file in pr.get_files() if file.filename == file_name][0]
+    
+    # Revert the changes made to the file
+    pr_file.edit(pr_file.sha, "")
 
     if delete_branch:
         try:
@@ -1218,7 +1246,10 @@ def on_ticket(
         # Extract the filename from the label of the button
         filename = event['button']['label'].replace("Revert ", "")
         # Call a function to revert the changes made to the file in the pull request
-        revert_file_changes(filename, pull_request)
+        revert_file_changes({
+            'file_name': filename,
+            'pr_number': pull_request.number
+        })
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
