@@ -74,55 +74,23 @@ def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
 
 
-@LogTask()
-def on_ticket(
-    title: str,
-    summary: str,
-    issue_number: int,
-    issue_url: str,
-    username: str,
-    repo_full_name: str,
-    repo_description: str,
-    installation_id: int,
-    comment_id: int = None,
-    edited: bool = False,
-):
-    (
-        title,
-        slow_mode,
-        do_map,
-        subissues_mode,
-        sandbox_mode,
-        fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
-
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
-
-    summary = summary or ""
-    # Check for \r since GitHub issues may have \r\n
-    summary = re.sub(
-        "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
-        "",
-        summary,
-        flags=re.DOTALL,
-    ).strip()
-    summary = re.sub(
-        "---\s+Checklist:(\r)?\n(\r)?\n- \[[ X]\].*", "", summary, flags=re.DOTALL
-    ).strip()
-
-    repo_name = repo_full_name
-    user_token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
     current_issue = repo.get_issue(number=issue_number)
     assignee = current_issue.assignee.login if current_issue.assignee else None
     if assignee is None:
         assignee = current_issue.user.login
+
+    # Compute is_python_issue
+    is_python_issue = (
+        sum(
+            [
+                not file_path.endswith(".py")
+                for file_path in repo.get_contents("")
+            ]
+        )
+        < 2
+    )
+    logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
 
     # Check body for "branch: <branch_name>\n" using regex
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
@@ -203,18 +171,10 @@ def on_ticket(
         "subissues_mode": subissues_mode,
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
+        "is_python_issue": is_python_issue,
     }
     # logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
-
-    logger.info(f"Getting repo {repo_full_name}")
-
-    if current_issue.state == "closed":
-        logger.warning(f"Issue {issue_number} is closed")
-        posthog.capture(username, "issue_closed", properties=metadata)
-        return {"success": False, "reason": "Issue is closed"}
-
-    # Add :eyes: emoji to ticket
     item_to_react_to = (
         current_issue.get_comment(comment_id) if comment_id else current_issue
     )
@@ -706,8 +666,21 @@ def on_ticket(
         # TODO: removed issue commenting here
         # TODO(william, luke) planning here
 
+        # Compute is_python_issue
+        is_python_issue = (
+            sum(
+                [
+                    not file_path.endswith(".py")
+                    for file_path in repo.get_contents("")
+                ]
+            )
+            < 2
+        )
+        logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+        posthog.capture(username, "is_python_issue", properties={"value": is_python_issue})
+
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
