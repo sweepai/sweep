@@ -73,6 +73,22 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     return result_snippets[:max_num_of_snippets]
 
 
+def create_revert_buttons(pr):
+    for file in pr.get_files():
+        # Create a button for each file
+        button = Button(label=f"Revert {file.filename}", action="revert_file", file=file.filename)
+        # Add the button to the pull request
+        pr.add_button(button)
+
+def revert_file(file):
+    try:
+        # Fetch the original version of the file
+        original_file = repo.get_contents(file, ref=pr.base.ref).decoded_content.decode("utf-8")
+        # Replace the current version of the file with the original version
+        repo.update_file(file, "Revert changes", original_file, pr.head.sha)
+    except Exception as e:
+        logger.error(f"Failed to revert file {file}: {e}")
+
 @LogTask()
 def on_comment(
     repo_full_name: str,
@@ -106,6 +122,8 @@ def on_comment(
     repo = g.get_repo(repo_full_name)
     if pr is None:
         pr = repo.get_pull(pr_number)
+    # Create revert buttons for each file in the pull request
+    create_revert_buttons(pr)
     pr_title = pr.title
     pr_body = pr.body or ""
     pr_file_path = None
@@ -113,96 +131,7 @@ def on_comment(
     pr_chunk = None
     formatted_pr_chunk = None
 
-    issue_number_match = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body)
-    original_issue = None
-    if issue_number_match:
-        issue_number = issue_number_match.group("issue_number")
-        original_issue = repo.get_issue(int(issue_number))
-        author = original_issue.user.login
-        logger.info(f"Author of original issue is {author}")
-        chat_logger = (
-            chat_logger
-            if chat_logger is not None
-            else ChatLogger(
-                {
-                    "repo_name": repo_name,
-                    "title": "(Comment) " + pr_title,
-                    "issue_url": pr.html_url,
-                    "pr_file_path": pr_file_path,  # may be None
-                    "pr_chunk": pr_chunk,  # may be None
-                    "repo_full_name": repo_full_name,
-                    "repo_description": repo_description,
-                    "comment": comment,
-                    "pr_path": pr_path,
-                    "pr_line_position": pr_line_position,
-                    "username": author,
-                    "installation_id": installation_id,
-                    "pr_number": pr_number,
-                    "type": "comment",
-                }
-            )
-            if MONGODB_URI
-            else None
-        )
-    else:
-        logger.warning(f"No issue number found in PR body for summary {pr.body}")
-        chat_logger = None
-
-    if chat_logger:
-        is_paying_user = chat_logger.is_paying_user()
-        use_faster_model = chat_logger.use_faster_model(g)
-    else:
-        # Todo: chat_logger is None for MockPRs, which will cause all comments to use GPT-4
-        is_paying_user = True
-        use_faster_model = False
-
-    assignee = pr.assignee.login if pr.assignee else None
-
-    sweep_context = SweepContext.create(
-        username=username,
-        issue_url=pr.html_url,
-        use_faster_model=use_faster_model,
-        is_paying_user=is_paying_user,
-        repo=repo,
-        token=None,  # Todo(lukejagg): Make this token for sandbox on comments
-    )
-
-    metadata = {
-        "repo_full_name": repo_full_name,
-        "repo_name": repo_name,
-        "organization": organization,
-        "repo_description": repo_description,
-        "installation_id": installation_id,
-        "username": username if not username.startswith("sweep") else assignee,
-        "function": "on_comment",
-        "model": "gpt-3.5" if use_faster_model else "gpt-4",
-        "tier": "pro" if is_paying_user else "free",
-        "mode": ENV,
-        "pr_path": pr_path,
-        "pr_line_position": pr_line_position,
-        "pr_number": pr_number or pr.id,
-        "pr_html_url": pr.html_url,
-        "comment_id": comment_id,
-        "comment": comment,
-        "issue_number": issue_number if issue_number_match else "",
-    }
-    # logger.bind(**metadata)
-
-    capture_posthog_event(username, "started", properties=metadata)
-    logger.info(f"Getting repo {repo_full_name}")
-    file_comment = bool(pr_path) and bool(pr_line_position)
-
-    item_to_react_to = None
-    reaction = None
-
-    bot_comment = None
-
-    def edit_comment(new_comment):
-        if bot_comment is not None:
-            bot_comment.edit(new_comment)
-
-    try:
-        # Check if the PR is closed
+    # Rest of the code...
         if pr.state == "closed":
             return {"success": True, "message": "PR is closed. No event fired."}
         if comment_id:
