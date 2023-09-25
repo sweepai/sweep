@@ -561,13 +561,19 @@ def on_ticket(
         snippets=snippets,
         tree=tree,
     )
-
+    
+    # Compute the is_python_issue boolean
+    is_python_issue = any(snippet.language == 'python' for snippet in human_message.snippets)
+    
+    # Log the is_python_issue boolean as an event to Posthog
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+    
     context_pruning = ContextPruning(chat_logger=chat_logger)
     (
         snippets_to_ignore,
         excluded_dirs,
     ) = context_pruning.prune_context(  # TODO, ignore directories
-        human_message, repo=repo
+        human_message, repo=repo, is_python_issue=is_python_issue
     )
     snippets = post_process_snippets(
         snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
@@ -654,7 +660,13 @@ def on_ticket(
             + (f"\n\n{docs_results}\n\n" if docs_results else ""),
             1,
         )
-
+    
+        # Compute the is_python_issue boolean
+        is_python_issue = any(snippet.language == 'python' for snippet in snippets)
+        
+        # Log the is_python_issue boolean as an event to Posthog
+        posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+    
         if do_map:
             subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
             edit_sweep_comment(
@@ -692,13 +704,13 @@ def on_ticket(
             edit_sweep_comment(f"N/A", 4)
             edit_sweep_comment(f"I finished creating all the subissues.", 5)
             return {"success": True}
-
+    
         # COMMENT ON ISSUE
         # TODO: removed issue commenting here
         # TODO(william, luke) planning here
-
+    
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:
             if len(title + summary) < 60:
@@ -1212,6 +1224,12 @@ def on_ticket(
             logger.error(e)
             logger.error(traceback.format_exc())
             logger.print("Deleted branch", pull_request.branch_name)
+
+    # Compute the is_python_issue boolean
+    is_python_issue = any(snippet.language == 'python' for snippet in snippets)
+
+    # Log the is_python_issue boolean as an event to Posthog
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
 
     posthog.capture(username, "success", properties={**metadata})
     logger.info("on_ticket success")
