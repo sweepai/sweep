@@ -68,6 +68,10 @@ def extract_entities(code: str):
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     defined_functions.append(target.id)
+        elif isinstance(node, ast.Call):
+            func = node.func
+            if isinstance(func, ast.Attribute):
+                imported_modules.append(func.attr)
     return imported_modules, defined_classes, defined_functions
 
 
@@ -229,7 +233,6 @@ class Graph(BaseModel):
             [self.extract_first_degree(file_path) for file_path in file_paths]
         )
 
-
 if __name__ == "__main__":
     # Replace this with the actual path you want to traverse
     folder_path = os.getcwd()
@@ -237,35 +240,13 @@ if __name__ == "__main__":
 
     # Select one file to extract degree 4 paths (you can loop over all files if needed)
     selected_files = (
-        "sweepai/core/code_repair.py",
-        "sweepai/core/sweep_bot.py",
-        "sweepai/core/chat.py",
-        "sweepai/core/prompts.py",
+        "sweepai/handlers/on_ticket.py",
+        "sweepai/core/sweep_bot.py"
     )
-
-    def get_entities_for_file(selected_file):
-        definition_paths = extract_degree_paths(definitions_graph, selected_file)
-        references_path = extract_degree_paths(references_graph, selected_file)
-
-        condensed_definition_paths = condense_paths(definition_paths)
-        condensed_references_paths = condense_paths(references_path)
-        res = ""
-
-        for path in condensed_definition_paths:
-            res += format_path(path, separator=" defined in ") + "\n"
-        for path in condensed_references_paths:
-            res += format_path(path, separator=" imported by ") + "\n"
-        return res
-
-    print(
-        "\n".join(
-            [get_entities_for_file(selected_file) for selected_file in selected_files]
-        )
-    )
-    # Draw only those paths on the graph
 
     # Create a Graph object
     g = Graph.from_folder(folder_path)
+    draw_paths_on_graph(g.references_graph, paths=selected_files)
 
     selected_files = (
         "sweepai/core/entities.py",

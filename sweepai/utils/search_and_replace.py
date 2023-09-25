@@ -49,11 +49,9 @@ def score_multiline(query: list[str], target: list[str]) -> float:
         # Sequence: 1, 2/3, 1/2, 2/5...
         index = min(q, len(query) - q)
         return 100 / (index / 2 + 1)
-
     while q < len(query) and t < len(target):
         q_line = query[q]
         t_line = target[t]
-
         weight = get_weight(q)
 
         if match_without_whitespace(q_line, t_line):
@@ -89,8 +87,7 @@ def score_multiline(query: list[str], target: list[str]) -> float:
         ):
             # Case 2: skipped comment
             skipped_comments += 1
-            q += 1
-            t += 2
+            t += 1
             scores.append((90, weight))
         else:
             break
@@ -637,7 +634,8 @@ class CodeGenBot(ChatGPT):
 """
 
     # Sample target snippet
-    target = """def get_files_to_change(
+    target = """
+def get_files_to_change(
     self, retries=1, pr_diffs: str | None = None
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
@@ -654,8 +652,32 @@ class CodeGenBot(ChatGPT):
         logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
         python_issue_worked = True
         if is_python_issue:
-        ...
-    """.strip()
+    """.strip("\n")
+
+    _match = """
+def get_files_to_change(
+    self, retries=1, pr_diffs: str | None = None
+) -> tuple[list[FileChangeRequest], str]:
+    file_change_requests: list[FileChangeRequest] = []
+    # Todo: put retries into a constants file
+    # also, this retries multiple times as the calls for this function are in a for loop
+    try:
+        is_python_issue = (
+            sum(
+                [
+                    not file_path.endswith(".py")
+                    for file_path in self.human_message.get_file_paths()
+                ]
+            )
+            < 2
+        )
+        logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+        python_issue_worked = True
+        if is_python_issue:
+    """.strip("\n")
+
+    print(score_multiline(target.split("\n"), _match.split("\n")))
+    quit()
 
     # Find the best match
     best_span = find_best_match(target, code_file)
