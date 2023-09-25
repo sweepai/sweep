@@ -160,20 +160,37 @@ def extract_int(s):
 
 
 def extract_python_span(code, entities):
+    # Identify lines where entity is mentioned
+    mentioned_lines = []
     lines = code.split("\n")
-    code_with_line_numbers = "\n"
-    mention_count = 0
-    for idx, line in enumerate(lines):
-        mentioned_entities = [entity for entity in entities if entity in line]
-        if mentioned_entities:
-            mention_count = 50
+    for i, line in enumerate(lines):
+        for entity in entities:
+            if entity in line:
+                mentioned_lines.append(i)
+    end_window = 0
+    line_idx_set = set()
+    code_with_line_numbers = ""
+    for mentioned_line in mentioned_lines:
+        if mentioned_line > end_window:
+            code_with_line_numbers += "\n...\n" 
+        # Calculate the window to show
+        # indent is how many whitespaces the line starts with
+        indent = len(lines[mentioned_line]) - len(lines[mentioned_line].lstrip())
+        for i in range(mentioned_line + 1, len(lines)):
+            line_indent = len(lines[i]) - len(lines[i].lstrip())
+            if lines[i].strip() and line_indent <= indent: # there is code and less indents
+                end_window = i
+                break
         else:
-            mention_count -= 1
-            if mention_count == -1:
-                code_with_line_numbers += f"...\n"
-        if mention_count > 0:
-            code_with_line_numbers += f"{idx + 1} {line}\n"
-    code_with_line_numbers = code_with_line_numbers.strip()
+            end_window = len(lines)
+
+        # Extract lines in the window and mark where entity is mentioned
+        for i in range(mentioned_line, end_window):
+            line = lines[i]
+            if i not in line_idx_set:
+                code_with_line_numbers += f"{line}\n"
+                line_idx_set.add(i)
+        code_with_line_numbers = code_with_line_numbers.strip("\n")
     return Snippet(file_path="", start=0, end=0, content=code_with_line_numbers)
 
 if __name__ == "__main__":
@@ -1587,11 +1604,179 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
-            return False, sandbox_error, None'''
+            return False, sandbox_error, None
+class ModifyBot:
+    def __init__(
+        self,
+        additional_messages: list[Message] = [],
+        chat_logger=None,
+        parent_bot: SweepBot = None,
+        is_pr: bool = False,
+    ):
+        self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
+            fetch_snippets_system_prompt, chat_logger=chat_logger
+        )
+        self.fetch_snippets_bot.messages.extend(additional_messages)
+        self.update_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
+            update_snippets_system_prompt, chat_logger=chat_logger
+        )
+        self.update_snippets_bot.messages.extend(additional_messages)
+        self.parent_bot = parent_bot
+
+    def try_update_file(
+        self,
+        file_path: str,
+        file_contents: str,
+        file_change_request: FileChangeRequest,
+        chunking: bool = False,
+    ):
+        snippet_queries = self.get_snippets_to_modify(
+            file_path=file_path,
+            file_contents=file_contents,
+            file_change_request=file_change_request,
+            chunking=chunking,
+        )
+
+        new_file = self.update_file(
+            file_path=file_path,
+            file_contents=file_contents,
+            file_change_request=file_change_request,
+            snippet_queries=snippet_queries,
+            chunking=chunking,
+        )
+        return new_file
+
+    def get_snippets_to_modify(
+        self,
+        file_path: str,
+        file_contents: str,
+        file_change_request: FileChangeRequest,
+        chunking: bool = False,
+    ):
+        fetch_snippets_response = self.fetch_snippets_bot.chat(
+            fetch_snippets_prompt.format(
+                code=file_contents,
+                file_path=file_path,
+                request=file_change_request.instructions,
+                chunking_prompt='\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n'
+                if chunking
+                else "",
+            )
+        )
+
+        snippet_queries = []
+        query_pattern = r"<snippet_to_modify.*?>(?P<code>.*?)</snippet_to_modify>"
+        for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
+            snippet_queries.append(strip_backticks(code))
+
+        assert len(snippet_queries) > 0, "No snippets found in file"
+        return snippet_queries
+
+    def update_file(
+        self,
+        file_path: str,
+        file_contents: str,
+        file_change_request: FileChangeRequest,
+        snippet_queries: list[str],
+        chunking: bool = False,
+    ):
+        best_matches = []
+        for query in snippet_queries:
+            _match = find_best_match(query, file_contents)
+            if _match.score > 50:
+                best_matches.append(_match)
+
+        assert len(best_matches) > 0, "No matches found in file"
+
+        # Todo: check multiple files for matches using PR changed files
+
+        best_matches.sort(key=lambda x: x.start + x.end * 0.001)
+
+        def fuse_matches(a: Match, b: Match) -> Match:
+            return Match(
+                start=min(a.start, b.start),
+                end=max(a.end, b.end),
+                score=min(a.score, b.score),
+            )
+
+        current_match = best_matches[0]
+        deduped_matches = []
+
+        # Fuse & dedup
+        for _match in best_matches:
+            if current_match.end > _match.start:
+                current_match = fuse_matches(current_match, _match)
+            else:
+                deduped_matches.append(current_match)
+                current_match = _match
+        deduped_matches.append(current_match)
+        selected_snippets = []
+        for _match in deduped_matches:
+            current_contents = "\n".join(
+                file_contents.split("\n")[_match.start : _match.end]
+            )
+            selected_snippets.append(current_contents)
+
+        print(deduped_matches)
+        if file_change_request.start_and_end_lines:
+            plan_extracted_contents = ""
+            for start_line, end_line in file_change_request.start_and_end_lines:
+                split_file_contents = "\n".join(
+                    file_contents.split("\n")[start_line - 1 : end_line]
+                )
+                plan_extracted_contents += f"<{file_change_request.filename}:{start_line}-{end_line}>\n"
+                plan_extracted_contents += split_file_contents
+                plan_extracted_contents += "...\n"
+        else:
+            plan_extracted_contents = file_contents
+
+        update_snippets_response = self.update_snippets_bot.chat(
+            update_snippets_prompt.format(
+                code=plan_extracted_contents,
+                file_path=file_path,
+                snippets="\n\n".join(
+                    [
+                        f"<snippet>\n{snippet}\n</snippet>"
+                        for i, snippet in enumerate(selected_snippets)
+                    ]
+                ),
+                request=file_change_request.instructions,
+            )
+        )
+
+        updated_snippets = []
+        updated_pattern = r"<updated_snippet>(?P<code>.*?)</updated_snippet>"
+        for code in re.findall(updated_pattern, update_snippets_response, re.DOTALL):
+            formatted_code = strip_backticks(code)
+            formatted_code = remove_line_numbers(formatted_code)
+            updated_snippets.append(formatted_code)
+
+        result = file_contents
+        for search, replace in zip(selected_snippets, updated_snippets):
+            result, _, _ = sliding_window_replacement(
+                result.splitlines(),
+                search.splitlines(),
+                match_indent(replace, search).splitlines(),
+            )
+            result = "\n".join(result)
+
+        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
+        result = result.rstrip("\n") + "\n" * ending_newlines
+
+        return result
+
+
+if __name__ == "__main__":
+    response = """
+```python
+```"""
+    stripped = strip_backticks(response)
+    print(stripped)
+'''
 
     print(extract_int("10, 10-11 (message)"))
     print("\nExtracting Span:")
-    span = extract_python_span(file, ["ModifyBot"])
+    span = extract_python_span(file, ["SweepBot"])
     print(span)
 
     # test response for plan
