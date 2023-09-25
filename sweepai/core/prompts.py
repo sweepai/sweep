@@ -230,12 +230,13 @@ files_to_change_abstract_prompt = """Write an abstract minimum plan to address t
 
 files_to_change_prompt = """\
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
-Then, provide a list of files you would like to change, abiding by the following:
+Then, provide a list of ALL files you would like to change, abiding by the following:
 * You may only create, modify, delete and rename files
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
 * Use detailed, natural language instructions on what to modify regarding business logic, but make reference to files to import
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
 * Do not modify non-text files such as images, svgs, binary, etc
+* Ensure that the changes completely solve the task.
 
 You MUST follow the following format with the final output in XML tags:
 
@@ -253,29 +254,31 @@ Step-by-step thoughts with explanations:
 * Instruction 2 for file_path_1
 ...
 </create>
+...
 
-<modify file="file_path_3">
+<modify file="file_path_2">
 * Instruction 1 for file_path_3
 * Instruction 2 for file_path_3
 ...
 </modify>
-
-<delete file="file_path_4"></delete>
-
-<rename file="file_path_5">new full path for file path 6</rename>
-
 ...
+
+<delete file="file_path_3"></delete>
+...
+
+<rename file="file_path_4">new full path for file path 6</rename>
+...
+
 </plan>
 """
 
 python_files_to_change_prompt = """
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
-Then, provide a list of files you would like to modify, abiding by the following:
+Then, provide a list of ALL files you would like to modify, abiding by the following:
 * You may only create, modify, delete and rename files
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
 * Use detailed, natural language instructions on what to modify regarding business logic, but reference files to import
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
-* Create/modify up to 5 FILES
 * Do not modify non-text files such as images, svgs, binary, etc
 
 You MUST follow the following format with the final output in XML tags:
