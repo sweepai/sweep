@@ -46,7 +46,7 @@ INSTRUCTIONS_FOR_REVIEW = """\
 * Edit the original issue to get Sweep to recreate the PR from scratch"""
 
 
-from sweepai.utils.buttons import create_button  # Import the utility function
+from sweepai.utils.buttons import create_revert_button  # Import the utility function
 
 def create_pr_changes(
     file_change_requests: list[FileChangeRequest],
@@ -72,9 +72,8 @@ def create_pr_changes(
     # ...
 
     # After the PR is created
-    pr_files = pull_request.get_files()
-    for pr_file in pr_files:
-        revert_button = create_button(f"Revert {pr_file.filename}")
+    for file_change_request in file_change_requests:
+        revert_button = create_revert_button(file_change_request.filename)
         pr_description += f"\n\n{revert_button}"
 
     # ...
