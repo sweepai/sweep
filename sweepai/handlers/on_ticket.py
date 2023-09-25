@@ -787,7 +787,7 @@ def on_ticket(
 
         condensed_checkboxes_contents = "\n".join(
             [
-                create_checkbox(f"`{filename}`", "", check == "X")
+                create_checkbox(f"`{filename}`", "", check == "X").strip()
                 for filename, instructions, check in checkboxes_progress
             ]
         )
@@ -902,7 +902,7 @@ def on_ticket(
                         check=check,
                         filename=filename,
                         instructions="",
-                    )
+                    ).strip()
                     for filename, instructions, check in checkboxes_progress
                 ]
             )
