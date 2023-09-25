@@ -311,9 +311,8 @@ class CodeGenBot(ChatGPT):
                             ),
                             all_symbols_and_files=relevant_symbols_string,
                         )
-                        if plan.code_change_description and plan.relevant_new_snippet:
+                        if plan.relevant_new_snippet:
                             plans.append(plan)
-
                     file_path_set = set()
                     deduped_plans = []
                     for plan in plans:
@@ -336,17 +335,9 @@ class CodeGenBot(ChatGPT):
                         )
                     plans = sorted_plans
 
-                    relevant_snippets = self.human_message.snippets
+                    relevant_snippets = []
                     for plan in plans:
-                        self.populate_snippets(plan.relevant_new_snippet)
                         relevant_snippets.extend(plan.relevant_new_snippet)
-
-                    plan_suggestions = []
-
-                    for plan in plans:
-                        plan_suggestions.append(
-                            f"<plan_suggestion file={plan.file_path}>\n{plan.code_change_description}\n</plan_suggestion>"
-                        )
 
                     python_human_message = PythonHumanMessagePrompt(
                         repo_name=self.human_message.repo_name,
@@ -354,32 +345,30 @@ class CodeGenBot(ChatGPT):
                         username=self.human_message.username,
                         title=self.human_message.title,
                         summary=self.human_message.summary,
-                        snippets=[],
+                        snippets=relevant_snippets,
                         tree=self.human_message.tree,
                         repo_description=self.human_message.repo_description,
-                        plan_suggestions=plan_suggestions,
                     )
                     prompt_message_dicts = python_human_message.construct_prompt()
                     new_messages = [self.messages[0]]
                     for message_dict in prompt_message_dicts:
                         new_messages.append(Message(**message_dict))
                     self.messages = new_messages
+                    files_to_change_response = self.chat(
+                    files_to_change_prompt, message_key="files_to_change"
+                    )  # Dedup files to change here
                     file_change_requests = []
-                    for plan in plans:
-                        start_and_end_lines = [
-                            (s.start, s.end) for s in plan.relevant_new_snippet
-                        ]
+                    for re_match in re.finditer(
+                        FileChangeRequest._regex, files_to_change_response, re.DOTALL
+                    ):
                         file_change_requests.append(
-                            FileChangeRequest(
-                                filename=plan.file_path,
-                                instructions=plan.code_change_description,
-                                change_type="modify",
-                                start_and_end_lines=start_and_end_lines,
-                            )
+                            FileChangeRequest.from_string(re_match.group(0))
                         )
-                    return file_change_requests, " ".join(plan_suggestions)
+                    
+
+                    if file_change_requests:
+                        return file_change_requests, files_to_change_response
             if not is_python_issue or not python_issue_worked:
-                # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
                 if pr_diffs is not None:
                     self.delete_messages_from_chat("pr_diffs")
                     self.messages.insert(
@@ -565,7 +554,25 @@ class GithubBot(BaseModel):
                         branch or SweepConfig.get_branch(self.repo),
                     )
                 except UnknownObjectException:
-                    exists = False
+                    for prefix in [
+                        self.repo.full_name,
+                        self.repo.owner.login,
+                        self.repo.name,
+                    ]:
+                        try:
+                            new_filename = file_change_request.filename.replace(
+                                prefix + "/", "", 1
+                            )
+                            exists = self.repo.get_contents(
+                                new_filename,
+                                branch or SweepConfig.get_branch(self.repo),
+                            )
+                            file_change_request.filename = new_filename
+                            break
+                        except UnknownObjectException:
+                            pass
+                    else:
+                        exists = False
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
@@ -589,6 +596,7 @@ class GithubBot(BaseModel):
                 raise SystemExit
             except Exception as e:
                 logger.info(traceback.format_exc())
+                raise e
         file_change_requests = [
             file_change_request
             for file_change_request in file_change_requests
@@ -810,36 +818,41 @@ class SweepBot(CodeGenBot, GithubBot):
                     for file_path, diffs in file_path_to_contents.items()
                 ]
             )
-            additional_messages = (
-                [
+            additional_messages = [
+                Message(
+                    role="user",
+                    content=self.human_message.get_issue_metadata(),
+                    key="issue_metadata",
+                )
+            ]
+            if self.comment_pr_diff_str:
+                additional_messages = [
+                    Message(
+                        role="user",
+                        content="The following are the changes in the PR:\n"
+                        + self.comment_pr_diff_str,
+                        key="pr_diffs",
+                    )
+                ]
+            if changed_files:
+                additional_messages += [
                     Message(
                         content=changed_files_summary,
                         role="user",
                     )
                 ]
-                if changed_files
-                else []
-            )
-            if self.comment_pr_diff_str:
+            if chunking:
                 additional_messages += [
-                    Message(
-                        role="user", content=self.comment_pr_diff_str, key="pr_diffs"
-                    )
-                ]
-            additional_messages += (
-                [
                     Message(
                         content="This is one of the sections of code out of a larger body of code and the changes may not be in this file. If you do not wish to make changes to this file, please type `skip`.",
                         role="assistant",
                     )
                 ]
-                if chunking
-                else []
-            )
             modify_file_bot = ModifyBot(
                 additional_messages,
                 parent_bot=self,
                 chat_logger=self.chat_logger,
+                is_pr=bool(self.comment_pr_diff_str),
             )
             try:
                 new_file = modify_file_bot.try_update_file(
@@ -1324,6 +1337,7 @@ class ModifyBot:
         additional_messages: list[Message] = [],
         chat_logger=None,
         parent_bot: SweepBot = None,
+        is_pr: bool = False,
     ):
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
             fetch_snippets_system_prompt, chat_logger=chat_logger
@@ -1422,8 +1436,6 @@ class ModifyBot:
                 deduped_matches.append(current_match)
                 current_match = _match
         deduped_matches.append(current_match)
-
-        # import pdb; pdb.set_trace()
         selected_snippets = []
         for _match in deduped_matches:
             current_contents = "\n".join(
@@ -1438,8 +1450,8 @@ class ModifyBot:
                 split_file_contents = "\n".join(
                     file_contents.split("\n")[start_line - 1 : end_line]
                 )
-                for idx, line in enumerate(split_file_contents.split("\n")):
-                    plan_extracted_contents += f"{idx + start_line}: {line}\n"
+                plan_extracted_contents += f"<{file_change_request.filename}:{start_line}-{end_line}>\n"
+                plan_extracted_contents += split_file_contents
                 plan_extracted_contents += "...\n"
         else:
             plan_extracted_contents = file_contents

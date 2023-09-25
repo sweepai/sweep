@@ -142,10 +142,6 @@ class IssueRequest(BaseModel):
     sender: Issue.User
 
 
-class IssueCommentChanges(BaseModel):
-    changes: Changes
-
-
 class IssueCommentRequest(IssueRequest):
     class Comment(BaseModel):
         class User(BaseModel):
@@ -158,6 +154,7 @@ class IssueCommentRequest(IssueRequest):
 
     comment: Comment
     sender: Comment.User
+    changes: Changes
 
 
 class PRRequest(BaseModel):
@@ -207,3 +204,10 @@ class CheckRunCompleted(BaseModel):
     installation: Installation
     repository: Repository
     sender: Sender
+
+
+class GithubRequest(IssueRequest):
+    class Sender(BaseModel):
+        login: str
+
+    sender: Sender | None = None

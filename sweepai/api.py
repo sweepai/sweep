@@ -37,6 +37,7 @@ from sweepai.config.server import (
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
     DISCORD_FEEDBACK_WEBHOOK_URL,
+    WHITELISTED_USERS,
 )
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest, SweepContext
@@ -49,11 +50,10 @@ from sweepai.events import (
     IssueRequest,
     PRRequest,
     ReposAddedRequest,
-    IssueCommentChanges,
     PREdited,
+    GithubRequest,
 )
 from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  # type: ignore
-from sweepai.handlers.create_pr import create_pr_changes, safe_delete_sweep_branch
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
@@ -279,9 +279,22 @@ async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
-        logger.info(f"Received request: {request_dict.keys()}")
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
+
+        # # Check if user is in Whitelist
+        # gh_request = GithubRequest(**request_dict)
+        # if (
+        #     WHITELISTED_USERS is not None
+        #     and len(WHITELISTED_USERS) > 0
+        #     and gh_request.sender is not None
+        #     and gh_request.sender.login not in WHITELISTED_USERS
+        # ):
+        #     return {
+        #         "success": True,
+        #         "reason": "User not in whitelist",
+        #     }
+
         action = request_dict.get("action", None)
         # logger.bind(event=event, action=action)
         logger.info(f"Received event: {event}, {action}")
@@ -309,15 +322,14 @@ async def webhook(raw_request: Request):
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
             case "issue_comment", "edited":
                 request = IssueCommentRequest(**request_dict)
-                changes = IssueCommentChanges(**request_dict)
 
                 restart_sweep = False
                 if (
                     request.comment.user.type == "Bot"
                     and GITHUB_BOT_USERNAME in request.comment.user.login
-                    and changes.changes.body_from is not None
+                    and request.changes.body_from is not None
                     and check_button_activated(
-                        RESTART_SWEEP_BUTTON, request.comment.body, changes.changes
+                        RESTART_SWEEP_BUTTON, request.comment.body, request.changes
                     )
                     and GITHUB_LABEL_NAME
                     in [label.name.lower() for label in request.issue.labels]
@@ -438,25 +450,14 @@ async def webhook(raw_request: Request):
                     logger.info("Issue edited, but not a sweep issue")
             case "issues", "labeled":
                 request = IssueRequest(**request_dict)
-                if (
-                    "label" in request_dict
-                    and str.lower(request_dict["label"]["name"]) == GITHUB_LABEL_NAME
+                if any(
+                    label.name.lower() == GITHUB_LABEL_NAME
+                    for label in request.issue.labels
                 ):
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
                         request.repository.description or ""
                     )
-                    # Update before we handle the ticket to make sure index is up to date
-                    # other ways suboptimal
-                    key = (request.repository.full_name, request.issue.number)
-                    # logger.info(f"Checking if {key} is in {stub.issue_lock}")
-                    # process = stub.issue_lock[key] if key in stub.issue_lock else None
-                    # if process:
-                    #     logger.info("Cancelling process")
-                    #     process.cancel()
-                    # stub.issue_lock[
-                    #     (request.repository.full_name, request.issue.number)
-                    # ] =
                     call_on_ticket(
                         title=request.issue.title,
                         summary=request.issue.body,

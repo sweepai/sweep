@@ -156,7 +156,6 @@ def embedding_function(texts: list[str]):
     # For LRU cache to work
     return embed_texts(tuple(texts))
 
-
 def get_deeplake_vs_from_repo(
     cloned_repo: ClonedRepo,
     sweep_config: SweepConfig = SweepConfig(),
@@ -307,11 +306,10 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
 
 
 # Only works on functions without side effects
-# @file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
+@file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
 def get_relevant_snippets(
     cloned_repo: ClonedRepo,
     query: str,
-    n_results: int,
     username: str | None = None,
     sweep_config: SweepConfig = SweepConfig(),
     lexical=True,
@@ -348,7 +346,6 @@ def get_relevant_snippets(
                 "repo_name": repo_name,
                 "installation_id": installation_id,
                 "query": query,
-                "n_results": n_results,
             },
         )
         return []
@@ -363,7 +360,7 @@ def get_relevant_snippets(
             lexical_scores.append(0.3)
     vector_scores = results["score"]
     combined_scores = [
-        code_score + vector_score + lexical_score
+        code_score * 1.5 + vector_score + lexical_score * 2.5 # increase weight of lexical search
         for code_score, vector_score, lexical_score in zip(
             code_scores, vector_scores, lexical_scores
         )
@@ -381,7 +378,7 @@ def get_relevant_snippets(
             file_path=file_path,
         )
         for metadata, file_path in zip(sorted_metadatas, relevant_paths)
-    ][: min(num_docs, 25)]
+    ][:num_docs]
 
 
 def chunk(texts: List[str], batch_size: int) -> Generator[List[str], None, None]:

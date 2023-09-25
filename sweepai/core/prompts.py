@@ -54,11 +54,6 @@ python_human_message_prompt = [
     },
     {
         "role": "user",
-        "content": """{plan_suggestions}""",
-        "key": "plan_suggestions",
-    },
-    {
-        "role": "user",
         "content": """<repo_tree>
 {tree}
 </repo_tree>""",
@@ -233,16 +228,15 @@ Gather information to solve the problem. Use "finish" when you feel like you hav
 
 files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
 
-files_to_change_prompt = """
+files_to_change_prompt = """\
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
-Then, provide a list of files you would like to modify, abiding by the following:
-* You may only create, modify, rewrite, delete and rename files
-* Modify tweaks existing code (adding logs, typing, docstrings, etc) whereas rewrite recreates the entire file (migration, changing frameworks etc)
+Then, provide a list of ALL files you would like to change, abiding by the following:
+* You may only create, modify, delete and rename files
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
 * Use detailed, natural language instructions on what to modify regarding business logic, but make reference to files to import
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
-* Create/modify up to 5 FILES
 * Do not modify non-text files such as images, svgs, binary, etc
+* Ensure that the changes completely solve the task.
 
 You MUST follow the following format with the final output in XML tags:
 
@@ -260,35 +254,31 @@ Step-by-step thoughts with explanations:
 * Instruction 2 for file_path_1
 ...
 </create>
+...
 
-<modify file="file_path_3">
+<modify file="file_path_2">
 * Instruction 1 for file_path_3
 * Instruction 2 for file_path_3
 ...
 </modify>
-
-<rewrite file="file_path_3">
-* Instruction 1 for file_path_3
-* Instruction 2 for file_path_3
 ...
-</rewrite>
 
-<delete file="file_path_4"></delete>
-
-<rename file="file_path_5">new full path for file path 6</rename>
-
+<delete file="file_path_3"></delete>
 ...
+
+<rename file="file_path_4">new full path for file path 6</rename>
+...
+
 </plan>
 """
 
 python_files_to_change_prompt = """
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
-Then, provide a list of files you would like to modify, abiding by the following:
+Then, provide a list of ALL files you would like to modify, abiding by the following:
 * You may only create, modify, delete and rename files
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
 * Use detailed, natural language instructions on what to modify regarding business logic, but reference files to import
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
-* Create/modify up to 5 FILES
 * Do not modify non-text files such as images, svgs, binary, etc
 
 You MUST follow the following format with the final output in XML tags:
@@ -1125,6 +1115,12 @@ fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to e
 Select the smallest spans that let you handle the request. There should not be any unimplemented functions or classes.
 
 Respond in the format:
+
+Step-by-step thoughts:
+1.
+2.
+3.
+
 <snippet_to_modify>
 ```
 first five lines of the original snippet
@@ -1136,9 +1132,11 @@ last five lines of the original snippet (must end on code)
 
 fetch_snippets_prompt = """# Code
 File path: {file_path}
+<old_code>
 ```
 {code}
 ```
+</old_code>
 
 # Request
 {request}
@@ -1147,6 +1145,11 @@ File path: {file_path}
 Respond with a list of all non-overlapping snippet(s) from the file above to you would like to modify.
 {chunking_prompt}
 Respond in the following format:
+
+Step-by-step thoughts:
+1.
+2.
+3.
 
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
@@ -1158,14 +1161,19 @@ last five lines of the original snippet (must end on code)
 
 update_snippets_system_prompt = (
     "You are a brilliant and meticulous engineer assigned to"
-    " write code for the following Github issue. When you write code, the code works on"
-    " the first try, is syntactically perfect and is complete. You have the utmost care"
+    " write code to complete the user's request. When you write code, the code works on"
+    " the first try, is syntactically perfect and is complete. You will be concise and only write comments when asked to. You have the utmost care"
     " for the code that you write, so you do not make mistakes and every function and"
     " class will be fully implemented. Take into account the current repository's"
     " language, frameworks, and dependencies. It is very important that you get this"
     " right."
     """
 Respond in the following format:
+
+Step-by-step thoughts:
+1.
+2.
+3.
 
 <updated_snippet>
 ```
@@ -1176,9 +1184,11 @@ updated lines
 
 update_snippets_prompt = """# Code
 File path: {file_path}
+<old_code>
 ```
 {code}
 ```
+</old_code>
 
 # Request
 {request}
@@ -1194,6 +1204,12 @@ For each snippet above, rewrite it according to their corresponding instructions
 * Remember to copy the original code for prepending.
 
 Respond in the following format:
+
+Step-by-step thoughts:
+1.
+2.
+3.
+...
 
 <updated_snippet>
 ```

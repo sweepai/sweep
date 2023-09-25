@@ -6,52 +6,54 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel, Snippet
 
 system_prompt = """You are a genius engineer tasked with extracting the code and planning the solution to the following GitHub issue.
-Decide whether the file_path {file_path} needs to be modified to solve this issue.
+Decide whether the file_path {file_path} needs to be modified to solve this issue and the proposed solution.
 
 First determine whether changes in file_path are necessary.
-Then, if code changes need to be made in file_path, extract the relevant_new_snippet and plan code_change_description.
-Extract the code you deem necessary, and then describe the necessary code changes. Otherwise leave both sections blank.
+Then, if code changes need to be made in file_path, extract the relevant_new_snippets and write the code_change_description.
+In code_change_description, mention each relevant_new_snippet and how to modify it.
 
-# Extraction
+1. Analyze the code and extract the relevant_new_snippets.
+Extract only the relevant_new_snippets that allow us to write code_change_description for file_path.
 
-Include only the relevant snippet that provides enough detail to solve the issue.
-When writing the plan for code changes to file_path keep in mind the user can read the metadata and the relevant snippets.
-
-<code_analysis>
+<code_analysis file_path=\"{file_path}\">
 {{thought about potentially relevant snippet and its relevance to the issue}}
 ...
 </code_analysis>
 
-<relevant_new_snippet>
-{{relevant snippet from new_file in the format file_path:start_idx-end_idx}}
+<relevant_new_snippets>
+{{relevant snippet from \"{file_path}\" in the format file_path:start_idx-end_idx. Do not delete any relevant entities.}}
 ...
-</relevant_new_snippet>
+</relevant_new_snippets>
+
+2. Generate a code_change_description for \"{file_path}\".
+When writing the plan for code changes to \"{file_path}\" keep in mind the user will read the metadata and the relevant_new_snippets.
 
 <code_change_description file_path=\"{file_path}\">
-{{The changes should be constrained to the file_path and code mentioned in new_file.
-These are clear and detailed natural language descriptions of modifications to be made in new_file.
-The relevant_snippets_in_repo are read-only so focus on how .}}
+{{The changes are constrained to the file_path and code mentioned in file_path.
+These are clear and detailed natural language descriptions of modifications to be made in file_path.
+The relevant_snippets_in_repo are read-only.}}
 </code_change_description>"""
 
 NO_MODS_KWD = "#NONE"
 
 graph_user_prompt = (
-    """<metadata>
-{issue_metadata}
-</metadata>
+    """\
 <READONLY>
+<issue_metadata>
+{issue_metadata}
+</issue_metadata>
 {previous_snippets}
 
 <all_symbols_and_files>
 {all_symbols_and_files}</all_symbols_and_files>
 </READONLY>
 
-<file_path source=\"{file_path}\" entities=\"{entities}\">
+<file_path=\"{file_path}\" entities=\"{entities}\">
 {code}
 </file_path>
 
-Provide the relevant snippets and changes from the file_path above.
-If there are no relevant snippets or changes, end your message with """
+Provide the relevant_new_snippets and code_change_description to the file_path above.
+If there are no relevant_new_snippets or code_change_description, end your message with """
     + NO_MODS_KWD
 )
 
@@ -64,7 +66,7 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
 
     @classmethod
     def from_string(cls, string: str, file_path: str, **kwargs):
-        snippets_pattern = r"""<relevant_new_snippet>(\n)?(?P<relevant_new_snippet>.*)</relevant_new_snippet>"""
+        snippets_pattern = r"""<relevant_new_snippets.*?>(\n)?(?P<relevant_new_snippet>.*)</relevant_new_snippets>"""
         plan_pattern = r"""<code_change_description.*?>(\n)?(?P<code_change_description>.*)</code_change_description>"""
         snippets_match = re.search(snippets_pattern, string, re.DOTALL)
         relevant_new_snippet_match = None
@@ -86,7 +88,7 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
             generated_file_path, lines = (
                 raw_snippet.split(":")[-2],
                 raw_snippet.split(":")[-1],
-            )  # solves issue with new_file:snippet:line1-line2
+            )  # solves issue with file_path:snippet:line1-line2
             if not generated_file_path or not lines.strip():
                 continue
             generated_file_path, lines = (
@@ -140,32 +142,14 @@ class GraphChildBot(ChatGPT):
         previous_snippets,
         all_symbols_and_files,
     ) -> GraphContextAndPlan:
-        self.messages = [
-            Message(
-                role="system",
-                content=system_prompt.format(file_path=file_path),
-                key="system",
-            )
-        ]
-        code_with_line_numbers = extract_python_span(code, entities)
-
-        user_prompt = graph_user_prompt.format(
-            code=code_with_line_numbers,
+        
+        python_snippet = extract_python_span(code, entities)
+        python_snippet.file_path = file_path
+        return GraphContextAndPlan(
+            relevant_new_snippet=[python_snippet],
+            code_change_description="",
             file_path=file_path,
-            entities=entities,
-            issue_metadata=issue_metadata,
-            previous_snippets=previous_snippets,
-            all_symbols_and_files=all_symbols_and_files,
         )
-        self.model = (
-            "gpt-4-32k-0613"
-            if (self.chat_logger and self.chat_logger.is_paying_user())
-            else "gpt-3.5-turbo-16k-0613"
-        )
-        response = self.chat(user_prompt)
-        graph_plan = GraphContextAndPlan.from_string(response, file_path=file_path)
-        graph_plan.entities = entities
-        return graph_plan
 
 
 def extract_int(s):
@@ -177,117 +161,20 @@ def extract_int(s):
 
 def extract_python_span(code, entities):
     lines = code.split("\n")
-    line_usages = {i: set() for i, line in enumerate(lines)}
-
-    # Identify lines where entities are declared as variables
-    variables_with_entity = set()
-    for i, line in enumerate(lines):
-        for entity in entities:
-            if (
-                entity in line
-                and "=" in line
-                and not line.lstrip().startswith(("class ", "def "))
-            ):
-                variable_name = line.split("=")[0].strip()
-                variables_with_entity.add(variable_name)
-                line_usages[i].add(variable_name)
-
-    # Identify lines where these variables are used
-    for i, line in enumerate(lines):
-        for variable in variables_with_entity:
-            if variable in line:
-                line_usages[i].add(variable)
-
-    captured_lines = set()
-
-    # Capture lines around the variable usage
-    for i, line in enumerate(lines):
-        for variable in variables_with_entity:
-            if variable in line:
-                captured_lines.update(range(max(0, i - 20), min(len(lines), i + 21)))
-
-    parser = get_parser("python")
-    tree = parser.parse(code.encode("utf-8"))
-
-    # Capturing entire subscope for class and function definitions using tree-sitter
-    def get_subscope_lines(node):
-        start_line = node.start_point[0]
-        end_line = node.end_point[0]
-        return range(start_line, end_line + 1)
-
-    def walk_tree(node):
-        if node.type in ["class_definition", "function_definition"]:
-            # Check if the entity is in the first line (class Entity or class Class(Entity), etc)
-            if any(
-                entity in node.text.decode("utf-8").split("\n")[0]
-                for entity in entities
-            ):
-                captured_lines.update(get_subscope_lines(node))
-        for child in node.children:
-            walk_tree(child)
-
-    try:
-        walk_tree(tree.root_node)
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        print("Failed to parse python file. Using for loop instead.")
-        # Capture entire subscope for class and function definitions
-        for i, line in enumerate(lines):
-            if any(
-                entity in line and line.lstrip().startswith(keyword)
-                for entity in entities
-                for keyword in ["class ", "def "]
-            ):
-                indent_level = len(line) - len(line.lstrip())
-                captured_lines.add(i)
-
-                # Add subsequent lines until a line with a lower indent level is encountered
-                j = i + 1
-                while j < len(lines):
-                    current_indent = len(lines[j]) - len(lines[j].lstrip())
-                    if current_indent > indent_level and len(lines[j].lstrip()) > 0:
-                        captured_lines.add(j)
-                        j += 1
-                    else:
-                        break
-            # For non-variable lines with the entity, capture ±20 lines
-            elif any(entity in line for entity in entities):
-                captured_lines.update(range(max(0, i - 20), min(len(lines), i + 21)))
-
-    # For non-variable lines with the entity (like imports), capture ±20 lines
-    for i, line in enumerate(lines):
-        if any(entity in line for entity in entities) and not any(
-            keyword in line.lstrip() for keyword in ["class ", "def ", "="]
-        ):
-            captured_lines.update(range(max(0, i - 20), min(len(lines), i + 21)))
-
-    captured_lines = sorted(list(captured_lines))
-    result = []
-
-    previous_line_number = -1  # Initialized to an impossible value
-
-    # Construct the result with line numbers and mentions
-    for i in captured_lines:
-        line = lines[i]
-
-        # Add "..." to indicate skipped lines
-        if previous_line_number != -1 and i - previous_line_number > 1:
-            result.append("...")
-
-        mentioned_entities = line_usages.get(i, [])
+    code_with_line_numbers = "\n"
+    mention_count = 0
+    for idx, line in enumerate(lines):
+        mentioned_entities = [entity for entity in entities if entity in line]
         if mentioned_entities:
-            mentioned_entities_str = ", ".join(mentioned_entities)
-            result.append(
-                f"{i + 1} {line} <- {mentioned_entities_str} is mentioned here"
-            )
+            mention_count = 50
         else:
-            result.append(f"{i + 1} {line}")
-
-        previous_line_number = i
-
-    return "\n".join(result)
-
+            mention_count -= 1
+            if mention_count == -1:
+                code_with_line_numbers += f"...\n"
+        if mention_count > 0:
+            code_with_line_numbers += f"{idx + 1} {line}\n"
+    code_with_line_numbers = code_with_line_numbers.strip()
+    return Snippet(file_path="", start=0, end=0, content=code_with_line_numbers)
 
 if __name__ == "__main__":
     file = r'''import ModifyBot
@@ -1740,4 +1627,3 @@ Please replace 'is_python_issue' with the actual value of the bool.
         response, "sweepai/handlers/on_ticket.py"
     )
     print(gc_and_plan.code_change_description)
-    # import pdb; pdb.set_trace()

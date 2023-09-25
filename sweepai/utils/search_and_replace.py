@@ -49,11 +49,9 @@ def score_multiline(query: list[str], target: list[str]) -> float:
         # Sequence: 1, 2/3, 1/2, 2/5...
         index = min(q, len(query) - q)
         return 100 / (index / 2 + 1)
-
     while q < len(query) and t < len(target):
         q_line = query[q]
         t_line = target[t]
-
         weight = get_weight(q)
 
         if match_without_whitespace(q_line, t_line):
@@ -89,8 +87,7 @@ def score_multiline(query: list[str], target: list[str]) -> float:
         ):
             # Case 2: skipped comment
             skipped_comments += 1
-            q += 1
-            t += 2
+            t += 1
             scores.append((90, weight))
         else:
             break
@@ -303,6 +300,18 @@ def strip_backticks(s: str) -> str:
     return s.strip("\n")
 
 
+def remove_line_numbers(s: str) -> str:
+    # Check if more than 50% of lines have line numbers
+    # Remove line numbers with spaces after (e.g. "1: {code}")
+    if len(re.findall(r"\d+?: ", s)) > len(s.split("\n")) / 2:
+        return re.sub(r"\d+?: ", "", s, flags=re.MULTILINE)
+
+    # Remove line numbers with no space after (e.g. "112:{code}")
+    if len(re.findall(r"\d+?:", s)) > len(s.split("\n")) / 2:
+        return re.sub(r"\d+?:", "", s, flags=re.MULTILINE)
+    return s
+
+
 def match_indent(generated: str, original: str) -> str:
     indent_type = "\t" if "\t" in original[:5] else " "
     generated_indents = len(generated) - len(generated.lstrip())
@@ -433,11 +442,11 @@ class CodeGenBot(ChatGPT):
             is_python_issue = (
                 sum(
                     [
-                        file_path.endswith(".py")
+                        not file_path.endswith(".py")
                         for file_path in self.human_message.get_file_paths()
                     ]
                 )
-                > len(self.human_message.get_file_paths()) / 2
+                < 2
             )
             logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
             python_issue_worked = True
@@ -480,7 +489,7 @@ class CodeGenBot(ChatGPT):
                         non_human_message_snippet_paths.add(
                             file_path
                         )  # TODO (luke) use trimmed context of initial files in this step instead of self.human_message.render_snippet_array(other_snippets)
-                    plans: List[GraphContextAndPlan] = []
+                    plans: list[GraphContextAndPlan] = []
                     for file_path in (
                         human_message_snippet_paths | non_human_message_snippet_paths
                     ):
@@ -518,9 +527,8 @@ class CodeGenBot(ChatGPT):
                             ),
                             all_symbols_and_files=relevant_symbols_string,
                         )
-                        if plan.changes_for_new_file and plan.relevant_new_snippet:
+                        if plan.relevant_new_snippet:
                             plans.append(plan)
-
                     file_path_set = set()
                     deduped_plans = []
                     for plan in plans:
@@ -543,17 +551,9 @@ class CodeGenBot(ChatGPT):
                         )
                     plans = sorted_plans
 
-                    relevant_snippets = self.human_message.snippets
+                    relevant_snippets = []
                     for plan in plans:
-                        self.populate_snippets(plan.relevant_new_snippet)
                         relevant_snippets.extend(plan.relevant_new_snippet)
-
-                    plan_suggestions = []
-
-                    for plan in plans:
-                        plan_suggestions.append(
-                            f"<plan_suggestion file={plan.file_path}>\n{plan.changes_for_new_file}\n</plan_suggestion>"
-                        )
 
                     python_human_message = PythonHumanMessagePrompt(
                         repo_name=self.human_message.repo_name,
@@ -561,28 +561,30 @@ class CodeGenBot(ChatGPT):
                         username=self.human_message.username,
                         title=self.human_message.title,
                         summary=self.human_message.summary,
-                        snippets=[],
+                        snippets=relevant_snippets,
                         tree=self.human_message.tree,
                         repo_description=self.human_message.repo_description,
-                        plan_suggestions=plan_suggestions,
                     )
                     prompt_message_dicts = python_human_message.construct_prompt()
                     new_messages = [self.messages[0]]
                     for message_dict in prompt_message_dicts:
                         new_messages.append(Message(**message_dict))
                     self.messages = new_messages
+                    files_to_change_response = self.chat(
+                    files_to_change_prompt, message_key="files_to_change"
+                    )  # Dedup files to change here
                     file_change_requests = []
-                    for plan in plans:
+                    for re_match in re.finditer(
+                        FileChangeRequest._regex, files_to_change_response, re.DOTALL
+                    ):
                         file_change_requests.append(
-                            FileChangeRequest(
-                                filename=plan.file_path,
-                                instructions=plan.changes_for_new_file,
-                                change_type="modify",
-                            )
+                            FileChangeRequest.from_string(re_match.group(0))
                         )
-                    return file_change_requests, " ".join(plan_suggestions)
+                    
+
+                    if file_change_requests:
+                        return file_change_requests, files_to_change_response
             if not is_python_issue or not python_issue_worked:
-                # Todo(wwzeng1): Integrate the plans list into the files_to_change_prompt optionally.
                 if pr_diffs is not None:
                     self.delete_messages_from_chat("pr_diffs")
                     self.messages.insert(
@@ -599,6 +601,7 @@ class CodeGenBot(ChatGPT):
                 file_change_requests.append(
                     FileChangeRequest.from_string(re_match.group(0))
                 )
+
             if file_change_requests:
                 return file_change_requests, files_to_change_response
         except RegexMatchError as e:
@@ -627,10 +630,32 @@ class CodeGenBot(ChatGPT):
                         model=SECONDARY_MODEL,
                     )
 
-                # Add triple quotes if not present"""
+                # Add triple quotes if not present
+"""
 
     # Sample target snippet
-    target = """def get_files_to_change(
+    target = """
+def get_files_to_change(
+    self, retries=1, pr_diffs: str | None = None
+) -> tuple[list[FileChangeRequest], str]:
+    file_change_requests: list[FileChangeRequest] = []
+    try:
+        is_python_issue = (
+            sum(
+                [
+                    not file_path.endswith(".py")
+                    for file_path in self.human_message.get_file_paths()
+                ]
+            )
+            < 2
+        )
+        logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+        python_issue_worked = True
+        if is_python_issue:
+    """.strip("\n")
+
+    _match = """
+def get_files_to_change(
     self, retries=1, pr_diffs: str | None = None
 ) -> tuple[list[FileChangeRequest], str]:
     file_change_requests: list[FileChangeRequest] = []
@@ -640,23 +665,19 @@ class CodeGenBot(ChatGPT):
         is_python_issue = (
             sum(
                 [
-                    file_path.endswith(".py")
+                    not file_path.endswith(".py")
                     for file_path in self.human_message.get_file_paths()
                 ]
             )
-            > len(self.human_message.get_file_paths()) / 2
+            < 2
         )
         logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
         python_issue_worked = True
         if is_python_issue:
-            graph = Graph.from_folder(folder_path=self.cloned_repo.cache_dir)
-            graph_parent_bot = GraphParentBot(chat_logger=self.chat_logger)
-            if pr_diffs is not None:
-                self.delete_messages_from_chat("pr_diffs")
-                graph_parent_bot.messages.insert(
-                    1, Message(role="user", content=pr_diffs, key="pr_diffs")
-                )
-    """.strip()
+    """.strip("\n")
+
+    print(score_multiline(target.split("\n"), _match.split("\n")))
+    quit()
 
     # Find the best match
     best_span = find_best_match(target, code_file)

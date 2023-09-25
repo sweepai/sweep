@@ -95,7 +95,6 @@ Issue Description: {self.summary}
 
 
 class PythonHumanMessagePrompt(HumanMessagePrompt):
-    plan_suggestions: list
 
     def construct_prompt(self):
         human_messages = [
@@ -113,14 +112,19 @@ class PythonHumanMessagePrompt(HumanMessagePrompt):
                     else "No description provided.",
                     relevant_snippets=self.render_snippets(),
                     relevant_directories=self.get_relevant_directories(),
-                    plan_suggestions="\n".join(self.plan_suggestions),
                 ),
                 "key": msg.get("key"),
             }
             for msg in python_human_message_prompt
         ]
         return human_messages
-
+    
+    def render_snippets(self):
+        res = ""
+        for snippet in self.snippets:
+            snippet_text = f"<snippet source={snippet.file_path}>\n{snippet.content}\n</snippet>\n"
+            res += snippet_text
+        return res
 
 class HumanMessagePromptReview(HumanMessagePrompt):
     pr_title: str
