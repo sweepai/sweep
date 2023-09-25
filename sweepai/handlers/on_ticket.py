@@ -551,6 +551,12 @@ def on_ticket(
     except Exception as e:
         logger.error(f"Failed to extract docs: {e}")
 
+    # Compute is_python_issue
+    is_python_issue = 'python' in title.lower() or 'python' in summary.lower()
+    
+    # Log is_python_issue computation to Posthog
+    posthog('is_python_issue_computed', {'is_python_issue': is_python_issue})
+    
     human_message = HumanMessagePrompt(
         repo_name=repo_name,
         issue_url=issue_url,
@@ -560,6 +566,17 @@ def on_ticket(
         summary=message_summary,
         snippets=snippets,
         tree=tree,
+        is_python_issue=is_python_issue,
+    )
+    
+    sweep_bot = SweepBot.from_system_message_content(
+        human_message=human_message,
+        repo=repo,
+        is_reply=bool(comments),
+        chat_logger=chat_logger,
+        sweep_context=sweep_context,
+        cloned_repo=cloned_repo,
+        is_python_issue=is_python_issue,
     )
 
     context_pruning = ContextPruning(chat_logger=chat_logger)
