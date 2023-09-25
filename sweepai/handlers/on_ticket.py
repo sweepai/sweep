@@ -13,6 +13,7 @@ import github
 from github import GithubException, BadCredentialsException
 from tabulate import tabulate
 from tqdm import tqdm
+from sweepai.utils.event_logger import posthog
 
 from logn import logger, LogTask
 from sweepai.core.context_pruning import ContextPruning
@@ -174,6 +175,15 @@ def on_ticket(
         )  # moving higher, will increment the issue regardless of whether it's a success or not
 
     organization, repo_name = repo_full_name.split("/")
+    is_python_issue = (
+        sum(
+            [
+                not file_path.endswith(".py")
+                for file_path in self.human_message.get_file_paths()
+            ]
+        )
+        < 2
+    )
     metadata = {
         "issue_url": issue_url,
         "repo_full_name": repo_full_name,
@@ -194,6 +204,7 @@ def on_ticket(
         "subissues_mode": subissues_mode,
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
+        "is_python_issue": is_python_issue,
     }
     # logger.bind(**metadata)
     posthog.capture(username, "started", properties=metadata)
@@ -1186,6 +1197,6 @@ def on_ticket(
             logger.error(traceback.format_exc())
             logger.print("Deleted branch", pull_request.branch_name)
 
-    posthog.capture(username, "success", properties={**metadata})
+    posthog.capture(username, "success", properties={**metadata, "is_python_issue": is_python_issue})
     logger.info("on_ticket success")
     return {"success": True}
