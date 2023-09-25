@@ -209,6 +209,7 @@ class Documentation:
 
 
 def prepare_index_from_docs(docs):
+    import traceback
     all_docs = [Documentation(url, content) for url, content in docs]
     tokenizer = CodeTokenizer()
     # An example analyzer for code
@@ -229,8 +230,8 @@ def prepare_index_from_docs(docs):
         writer.commit()
     except SystemExit:
         raise SystemExit
-    except Exception as e:
-        logger.error(e)
+    except Exception:
+        logger.error(f"Error occurred:\n{traceback.format_exc()}")
     return ix
 
 
@@ -258,6 +259,7 @@ def search_docs(query, ix):
 
 
 def search_index(query, ix):
+    import traceback
     """Title, score, content"""
     try:
         # Create a query parser for the "content" field of the index
@@ -284,7 +286,6 @@ def search_index(query, ix):
         return res
     except SystemExit:
         raise SystemExit
-    except Exception as e:
-        logger.print(e)
-        traceback.print_exc()
+    except Exception:
+        logger.print(f"Error occurred:\n{traceback.format_exc()}")
         return {}
