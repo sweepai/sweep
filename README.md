@@ -146,3 +146,9 @@ Contributions are welcome and greatly appreciated! To get set up, see [Developme
 <p align="center">
     and, of course, Sweep!
 </p>
+
+---
+
+<p align="center">
+    Thank you for reading! We appreciate your interest in Sweep. If you have any questions or suggestions, feel free to open an issue or submit a pull request.
+</p>
