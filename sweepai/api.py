@@ -11,7 +11,6 @@ logger.init(
 )
 
 import ctypes
-from queue import Queue
 import sys
 import threading
 
@@ -28,19 +27,14 @@ from sweepai.config.client import (
     SWEEP_BAD_FEEDBACK,
 )
 from sweepai.config.server import (
-    API_MODAL_INST_NAME,
-    BOT_TOKEN_NAME,
-    DB_MODAL_INST_NAME,
-    DOCS_MODAL_INST_NAME,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
     DISCORD_FEEDBACK_WEBHOOK_URL,
-    WHITELISTED_USERS,
 )
 from sweepai.core.documentation import write_documentation
-from sweepai.core.entities import PRChangeRequest, SweepContext
+from sweepai.core.entities import PRChangeRequest
 from sweepai.core.vector_db import get_deeplake_vs_from_repo
 from sweepai.events import (
     CheckRunCompleted,
@@ -51,14 +45,12 @@ from sweepai.events import (
     PRRequest,
     ReposAddedRequest,
     PREdited,
-    GithubRequest,
 )
 from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  # type: ignore
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
 from sweepai.handlers.on_ticket import on_ticket
-from sweepai.redis_init import redis_client
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
@@ -738,8 +730,6 @@ async def webhook(raw_request: Request):
                             raise SystemExit
                         except Exception as e:
                             logger.error(f"Failed to edit PR description: {e}")
-                    pass
-                pass
             case "pull_request", "closed":
                 pr_request = PRRequest(**request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")

@@ -1,9 +1,7 @@
-import json
 from datetime import datetime, timedelta
 import os
 from typing import Any
 
-import requests
 
 # from logn import logger
 from loguru import logger

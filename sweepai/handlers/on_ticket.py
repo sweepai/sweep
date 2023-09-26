@@ -9,7 +9,6 @@ import re
 import traceback
 import openai
 
-import github
 from github import GithubException, BadCredentialsException
 from tabulate import tabulate
 from tqdm import tqdm
@@ -20,14 +19,12 @@ from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import (
     ProposedIssue,
     SandboxResponse,
-    Snippet,
     NoFilesException,
     SweepContext,
     MaxTokensExceeded,
     EmptyRepository,
 )
 from sweepai.core.external_searcher import ExternalSearcher
-from sweepai.core.slow_mode_expand import SlowModeBot
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.core.prompts import issue_comment_prompt
 
@@ -96,7 +93,6 @@ def on_ticket(
         fast_mode,
         lint_mode,
     ) = strip_sweep(title)
-
 
     # Flow:
     # 1. Get relevant files
@@ -719,7 +715,9 @@ def on_ticket(
             )
             < 2
         )
-        posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+        posthog.capture(
+            username, "is_python_issue", properties={"is_python_issue": is_python_issue}
+        )
         file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:

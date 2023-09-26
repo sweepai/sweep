@@ -1,10 +1,8 @@
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import field
 import traceback
 import re
 import requests
-from typing import Generator, Any, Dict, List, Tuple
+from typing import Generator, Any, Dict
 from logn import logger
 
 from github.ContentFile import ContentFile
@@ -20,7 +18,6 @@ from sweepai.agents.graph_child import (
 from sweepai.agents.graph_parent import GraphParentBot
 
 from sweepai.core.chat import ChatGPT
-from sweepai.core.edit_chunk import EditBot
 from sweepai.core.entities import (
     FileCreation,
     ProposedIssue,
@@ -43,13 +40,7 @@ from sweepai.core.prompts import (
     subissues_prompt,
     pull_request_prompt,
     create_file_prompt,
-    modify_file_prompt_3,
-    modify_file_system_message,
     snippet_replacement,
-    chunking_prompt,
-    RECREATE_LINE_LENGTH,
-    modify_recreate_file_system_message,
-    modify_recreate_file_prompt_3,
     rewrite_file_prompt,
     rewrite_file_system_prompt,
     snippet_replacement_system_message,
@@ -62,14 +53,12 @@ from sweepai.core.prompts import (
     dont_use_chunking_message,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import DB_MODAL_INST_NAME, SANDBOX_URL, SECONDARY_MODEL
+from sweepai.config.server import SANDBOX_URL, SECONDARY_MODEL
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import (
     format_contents,
     generate_diff,
-    generate_new_file_from_patch,
     is_markdown,
-    get_matches,
     sliding_window_replacement,
 )
 

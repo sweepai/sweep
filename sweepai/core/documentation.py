@@ -1,8 +1,6 @@
-import asyncio
 import re
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from logn import logger, LogTask
-from tqdm import tqdm
 from sweepai.core.lexical_search import prepare_index_from_docs, search_docs
 from sweepai.core.robots import is_url_allowed
 from sweepai.core.webscrape import webscrape
@@ -10,8 +8,6 @@ from sweepai.pre_indexed_docs import DOCS_ENDPOINTS
 
 from sweepai.config.server import (
     ACTIVELOOP_TOKEN,
-    DOCS_MODAL_INST_NAME,
-    ENV,
     ORG_ID,
     SENTENCE_TRANSFORMERS_MODEL,
 )

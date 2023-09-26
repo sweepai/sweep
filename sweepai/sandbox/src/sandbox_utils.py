@@ -2,7 +2,7 @@ import os
 
 import yaml
 from pydantic import BaseModel
-from typing import Type, TypeVar, Any
+from typing import TypeVar
 
 Self = TypeVar("Self", bound="BaseModel")
 

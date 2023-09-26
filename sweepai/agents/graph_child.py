@@ -1,10 +1,9 @@
-import ast
 import re
 from tree_sitter_languages import get_parser
 
 from logn import logger
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message, RegexMatchableBaseModel, Snippet
+from sweepai.core.entities import RegexMatchableBaseModel, Snippet
 
 system_prompt = """You are a genius engineer tasked with extracting the code and planning the solution to the following GitHub issue.
 Decide whether the file_path {file_path} needs to be modified to solve this issue and the proposed solution.

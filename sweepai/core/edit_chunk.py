@@ -1,5 +1,3 @@
-import json
-import subprocess
 from logn import logger
 
 from sweepai.core.chat import ChatGPT

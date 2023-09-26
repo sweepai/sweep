@@ -19,12 +19,10 @@ from sweepai.core.entities import (
     MockPR,
     FileChangeRequest,
     SweepContext,
-    Message,
 )
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.diff import generate_diff
 from sweepai.config.server import (
     GITHUB_BOT_USERNAME,
     ENV,

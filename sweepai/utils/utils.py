@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 import traceback
-import requests
 from dataclasses import dataclass
 
 from logn import logger
@@ -10,7 +9,6 @@ from logn import logger
 import tiktoken
 
 from sweepai.core.entities import Snippet
-from sweepai.config.server import ENV, UTILS_MODAL_INST_NAME
 
 
 def non_whitespace_len(s: str) -> int:  # new len function

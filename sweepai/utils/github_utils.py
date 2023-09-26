@@ -13,7 +13,6 @@ from redis.retry import Retry
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 import requests
 from github import Github
-from github.Repository import Repository
 from jwt import encode
 from logn import logger
 import git
@@ -25,8 +24,7 @@ from sweepai.config.server import (
     REDIS_URL,
 )
 from sweepai.utils.ctags import CTags
-from sweepai.utils.ctags_chunker import get_ctags_for_file, get_ctags_for_search
-from rapidfuzz import fuzz
+from sweepai.utils.ctags_chunker import get_ctags_for_file
 
 MAX_FILE_COUNT = 50
 

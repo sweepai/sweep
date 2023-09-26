@@ -6,7 +6,6 @@ from logn import logger
 from typing import ClassVar, Literal, Type, TypeVar, Any, List
 from github.Repository import Repository
 
-from github.Branch import Branch
 from pydantic import BaseModel
 from urllib.parse import quote
 

@@ -12,7 +12,6 @@ from logn import logger
 from sweepai.core.entities import PRChangeRequest
 from sweepai.core.gha_extraction import GHAExtractor
 from sweepai.events import CheckRunCompleted
-from sweepai.handlers.on_comment import on_comment
 from sweepai.config.client import get_gha_enabled
 from sweepai.utils.github_utils import get_github_client, get_token
 

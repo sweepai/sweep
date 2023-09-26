@@ -1,4 +1,3 @@
-from itertools import chain
 import os
 import uuid
 import yaml

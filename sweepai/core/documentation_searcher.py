@@ -1,5 +1,4 @@
 from logn import logger
-from sweepai.config.server import DOCS_MODAL_INST_NAME
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.documentation import DOCS_ENDPOINTS, search_vector_store

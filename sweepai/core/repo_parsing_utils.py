@@ -1,6 +1,5 @@
 import glob
 import os
-import itertools
 from logn import logger
 
 from tqdm import tqdm

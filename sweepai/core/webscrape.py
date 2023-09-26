@@ -1,7 +1,4 @@
-import asyncio
-import os
 import re
-import time
 from logn import logger
 
 from playwright.async_api import async_playwright
@@ -125,7 +122,6 @@ async def webscrape(BASE_URL_PREFIX):
                 raise SystemExit
             except:
                 logger.warning(f"Failed to scrape {link}")
-                pass
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(timeout=0)

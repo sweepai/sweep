@@ -1,5 +1,3 @@
-import os
-import traceback as tb
 from logn import logger, file_cache
 import openai
 from sweepai.config.server import (

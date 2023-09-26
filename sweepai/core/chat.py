@@ -1,17 +1,15 @@
-import json
-from copy import deepcopy
 import time
-from typing import Any, Iterator, Literal
+from typing import Any, Literal
 import traceback
 
 import anthropic
 import backoff
 from pydantic import BaseModel
 
-from logn import logger, file_cache
+from logn import logger
 from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.utils import Tiktoken
-from sweepai.core.entities import Message, Function, SweepContext
+from sweepai.core.entities import Message, SweepContext
 from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.config.client import get_description

@@ -3,14 +3,12 @@ from __future__ import annotations
 import os
 import threading
 from functools import lru_cache
-from typing import Dict
 
 import yaml
 from github.Repository import Repository
 from pydantic import BaseModel
 
 from logn import logger
-from sweepai.config.server import ENV
 from sweepai.core.entities import EmptyRepository
 
 

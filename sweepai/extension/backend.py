@@ -8,7 +8,7 @@ from loguru import logger
 from github import Github
 
 from sweepai.utils.event_logger import posthog
-from sweepai.config.server import ENV, BOT_TOKEN_NAME
+from sweepai.config.server import ENV
 
 GITHUB_OAUTH_URL = "https://github.com/login/oauth/access_token"
 

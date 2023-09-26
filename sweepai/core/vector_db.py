@@ -1,7 +1,4 @@
-import hashlib
 import json
-import os
-import pickle
 import re
 import time
 from functools import lru_cache
@@ -12,12 +9,8 @@ import numpy as np
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
 )
-from github import Github
 from logn import logger, file_cache
 from redis import Redis
-from redis.backoff import ConstantBackoff
-from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
-from redis.retry import Retry
 import requests
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
 from tqdm import tqdm
@@ -39,8 +32,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
 from redis import Redis
 from sweepai.utils.scorer import compute_score, get_scores
-from ..utils.github_utils import ClonedRepo, get_token
-import openai
+from ..utils.github_utils import ClonedRepo
 
 MODEL_DIR = "/tmp/cache/model"
 DEEPLAKE_DIR = "/tmp/cache/"
@@ -155,6 +147,7 @@ def embed_texts(texts: tuple[str]):
 def embedding_function(texts: list[str]):
     # For LRU cache to work
     return embed_texts(tuple(texts))
+
 
 def get_deeplake_vs_from_repo(
     cloned_repo: ClonedRepo,
@@ -360,7 +353,9 @@ def get_relevant_snippets(
             lexical_scores.append(0.3)
     vector_scores = results["score"]
     combined_scores = [
-        code_score * 1.5 + vector_score + lexical_score * 2.5 # increase weight of lexical search
+        code_score * 1.5
+        + vector_score
+        + lexical_score * 2.5  # increase weight of lexical search
         for code_score, vector_score, lexical_score in zip(
             code_scores, vector_scores, lexical_scores
         )

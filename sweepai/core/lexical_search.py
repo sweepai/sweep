@@ -1,15 +1,12 @@
 from logn import logger
-import shutil
 import traceback
 from dataclasses import dataclass
-import itertools
 import re
 from sweepai.core.entities import Snippet
 from whoosh.analysis import Tokenizer, Token
 from whoosh.filedb.filestore import RamStorage
 import os
 import random
-import time
 from whoosh.query import Or, Term
 
 random.seed(os.getpid())
@@ -166,9 +163,7 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
     return docs
 
 
-from whoosh.qparser import QueryParser, OrGroup
 import os
-from whoosh import index
 from whoosh.fields import Schema, TEXT, NUMERIC
 
 

@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 import json
-import os
 import subprocess
-from collections import defaultdict
 from logn import logger
 from redis import Redis
 

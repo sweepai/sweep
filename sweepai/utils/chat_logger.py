@@ -189,4 +189,3 @@ def discord_log_error(content, priority=0):
         raise SystemExit
     except Exception as e:
         logger.error(f"Could not log to Discord: {e}")
-        pass

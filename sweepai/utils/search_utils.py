@@ -1,9 +1,6 @@
-import shutil
-import subprocess
 import github
-from logn import logger, file_cache
+from logn import logger
 
-from github.Repository import Repository
 from tqdm import tqdm
 
 from sweepai.config.client import SweepConfig
@@ -48,7 +45,6 @@ def search_snippets(
             query,
         )
         logger.info(f"Snippets for query {query}: {snippets}")
-    from git import Repo
 
     file_list = cloned_repo.get_file_list()
     query_file_names = get_file_names_from_query(query)
@@ -62,7 +58,10 @@ def search_snippets(
     non_boosted_snippets = []
     completed_snippets = set()
     for snippet in snippets:
-        if snippet.file_path in query_match_files and snippet.file_path not in completed_snippets:
+        if (
+            snippet.file_path in query_match_files
+            and snippet.file_path not in completed_snippets
+        ):
             boosted_snippets.append(snippet)
             completed_snippets.add(snippet.file_path)
         else:
