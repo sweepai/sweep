@@ -2,6 +2,7 @@ from dataclasses import dataclass
 import re
 from fuzzywuzzy import fuzz
 from logn import logger
+import traceback
 
 from tqdm import tqdm
 
@@ -140,82 +141,85 @@ def get_max_indent(content: str, indent_type: str):
 
 
 def find_best_match(query: str, code_file: str):
-    best_match = Match(-1, -1, 0)
+    try:
+        best_match = Match(-1, -1, 0)
 
-    code_file_lines = code_file.split("\n")
-    query_lines = query.split("\n")
-    if len(query_lines) > 0 and query_lines[-1].strip() == "...":
-        query_lines = query_lines[:-1]
-    if len(query_lines) > 0 and query_lines[0].strip() == "...":
-        query_lines = query_lines[1:]
-    indent = get_indent_type(code_file)
-    max_indents = get_max_indent(code_file, indent)
+        code_file_lines = code_file.split("\n")
+        query_lines = query.split("\n")
+        if len(query_lines) > 0 and query_lines[-1].strip() == "...":
+            query_lines = query_lines[:-1]
+        if len(query_lines) > 0 and query_lines[0].strip() == "...":
+            query_lines = query_lines[1:]
+        indent = get_indent_type(code_file)
+        max_indents = get_max_indent(code_file, indent)
 
-    top_matches = []
+        top_matches = []
 
-    if len(query_lines) == 1:
-        for i, line in enumerate(code_file_lines):
-            score = score_line(line, query_lines[0])
-            if score > best_match.score:
-                best_match = Match(i, i + 1, score)
-        return best_match
-
-    for num_indents in range(0, min(max_indents + 1, 20)):
-        # Optimize later by using radix
-        indented_query_lines = [indent * num_indents + line for line in query_lines]
-        # for line in code_file_lines:
-        #     # print(line)
-        #     print(score_line(line, indented_query_lines[0]))
-
-        start_indices = [
-            i
-            for i, line in enumerate(code_file_lines)
-            if score_line(line, indented_query_lines[0]) > 50
-        ]
-        start_indices = start_indices or [
-            i
-            for i in start_indices
-            if score_multiline(indented_query_lines[:2], code_file_lines[i : i + 2])
-            > 50
-        ]
-
-        if not start_indices:
-            start_pairs = [
-                (i, score_line(line, indented_query_lines[0]))
-                for i, line in enumerate(code_file_lines)
-            ]
-            start_pairs.sort(key=lambda x: x[1], reverse=True)
-            start_pairs = start_pairs[: min(20, len(start_pairs) // 10)]
-            start_indices = sorted([i for i, _ in start_pairs])
-
-        for i in tqdm(start_indices):
-            for j in range(
-                i + len(indented_query_lines),
-                min(len(code_file_lines) + 1, i + 2 * len(indented_query_lines) + 100),
-            ):
-                candidate = code_file_lines[i:j]
-                score = score_multiline(indented_query_lines, candidate) * (
-                    1 - num_indents * 0.01
-                )
-                current_match = Match(i, j, score, indent * num_indents)
-
-                top_matches.append(current_match)
-
+        if len(query_lines) == 1:
+            for i, line in enumerate(code_file_lines):
+                score = score_line(line, query_lines[0])
                 if score > best_match.score:
-                    best_match = current_match
+                    best_match = Match(i, i + 1, score)
+            return best_match
 
-    unique_top_matches: list[Match] = []
-    print(unique_top_matches)
-    unique_spans = set()
-    for top_match in sorted(top_matches, reverse=True):
-        if (top_match.start, top_match.end) not in unique_spans:
-            unique_top_matches.append(top_match)
-            unique_spans.add((top_match.start, top_match.end))
-    for top_match in unique_top_matches[:5]:
-        logger.print(top_match)
+        for num_indents in range(0, min(max_indents + 1, 20)):
+            # Optimize later by using radix
+            indented_query_lines = [indent * num_indents + line for line in query_lines]
+            # for line in code_file_lines:
+            #     # print(line)
+            #     print(score_line(line, indented_query_lines[0]))
 
-    # Todo: on_comment file comments able to modify multiple files
-    return unique_top_matches[0] if unique_top_matches else Match(-1, -1, 0)
+            start_indices = [
+                i
+                for i, line in enumerate(code_file_lines)
+                if score_line(line, indented_query_lines[0]) > 50
+            ]
+            start_indices = start_indices or [
+                i
+                for i in start_indices
+                if score_multiline(indented_query_lines[:2], code_file_lines[i : i + 2])
+                > 50
+            ]
+
+            if not start_indices:
+                start_pairs = [
+                    (i, score_line(line, indented_query_lines[0]))
+                    for i, line in enumerate(code_file_lines)
+                ]
+                start_pairs.sort(key=lambda x: x[1], reverse=True)
+                start_pairs = start_pairs[: min(20, len(start_pairs) // 10)]
+                start_indices = sorted([i for i, _ in start_pairs])
+
+            for i in tqdm(start_indices):
+                for j in range(
+                    i + len(indented_query_lines),
+                    min(len(code_file_lines) + 1, i + 2 * len(indented_query_lines) + 100),
+                ):
+                    candidate = code_file_lines[i:j]
+                    score = score_multiline(indented_query_lines, candidate) * (
+                        1 - num_indents * 0.01
+                    )
+                    current_match = Match(i, j, score, indent * num_indents)
+
+                    top_matches.append(current_match)
+
+                    if score > best_match.score:
+                        best_match = current_match
+
+        unique_top_matches: list[Match] = []
+        print(unique_top_matches)
+        unique_spans = set()
+        for top_match in sorted(top_matches, reverse=True):
+            if (top_match.start, top_match.end) not in unique_spans:
+                unique_top_matches.append(top_match)
+                unique_spans.add((top_match.start, top_match.end))
+        for top_match in unique_top_matches[:5]:
+            logger.print(top_match)
+
+        # Todo: on_comment file comments able to modify multiple files
+        return unique_top_matches[0] if unique_top_matches else Match(-1, -1, 0)
+    except Exception as e:
+        logger.error(traceback.format_exc())
 
 
 if __name__ == "__main__":
