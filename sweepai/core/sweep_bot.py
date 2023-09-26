@@ -12,7 +12,11 @@ from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from github.Commit import Commit
 from pydantic import BaseModel
-from sweepai.agents.graph_child import GraphChildBot, GraphContextAndPlan, extract_python_span
+from sweepai.agents.graph_child import (
+    GraphChildBot,
+    GraphContextAndPlan,
+    extract_python_span,
+)
 from sweepai.agents.graph_parent import GraphParentBot
 
 from sweepai.core.chat import ChatGPT
@@ -833,13 +837,6 @@ class SweepBot(CodeGenBot, GithubBot):
                         role="user",
                     )
                 ]
-            if chunking:
-                additional_messages += [
-                    Message(
-                        content="This is one of the sections of code out of a larger body of code and the changes may not be in this file. If you do not wish to make changes to this file, please type `skip`.",
-                        role="assistant",
-                    )
-                ]
             modify_file_bot = ModifyBot(
                 additional_messages,
                 parent_bot=self,
@@ -1385,7 +1382,11 @@ class ModifyBot:
     ):
         fetch_snippets_response = self.fetch_snippets_bot.chat(
             fetch_snippets_prompt.format(
-                code=extract_python_span(file_contents, [file_change_request.entity]).content if file_change_request.entity else file_contents,
+                code=extract_python_span(
+                    file_contents, [file_change_request.entity]
+                ).content
+                if file_change_request.entity
+                else file_contents,
                 file_path=file_path,
                 request=file_change_request.instructions,
                 chunking_message=use_chunking_message
@@ -1450,7 +1451,11 @@ class ModifyBot:
         print(deduped_matches)
         update_snippets_response = self.update_snippets_bot.chat(
             update_snippets_prompt.format(
-                code=extract_python_span(file_contents, [file_change_request.entity]).content if file_change_request.entity else file_contents,
+                code=extract_python_span(
+                    file_contents, [file_change_request.entity]
+                ).content
+                if file_change_request.entity
+                else file_contents,
                 file_path=file_path,
                 snippets="\n\n".join(
                     [
