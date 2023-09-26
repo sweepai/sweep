@@ -436,7 +436,7 @@ def on_ticket(
                 + "\n"
                 + message
                 + "\n\nFor bonus GPT-4 tickets, please report this bug on"
-                " **[Discord](https://discord.com/invite/sweep-ai)**."
+                " **[Discord](https://discord.gg/invite/sweep)**."
             )
             if table is not None:
                 agg_message = (
