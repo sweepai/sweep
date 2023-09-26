@@ -27,7 +27,10 @@ def score_line(str1: str, str2: str) -> float:
 
 
 def match_without_whitespace(str1: str, str2: str) -> bool:
-    return str1.strip() == str2.strip()
+    try:
+        return str1.strip() == str2.strip()
+    except Exception as e:
+        logger.error(traceback.format_exc())
 
 
 def line_cost(line: str) -> float:
