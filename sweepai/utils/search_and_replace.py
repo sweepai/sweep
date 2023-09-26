@@ -637,110 +637,45 @@ class CodeGenBot(ChatGPT):
 
     # Sample target snippet
     target = """
-        if do_map:
-            subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
-            edit_sweep_comment(
-                f"I'm creating the following subissues:\n\n"
-                + "\n\n".join(
-                    [
-                        f"#{subissue.title}:\n" + blockquote(subissue.body)
-                        for subissue in subissues
-                    ]
-                ),
-                2,
-            )
-            for subissue in tqdm(subissues):
-                subissue.issue_id = repo.create_issue(
-                    title="Sweep: " + subissue.title,
-                    body=subissue.body + f"\n\nParent issue: #{issue_number}",
-                    assignee=username,
-                ).number
-            subissues_checklist = "\n\n".join(
+def get_files_to_change(
+    self, retries=1, pr_diffs: str | None = None
+) -> tuple[list[FileChangeRequest], str]:
+    file_change_requests: list[FileChangeRequest] = []
+    try:
+        is_python_issue = (
+            sum(
                 [
-                    f"- [ ] #{subissue.issue_id}\n\n"
-                    + blockquote(f"**{subissue.title}**\n{subissue.body}")
-                    for subissue in subissues
+                    not file_path.endswith(".py")
+                    for file_path in self.human_message.get_file_paths()
                 ]
             )
-            current_issue.edit(
-                body=summary + "\n\n---\n\nChecklist:\n\n" + subissues_checklist
-            )
-            edit_sweep_comment(
-                f"I finished creating the subissues! Track them at:\n\n"
-                + "\n".join(f"* #{subissue.issue_id}" for subissue in subissues),
-                3,
-                done=True,
-            )
-            edit_sweep_comment(f"N/A", 4)
-            edit_sweep_comment(f"I finished creating all the subissues.", 5)
-            return {"success": True}
-
-        # COMMENT ON ISSUE
-        # TODO: removed issue commenting here
-        # TODO(william, luke) planning here
-
-        logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
-
-        if not file_change_requests:
-            if len(title + summary) < 60:
-                edit_sweep_comment(
-                    (
-                        "Sorry, I could not find any files to modify, can you please"
-                        " provide more details? Please make sure that the title and"
-                        " summary of the issue are at least 60 characters."
-                    ),
-                    -1,
-                )
-            else:
-                edit_sweep_comment(
-                    (
-                        "Sorry, I could not find any files to modify, can you please"
-                        " provide more details?"
-                    ),
-                    -1,
-                )
-            raise Exception("No files to modify.")
-
-        # sweep_bot.summarize_snippets()
-
-        file_change_requests = sweep_bot.validate_file_change_requests(
-            file_change_requests
+            < 2
         )
+        logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+        python_issue_worked = True
+        if is_python_issue:
     """.strip("\n")
 
     _match = """
-    sweep_bot = SweepBot.from_system_message_content(
-        human_message=human_message,
-        repo=repo,
-        is_reply=bool(comments),
-        chat_logger=chat_logger,
-        sweep_context=sweep_context,
-        cloned_repo=cloned_repo,
-    )
-
+def get_files_to_change(
+    self, retries=1, pr_diffs: str | None = None
+) -> tuple[list[FileChangeRequest], str]:
+    file_change_requests: list[FileChangeRequest] = []
+    # Todo: put retries into a constants file
+    # also, this retries multiple times as the calls for this function are in a for loop
     try:
-        file_change_requests, plan = sweep_bot.get_files_to_change()
-
-        if not file_change_requests:
-            if len(title + summary) < 60:
-                edit_sweep_comment(
-                    (
-                        "Sorry, I could not find any files to modify, can you please"
-                        " provide more details? Please make sure that the title and"
-                        " summary of the issue are at least 60 characters."
-                    ),
-                    -1,
-                )
-            else:
-                edit_sweep_comment(
-                    (
-                        "Sorry, I could not find any files to modify, can you please"
-                        " provide more details?"
-                    ),
-                    -1,
-                )
-            raise Exception("No files to modify.")
+        is_python_issue = (
+            sum(
+                [
+                    not file_path.endswith(".py")
+                    for file_path in self.human_message.get_file_paths()
+                ]
+            )
+            < 2
+        )
+        logger.info(f"IS PYTHON ISSUE: {is_python_issue}")
+        python_issue_worked = True
+        if is_python_issue:
     """.strip("\n")
 
     print(score_multiline(target.split("\n"), _match.split("\n")))
