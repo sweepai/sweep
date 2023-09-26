@@ -336,7 +336,7 @@ def on_comment(
             file_change_requests = [
                 FileChangeRequest(
                     filename=pr_file_path,
-                    instructions=f"The user left a comment in this chunk of code:\n<review_code_chunk>{formatted_pr_chunk}\n</review_code_chunk>\n. Resolve their comment.",
+                    instructions=f"The user left a comment in this chunk of code:\n<review_code_chunk>{formatted_pr_chunk}\n</review_code_chunk>.\nResolve their comment.",
                     change_type="modify",
                 )
             ]
