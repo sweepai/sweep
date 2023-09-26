@@ -1,4 +1,5 @@
 import os
+import re
 import traceback as tb
 import time
 from typing import Literal
@@ -372,21 +373,20 @@ class ChatGPT(BaseModel):
         return self.messages
 
 
-def clean_logs(logs: str) -> str:
-    return "\n".join(
-        line for line in logs.split("\n") if not line.startswith("[warn]")
-    ).strip()
+def clean_logs(logs: str):
+    cleaned_logs = re.sub(r"\x1b\[.*?[@-~]", "", logs.replace("```", "\`\`\`"))
+    cleaned_logs = re.sub("\n{2,}", "\n", cleaned_logs)
+    cleaned_logs = cleaned_logs or "(nothing was outputted)"
+    return cleaned_logs
 
 
 def fix_file(filename: str, code: str, stdout: str, username: str = "anonymous"):
     chat = ChatGPT(
         chat_logger=ChatLogger(data={"username": username, "title": filename})
     )
-    print("here!!!")
-    print(username)
     response = chat.chat(
         sandbox_code_repair_modify_prompt.format(
-            filename=filename, code=code, stdout=stdout
+            filename=filename, code=code, stdout=clean_logs(stdout)
         )
     )
     updated_file, _errors = generate_new_file_from_patch(response, code)

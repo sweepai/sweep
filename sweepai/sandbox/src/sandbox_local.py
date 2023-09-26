@@ -2,6 +2,7 @@ from dataclasses import asdict, dataclass
 import json
 import os
 import io
+import re
 import tarfile
 import uuid
 import requests
