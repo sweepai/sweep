@@ -28,7 +28,7 @@ echo "Found open port: $PORT"
 # Start new docker container on the next available port
 cd ~/sweep
 docker build -t sweepai/sweep:latest .
-docker run -v $(pwd)/logn_logs:/app/logn_logs --env-file .env -p $PORT:8080 -d sweepai/sweep:latest
+docker run -v $(pwd)/logn_logs:/app/logn_logs -v $(pwd)/sweep_docs:/app/sweep_docs --env-file .env -p $PORT:8080 -d sweepai/sweep:latest
 
 # Wait until webhook is available before rerouting traffic to it
 echo "Waiting for server to start..."
