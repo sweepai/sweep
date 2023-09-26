@@ -1335,6 +1335,8 @@ class SweepBot(CodeGenBot, GithubBot):
             return False, sandbox_error, None, changed_files
 
 
+from sweepai.core.exceptions import UnneededEditError, MatchingError
+
 class ModifyBot:
     def __init__(
         self,
@@ -1343,6 +1345,13 @@ class ModifyBot:
         parent_bot: SweepBot = None,
         is_pr: bool = False,
     ):
+
+        if len(snippet_queries) == 0:
+            raise UnneededEditError("No snippets found in file")
+        return snippet_queries
+
+        if len(best_matches) == 0:
+            raise MatchingError("No matches found in file")
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
             fetch_snippets_system_prompt, chat_logger=chat_logger
         )
