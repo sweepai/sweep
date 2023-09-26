@@ -1399,7 +1399,8 @@ class ModifyBot:
         for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
             snippet_queries.append(strip_backticks(code))
 
-        assert len(snippet_queries) > 0, "No snippets found in file"
+        if len(snippet_queries) == 0:
+            raise UnneededEditError("No snippets found in file")
         return snippet_queries
 
     def update_file(
@@ -1416,7 +1417,8 @@ class ModifyBot:
             if _match.score > 50:
                 best_matches.append(_match)
 
-        assert len(best_matches) > 0, "No matches found in file"
+        if len(best_matches) == 0:
+            raise MatchingError("No matches found in file")
 
         # Todo: check multiple files for matches using PR changed files
 
