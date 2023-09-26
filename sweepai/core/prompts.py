@@ -266,7 +266,7 @@ Step-by-step thoughts with explanations:
 <delete file="file_path_3"></delete>
 ...
 
-<rename file="file_path_4">new full path for file path 5</rename>
+<rename file="file_path_4">new full path for file path 4</rename>
 ...
 
 </plan>
@@ -277,6 +277,7 @@ Think step-by-step to break down the requested problem or feature, and then figu
 Then, provide a list of ALL files you would like to modify, abiding by the following:
 * You may only create, modify, delete and rename files
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
+* You can modify multiple entities in the same file.
 * Use detailed, natural language instructions on what to modify regarding business logic, but reference files to import
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
 * Do not modify non-text files such as images, svgs, binary, etc
@@ -306,7 +307,7 @@ Step-by-step thoughts with explanations:
 
 <delete file="file_path_3"></delete>
 
-<rename file="file_path_4">new full path for file_path_5</rename>
+<rename file="file_path_4">new full path for file_path_4</rename>
 
 ...
 </plan>

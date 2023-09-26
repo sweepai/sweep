@@ -1,32 +1,26 @@
-from dataclasses import dataclass
-from functools import cached_property
-import os
 import hashlib
+import os
 import re
 import shutil
 import subprocess
 import time
+from dataclasses import dataclass
+from functools import cached_property
 
-from redis import Redis
-from redis.backoff import ExponentialBackoff
-from redis.retry import Retry
-from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
+import git
 import requests
 from github import Github
-from github.Repository import Repository
 from jwt import encode
-from logn import logger
-import git
+from redis import Redis
+from redis.backoff import ExponentialBackoff
+from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
+from redis.retry import Retry
 
+from logn import logger
 from sweepai.config.client import SweepConfig
-from sweepai.config.server import (
-    GITHUB_APP_ID,
-    GITHUB_APP_PEM,
-    REDIS_URL,
-)
+from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, REDIS_URL
 from sweepai.utils.ctags import CTags
-from sweepai.utils.ctags_chunker import get_ctags_for_file, get_ctags_for_search
-from rapidfuzz import fuzz
+from sweepai.utils.ctags_chunker import get_ctags_for_file
 
 MAX_FILE_COUNT = 50
 

@@ -4,37 +4,29 @@ It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its o
 """
 import re
 import traceback
+from typing import Any
 
 import openai
-from logn import logger, LogTask
-
-from typing import Any
-from tabulate import tabulate
 from github.Repository import Repository
+from tabulate import tabulate
 
+from logn import LogTask, logger
 from sweepai.config.client import get_blocked_dirs
+from sweepai.config.server import ENV, GITHUB_BOT_USERNAME, MONGODB_URI, OPENAI_API_KEY
 from sweepai.core.entities import (
+    FileChangeRequest,
+    MockPR,
     NoFilesException,
     Snippet,
-    MockPR,
-    FileChangeRequest,
     SweepContext,
-    Message,
 )
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.diff import generate_diff
-from sweepai.config.server import (
-    GITHUB_BOT_USERNAME,
-    ENV,
-    MONGODB_URI,
-    OPENAI_API_KEY,
-)
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
-from sweepai.utils.search_utils import search_snippets
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
+from sweepai.utils.search_utils import search_snippets
 
 openai.api_key = OPENAI_API_KEY
 
@@ -468,8 +460,17 @@ def on_comment(
                     cloned_repo=cloned_repo,
                 )
             else:
+                is_python_issue = (
+                    sum(
+                        [
+                            not file_path.endswith(".py")
+                            for file_path in human_message.get_file_paths()
+                        ]
+                    )
+                    < 2
+                )
                 file_change_requests, _ = sweep_bot.get_files_to_change(
-                    retries=1, pr_diffs=pr_diff_string
+                    is_python_issue, retries=1, pr_diffs=pr_diff_string
                 )
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name

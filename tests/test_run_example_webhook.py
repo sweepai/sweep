@@ -1,6 +1,7 @@
 import json
-import requests
 import time
+
+import requests
 
 host = "http://0.0.0.0:8080"
 

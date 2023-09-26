@@ -1,7 +1,6 @@
 import io
-import os
 import zipfile
-import requests
+
 from loguru import logger
 
 

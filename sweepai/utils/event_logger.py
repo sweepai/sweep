@@ -2,14 +2,14 @@
 # import loguru
 # from logtail import LogtailHandler
 # import logging
-from logn import logger
+import highlight_io
 
 # import loguru
 # from loguru import logger
 from posthog import Posthog
-import highlight_io
 
-from sweepai.config.server import POSTHOG_API_KEY, HIGHLIGHT_API_KEY, LOGTAIL_SOURCE_KEY
+from logn import logger
+from sweepai.config.server import HIGHLIGHT_API_KEY, POSTHOG_API_KEY
 
 if POSTHOG_API_KEY is None or POSTHOG_API_KEY.lower() == "none":
     posthog = Posthog(

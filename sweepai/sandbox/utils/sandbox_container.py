@@ -1,5 +1,6 @@
-import docker
 import uuid
+
+import docker
 
 client = docker.from_env()
 

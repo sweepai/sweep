@@ -1,6 +1,3 @@
-import modal
-
-
 python_code = '''
 import io
 import os

@@ -75,6 +75,12 @@ flake8 = "^6.0.0"
 nptyping = "^2.5.0"
 pre-commit = "^3.2.0"
 
+[tool.isort]
+profile = "black"
+
+[tool.black]
+string-normalization = false
+
 [mypy]
 check_untyped_defs = true
 

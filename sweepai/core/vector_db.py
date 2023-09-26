@@ -1,46 +1,39 @@
-import hashlib
 import json
-import os
-import pickle
 import re
 import time
 from functools import lru_cache
 from typing import Generator, List
 
-import replicate
 import numpy as np
+import replicate
+import requests
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
 )
-from github import Github
-from logn import logger, file_cache
 from redis import Redis
-from redis.backoff import ConstantBackoff
-from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
-from redis.retry import Retry
-import requests
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
 from tqdm import tqdm
+
+from logn import file_cache, logger
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import (
     BATCH_SIZE,
     HUGGINGFACE_TOKEN,
     HUGGINGFACE_URL,
     REDIS_URL,
-    SENTENCE_TRANSFORMERS_MODEL,
-    VECTOR_EMBEDDING_SOURCE,
     REPLICATE_API_KEY,
     REPLICATE_URL,
+    SENTENCE_TRANSFORMERS_MODEL,
+    VECTOR_EMBEDDING_SOURCE,
 )
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
 from sweepai.core.repo_parsing_utils import repo_to_chunks
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
-from redis import Redis
 from sweepai.utils.scorer import compute_score, get_scores
-from ..utils.github_utils import ClonedRepo, get_token
-import openai
+
+from ..utils.github_utils import ClonedRepo
 
 MODEL_DIR = "/tmp/cache/model"
 DEEPLAKE_DIR = "/tmp/cache/"
@@ -155,6 +148,7 @@ def embed_texts(texts: tuple[str]):
 def embedding_function(texts: list[str]):
     # For LRU cache to work
     return embed_texts(tuple(texts))
+
 
 def get_deeplake_vs_from_repo(
     cloned_repo: ClonedRepo,
@@ -360,7 +354,9 @@ def get_relevant_snippets(
             lexical_scores.append(0.3)
     vector_scores = results["score"]
     combined_scores = [
-        code_score * 1.5 + vector_score + lexical_score * 2.5 # increase weight of lexical search
+        code_score * 1.5
+        + vector_score
+        + lexical_score * 2.5  # increase weight of lexical search
         for code_score, vector_score, lexical_score in zip(
             code_scores, vector_scores, lexical_scores
         )

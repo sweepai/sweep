@@ -1,20 +1,18 @@
-from itertools import chain
 import os
-import uuid
-import yaml
 import shlex
 import tarfile
-import docker
-import typer
+import uuid
 from pathlib import Path
-from rich import console
-from posthog import Posthog
 
+import docker
 import pathspec
-
-from tqdm import tqdm
+import typer
+import yaml
+from posthog import Posthog
+from rich import console
 from src.sandbox_local import SandboxContainer
 from src.sandbox_utils import Sandbox
+from tqdm import tqdm
 
 app = typer.Typer(name="sweep-sandbox")
 

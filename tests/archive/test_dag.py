@@ -1,7 +1,7 @@
-import subprocess
 import re
-import os
+import subprocess
 from collections import defaultdict
+
 from tqdm import tqdm
 
 # 1. Use ctags to fetch a list of all entities

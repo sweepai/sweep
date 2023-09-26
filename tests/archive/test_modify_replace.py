@@ -1,5 +1,3 @@
-import re
-
 from sweepai.utils.diff import sliding_window_replacement
 
 file_contents = r"""
