@@ -256,9 +256,9 @@ Step-by-step thoughts with explanations:
 </create>
 ...
 
-<modify file="file_path_2" entity="name of function or class to modify (optional)">
-* Instruction 1 for file_path_3
-* Instruction 2 for file_path_3
+<modify file="file_path_2">
+* Instruction 1 for file_path_2
+* Instruction 2 for file_path_2
 ...
 </modify>
 ...
@@ -266,7 +266,7 @@ Step-by-step thoughts with explanations:
 <delete file="file_path_3"></delete>
 ...
 
-<rename file="file_path_4">new full path for file path 6</rename>
+<rename file="file_path_4">new full path for file path 5</rename>
 ...
 
 </plan>
@@ -298,15 +298,15 @@ Step-by-step thoughts with explanations:
 ...
 </create>
 
-<modify file="file_path_3">
-* Instruction 1 for file_path_3
-* Instruction 2 for file_path_3
+<modify file="file_path_2" entity="name of function or class to modify (optional)">
+* Instruction 1 for file_path_2
+* Instruction 2 for file_path_2
 ...
 </modify>
 
-<delete file="file_path_4"></delete>
+<delete file="file_path_3"></delete>
 
-<rename file="file_path_5">new full path for file_path_6</rename>
+<rename file="file_path_4">new full path for file_path_5</rename>
 
 ...
 </plan>

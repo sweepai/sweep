@@ -1,3 +1,4 @@
+import ast
 import re
 from tree_sitter_languages import get_parser
 
@@ -160,38 +161,110 @@ def extract_int(s):
 
 
 def extract_python_span(code, entities):
-    # Identify lines where entity is mentioned
-    mentioned_lines = []
     lines = code.split("\n")
+    line_usages = {i: set() for i, line in enumerate(lines)}
+
+    # Identify lines where entities are declared as variables
+    variables_with_entity = set()
     for i, line in enumerate(lines):
         for entity in entities:
-            if entity in line:
-                mentioned_lines.append(i)
-    end_window = 0
-    line_idx_set = set()
-    code_with_line_numbers = ""
-    for mentioned_line in mentioned_lines:
-        if mentioned_line > end_window:
-            code_with_line_numbers += "\n...\n" 
-        # Calculate the window to show
-        # indent is how many whitespaces the line starts with
-        indent = len(lines[mentioned_line]) - len(lines[mentioned_line].lstrip())
-        for i in range(mentioned_line + 1, len(lines)):
-            line_indent = len(lines[i]) - len(lines[i].lstrip())
-            if lines[i].strip() and line_indent <= indent: # there is code and less indents
-                end_window = i
-                break
-        else:
-            end_window = len(lines)
+            if (
+                entity in line
+                and "=" in line
+                and not line.lstrip().startswith(("class ", "def "))
+            ):
+                variable_name = line.split("=")[0].strip()
+                variables_with_entity.add(variable_name)
+                line_usages[i].add(variable_name)
 
-        # Extract lines in the window and mark where entity is mentioned
-        for i in range(mentioned_line, end_window):
-            line = lines[i]
-            if i not in line_idx_set:
-                code_with_line_numbers += f"{line}\n"
-                line_idx_set.add(i)
-        code_with_line_numbers = code_with_line_numbers.strip("\n")
-    return Snippet(file_path="", start=0, end=0, content=code_with_line_numbers)
+    # Identify lines where these variables are used
+    for i, line in enumerate(lines):
+        for variable in variables_with_entity:
+            if variable in line:
+                line_usages[i].add(variable)
+
+    captured_lines = set()
+
+    # Capture lines around the variable usage
+    for i, line in enumerate(lines):
+        for variable in variables_with_entity:
+            if variable in line:
+                captured_lines.update(range(max(0, i - 20), min(len(lines), i + 21)))
+
+    parser = get_parser("python")
+    tree = parser.parse(code.encode("utf-8"))
+
+    # Capturing entire subscope for class and function definitions using tree-sitter
+    def get_subscope_lines(node):
+        start_line = node.start_point[0]
+        end_line = node.end_point[0]
+        return range(start_line, end_line + 1)
+
+    def walk_tree(node):
+        if node.type in ["class_definition", "function_definition"]:
+            # Check if the entity is in the first line (class Entity or class Class(Entity), etc)
+            if any(
+                entity in node.text.decode("utf-8").split("\n")[0]
+                for entity in entities
+            ):
+                captured_lines.update(get_subscope_lines(node))
+        for child in node.children:
+            walk_tree(child)
+
+    try:
+        walk_tree(tree.root_node)
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        print("Failed to parse python file. Using for loop instead.")
+        # Capture entire subscope for class and function definitions
+        for i, line in enumerate(lines):
+            if any(
+                entity in line and line.lstrip().startswith(keyword)
+                for entity in entities
+                for keyword in ["class ", "def "]
+            ):
+                indent_level = len(line) - len(line.lstrip())
+                captured_lines.add(i)
+
+                # Add subsequent lines until a line with a lower indent level is encountered
+                j = i + 1
+                while j < len(lines):
+                    current_indent = len(lines[j]) - len(lines[j].lstrip())
+                    if current_indent > indent_level and len(lines[j].lstrip()) > 0:
+                        captured_lines.add(j)
+                        j += 1
+                    else:
+                        break
+            # For non-variable lines with the entity, capture ±20 lines
+            elif any(entity in line for entity in entities):
+                captured_lines.update(range(max(0, i - 20), min(len(lines), i + 21)))
+
+    # For non-variable lines with the entity (like imports), capture ±20 lines
+    for i, line in enumerate(lines):
+        if any(entity in line for entity in entities) and not any(
+            keyword in line.lstrip() for keyword in ["class ", "def ", "="]
+        ):
+            captured_lines.update(range(max(0, i - 20), min(len(lines), i + 21)))
+
+    captured_lines = sorted(list(captured_lines))
+    result = []
+
+    previous_line_number = -1  # Initialized to an impossible value
+
+    # Construct the result with line numbers and mentions
+    for i in captured_lines:
+        line = lines[i]
+
+        # Add "..." to indicate skipped lines
+        if previous_line_number != -1 and i - previous_line_number > 1:
+            result.append("...")
+
+        result.append(f"{line}")
+
+        previous_line_number = i
+
+    return Snippet(file_path="", start=0, end=0, content="\n".join(result))
 
 if __name__ == "__main__":
     file = r'''import ModifyBot
@@ -1776,7 +1849,7 @@ if __name__ == "__main__":
 
     print(extract_int("10, 10-11 (message)"))
     print("\nExtracting Span:")
-    span = extract_python_span(file, ["SweepBot"])
+    span = extract_python_span(file, ["get_files_to_change"]).content
     print(span)
 
     # test response for plan
