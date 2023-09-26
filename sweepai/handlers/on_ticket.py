@@ -610,14 +610,28 @@ def on_ticket(
         sweep_context=sweep_context,
         cloned_repo=cloned_repo,
     )
-
+    
+    # Compute is_python_issue
+    is_python_issue = (
+        sum(
+            [
+                not file_path.endswith(".py")
+                for file_path in sweep_bot.human_message.get_file_paths()
+            ]
+        )
+        < 2
+    )
+    
+    # Log is_python_issue to Posthog
+    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+    
     # Check repository for sweep.yml file.
     sweep_yml_exists = False
     for content_file in repo.get_contents(""):
         if content_file.name == "sweep.yaml":
             sweep_yml_exists = True
             break
-
+    
     # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
     if not sweep_yml_exists:
         try:
@@ -635,7 +649,7 @@ def on_ticket(
             )
     else:
         logger.info("sweep.yaml file already exists.")
-
+    
     try:
         # ANALYZE SNIPPETS
         newline = "\n"
