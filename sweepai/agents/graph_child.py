@@ -143,7 +143,6 @@ class GraphChildBot(ChatGPT):
         previous_snippets,
         all_symbols_and_files,
     ) -> GraphContextAndPlan:
-        
         python_snippet = extract_python_span(code, entities)
         python_snippet.file_path = file_path
         return GraphContextAndPlan(
@@ -160,7 +159,7 @@ def extract_int(s):
     return None
 
 
-def extract_python_span(code, entities):
+def extract_python_span(code: str, entities: str):
     lines = code.split("\n")
     line_usages = {i: set() for i, line in enumerate(lines)}
 
@@ -184,6 +183,12 @@ def extract_python_span(code, entities):
                 line_usages[i].add(variable)
 
     captured_lines = set()
+
+    # Up to the first variable definition
+    for i, line in enumerate(lines):
+        if "=" in line or line.lstrip().startswith(("class ", "def ")):
+            break
+    captured_lines.update(range(i))
 
     # Capture lines around the variable usage
     for i, line in enumerate(lines):
@@ -265,6 +270,7 @@ def extract_python_span(code, entities):
         previous_line_number = i
 
     return Snippet(file_path="", start=0, end=0, content="\n".join(result))
+
 
 if __name__ == "__main__":
     file = r'''import ModifyBot
@@ -1849,7 +1855,7 @@ if __name__ == "__main__":
 
     print(extract_int("10, 10-11 (message)"))
     print("\nExtracting Span:")
-    span = extract_python_span(file, ["get_files_to_change"]).content
+    span = extract_python_span(file, ["global"]).content
     print(span)
 
     # test response for plan
@@ -1884,4 +1890,4 @@ Please replace 'is_python_issue' with the actual value of the bool.
     gc_and_plan = GraphContextAndPlan.from_string(
         response, "sweepai/handlers/on_ticket.py"
     )
-    print(gc_and_plan.code_change_description)
+    # print(gc_and_plan.code_change_description)

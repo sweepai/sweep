@@ -277,6 +277,8 @@ Think step-by-step to break down the requested problem or feature, and then figu
 Then, provide a list of ALL files you would like to modify, abiding by the following:
 * You may only create, modify, delete and rename files
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
+* When modifying a file, you must specify the entity (function or class) to modify. If you would like to modify the import statements, specify the entity as "global".
+* You can modify multiple entities in the same file.
 * Use detailed, natural language instructions on what to modify regarding business logic, but reference files to import
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
 * Do not modify non-text files such as images, svgs, binary, etc
