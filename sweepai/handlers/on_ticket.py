@@ -708,9 +708,23 @@ def on_ticket(
         # TODO: removed issue commenting here
         # TODO(william, luke) planning here
 
+        # Compute is_python_issue
+        is_python_issue = (
+            sum(
+                [
+                    not file_path.endswith(".py")
+                    for file_path in sweep_bot.human_message.get_file_paths()
+                ]
+            )
+            < 2
+        )
+        
+        # Log is_python_issue to Posthog
+        posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
+        
         logger.info("Fetching files to modify/create...")
-        file_change_requests, plan = sweep_bot.get_files_to_change()
-
+        file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
+        
         if not file_change_requests:
             if len(title + summary) < 60:
                 edit_sweep_comment(
