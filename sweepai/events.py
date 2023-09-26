@@ -154,7 +154,7 @@ class IssueCommentRequest(IssueRequest):
 
     comment: Comment
     sender: Comment.User
-    changes: Changes
+    changes: Changes | None = None
 
 
 class PRRequest(BaseModel):
