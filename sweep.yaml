@@ -17,7 +17,7 @@ description: "sweepai/sweep is a python 3.10 project. The main api endpoints are
 # Write a natural language description of what the package is and how it's used to help Sweep.
 docs:
   github: ["https://pygithub.readthedocs.io/en/stable", "We use github to perform actions with Sweep."]
-  deeplake: ["https://docs.deeplake.ai/en/latest", "Deeplake is our vector database."]
+  deeplake: ["https://docs.deeplake.ai/en/latest", "We use deeplake as our vector database."]
 
 sandbox:
   install:
