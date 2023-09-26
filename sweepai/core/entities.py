@@ -531,13 +531,13 @@ class MaxTokensExceeded(Exception):
 
 
 class UnneededEditError(Exception):
-    def __init__(self, filename):
-        self.filename = filename
+    def __init__(self, message="Unneeded edit error occurred"):
+        self.message = message
 
 
 class MatchingError(Exception):
-    def __init__(self, filename):
-        self.filename = filename
+    def __init__(self, message="Matching error occurred"):
+        self.message = message
 
 
 class EmptyRepository(Exception):
