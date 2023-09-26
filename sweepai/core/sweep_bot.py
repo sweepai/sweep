@@ -1372,6 +1372,14 @@ class ModifyBot:
         )
         return new_file
 
+    class UnneededEditError(Exception):
+        def __init__(self, message):
+            super().__init__(message)
+    
+    class MatchingError(Exception):
+        def __init__(self, message):
+            super().__init__(message)
+
     def get_snippets_to_modify(
         self,
         file_path: str,
@@ -1395,28 +1403,9 @@ class ModifyBot:
         for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
             snippet_queries.append(strip_backticks(code))
 
-        assert len(snippet_queries) > 0, "No snippets found in file"
+        if len(snippet_queries) == 0:
+            raise UnneededEditError("No snippets found in file")
         return snippet_queries
-
-    def update_file(
-        self,
-        file_path: str,
-        file_contents: str,
-        file_change_request: FileChangeRequest,
-        snippet_queries: list[str],
-        chunking: bool = False,
-    ):
-        best_matches = []
-        for query in snippet_queries:
-            _match = find_best_match(query, file_contents)
-            if _match.score > 50:
-                best_matches.append(_match)
-
-        assert len(best_matches) > 0, "No matches found in file"
-
-        # Todo: check multiple files for matches using PR changed files
-
-        best_matches.sort(key=lambda x: x.start + x.end * 0.001)
 
         def fuse_matches(a: Match, b: Match) -> Match:
             return Match(
