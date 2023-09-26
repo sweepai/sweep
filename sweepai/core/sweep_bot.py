@@ -1376,26 +1376,53 @@ class ModifyBot:
         )
         return new_file
 
-    def get_snippets_to_modify(
-        self,
-        file_path: str,
-        file_contents: str,
-        file_change_request: FileChangeRequest,
-        chunking: bool = False,
-    ):
-        fetch_snippets_response = self.fetch_snippets_bot.chat(
-            fetch_snippets_prompt.format(
-                code=extract_python_span(file_contents, [file_change_request.entity]).content if file_change_request.entity else file_contents,
-                file_path=file_path,
-                request=file_change_request.instructions,
-                chunking_message=use_chunking_message
-                if chunking
-                else dont_use_chunking_message,
-            )
-        )
-
-        snippet_queries = []
-        query_pattern = r"<snippet_to_modify.*?>\n(?P<code>.*?)\n</snippet_to_modify>"
+    class UnneededEditError(Exception):
+        pass
+    
+    class MatchingError(Exception):
+        pass
+    
+    # Rest of the code...
+    
+    class ModifyBot:
+        # Rest of the code...
+    
+        def get_snippets_to_modify(
+            self,
+            file_path: str,
+            file_contents: str,
+            file_change_request: FileChangeRequest,
+            chunking: bool = False,
+        ):
+            # Rest of the code...
+    
+            snippet_queries = []
+            query_pattern = r"<snippet_to_modify.*?>\n(?P<code>.*?)\n</snippet_to_modify>"
+            for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
+                snippet_queries.append(strip_backticks(code))
+    
+            if len(snippet_queries) == 0:
+                raise UnneededEditError("No occurrences of snippet in the generated XML.")
+            return snippet_queries
+    
+        def update_file(
+            self,
+            file_path: str,
+            file_contents: str,
+            file_change_request: FileChangeRequest,
+            snippet_queries: list[str],
+            chunking: bool = False,
+        ):
+            best_matches = []
+            for query in snippet_queries:
+                _match = find_best_match(query, file_contents)
+                if _match.score > 50:
+                    best_matches.append(_match)
+    
+            if len(best_matches) == 0:
+                raise MatchingError("No more snippets after matching.")
+    
+            # Rest of the code...
         for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
             snippet_queries.append(strip_backticks(code))
 
