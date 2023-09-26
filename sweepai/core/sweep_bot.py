@@ -1376,6 +1376,8 @@ class ModifyBot:
         )
         return new_file
 
+    from entities import UnneededEditError, MatchingError
+    
     def get_snippets_to_modify(
         self,
         file_path: str,
@@ -1393,9 +1395,15 @@ class ModifyBot:
                 else dont_use_chunking_message,
             )
         )
-
+    
         snippet_queries = []
         query_pattern = r"<snippet_to_modify.*?>\n(?P<code>.*?)\n</snippet_to_modify>"
+        for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
+            snippet_queries.append(strip_backticks(code))
+    
+        if len(snippet_queries) == 0:
+            raise UnneededEditError("No snippets found in file")
+        return snippet_queries
         for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
             snippet_queries.append(strip_backticks(code))
 
@@ -1415,11 +1423,12 @@ class ModifyBot:
             _match = find_best_match(query, file_contents)
             if _match.score > 50:
                 best_matches.append(_match)
-
-        assert len(best_matches) > 0, "No matches found in file"
-
+    
+        if len(best_matches) == 0:
+            raise MatchingError("No matches found in file")
+    
         # Todo: check multiple files for matches using PR changed files
-
+    
         best_matches.sort(key=lambda x: x.start + x.end * 0.001)
 
         def fuse_matches(a: Match, b: Match) -> Match:
