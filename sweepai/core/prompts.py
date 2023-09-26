@@ -1217,7 +1217,7 @@ File path: {file_path}
 {snippets}
 
 # Instructions
-For each snippet above, rewrite it according to their corresponding instructions.
+For each of the {n} snippets above, rewrite it according to their corresponding instructions.
 * Only rewrite within the scope of the snippet, as it will be replaced directly.
 * Do not delete whitespace or comments.
 * The output will be copied into the code LITERALLY so do not close all ending brackets

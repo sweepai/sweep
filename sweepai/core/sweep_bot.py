@@ -1392,7 +1392,7 @@ class ModifyBot:
         )
 
         snippet_queries = []
-        query_pattern = r"<snippet_to_modify.*?>(?P<code>.*?)</snippet_to_modify>"
+        query_pattern = r"<snippet_to_modify.*?>\n(?P<code>.*?)\n</snippet_to_modify>"
         for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
             snippet_queries.append(strip_backticks(code))
 
@@ -1469,6 +1469,7 @@ class ModifyBot:
                     ]
                 ),
                 request=file_change_request.instructions,
+                n=len(selected_snippets),
             )
         )
 
