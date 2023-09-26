@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 

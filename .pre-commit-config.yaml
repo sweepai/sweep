@@ -14,3 +14,15 @@ repos:
     hooks:
     - id: black
       language_version: python3.10
+
+  - repo: https://github.com/pre-commit/mirrors-isort
+    rev: v5.10.1  # Use the ref you want to point at
+    hooks:
+    - id: isort
+
+  - repo: https://github.com/myint/autoflake
+    rev: v1.4  # Use the ref you want to point at
+    hooks:
+    - id: autoflake
+      args: ['--remove-all-unused-imports', '--in-place']
+      exclude: '__init__.py'

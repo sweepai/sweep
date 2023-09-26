@@ -1,21 +1,17 @@
-import shutil
-import subprocess
 import github
-from logn import logger, file_cache
-
-from github.Repository import Repository
 from tqdm import tqdm
 
+from logn import logger
 from sweepai.config.client import SweepConfig
-from sweepai.core.vector_db import get_deeplake_vs_from_repo, get_relevant_snippets
 from sweepai.core.entities import Snippet
+from sweepai.core.vector_db import get_deeplake_vs_from_repo, get_relevant_snippets
+from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     ClonedRepo,
     get_file_names_from_query,
     get_github_client,
 )
 from sweepai.utils.scorer import merge_and_dedup_snippets
-from sweepai.utils.event_logger import posthog
 
 
 # @file_cache(ignore_params=["cloned_repo", "sweep_config"])
@@ -48,7 +44,6 @@ def search_snippets(
             query,
         )
         logger.info(f"Snippets for query {query}: {snippets}")
-    from git import Repo
 
     file_list = cloned_repo.get_file_list()
     query_file_names = get_file_names_from_query(query)
@@ -62,7 +57,10 @@ def search_snippets(
     non_boosted_snippets = []
     completed_snippets = set()
     for snippet in snippets:
-        if snippet.file_path in query_match_files and snippet.file_path not in completed_snippets:
+        if (
+            snippet.file_path in query_match_files
+            and snippet.file_path not in completed_snippets
+        ):
             boosted_snippets.append(snippet)
             completed_snippets.add(snippet.file_path)
         else:

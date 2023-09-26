@@ -1,5 +1,6 @@
-import requests
 import traceback
+
+import requests
 from robotexclusionrulesparser import RobotExclusionRulesParser
 
 

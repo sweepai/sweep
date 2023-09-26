@@ -1,8 +1,8 @@
-import hashlib
-import time
-import redis
 import pickle
+import time
+
 import docker
+import redis
 
 
 class RedisClient:

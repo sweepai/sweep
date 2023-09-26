@@ -1,7 +1,7 @@
 import difflib
 import re
-from logn import logger
 
+from logn import logger
 from sweepai.core.entities import SweepContext
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.search_and_replace import Match, find_best_match

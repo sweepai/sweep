@@ -2,7 +2,6 @@
 from sweepai.sandbox.src.sandbox_utils import Sandbox
 from sweepai.utils.github_utils import get_github_client, get_token
 
-
 _, g = get_github_client(installation_id=36855882)
 installation_id = 36855882
 token = get_token(installation_id)

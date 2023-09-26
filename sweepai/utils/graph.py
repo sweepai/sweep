@@ -1,15 +1,13 @@
 # Modifying the script to graph only the paths of degree 4 originating from a file.
 
-import importlib
-import os
 import ast
-
+import os
 from typing import Any
-from loguru import logger
 
-import networkx as nx
-from networkx.drawing.layout import bipartite_layout
 import matplotlib.pyplot as plt
+import networkx as nx
+from loguru import logger
+from networkx.drawing.layout import bipartite_layout
 from pydantic import BaseModel
 
 
@@ -233,16 +231,14 @@ class Graph(BaseModel):
             [self.extract_first_degree(file_path) for file_path in file_paths]
         )
 
+
 if __name__ == "__main__":
     # Replace this with the actual path you want to traverse
     folder_path = os.getcwd()
     definitions_graph, references_graph = traverse_folder(folder_path)
 
     # Select one file to extract degree 4 paths (you can loop over all files if needed)
-    selected_files = (
-        "sweepai/handlers/on_ticket.py",
-        "sweepai/core/sweep_bot.py"
-    )
+    selected_files = ("sweepai/handlers/on_ticket.py", "sweepai/core/sweep_bot.py")
 
     # Create a Graph object
     g = Graph.from_folder(folder_path)

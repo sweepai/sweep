@@ -1,28 +1,26 @@
-import json
-from copy import deepcopy
 import time
-from typing import Any, Iterator, Literal
 import traceback
+from typing import Any, Literal
 
 import anthropic
 import backoff
+import openai
 from pydantic import BaseModel
 
-from logn import logger, file_cache
-from sweepai.utils.github_utils import ClonedRepo
-from sweepai.utils.utils import Tiktoken
-from sweepai.core.entities import Message, Function, SweepContext
-from sweepai.core.prompts import system_message_prompt, repo_description_prefix_prompt
-from sweepai.utils.chat_logger import ChatLogger
+from logn import logger
 from sweepai.config.client import get_description
-from sweepai.utils.prompt_constructor import HumanMessagePrompt
-from sweepai.utils.openai_proxy import OpenAIProxy
 from sweepai.config.server import (
-    OPENAI_USE_3_5_MODEL_ONLY,
     OPENAI_DO_HAVE_32K_MODEL_ACCESS,
+    OPENAI_USE_3_5_MODEL_ONLY,
 )
+from sweepai.core.entities import Message, SweepContext
+from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
-import openai
+from sweepai.utils.github_utils import ClonedRepo
+from sweepai.utils.openai_proxy import OpenAIProxy
+from sweepai.utils.prompt_constructor import HumanMessagePrompt
+from sweepai.utils.utils import Tiktoken
 
 openai_proxy = OpenAIProxy()
 

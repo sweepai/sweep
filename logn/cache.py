@@ -1,6 +1,6 @@
+import hashlib
 import os
 import pickle
-import hashlib
 
 from sweepai.config.server import GITHUB_BOT_USERNAME
 

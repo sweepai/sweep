@@ -1,9 +1,6 @@
-from sweepai.config.server import DOCS_MODAL_INST_NAME
-
-
 import modal
 
-from sweepai.core.lexical_search import prepare_index_from_docs, search_docs
+from sweepai.config.server import DOCS_MODAL_INST_NAME
 
 stub = modal.Stub(DOCS_MODAL_INST_NAME)
 # doc_url = "https://docs.anthropic.com/claude"

@@ -1,12 +1,8 @@
 import json
 import os
-import subprocess
-from typing import Literal
-import modal
-from pydantic import BaseModel
-
 from dataclasses import dataclass
-from sweepai.core.sandbox import Sandbox
+
+import modal
 
 stub = modal.Stub("api")
 

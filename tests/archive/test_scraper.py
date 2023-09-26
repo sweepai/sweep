@@ -1,8 +1,7 @@
 import os
-import openai
 
-from llama_index import download_loader
-from llama_index import GPTVectorStoreIndex
+import openai
+from llama_index import GPTVectorStoreIndex, download_loader
 
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 

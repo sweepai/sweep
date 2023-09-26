@@ -1,16 +1,12 @@
 from logn import logger
-from sweepai.config.server import DOCS_MODAL_INST_NAME
-
 from sweepai.core.chat import ChatGPT
 from sweepai.core.documentation import DOCS_ENDPOINTS, search_vector_store
 from sweepai.core.entities import Message
-from sweepai.core.prompts import docs_qa_system_prompt, docs_qa_user_prompt
-
-from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message
 from sweepai.core.prompts import (
-    doc_query_rewriter_system_prompt,
     doc_query_rewriter_prompt,
+    doc_query_rewriter_system_prompt,
+    docs_qa_system_prompt,
+    docs_qa_user_prompt,
 )
 from sweepai.utils.chat_logger import ChatLogger
 

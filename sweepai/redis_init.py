@@ -1,5 +1,5 @@
-from redis import Redis, ConnectionError
-from redis.retry import Retry
+from redis import Redis
+
 from sweepai.config.server import REDIS_URL
 
 # try:

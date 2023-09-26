@@ -1,6 +1,7 @@
-from fastapi import FastAPI
 import multiprocessing
 import time
+
+from fastapi import FastAPI
 
 app = FastAPI()
 processes_dict = {}
