@@ -12,7 +12,7 @@ from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from github.Commit import Commit
 from pydantic import BaseModel
-from sweepai.agents.graph_child import GraphChildBot, GraphContextAndPlan
+from sweepai.agents.graph_child import GraphChildBot, GraphContextAndPlan, extract_python_span
 from sweepai.agents.graph_parent import GraphParentBot
 
 from sweepai.core.chat import ChatGPT
@@ -357,7 +357,7 @@ class CodeGenBot(ChatGPT):
                         new_messages.append(Message(**message_dict))
                     self.messages = new_messages
                     files_to_change_response = self.chat(
-                        files_to_change_prompt, message_key="files_to_change"
+                        python_files_to_change_prompt, message_key="files_to_change"
                     )  # Dedup files to change here
                     file_change_requests = []
                     for re_match in re.finditer(
@@ -1223,7 +1223,26 @@ class SweepBot(CodeGenBot, GithubBot):
                         len(lines) > CHUNK_SIZE
                     )  # Only chunk if the file is large enough
                     file_name = file_change_request.filename
-                    if not chunking:
+                    if file_change_request.entity:
+                        (
+                            new_file_contents,
+                            suggested_commit_message,
+                            sandbox_error,
+                            changed_files,
+                        ) = self.modify_file(
+                            file_change_request,
+                            contents="\n".join(lines),
+                            branch=branch,
+                            contents_line_numbers=file_contents
+                            if USING_DIFF
+                            else "\n".join(all_lines_numbered),
+                            chunking=False,
+                            chunk_offset=0,
+                            sandbox=sandbox,
+                            changed_files=changed_files,
+                        )
+                        commit_message = suggested_commit_message
+                    elif not chunking:
                         (
                             new_file_contents,
                             suggested_commit_message,
@@ -1242,19 +1261,12 @@ class SweepBot(CodeGenBot, GithubBot):
                             changed_files=changed_files,
                         )
                         commit_message = suggested_commit_message
-                        # commit_message = commit_message or suggested_commit_message
                     else:
                         for i in range(0, len(lines), CHUNK_SIZE):
                             chunk_contents = "\n".join(lines[i : i + CHUNK_SIZE])
                             contents_line_numbers = "\n".join(
                                 all_lines_numbered[i : i + CHUNK_SIZE]
                             )
-                            # if not EditBot().should_edit(
-                            #     issue=file_change_request.instructions,
-                            #     snippet=chunk_contents,
-                            # ):
-                            #     new_chunk = chunk_contents
-                            # else:
                             (
                                 new_chunk,
                                 suggested_commit_message,
@@ -1382,7 +1394,7 @@ class ModifyBot:
     ):
         fetch_snippets_response = self.fetch_snippets_bot.chat(
             fetch_snippets_prompt.format(
-                code=file_contents,
+                code=extract_python_span(file_contents, [file_change_request.entity]).content if file_change_request.entity else file_contents,
                 file_path=file_path,
                 request=file_change_request.instructions,
                 chunking_message=use_chunking_message
@@ -1444,23 +1456,10 @@ class ModifyBot:
             )
             selected_snippets.append(current_contents)
 
-        if file_change_request.start_and_end_lines:
-            plan_extracted_contents = ""
-            for start_line, end_line in file_change_request.start_and_end_lines:
-                split_file_contents = "\n".join(
-                    file_contents.split("\n")[start_line - 1 : end_line]
-                )
-                plan_extracted_contents += (
-                    f"<{file_change_request.filename}:{start_line}-{end_line}>\n"
-                )
-                plan_extracted_contents += split_file_contents
-                plan_extracted_contents += "...\n"
-        else:
-            plan_extracted_contents = file_contents
-
+        print(deduped_matches)
         update_snippets_response = self.update_snippets_bot.chat(
             update_snippets_prompt.format(
-                code=plan_extracted_contents,
+                code=extract_python_span(file_contents, [file_change_request.entity]).content if file_change_request.entity else file_contents,
                 file_path=file_path,
                 snippets="\n\n".join(
                     [
