@@ -52,6 +52,8 @@ from sweepai.core.prompts import (
     update_snippets_system_prompt,
     update_snippets_prompt,
     python_files_to_change_prompt,
+    use_chunking_message,
+    dont_use_chunking_message,
 )
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DB_MODAL_INST_NAME, SANDBOX_URL, SECONDARY_MODEL
@@ -1395,14 +1397,14 @@ class ModifyBot:
                 code=extract_python_span(file_contents, [file_change_request.entity]).content if file_change_request.entity else file_contents,
                 file_path=file_path,
                 request=file_change_request.instructions,
-                chunking_prompt='\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n'
+                chunking_message=use_chunking_message
                 if chunking
-                else "",
+                else dont_use_chunking_message,
             )
         )
 
         snippet_queries = []
-        query_pattern = r"<snippet_to_modify.*?>(?P<code>.*?)</snippet_to_modify>"
+        query_pattern = r"<snippet_to_modify.*?>\n(?P<code>.*?)\n</snippet_to_modify>"
         for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
             snippet_queries.append(strip_backticks(code))
 
@@ -1466,6 +1468,7 @@ class ModifyBot:
                     ]
                 ),
                 request=file_change_request.instructions,
+                n=len(selected_snippets),
             )
         )
 
