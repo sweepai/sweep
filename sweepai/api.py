@@ -57,7 +57,7 @@ from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  #
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
-from sweepai.handlers.on_ticket import on_ticket
+from sweepai.handlers.on_ticket import on_ticket, revert_file_changes
 from sweepai.redis_init import redis_client
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -267,6 +267,10 @@ def health_check():
 def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
+@app.post("/revert-file-changes")
+async def revert_file_changes_route(raw_request: Request):
+    request_data = await raw_request.json()
+    revert_file_changes(request_data)
 
 @app.post("/")
 async def webhook(raw_request: Request):
@@ -820,62 +824,25 @@ async def webhook(raw_request: Request):
 
 
 # Set up cronjob for this
-@app.get("/update_sweep_prs")
-def update_sweep_prs(repo_full_name: str, installation_id: int):
+@app.post("/revert-file-changes")
+async def revert_file_changes_route(raw_request: Request):
+    request_data = await raw_request.json()
+    filename = request_data['filename']
+    pr_number = request_data['pr_number']
+
     # Get a Github client
     _, g = get_github_client(installation_id)
 
     # Get the repository
     repo = g.get_repo(repo_full_name)
-    config = SweepConfig.get_config(repo)
 
-    try:
-        branch_ttl = int(config.get("branch_ttl", 7))
-    except SystemExit:
-        raise SystemExit
-    except:
-        branch_ttl = 7
-    branch_ttl = max(branch_ttl, 1)
+    # Get the pull request
+    pr = repo.get_pull(pr_number)
 
-    # Get all open pull requests created by Sweep
-    pulls = repo.get_pulls(
-        state="open", head="sweep", sort="updated", direction="desc"
-    )[:5]
+    # Get the file in the pull request
+    pr_file = [file for file in pr.get_files() if file.filename == filename][0]
 
-    # For each pull request, attempt to merge the changes from the default branch into the pull request branch
-    try:
-        for pr in pulls:
-            try:
-                # make sure it's a sweep ticket
-                feature_branch = pr.head.ref
-                if not feature_branch.startswith(
-                    "sweep/"
-                ) and not feature_branch.startswith("sweep_"):
-                    continue
+    # Revert the changes made to the file
+    pr_file.edit(pr_file.sha, "")
 
-                repo.merge(
-                    feature_branch,
-                    repo.default_branch,
-                    f"Merge main into {feature_branch}",
-                )
-
-                # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
-                logger.info(
-                    f"Merging changes from default branch into PR #{pr.number} for branch"
-                    f" {feature_branch}"
-                )
-
-                # Check if the merged PR is the config PR
-                if pr.title == "Configure Sweep" and pr.merged:
-                    # Create a new PR to add "gha_enabled: True" to sweep.yaml
-                    create_gha_pr(g, repo)
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(
-                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
-                )
-    except SystemExit:
-        raise SystemExit
-    except:
-        logger.warning("Failed to update sweep PRs")
+    return {"success": True}
