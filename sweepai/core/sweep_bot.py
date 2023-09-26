@@ -1401,8 +1401,13 @@ class ModifyBot:
         for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
             snippet_queries.append(strip_backticks(code))
 
-        assert len(snippet_queries) > 0, "No snippets found in file"
-        return snippet_queries
+        from sweepai.core.entities import UnneededEditError, MatchingError
+        
+        ...
+        
+                if len(snippet_queries) == 0:
+                    raise UnneededEditError("No snippets found in file")
+                return snippet_queries
 
     def update_file(
         self,
