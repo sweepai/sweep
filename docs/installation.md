@@ -79,7 +79,7 @@ For professionals who want more tickets and priority support/feature requests, c
 [Check out our docs](https://docs.sweep.dev/).
 
 ### Contact Us 👥
-- [Discord](https://discord.com/invite/sweep-ai)
+- [Discord](https://discord.gg/invite/sweep)
 - team@sweep.dev
 - [Star us on GitHub! ⭐](https://github.com/sweepai/sweep)
 
