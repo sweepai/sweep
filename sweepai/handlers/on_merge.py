@@ -10,6 +10,9 @@ from sweepai.core.post_merge import PostMerge
 from logn import logger, LogTask
 from sweepai.utils.event_logger import posthog
 
+# Debounce time in seconds
+DEBOUNCE_TIME = 120
+
 # change threshold for number of lines changed
 CHANGE_THRESHOLD = 25
 
