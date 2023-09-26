@@ -4,7 +4,7 @@ blocked_dirs:
  - ".github/"
  - "tests/"
 draft: False
-description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. Write code that adheres to PEP8."
+description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. All imports should be global (like `import sweepai.utils.github_utils`). Write code that adheres to PEP8."
 # These are the docs that we index for Sweep.
 # We scrape these docs once a day and store them in our database.
 # You can use it by adding the key to your GitHub issue.
