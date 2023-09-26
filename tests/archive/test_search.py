@@ -1,7 +1,6 @@
-from sweepai.config.server import DB_MODAL_INST_NAME
-
-
 import modal
+
+from sweepai.config.server import DB_MODAL_INST_NAME
 
 stub = modal.Stub(DB_MODAL_INST_NAME)
 

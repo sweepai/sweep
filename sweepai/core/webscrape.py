@@ -1,13 +1,11 @@
-import asyncio
-import os
 import re
-import time
-from logn import logger
 
-from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
-from tqdm import tqdm
 from markdownify import markdownify as md
+from playwright.async_api import async_playwright
+from tqdm import tqdm
+
+from logn import logger
 
 
 def parse_html(html):
@@ -125,7 +123,6 @@ async def webscrape(BASE_URL_PREFIX):
                 raise SystemExit
             except:
                 logger.warning(f"Failed to scrape {link}")
-                pass
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(timeout=0)

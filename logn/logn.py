@@ -1,11 +1,10 @@
 import datetime
+import inspect
 import json
+import logging
 import os
 import threading
-import datetime
-import inspect
 import traceback
-import logging
 
 LOG_PATH = "logn_logs/logs"
 META_PATH = "logn_logs/meta"
@@ -15,6 +14,7 @@ END_OF_LINE = "󰀀{level}󰀀\n"
 # Add logtail support
 try:
     from logtail import LogtailHandler
+
     from sweepai.config.server import LOGTAIL_SOURCE_KEY
 
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)

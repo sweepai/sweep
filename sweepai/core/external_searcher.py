@@ -1,12 +1,10 @@
 import re
 
 from logn import logger
-
-from sweepai.utils.html_extractor import extract_info
-
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
-from sweepai.core.prompts import external_search_system_prompt, external_search_prompt
+from sweepai.core.prompts import external_search_prompt, external_search_system_prompt
+from sweepai.utils.html_extractor import extract_info
 
 
 class ExternalSearcher(ChatGPT):

@@ -1,9 +1,5 @@
-import json
-import os
-from loguru import logger
-
 import requests
-from sweepai.core.vector_db import embed_texts
+from loguru import logger
 
 # Define a list of texts for testing
 texts = ["This is a test text.", "Another test text."]

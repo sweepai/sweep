@@ -1,6 +1,5 @@
 from sweepai.utils.github_utils import list_directory_tree
 
-
 if __name__ == "__main__":
     tree = list_directory_tree(
         "sweepai",

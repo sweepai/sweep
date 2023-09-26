@@ -6,16 +6,12 @@ with sourcegraph in a way :V)
 """
 
 import asyncio
-from typing import Dict
-from typing import Optional
-from typing import List
-from typing import Tuple
 import dataclasses
-import uuid
+import importlib.util
+from typing import Dict, List, Optional, Tuple
+
 import dataclasses_json
 import jedi
-import importlib.util
-
 from anton.code_graph.type import CodeGraphNode, JediFullReturnType
 
 

@@ -1,7 +1,6 @@
-import jedi
 import importlib.util
 
-from jedi.inference import imports
+import jedi
 
 source = """
 import numpy as np

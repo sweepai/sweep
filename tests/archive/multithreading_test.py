@@ -1,6 +1,6 @@
+import ctypes
 import threading
 import time
-import ctypes
 
 events = {}
 

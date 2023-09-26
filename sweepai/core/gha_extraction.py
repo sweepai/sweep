@@ -1,7 +1,7 @@
 from logn import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
-from sweepai.core.prompts import gha_extraction_system_prompt, gha_extraction_prompt
+from sweepai.core.prompts import gha_extraction_prompt, gha_extraction_system_prompt
 
 
 class GHAExtractor(ChatGPT):
