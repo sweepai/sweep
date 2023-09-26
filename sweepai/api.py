@@ -77,83 +77,15 @@ def run_on_ticket(*args, **kwargs):
         },
         create_file=False,
     )
-    with logger:
-        on_ticket(*args, **kwargs)
-
-
-def run_on_comment(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "comment_" + kwargs["username"],
-        },
-        create_file=False,
-    )
-
-    with logger:
-        on_comment(*args, **kwargs)
-
-
-def run_on_merge(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "merge_" + args[0]["pusher"]["name"],
-        },
-        create_file=False,
-    )
-    with logger:
-        on_merge(*args, **kwargs)
-
-
-def run_on_write_docs(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "docs_scrape",
-        },
-        create_file=False,
-    )
-    with logger:
-        write_documentation(*args, **kwargs)
-
-
-def run_on_check_suite(*args, **kwargs):
-    logger.init(
-        metadata={
-            "name": "check",
-        },
-        create_file=False,
-    )
-
-    request = kwargs["request"]
-    pr_change_request = on_check_suite(request)
-    if pr_change_request:
-        logger.init(
-            metadata={
-                **pr_change_request.params,
-                "name": "check_" + pr_change_request.params["username"],
-            },
-            create_file=False,
-        )
+    try:
         with logger:
-            call_on_comment(**pr_change_request.params, comment_type="github_action")
-        logger.info("Done with on_check_suite")
-    else:
-        logger.info("Skipping on_check_suite as no pr_change_request was returned")
+            on_ticket(*args, **kwargs)
+    except Exception as e:
+        logger.exception("Error in run_on_ticket")
+        raise
 
 
-def run_get_deeplake_vs_from_repo(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "deeplake",
-        },
-        create_file=False,
-    )
-    with logger:
-        get_deeplake_vs_from_repo(*args, **kwargs)
-
+import traceback
 
 def terminate_thread(thread):
     """Terminate a python threading.Thread."""
@@ -174,7 +106,25 @@ def terminate_thread(thread):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.error(f"Failed to terminate thread: {e}")
+        logger.exception("Failed to terminate thread")
+
+@app.post("/")
+async def webhook(raw_request: Request):
+    # Do not create logs for api
+    logger.init(
+        metadata=None,
+        create_file=False,
+    )
+
+    """Handle a webhook request from GitHub."""
+    try:
+        # ... (rest of the code)
+    except ValidationError as e:
+        logger.exception("Failed to parse request")
+        raise HTTPException(status_code=422, detail="Failed to parse request")
+    except Exception as e:
+        logger.exception("Failed to add config to top repos")
+    return {"success": True}
 
 
 def call_on_ticket(*args, **kwargs):
@@ -277,21 +227,13 @@ async def webhook(raw_request: Request):
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
 
-        # # Check if user is in Whitelist
-        # gh_request = GithubRequest(**request_dict)
-        # if (
-        #     WHITELISTED_USERS is not None
-        #     and len(WHITELISTED_USERS) > 0
-        #     and gh_request.sender is not None
-        #     and gh_request.sender.login not in WHITELISTED_USERS
-        # ):
-        #     return {
-        #         "success": True,
-        #         "reason": "User not in whitelist",
-        #     }
-
         action = request_dict.get("action", None)
-        # logger.bind(event=event, action=action)
+    except ValidationError as e:
+        logger.exception("Failed to parse request")
+        raise HTTPException(status_code=422, detail="Failed to parse request")
+    except Exception as e:
+        logger.exception("Failed to add config to top repos")
+    return {"success": True}
         logger.info(f"Received event: {event}, {action}")
         match event, action:
             case "issues", "opened":
