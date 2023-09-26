@@ -39,80 +39,83 @@ def line_cost(line: str) -> float:
 
 
 def score_multiline(query: list[str], target: list[str]) -> float:
-    # TODO: add weighting on first and last lines
+    try:
+        # TODO: add weighting on first and last lines
 
-    q, t = 0, 0  # indices for query and target
-    scores: list[tuple[float, float]] = []
-    skipped_comments = 0
+        q, t = 0, 0  # indices for query and target
+        scores: list[tuple[float, float]] = []
+        skipped_comments = 0
 
-    def get_weight(q: int) -> float:
-        # Prefers lines at beginning and end of query
-        # Sequence: 1, 2/3, 1/2, 2/5...
-        index = min(q, len(query) - q)
-        return 100 / (index / 2 + 1)
+        def get_weight(q: int) -> float:
+            # Prefers lines at beginning and end of query
+            # Sequence: 1, 2/3, 1/2, 2/5...
+            index = min(q, len(query) - q)
+            return 100 / (index / 2 + 1)
 
-    while q < len(query) and t < len(target):
-        q_line = query[q]
-        t_line = target[t]
-        weight = get_weight(q)
+        while q < len(query) and t < len(target):
+            q_line = query[q]
+            t_line = target[t]
+            weight = get_weight(q)
 
-        if match_without_whitespace(q_line, t_line):
-            # Case 1: lines match
-            scores.append((score_line(q_line, t_line), weight))
-            q += 1
-            t += 1
-        elif "..." in q_line:
-            # Case 3: ellipsis wildcard
-            lines_matched = 1
-            t += 1
-            if q + 1 == len(query):
-                scores.append((100 - (len(target) - t), weight))
+            if match_without_whitespace(q_line, t_line):
+                # Case 1: lines match
+                scores.append((score_line(q_line, t_line), weight))
                 q += 1
-                t = len(target)
+                t += 1
+            elif "..." in q_line:
+                # Case 3: ellipsis wildcard
+                lines_matched = 1
+                t += 1
+                if q + 1 == len(query):
+                    scores.append((100 - (len(target) - t), weight))
+                    q += 1
+                    t = len(target)
+                    break
+                max_score = 0
+                for i in range(t, len(target)):
+                    # TODO: use radix to optimize
+                    score, weight = score_multiline(query[q + 1 :], target[i:]), (
+                        100 - (i - t) / len(target) * 10
+                    )
+                    new_scores = scores + [(score, weight)]
+                    total_score = sum(
+                        [value * weight for value, weight in new_scores]
+                    ) / sum([weight for _, weight in new_scores])
+                    max_score = max(max_score, total_score)
+                return max_score
+            elif (
+                t_line.strip() == ""
+                or t_line.strip().startswith("#")
+                or t_line.strip().startswith("//")
+            ):
+                # Case 2: skipped comment
+                skipped_comments += 1
+                t += 1
+                scores.append((90, weight))
+            else:
                 break
-            max_score = 0
-            for i in range(t, len(target)):
-                # TODO: use radix to optimize
-                score, weight = score_multiline(query[q + 1 :], target[i:]), (
-                    100 - (i - t) / len(target) * 10
-                )
-                new_scores = scores + [(score, weight)]
-                total_score = sum(
-                    [value * weight for value, weight in new_scores]
-                ) / sum([weight for _, weight in new_scores])
-                max_score = max(max_score, total_score)
-            return max_score
-        elif (
-            t_line.strip() == ""
-            or t_line.strip().startswith("#")
-            or t_line.strip().startswith("//")
-        ):
-            # Case 2: skipped comment
-            skipped_comments += 1
-            t += 1
-            scores.append((90, weight))
-        else:
-            break
 
-    if q < len(query):
-        scores.extend(
-            (100 - line_cost(line), get_weight(index))
-            for index, line in enumerate(query[q:])
+        if q < len(query):
+            scores.extend(
+                (100 - line_cost(line), get_weight(index))
+                for index, line in enumerate(query[q:])
+            )
+        if t < len(target):
+            scores.extend(
+                (100 - line_cost(line), 100) for index, line in enumerate(target[t:])
+            )
+
+        final_score = (
+            sum([value * weight for value, weight in scores])
+            / sum([weight for _, weight in scores])
+            if scores
+            else 0
         )
-    if t < len(target):
-        scores.extend(
-            (100 - line_cost(line), 100) for index, line in enumerate(target[t:])
-        )
+        final_score *= 1 - 0.05 * skipped_comments
 
-    final_score = (
-        sum([value * weight for value, weight in scores])
-        / sum([weight for _, weight in scores])
-        if scores
-        else 0
-    )
-    final_score *= 1 - 0.05 * skipped_comments
-
-    return final_score
+        return final_score
+    except Exception as e:
+        logger.error(traceback.format_exc())
 
 
 @dataclass
