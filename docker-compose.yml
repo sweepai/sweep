@@ -10,6 +10,7 @@ services:
     image: sweepai/sweep
     volumes:
       - .:/app
+      - /sweep_docs:/sweep_docs
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
     command: >
