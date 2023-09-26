@@ -1,8 +1,6 @@
 import re
-from sweepai.config.client import (
-    UPDATES_MESSAGE,
-    SweepConfig,
-)
+
+from sweepai.config.client import UPDATES_MESSAGE, SweepConfig
 from sweepai.core.entities import Snippet
 from sweepai.utils.chat_logger import discord_log_error
 

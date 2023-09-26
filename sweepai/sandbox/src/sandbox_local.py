@@ -1,22 +1,20 @@
-from dataclasses import asdict, dataclass
+import io
 import json
 import os
-import io
+import shlex
 import tarfile
 import uuid
-import requests
+from dataclasses import asdict, dataclass
 
-import shlex
-from fastapi import FastAPI, Request
-from pydantic import BaseModel
 import docker
+import requests
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel
 
 # from sweepai.config.server import DISCORD_WEBHOOK_URL
 from src.chat import fix_file
 from src.sandbox_utils import Sandbox
-
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi import FastAPI, Request
 
 app = FastAPI()
 

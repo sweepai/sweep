@@ -1,9 +1,9 @@
 import glob
 import os
-import itertools
-from logn import logger
 
 from tqdm import tqdm
+
+from logn import logger
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
 from sweepai.utils.utils import chunk_code

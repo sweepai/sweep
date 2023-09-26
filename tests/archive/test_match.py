@@ -1,4 +1,3 @@
-from sweepai.utils.diff import find_best_match
 from sweepai.utils.search_and_replace import score_multiline
 
 haystack = r"""

@@ -1,4 +1,4 @@
-from sandbox.modal_sandbox import stub, run_sandbox
+from sandbox.modal_sandbox import run_sandbox, stub
 from sandbox.sandbox import Sandbox
 
 sandbox = Sandbox(

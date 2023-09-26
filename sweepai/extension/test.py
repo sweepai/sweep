@@ -1,6 +1,6 @@
 import ctypes
-import time
 import threading
+import time
 
 
 class ContextManager:

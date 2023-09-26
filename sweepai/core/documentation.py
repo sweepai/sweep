@@ -1,20 +1,13 @@
-import asyncio
 import re
+
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from logn import logger, LogTask
-from tqdm import tqdm
+
+from logn import LogTask, logger
+from sweepai.config.server import ACTIVELOOP_TOKEN, ORG_ID, SENTENCE_TRANSFORMERS_MODEL
 from sweepai.core.lexical_search import prepare_index_from_docs, search_docs
 from sweepai.core.robots import is_url_allowed
 from sweepai.core.webscrape import webscrape
 from sweepai.pre_indexed_docs import DOCS_ENDPOINTS
-
-from sweepai.config.server import (
-    ACTIVELOOP_TOKEN,
-    DOCS_MODAL_INST_NAME,
-    ENV,
-    ORG_ID,
-    SENTENCE_TRANSFORMERS_MODEL,
-)
 
 MODEL_DIR = "/tmp/cache/model"
 BATCH_SIZE = 128
@@ -82,36 +75,43 @@ def remove_non_alphanumeric(url):
     return cleaned
 
 
-@LogTask()
 async def write_documentation(doc_url):
-    url_allowed = is_url_allowed(doc_url, user_agent="*")
-    if not ACTIVELOOP_TOKEN:
-        logger.info("No active loop token")
+    try:
+        url_allowed = is_url_allowed(doc_url, user_agent="*")
+        if not url_allowed:
+            logger.info(f"URL {doc_url} is not allowed")
+            return False
+        idx_name = remove_non_alphanumeric(doc_url)
+        url_to_documents = await webscrape(doc_url)
+        urls, document_chunks = [], []
+        for url, document in url_to_documents.items():
+            if len(document) == 0:
+                logger.info(f"Empty document for url {url}")
+            document_chunks.extend(chunk_string(document))
+            urls.extend([url] * len(chunk_string(document)))
+        computed_embeddings = embedding_function(document_chunks)
+        if not ACTIVELOOP_TOKEN:
+            logger.info("No active loop token")
+            vector_store = VectorStore(
+                path=f"sweep_docs/{idx_name}",
+                overwrite=True,
+            )
+        else:
+            vector_store = VectorStore(
+                path=f"hub://{ORG_ID}/{idx_name}",
+                runtime={"tensor_db": True},
+                overwrite=True,
+                token=ACTIVELOOP_TOKEN,
+            )
+        vector_store.add(
+            text=document_chunks,
+            embedding=computed_embeddings,
+            metadata=[{"url": url} for url in urls],
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Error writing documentation: {e}")
         return False
-    if not url_allowed:
-        logger.info(f"URL {doc_url} is not allowed")
-        return False
-    idx_name = remove_non_alphanumeric(doc_url)
-    url_to_documents = await webscrape(doc_url)
-    urls, document_chunks = [], []
-    for url, document in url_to_documents.items():
-        if len(document) == 0:
-            logger.info(f"Empty document for url {url}")
-        document_chunks.extend(chunk_string(document))
-        urls.extend([url] * len(chunk_string(document)))
-    computed_embeddings = embedding_function(document_chunks)
-    vector_store = VectorStore(
-        path=f"hub://{ORG_ID}/{idx_name}",
-        runtime={"tensor_db": True},
-        overwrite=True,
-        token=ACTIVELOOP_TOKEN,
-    )
-    vector_store.add(
-        text=document_chunks,
-        embedding=computed_embeddings,
-        metadata=[{"url": url} for url in urls],
-    )
-    return True
 
 
 async def daily_update():
@@ -121,16 +121,19 @@ async def daily_update():
 
 def search_vector_store(doc_url, query, k=100):
     logger.info(f'Searching for "{query}" in {doc_url}')
-    if not ACTIVELOOP_TOKEN:
-        logger.info("No active loop token")
-        return [], []
     idx_name = remove_non_alphanumeric(doc_url)
-    vector_store = VectorStore(
-        path=f"hub://{ORG_ID}/{idx_name}",
-        runtime={"tensor_db": True},
-        read_only=True,
-        token=ACTIVELOOP_TOKEN,
-    )
+    if not ACTIVELOOP_TOKEN:
+        vector_store = VectorStore(
+            path=f"sweep_docs/{idx_name}",
+            read_only=True,
+        )
+    else:
+        vector_score = VectorStore(
+            path=f"hub://{ORG_ID}/{idx_name}",
+            runtime={"tensor_db": True},
+            read_only=True,
+            token=ACTIVELOOP_TOKEN,
+        )
     logger.info("Embedding query...")
     query_embedding = embedding_function(query, cpu=True)
     logger.info("Searching vector store...")
