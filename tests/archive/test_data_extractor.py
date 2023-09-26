@@ -1,7 +1,8 @@
-import re
-from bs4 import BeautifulSoup
-import requests
 import json
+import re
+
+import requests
+from bs4 import BeautifulSoup
 
 
 def get_html(url):

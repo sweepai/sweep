@@ -32,9 +32,9 @@ embedding_function = ModalEmbeddingFunction()
 
 class CPUEmbedding:
     def __init__(self):
-        from sentence_transformers import (
+        from sentence_transformers import (  # pylint: disable=import-error
             SentenceTransformer,
-        )  # pylint: disable=import-error
+        )
 
         self.model = SentenceTransformer(
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR

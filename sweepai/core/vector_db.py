@@ -7,9 +7,9 @@ from typing import Generator, List
 import numpy as np
 import replicate
 import requests
-from deeplake.core.vectorstore.deeplake_vectorstore import (
+from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
-)  # pylint: disable=import-error
+)
 from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
 from tqdm import tqdm
@@ -45,9 +45,9 @@ redis_client = Redis.from_url(REDIS_URL)
 
 
 def download_models():
-    from sentence_transformers import (
+    from sentence_transformers import (  # pylint: disable=import-error
         SentenceTransformer,
-    )  # pylint: disable=import-error
+    )
 
     model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
 

@@ -1,6 +1,5 @@
 from sweepai.core.lexical_search import tokenize_call
 
-
 file_contents = """\
 # TODO: Add file validation
 

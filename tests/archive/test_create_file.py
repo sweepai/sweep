@@ -1,7 +1,6 @@
 import re
-from sweepai.core.entities import FileCreation
-from sweepai.utils.diff import format_contents
 
+from sweepai.core.entities import FileCreation
 
 create_file_response = """create_file_resp"
 """

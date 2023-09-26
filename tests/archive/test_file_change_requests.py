@@ -1,6 +1,5 @@
 from sweepai.core.entities import FilesToChange
 
-
 fcr = """Root cause:
 The issue at hand is to provide a better user experience for first-time users by giving them an estimate of the time it will take to index their codebase. This is particularly important for larger codebases, where indexing can take a significant amount of time. The root cause of this issue is that the current implementation in `on_ticket.py` does not provide this feature.
 
