@@ -121,7 +121,7 @@ class ChatLogger(BaseModel):
         result = self.ticket_collection.find_one({"username": username})
         return result.get("is_paying_user", False) if result else False
 
-    def is_trial_user(self):
+    def is_consumer_tier(self):
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
             return False
@@ -135,8 +135,8 @@ class ChatLogger(BaseModel):
             return True
         if self.is_paying_user():
             return self.get_ticket_count() >= 500
-        if self.is_trial_user():
-            return self.get_ticket_count() >= 15
+        if self.is_consumer_tier():
+            return self.get_ticket_count() >= 20
 
         # try:
         #     loc_user = g.get_user(self.data["username"]).location
