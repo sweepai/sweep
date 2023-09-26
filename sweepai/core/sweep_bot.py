@@ -235,7 +235,7 @@ class CodeGenBot(ChatGPT):
                     graph_parent_bot.messages.insert(
                         1, Message(role="user", content=pr_diffs, key="pr_diffs")
                     )
-
+    
                 issue_metadata = self.human_message.get_issue_metadata()
                 relevant_snippets = self.human_message.render_snippets()
                 symbols_to_files = graph.paths_to_first_degree_entities(
@@ -243,7 +243,7 @@ class CodeGenBot(ChatGPT):
                 )
                 if len(symbols_to_files) <= 1:
                     python_issue_worked = False
-
+    
                 if python_issue_worked:
                     (
                         relevant_files_to_symbols,
@@ -251,12 +251,12 @@ class CodeGenBot(ChatGPT):
                     ) = graph_parent_bot.relevant_files_to_symbols(
                         issue_metadata, relevant_snippets, symbols_to_files
                     )
-
+    
                     file_paths_to_contents = {
                         file_path: self.cloned_repo.get_file_contents(file_path)
                         for file_path in relevant_files_to_symbols.keys()
                     }
-
+    
                     # Create plan for relevant snippets first
                     human_message_snippet_paths = set(
                         s.file_path for s in self.human_message.snippets
@@ -315,7 +315,7 @@ class CodeGenBot(ChatGPT):
                         else:
                             logger.info(f"Duplicate plan for {plan.file_path}")
                     plans = deduped_plans
-
+    
                     # topologically sort the plans so that we can apply them in order
                     file_paths = [plan.file_path for plan in plans]
                     sorted_files = graph.topological_sort(file_paths)
@@ -327,11 +327,11 @@ class CodeGenBot(ChatGPT):
                             )  # TODO: use a dict instead
                         )
                     plans = sorted_plans
-
+    
                     relevant_snippets = []
                     for plan in plans:
                         relevant_snippets.extend(plan.relevant_new_snippet)
-
+    
                     python_human_message = PythonHumanMessagePrompt(
                         repo_name=self.human_message.repo_name,
                         issue_url=self.human_message.issue_url,
@@ -357,7 +357,7 @@ class CodeGenBot(ChatGPT):
                         file_change_requests.append(
                             FileChangeRequest.from_string(re_match.group(0))
                         )
-
+    
                     if file_change_requests:
                         return file_change_requests, files_to_change_response
             if not is_python_issue or not python_issue_worked:
