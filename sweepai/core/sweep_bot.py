@@ -1399,24 +1399,30 @@ class ModifyBot:
         for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
             snippet_queries.append(strip_backticks(code))
 
-        assert len(snippet_queries) > 0, "No snippets found in file"
-        return snippet_queries
-
-    def update_file(
-        self,
-        file_path: str,
-        file_contents: str,
-        file_change_request: FileChangeRequest,
-        snippet_queries: list[str],
-        chunking: bool = False,
-    ):
-        best_matches = []
-        for query in snippet_queries:
-            _match = find_best_match(query, file_contents)
-            if _match.score > 50:
-                best_matches.append(_match)
-
-        assert len(best_matches) > 0, "No matches found in file"
+        from sweepai.core.entities import UnneededEditError, MatchingError
+        
+        ...
+        
+                if len(snippet_queries) == 0:
+                    raise UnneededEditError("No snippets found in file")
+                return snippet_queries
+        
+            def update_file(
+                self,
+                file_path: str,
+                file_contents: str,
+                file_change_request: FileChangeRequest,
+                snippet_queries: list[str],
+                chunking: bool = False,
+            ):
+                best_matches = []
+                for query in snippet_queries:
+                    _match = find_best_match(query, file_contents)
+                    if _match.score > 50:
+                        best_matches.append(_match)
+        
+                if len(best_matches) == 0:
+                    raise MatchingError("No matches found in file")
 
         # Todo: check multiple files for matches using PR changed files
 
