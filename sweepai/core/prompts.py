@@ -1135,7 +1135,8 @@ last five lines of the original snippet (must end on code)
 </snippet_to_modify>
 """
 
-fetch_snippets_prompt = """# Code
+fetch_snippets_prompt = """
+# Code
 File path: {file_path}
 <old_code>
 ```

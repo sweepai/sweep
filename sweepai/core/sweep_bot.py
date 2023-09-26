@@ -1385,7 +1385,7 @@ class ModifyBot:
                 code=file_contents,
                 file_path=file_path,
                 request=file_change_request.instructions,
-                chunking_prompt=use_chunking_message
+                chunking_message=use_chunking_message
                 if chunking
                 else dont_use_chunking_message,
             )
@@ -1444,7 +1444,6 @@ class ModifyBot:
             )
             selected_snippets.append(current_contents)
 
-        print(deduped_matches)
         if file_change_request.start_and_end_lines:
             plan_extracted_contents = ""
             for start_line, end_line in file_change_request.start_and_end_lines:
