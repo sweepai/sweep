@@ -1,4 +1,6 @@
 # Do not save logs for main process
+import asyncio
+import concurrent.futures
 import json
 
 from logn import logger
@@ -109,18 +111,6 @@ def run_on_merge(*args, **kwargs):
     )
     with logger:
         on_merge(*args, **kwargs)
-
-
-def run_on_write_docs(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "docs_scrape",
-        },
-        create_file=False,
-    )
-    with logger:
-        write_documentation(*args, **kwargs)
 
 
 def run_on_check_suite(*args, **kwargs):
@@ -243,11 +233,6 @@ def call_on_merge(*args, **kwargs):
     thread.start()
 
 
-def call_on_write_docs(*args, **kwargs):
-    thread = threading.Thread(target=run_on_write_docs, args=args, kwargs=kwargs)
-    thread.start()
-
-
 def call_get_deeplake_vs_from_repo(*args, **kwargs):
     thread = threading.Thread(
         target=run_get_deeplake_vs_from_repo, args=args, kwargs=kwargs
@@ -294,7 +279,6 @@ async def webhook(raw_request: Request):
         #         "success": True,
         #         "reason": "User not in whitelist",
         #     }
-
         action = request_dict.get("action", None)
         # logger.bind(event=event, action=action)
         logger.info(f"Received event: {event}, {action}")
@@ -795,7 +779,7 @@ async def webhook(raw_request: Request):
                         # Call the write_documentation function for each of the existing fields in the "docs" mapping
                         for doc_url, _ in docs.values():
                             logger.info(f"Writing documentation for {doc_url}")
-                            call_on_write_docs(doc_url)
+                            await write_documentation(doc_url)
                     # this makes it faster for everyone because the queue doesn't get backed up
                     if chat_logger.is_paying_user():
                         cloned_repo = ClonedRepo(
