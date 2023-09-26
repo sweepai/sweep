@@ -97,16 +97,6 @@ def on_ticket(
         lint_mode,
     ) = strip_sweep(title)
 
-    is_python_issue = (
-        sum(
-            [
-                not file_path.endswith(".py")
-                for file_path in sweep_bot.human_message.get_file_paths()
-            ]
-        )
-        < 2
-    )
-    posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
 
     # Flow:
     # 1. Get relevant files
@@ -720,6 +710,16 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
+        is_python_issue = (
+            sum(
+                [
+                    not file_path.endswith(".py")
+                    for file_path in human_message.get_file_paths()
+                ]
+            )
+            < 2
+        )
+        posthog.capture(username, "is_python_issue", properties={"is_python_issue": is_python_issue})
         file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
         if not file_change_requests:
