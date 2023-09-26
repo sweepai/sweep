@@ -1,13 +1,15 @@
-from logn import logger
-import traceback
-from dataclasses import dataclass
-import re
-from sweepai.core.entities import Snippet
-from whoosh.analysis import Tokenizer, Token
-from whoosh.filedb.filestore import RamStorage
 import os
 import random
+import re
+import traceback
+from dataclasses import dataclass
+
+from whoosh.analysis import Token, Tokenizer
+from whoosh.filedb.filestore import RamStorage
 from whoosh.query import Or, Term
+
+from logn import logger
+from sweepai.core.entities import Snippet
 
 random.seed(os.getpid())
 
@@ -164,7 +166,8 @@ def snippets_to_docs(snippets: list[Snippet], len_repo_cache_dir):
 
 
 import os
-from whoosh.fields import Schema, TEXT, NUMERIC
+
+from whoosh.fields import NUMERIC, TEXT, Schema
 
 
 def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):

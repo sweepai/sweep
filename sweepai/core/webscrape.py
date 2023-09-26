@@ -1,10 +1,11 @@
 import re
-from logn import logger
 
-from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
-from tqdm import tqdm
 from markdownify import markdownify as md
+from playwright.async_api import async_playwright
+from tqdm import tqdm
+
+from logn import logger
 
 
 def parse_html(html):

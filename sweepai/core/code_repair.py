@@ -4,10 +4,10 @@ from logn import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.core.prompts import (
-    code_repair_check_system_prompt,
     code_repair_check_prompt,
-    code_repair_system_prompt,
+    code_repair_check_system_prompt,
     code_repair_prompt,
+    code_repair_system_prompt,
 )
 
 response_regex = r"```[^\n]*(?P<response>.+)```"

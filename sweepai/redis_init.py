@@ -1,4 +1,5 @@
 from redis import Redis
+
 from sweepai.config.server import REDIS_URL
 
 # try:

@@ -7,59 +7,59 @@ It is only called by the webhook handler in sweepai/api.py.
 import math
 import re
 import traceback
-import openai
 
-from github import GithubException, BadCredentialsException
+import openai
+from github import BadCredentialsException, GithubException
 from tabulate import tabulate
 from tqdm import tqdm
 
-from logn import logger, LogTask
+from logn import LogTask, logger
+from sweepai.config.client import (
+    RESTART_SWEEP_BUTTON,
+    SWEEP_BAD_FEEDBACK,
+    SWEEP_GOOD_FEEDBACK,
+    SweepConfig,
+    get_documentation_dict,
+)
+from sweepai.config.server import (
+    DISCORD_FEEDBACK_WEBHOOK_URL,
+    ENV,
+    GITHUB_BOT_USERNAME,
+    GITHUB_LABEL_NAME,
+    MONGODB_URI,
+    OPENAI_API_KEY,
+    OPENAI_USE_3_5_MODEL_ONLY,
+    WHITELISTED_REPOS,
+)
 from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import (
+    EmptyRepository,
+    MaxTokensExceeded,
+    NoFilesException,
     ProposedIssue,
     SandboxResponse,
-    NoFilesException,
     SweepContext,
-    MaxTokensExceeded,
-    EmptyRepository,
 )
 from sweepai.core.external_searcher import ExternalSearcher
-from sweepai.core.sweep_bot import SweepBot
 from sweepai.core.prompts import issue_comment_prompt
+from sweepai.core.sweep_bot import SweepBot
 
 # from sandbox.sandbox_utils import Sandbox
 from sweepai.handlers.create_pr import (
-    create_pr_changes,
     create_config_pr,
+    create_pr_changes,
     safe_delete_sweep_branch,
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.buttons import create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.config.client import (
-    SweepConfig,
-    get_documentation_dict,
-    RESTART_SWEEP_BUTTON,
-    SWEEP_BAD_FEEDBACK,
-    SWEEP_GOOD_FEEDBACK,
-)
-from sweepai.config.server import (
-    ENV,
-    MONGODB_URI,
-    OPENAI_API_KEY,
-    GITHUB_BOT_USERNAME,
-    GITHUB_LABEL_NAME,
-    OPENAI_USE_3_5_MODEL_ONLY,
-    WHITELISTED_REPOS,
-    DISCORD_FEEDBACK_WEBHOOK_URL,
-)
-from sweepai.utils.ticket_utils import *
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.search_utils import search_snippets
+from sweepai.utils.ticket_utils import *
 from sweepai.utils.tree_utils import DirectoryTree
 
 openai.api_key = OPENAI_API_KEY

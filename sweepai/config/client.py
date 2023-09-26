@@ -11,7 +11,6 @@ from pydantic import BaseModel
 from logn import logger
 from sweepai.core.entities import EmptyRepository
 
-
 branch_overrides = {}  # type: Dict[(Thread, str), str]
 
 

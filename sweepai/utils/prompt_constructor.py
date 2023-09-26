@@ -1,13 +1,13 @@
-from logn import logger
 from pydantic import BaseModel
 
+from logn import logger
 from sweepai.core.prompts import (
-    human_message_prompt,
-    python_human_message_prompt,
-    human_message_prompt_comment,
-    human_message_review_prompt,
     diff_section_prompt,
     final_review_prompt,
+    human_message_prompt,
+    human_message_prompt_comment,
+    human_message_review_prompt,
+    python_human_message_prompt,
 )
 
 
@@ -95,7 +95,6 @@ Issue Description: {self.summary}
 
 
 class PythonHumanMessagePrompt(HumanMessagePrompt):
-
     def construct_prompt(self):
         human_messages = [
             {
@@ -118,13 +117,16 @@ class PythonHumanMessagePrompt(HumanMessagePrompt):
             for msg in python_human_message_prompt
         ]
         return human_messages
-    
+
     def render_snippets(self):
         res = ""
         for snippet in self.snippets:
-            snippet_text = f"<snippet source={snippet.file_path}>\n{snippet.content}\n</snippet>\n"
+            snippet_text = (
+                f"<snippet source={snippet.file_path}>\n{snippet.content}\n</snippet>\n"
+            )
             res += snippet_text
         return res
+
 
 class HumanMessagePromptReview(HumanMessagePrompt):
     pr_title: str

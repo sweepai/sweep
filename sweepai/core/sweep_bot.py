@@ -1,59 +1,59 @@
-from collections import OrderedDict
-import traceback
 import re
-import requests
-from typing import Generator, Any, Dict
-from logn import logger
+import traceback
+from collections import OrderedDict
+from typing import Any, Dict, Generator
 
+import requests
+from github.Commit import Commit
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
-from github.Commit import Commit
 from pydantic import BaseModel
+
+from logn import logger
 from sweepai.agents.graph_child import (
     GraphChildBot,
     GraphContextAndPlan,
     extract_python_span,
 )
 from sweepai.agents.graph_parent import GraphParentBot
-
+from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
+from sweepai.config.server import SANDBOX_URL, SECONDARY_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
-    FileCreation,
-    ProposedIssue,
     FileChangeRequest,
+    FileCreation,
+    MatchingError,
+    MaxTokensExceeded,
+    Message,
+    NoFilesException,
+    ProposedIssue,
     PullRequest,
     RegexMatchError,
     SandboxResponse,
     SectionRewrite,
     Snippet,
-    NoFilesException,
-    Message,
-    MaxTokensExceeded,
     UnneededEditError,
-    MatchingError,
 )
 
 # from sandbox.modal_sandbox import SandboxError  # pylint: disable=E0401
 from sweepai.core.prompts import (
-    files_to_change_prompt,
-    subissues_prompt,
-    pull_request_prompt,
     create_file_prompt,
-    snippet_replacement,
+    dont_use_chunking_message,
+    fetch_snippets_prompt,
+    fetch_snippets_system_prompt,
+    files_to_change_prompt,
+    pull_request_prompt,
+    python_files_to_change_prompt,
     rewrite_file_prompt,
     rewrite_file_system_prompt,
+    snippet_replacement,
     snippet_replacement_system_message,
-    fetch_snippets_system_prompt,
-    fetch_snippets_prompt,
-    update_snippets_system_prompt,
+    subissues_prompt,
     update_snippets_prompt,
-    python_files_to_change_prompt,
+    update_snippets_system_prompt,
     use_chunking_message,
-    dont_use_chunking_message,
 )
-from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import SANDBOX_URL, SECONDARY_MODEL
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import (
     format_contents,
@@ -61,7 +61,6 @@ from sweepai.utils.diff import (
     is_markdown,
     sliding_window_replacement,
 )
-
 from sweepai.utils.graph import Graph
 from sweepai.utils.prompt_constructor import PythonHumanMessagePrompt
 from sweepai.utils.search_and_replace import Match, find_best_match

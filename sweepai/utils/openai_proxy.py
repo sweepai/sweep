@@ -1,14 +1,15 @@
-from logn import logger, file_cache
 import openai
+
+from logn import file_cache, logger
 from sweepai.config.server import (
     AZURE_API_KEY,
-    OPENAI_API_KEY,
-    OPENAI_API_TYPE,
     OPENAI_API_BASE,
-    OPENAI_API_VERSION,
-    OPENAI_API_ENGINE_GPT35,
     OPENAI_API_ENGINE_GPT4,
     OPENAI_API_ENGINE_GPT4_32K,
+    OPENAI_API_ENGINE_GPT35,
+    OPENAI_API_KEY,
+    OPENAI_API_TYPE,
+    OPENAI_API_VERSION,
 )
 
 

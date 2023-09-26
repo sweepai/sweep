@@ -4,10 +4,9 @@ import re
 import traceback
 from dataclasses import dataclass
 
-from logn import logger
-
 import tiktoken
 
+from logn import logger
 from sweepai.core.entities import Snippet
 
 

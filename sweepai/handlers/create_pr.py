@@ -6,10 +6,10 @@ import datetime
 from typing import Generator
 
 import openai
-from github.Repository import Repository
 from github.Commit import Commit
-from logn import logger
+from github.Repository import Repository
 
+from logn import logger
 from sweepai.config.client import UPDATES_MESSAGE, SweepConfig, get_blocked_dirs
 from sweepai.config.server import (
     ENV,

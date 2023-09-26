@@ -1,18 +1,17 @@
 import github
-from logn import logger
-
 from tqdm import tqdm
 
+from logn import logger
 from sweepai.config.client import SweepConfig
-from sweepai.core.vector_db import get_deeplake_vs_from_repo, get_relevant_snippets
 from sweepai.core.entities import Snippet
+from sweepai.core.vector_db import get_deeplake_vs_from_repo, get_relevant_snippets
+from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import (
     ClonedRepo,
     get_file_names_from_query,
     get_github_client,
 )
 from sweepai.utils.scorer import merge_and_dedup_snippets
-from sweepai.utils.event_logger import posthog
 
 
 # @file_cache(ignore_params=["cloned_repo", "sweep_config"])

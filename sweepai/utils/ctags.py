@@ -1,8 +1,10 @@
-from dataclasses import dataclass
 import json
 import subprocess
-from logn import logger
+from dataclasses import dataclass
+
 from redis import Redis
+
+from logn import logger
 
 VERSION = "0.0.2"
 

@@ -3,9 +3,9 @@ MODEL_DIR = "/tmp/cache/model"
 
 
 def download_models():
-    from sentence_transformers import (  # pylint: disable=import-error
+    from sentence_transformers import (
         SentenceTransformer,
-    )
+    )  # pylint: disable=import-error
 
     model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
 

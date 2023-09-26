@@ -2,20 +2,17 @@ import os
 import re
 from typing import Literal
 
-from pydantic import Field
-import openai
 import backoff
 import openai
-from loguru import logger
-from pydantic import BaseModel
 import tiktoken
-
+from loguru import logger
+from pydantic import BaseModel, Field
+from src.chat_logger import ChatLogger
 from src.diff import format_contents, generate_new_file_from_patch, is_markdown
 from src.prompts import (
-    sandbox_code_repair_modify_system_prompt,
     sandbox_code_repair_modify_prompt,
+    sandbox_code_repair_modify_system_prompt,
 )
-from src.chat_logger import ChatLogger
 
 try:
     from typing import Self

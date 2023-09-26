@@ -14,24 +14,24 @@ import ctypes
 import sys
 import threading
 
+import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
-import requests
 
 from sweepai.config.client import (
+    RESTART_SWEEP_BUTTON,
+    SWEEP_BAD_FEEDBACK,
+    SWEEP_GOOD_FEEDBACK,
     SweepConfig,
     get_documentation_dict,
-    RESTART_SWEEP_BUTTON,
-    SWEEP_GOOD_FEEDBACK,
-    SWEEP_BAD_FEEDBACK,
 )
 from sweepai.config.server import (
+    DISCORD_FEEDBACK_WEBHOOK_URL,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
-    DISCORD_FEEDBACK_WEBHOOK_URL,
 )
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
@@ -42,11 +42,14 @@ from sweepai.events import (
     InstallationCreatedRequest,
     IssueCommentRequest,
     IssueRequest,
+    PREdited,
     PRRequest,
     ReposAddedRequest,
-    PREdited,
 )
-from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  # type: ignore
+from sweepai.handlers.create_pr import (  # type: ignore
+    add_config_to_top_repos,
+    create_gha_pr,
+)
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge

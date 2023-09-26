@@ -1,14 +1,15 @@
 import os
-import modal
-from pydantic import BaseModel
-from fastapi import FastAPI
-import requests
 from urllib.parse import parse_qs
-from loguru import logger
-from github import Github
 
-from sweepai.utils.event_logger import posthog
+import modal
+import requests
+from fastapi import FastAPI
+from github import Github
+from loguru import logger
+from pydantic import BaseModel
+
 from sweepai.config.server import ENV
+from sweepai.utils.event_logger import posthog
 
 GITHUB_OAUTH_URL = "https://github.com/login/oauth/access_token"
 

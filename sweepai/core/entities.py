@@ -1,14 +1,14 @@
-from dataclasses import dataclass
 import os
 import re
 import string
-from logn import logger
-from typing import ClassVar, Literal, Type, TypeVar, Any, List
-from github.Repository import Repository
-
-from pydantic import BaseModel
+from dataclasses import dataclass
+from typing import Any, ClassVar, List, Literal, Type, TypeVar
 from urllib.parse import quote
 
+from github.Repository import Repository
+from pydantic import BaseModel
+
+from logn import logger
 from sweepai.utils.event_logger import set_highlight_id
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")

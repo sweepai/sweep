@@ -1,16 +1,13 @@
 import re
+
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
-from logn import logger, LogTask
+
+from logn import LogTask, logger
+from sweepai.config.server import ACTIVELOOP_TOKEN, ORG_ID, SENTENCE_TRANSFORMERS_MODEL
 from sweepai.core.lexical_search import prepare_index_from_docs, search_docs
 from sweepai.core.robots import is_url_allowed
 from sweepai.core.webscrape import webscrape
 from sweepai.pre_indexed_docs import DOCS_ENDPOINTS
-
-from sweepai.config.server import (
-    ACTIVELOOP_TOKEN,
-    ORG_ID,
-    SENTENCE_TRANSFORMERS_MODEL,
-)
 
 MODEL_DIR = "/tmp/cache/model"
 BATCH_SIZE = 128
@@ -35,9 +32,9 @@ embedding_function = ModalEmbeddingFunction()
 
 class CPUEmbedding:
     def __init__(self):
-        from sentence_transformers import (  # pylint: disable=import-error
+        from sentence_transformers import (
             SentenceTransformer,
-        )
+        )  # pylint: disable=import-error
 
         self.model = SentenceTransformer(
             SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
