@@ -578,9 +578,11 @@ def on_ticket(
     ) = context_pruning.prune_context(  # TODO, ignore directories
         human_message, repo=repo
     )
-    snippets = post_process_snippets(
+    new_snippets = post_process_snippets(
         snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
     )
+    if new_snippets:
+        snippets = new_snippets
     dir_obj = DirectoryTree()
     dir_obj.parse(tree)
     dir_obj.remove_multiple(excluded_dirs)
