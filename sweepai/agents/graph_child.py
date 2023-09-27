@@ -220,7 +220,7 @@ def extract_python_span(code: str, entities: str):
         walk_tree(tree.root_node)
     except SystemExit:
         raise SystemExit
-    except Exception as e:
+    except Exception:
         print("Failed to parse python file. Using for loop instead.")
         # Capture entire subscope for class and function definitions
         for i, line in enumerate(lines):

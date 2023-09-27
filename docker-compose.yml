@@ -28,6 +28,7 @@ services:
       context: sweepai/sandbox
       dockerfile: Dockerfile.sandbox
     image: sweepai/sandbox
+    scale: 0
   sandbox-web:
     env_file:
       - .env

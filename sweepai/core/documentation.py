@@ -2,7 +2,7 @@ import re
 
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 
-from logn import LogTask, logger
+from logn import logger
 from sweepai.config.server import ACTIVELOOP_TOKEN, ORG_ID, SENTENCE_TRANSFORMERS_MODEL
 from sweepai.core.lexical_search import prepare_index_from_docs, search_docs
 from sweepai.core.robots import is_url_allowed
@@ -75,14 +75,14 @@ def remove_non_alphanumeric(url):
     return cleaned
 
 
-async def write_documentation(doc_url):
+def write_documentation(doc_url):
     try:
         url_allowed = is_url_allowed(doc_url, user_agent="*")
         if not url_allowed:
             logger.info(f"URL {doc_url} is not allowed")
             return False
         idx_name = remove_non_alphanumeric(doc_url)
-        url_to_documents = await webscrape(doc_url)
+        url_to_documents = webscrape(doc_url)
         urls, document_chunks = [], []
         for url, document in url_to_documents.items():
             if len(document) == 0:
@@ -114,9 +114,9 @@ async def write_documentation(doc_url):
         return False
 
 
-async def daily_update():
+def daily_update():
     for doc_url, _ in DOCS_ENDPOINTS.values():
-        await write_documentation(doc_url)
+        write_documentation(doc_url)
 
 
 def search_vector_store(doc_url, query, k=100):

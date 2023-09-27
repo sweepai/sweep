@@ -48,7 +48,7 @@ for inference_bits in inference:
         inference_type = importlib.util.find_spec(inference_bits.module_name)
         if inference_type is not None:
             is_external_import = True
-    except Exception as e:
+    except Exception:
         continue
     print(type(inference_bits))
     print(inference_bits.module_name)
