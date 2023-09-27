@@ -28,7 +28,10 @@ def score_line(str1: str, str2: str) -> float:
 
 
 def match_without_whitespace(str1: str, str2: str) -> bool:
-    return str1.strip() == str2.strip()
+    try:
+        return str1.strip() == str2.strip()
+    except Exception as e:
+        logger.error(traceback.format_exc())
 
 
 def line_cost(line: str) -> float:
@@ -40,80 +43,83 @@ def line_cost(line: str) -> float:
 
 
 def score_multiline(query: list[str], target: list[str]) -> float:
-    # TODO: add weighting on first and last lines
+    try:
+        # TODO: add weighting on first and last lines
 
-    q, t = 0, 0  # indices for query and target
-    scores: list[tuple[float, float]] = []
-    skipped_comments = 0
+        q, t = 0, 0  # indices for query and target
+        scores: list[tuple[float, float]] = []
+        skipped_comments = 0
 
-    def get_weight(q: int) -> float:
-        # Prefers lines at beginning and end of query
-        # Sequence: 1, 2/3, 1/2, 2/5...
-        index = min(q, len(query) - q)
-        return 100 / (index / 2 + 1)
+        def get_weight(q: int) -> float:
+            # Prefers lines at beginning and end of query
+            # Sequence: 1, 2/3, 1/2, 2/5...
+            index = min(q, len(query) - q)
+            return 100 / (index / 2 + 1)
 
-    while q < len(query) and t < len(target):
-        q_line = query[q]
-        t_line = target[t]
-        weight = get_weight(q)
+        while q < len(query) and t < len(target):
+            q_line = query[q]
+            t_line = target[t]
+            weight = get_weight(q)
 
-        if match_without_whitespace(q_line, t_line):
-            # Case 1: lines match
-            scores.append((score_line(q_line, t_line), weight))
-            q += 1
-            t += 1
-        elif "..." in q_line:
-            # Case 3: ellipsis wildcard
-            lines_matched = 1
-            t += 1
-            if q + 1 == len(query):
-                scores.append((100 - (len(target) - t), weight))
+            if match_without_whitespace(q_line, t_line):
+                # Case 1: lines match
+                scores.append((score_line(q_line, t_line), weight))
                 q += 1
-                t = len(target)
+                t += 1
+            elif "..." in q_line:
+                # Case 3: ellipsis wildcard
+                lines_matched = 1
+                t += 1
+                if q + 1 == len(query):
+                    scores.append((100 - (len(target) - t), weight))
+                    q += 1
+                    t = len(target)
+                    break
+                max_score = 0
+                for i in range(t, len(target)):
+                    # TODO: use radix to optimize
+                    score, weight = score_multiline(query[q + 1 :], target[i:]), (
+                        100 - (i - t) / len(target) * 10
+                    )
+                    new_scores = scores + [(score, weight)]
+                    total_score = sum(
+                        [value * weight for value, weight in new_scores]
+                    ) / sum([weight for _, weight in new_scores])
+                    max_score = max(max_score, total_score)
+                return max_score
+            elif (
+                t_line.strip() == ""
+                or t_line.strip().startswith("#")
+                or t_line.strip().startswith("//")
+            ):
+                # Case 2: skipped comment
+                skipped_comments += 1
+                t += 1
+                scores.append((90, weight))
+            else:
                 break
-            max_score = 0
-            for i in range(t, len(target)):
-                # TODO: use radix to optimize
-                score, weight = score_multiline(query[q + 1 :], target[i:]), (
-                    100 - (i - t) / len(target) * 10
-                )
-                new_scores = scores + [(score, weight)]
-                total_score = sum(
-                    [value * weight for value, weight in new_scores]
-                ) / sum([weight for _, weight in new_scores])
-                max_score = max(max_score, total_score)
-            return max_score
-        elif (
-            t_line.strip() == ""
-            or t_line.strip().startswith("#")
-            or t_line.strip().startswith("//")
-        ):
-            # Case 2: skipped comment
-            skipped_comments += 1
-            t += 1
-            scores.append((90, weight))
-        else:
-            break
 
-    if q < len(query):
-        scores.extend(
-            (100 - line_cost(line), get_weight(index))
-            for index, line in enumerate(query[q:])
+        if q < len(query):
+            scores.extend(
+                (100 - line_cost(line), get_weight(index))
+                for index, line in enumerate(query[q:])
+            )
+        if t < len(target):
+            scores.extend(
+                (100 - line_cost(line), 100) for index, line in enumerate(target[t:])
+            )
+
+        final_score = (
+            sum([value * weight for value, weight in scores])
+            / sum([weight for _, weight in scores])
+            if scores
+            else 0
         )
-    if t < len(target):
-        scores.extend(
-            (100 - line_cost(line), 100) for index, line in enumerate(target[t:])
-        )
+        final_score *= 1 - 0.05 * skipped_comments
 
-    final_score = (
-        sum([value * weight for value, weight in scores])
-        / sum([weight for _, weight in scores])
-        if scores
-        else 0
-    )
-    final_score *= 1 - 0.05 * skipped_comments
-
-    return final_score
+        return final_score
+    except Exception as e:
+        logger.error(traceback.format_exc())
 
 
 @dataclass
@@ -140,83 +146,83 @@ def get_max_indent(content: str, indent_type: str):
     )
 
 
+import traceback
+
 def find_best_match(query: str, code_file: str):
-    best_match = Match(-1, -1, 0)
+    try:
+        best_match = Match(-1, -1, 0)
 
-    code_file_lines = code_file.split("\n")
-    query_lines = query.split("\n")
-    if len(query_lines) > 0 and query_lines[-1].strip() == "...":
-        query_lines = query_lines[:-1]
-    if len(query_lines) > 0 and query_lines[0].strip() == "...":
-        query_lines = query_lines[1:]
-    indent = get_indent_type(code_file)
-    max_indents = get_max_indent(code_file, indent)
+        code_file_lines = code_file.split("\n")
+        query_lines = query.split("\n")
+        if len(query_lines) > 0 and query_lines[-1].strip() == "...":
+            query_lines = query_lines[:-1]
+        if len(query_lines) > 0 and query_lines[0].strip() == "...":
+            query_lines = query_lines[1:]
+        indent = get_indent_type(code_file)
+        max_indents = get_max_indent(code_file, indent)
 
-    top_matches = []
+        top_matches = []
 
-    if len(query_lines) == 1:
-        for i, line in enumerate(code_file_lines):
-            score = score_line(line, query_lines[0])
-            if score > best_match.score:
-                best_match = Match(i, i + 1, score)
-        return best_match
-
-    for num_indents in range(0, min(max_indents + 1, 20)):
-        # Optimize later by using radix
-        indented_query_lines = [indent * num_indents + line for line in query_lines]
-        # for line in code_file_lines:
-        #     # print(line)
-        #     print(score_line(line, indented_query_lines[0]))
-
-        start_indices = [
-            i
-            for i, line in enumerate(code_file_lines)
-            if score_line(line, indented_query_lines[0]) > 50
-        ]
-        start_indices = start_indices or [
-            i
-            for i in start_indices
-            if score_multiline(indented_query_lines[:2], code_file_lines[i : i + 2])
-            > 50
-        ]
-
-        if not start_indices:
-            start_pairs = [
-                (i, score_line(line, indented_query_lines[0]))
-                for i, line in enumerate(code_file_lines)
-            ]
-            start_pairs.sort(key=lambda x: x[1], reverse=True)
-            start_pairs = start_pairs[: min(20, len(start_pairs) // 10)]
-            start_indices = sorted([i for i, _ in start_pairs])
-
-        for i in tqdm(start_indices):
-            for j in range(
-                i + len(indented_query_lines),
-                min(len(code_file_lines) + 1, i + 2 * len(indented_query_lines) + 100),
-            ):
-                candidate = code_file_lines[i:j]
-                score = score_multiline(indented_query_lines, candidate) * (
-                    1 - num_indents * 0.01
-                )
-                current_match = Match(i, j, score, indent * num_indents)
-
-                top_matches.append(current_match)
-
+        if len(query_lines) == 1:
+            for i, line in enumerate(code_file_lines):
+                score = score_line(line, query_lines[0])
                 if score > best_match.score:
-                    best_match = current_match
+                    best_match = Match(i, i + 1, score)
+            return best_match
 
-    unique_top_matches: list[Match] = []
-    print(unique_top_matches)
-    unique_spans = set()
-    for top_match in sorted(top_matches, reverse=True):
-        if (top_match.start, top_match.end) not in unique_spans:
-            unique_top_matches.append(top_match)
-            unique_spans.add((top_match.start, top_match.end))
-    for top_match in unique_top_matches[:5]:
-        logger.print(top_match)
+        for num_indents in range(0, min(max_indents + 1, 20)):
+            indented_query_lines = [indent * num_indents + line for line in query_lines]
 
-    # Todo: on_comment file comments able to modify multiple files
-    return unique_top_matches[0] if unique_top_matches else Match(-1, -1, 0)
+            start_indices = [
+                i
+                for i, line in enumerate(code_file_lines)
+                if score_line(line, indented_query_lines[0]) > 50
+            ]
+            start_indices = start_indices or [
+                i
+                for i in start_indices
+                if score_multiline(indented_query_lines[:2], code_file_lines[i : i + 2])
+                > 50
+            ]
+
+            if not start_indices:
+                start_pairs = [
+                    (i, score_line(line, indented_query_lines[0]))
+                    for i, line in enumerate(code_file_lines)
+                ]
+                start_pairs.sort(key=lambda x: x[1], reverse=True)
+                start_pairs = start_pairs[: min(20, len(start_pairs) // 10)]
+                start_indices = sorted([i for i, _ in start_pairs])
+
+            for i in tqdm(start_indices):
+                for j in range(
+                    i + len(indented_query_lines),
+                    min(len(code_file_lines) + 1, i + 2 * len(indented_query_lines) + 100),
+                ):
+                    candidate = code_file_lines[i:j]
+                    score = score_multiline(indented_query_lines, candidate) * (
+                        1 - num_indents * 0.01
+                    )
+                    current_match = Match(i, j, score, indent * num_indents)
+
+                    top_matches.append(current_match)
+
+                    if score > best_match.score:
+                        best_match = current_match
+
+        unique_top_matches: list[Match] = []
+        print(unique_top_matches)
+        unique_spans = set()
+        for top_match in sorted(top_matches, reverse=True):
+            if (top_match.start, top_match.end) not in unique_spans:
+                unique_top_matches.append(top_match)
+                unique_spans.add((top_match.start, top_match.end))
+        for top_match in unique_top_matches[:5]:
+            logger.print(top_match)
+
+        return unique_top_matches[0] if unique_top_matches else Match(-1, -1, 0)
+    except Exception as e:
+        logger.error(traceback.format_exc())
 
 
 if __name__ == "__main__":
