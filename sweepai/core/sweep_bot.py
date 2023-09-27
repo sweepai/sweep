@@ -784,6 +784,7 @@ class SweepBot(CodeGenBot, GithubBot):
         chunk_offset: int = 0,
         sandbox=None,
         changed_files: list[tuple[str, str]] = [],
+        temperature: float = 0.0,
     ):
         key = f"file_change_modified_{file_change_request.filename}"
         file_markdown = is_markdown(file_change_request.filename)
@@ -827,37 +828,26 @@ class SweepBot(CodeGenBot, GithubBot):
                         role="user",
                     )
                 ]
-
-            def create_new_file(temperature: float = 0.0):
-                modify_file_bot = ModifyBot(
-                    additional_messages,
-                    parent_bot=self,
-                    chat_logger=self.chat_logger,
-                    is_pr=bool(self.comment_pr_diff_str),
-                    temperature=temperature,
+            modify_file_bot = ModifyBot(
+                additional_messages,
+                parent_bot=self,
+                chat_logger=self.chat_logger,
+                is_pr=bool(self.comment_pr_diff_str),
+                temperature=temperature,
+            )
+            try:
+                new_file = modify_file_bot.try_update_file(
+                    file_path=file_change_request.filename,
+                    file_contents=contents,
+                    file_change_request=file_change_request,
+                    chunking=chunking,
                 )
-                try:
-                    return modify_file_bot.try_update_file(
-                        file_path=file_change_request.filename,
-                        file_contents=contents,
-                        file_change_request=file_change_request,
-                        chunking=chunking,
-                    )
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
-                    if chunking:
-                        return contents, "", None, changed_files
-                    raise e
-
-            new_file = create_new_file()
-            # Janky retry logic
-            if contents == new_file:
-                logger.info("Nothing changed. Retrying...")
-                new_file = create_new_file(0.2)
-            if contents == new_file:
-                logger.info("Nothing changed. Retrying...")
-                new_file = create_new_file(0.4)
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                if chunking:
+                    return contents, "", None, changed_files
+                raise e
         except SystemExit:
             raise SystemExit
         except Exception as e:  # Check for max tokens error
@@ -1187,32 +1177,28 @@ class SweepBot(CodeGenBot, GithubBot):
         sandbox=None,
         changed_files: list[tuple[str, str]] = [],
     ) -> tuple[str, Any, Commit, list]:
-        CHUNK_SIZE = 800  # Number of lines to process at a time
+        CHUNK_SIZE = 600  # Number of lines to process at a time
         sandbox_error = None
         try:
             file = self.get_file(file_change_request.filename, branch=branch)
             file_contents = file.decoded_content.decode("utf-8")
+            file_name = file_change_request.filename
             lines = file_contents.split("\n")
 
-            new_file_contents = ""
             all_lines_numbered = [f"{i + 1}:{line}" for i, line in enumerate(lines)]
             # Todo(lukejagg): Use when only using chunking
-            chunk_sizes = [
-                # 800,
-                600,
-                400,
-                # 300,
-            ]  # Define the chunk sizes for the backoff mechanism
             if file_change_request.start_and_end_lines:
-                chunk_sizes = [
-                    10000
-                ]  # dont chunk if we know the start and end lines already
-            for CHUNK_SIZE in chunk_sizes:
+                CHUNK_SIZE = (
+                    10000  # dont chunk if we know the start and end lines already
+                )
+
+            def get_new_file(temperature: float = 0.0):
+                nonlocal changed_files
+                new_file_contents = ""
                 try:
                     chunking = (
                         len(lines) > CHUNK_SIZE
                     )  # Only chunk if the file is large enough
-                    file_name = file_change_request.filename
                     if file_change_request.entity:
                         (
                             new_file_contents,
@@ -1230,6 +1216,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             chunk_offset=0,
                             sandbox=sandbox,
                             changed_files=changed_files,
+                            temperature=temperature,
                         )
                         commit_message = suggested_commit_message
                     elif not chunking:
@@ -1249,6 +1236,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             chunk_offset=0,
                             sandbox=sandbox,
                             changed_files=changed_files,
+                            temperature=temperature,
                         )
                         commit_message = suggested_commit_message
                     else:
@@ -1273,6 +1261,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 chunk_offset=i,
                                 sandbox=sandbox,
                                 changed_files=changed_files,
+                                temperature=temperature,
                             )
                             # commit_message = commit_message or suggested_commit_message
                             commit_message = suggested_commit_message
@@ -1280,12 +1269,36 @@ class SweepBot(CodeGenBot, GithubBot):
                                 new_file_contents += new_chunk + "\n"
                             else:
                                 new_file_contents += new_chunk
-                    break  # If the chunking was successful, break the loop
                 except Exception as e:
                     logger.print(e)
                     raise e
+                return new_file_contents, commit_message, sandbox_error, changed_files
 
-                    continue  # If the chunking was not successful, continue to the next chunk size
+            (
+                new_file_contents,
+                commit_message,
+                sandbox_error,
+                changed_files,
+            ) = get_new_file()
+
+            if file_contents == new_file_contents:
+                logger.info("No changes made to file. Retrying with temperature 0.2")
+                (
+                    new_file_contents,
+                    commit_message,
+                    sandbox_error,
+                    changed_files,
+                ) = get_new_file(temperature=0.2)
+
+            if file_contents == new_file_contents:
+                logger.info("No changes made to file. Retrying with temperature 0.4")
+                (
+                    new_file_contents,
+                    commit_message,
+                    sandbox_error,
+                    changed_files,
+                ) = get_new_file(temperature=0.4)
+
             # If the original file content is identical to the new file content, log a warning and return
             if file_contents == new_file_contents:
                 logger.warning(
