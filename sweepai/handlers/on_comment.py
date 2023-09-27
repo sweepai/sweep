@@ -451,7 +451,17 @@ def on_comment(
                     pr_chunk=pr_chunk,  # may be None
                     original_line=original_line if pr_chunk else None,
                 )
-
+                
+                is_python_issue = (
+                    sum(
+                        [
+                            not file_path.endswith(".py")
+                            for file_path in human_message.get_file_paths()
+                        ]
+                    )
+                    < 2
+                )
+                
                 logger.info(f"Human prompt{human_message.construct_prompt()}")
                 sweep_bot: SweepBot = SweepBot.from_system_message_content(
                     human_message=human_message,
