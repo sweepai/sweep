@@ -720,24 +720,29 @@ class SweepBot(CodeGenBot, GithubBot):
         if file_change_request.relevant_files:
             contents = []
             for file_path in file_change_request.relevant_files:
-                contents.append(
-                    self.get_contents(file_path).decoded_content.decode("utf-8")
-                )
-            relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
-                [
-                    f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
-                    for file_path, file_contents in zip(
-                        file_change_request.relevant_files, contents
+                try:
+                    contents.append(
+                        self.get_contents(file_path).decoded_content.decode("utf-8")
                     )
-                ]
-            )
-            self.messages.append(
-                Message(
-                    content=relevant_files_summary,
-                    role="user",
-                    key="relevant_files_summary",
+                except Exception as e:
+                    contents.append("File not found")
+            if contents:
+                relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
+                    [
+                        f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
+                        for file_path, file_contents in zip(
+                            file_change_request.relevant_files, contents
+                        )
+                    ]
                 )
-            )
+                self.messages.append(
+                    Message(
+                        content=relevant_files_summary,
+                        role="user",
+                        key="relevant_files_summary",
+                    )
+                )
+        print("2")
         create_file_response = self.chat(
             create_file_prompt.format(
                 filename=file_change_request.filename,
@@ -745,59 +750,48 @@ class SweepBot(CodeGenBot, GithubBot):
             ),
             message_key=key,
         )
+        print("3")
         if changed_files:
             self.delete_messages_from_chat(key_to_delete="changed_files_summary")
         # Add file to list of changed_files
         self.file_change_paths.append(file_change_request.filename)
         # self.delete_file_from_system_message(file_path=file_change_request.filename)
+        file_change = FileCreation.from_string(create_file_response)
+        commit_message_match = re.search(
+            'Commit message: "(?P<commit_message>.*)"', create_file_response
+        )
+        if commit_message_match:
+            file_change.commit_message = commit_message_match.group("commit_message")
+        else:
+            file_change.commit_message = f"Create {file_change_request.filename}"
+        assert file_change is not None
+        file_change.commit_message = file_change.commit_message[
+            : min(len(file_change.commit_message), 50)
+        ]
+
+        self.delete_messages_from_chat(key_to_delete=key)
+
         try:
-            file_change = FileCreation.from_string(create_file_response)
-            commit_message_match = re.search(
-                'Commit message: "(?P<commit_message>.*)"', create_file_response
-            )
-            if commit_message_match:
-                file_change.commit_message = commit_message_match.group(
-                    "commit_message"
-                )
-            else:
-                file_change.commit_message = f"Create {file_change_request.filename}"
-            assert file_change is not None
-            file_change.commit_message = file_change.commit_message[
-                : min(len(file_change.commit_message), 50)
-            ]
-
-            self.delete_messages_from_chat(key_to_delete=key)
-
-            try:
-                implemented = self.check_completion(  # use async
-                    file_change_request.filename, file_change.code
-                )
-                if not implemented:
-                    discord_log_error(
-                        f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
-                        priority=2 if self.sweep_context.use_faster_model else 0,
-                    )
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(f"Error: {e}")
-
-            file_change.code, sandbox_execution = self.check_sandbox(
+            implemented = self.check_completion(  # use async
                 file_change_request.filename, file_change.code
             )
-
-            self.messages = old_messages
-
-            return file_change, sandbox_execution
+            if not implemented:
+                discord_log_error(
+                    f"{self.sweep_context.issue_url}\nUnimplemented Create Section: {'gpt3.5' if self.sweep_context.use_faster_model else 'gpt4'}: \n",
+                    priority=2 if self.sweep_context.use_faster_model else 0,
+                )
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            # Todo: should we undo appending to file_change_paths?
-            logger.info(traceback.format_exc())
-            logger.warning(e)
-            logger.warning(f"Failed to parse. Retrying for the 1st time...")
-            self.delete_messages_from_chat(key)
-        raise Exception("Failed to parse response after 5 attempts.")
+            logger.error(f"Error: {e}")
+
+        file_change.code, sandbox_execution = self.check_sandbox(
+            file_change_request.filename, file_change.code
+        )
+
+        self.messages = old_messages
+
+        return file_change, sandbox_execution
 
     def modify_file(
         self,
@@ -1166,33 +1160,27 @@ class SweepBot(CodeGenBot, GithubBot):
         sandbox=None,
         changed_files: list[tuple[str, str]] = [],
     ) -> tuple[bool, None, Commit]:
-        try:
-            file_change, sandbox_execution = self.create_file(
-                file_change_request, changed_files=changed_files
-            )
-            file_markdown = is_markdown(file_change_request.filename)
-            file_change.code = format_contents(file_change.code, file_markdown)
-            logger.debug(
-                f"{file_change_request.filename},"
-                f" {f'Create {file_change_request.filename}'}, {file_change.code},"
-                f" {branch}"
-            )
+        file_change, sandbox_execution = self.create_file(
+            file_change_request, changed_files=changed_files
+        )
+        file_markdown = is_markdown(file_change_request.filename)
+        file_change.code = format_contents(file_change.code, file_markdown)
+        logger.debug(
+            f"{file_change_request.filename},"
+            f" {f'Create {file_change_request.filename}'}, {file_change.code},"
+            f" {branch}"
+        )
 
-            result = self.repo.create_file(
-                file_change_request.filename,
-                file_change.commit_message,
-                file_change.code,
-                branch=branch,
-            )
+        result = self.repo.create_file(
+            file_change_request.filename,
+            file_change.commit_message,
+            file_change.code,
+            branch=branch,
+        )
 
-            file_change_request.new_content = file_change.code
+        file_change_request.new_content = file_change.code
 
-            return True, sandbox_execution, result["commit"]
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.info(f"Error in handle_create_file: {e}")
-            return False, None, None
+        return True, sandbox_execution, result["commit"]
 
     def handle_modify_file(
         self,

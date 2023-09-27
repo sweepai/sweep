@@ -210,7 +210,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
 
     @property
     def relevant_files(self):
-        return self.raw_relevant_files.split("\n") if self.raw_relevant_files else []
+        return self.raw_relevant_files.split() if self.raw_relevant_files else []
 
     @property
     def instructions_display(self):

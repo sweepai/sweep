@@ -302,8 +302,8 @@ def sliding_window_replacement(
 
     # replaced original with modified
     def same_without_whitespace(a: list[str], b: list[str]):
-        return [line.strip() for line in a if line.strip()] == [
-            line.strip() for line in b if line.strip()
+        return [line for line in a if line.strip()] == [
+            line for line in b if line.strip()
         ]
 
     for i in range(2, 40):
