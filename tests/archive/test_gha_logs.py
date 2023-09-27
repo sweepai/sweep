@@ -32,7 +32,7 @@ def download_logs(repo_full_name: str, run_id: int):
         # content = response.content
         content = open("/home/kevin/Downloads/logs_2464.zip", "rb").read()
         zip_file = zipfile.ZipFile(io.BytesIO(content))
-        dirs = get_dirs(zip_file)
+        get_dirs(zip_file)
 
         # for directory in dirs:
         #     files = get_files_in_dir(zip_file, directory)

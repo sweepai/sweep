@@ -54,8 +54,6 @@ class DocumentationSearcher(ChatGPT):
     def extract_resources(
         self, url: str, content: str, user_dict: dict, chat_logger: ChatLogger
     ) -> str:
-        # MVP
-        docs_search = search_vector_store
         description = ""
         package = ""
         for framework, (package_url, description) in DOCS_ENDPOINTS.items():
@@ -66,7 +64,7 @@ class DocumentationSearcher(ChatGPT):
         rewritten_problem = DocQueryRewriter(
             chat_logger=chat_logger, model="gpt-3.5-turbo-16k-0613"
         ).rewrite_query(package=package, description=description, issue=content)
-        urls, docs = docs_search(url, rewritten_problem)
+        urls, docs = search_vector_store(url, rewritten_problem)
 
         self.messages = [
             Message(

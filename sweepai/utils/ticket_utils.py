@@ -62,9 +62,6 @@ def post_process_snippets(
             snippet.file_path == exclude_file for exclude_file in exclude_snippets
         )
     ]
-    for snippet in snippets[:num_full_files]:
-        snippet = snippet.expand()
-
     # snippet fusing
     i = 0
     while i < len(snippets):

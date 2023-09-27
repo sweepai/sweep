@@ -124,12 +124,10 @@ def create_pr_changes(
             )
 
             # Todo: if no changes were made, delete branch
-            error_msg = "No changes made"
             commits = sweep_bot.repo.get_commits(pull_request.branch_name)
             if commits.totalCount == 0:
                 branch = sweep_bot.repo.get_git_ref(f"heads/{pull_request.branch_name}")
                 branch.delete()
-                error_msg = "No changes made. Branch deleted."
 
             return
         # Include issue number in PR description
@@ -235,7 +233,7 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
             return
         except SystemExit:
             raise SystemExit
-        except Exception as e:
+        except Exception:
             pass
 
     title = "Configure Sweep"

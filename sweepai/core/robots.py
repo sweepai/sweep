@@ -15,6 +15,6 @@ def is_url_allowed(url, user_agent="*"):
         return rerp.is_allowed(user_agent, url)
     except SystemExit:
         raise SystemExit
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
         return False
