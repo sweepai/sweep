@@ -706,15 +706,9 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        is_python_issue = (
-            sum(
-                [
-                    not file_path.endswith(".py")
-                    for file_path in human_message.get_file_paths()
-                ]
-            )
-            < 2
-        )
+        non_python_count = sum(not file_path.endswith(".py") for file_path in human_message.get_file_paths())
+        python_count = len(non_python_count) - len(human_message.get_file_paths())
+        is_python_issue = python_count > non_python_count
         posthog.capture(
             username, "is_python_issue", properties={"is_python_issue": is_python_issue}
         )

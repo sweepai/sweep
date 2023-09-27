@@ -232,6 +232,12 @@ def call_get_deeplake_vs_from_repo(*args, **kwargs):
     )
     thread.start()
 
+def call_write_documentation(*args, **kwargs):
+    thread = threading.Thread(
+        target=write_documentation, args=args, kwargs=kwargs
+    )
+    thread.start()
+
 
 @app.get("/health")
 def health_check():
@@ -770,7 +776,7 @@ async def webhook(raw_request: Request):
                         # Call the write_documentation function for each of the existing fields in the "docs" mapping
                         for doc_url, _ in docs.values():
                             logger.info(f"Writing documentation for {doc_url}")
-                            await write_documentation(doc_url)
+                            call_write_documentation(doc_url=doc_url)
                     # this makes it faster for everyone because the queue doesn't get backed up
                     if chat_logger.is_paying_user():
                         cloned_repo = ClonedRepo(

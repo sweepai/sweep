@@ -48,18 +48,20 @@ def search_snippets(
     file_list = cloned_repo.get_file_list()
     query_file_names = get_file_names_from_query(query)
     query_match_files = []  # files in both query and repo
-    for file_path in tqdm(file_list):
-        for query_file_name in query_file_names:
-            if query_file_name in file_path:
-                query_match_files.append(file_path)
+    for query_file_name in query_file_names:
+        if query_file_name in file_list: # take the exact match
+            query_match_files.append(query_file_name)
+        else: # otherwise take the files that contain the query
+            for file_name in file_list:
+                if query_file_name in file_name:
+                    query_match_files.append(file_name)
     # boost the rank of any files that are mentioned in the query, move them to the top positions
     boosted_snippets = []
     non_boosted_snippets = []
     completed_snippets = set()
     for snippet in snippets:
         if (
-            snippet.file_path in query_match_files
-            and snippet.file_path not in completed_snippets
+            snippet.file_path in query_match_files and snippet.file_path not in completed_snippets
         ):
             boosted_snippets.append(snippet)
             completed_snippets.add(snippet.file_path)
@@ -80,7 +82,7 @@ def search_snippets(
             snippet.content = file_contents
         except github.UnknownObjectException as e:
             logger.warning(f"Error: {e}")
-            logger.warning(f"Skipping {file_path}")
+            logger.warning(f"Skipping {snippet.file_path}")
     for snippet_idx in range(len(boosted_snippets)):
         snippets[snippet_idx] = snippets[snippet_idx].expand(100)
     snippet_paths = [snippet.file_path for snippet in snippets]
