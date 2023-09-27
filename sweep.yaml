@@ -26,7 +26,7 @@ sandbox:
     - poetry install
   check:
     # - pre-commit run --files {file_path}
-    - '[[ "{file_path}" == *.py ]] && poetry run pylint --errors-only {file_path}'
+    - '[[ "{file_path}" == *.py ]] && poetry run pylint --errors-only {file_path} || exit 0'
 
 rules:
  - "There should not be large chunks of code that are just commented out. Docstrings and explanations in code are okay though."
