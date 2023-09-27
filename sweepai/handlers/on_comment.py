@@ -460,8 +460,11 @@ def on_comment(
                     cloned_repo=cloned_repo,
                 )
             else:
-                non_python_count = sum(not file_path.endswith(".py") for file_path in human_message.get_file_paths())
-                python_count = len(non_python_count) - len(human_message.get_file_paths())
+                non_python_count = sum(
+                    not file_path.endswith(".py")
+                    for file_path in human_message.get_file_paths()
+                )
+                python_count = non_python_count - len(human_message.get_file_paths())
                 is_python_issue = python_count > non_python_count
                 file_change_requests, _ = sweep_bot.get_files_to_change(
                     is_python_issue, retries=1, pr_diffs=pr_diff_string
