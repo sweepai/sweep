@@ -240,22 +240,22 @@ Then, provide a list of ALL files you would like to change, abiding by the follo
 You MUST follow the following format with the final output in XML tags:
 
 Root cause:
-Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph.
+Identify the root cause of this issue and a minimum plan to address this issue concisely in two sentences.
 
 Step-by-step thoughts with explanations:
-* Thought 1
-* Thought 2
+* Concise imperative thoughts
+* No conjunctions
 ...
 
 <plan>
-<create file="file_path_1">
+<create file="file_path_1" relevant_files="space-separated relevant file paths for creating file_path_1">
 * Instruction 1 for file_path_1
 * Instruction 2 for file_path_1
 ...
 </create>
 ...
 
-<modify file="file_path_2">
+<modify file="file_path_2" relevant_files="space-separated relevant file paths for modifying file_path_2">
 * Instruction 1 for file_path_2
 * Instruction 2 for file_path_2
 ...
@@ -284,11 +284,11 @@ Then, provide a list of ALL files you would like to modify, abiding by the follo
 You MUST follow the following format with the final output in XML tags:
 
 Root cause:
-Write an abstract minimum plan to address this issue. Be clear and concise.
+Identify the root cause of this issue and a minimum plan to address this issue concisely in two sentences.
 
 Step-by-step thoughts with explanations:
-* Thought 1
-* Thought 2
+* Concise imperative thoughts
+* No conjunctions
 ...
 
 <plan>
@@ -317,11 +317,12 @@ Think step-by-step to break down the requested problem into sub-issues each of e
 You MUST follow the following format with the final output in XML tags:
 
 Root cause:
-Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph.
+Identify the root cause of this issue and a minimum plan to address this issue concisely in two sentences.
+
 
 Step-by-step thoughts with explanations:
-* Thought 1
-* Thought 2
+* Concise imperative thoughts
+* No conjunctions
 ...
 
 <plan>

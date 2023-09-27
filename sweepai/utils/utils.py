@@ -121,7 +121,7 @@ def chunk_tree(
     line_chunks = [chunk for chunk in line_chunks if len(chunk) > 0]
 
     # 6. Coalescing last chunk if it's too small
-    if line_chunks and len(line_chunks[-1]) < coalesce:
+    if len(line_chunks) > 1 and len(line_chunks[-1]) < coalesce:
         line_chunks[-2] += line_chunks[-1]
         line_chunks.pop()
 
