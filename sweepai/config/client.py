@@ -172,12 +172,12 @@ def get_gha_enabled(repo: Repository) -> bool:
         return gha_enabled
     except SystemExit:
         raise SystemExit
-    except Exception as e:
+    except Exception:
         try:
             contents = repo.get_contents(".github/sweep.yaml")
         except SystemExit:
             raise SystemExit
-        except Exception as e:
+        except Exception:
             try:
                 contents = repo.get_contents(".github/sweep.yaml")
             except SystemExit:
@@ -203,7 +203,7 @@ def get_description(repo: Repository) -> str:
         return description
     except SystemExit:
         raise SystemExit
-    except Exception as e:
+    except Exception:
         return ""
 
 

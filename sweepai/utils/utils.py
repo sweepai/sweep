@@ -217,7 +217,7 @@ def chunk_code(
         return snippets
     except SystemExit:
         raise SystemExit
-    except Exception as e:
+    except Exception:
         logger.error(traceback.format_exc())
         return []
 

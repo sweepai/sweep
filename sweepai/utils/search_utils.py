@@ -1,5 +1,4 @@
 import github
-from tqdm import tqdm
 
 from logn import logger
 from sweepai.config.client import SweepConfig
@@ -49,9 +48,9 @@ def search_snippets(
     query_file_names = get_file_names_from_query(query)
     query_match_files = []  # files in both query and repo
     for query_file_name in query_file_names:
-        if query_file_name in file_list: # take the exact match
+        if query_file_name in file_list:  # take the exact match
             query_match_files.append(query_file_name)
-        else: # otherwise take the files that contain the query
+        else:  # otherwise take the files that contain the query
             for file_name in file_list:
                 if query_file_name in file_name:
                     query_match_files.append(file_name)
@@ -61,7 +60,8 @@ def search_snippets(
     completed_snippets = set()
     for snippet in snippets:
         if (
-            snippet.file_path in query_match_files and snippet.file_path not in completed_snippets
+            snippet.file_path in query_match_files
+            and snippet.file_path not in completed_snippets
         ):
             boosted_snippets.append(snippet)
             completed_snippets.add(snippet.file_path)

@@ -117,7 +117,6 @@ def format_contents(file_contents, is_markdown=False):
 def generate_new_file(
     modify_file_response: str, old_file_content: str, chunk_offset: int = 0
 ) -> str:
-    result_file = ""
     old_file_lines = old_file_content.split("\n")
 
     # Extract content between <new_file> tags
@@ -177,9 +176,7 @@ INCOMPLETE_MATCH = "INCOMPLETE_MATCH"
 
 
 def match_string(original, search, start_index=None, exact_match=False) -> Match:
-    index = -1
-    line_matches = 0
-    num_hits = 0
+    pass
 
     # # sliding window comparison from original to search
     # # Todo: 2 pointer approach (find start, then find end)

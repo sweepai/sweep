@@ -60,7 +60,7 @@ def _asgi_app():
         else:
             # parse response
             parsed = parse_qs(response.text)
-            access_token = parsed.get("access_token")[0]
+            parsed.get("access_token")[0]
             return "Successfully authorized."
 
     @asgi_app.post("/auth")

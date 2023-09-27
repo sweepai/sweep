@@ -182,9 +182,8 @@ def call_on_ticket(*args, **kwargs):
 
 
 def call_on_check_suite(*args, **kwargs):
-    repo_full_name = kwargs["request"].repository.full_name
-    pr_number = kwargs["request"].check_run.pull_requests[0].number
-    key = f"{repo_full_name}-{pr_number}"
+    kwargs["request"].repository.full_name
+    kwargs["request"].check_run.pull_requests[0].number
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
@@ -232,10 +231,9 @@ def call_get_deeplake_vs_from_repo(*args, **kwargs):
     )
     thread.start()
 
+
 def call_write_documentation(*args, **kwargs):
-    thread = threading.Thread(
-        target=write_documentation, args=args, kwargs=kwargs
-    )
+    thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
     thread.start()
 
 
@@ -353,7 +351,7 @@ async def webhook(raw_request: Request):
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
 
-                    key = (request.repository.full_name, request.issue.number)
+                    (request.repository.full_name, request.issue.number)
 
                     call_on_ticket(
                         title=request.issue.title,
@@ -409,7 +407,7 @@ async def webhook(raw_request: Request):
                     and not request.sender.login.startswith("sweep")
                 ):
                     logger.info("New issue edited")
-                    key = (request.repository.full_name, request.issue.number)
+                    (request.repository.full_name, request.issue.number)
                     # logger.info(f"Checking if {key} is in {stub.issue_lock}")
                     # process = stub.issue_lock[key] if key in stub.issue_lock else None
                     # if process:
@@ -482,7 +480,7 @@ async def webhook(raw_request: Request):
 
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
-                    key = (request.repository.full_name, request.issue.number)
+                    (request.repository.full_name, request.issue.number)
                     # logger.info(f"Checking if {key} is in {stub.issue_lock}")
                     # process = stub.issue_lock[key] if key in stub.issue_lock else None
                     # if process:

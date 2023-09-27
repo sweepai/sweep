@@ -28,7 +28,7 @@ try:
             return logger
         except SystemExit:
             raise SystemExit
-        except Exception as e:
+        except Exception:
             return None
 
 except Exception as e:
@@ -306,7 +306,7 @@ class _Logger:
             self._log(*args, **kwargs)
         except SystemExit:
             raise SystemExit
-        except Exception as e:
+        except Exception:
             print(traceback.format_exc())
             print("Failed to write log")
 
@@ -339,7 +339,7 @@ class _Logger:
                             )
                 except SystemExit:
                     raise SystemExit
-                except Exception as e:
+                except Exception:
                     pass
 
             print(log)

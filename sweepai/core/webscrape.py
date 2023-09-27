@@ -97,9 +97,7 @@ def webscrape(BASE_URL_PREFIX):
 
         all_files[url] = content
 
-        all_links = page.eval_on_selector_all(
-            "a", "els => els.map(el => el.href)"
-        )
+        all_links = page.eval_on_selector_all("a", "els => els.map(el => el.href)")
         links = []
         for link in all_links:
             if "#" in link:

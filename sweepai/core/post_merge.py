@@ -81,6 +81,6 @@ class PostMerge(ChatGPT):
                 return "", ""
         except SystemExit:
             raise SystemExit
-        except Exception as e:
+        except Exception:
             logger.error(f"An error occurred: {traceback.print_exc()}")
             return "", ""

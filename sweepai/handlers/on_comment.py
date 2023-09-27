@@ -203,13 +203,13 @@ def on_comment(
                 reaction = item_to_react_to.create_reaction("eyes")
             except SystemExit:
                 raise SystemExit
-            except Exception as e:
+            except Exception:
                 try:
                     item_to_react_to = pr.get_review_comment(comment_id)
                     reaction = item_to_react_to.create_reaction("eyes")
                 except SystemExit:
                     raise SystemExit
-                except Exception as e:
+                except Exception:
                     pass
 
             if reaction is not None:
@@ -568,13 +568,13 @@ def on_comment(
         reaction = item_to_react_to.create_reaction("rocket")
     except SystemExit:
         raise SystemExit
-    except Exception as e:
+    except Exception:
         try:
             item_to_react_to = pr.get_review_comment(comment_id)
             reaction = item_to_react_to.create_reaction("rocket")
         except SystemExit:
             raise SystemExit
-        except Exception as e:
+        except Exception:
             pass
 
     try:
@@ -582,7 +582,7 @@ def on_comment(
             edit_comment(f"## 🚀 Wrote Changes\n\n{response_for_user}")
     except SystemExit:
         raise SystemExit
-    except Exception as e:
+    except Exception:
         pass
 
     capture_posthog_event(username, "success", properties={**metadata})
