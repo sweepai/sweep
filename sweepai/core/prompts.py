@@ -3,15 +3,9 @@ List of common prompts used across the codebase.
 """
 
 # Following two should be fused
-system_message_prompt = (
-    "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to"
-    " write code for the following Github issue. When you write code, the code works on"
-    " the first try, is syntactically perfect and is complete. You have the utmost care"
-    " for the code that you write, so you do not make mistakes and every function and"
-    " class will be fully implemented. Take into account the current repository's"
-    " language, frameworks, and dependencies. It is very important that you get this"
-    " right."
-)
+system_message_prompt = """
+Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is fully complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. When writing tests, you will ensure the tests are fully complete, very extensive and cover all cases, and you will make up test data as needed. Take into account the current repository's language, frameworks, and dependencies.
+"""
 
 repo_description_prefix_prompt = "\n\nThis is a description of the repository:"
 
@@ -248,14 +242,15 @@ Step-by-step thoughts with explanations:
 ...
 
 <plan>
-<create file="file_path_1" relevant_files="space-separated relevant file paths for creating file_path_1">
+<create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
 * Instruction 1 for file_path_1
 * Instruction 2 for file_path_1
 ...
 </create>
 ...
 
-<modify file="file_path_2" relevant_files="space-separated relevant file paths for modifying file_path_2">
+
+<modify file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
 * Instruction 1 for file_path_2
 * Instruction 2 for file_path_2
 ...
@@ -1220,7 +1215,6 @@ For each of the {n} snippets above, rewrite it according to their corresponding 
 * Only rewrite within the scope of the snippet, as it will be replaced directly.
 * Do not delete whitespace or comments.
 * The output will be copied into the code LITERALLY so do not close all ending brackets
-* Remember to copy the original code for prepending.
 * To delete code insert an empty string.
 
 Respond in the following format:
