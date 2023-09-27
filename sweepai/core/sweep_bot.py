@@ -811,7 +811,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     key="issue_metadata",
                 )
             ]
-            if self.comment_pr_diff_str:
+            if self.comment_pr_diff_str and self.comment_pr_diff_str.strip():
                 additional_messages = [
                     Message(
                         role="user",
@@ -827,25 +827,37 @@ class SweepBot(CodeGenBot, GithubBot):
                         role="user",
                     )
                 ]
-            modify_file_bot = ModifyBot(
-                additional_messages,
-                parent_bot=self,
-                chat_logger=self.chat_logger,
-                is_pr=bool(self.comment_pr_diff_str),
-            )
-            try:
-                new_file = modify_file_bot.try_update_file(
-                    file_path=file_change_request.filename,
-                    file_contents=contents,
-                    file_change_request=file_change_request,
-                    chunking=chunking,
+
+            def create_new_file(temperature: float = 0.0):
+                modify_file_bot = ModifyBot(
+                    additional_messages,
+                    parent_bot=self,
+                    chat_logger=self.chat_logger,
+                    is_pr=bool(self.comment_pr_diff_str),
+                    temperature=temperature,
                 )
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                if chunking:
-                    return contents, "", None, changed_files
-                raise e
+                try:
+                    return modify_file_bot.try_update_file(
+                        file_path=file_change_request.filename,
+                        file_contents=contents,
+                        file_change_request=file_change_request,
+                        chunking=chunking,
+                    )
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    if chunking:
+                        return contents, "", None, changed_files
+                    raise e
+
+            new_file = create_new_file()
+            # Janky retry logic
+            if contents == new_file:
+                logger.info("Nothing changed. Retrying...")
+                new_file = create_new_file(0.2)
+            if contents == new_file:
+                logger.info("Nothing changed. Retrying...")
+                new_file = create_new_file(0.4)
         except SystemExit:
             raise SystemExit
         except Exception as e:  # Check for max tokens error
@@ -1329,13 +1341,14 @@ class ModifyBot:
         chat_logger=None,
         parent_bot: SweepBot = None,
         is_pr: bool = False,
+        **kwargs,
     ):
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
-            fetch_snippets_system_prompt, chat_logger=chat_logger
+            fetch_snippets_system_prompt, chat_logger=chat_logger, **kwargs
         )
         self.fetch_snippets_bot.messages.extend(additional_messages)
         self.update_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
-            update_snippets_system_prompt, chat_logger=chat_logger
+            update_snippets_system_prompt, chat_logger=chat_logger, **kwargs
         )
         self.update_snippets_bot.messages.extend(additional_messages)
         self.parent_bot = parent_bot

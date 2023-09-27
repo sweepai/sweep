@@ -2,7 +2,7 @@ import re
 
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 
-from logn import LogTask, logger
+from logn import logger
 from sweepai.config.server import ACTIVELOOP_TOKEN, ORG_ID, SENTENCE_TRANSFORMERS_MODEL
 from sweepai.core.lexical_search import prepare_index_from_docs, search_docs
 from sweepai.core.robots import is_url_allowed

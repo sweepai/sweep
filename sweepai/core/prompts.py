@@ -1,7 +1,6 @@
 """
 List of common prompts used across the codebase.
 """
-from sweepai.core.entities import CustomInstructions
 
 # Following two should be fused
 system_message_prompt = (

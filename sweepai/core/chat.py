@@ -51,7 +51,9 @@ model_to_max_tokens = {
     "gpt-4-32k-0613": 32000,
     "gpt-4-32k": 32000,
 }
-temperature = 0.0  # Lowered to 0 for mostly deterministic results for reproducibility
+default_temperature = (
+    0.0  # Lowered to 0 for mostly deterministic results for reproducibility
+)
 count_tokens = Tiktoken().count
 
 
@@ -89,6 +91,7 @@ class ChatGPT(BaseModel):
     file_change_paths: list[str] = []
     sweep_context: SweepContext | None = None
     cloned_repo: ClonedRepo | None = None
+    temperature: float = default_temperature
 
     @classmethod
     def from_system_message_content(
@@ -183,10 +186,11 @@ class ChatGPT(BaseModel):
         content: str,
         model: ChatModel | None = None,
         message_key: str | None = None,
-        temperature=temperature,
+        temperature: float | None = None,
     ):
         self.messages.append(Message(role="user", content=content, key=message_key))
         model = model or self.model
+        temperature = temperature or self.temperature or default_temperature
         self.messages.append(
             Message(
                 role="assistant",
@@ -414,7 +418,7 @@ class ChatGPT(BaseModel):
                                 model=model,
                                 messages=self.messages_dicts,
                                 max_tokens=max_tokens - token_sub,
-                                temperature=temperature,
+                                temperature=default_temperature,
                             )
                         )
                         .choices[0]
@@ -426,7 +430,7 @@ class ChatGPT(BaseModel):
                                 "model": model,
                                 "messages": self.messages_dicts,
                                 "max_tokens": max_tokens - token_sub,
-                                "temperature": temperature,
+                                "temperature": default_temperature,
                                 "output": output,
                             }
                         )
