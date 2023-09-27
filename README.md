@@ -128,8 +128,31 @@ We plan on rapidly improving Sweep. To see what we're working on, check out our 
 
 ## Contributing
 
-Contributions are welcome and greatly appreciated! To get set up, see [Development](https://github.com/sweepai/sweep#development). For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
-* [Sweep Docs](https://docs.sweep.dev/).
+We welcome contributions from everyone. Whether you're an experienced developer or just getting started, your contributions are valuable to us. Contributing to this project is a great way to learn new skills, gain experience with open source development, and become part of a friendly and dedicated community.
+
+Here's how you can contribute:
+
+### Setting Up the Project Locally
+
+1. Clone the repository to your local machine using `git clone https://github.com/sweepai/sweep`.
+2. Navigate to the project directory with `cd sweep`.
+3. Install the necessary dependencies with `npm install`.
+4. Start the development server with `npm start`.
+
+### Creating a Pull Request
+
+1. Create a new branch for your changes with `git checkout -b your-branch-name`.
+2. Make your changes and commit them with `git commit -m "Your commit message"`.
+3. Push your branch to GitHub with `git push origin your-branch-name`.
+4. Go to the [Sweep repository](https://github.com/sweepai/sweep) on GitHub and open a new pull request.
+
+For more detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
+
+### Reporting Issues or Requesting New Features
+
+If you encounter any problems or have an idea for a new feature, please create a new issue on our [GitHub issues page](https://github.com/sweepai/sweep/issues). When creating an issue, please provide as much information as possible about the problem or feature request, including steps to reproduce (if applicable), expected behavior, and screenshots (if applicable).
+
+[Sweep Docs](https://docs.sweep.dev/).
 
 
 <h2 align="center">
