@@ -197,7 +197,8 @@ def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
             title=doc.title, content=doc.content, start=doc.start, end=doc.end
         )
 
-    writer.commit()
+    if all_docs:
+        writer.commit()
     return ix
 
 
@@ -226,12 +227,13 @@ def prepare_index_from_docs(docs):
     for doc in all_docs:
         writer.add_document(url=doc.url, content=doc.content)
 
-    try:
-        writer.commit()
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.error(e)
+    if all_docs:
+        try:
+            writer.commit()
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
+            logger.error(e)
     return ix
 
 
