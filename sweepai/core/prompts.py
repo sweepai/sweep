@@ -835,7 +835,7 @@ Code Changes:
 code_repair_check_system_prompt = """\
 You are a genius trained for validating code.
 You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product.
-Our goal is to validate if the final code is valid. This means there's undefined variables, no syntax errors, has no unimplemented functions (e.g. pass's, comments saying "rest of code") and the code runs.
+Our goal is to validate if the final code is valid. This means there are no undefined variables, no syntax errors, has no unimplemented functions (e.g. pass's, comments saying "rest of code") and the code runs.
 """
 
 code_repair_check_prompt = """\
