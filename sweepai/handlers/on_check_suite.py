@@ -147,7 +147,7 @@ def on_check_suite(request: CheckRunCompleted):
     # logs_list = [extract_logs_from_comment(comment.body) for comment in comments]
     # current_logs = extract_logs_from_comment(problematic_logs)
 
-    if all([comment.user.login.startswith("sweep") for comment in comments[-2:]]):
+    if all([comment.user.login.startswith("sweep") for comment in comments[-6:]]):
         comment = pr.as_issue().create_comment(
             log_message.format(error_logs=problematic_logs)
             + "\n\nI'm getting the same errors 3 times in a row, so I will stop working"
