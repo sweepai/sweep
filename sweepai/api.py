@@ -461,7 +461,6 @@ async def webhook(raw_request: Request):
                         request.issue.pull_request and request.issue.pull_request.url
                     )
                 ):
-                    logger.info("New issue comment created")
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
                         request.repository.description or ""
@@ -503,7 +502,6 @@ async def webhook(raw_request: Request):
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
                 ):  # TODO(sweep): set a limit
-                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     _, g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
                     pr = repo.get_pull(request.issue.number)
@@ -530,7 +528,6 @@ async def webhook(raw_request: Request):
             case "pull_request_review_comment", "created":
                 # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
-                logger.info(f"Handling comment on PR: {request.pull_request.number}")
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pr = repo.get_pull(request.pull_request.number)
@@ -561,7 +558,6 @@ async def webhook(raw_request: Request):
                 pass
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
-                logger.info(f"Handling check suite for {request.repository.full_name}")
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pull_requests = request.check_run.pull_requests
@@ -569,8 +565,6 @@ async def webhook(raw_request: Request):
                     pr = repo.get_pull(pull_requests[0].number)
                     if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
                         call_on_check_suite(request=request)
-                else:
-                    logger.info("No pull requests, passing")
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
@@ -770,7 +764,6 @@ async def webhook(raw_request: Request):
                         _, g = get_github_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
                         docs = get_documentation_dict(repo)
-                        logger.info(f"Sweep.yaml docs: {docs}")
                         # Call the write_documentation function for each of the existing fields in the "docs" mapping
                         for doc_url, _ in docs.values():
                             logger.info(f"Writing documentation for {doc_url}")
@@ -836,12 +829,6 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                     feature_branch,
                     repo.default_branch,
                     f"Merge main into {feature_branch}",
-                )
-
-                # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
-                logger.info(
-                    f"Merging changes from default branch into PR #{pr.number} for branch"
-                    f" {feature_branch}"
                 )
 
                 # Check if the merged PR is the config PR
