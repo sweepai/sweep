@@ -154,11 +154,11 @@ def on_ticket(
 
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
-        is_trial_user = chat_logger.is_trial_user()
+        is_consumer_tier = chat_logger.is_consumer_tier()
         use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
     else:
         is_paying_user = True
-        is_trial_user = False
+        is_consumer_tier = False
         use_faster_model = False
 
     if fast_mode:
@@ -265,8 +265,8 @@ def on_ticket(
     # Find the first comment made by the bot
     issue_comment = None
     tickets_allocated = 5
-    if is_trial_user:
-        tickets_allocated = 15
+    if is_consumer_tier:
+        tickets_allocated = 20
     if is_paying_user:
         tickets_allocated = 500
     ticket_count = (
@@ -478,7 +478,7 @@ def on_ticket(
     if (
         repo_name.lower() not in WHITELISTED_REPOS
         and not is_paying_user
-        and not is_trial_user
+        and not is_consumer_tier
     ):
         if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
             logger.info("Test repository detected")
@@ -1082,7 +1082,7 @@ def on_ticket(
         logger.info("Max tokens exceeded")
         log_error(
             is_paying_user,
-            is_trial_user,
+            is_consumer_tier,
             username,
             issue_url,
             "Max Tokens Exceeded",
