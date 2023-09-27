@@ -128,9 +128,7 @@ We plan on rapidly improving Sweep. To see what we're working on, check out our 
 
 ## Contributing
 
-We welcome contributions from everyone. Whether you're an experienced developer or just getting started, your contributions are valuable to us. Contributing to this project is a great way to learn new skills, gain experience with open source development, and become part of a friendly and dedicated community.
-
-Here's how you can contribute:
+We appreciate your interest in contributing to Sweep! Whether you're an experienced developer or just getting started, your contributions are valuable to us. Here's how you can contribute:
 
 ### Setting Up the Project Locally
 
@@ -152,7 +150,7 @@ For more detailed guidelines on how to contribute, please see the [CONTRIBUTING.
 
 If you encounter any problems or have an idea for a new feature, please create a new issue on our [GitHub issues page](https://github.com/sweepai/sweep/issues). When creating an issue, please provide as much information as possible about the problem or feature request, including steps to reproduce (if applicable), expected behavior, and screenshots (if applicable).
 
-[Sweep Docs](https://docs.sweep.dev/).
+For more information, please refer to our [Sweep Docs](https://docs.sweep.dev/).
 
 
 <h2 align="center">
