@@ -701,6 +701,7 @@ class SweepBot(CodeGenBot, GithubBot):
     ):
         file_change: FileCreation | None = None
         key = f"file_change_created_{file_change_request.filename}"
+        old_messages = self.messages
         if changed_files:
             changed_files_summary = "Changed files in this PR:\n\n" + "\n".join(
                 [
@@ -713,6 +714,28 @@ class SweepBot(CodeGenBot, GithubBot):
                     content=changed_files_summary,
                     role="assistant",
                     key="changed_files_summary",
+                )
+            )
+        self.delete_messages_from_chat(key_to_delete="files_to_change")
+        if file_change_request.relevant_files:
+            contents = []
+            for file_path in file_change_request.relevant_files:
+                contents.append(
+                    self.get_contents(file_path).decoded_content.decode("utf-8")
+                )
+            relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
+                [
+                    f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
+                    for file_path, file_contents in zip(
+                        file_change_request.relevant_files, contents
+                    )
+                ]
+            )
+            self.messages.append(
+                Message(
+                    content=relevant_files_summary,
+                    role="user",
+                    key="relevant_files_summary",
                 )
             )
         create_file_response = self.chat(
@@ -762,6 +785,8 @@ class SweepBot(CodeGenBot, GithubBot):
             file_change.code, sandbox_execution = self.check_sandbox(
                 file_change_request.filename, file_change.code
             )
+
+            self.messages = old_messages
 
             return file_change, sandbox_execution
         except SystemExit:

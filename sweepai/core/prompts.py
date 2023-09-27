@@ -248,14 +248,15 @@ Step-by-step thoughts with explanations:
 ...
 
 <plan>
-<create file="file_path_1" relevant_files="space-separated relevant file paths for creating file_path_1">
+<create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
 * Instruction 1 for file_path_1
 * Instruction 2 for file_path_1
 ...
 </create>
 ...
 
-<modify file="file_path_2" relevant_files="space-separated relevant file paths for modifying file_path_2">
+
+<modify file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
 * Instruction 1 for file_path_2
 * Instruction 2 for file_path_2
 ...
@@ -1220,7 +1221,6 @@ For each of the {n} snippets above, rewrite it according to their corresponding 
 * Only rewrite within the scope of the snippet, as it will be replaced directly.
 * Do not delete whitespace or comments.
 * The output will be copied into the code LITERALLY so do not close all ending brackets
-* Remember to copy the original code for prepending.
 * To delete code insert an empty string.
 
 Respond in the following format:
