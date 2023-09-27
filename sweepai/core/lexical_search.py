@@ -173,6 +173,8 @@ def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
     from tqdm import tqdm
 
     all_docs = snippets_to_docs(snippets, len_repo_cache_dir)
+    if len(all_docs) == 0:
+        return None
     # Tokenizer that splits by whitespace and common code punctuation
     tokenizer = CodeTokenizer()
 
@@ -208,6 +210,8 @@ class Documentation:
 
 def prepare_index_from_docs(docs):
     all_docs = [Documentation(url, content) for url, content in docs]
+    if len(all_docs) == 0:
+        return None
     tokenizer = CodeTokenizer()
     # An example analyzer for code
     code_analyzer = tokenizer
@@ -235,6 +239,8 @@ def prepare_index_from_docs(docs):
 
 def search_docs(query, ix):
     """Title, score, content"""
+    if ix == None:
+        return {}
     # Create a query parser for the "content" field of the index
     q = construct_query(query)
 
@@ -258,6 +264,8 @@ def search_docs(query, ix):
 
 def search_index(query, ix):
     """Title, score, content"""
+    if ix == None:
+        return {}
     try:
         # Create a query parser for the "content" field of the index
         q = construct_query(query)
