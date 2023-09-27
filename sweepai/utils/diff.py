@@ -117,7 +117,6 @@ def format_contents(file_contents, is_markdown=False):
 def generate_new_file(
     modify_file_response: str, old_file_content: str, chunk_offset: int = 0
 ) -> str:
-    result_file = ""
     old_file_lines = old_file_content.split("\n")
 
     # Extract content between <new_file> tags
@@ -177,9 +176,7 @@ INCOMPLETE_MATCH = "INCOMPLETE_MATCH"
 
 
 def match_string(original, search, start_index=None, exact_match=False) -> Match:
-    index = -1
-    line_matches = 0
-    num_hits = 0
+    pass
 
     # # sliding window comparison from original to search
     # # Todo: 2 pointer approach (find start, then find end)
@@ -276,145 +273,19 @@ def sliding_window_replacement(
 ):
     if search == replace:
         return original, None, None
-    status, replace_index = None, None
-    # First, do check for "..." (example: define method, then put ... to ignore initial lines)
-    canDoDotCheck = not any(
-        "..." in line.strip() for line in original
-    )  # If ... not in original file
-    # if canDoDotCheck:
-    #     # Check first 3 lines for '...'
-    #     first_line_idx = -1
-    #     for i in range(len(search)):
-    #         if search[i].strip() == "...":
-    #             first_line_idx = i
-    #             break
 
-    #     # Do this for replace too
-    #     first_line_idx_replace = -1
-    #     for i in range(len(replace)):
-    #         if replace[i].strip() == "...":
-    #             first_line_idx_replace = i
-    #             break
-    #     if first_line_idx == 0 and first_line_idx_replace == 0:
-    #         search = search[1:]
-    #         replace = replace[1:]
-    #     elif (
-    #         first_line_idx == len(search) - 1
-    #         and first_line_idx_replace == len(replace) - 1
-    #     ):
-    #         search = search[:first_line_idx]
-    #         replace = replace[:first_line_idx_replace]
-    #     elif first_line_idx != -1 and first_line_idx_replace != -1:
-    #         # SPLIT INTO TWO PARTS
-    #         # TODO(lukejagg): pass in the first and last lines as context for matching (so ambiguous ... can be matched)
-    #         search_context_before = search[:first_line_idx]
-    #         original, best_match, status = sliding_window_replacement(
-    #             original,
-    #             search[first_line_idx + 1 :],
-    #             replace[first_line_idx_replace + 1 :],
-    #             search_context_before,
-    #             **kwargs,
-    #         )
-    #         search = search[:first_line_idx]
-    #         replace = replace[:first_line_idx_replace]
-
-    # exact_match = kwargs.get("exact_match", False)
-    # ignore_comments = kwargs.get("ignore_comments", False)
-    # index, max_similarity, current_hits = match_string(
-    #     original, search, exact_match=exact_match, ignore_comments=ignore_comments
-    # )
     best_match = match_string(original, search)
     logger.print(best_match)
     max_similarity = best_match.score
-    # index = best_match.start
 
     # No changes could be found. Return original code.
     if max_similarity == 0:
-        # # If there is only one line, then try to replace it
-        # if (
-        #     len(search) == 1
-        #     and len(replace) == 1
-        #     and sum(o.count(search[0]) for o in original) == 1
-        # ):
-        #     # Get index in original that has the search line
-        #     index = [i for i, o in enumerate(original) if search[0] in o][0]
-        #     # Replace that line with the replace line
-        #     original[index] = original[index].replace(search[0], replace[0])
-        #     return original, index, None
-
-        # if not ignore_comments:  # In case Sweep decided not to include comments
-        #     # Todo(lukejagg): Implement ignoring comments
-        #     return sliding_window_replacement(
-        #         original,
-        #         search,
-        #         replace,
-        #         ignore_comments=True,
-        #         **{k: v for k, v in kwargs.items() if k != "ignore_comments"},
-        #     )
-        # print("WARNING: No identical lines")
-        # return original, None, IDENTICAL_LINES
         raise Exception("No identical lines")
 
     if max_similarity < 50:
         logger.print(f"Low similarity: {max_similarity}")
 
-    # if current_hits > 1:
-    #     success = False
-    #     if search_context_before:
-    #         old_index, _, current_hits = match_string(
-    #             original,
-    #             search_context_before,
-    #             exact_match=exact_match,
-    #         )
-    #         _, old_spaces, _ = get_snippet_with_padding(
-    #             original, old_index, search_context_before
-    #         )
-
-    #         if current_hits == 1:
-    #             index, max_similarity, current_hits = match_string(
-    #                 original,
-    #                 [old_spaces + s for s in search],
-    #                 start_index=old_index + 1,
-    #                 exact_match=exact_match,
-    #             )
-    #             current_hits = 1  # Ignore multiple hits, use first complete comparison
-    #             success = True
-
-    #     if not success:
-    #         if (
-    #             len(replace) == 1 and not replace[0] and not search_context_before
-    #         ):  # Backup 1: independent line matches
-    #             exact_matches = [line for line in original if line in search]
-    #             # If there are no duplicates and all lines have a match
-    #             if len(set(exact_matches)) == len(search):
-    #                 # Remove all of those corresponding lines in the content
-    #                 original = [line for line in original if line not in search]
-    #                 return original, None, None
-
-    #         if not exact_match:  # Backup 2: exact line matches
-    #             return sliding_window_replacement(
-    #                 original,
-    #                 search,
-    #                 replace,
-    #                 exact_match=True,
-    #                 **{k: v for k, v in kwargs.items() if k != "exact_match"},
-    #             )
-
-    #         print("WARNING: Multiple hits")
-    #         return original, None, MULTIPLE_HITS
-
-    # Todo(lukejagg): Remove unreachable code
-    # if index == -1:
-    #     # First, try matching beginning of search
-    #     return original, None, NOT_FOUND
-
-    # Todo(lukejagg): this doesn't seem to work, add later
-    # if int(max_similarity) != len(search):
-    #     return original, None, INCOMPLETE_MATCH
-
-    # if max_similarity != len(search):
     snippet, spaces, strip = get_snippet_with_padding(original, best_match, search)
-    print(spaces)
     if len(snippet) == 1 and len(replace) == 1:
         # Replace the line
         modified = [snippet[0].replace(search[0], replace[0])]
@@ -428,7 +299,24 @@ def sliding_window_replacement(
         ]
     else:
         modified = [spaces + line for line in replace]
+
     # replaced original with modified
+    def same_without_whitespace(a: list[str], b: list[str]):
+        return [line for line in a if line.strip()] == [
+            line for line in b if line.strip()
+        ]
+
+    for i in range(2, 40):
+        if same_without_whitespace(
+            modified[:i], original[best_match.start - i : best_match.start]
+        ):
+            modified = modified[i:]
+            break
+        if same_without_whitespace(
+            modified[-i:], original[best_match.end : best_match.end + i]
+        ):
+            modified = modified[:-i]
+            break
     original = original[: best_match.start] + modified + original[best_match.end :]
     return original, best_match, None
 

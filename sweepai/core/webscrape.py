@@ -2,7 +2,7 @@ import re
 
 from bs4 import BeautifulSoup
 from markdownify import markdownify as md
-from playwright.async_api import async_playwright
+from playwright.sync_api import sync_playwright
 from tqdm import tqdm
 
 from logn import logger
@@ -75,19 +75,19 @@ def parse_html(html):
     return {"meta": meta, "title": title, "content": markdown_content}
 
 
-async def webscrape(BASE_URL_PREFIX):
+def webscrape(BASE_URL_PREFIX):
     visited_urls = set()
     queued_urls = set()
     pbar = tqdm(total=1, desc="Scraping pages")
 
     all_files = {}
 
-    async def scrape_page(page, url):
+    def scrape_page(page, url):
         if url in visited_urls:
             return
         visited_urls.add(url)
-        await page.goto(url)
-        content = await page.content()
+        page.goto(url)
+        content = page.content()
 
         result = parse_html(content)
         content = result["content"]
@@ -97,9 +97,7 @@ async def webscrape(BASE_URL_PREFIX):
 
         all_files[url] = content
 
-        all_links = await page.eval_on_selector_all(
-            "a", "els => els.map(el => el.href)"
-        )
+        all_links = page.eval_on_selector_all("a", "els => els.map(el => el.href)")
         links = []
         for link in all_links:
             if "#" in link:
@@ -118,15 +116,15 @@ async def webscrape(BASE_URL_PREFIX):
 
         for link in links:
             try:
-                await scrape_page(page, link)
+                scrape_page(page, link)
             except SystemExit:
                 raise SystemExit
             except:
                 logger.warning(f"Failed to scrape {link}")
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(timeout=0)
-        page = await browser.new_page()
-        await scrape_page(page, BASE_URL_PREFIX)
-        await browser.close()
+    with sync_playwright() as p:
+        browser = p.chromium.launch(timeout=0)
+        page = browser.new_page()
+        scrape_page(page, BASE_URL_PREFIX)
+        browser.close()
     return all_files

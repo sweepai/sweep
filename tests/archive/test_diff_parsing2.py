@@ -20,28 +20,55 @@ export default class CallToAction extends React.Component {
 """
 
 old_file = r"""
-def filter_file(file, sweep_config):
-    for ext in sweep_config.exclude_exts:
-        if file.endswith(ext):
-            return False
-    for dir_name in sweep_config.exclude_dirs:
-        if file[len("repo/") :].startswith(dir_name):
-            return False
-    if not os.path.isfile(file):
-        return False
-    with open(file, "rb") as f:
-        is_binary = False
-        for block in iter(lambda: f.read(1024), b""):
-            if b"\0" in block:
-                is_binary = True
-                break
-        if is_binary:
-            return False
+        ticket_count = (
+            result_list[0].get(tracking_date, 0) if len(result_list) > 0 else 0
+        )
+        logger.info(f"Ticket Count for {username} {ticket_count}")
+        return ticket_count
 
-    with open(file, "rb") as f:
-        if len(f.read()) > 60000:
+    def is_paying_user(self):
+        if self.ticket_collection is None:
+            logger.error("Ticket Collection Does Not Exist")
             return False
-    return True
+        username = self.data["username"]
+        result = self.ticket_collection.find_one({"username": username})
+        return result.get("is_paying_user", False) if result else False
+
+    def is_trial_user(self):
+        if self.ticket_collection is None:
+            logger.error("Ticket Collection Does Not Exist")
+            return False
+        username = self.data["username"]
+        result = self.ticket_collection.find_one({"username": username})
+        return result.get("is_trial_user", False) if result else False
+
+    def use_faster_model(self, g):
+        if self.ticket_collection is None:
+            logger.error("Ticket Collection Does Not Exist")
+            return True
+        if self.is_paying_user():
+            return self.get_ticket_count() >= 500
+        if self.is_trial_user():
+            return self.get_ticket_count() >= 15
+
+        try:
+            loc_user = g.get_user(self.data["username"]).location
+            loc = Nominatim(user_agent="location_checker").geocode(
+                loc_user, exactly_one=True
+            )
+            g = False
+            for c in SUPPORT_COUNTRY:
+                if c.lower() in loc.raw.get("display_name").lower():
+                    g = True
+                    break
+            if not g:
+                logger.print("G EXCEPTION", loc_user)
+                return (
+                    self.get_ticket_count() >= 5
+                    or self.get_ticket_count(use_date=True) >= 1
+                )
+        except SystemExit:
+            raise SystemExit
 """
 
 # code_replaces = """
@@ -73,12 +100,42 @@ def filter_file(file, sweep_config):
 
 code_replaces = """
 <<<< ORIGINAL
-with open(file, "rb") as f:
-    if len(f.read()) > 60000:
-        return False
+def use_faster_model(self, g):
+    if self.ticket_collection is None:
+        logger.error("Ticket Collection Does Not Exist")
+        return True
+    if self.is_paying_user():
+        return self.get_ticket_count() >= 500
+    if self.is_trial_user():
+        return self.get_ticket_count() >= 15
 ====
-if os.stat(file).st_size > 60000:
-    return False
+def use_faster_model(self, g):
+    if self.ticket_collection is None:
+        logger.error("Ticket Collection Does Not Exist")
+        return True
+    if self.is_paying_user():
+        return self.get_ticket_count() >= 500
+    if self.is_consumer_tier():
+        return self.get_ticket_count() >= 20
+
+    try:
+        loc_user = g.get_user(self.data["username"]).location
+        loc = Nominatim(user_agent="location_checker").geocode(
+            loc_user, exactly_one=True
+        )
+        g = False
+        for c in SUPPORT_COUNTRY:
+            if c.lower() in loc.raw.get("display_name").lower():
+                g = True
+                break
+        if not g:
+            logger.print("G EXCEPTION", loc_user)
+            return (
+                self.get_ticket_count() >= 5
+                or self.get_ticket_count(use_date=True) >= 1
+            )
+    except SystemExit:
+        raise SystemExit
 >>>> UPDATED
 """
 

@@ -24,7 +24,6 @@ def tokenize_call(code):
     for m in matches:
         text = m.group()
         span_start = m.start()
-        span_end = m.end()
 
         if "_" in text:  # snakecase
             offset = 0

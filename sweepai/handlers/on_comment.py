@@ -203,13 +203,13 @@ def on_comment(
                 reaction = item_to_react_to.create_reaction("eyes")
             except SystemExit:
                 raise SystemExit
-            except Exception as e:
+            except Exception:
                 try:
                     item_to_react_to = pr.get_review_comment(comment_id)
                     reaction = item_to_react_to.create_reaction("eyes")
                 except SystemExit:
                     raise SystemExit
-                except Exception as e:
+                except Exception:
                     pass
 
             if reaction is not None:
@@ -470,15 +470,12 @@ def on_comment(
                     cloned_repo=cloned_repo,
                 )
             else:
-                is_python_issue = (
-                    sum(
-                        [
-                            not file_path.endswith(".py")
-                            for file_path in human_message.get_file_paths()
-                        ]
-                    )
-                    < 2
+                non_python_count = sum(
+                    not file_path.endswith(".py")
+                    for file_path in human_message.get_file_paths()
                 )
+                python_count = non_python_count - len(human_message.get_file_paths())
+                is_python_issue = python_count > non_python_count
                 file_change_requests, _ = sweep_bot.get_files_to_change(
                     is_python_issue, retries=1, pr_diffs=pr_diff_string
                 )
@@ -581,13 +578,13 @@ def on_comment(
         reaction = item_to_react_to.create_reaction("rocket")
     except SystemExit:
         raise SystemExit
-    except Exception as e:
+    except Exception:
         try:
             item_to_react_to = pr.get_review_comment(comment_id)
             reaction = item_to_react_to.create_reaction("rocket")
         except SystemExit:
             raise SystemExit
-        except Exception as e:
+        except Exception:
             pass
 
     try:
@@ -595,7 +592,7 @@ def on_comment(
             edit_comment(f"## 🚀 Wrote Changes\n\n{response_for_user}")
     except SystemExit:
         raise SystemExit
-    except Exception as e:
+    except Exception:
         pass
 
     capture_posthog_event(username, "success", properties={**metadata})

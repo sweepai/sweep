@@ -193,9 +193,10 @@ class FileChangeRequest(RegexMatchableBaseModel):
     change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal[
         "rename"
     ] | Literal["rewrite"]
-    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\"( entity=\"(?P<entity>.*?)\")?>(?P<instructions>.*?)<\/\1>"""
+    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\"( entity=\"(?P<entity>.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?>(?P<instructions>.*?)<\/\1>"""
     entity: str | None = None
     new_content: str | None = None
+    raw_relevant_files: str | None = None
     start_and_end_lines: list[tuple] | None = []
 
     @classmethod
@@ -206,6 +207,10 @@ class FileChangeRequest(RegexMatchableBaseModel):
         if result.instructions.startswith("*"):
             result.instructions = "•" + result.instructions[1:]
         return result
+
+    @property
+    def relevant_files(self):
+        return self.raw_relevant_files.split() if self.raw_relevant_files else []
 
     @property
     def instructions_display(self):

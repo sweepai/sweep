@@ -99,7 +99,7 @@ class JediParsing:
                         )
                         if inference_type is not None:
                             is_external_import = True
-                    except Exception as e:
+                    except Exception:
                         continue
                 if data[0].module_path is not None and (
                     "site-packages" in str(data[0].module_path)
@@ -134,7 +134,7 @@ class JediParsing:
                                     else full_file_path,
                                 )
                 return goto_definition_type
-        except Exception as e:
+        except Exception:
             return None
 
     def get_full_inferred_type(
@@ -161,7 +161,7 @@ class JediParsing:
                 return None
             else:
                 return data[0].full_name
-        except Exception as e:
+        except Exception:
             # print("JEDI Exception", str(e), full_file_path, line, column)
             return None
 

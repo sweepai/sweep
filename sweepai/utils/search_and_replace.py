@@ -64,7 +64,6 @@ def score_multiline(query: list[str], target: list[str]) -> float:
             t += 1
         elif "..." in q_line:
             # Case 3: ellipsis wildcard
-            lines_matched = 1
             t += 1
             if q + 1 == len(query):
                 scores.append((100 - (len(target) - t), weight))

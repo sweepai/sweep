@@ -575,6 +575,7 @@ def on_ticket(
     ) = context_pruning.prune_context(  # TODO, ignore directories
         human_message, repo=repo
     )
+    snippets_to_ignore = [s for s in snippets_to_ignore if s not in message_summary]
     new_snippets = post_process_snippets(
         snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
     )
@@ -706,15 +707,12 @@ def on_ticket(
         # TODO(william, luke) planning here
 
         logger.info("Fetching files to modify/create...")
-        is_python_issue = (
-            sum(
-                [
-                    not file_path.endswith(".py")
-                    for file_path in human_message.get_file_paths()
-                ]
-            )
-            < 2
+        non_python_count = sum(
+            not file_path.endswith(".py")
+            for file_path in human_message.get_file_paths()
         )
+        python_count = non_python_count - len(human_message.get_file_paths())
+        is_python_issue = python_count > non_python_count
         posthog.capture(
             username, "is_python_issue", properties={"is_python_issue": is_python_issue}
         )
