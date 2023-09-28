@@ -503,7 +503,7 @@ def on_ticket(
 
     logger.info("Fetching relevant files...")
     try:
-        snippets, tree = search_snippets(
+        snippets, tree, dir_obj = search_snippets(
             cloned_repo,
             f"{title}\n{summary}\n{replies_text}",
             num_files=num_of_snippets_to_query,
@@ -570,20 +570,15 @@ def on_ticket(
 
     context_pruning = ContextPruning(chat_logger=chat_logger)
     (
-        snippets_to_ignore,
-        excluded_dirs,
+        paths_to_keep, 
+        directories_to_expand,
     ) = context_pruning.prune_context(  # TODO, ignore directories
         human_message, repo=repo
     )
-    snippets_to_ignore = [s for s in snippets_to_ignore if s not in message_summary]
-    new_snippets = post_process_snippets(
-        snippets, max_num_of_snippets=5, exclude_snippets=snippets_to_ignore
-    )
-    if new_snippets:
-        snippets = new_snippets
-    dir_obj = DirectoryTree()
-    dir_obj.parse(tree)
-    dir_obj.remove_multiple(excluded_dirs)
+    snippets = [snippet for snippet in snippets if snippet.file_path in paths_to_keep]
+    import pdb; pdb.set_trace()
+    dir_obj.remove_all_not_included(paths_to_keep)
+    dir_obj.expand_directory(directories_to_expand)
     tree = str(dir_obj)
     logger.info(f"New snippets: {snippets}")
     logger.info(f"New tree: {tree}")

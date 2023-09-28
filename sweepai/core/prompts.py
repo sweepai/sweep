@@ -10,7 +10,6 @@ Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to 
 repo_description_prefix_prompt = "\n\nThis is a description of the repository:"
 
 human_message_prompt = [
-    {"role": "assistant", "content": "Examining repo..."},
     {
         "role": "user",
         "content": """{relevant_snippets}""",
@@ -999,43 +998,6 @@ The user is attempting to solve the following problem:
 Provide a summary of the page relevant to the problem, including all code snippets.
 """
 
-pruning_prompt = """\
-The above text has too much unnecessary information, particularly in the <repo_tree> and the <relevant_paths_in_repo>.
-The snippets, relevant_paths_in_repo and repo_tree are 1:1. All files in the snippets expose parts of the repo tree, so adding or removing snippets will show more or less of the tree.
-The unnecessary information will hurt your performance on this task, so prune relevant_paths_in_repo and repo_tree to keep only the absolutely necessary information.
-
-First, list all of the files and directories we should keep in do_not_remove. These files and directories will be kept.
-List any irrelevant paths in the repo in irrelevant_paths_in_repo and they will be removed.
-List any additional files or directories from the repo_tree that we don't need in irrelevant_repo_tree_paths.
-If you list a directory, you do not need to list its subdirectories or files in its subdirectories.
-Do not remove files or directories that are referenced in the issue title or descriptions.
-
-Reply in the following format:
-
-Plan to address the issue:
-* Step 1
-* Step 2
-...
-
-<do_not_remove>
-* file or directory to keep 1
-* file or directory to keep 2
-...
-</do_not_remove>
-
-<irrelevant_paths_in_repo>
-* path to irrelevant snippet 1
-* path to irrelevant snippet 2
-...
-</irrelevant_paths_in_repo>
-
-<irrelevant_repo_tree_paths>
-* irrelevant repo tree path 1
-* irrelevant repo tree path 2
-* irrelevant repo tree path 3
-...
-</irrelevant_repo_tree_paths>
-"""
 
 docs_qa_system_prompt = """You are an expert at summarizing documentation for programming-related to help the user solve the problem. You will be given a question and relevant snippets of documentation, and be asked to provide a summary of relevant snippets for solving the problem."""
 docs_qa_user_prompt = """Here are the relevant documentation snippets:
