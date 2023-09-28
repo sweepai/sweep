@@ -4,10 +4,6 @@ import { ShowMore } from "./ShowMore";
 import { BiGitMerge } from "react-icons/bi";
 import { FiCornerDownRight } from "react-icons/fi";
 
-// console.log(local)
-// const headers = {
-//     "Bearer": "token ${env.}"
-// }
 
 export function PRPreview({ repoName, prId }) {
     const [prData, setPrData] = useState(null)
