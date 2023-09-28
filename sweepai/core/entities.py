@@ -113,46 +113,6 @@ class IssueTitleAndDescription(RegexMatchableBaseModel):
         )
 
 
-class ContextToPrune(RegexMatchableBaseModel):
-    excluded_dirs: list[str] = []
-    excluded_snippets: list[str] = []
-
-    @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        excluded_dirs = []
-        excluded_snippets = []
-        irrelevant_paths_in_repo_pattern = r"""<irrelevant_paths_in_repo>(\n)?(?P<irrelevant_paths_in_repo>.*)</irrelevant_paths_in_repo>"""
-        irrelevant_paths_in_repo_match = re.search(
-            irrelevant_paths_in_repo_pattern, string, re.DOTALL
-        )
-        for path in irrelevant_paths_in_repo_match.groupdict()[
-            "irrelevant_paths_in_repo"
-        ].split("\n"):
-            path = path.strip()
-            path = path.replace("* ", "")
-            path = path.replace("...", "")
-            if len(path) > 1:
-                logger.info(f"Excluding path: {path}")
-                excluded_snippets.append(path)
-        irrelevant_repo_tree_paths_pattern = r"""<irrelevant_repo_tree_paths>(\n)?(?P<irrelevant_repo_tree_paths>.*)</irrelevant_repo_tree_paths>"""
-        irrelevant_repo_tree_paths_match = re.search(
-            irrelevant_repo_tree_paths_pattern, string, re.DOTALL
-        )
-        for path in irrelevant_repo_tree_paths_match.groupdict()[
-            "irrelevant_repo_tree_paths"
-        ].split("\n"):
-            path = path.strip()
-            path = path.replace("* ", "")
-            path = path.replace("...", "")
-            if len(path) > 1:
-                logger.info(f"Excluding path: {path}")
-                excluded_dirs.append(path)
-        return cls(
-            excluded_dirs=excluded_dirs,
-            excluded_snippets=excluded_snippets,
-        )
-
-
 class ExpandedPlan(RegexMatchableBaseModel):
     queries: str
     additional_instructions: str
