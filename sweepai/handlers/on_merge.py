@@ -117,7 +117,7 @@ def process_files(changed_files, rules, repo, chat_logger, commit_author):
             total_prs += 1
     return total_prs, total_files_changed
 
-def capture_metrics(commit_author, total_lines_changed, total_prs, total_files_changed):
+def capture_metrics(commit_author, total_lines_changed, total_prs, total_files_changed, rules):
     """
     Capture some metrics if there are any rules.
     """
@@ -155,4 +155,4 @@ def on_merge(request_dict, chat_logger):
         return
     commit_author = head_commit["author"]["username"]
     total_prs, total_files_changed = process_files(changed_files, rules, repo, chat_logger, commit_author)
-    capture_metrics(commit_author, total_lines_changed, total_prs, total_files_changed)
+    capture_metrics(commit_author, total_lines_changed, total_prs, total_files_changed, rules)
