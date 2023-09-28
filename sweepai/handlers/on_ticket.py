@@ -71,12 +71,6 @@ def center(text: str) -> str:
 
 
 # @LogTask()
-def handle_apply_rules_button_click(repo, username):
-    rules = get_rules(repo)
-    for rule in rules:
-        rule.apply(username)
-
-# @LogTask()
 def on_ticket(
     title: str,
     summary: str,
@@ -98,12 +92,6 @@ def on_ticket(
         fast_mode,
         lint_mode,
     ) = strip_sweep(title)
-
-    # Check if the "Apply Rules" button is clicked
-    if title == "Apply Rules":
-        handle_apply_rules_button_click(repo, username)
-        return
-
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -788,16 +776,6 @@ def on_ticket(
             # CREATE PR METADATA
             logger.info("Generating PR...")
             pull_request = sweep_bot.generate_pull_request()
-            # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
-            # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
-            # edit_sweep_comment(
-            #     (
-            #         "I have created a plan for writing the pull request. I am now working"
-            #         " my plan and coding the required changes to address this issue. Here"
-            #         f" is the planned pull request:\n\n{pull_request_summary}"
-            #     ),
-            #     3,
-            # )
 
             logger.info("Making PR...")
 
