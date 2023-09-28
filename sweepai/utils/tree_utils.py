@@ -14,7 +14,12 @@ class Line:
     
     def __eq__(self, other):
         return self.full_path() == other.full_path()
-
+    
+    def __str__(self):
+        return self.full_path()
+    
+    def __repr__(self):
+        return self.full_path()
 
 class DirectoryTree:
     def __init__(self):
@@ -61,7 +66,10 @@ class DirectoryTree:
     def remove_all_not_included(self, included):
         new_lines = []
         for line in self.lines:
-            full_relative_path = line.parent.full_path() + line.full_path() if line.parent else line.full_path()
+            if line.is_dir:
+                full_relative_path = line.full_path()
+            else:
+                full_relative_path = line.parent.full_path() + line.full_path() if line.parent else line.full_path()
             if any(included_path.startswith(full_relative_path) for included_path in included):
                 parent_list = []
                 curr_parent = line.parent
@@ -69,6 +77,8 @@ class DirectoryTree:
                     parent_list.append(line.parent)
                     curr_parent = curr_parent.parent
                 new_lines.extend(parent_list[::-1])
+                new_lines.append(line)
+            elif line.parent and line.parent.full_path() in included:
                 new_lines.append(line)
         self.lines = new_lines
 
