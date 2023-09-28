@@ -71,6 +71,12 @@ def center(text: str) -> str:
 
 
 # @LogTask()
+def handle_apply_rules_button_click(repo, username):
+    rules = get_rules(repo)
+    for rule in rules:
+        rule.apply(username)
+
+# @LogTask()
 def on_ticket(
     title: str,
     summary: str,
@@ -92,6 +98,11 @@ def on_ticket(
         fast_mode,
         lint_mode,
     ) = strip_sweep(title)
+
+    # Check if the "Apply Rules" button is clicked
+    if title == "Apply Rules":
+        handle_apply_rules_button_click(repo, username)
+        return
 
     # Flow:
     # 1. Get relevant files
