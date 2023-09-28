@@ -575,7 +575,7 @@ def on_ticket(
     ) = context_pruning.prune_context(  # TODO, ignore directories
         human_message, repo=repo
     )
-    snippets = [snippet for snippet in snippets if snippet.file_path in paths_to_keep]
+    snippets = [snippet for snippet in snippets if not any(snippet.file_path.startswith(path_to_keep) for path_to_keep in paths_to_keep)]
     dir_obj.remove_all_not_included(paths_to_keep)
     dir_obj.expand_directory(directories_to_expand)
     tree = str(dir_obj)

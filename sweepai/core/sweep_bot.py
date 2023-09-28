@@ -718,20 +718,20 @@ class SweepBot(CodeGenBot, GithubBot):
             )
         self.delete_messages_from_chat(key_to_delete="files_to_change")
         if file_change_request.relevant_files:
-            contents = []
+            relevant_files_contents = []
             for file_path in file_change_request.relevant_files:
                 try:
-                    contents.append(
+                    relevant_files_contents.append(
                         self.get_contents(file_path).decoded_content.decode("utf-8")
                     )
                 except Exception as e:
-                    contents.append("File not found")
-            if contents:
+                    relevant_files_contents.append("File not found")
+            if relevant_files_contents:
                 relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
                     [
                         f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
                         for file_path, file_contents in zip(
-                            file_change_request.relevant_files, contents
+                            file_change_request.relevant_files, relevant_files_contents
                         )
                     ]
                 )
@@ -846,20 +846,20 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
                 ]
             if file_change_request.relevant_files:
-                contents = []
+                relevant_files_content = []
                 for file_path in file_change_request.relevant_files:
                     try:
-                        contents.append(
+                        relevant_files_content.append(
                             self.get_contents(file_path).decoded_content.decode("utf-8")
                         )
                     except Exception as e:
-                        contents.append("File not found")
-                if contents:
+                        relevant_files_content.append("File not found")
+                if relevant_files_content:
                     relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
                         [
                             f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
                             for file_path, file_contents in zip(
-                                file_change_request.relevant_files, contents
+                                file_change_request.relevant_files, relevant_files_content
                             )
                         ]
                     )
