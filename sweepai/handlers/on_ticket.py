@@ -163,14 +163,9 @@ def on_ticket(
     if fast_mode:
         use_faster_model = True
 
-    sweep_context = SweepContext.create(
-        username=username,
-        issue_url=issue_url,
-        use_faster_model=use_faster_model,
-        is_paying_user=is_paying_user,
-        repo=repo,
-        token=user_token,
-    )
+    from sweepai.handlers.pr_utils import build_context
+    
+    sweep_context = build_context(username, issue_url, use_faster_model, is_paying_user, repo, user_token)
     logger.print(sweep_context)
 
     if not comment_id and not edited and chat_logger:
@@ -830,7 +825,9 @@ def on_ticket(
             issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
 
             delete_branch = False
-            generator = create_pr_changes(  # make this async later
+            from sweepai.handlers.pr_utils import generate_pr_changes
+            
+            generator = generate_pr_changes(
                 file_change_requests,
                 pull_request,
                 sweep_bot,
@@ -928,7 +925,7 @@ def on_ticket(
                     body=checkboxes_contents,
                     opened="open",
                 )
-
+            
                 condensed_checkboxes_contents = "\n".join(
                     [
                         checkbox_template.format(
@@ -944,17 +941,17 @@ def on_ticket(
                     body=condensed_checkboxes_contents,
                     opened="open",
                 )
-
+            
                 issue = repo.get_issue(number=issue_number)
                 issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
-
+            
                 logger.info(files_progress)
                 logger.info(f"Edited {file_change_request.filename}")
                 edit_sweep_comment(checkboxes_contents, 2)
             if not response.get("success"):
                 raise Exception(f"Failed to create PR: {response.get('error')}")
             pr_changes = response["pull_request"]
-
+            
             edit_sweep_comment(
                 "I have finished coding the issue. I am now reviewing it for completeness.",
                 3,
@@ -963,7 +960,7 @@ def on_ticket(
             review_message = (
                 "Here are my self-reviews of my changes at" + change_location
             )
-
+            
             lint_output = None
             try:
                 current_issue.delete_reaction(eyes_reaction.id)
@@ -971,7 +968,7 @@ def on_ticket(
                 raise SystemExit
             except:
                 pass
-
+            
             changes_required = False
             try:
                 # Todo(lukejagg): Pass sandbox linter results to review_pr
