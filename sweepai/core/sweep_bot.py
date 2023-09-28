@@ -742,7 +742,6 @@ class SweepBot(CodeGenBot, GithubBot):
                         key="relevant_files_summary",
                     )
                 )
-        print("2")
         create_file_response = self.chat(
             create_file_prompt.format(
                 filename=file_change_request.filename,
@@ -750,7 +749,6 @@ class SweepBot(CodeGenBot, GithubBot):
             ),
             message_key=key,
         )
-        print("3")
         if changed_files:
             self.delete_messages_from_chat(key_to_delete="changed_files_summary")
         # Add file to list of changed_files
@@ -847,6 +845,31 @@ class SweepBot(CodeGenBot, GithubBot):
                         role="user",
                     )
                 ]
+            if file_change_request.relevant_files:
+                contents = []
+                for file_path in file_change_request.relevant_files:
+                    try:
+                        contents.append(
+                            self.get_contents(file_path).decoded_content.decode("utf-8")
+                        )
+                    except Exception as e:
+                        contents.append("File not found")
+                if contents:
+                    relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
+                        [
+                            f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
+                            for file_path, file_contents in zip(
+                                file_change_request.relevant_files, contents
+                            )
+                        ]
+                    )
+                    additional_messages.append(
+                        Message(
+                            content=relevant_files_summary,
+                            role="user",
+                            key="relevant_files_summary",
+                        )
+                    )
             modify_file_bot = ModifyBot(
                 additional_messages,
                 parent_bot=self,
@@ -1033,16 +1056,6 @@ class SweepBot(CodeGenBot, GithubBot):
         for file_change_request in file_change_requests:
             logger.print(file_change_request.change_type, file_change_request.filename)
             changed_file = False
-
-            # popping files too long
-            # total_lines = 0
-            # new_changed_files = []
-            # for file_name, changed_file in changed_files:
-            #     if total_lines + len(changed_file.splitlines()) > LINE_CUTOFF:
-            #         break
-            #     new_changed_files.append((file_name, changed_file))
-            #     total_lines += len(changed_file.splitlines())
-            # changed_files = new_changed_files
 
             try:
                 commit = None
@@ -1479,7 +1492,6 @@ class ModifyBot:
             )
             selected_snippets.append(current_contents)
 
-        print(deduped_matches)
         update_snippets_response = self.update_snippets_bot.chat(
             update_snippets_prompt.format(
                 code=extract_python_span(
