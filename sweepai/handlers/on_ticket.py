@@ -578,7 +578,7 @@ def on_ticket(
     snippets = [
         snippet
         for snippet in snippets
-        if not any(
+        if any(
             snippet.file_path.startswith(path_to_keep) for path_to_keep in paths_to_keep
         )
     ]
