@@ -27,41 +27,45 @@ class HumanMessagePrompt(BaseModel):
             snippet for snippet in self.snippets if snippet.file_path != file_path
         ]
 
-    def get_relevant_directories(self):
+    def get_relevant_directories(self, directory_tag = None):
         deduped_paths = []
         for snippet in self.snippets:
             if snippet.file_path not in deduped_paths:
                 deduped_paths.append(snippet.file_path)
         if len(deduped_paths) == 0:
             return ""
+        start_directory_tag = "<relevant_paths_in_repo>" if not directory_tag else f"<{directory_tag}>"
+        end_directory_tag = "</relevant_paths_in_repo>" if not directory_tag else f"</{directory_tag}>"
         return (
-            "<relevant_paths_in_repo>"
+            start_directory_tag
             + "\n"
             + "\n".join(deduped_paths)
             + "\n"
-            + "</relevant_paths_in_repo>"
+            + end_directory_tag
         )
 
     def get_file_paths(self):
         return [snippet.file_path for snippet in self.snippets]
 
     @staticmethod
-    def render_snippet_array(snippets):
+    def render_snippet_array(snippets, snippet_tag = None):
         joined_snippets = "\n".join([snippet.xml for snippet in snippets])
+        start_snippet_tag = "<relevant_snippets_in_repo>" if not snippet_tag else f"<{snippet_tag}>"
+        end_snippet_tag = "</relevant_snippets_in_repo>" if not snippet_tag else f"</{snippet_tag}>"
         if joined_snippets.strip() == "":
             return ""
         return (
-            "<relevant_snippets_in_repo>"
+            start_snippet_tag
             + "\n"
             + joined_snippets
             + "\n"
-            + "</relevant_snippets_in_repo>"
+            + end_snippet_tag
         )
 
     def render_snippets(self):
         return self.render_snippet_array(self.snippets)
 
-    def construct_prompt(self):
+    def construct_prompt(self, snippet_tag = None, directory_tag = None):
         human_messages = [
             {
                 "role": msg["role"],
@@ -75,8 +79,8 @@ class HumanMessagePrompt(BaseModel):
                     description=self.summary
                     if self.summary
                     else "No description provided.",
-                    relevant_snippets=self.render_snippets(),
-                    relevant_directories=self.get_relevant_directories(),
+                    relevant_snippets=self.render_snippet_array(self.snippets, snippet_tag),
+                    relevant_directories=self.get_relevant_directories(directory_tag),
                 ),
                 "key": msg.get("key"),
             }

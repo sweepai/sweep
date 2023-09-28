@@ -27,7 +27,7 @@ class DocQueryRewriter(ChatGPT):
         self.model = "gpt-3.5-turbo-16k-0613"  # can be optimized
         response = self.chat(doc_query_rewriter_prompt.format(issue=issue))
         self.undo()
-        return response.strip() + "\n"
+        return response.strip().strip('"') + "\n"
 
 
 def extract_docs_links(content: str, user_dict: dict) -> list[str]:

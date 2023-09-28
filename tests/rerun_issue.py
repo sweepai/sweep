@@ -94,7 +94,6 @@ def main(
     better_stack_prefix: str = "https://logs.betterstack.com/team/199101/tail?rf=now-30m&q=metadata.issue_url%3A",
 ):
     issue_url = issue_url or typer.prompt("Issue URL")
-    print(f"\nHandling {issue_url}...")
     print(f"Fetching issue metdata...")
     issue_request = fetch_issue_request(issue_url)
     wait_for_server(host)
@@ -106,7 +105,7 @@ def main(
     )
     print(response)
     better_stack_link = f"{better_stack_prefix}{html.escape(issue_url)}"
-    print(f"Track the logs at the following link:\n{better_stack_link}")
+    print(f"Track the logs at the following link:\n\n{better_stack_link}")
 
 
 if __name__ == "__main__":

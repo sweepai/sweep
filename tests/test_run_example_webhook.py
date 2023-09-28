@@ -28,7 +28,7 @@ if __name__ == "__main__":
     wait_for_server(host)
     response = requests.post(
         host,
-        json=json.load(open("tests/jsons/sweep_yaml.json", "r")),
-        headers={"X-GitHub-Event": "push"},
+        json=json.load(open("tests/jsons/issue_webhook.json", "r")),
+        headers={"X-GitHub-Event": "issues"},
     )
     print(response)
