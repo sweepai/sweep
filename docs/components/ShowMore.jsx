@@ -17,7 +17,7 @@ export function ShowMore({ children }) {
     const contentStyle = {
         overflow: 'hidden',
         transition: 'max-height 0.4s ease-in-out',
-        maxHeight: (isExpanded || !showButton) ? '3000px' : '300px' // 1000px should be larger than the content's potential maximum height
+        maxHeight: (isExpanded || !showButton) ? '5000px' : '300px' // 1000px should be larger than the content's potential maximum height
     };
 
     return (

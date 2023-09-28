@@ -4,13 +4,17 @@ import { ShowMore } from "./ShowMore";
 import { BiGitMerge } from "react-icons/bi";
 import { FiCornerDownRight } from "react-icons/fi";
 
+// console.log(local)
+// const headers = {
+//     "Bearer": "token ${env.}"
+// }
 
 export function PRPreview({ repoName, prId }) {
     const [prData, setPrData] = useState(null)
     const [issueData, setIssueData] = useState(null)
     const [diffData, setDiffData] = useState(null)
-    // const herokuAnywhere = "https://mighty-brook-06697-04a41eb75af8.herokuapp.com/"
-    const herokuAnywhere = "https://cors-anywhere.herokuapp.com/"
+    const key = `prData-${repoName}-${prId}-v0`;
+    const herokuAnywhere = "https://sweep-examples-cors-143adb2b6ffb.herokuapp.com/"
     const headers = {}
 
     useEffect(() => {
@@ -58,9 +62,11 @@ export function PRPreview({ repoName, prId }) {
         console.log(localStorage);
         if (localStorage) {
             try {
-                const cacheHit = localStorage.getItem(`prData-${repoName}-${prId}-v0`)
+                const cacheHit = localStorage.getItem(key)
+                console.log("cache hit: ", cacheHit, "for key", key, "in localStorage")
                 if (cacheHit) {
                     const { prData, diffData, issueData, timestamp } = JSON.parse(cacheHit)
+                    console.log("second cache hit")
                     if (prData && diffData && issueData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60 * 24) {
                         console.log("cache hit")
                         setPrData(prData)
@@ -86,7 +92,7 @@ export function PRPreview({ repoName, prId }) {
                 issueData,
                 timestamp: new Date(),
             }
-            localStorage.setItem(`prData-${repoName}-${prId}`, JSON.stringify(data))
+            localStorage.setItem(key, JSON.stringify(data))
         }
     }, [prData, diffData, issueData]);
 
