@@ -158,5 +158,12 @@ from sweepai.utils.tree_utils import DirectoryTree
 
 tree = DirectoryTree()
 tree.parse(tree_str)
-tree.remove_multiple(["sweepai/", "tests/", "docs/"])
+# tree.remove_multiple(["sweepai/", "tests/", "docs/"])
+# print(tree)
+# print("\n\n")
+tree.remove_all_not_included(['sweepai/core/vector_db.py', 'sweepai/handlers/on_ticket.py', 'tests/archive/test_cst_splitter.py', 'tests/archive/test_langchain_chunker.py'])
+print()
+print(tree)
+tree.expand_directory(["sweepai/"])
+print()
 print(tree)

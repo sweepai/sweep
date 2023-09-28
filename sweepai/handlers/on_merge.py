@@ -20,7 +20,7 @@ merge_rule_debounce = {}
 DEBOUNCE_TIME = 120
 
 
-@LogTask()
+# @LogTask()
 def on_merge(request_dict, chat_logger):
     if "commits" in request_dict and len(request_dict["commits"]) > 0:
         head_commit = request_dict["commits"][0]

@@ -65,7 +65,7 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     return result_snippets[:max_num_of_snippets]
 
 
-@LogTask()
+# @LogTask()
 def on_comment(
     repo_full_name: str,
     repo_description: str,
@@ -279,7 +279,7 @@ def on_comment(
         else:
             try:
                 logger.info("Fetching relevant files...")
-                snippets, tree = search_snippets(
+                snippets, tree, _ = search_snippets(
                     cloned_repo,
                     f"{comment}\n{pr_title}" + (f"\n{pr_chunk}" if pr_chunk else ""),
                     num_files=30,

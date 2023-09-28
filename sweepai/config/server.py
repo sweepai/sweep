@@ -35,7 +35,6 @@ BATCH_SIZE = int(
 ENV = os.environ.get("ENV", "dev")
 # ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
 
-print(f"Using environment: {ENV}")
 # ENV = PREFIX
 # ENVIRONMENT = PREFIX
 
@@ -65,7 +64,6 @@ if GITHUB_APP_ID is None:
         GITHUB_APP_ID = "324098"
     elif ENV == "staging":
         GITHUB_APP_ID = "327588"
-print("GitHub app ID:", GITHUB_APP_ID)
 GITHUB_BOT_USERNAME = os.environ.get("GITHUB_BOT_USERNAME")
 
 # deprecated: left to support old logic

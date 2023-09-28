@@ -11,6 +11,7 @@ from sweepai.utils.github_utils import (
     get_github_client,
 )
 from sweepai.utils.scorer import merge_and_dedup_snippets
+from sweepai.utils.tree_utils import DirectoryTree
 
 
 # @file_cache(ignore_params=["cloned_repo", "sweep_config"])
@@ -22,7 +23,7 @@ def search_snippets(
     sweep_config: SweepConfig = SweepConfig(),
     multi_query: list[str] = None,
     excluded_directories: list[str] = None,
-) -> tuple[list[Snippet], str]:
+) -> tuple[list[Snippet], str, DirectoryTree]:
     # Initialize the relevant directories string
     if multi_query:
         lists_of_snippets = list[list[Snippet]]()
@@ -87,14 +88,14 @@ def search_snippets(
         snippets[snippet_idx] = snippets[snippet_idx].expand(100)
     snippet_paths = [snippet.file_path for snippet in snippets]
     snippet_paths = list(set(snippet_paths))
-    tree = cloned_repo.get_tree_and_file_list(
+    tree, dir_obj = cloned_repo.get_tree_and_file_list(
         snippet_paths=snippet_paths, excluded_directories=excluded_directories
     )
     snippets = [snippet.expand() for snippet in snippets]
     logger.info(f"Tree: {tree}")
     logger.info(f"Snippets: {snippets}")
     if include_tree:
-        return snippets, tree
+        return snippets, tree, dir_obj
     else:
         return snippets
 
