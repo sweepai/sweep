@@ -13,7 +13,7 @@ from github import BadCredentialsException, GithubException
 from tabulate import tabulate
 from tqdm import tqdm
 
-from logn import LogTask, logger
+from logn import logger
 from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     SWEEP_BAD_FEEDBACK,
@@ -60,7 +60,6 @@ from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.search_utils import search_snippets
 from sweepai.utils.ticket_utils import *
-from sweepai.utils.tree_utils import DirectoryTree
 
 openai.api_key = OPENAI_API_KEY
 
@@ -201,7 +200,7 @@ def on_ticket(
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
     }
-    # logger.bind(**metadata)
+
     posthog.capture(username, "started", properties=metadata)
 
     logger.info(f"Getting repo {repo_full_name}")
@@ -532,6 +531,7 @@ def on_ticket(
             str(e) + "\n" + traceback.format_exc(),
             priority=1,
         )
+        posthog.capture(username, "failed", properties={**metadata})
         raise e
 
     snippets = post_process_snippets(
@@ -570,12 +570,18 @@ def on_ticket(
 
     context_pruning = ContextPruning(chat_logger=chat_logger)
     (
-        paths_to_keep, 
+        paths_to_keep,
         directories_to_expand,
     ) = context_pruning.prune_context(  # TODO, ignore directories
         human_message, repo=repo
     )
-    snippets = [snippet for snippet in snippets if not any(snippet.file_path.startswith(path_to_keep) for path_to_keep in paths_to_keep)]
+    snippets = [
+        snippet
+        for snippet in snippets
+        if not any(
+            snippet.file_path.startswith(path_to_keep) for path_to_keep in paths_to_keep
+        )
+    ]
     dir_obj.remove_all_not_included(paths_to_keep)
     dir_obj.expand_directory(directories_to_expand)
     tree = str(dir_obj)
@@ -708,7 +714,9 @@ def on_ticket(
         python_count = non_python_count - len(human_message.get_file_paths())
         is_python_issue = python_count > non_python_count
         posthog.capture(
-            username, "is_python_issue", properties={"is_python_issue": is_python_issue}
+            username,
+            "is_python_issue",
+            properties={"is_python_issue": is_python_issue},
         )
         file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
 
