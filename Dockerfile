@@ -68,7 +68,6 @@ RUN python sweepai/startup.py
 
 COPY sweepai /app/sweepai
 COPY logn /app/logn
-COPY sweep_docs /app/sweep_docs
 COPY bin/startup.sh /app/startup.sh
 COPY redis.conf /app/redis.conf
 RUN chmod u+x /app/startup.sh
