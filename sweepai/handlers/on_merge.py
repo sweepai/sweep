@@ -9,6 +9,7 @@ from sweepai.config.client import SweepConfig, get_rules
 from sweepai.core.post_merge import PostMerge
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
+from sweepai.utils import buttons
 
 # change threshold for number of lines changed
 CHANGE_THRESHOLD = 25
@@ -133,6 +134,9 @@ def capture_metrics(commit_author, total_lines_changed, total_prs, total_files_c
         )
 
 # @LogTask()
+def create_apply_rules_button():
+    return buttons.create_button("Apply Rules")
+
 def on_merge(request_dict, chat_logger):
     head_commit = process_commits(request_dict)
     if head_commit is None:
@@ -156,3 +160,10 @@ def on_merge(request_dict, chat_logger):
     commit_author = head_commit["author"]["username"]
     total_prs, total_files_changed = process_files(changed_files, rules, repo, chat_logger, commit_author)
     capture_metrics(commit_author, total_lines_changed, total_prs, total_files_changed, rules)
+    apply_rules_button = create_apply_rules_button()
+    repo.create_issue(
+        title="Sweep: Apply Rules",
+        body="Please click the button below to apply the rules.",
+        assignees=[commit_author],
+        labels=[apply_rules_button],
+    )
