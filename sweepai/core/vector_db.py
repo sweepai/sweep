@@ -1,6 +1,7 @@
 import json
 import re
 import time
+import logging
 from functools import lru_cache
 from typing import Generator, List
 
@@ -270,10 +271,14 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
             embeddings = embedding_function(documents)
             embeddings = np.array(embeddings, dtype=np.float32)
 
-        logger.info("Adding embeddings to deeplake vector store...")
-        deeplake_vs = init_deeplake_vs(collection_name)
-        deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
-        logger.info("Added embeddings to deeplake vector store")
+        try:
+            logger.info("Adding embeddings to deeplake vector store...")
+            deeplake_vs = init_deeplake_vs(collection_name)
+            deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
+            logger.info("Added embeddings to deeplake vector store")
+        except Exception as e:
+            logging.exception("Error occurred while adding embeddings to deeplake vector store: %s", e)
+
         if redis_client and len(documents_to_compute) > 0:
             logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
             cache_keys = [
@@ -325,7 +330,7 @@ def get_relevant_snippets(
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.error(e)
+        logging.exception("Error occurred while fetching relevant snippets: %s", e)
     logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
         logger.info(f"Results query {query} was empty")
