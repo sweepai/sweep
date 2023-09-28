@@ -1149,7 +1149,7 @@ def on_ticket(
         )
         log_error(
             is_paying_user,
-            is_trial_user,
+            is_consumer_tier,
             username,
             issue_url,
             "Context Length",
@@ -1194,7 +1194,7 @@ def on_ticket(
             )
         log_error(
             is_paying_user,
-            is_trial_user,
+            is_consumer_tier,
             username,
             issue_url,
             "Workflow",
