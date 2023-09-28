@@ -576,7 +576,6 @@ def on_ticket(
         human_message, repo=repo
     )
     snippets = [snippet for snippet in snippets if snippet.file_path in paths_to_keep]
-    import pdb; pdb.set_trace()
     dir_obj.remove_all_not_included(paths_to_keep)
     dir_obj.expand_directory(directories_to_expand)
     tree = str(dir_obj)
