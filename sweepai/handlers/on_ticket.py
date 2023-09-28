@@ -71,7 +71,7 @@ def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
 
 
-@LogTask()
+# @LogTask()
 def on_ticket(
     title: str,
     summary: str,

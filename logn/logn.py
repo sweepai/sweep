@@ -133,7 +133,7 @@ class _Task:
         self.children = []
         self.function_name = function_name
         self.exception = None
-        self.write_metadata(state="Created")
+        # self.write_metadata(state="Created")
 
         self.logtail_logger = get_logtail_logger(
             self.log_path.split("/")[-1].replace(".txt", "")
@@ -177,25 +177,25 @@ class _Task:
         # Todo: keep track of state, and allow metadata updates
         # state: str | None
         # self.state = state
-        with open(self.meta_path, "w") as f:
-            f.write(
-                json.dumps(
-                    {
-                        "task_key": self.name,
-                        "logs": self.log_path,
-                        "datetime": str(datetime.datetime.now()),
-                        "metadata": self.metadata if self.metadata is not None else {},
-                        # Todo: Write parent task in here
-                        "function_name": self.function_name,
-                        "parent_task": self.parent_task.meta_path
-                        if self.parent_task is not None
-                        else None,
-                        "children": self.children,
-                        "exception": self.exception,
-                        "state": state,
-                    }
-                )
-            )
+        # with open(self.meta_path, "w") as f:
+        #     f.write(
+        #         json.dumps(
+        #             {
+        #                 "task_key": self.name,
+        #                 "logs": self.log_path,
+        #                 "datetime": str(datetime.datetime.now()),
+        #                 "metadata": self.metadata if self.metadata is not None else {},
+        #                 # Todo: Write parent task in here
+        #                 "function_name": self.function_name,
+        #                 "parent_task": self.parent_task.meta_path
+        #                 if self.parent_task is not None
+        #                 else None,
+        #                 "children": self.children,
+        #                 "exception": self.exception,
+        #                 "state": state,
+        #             }
+        #         )
+        #     )
 
     def create_files(self):
         name = self.metadata["name"]
@@ -221,15 +221,16 @@ class _Task:
         return name, log_path, meta_path
 
     def write_log(self, logn_level, *args, **kwargs):
-        if not self.create_file:
-            return
+        return
+        # if not self.create_file:
+        #     return
 
-        if self.log_path is None:
-            raise ValueError("Task has no log path")
+        # if self.log_path is None:
+        #     raise ValueError("Task has no log path")
 
-        with open(self.log_path, "a") as f:
-            log = " ".join([str(arg) for arg in args])
-            f.write(f"{log}{END_OF_LINE.format(level=logn_level)}")
+        # with open(self.log_path, "a") as f:
+        #     log = " ".join([str(arg) for arg in args])
+        #     f.write(f"{log}{END_OF_LINE.format(level=logn_level)}")
 
     @staticmethod
     def get_task(
@@ -254,7 +255,7 @@ class _Task:
             return
         task.create_file = create_file
         task.metadata = metadata
-        task.write_metadata()
+        # task.write_metadata()
         return task
 
     @staticmethod
@@ -417,18 +418,18 @@ class _LogTask:
             )
 
             # Todo: update to use with logger instead of try/except
-            try:
-                result = func(*args, **kwargs)
-            except SystemExit as e:
-                child_task.write_metadata(state="Exited", exception=type(e).__name__)
-                _Task.update_task(task_key=key, task=parent_task)
-                raise e
-            except Exception as e:
-                child_task.write_metadata(state="Errored", exception=type(e).__name__)
-                _Task.update_task(task_key=key, task=parent_task)
-                raise e
+            # try:
+            result = func(*args, **kwargs)
+            # except SystemExit as e:
+            #     child_task.write_metadata(state="Exited", exception=type(e).__name__)
+            #     _Task.update_task(task_key=key, task=parent_task)
+            #     raise e
+            # except Exception as e:
+            #     child_task.write_metadata(state="Errored", exception=type(e).__name__)
+            #     _Task.update_task(task_key=key, task=parent_task)
+            #     raise e
 
-            child_task.write_metadata(state="Done")
+            # child_task.write_metadata(state="Done")
             _Task.update_task(task_key=key, task=parent_task)
 
             # print(self.name, f"Logging after calling {func.__name__}")
