@@ -167,7 +167,7 @@ def on_ticket(
         chat_logger.add_successful_ticket(
             gpt3=use_faster_model
         )  # moving higher, will increment the issue regardless of whether it's a success or not
-    
+
     sweep_context = SweepContext.create(
         username=username,
         issue_url=issue_url,
@@ -496,6 +496,7 @@ def on_ticket(
                     ),
                     -1,
                 )
+                posthog.capture(username, "test_repo", properties=metadata)
                 return {"success": False}
 
         if lint_mode:
@@ -706,6 +707,11 @@ def on_ticket(
                 )
                 edit_sweep_comment(f"N/A", 4)
                 edit_sweep_comment(f"I finished creating all the subissues.", 5)
+                posthog.capture(
+                    username,
+                    "subissues_created",
+                    properties={**metadata, "count": len(subissues)},
+                )
                 return {"success": True}
 
             # COMMENT ON ISSUE
@@ -827,7 +833,7 @@ def on_ticket(
             issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
 
             delete_branch = False
-            
+
             generator = create_pr_changes(
                 file_change_requests,
                 pull_request,
@@ -926,7 +932,7 @@ def on_ticket(
                     body=checkboxes_contents,
                     opened="open",
                 )
-            
+
                 condensed_checkboxes_contents = "\n".join(
                     [
                         checkbox_template.format(
@@ -942,17 +948,17 @@ def on_ticket(
                     body=condensed_checkboxes_contents,
                     opened="open",
                 )
-            
+
                 issue = repo.get_issue(number=issue_number)
                 issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
-            
+
                 logger.info(files_progress)
                 logger.info(f"Edited {file_change_request.filename}")
                 edit_sweep_comment(checkboxes_contents, 2)
             if not response.get("success"):
                 raise Exception(f"Failed to create PR: {response.get('error')}")
             pr_changes = response["pull_request"]
-            
+
             edit_sweep_comment(
                 "I have finished coding the issue. I am now reviewing it for completeness.",
                 3,
@@ -961,7 +967,7 @@ def on_ticket(
             review_message = (
                 "Here are my self-reviews of my changes at" + change_location
             )
-            
+
             lint_output = None
             try:
                 current_issue.delete_reaction(eyes_reaction.id)
@@ -969,7 +975,7 @@ def on_ticket(
                 raise SystemExit
             except:
                 pass
-            
+
             changes_required = False
             try:
                 # Todo(lukejagg): Pass sandbox linter results to review_pr
