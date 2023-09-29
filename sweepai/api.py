@@ -93,19 +93,6 @@ def run_on_comment(*args, **kwargs):
     with logger:
         on_comment(*args, **kwargs)
 
-
-def run_on_merge(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "merge_" + args[0]["pusher"]["name"],
-        },
-        create_file=False,
-    )
-    with logger:
-        on_merge(*args, **kwargs)
-
-
 def run_on_check_suite(*args, **kwargs):
     logger.init(
         metadata={
@@ -221,7 +208,7 @@ def call_on_comment(
 
 
 def call_on_merge(*args, **kwargs):
-    thread = threading.Thread(target=run_on_merge, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
     thread.start()
 
 
