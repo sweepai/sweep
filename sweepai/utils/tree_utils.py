@@ -74,7 +74,7 @@ class DirectoryTree:
                 parent_list = []
                 curr_parent = line.parent
                 while curr_parent and curr_parent not in new_lines:
-                    parent_list.append(line.parent)
+                    parent_list.append(curr_parent)
                     curr_parent = curr_parent.parent
                 new_lines.extend(parent_list[::-1])
                 new_lines.append(line)
