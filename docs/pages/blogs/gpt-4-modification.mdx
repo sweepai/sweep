@@ -14,11 +14,9 @@ We’ve been fighting GPT-4 to modify long files of code since its release. As g
 
 A frequent complaint we get is “ChatGPT can do this task but Sweep can’t”. This is because GPT-4 can’t consistently edit long files without writing “# Rest of the code” halfway through or copying sections of code incorrectly, which a human using ChatGPT can easily resolve but algorithms cannot. Thus, we can’t just naively rewrite files from scratch to modify them.
 
-## Our history of file modification algorithms
-
 Here's our history of every way we've tried to get GPT-4 to modify files, and what worked and didn't due to various issues with GPT-4 failing to format or count properly.
 
-### V0: Just rewrite the whole file
+## V0: Just rewrite the whole file
 
 As indicated earlier, rewriting the whole file yields two major issues:
 
@@ -26,13 +24,9 @@ As indicated earlier, rewriting the whole file yields two major issues:
 2. The files are too long. A file with $k$ tokens will take $k$ input tokens and $k$ output tokens.
 3. GPT-4 copies code incorrectly. It would sometimes remove or add extra comments or whitespace, or change the indentation.
 
-Let’s tackle the first first.
+Let’s tackle the first problem by looking at an example.
 
-### V1: Fix rest-of-code using `difflib`
-
-The simple solution seemed to be to inspect the diff and compare the two files, and revert any major replacements with comments of the form “Rest of code”, “Remaining of code”, etc.
-
-Throughout this tech blog, I’m going to use the following brief Flask server implementation as an example of a file we’re editing. I chose a short example for brevity, so GPT-4 will not make these exact mistakes for this particular example but has made similar mistakes in larger files.
+Throughout this article, I’m going to use the following brief Flask server implementation as an example of a file we’re editing. I chose a short example for brevity, so GPT-4 will not make these exact mistakes for this particular example but frequently makes similar mistakes in larger files.
 
 ```python filename="app.py" showLineNumbers
 from flask import Flask, jsonify, request
@@ -68,9 +62,9 @@ def update_task(task_id):
     return jsonify({"task": task})
 ```
 
-Say we ask GPT-4 to add logs, we may get something like the following
+Say we ask GPT-4 to add logs, we may get the following:
 
-```python filename="app.py" showLineNumbers {13, 18-19, 23-24, 28-29}
+```python filename="app.py" showLineNumbers {19, 24, 29} /print("Getting tasks")/ /print(f"Getting task {task_id}")/ /print("Creating task")/ /print(f"Updating task {task_id}")/
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
@@ -102,7 +96,15 @@ def update_task(task_id):
     # Rest of update_task
 ```
 
-Now the diff looks like the following:
+And of course, we can't just create a PR with this code! We have to revert all the changes with the "# Rest of code" comments.
+
+## V1: Fix rest-of-code using `difflib`
+
+### `difflib` to the rescue
+
+The simple solution seemed to be to inspect the diff and compare the two files, and revert any major replacements with comments of the form “Rest of code”, “Remaining of code”, etc.
+
+Now the diff from the example above looks like the following:
 
 ```diff filename="app.py" showLineNumbers {9-11, 16-19, 24-28}
  @app.route('/tasks', methods=['GET'])
@@ -135,7 +137,7 @@ Now the diff looks like the following:
 +    # Rest of update_task
 ```
 
-Now we simply revert every set of deletions followed by a line of comment of the form `+ # Rest of test`. Specifically, we wrote something like:
+Now we simply revert every set of deletions followed by a line of comment of the form `+ # Rest of test`. Specifically, we checked for these comments with something like the following:
 
 ```python
 def is_rest_of_code(s: str):
@@ -145,9 +147,13 @@ def is_rest_of_code(s: str):
     return is_comment and says_rest
 ```
 
-Unfortunately, this is still rather limited. Firstly, sometimes GPT-4 writes comments like “More unit tests here” or “Complete the implementation” — the possibilities are endless. Secondly, there are cases where the diff algorithm isn’t able to find the exact lines that were replaced.
+In this particular example, it solves the problem: we end up with exactly what we'd expect: a print statement at the beginning of every function.
 
-For example, let’s ask GPT-4 to add a delete endpoint. We may get something like:
+### Limitations
+
+Unfortunately, this diff reverting system is still rather limited. Firstly, sometimes GPT-4 writes comments like “More unit tests here”, “Complete the implementation”, “...” — the possibilities are endless. Secondly, there are cases where the diff algorithm isn’t able to find the exact lines that were replaced.
+
+For example, let’s ask GPT-4 to add a delete endpoint, to which it responds:
 
 ```python filename="app.py" showLineNumbers {5}
 from flask import Flask, jsonify, request
@@ -206,9 +212,9 @@ from flask import Flask, jsonify, request
 +    return jsonify({}), 204
 ```
 
-Reverting this would yield:
+Reverting this would only yield:
 
-```python
+```python filename="app.py" showLineNumbers
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
@@ -228,11 +234,15 @@ def delete_task(task_id):
 
 ```
 
-And this is completely not what we expected. In the first few weeks of Sweep, Sweep would just randomly delete enormous sections of code due to this.
+Which of course is completely not what we expected. In the first few weeks of Sweep, Sweep would just randomly delete enormous sections of code due to this issue.
 
-Potentially we can write a smarter diff algorithm to catch these pesky “Rest of code” comments. But even then, it’s impossible to algorithmically determine whether GPT-4’s intention was to replace everything and add the new `delete_task` endpoint or replace the `update_task` endpoint with the `delete_task` endpoint. The inherent problem is that it’s ambiguous whether `# Rest of code` intends to replace spans up to the `update_task` endpoint or just the `create_task` endpoint. We needed something different.
+Potentially we can write a smarter diff algorithm to catch these pesky “Rest of code” comments. But even then, it’s impossible to algorithmically determine whether GPT-4’s intention was to replace everything and add the new `delete_task` endpoint or replace the `update_task` endpoint with the `delete_task` endpoint.
 
-### V2: Modify / Copy lines
+The inherent problem is that it’s ambiguous whether `# Rest of code` intends to replace spans up to the `update_task` endpoint or just the `create_task` endpoint. We needed something different: we needed to ask GPT-4 to specify how much each of these replace and modify tags should span.
+
+## V2: Modify / Copy lines
+
+### The idea
 
 We wondered if we could get GPT-4 to write a set of instructions on *specifically* what to replace, and we’ll replace those lines with the new code. We initially settled on a format like as follows:
 
@@ -251,7 +261,7 @@ We generally have a preference for XML-based responses from GPT-4 since they
 - Work well with quotation marks and newlines, common in code. This is unlike JSON which requires escaping them. Further, the closing tags are generally rare.
 - Are hard to mess up formatting for LLMs.
 
-For example, to add more example data to above Flask API endpoint, we would write something like:
+For example, to add more example data to above Flask API endpoint, GPT-4 would write:
 
 ```python
 <update_lines start="5" end="10">
@@ -264,7 +274,7 @@ tasks = [
 </update_lines>
 ```
 
-And to inject new code like the deletion endpoint, we would write something like:
+And to inject new code like the deletion endpoint, GPT-4 would write:
 
 ```python
 <update_lines start="31" end="31">
@@ -276,6 +286,8 @@ def delete_task(task_id):
     return jsonify({}), 204
 </update_lines>
 ```
+
+### GPT-4 can't copy line numbers
 
 Of course, we added line numbers to the code in the prompt to help the LLM count correctly. However, even then, GPT-4 would copy the **incorrect line numbers**. This would end up with a **missing line of code** or a **duplicate line of code**, like the following, missing the return statement:
 
@@ -330,7 +342,7 @@ def delete_task(task_id):
 
 But once again it would suffer from the same miscounting problem.
 
-### V3: Aider diffs
+## V3: Aider diffs
 
 Around this time, we bumped into a [blog post](https://aider.chat/docs/benchmarks.html#diff) by the creator of `aider`, a similar tool to Sweep, but instead it runs locally. Aider gets GPT-4 to generate search-and-replace pairs in the following format:
 
@@ -379,11 +391,11 @@ We still have a few problems nonetheless:
 - The code is still too long.
     - For files beyond 600 lines, we would ask GPT-4 to write these diffs for 400 line blocks at a time. There are several context-related issues that arise from this but this solves the problem for now. More on this under #additional.
 
-### V4: Search, then replace
+## V4: Search, then replace
 
 Our current algorithm is a slight extension on top of Aider diffs. The issue was that for medium-sized files, Sweep frequently copies the wrong lines.
 
-#### The problem with Aider diffs
+### The problem with Aider diffs
 
 For example, consider asking Sweep to add logging to the endpoint:
 
@@ -416,7 +428,7 @@ In this case, `create_task` was unintentionally changed to `start_task` in the O
 
 More precisely, GPT-4 would want to replace the substring $S$ with $R(S)$, where $R: str \rightarrow str$ is the transformation it wants to perform. However, it generates $S'$ instead and tries replacing the substring with $R(S')$. This ends up replacing $S$ with $R(S')$, which frequently yields code that doesn’t parse or build, or adds additional unrequested changes.
 
-#### The solution
+### The improvement to Aider diffs
 
 One solution is to start streaming earlier, by picking 200-line chunks instead of 400-line chunks, but that yields more complications like the algorithm missing context and being less performant and more expensive.
 
@@ -466,21 +478,19 @@ def create_task():
 
 This guarantees that no edits were made unintentionally like renaming a variable from `create_task` to `start_task`.
 
-### Additional
+## Additional roadblocks
 
 Here's some other minor roadblocks we ran into:
 
 - **Formatting errors**: we had a backoff system where we would prompt GPT-4 again to provide the response in the right format with a higher temperature.
 - **Indentation**: GPT-4 tends to unindent code and this would make Python code unparsable. We fixed this by matching the original indentation based on the difference in indentation between the ORIGINAL block and the matched section of the original file.
 
-Despite solving most of these, we still have the following issues:
-
-- Some files are still too long. We have *several > 1000 line files in our own codebase*.
-    - Streaming 400 lines at a time is a bandaid solution but doesn’t solve the problem entirely, since it would break up semantically meaningful parts of the code. Further, the model would sometimes modify no sections of code or multiple sections of the code. It’s difficult to a section of a file without the context of the rest of the file.
-    - For Python, we set up entity-based editing. We recently set up a call-graph system for a better repo-level understanding of Python code. We use this at the planning stage by letting the LLM decide which class or function of the file it wants to edit.
+Despite solving most of these, we still have the issue of some files still being too long. We have several > 1000 line files in *our own codebase*.
+- Streaming 400 lines at a time is a bandaid solution but doesn’t solve the problem entirely, since it would break up semantically meaningful parts of the code. Further, the model would sometimes modify no sections of code or multiple sections of the code. It’s difficult to a section of a file without the context of the rest of the file.
+- For Python, we set up entity-based editing. We recently set up a call-graph system for a better repo-level understanding of Python code. We use this at the planning stage by letting the LLM decide which class or function of the file it wants to edit.
 
 ## Conclusion
 
-Getting GPT-4 to make the right modification has proven to be a difficult battle and is still prone to all sorts of errors which we’ve been fighting since the release, but we’ve managed to mitigate several of the common ones.
+Getting GPT-4 to make the right modification has proven to be a difficult battle and is still prone to all sorts of errors. We’ve been fighting these errors since the release, but still only managed to mitigate only the common ones.
 
-Excited to hear your thoughts on tackling long code files with GPT-4. If you have ideas, feel free to share them in our community at https://discord.gg/sweep.
+I'm excited to hear your thoughts on tackling long code files with GPT-4. If you have ideas, feel free to share them in our community at https://discord.gg/sweep.
