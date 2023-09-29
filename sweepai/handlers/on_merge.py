@@ -30,12 +30,16 @@ def on_merge(request_dict, chat_logger):
             logger.info(f"Commit: {commit}")
             head_commit["added"] += commit["added"]
             head_commit["modified"] += commit["modified"]
+    import traceback
+    
+    # ...
+    
     else:
-        logger.info("No commit found")
+        logger.info(f"No commit found, traceback: {traceback.format_exc()}")
         return None
     ref = request_dict["ref"]
     if not head_commit["added"] and not head_commit["modified"]:
-        logger.info("No files added or modified")
+        logger.info(f"No files added or modified, traceback: {traceback.format_exc()}")
         return None
     changed_files = head_commit["added"] + head_commit["modified"]
     logger.info(f"Changed files: {changed_files}")
@@ -44,7 +48,7 @@ def on_merge(request_dict, chat_logger):
     if not ref.startswith("refs/heads/") or ref[
         len("refs/heads/") :
     ] != SweepConfig.get_branch(repo):
-        logger.info("Not a merge to master")
+        logger.info(f"Not a merge to master, traceback: {traceback.format_exc()}")
         return None
 
     # check if the current repo is in the merge_rule_debounce dictionary

@@ -101,6 +101,8 @@ class SweepConfig(BaseModel):
         data = yaml.safe_load(yaml_str)
         return cls.parse_obj(data)
 
+    import traceback
+    
     @staticmethod
     def get_branch(repo: Repository, override_branch: str | None = None) -> str:
         key = (threading.current_thread(), repo.full_name)
@@ -112,10 +114,10 @@ class SweepConfig(BaseModel):
                 return branch_name
             except SystemExit:
                 raise SystemExit
-
+    
         if key in branch_overrides:
             return branch_overrides[key]
-
+    
         default_branch = repo.default_branch
         try:
             try:
@@ -133,7 +135,7 @@ class SweepConfig(BaseModel):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.warning(f"Error when getting branch: {e}, creating branch")
+                logger.warning(f"Error when getting branch: {e}, creating branch, traceback: {traceback.format_exc()}")
                 repo.create_git_ref(
                     f"refs/heads/{branch_name}",
                     repo.get_branch(default_branch).commit.sha,
@@ -143,7 +145,7 @@ class SweepConfig(BaseModel):
             raise SystemExit
         except Exception as e:
             logger.info(
-                f"Error when getting branch: {e}, falling back to default branch"
+                f"Error when getting branch: {e}, falling back to default branch, traceback: {traceback.format_exc()}"
             )
             return default_branch
 
@@ -156,7 +158,7 @@ class SweepConfig(BaseModel):
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error when getting config: {e}, returning empty dict")
+            logger.warning(f"Error when getting config: {e}, returning empty dict, traceback: {traceback.format_exc()}")
             if "This repository is empty." in str(e):
                 raise EmptyRepository()
             return {}
