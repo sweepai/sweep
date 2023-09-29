@@ -163,15 +163,19 @@ def on_ticket(
     if fast_mode:
         use_faster_model = True
 
-    from sweepai.handlers.pr_utils import build_context
-    
-    sweep_context = build_context(username, issue_url, use_faster_model, is_paying_user, repo, user_token)
-    logger.print(sweep_context)
-
     if not comment_id and not edited and chat_logger:
         chat_logger.add_successful_ticket(
             gpt3=use_faster_model
         )  # moving higher, will increment the issue regardless of whether it's a success or not
+    
+    sweep_context = SweepContext.create(
+        username=username,
+        issue_url=issue_url,
+        use_faster_model=use_faster_model,
+        is_paying_user=is_paying_user,
+        repo=repo,
+        token=user_token,
+    )
 
     organization, repo_name = repo_full_name.split("/")
     metadata = {
@@ -581,7 +585,7 @@ def on_ticket(
         snippets = [
             snippet
             for snippet in snippets
-            if not any(
+            if any(
                 snippet.file_path.startswith(path_to_keep)
                 for path_to_keep in paths_to_keep
             )
@@ -589,8 +593,6 @@ def on_ticket(
         dir_obj.remove_all_not_included(paths_to_keep)
         dir_obj.expand_directory(directories_to_expand)
         tree = str(dir_obj)
-        logger.info(f"New snippets: {snippets}")
-        logger.info(f"New tree: {tree}")
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
             issue_url=issue_url,
@@ -715,7 +717,7 @@ def on_ticket(
                 not file_path.endswith(".py")
                 for file_path in human_message.get_file_paths()
             )
-            python_count = non_python_count - len(human_message.get_file_paths())
+            python_count = len(human_message.get_file_paths()) - non_python_count
             is_python_issue = python_count > non_python_count
             posthog.capture(
                 username,
@@ -825,9 +827,8 @@ def on_ticket(
             issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
 
             delete_branch = False
-            from sweepai.handlers.pr_utils import generate_pr_changes
             
-            generator = generate_pr_changes(
+            generator = create_pr_changes(
                 file_change_requests,
                 pull_request,
                 sweep_bot,

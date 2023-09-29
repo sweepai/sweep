@@ -7,6 +7,7 @@ import time
 from logn import LogTask, logger
 from sweepai.config.client import SweepConfig, get_rules
 from sweepai.core.post_merge import PostMerge
+from sweepai.handlers.pr_utils import make_pr
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
 
@@ -39,7 +40,7 @@ def on_merge(request_dict, chat_logger):
         return None
     changed_files = head_commit["added"] + head_commit["modified"]
     logger.info(f"Changed files: {changed_files}")
-    _, g = get_github_client(request_dict["installation"]["id"])
+    user_token, g = get_github_client(request_dict["installation"]["id"])
     repo = g.get_repo(request_dict["repository"]["full_name"])
     if not ref.startswith("refs/heads/") or ref[
         len("refs/heads/") :
@@ -80,12 +81,18 @@ def on_merge(request_dict, chat_logger):
         ).check_for_issues(rules=rules, file_path=file, file_contents=file_contents)
         logger.info(f"Title: {issue_title}")
         logger.info(f"Description: {issue_description}")
-        if issue_title:
+        if True:
             logger.info(f"Changes required in {file}")
-            repo.create_issue(
-                title="Sweep: " + issue_title,
-                body=issue_description,
-                assignees=[commit_author],
+            make_pr(
+                title=issue_title,
+                repo_description=repo.description,
+                summary=issue_description,
+                repo_full_name=request_dict["repository"]["full_name"],
+                installation_id=request_dict["installation"]["id"],
+                user_token=user_token,
+                use_faster_model=chat_logger.use_faster_model(g),
+                username=commit_author,
+                chat_logger=chat_logger
             )
             total_prs += 1
     if rules:
