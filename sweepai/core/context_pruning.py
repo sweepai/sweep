@@ -19,8 +19,8 @@ The unnecessary information will hurt your performance on this task, so prune pa
 
 First, list all of the files and directories we should keep in paths_to_keep. Be as specific as you can.
 Second, list any directories that are currently closed that should be expanded.
-If you list a directory, you do not need to list its subdirectories or files in its subdirectories.
-Do not remove files or directories that are referenced in the issue title or descriptions.
+If you expand a directory, we automatically expand all of its subdirectories, so do not list its subdirectories.
+Keep all files or directories that are referenced in the issue title or descriptions.
 
 Reply in the following format:
 

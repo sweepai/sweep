@@ -584,27 +584,28 @@ def on_ticket(
         ) = context_pruning.prune_context(  # TODO, ignore directories
             human_message, repo=repo
         )
-        snippets = [
-            snippet
-            for snippet in snippets
-            if any(
-                snippet.file_path.startswith(path_to_keep)
-                for path_to_keep in paths_to_keep
+        if paths_to_keep and directories_to_expand:
+            snippets = [
+                snippet
+                for snippet in snippets
+                if any(
+                    snippet.file_path.startswith(path_to_keep)
+                    for path_to_keep in paths_to_keep
+                )
+            ]
+            dir_obj.remove_all_not_included(paths_to_keep)
+            dir_obj.expand_directory(directories_to_expand)
+            tree = str(dir_obj)
+            human_message = HumanMessagePrompt(
+                repo_name=repo_name,
+                issue_url=issue_url,
+                username=username,
+                repo_description=repo_description.strip(),
+                title=title,
+                summary=message_summary,
+                snippets=snippets,
+                tree=tree,
             )
-        ]
-        dir_obj.remove_all_not_included(paths_to_keep)
-        dir_obj.expand_directory(directories_to_expand)
-        tree = str(dir_obj)
-        human_message = HumanMessagePrompt(
-            repo_name=repo_name,
-            issue_url=issue_url,
-            username=username,
-            repo_description=repo_description.strip(),
-            title=title,
-            summary=message_summary,
-            snippets=snippets,
-            tree=tree,
-        )
 
         _user_token, g = get_github_client(installation_id)
         repo = g.get_repo(repo_full_name)

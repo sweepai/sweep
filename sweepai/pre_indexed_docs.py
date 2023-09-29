@@ -79,4 +79,8 @@ DOCS_ENDPOINTS = {
         "https://github.com/nucypher/nucypher",
         "NuCypher is a Python library for building privacy-preserving applications.",
     ),
+    "Stripe": (
+        "https://docs.stripe.com/",
+        "Stripe is a platform used to help companies accept payments, send payouts, automate financial processes, and grow revenue.",
+    ),
 }
