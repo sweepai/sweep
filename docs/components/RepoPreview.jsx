@@ -33,6 +33,7 @@ export function RepoPreview({ repoName, displayName=null }) {
                 console.error("Error parsing cache hit:", error);
             }
         }
+        console.log("cache miss")
         fetchRepoData()
     }, [repoName])
 
