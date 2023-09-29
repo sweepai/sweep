@@ -815,6 +815,10 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
     )[:5]
 
     # For each pull request, attempt to merge the changes from the default branch into the pull request branch
+    import traceback
+    
+    # ...
+    
     try:
         for pr in pulls:
             try:
@@ -824,13 +828,13 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                     "sweep/"
                 ) and not feature_branch.startswith("sweep_"):
                     continue
-
+    
                 repo.merge(
                     feature_branch,
                     repo.default_branch,
                     f"Merge main into {feature_branch}",
                 )
-
+    
                 # Check if the merged PR is the config PR
                 if pr.title == "Configure Sweep" and pr.merged:
                     # Create a new PR to add "gha_enabled: True" to sweep.yaml
@@ -839,9 +843,9 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                 raise SystemExit
             except Exception as e:
                 logger.error(
-                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
+                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}, traceback: {traceback.format_exc()}"
                 )
     except SystemExit:
         raise SystemExit
     except:
-        logger.warning("Failed to update sweep PRs")
+        logger.warning(f"Failed to update sweep PRs, traceback: {traceback.format_exc()}")
