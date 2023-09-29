@@ -172,8 +172,12 @@ class FileChangeRequest(RegexMatchableBaseModel):
     def relevant_files(self):
         if not self.raw_relevant_files:
             return []
-        
-        return [relevant_file for relevant_file in self.raw_relevant_files.split(",") if relevant_file != self.filename]
+
+        return [
+            relevant_file
+            for relevant_file in self.raw_relevant_files.split(",")
+            if relevant_file != self.filename
+        ]
 
     @property
     def instructions_display(self):
@@ -194,7 +198,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
 class FileCreation(RegexMatchableBaseModel):
     commit_message: str
     code: str
-    _regex = r"""<new_file>(?P<code>.*)</new_file>"""
+    _regex = r"""<new_file(.*?)>(?P<code>.*)</new_file>"""
     # Regex updated to support ``` outside of <new_file> tags
 
     @classmethod
