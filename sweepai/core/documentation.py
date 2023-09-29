@@ -1,3 +1,4 @@
+import os
 import re
 
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
@@ -91,9 +92,12 @@ def write_documentation(doc_url):
             urls.extend([url] * len(chunk_string(document)))
         computed_embeddings = embedding_function(document_chunks)
         if not ACTIVELOOP_TOKEN:
-            logger.info("No active loop token")
+            path = f"sweep_docs/{idx_name}"
+            if os.path.exists(path):
+                logger.info(f"Path {path} already exists, not writing docs")
+                return True
             vector_store = VectorStore(
-                path=f"sweep_docs/{idx_name}",
+                path=path,
                 overwrite=True,
             )
         else:
