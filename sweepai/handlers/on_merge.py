@@ -7,6 +7,7 @@ import time
 from logn import LogTask, logger
 from sweepai.config.client import SweepConfig, get_rules
 from sweepai.core.post_merge import PostMerge
+from sweepai.handlers.pr_utils import make_pr
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
 
@@ -15,7 +16,7 @@ DEBOUNCE_TIME = 120
 DEBOUNCE_TIME = 120
 
 # change threshold for number of lines changed
-CHANGE_THRESHOLD = 25
+CHANGE_BOUNDS = (25, 500)
 
 # dictionary to map from github repo to the last time a rule was activated
 merge_rule_debounce = {}
@@ -23,82 +24,79 @@ merge_rule_debounce = {}
 # debounce time in seconds
 DEBOUNCE_TIME = 120
 
+diff_section_prompt = """
+<file_diff file="{diff_file_path}">
+{diffs}
+</file_diff>"""
 
-# @LogTask()
+def comparison_to_diff(comparison):
+    pr_diffs = []
+    for file in comparison.files:
+        diff = file.patch
+        if (
+            file.status == "added"
+            or file.status == "modified"
+            or file.status == "removed"
+        ):
+            pr_diffs.append((file.filename, diff))
+        else:
+            logger.info(
+                f"File status {file.status} not recognized"
+            )  # TODO(sweep): We don't handle renamed files
+    formatted_diffs = []
+    for file_name, file_patch in pr_diffs:
+        format_diff = diff_section_prompt.format(
+            diff_file_path=file_name, diffs=file_patch
+        )
+        formatted_diffs.append(format_diff)
+    return "\n".join(formatted_diffs)
+
 def on_merge(request_dict, chat_logger):
-    if "commits" in request_dict and len(request_dict["commits"]) > 0:
-        head_commit = request_dict["commits"][0]
-        all_commits = request_dict["commits"] if "commits" in request_dict else []
-        # create a huge commit object with all the commits
-        for commit in all_commits:
-            logger.info(f"Commit: {commit}")
-            head_commit["added"] += commit["added"]
-            head_commit["modified"] += commit["modified"]
-    else:
-        logger.info("No commit found")
-        return None
+    before_sha = request_dict['before']
+    after_sha = request_dict['after']
+    commit_author = request_dict['sender']['login']
     ref = request_dict["ref"]
-    if not head_commit["added"] and not head_commit["modified"]:
-        logger.info("No files added or modified")
-        return None
-    changed_files = head_commit["added"] + head_commit["modified"]
-    logger.info(f"Changed files: {changed_files}")
-    _, g = get_github_client(request_dict["installation"]["id"])
-    repo = g.get_repo(request_dict["repository"]["full_name"])
-    if not ref.startswith("refs/heads/") or ref[
-        len("refs/heads/") :
-    ] != SweepConfig.get_branch(repo):
-        logger.info("Not a merge to master")
-        return None
-
+    if not ref.startswith("refs/heads/"): return
+    user_token, g = get_github_client(request_dict["installation"]["id"])
+    repo = g.get_repo(request_dict["repository"]["full_name"]) # do this after checking ref
+    if ref[len("refs/heads/"):] != SweepConfig.get_branch(repo):
+        return
+    comparison = repo.compare(before_sha, after_sha)
+    commits_diff = comparison_to_diff(comparison)
     # check if the current repo is in the merge_rule_debounce dictionary
     # and if the difference between the current time and the time stored in the dictionary is less than DEBOUNCE_TIME seconds
     if (
-        repo in merge_rule_debounce
-        and time.time() - merge_rule_debounce[repo] < DEBOUNCE_TIME
+        repo.full_name in merge_rule_debounce
+        and time.time() - merge_rule_debounce[repo.full_name] < DEBOUNCE_TIME
     ):
         return
 
     rules = get_rules(repo)
-
-    # update the merge_rule_debounce dictionary with the current time for the current repo
-    merge_rule_debounce[repo] = time.time()
-
     if not rules:
-        logger.info("No rules found")
-        return None
-    full_commit = repo.get_commit(head_commit["id"])
-    total_lines_changed = full_commit.stats.total
-    if total_lines_changed < CHANGE_THRESHOLD:
-        return None
-    commit_author = head_commit["author"]["username"]
-    total_prs = 0
-    total_files_changed = len(changed_files)
-    for file in changed_files:
-        if total_prs >= 2:
-            logger.info("Too many PRs")
-            break
-        file_contents = repo.get_contents(file).decoded_content.decode("utf-8")
-        issue_title, issue_description = PostMerge(
+        return
+    # update the merge_rule_debounce dictionary with the current time for the current repo
+    merge_rule_debounce[repo.full_name] = time.time()
+    if commits_diff.count("\n") > CHANGE_BOUNDS[0] and commits_diff.count("\n") < CHANGE_BOUNDS[1]:
+        return
+    for rule in rules:
+        changes_required, issue_title, issue_description = PostMerge(
             chat_logger=chat_logger
-        ).check_for_issues(rules=rules, file_path=file, file_contents=file_contents)
-        logger.info(f"Title: {issue_title}")
-        logger.info(f"Description: {issue_description}")
-        if issue_title:
-            logger.info(f"Changes required in {file}")
-            repo.create_issue(
-                title="Sweep: " + issue_title,
-                body=issue_description,
-                assignees=[commit_author],
+        ).check_for_issues(rule=rule, diff=commits_diff)
+        if changes_required:
+            make_pr(
+                title=issue_title,
+                repo_description=repo.description,
+                summary=issue_description,
+                repo_full_name=request_dict["repository"]["full_name"],
+                installation_id=request_dict["installation"]["id"],
+                user_token=user_token,
+                use_faster_model=chat_logger.use_faster_model(g),
+                username=commit_author,
+                chat_logger=chat_logger
             )
-            total_prs += 1
+            return # only make one PR per merge
     if rules:
         posthog.capture(
             commit_author,
-            "rule_pr_created",
-            {
-                "total_lines_changed": total_lines_changed,
-                "total_prs": total_prs,
-                "total_files_changed": total_files_changed,
-            },
+            "rule_pr_created"
         )
