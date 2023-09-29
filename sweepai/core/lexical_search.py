@@ -189,16 +189,25 @@ def prepare_index_from_snippets(snippets, len_repo_cache_dir=0):
     )
 
     # Create the index based on the schema
-    storage = RamStorage()
-    ix = storage.create_index(schema)
-    writer = ix.writer()
-    for doc in tqdm(all_docs, total=len(all_docs)):
-        writer.add_document(
-            title=doc.title, content=doc.content, start=doc.start, end=doc.end
-        )
 
-    if all_docs:
-        writer.commit()
+    for i in range(3):
+        try:
+            logger.info(f"Creating index for the {i}th time...")
+            storage = RamStorage()
+            ix = storage.create_index(schema)
+            writer = ix.writer()
+            for doc in tqdm(all_docs, total=len(all_docs)):
+                writer.add_document(
+                    title=doc.title, content=doc.content, start=doc.start, end=doc.end
+                )
+            if all_docs:
+                writer.commit()
+            break
+        except FileNotFoundError as e:
+            logger.error(e)
+    else:
+        logger.error("Failed to create index")
+
     return ix
 
 
@@ -221,19 +230,27 @@ def prepare_index_from_docs(docs):
         content=TEXT(stored=True, analyzer=code_analyzer),
     )
 
-    storage = RamStorage()
-    ix = storage.create_index(schema)
-    writer = ix.writer()
-    for doc in all_docs:
-        writer.add_document(url=doc.url, content=doc.content)
-
-    if all_docs:
+    for i in range(3):
         try:
-            writer.commit()
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
+            logger.error(f"Creating index for the {i}th time...")
+            storage = RamStorage()
+            ix = storage.create_index(schema)
+            writer = ix.writer()
+            for doc in all_docs:
+                writer.add_document(url=doc.url, content=doc.content)
+            if all_docs:
+                try:
+                    writer.commit()
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    logger.error(e)
+            break
+        except FileNotFoundError as e:
             logger.error(e)
+    else:
+        logger.error("Failed to create index")
+
     return ix
 
 
