@@ -59,10 +59,8 @@ export function PRPreview({ repoName, prId }) {
         if (localStorage) {
             try {
                 const cacheHit = localStorage.getItem(key)
-                console.log("cache hit: ", cacheHit, "for key", key, "in localStorage")
                 if (cacheHit) {
                     const { prData, diffData, issueData, timestamp } = JSON.parse(cacheHit)
-                    console.log("second cache hit")
                     if (prData && diffData && issueData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60 * 24) {
                         console.log("cache hit")
                         setPrData(prData)
@@ -98,7 +96,7 @@ export function PRPreview({ repoName, prId }) {
 
     const numberDaysAgoMerged = Math.max(Math.round((new Date() - new Date(prData.merged_at)) / (1000 * 60 * 60 * 24)), 71)
     const parsedDiff = parse(diffData)
-    var issueTitle = issueData ? issueData.title.replace("Sweep: ", "") : ""
+    var issueTitle = issueData != null ? issueData.title.replace("Sweep: ", "") : ""
     issueTitle = issueTitle.charAt(0).toUpperCase() + issueTitle.slice(1);
     console.log("parsedDiff", parsedDiff)
 
