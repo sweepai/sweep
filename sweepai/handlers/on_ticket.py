@@ -302,7 +302,7 @@ def on_ticket(
         payment_message = (
             f"{user_type}: I used {model_name} to create this ticket. You have {gpt_tickets_left_message}{daily_message}."
             + (
-                f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})"
+                f' For more GPT-4 tickets, visit <a href="{payment_link}">our payment portal</a>.'
                 if not is_paying_user
                 else ""
             )
@@ -310,7 +310,7 @@ def on_ticket(
         payment_message_start = (
             f"{user_type}: I'm creating this ticket using {model_name}. You have {gpt_tickets_left_message}{daily_message}."
             + (
-                f" For more GPT-4 tickets, visit [our payment portal.]({payment_link})"
+                f' For more GPT-4 tickets, visit <a href="{payment_link}">our payment portal</a>.'
                 if not is_paying_user
                 else ""
             )

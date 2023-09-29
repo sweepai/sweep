@@ -903,7 +903,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 self.delete_messages_from_chat(key)
                 raise e
         try:
-            new_file = format_contents(new_file, file_markdown)
+            # new_file = format_contents(new_file, file_markdown)
             commit_message_match = None
             if commit_message_match:
                 commit_message = commit_message_match.group("commit_message")
