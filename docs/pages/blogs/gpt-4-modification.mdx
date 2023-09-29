@@ -1,4 +1,4 @@
-# Why adding debug logs is harder than LC hards
+# Why getting GPT-4 to modify files is hard
 
 **Kevin Lu** - September 28th, 2023
 
@@ -8,22 +8,25 @@
   <img src="/modification/drake.jpg" alt="Drake meme"/>
 </p>
 
-We’ve been fighting GPT-4 to modify long files of code since its release. As great as it is at solving Leetcode hards, creating complex React components or writing snake games, it struggles to insert logs to a 200-line Flask server without giving up halfway through. However, the latter is infinitely more practical.
+<br/>
 
-A frequent complaint we get is “If I feed this function into ChatGPT, it can do what I ask it to but Sweep can’t”. The reason is that frequently GPT-4 can’t consistently edit long files without writing “# Rest of the code” halfway through which a human can usually resolve but algorithms cannot. Thus, we can’t just naively rewrite files from scratch to modify them.
+We’ve been fighting GPT-4 to modify long files of code since its release. As great as it is at solving solving hard problems or creating complex systems from scratch, it struggles to insert logs to a 200-line Flask server without giving up halfway through. However, the latter is infinitely more practical.
 
-## Our Current Diff Algo
+A frequent complaint we get is “ChatGPT can do this task but Sweep can’t”. This is because GPT-4 can’t consistently edit long files without writing “# Rest of the code” halfway through or copying sections of code incorrectly, which a human using ChatGPT can easily resolve but algorithms cannot. Thus, we can’t just naively rewrite files from scratch to modify them.
 
-Here's a list of all our iterations due to various issues with GPT-4 failing to format or count properly.
+## Our history of file modification algorithms
+
+Here's our history of every way we've tried to get GPT-4 to modify files, and what worked and didn't due to various issues with GPT-4 failing to format or count properly.
 
 ### V0: Just rewrite the whole file
 
 As indicated earlier, rewriting the whole file yields two major issues:
 
-1. The files are too long. A file with $k$ tokens will take $k$ input tokens and $k$ output tokens.
-2. For 50-line+ files, GPT-4 eventually generates something like “# Rest of the code”.
+1. For 50-line+ files, GPT-4 eventually generates something like “# Rest of the code”.
+2. The files are too long. A file with $k$ tokens will take $k$ input tokens and $k$ output tokens.
+3. GPT-4 copies code incorrectly. It would sometimes remove or add extra comments or whitespace, or change the indentation.
 
-Let’s tackle the second problem first.
+Let’s tackle the first first.
 
 ### V1: Fix rest-of-code using `difflib`
 
