@@ -216,9 +216,7 @@ class ChatGPT(BaseModel):
             tickets_count = self.chat_logger.get_ticket_count()
             if tickets_count < tickets_allocated:
                 model = model or self.model
-                logger.warning(
-                    f"{tickets_count} tickets found in MongoDB, using {model}"
-                )
+                logger.info(f"{tickets_count} tickets found in MongoDB, using {model}")
             else:
                 model = "gpt-3.5-turbo-16k-0613"
 
@@ -354,9 +352,7 @@ class ChatGPT(BaseModel):
             tickets_count = self.chat_logger.get_ticket_count()
             if tickets_count < tickets_allocated:
                 model = model or self.model
-                logger.warning(
-                    f"{tickets_count} tickets found in MongoDB, using {model}"
-                )
+                logger.info(f"{tickets_count} tickets found in MongoDB, using {model}")
             else:
                 model = "gpt-3.5-turbo-16k-0613"
 
