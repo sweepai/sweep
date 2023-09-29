@@ -479,6 +479,7 @@ def on_ticket(
                 ),
                 -1,
             )
+            posthog.capture(username, "issue_too_short", properties=metadata)
             return {"success": True}
 
         if (
