@@ -230,7 +230,7 @@ def get_snippet_with_padding(original, best_match, search):
     snippet = original[best_match.start : best_match.end]
 
     # Fix whitespace
-    if len(search[0]) - len(search[0].lstrip()) == 0:
+    if search and len(search[0]) - len(search[0].lstrip()) == 0:
         num_whitespace = len(snippet[0]) - len(snippet[0].lstrip())
         if num_whitespace > 0:
             spaces = (
