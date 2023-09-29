@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, List, Literal, Type, TypeVar
 from urllib.parse import quote
 
-from github.Repository import Repository
 from pydantic import BaseModel
 
 from logn import logger
@@ -450,11 +449,11 @@ class SweepContext(BaseModel):  # type: ignore
     class Config:
         arbitrary_types_allowed = True
 
-    username: str
-    issue_url: str
-    use_faster_model: bool
-    is_paying_user: bool
-    repo: Repository
+    # username: str
+    # issue_url: str
+    # use_faster_model: bool
+    # is_paying_user: bool
+    # repo: Repository
     token: Any = None
 
     _static_instance: Any = None
