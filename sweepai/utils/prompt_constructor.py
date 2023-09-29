@@ -13,7 +13,7 @@ from sweepai.core.prompts import (
 
 class HumanMessagePrompt(BaseModel):
     repo_name: str
-    issue_url: str
+    issue_url: str | None
     username: str
     title: str
     summary: str
@@ -71,8 +71,8 @@ class HumanMessagePrompt(BaseModel):
                 "role": msg["role"],
                 "content": msg["content"].format(
                     repo_name=self.repo_name,
-                    issue_url=self.issue_url,
-                    username=self.username,
+                    issue_url=f"Issue Url: {self.issue_url}\n" if self.issue_url else "\n",
+                    username=self.username ,
                     repo_description=self.repo_description,
                     tree=self.tree,
                     title=self.title,
