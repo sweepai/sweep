@@ -163,6 +163,11 @@ def on_ticket(
     if fast_mode:
         use_faster_model = True
 
+    if not comment_id and not edited and chat_logger:
+        chat_logger.add_successful_ticket(
+            gpt3=use_faster_model
+        )  # moving higher, will increment the issue regardless of whether it's a success or not
+    
     sweep_context = SweepContext.create(
         username=username,
         issue_url=issue_url,
@@ -171,12 +176,6 @@ def on_ticket(
         repo=repo,
         token=user_token,
     )
-    logger.print(sweep_context)
-
-    if not comment_id and not edited and chat_logger:
-        chat_logger.add_successful_ticket(
-            gpt3=use_faster_model
-        )  # moving higher, will increment the issue regardless of whether it's a success or not
 
     organization, repo_name = repo_full_name.split("/")
     metadata = {
@@ -586,7 +585,7 @@ def on_ticket(
         snippets = [
             snippet
             for snippet in snippets
-            if not any(
+            if any(
                 snippet.file_path.startswith(path_to_keep)
                 for path_to_keep in paths_to_keep
             )
@@ -594,8 +593,6 @@ def on_ticket(
         dir_obj.remove_all_not_included(paths_to_keep)
         dir_obj.expand_directory(directories_to_expand)
         tree = str(dir_obj)
-        logger.info(f"New snippets: {snippets}")
-        logger.info(f"New tree: {tree}")
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
             issue_url=issue_url,
@@ -720,7 +717,7 @@ def on_ticket(
                 not file_path.endswith(".py")
                 for file_path in human_message.get_file_paths()
             )
-            python_count = non_python_count - len(human_message.get_file_paths())
+            python_count = len(human_message.get_file_paths()) - non_python_count
             is_python_issue = python_count > non_python_count
             posthog.capture(
                 username,
@@ -830,7 +827,8 @@ def on_ticket(
             issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
 
             delete_branch = False
-            generator = create_pr_changes(  # make this async later
+            
+            generator = create_pr_changes(
                 file_change_requests,
                 pull_request,
                 sweep_bot,
@@ -928,7 +926,7 @@ def on_ticket(
                     body=checkboxes_contents,
                     opened="open",
                 )
-
+            
                 condensed_checkboxes_contents = "\n".join(
                     [
                         checkbox_template.format(
@@ -944,17 +942,17 @@ def on_ticket(
                     body=condensed_checkboxes_contents,
                     opened="open",
                 )
-
+            
                 issue = repo.get_issue(number=issue_number)
                 issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
-
+            
                 logger.info(files_progress)
                 logger.info(f"Edited {file_change_request.filename}")
                 edit_sweep_comment(checkboxes_contents, 2)
             if not response.get("success"):
                 raise Exception(f"Failed to create PR: {response.get('error')}")
             pr_changes = response["pull_request"]
-
+            
             edit_sweep_comment(
                 "I have finished coding the issue. I am now reviewing it for completeness.",
                 3,
@@ -963,7 +961,7 @@ def on_ticket(
             review_message = (
                 "Here are my self-reviews of my changes at" + change_location
             )
-
+            
             lint_output = None
             try:
                 current_issue.delete_reaction(eyes_reaction.id)
@@ -971,7 +969,7 @@ def on_ticket(
                 raise SystemExit
             except:
                 pass
-
+            
             changes_required = False
             try:
                 # Todo(lukejagg): Pass sandbox linter results to review_pr
