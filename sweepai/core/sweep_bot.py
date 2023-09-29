@@ -712,7 +712,7 @@ class SweepBot(CodeGenBot, GithubBot):
             self.messages.append(
                 Message(
                     content=changed_files_summary,
-                    role="assistant",
+                    role="user",
                     key="changed_files_summary",
                 )
             )
@@ -859,7 +859,8 @@ class SweepBot(CodeGenBot, GithubBot):
                         [
                             f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
                             for file_path, file_contents in zip(
-                                file_change_request.relevant_files, relevant_files_contents
+                                file_change_request.relevant_files,
+                                relevant_files_contents,
                             )
                         ]
                     )
