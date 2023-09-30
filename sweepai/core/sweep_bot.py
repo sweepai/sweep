@@ -674,9 +674,6 @@ class SweepBot(CodeGenBot, GithubBot):
         sandbox_execution: SandboxResponse | None = None
         if SANDBOX_URL:
             try:
-                logger.print("Running Sandbox...")
-                logger.print(content)
-                logger.print(self.sweep_context)
                 output = SweepBot.run_sandbox(
                     token=self.sweep_context.token,
                     repo_url=self.repo.html_url,

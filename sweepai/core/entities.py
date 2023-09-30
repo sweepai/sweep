@@ -450,8 +450,8 @@ class SweepContext(BaseModel):  # type: ignore
         arbitrary_types_allowed = True
 
     # username: str
-    # issue_url: str
-    # use_faster_model: bool
+    issue_url: str
+    use_faster_model: bool
     # is_paying_user: bool
     # repo: Repository
     token: Any = None
@@ -463,8 +463,6 @@ class SweepContext(BaseModel):  # type: ignore
         sweep_context = cls(**kwargs)
         if SweepContext._static_instance is None:
             SweepContext._static_instance = sweep_context
-            set_highlight_id(sweep_context.issue_url)
-            # logger.bind(**kwargs)
         return sweep_context
 
     @staticmethod
