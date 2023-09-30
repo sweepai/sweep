@@ -43,7 +43,7 @@ Sweep will mess up sometimes. Comment on it's PR. (ex: "use PyTorch instead of T
 * Mention filenames or function names.
 * Describe the changes or fixes you want.
 * Provide any additional context that might be helpful.
-* For more guidance, visit [Sweep Recipes](https://docs.sweep.dev/recipes).
+* For more guidance, visit [Sweep Recipes](https://docs.sweep.dev/usage/advanced).
 
 Learn to use Sweep better by installing the extension:
 
@@ -79,7 +79,7 @@ For professionals who want more tickets and priority support/feature requests, c
 [Check out our docs](https://docs.sweep.dev/).
 
 ### Contact Us 👥
-- [Discord](https://discord.com/invite/sweep-ai)
+- [Discord](https://discord.gg/invite/sweep)
 - team@sweep.dev
 - [Star us on GitHub! ⭐](https://github.com/sweepai/sweep)
 

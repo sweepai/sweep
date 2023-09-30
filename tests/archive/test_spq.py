@@ -1,6 +1,5 @@
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
-
 spq = SafePriorityQueue()
 
 spq.put(1, "a")

@@ -2,7 +2,6 @@ import base64
 import os
 
 from dotenv import load_dotenv
-
 from loguru import logger
 
 logger.print = logger.info
@@ -36,7 +35,6 @@ BATCH_SIZE = int(
 ENV = os.environ.get("ENV", "dev")
 # ENV = os.environ.get("MODAL_ENVIRONMENT", "dev")
 
-print(f"Using environment: {ENV}")
 # ENV = PREFIX
 # ENVIRONMENT = PREFIX
 
@@ -66,7 +64,6 @@ if GITHUB_APP_ID is None:
         GITHUB_APP_ID = "324098"
     elif ENV == "staging":
         GITHUB_APP_ID = "327588"
-print("GitHub app ID:", GITHUB_APP_ID)
 GITHUB_BOT_USERNAME = os.environ.get("GITHUB_BOT_USERNAME")
 
 # deprecated: left to support old logic
@@ -130,8 +127,8 @@ sandbox:
   install:
     - trunk init
   check:
-    - trunk fmt {file_path}
-    - trunk check --fix {file_path}
+    - trunk fmt {{file_path}}
+    - trunk check --fix {{file_path}}
 
 # This setting contains a list of rules that Sweep will check for. If any of these rules are broken in a new commit, Sweep will create an pull request to fix the broken rule.
 rules:
@@ -209,3 +206,8 @@ OPENAI_API_VERSION = os.environ.get("OPENAI_API_VERSION", None)
 OPENAI_API_ENGINE_GPT35 = os.environ.get("OPENAI_API_ENGINE_GPT35", None)
 OPENAI_API_ENGINE_GPT4 = os.environ.get("OPENAI_API_ENGINE_GPT4", None)
 OPENAI_API_ENGINE_GPT4_32K = os.environ.get("OPENAI_API_ENGINE_GPT4_32K", None)
+
+WHITELISTED_USERS = os.environ.get("WHITELISTED_USERS", None)
+if WHITELISTED_USERS:
+    WHITELISTED_USERS = WHITELISTED_USERS.split(",")
+    WHITELISTED_USERS.append(GITHUB_BOT_USERNAME)

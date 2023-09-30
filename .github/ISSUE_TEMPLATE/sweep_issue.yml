@@ -1,4 +1,4 @@
-name: Sweep Issue (Don't use this unless you want to change our repository. Sweep runs in your own repository)
+name: Sweep Issue
 title: 'Sweep: '
 description: For small bugs, features, refactors, and tests to be handled by Sweep, an AI-powered junior developer.
 labels: sweep

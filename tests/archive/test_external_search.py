@@ -1,4 +1,5 @@
 import os
+
 import openai
 
 from sweepai.core.external_searcher import ExternalSearcher

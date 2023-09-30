@@ -4,16 +4,16 @@ from typing import Any
 
 import requests
 from geopy import Nominatim
-from logn import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
+from logn import logger
 from sweepai.config.server import (
-    MONGODB_URI,
-    DISCORD_WEBHOOK_URL,
-    SUPPORT_COUNTRY,
     DISCORD_LOW_PRIORITY_URL,
     DISCORD_MEDIUM_PRIORITY_URL,
+    DISCORD_WEBHOOK_URL,
+    MONGODB_URI,
+    SUPPORT_COUNTRY,
 )
 
 
@@ -189,4 +189,3 @@ def discord_log_error(content, priority=0):
         raise SystemExit
     except Exception as e:
         logger.error(f"Could not log to Discord: {e}")
-        pass

@@ -112,7 +112,6 @@ def format_contents(file_contents, is_markdown=False):
 def generate_new_file(
     modify_file_response: str, old_file_content: str, chunk_offset: int = 0
 ) -> str:
-    result_file = ""
     old_file_lines = old_file_content.split("\n")
 
     # Extract content between <new_file> tags

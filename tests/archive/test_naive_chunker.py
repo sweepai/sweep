@@ -1,6 +1,5 @@
 from sweepai.utils.utils import chunk_code
 
-
 file_contents = r"""\
 # TODO: Add file validation
 
@@ -1155,18 +1154,12 @@ def on_ticket(
 
 chunks = chunk_code(file_contents, "api.py", 10000, 200)
 
-import csv
 
 # with open('output.csv', 'w', newline='') as file:
 #     writer = csv.writer(file)
 #     for chunk in chunks:
 #         writer.writerow([chunk.content])
 
-from sweepai.core.chat import ChatGPT
-from sweepai.core.prompts import (
-    summarize_snippet_system_prompt,
-    summarize_snippet_prompt,
-)
 
 metadata = """Repo: sweepai/sweep: Sweep: AI-powered Junior Developer for small features and bug fixes.
 Issue Url: https://github.com/sweepai/sweep/issues/1648

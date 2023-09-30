@@ -11,35 +11,30 @@ logger.init(
 )
 
 import ctypes
-from queue import Queue
 import sys
 import threading
 
+import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
-import requests
 
 from sweepai.config.client import (
+    RESTART_SWEEP_BUTTON,
+    SWEEP_BAD_FEEDBACK,
+    SWEEP_GOOD_FEEDBACK,
     SweepConfig,
     get_documentation_dict,
-    RESTART_SWEEP_BUTTON,
-    SWEEP_GOOD_FEEDBACK,
-    SWEEP_BAD_FEEDBACK,
 )
 from sweepai.config.server import (
-    API_MODAL_INST_NAME,
-    BOT_TOKEN_NAME,
-    DB_MODAL_INST_NAME,
-    DOCS_MODAL_INST_NAME,
+    DISCORD_FEEDBACK_WEBHOOK_URL,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
-    DISCORD_FEEDBACK_WEBHOOK_URL,
 )
 from sweepai.core.documentation import write_documentation
-from sweepai.core.entities import PRChangeRequest, SweepContext
+from sweepai.core.entities import PRChangeRequest
 from sweepai.core.vector_db import get_deeplake_vs_from_repo
 from sweepai.events import (
     CheckRunCompleted,
@@ -47,18 +42,18 @@ from sweepai.events import (
     InstallationCreatedRequest,
     IssueCommentRequest,
     IssueRequest,
+    PREdited,
     PRRequest,
     ReposAddedRequest,
-    IssueCommentChanges,
-    PREdited,
 )
-from sweepai.handlers.create_pr import create_gha_pr, add_config_to_top_repos  # type: ignore
-from sweepai.handlers.create_pr import create_pr_changes, safe_delete_sweep_branch
+from sweepai.handlers.create_pr import (  # type: ignore
+    add_config_to_top_repos,
+    create_gha_pr,
+)
 from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_merge import on_merge
 from sweepai.handlers.on_ticket import on_ticket
-from sweepai.redis_init import redis_client
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
@@ -97,31 +92,6 @@ def run_on_comment(*args, **kwargs):
 
     with logger:
         on_comment(*args, **kwargs)
-
-
-def run_on_merge(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "merge_" + args[0]["pusher"]["name"],
-        },
-        create_file=False,
-    )
-    with logger:
-        on_merge(*args, **kwargs)
-
-
-def run_on_write_docs(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "docs_scrape",
-        },
-        create_file=False,
-    )
-    with logger:
-        write_documentation(*args, **kwargs)
-
 
 def run_on_check_suite(*args, **kwargs):
     logger.init(
@@ -199,9 +169,8 @@ def call_on_ticket(*args, **kwargs):
 
 
 def call_on_check_suite(*args, **kwargs):
-    repo_full_name = kwargs["request"].repository.full_name
-    pr_number = kwargs["request"].check_run.pull_requests[0].number
-    key = f"{repo_full_name}-{pr_number}"
+    kwargs["request"].repository.full_name
+    kwargs["request"].check_run.pull_requests[0].number
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
@@ -239,12 +208,7 @@ def call_on_comment(
 
 
 def call_on_merge(*args, **kwargs):
-    thread = threading.Thread(target=run_on_merge, args=args, kwargs=kwargs)
-    thread.start()
-
-
-def call_on_write_docs(*args, **kwargs):
-    thread = threading.Thread(target=run_on_write_docs, args=args, kwargs=kwargs)
+    thread = threading.Thread(target=on_merge, args=args, kwargs=kwargs)
     thread.start()
 
 
@@ -252,6 +216,11 @@ def call_get_deeplake_vs_from_repo(*args, **kwargs):
     thread = threading.Thread(
         target=run_get_deeplake_vs_from_repo, args=args, kwargs=kwargs
     )
+    thread.start()
+
+
+def call_write_documentation(*args, **kwargs):
+    thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
     thread.start()
 
 
@@ -279,9 +248,21 @@ async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
-        logger.info(f"Received request: {request_dict.keys()}")
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
+
+        # # Check if user is in Whitelist
+        # gh_request = GithubRequest(**request_dict)
+        # if (
+        #     WHITELISTED_USERS is not None
+        #     and len(WHITELISTED_USERS) > 0
+        #     and gh_request.sender is not None
+        #     and gh_request.sender.login not in WHITELISTED_USERS
+        # ):
+        #     return {
+        #         "success": True,
+        #         "reason": "User not in whitelist",
+        #     }
         action = request_dict.get("action", None)
         # logger.bind(event=event, action=action)
         logger.info(f"Received event: {event}, {action}")
@@ -309,15 +290,14 @@ async def webhook(raw_request: Request):
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
             case "issue_comment", "edited":
                 request = IssueCommentRequest(**request_dict)
-                changes = IssueCommentChanges(**request_dict)
 
                 restart_sweep = False
                 if (
                     request.comment.user.type == "Bot"
                     and GITHUB_BOT_USERNAME in request.comment.user.login
-                    and changes.changes.body_from is not None
+                    and request.changes.body_from is not None
                     and check_button_activated(
-                        RESTART_SWEEP_BUTTON, request.comment.body, changes.changes
+                        RESTART_SWEEP_BUTTON, request.comment.body, request.changes
                     )
                     and GITHUB_LABEL_NAME
                     in [label.name.lower() for label in request.issue.labels]
@@ -358,7 +338,7 @@ async def webhook(raw_request: Request):
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
 
-                    key = (request.repository.full_name, request.issue.number)
+                    (request.repository.full_name, request.issue.number)
 
                     call_on_ticket(
                         title=request.issue.title,
@@ -414,7 +394,7 @@ async def webhook(raw_request: Request):
                     and not request.sender.login.startswith("sweep")
                 ):
                     logger.info("New issue edited")
-                    key = (request.repository.full_name, request.issue.number)
+                    (request.repository.full_name, request.issue.number)
                     # logger.info(f"Checking if {key} is in {stub.issue_lock}")
                     # process = stub.issue_lock[key] if key in stub.issue_lock else None
                     # if process:
@@ -438,25 +418,14 @@ async def webhook(raw_request: Request):
                     logger.info("Issue edited, but not a sweep issue")
             case "issues", "labeled":
                 request = IssueRequest(**request_dict)
-                if (
-                    "label" in request_dict
-                    and str.lower(request_dict["label"]["name"]) == GITHUB_LABEL_NAME
+                if any(
+                    label.name.lower() == GITHUB_LABEL_NAME
+                    for label in request.issue.labels
                 ):
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
                         request.repository.description or ""
                     )
-                    # Update before we handle the ticket to make sure index is up to date
-                    # other ways suboptimal
-                    key = (request.repository.full_name, request.issue.number)
-                    # logger.info(f"Checking if {key} is in {stub.issue_lock}")
-                    # process = stub.issue_lock[key] if key in stub.issue_lock else None
-                    # if process:
-                    #     logger.info("Cancelling process")
-                    #     process.cancel()
-                    # stub.issue_lock[
-                    #     (request.repository.full_name, request.issue.number)
-                    # ] =
                     call_on_ticket(
                         title=request.issue.title,
                         summary=request.issue.body,
@@ -479,7 +448,6 @@ async def webhook(raw_request: Request):
                         request.issue.pull_request and request.issue.pull_request.url
                     )
                 ):
-                    logger.info("New issue comment created")
                     request.issue.body = request.issue.body or ""
                     request.repository.description = (
                         request.repository.description or ""
@@ -498,7 +466,7 @@ async def webhook(raw_request: Request):
 
                     # Update before we handle the ticket to make sure index is up to date
                     # other ways suboptimal
-                    key = (request.repository.full_name, request.issue.number)
+                    (request.repository.full_name, request.issue.number)
                     # logger.info(f"Checking if {key} is in {stub.issue_lock}")
                     # process = stub.issue_lock[key] if key in stub.issue_lock else None
                     # if process:
@@ -521,7 +489,6 @@ async def webhook(raw_request: Request):
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
                 ):  # TODO(sweep): set a limit
-                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     _, g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
                     pr = repo.get_pull(request.issue.number)
@@ -548,7 +515,6 @@ async def webhook(raw_request: Request):
             case "pull_request_review_comment", "created":
                 # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
-                logger.info(f"Handling comment on PR: {request.pull_request.number}")
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pr = repo.get_pull(request.pull_request.number)
@@ -579,7 +545,6 @@ async def webhook(raw_request: Request):
                 pass
             case "check_run", "completed":
                 request = CheckRunCompleted(**request_dict)
-                logger.info(f"Handling check suite for {request.repository.full_name}")
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pull_requests = request.check_run.pull_requests
@@ -587,8 +552,6 @@ async def webhook(raw_request: Request):
                     pr = repo.get_pull(pull_requests[0].number)
                     if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
                         call_on_check_suite(request=request)
-                else:
-                    logger.info("No pull requests, passing")
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
@@ -737,8 +700,6 @@ async def webhook(raw_request: Request):
                             raise SystemExit
                         except Exception as e:
                             logger.error(f"Failed to edit PR description: {e}")
-                    pass
-                pass
             case "pull_request", "closed":
                 pr_request = PRRequest(**request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")
@@ -767,15 +728,6 @@ async def webhook(raw_request: Request):
                         },
                     )
                 chat_logger = ChatLogger({"username": merged_by})
-                # this makes it faster for everyone because the queue doesn't get backed up
-                # active users also should not see a delay
-
-                # Todo: fix update index for pro users
-                # if chat_logger.is_paying_user():
-                #     update_index(
-                #         request_dict["repository"]["full_name"],
-                #         installation_id=request_dict["installation"]["id"],
-                #     )
             case "push", None:
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
                     chat_logger = ChatLogger(
@@ -783,29 +735,32 @@ async def webhook(raw_request: Request):
                     )
                     # on merge
                     call_on_merge(request_dict, chat_logger)
-                    if request_dict["head_commit"] and (
-                        "sweep.yaml" in request_dict["head_commit"]["added"]
-                        or "sweep.yaml" in request_dict["head_commit"]["modified"]
-                    ):
+                    ref = request_dict["ref"] if "ref" in request_dict else ""
+                    if ref.startswith("refs/heads/"):
+                        if request_dict["head_commit"] and (
+                            "sweep.yaml" in request_dict["head_commit"]["added"]
+                            or "sweep.yaml" in request_dict["head_commit"]["modified"]
+                        ):
+                            _, g = get_github_client(request_dict["installation"]["id"])
+                            repo = g.get_repo(request_dict["repository"]["full_name"])
+                            docs = get_documentation_dict(repo)
+                            # Call the write_documentation function for each of the existing fields in the "docs" mapping
+                            for doc_url, _ in docs.values():
+                                logger.info(f"Writing documentation for {doc_url}")
+                                call_write_documentation(doc_url=doc_url)
                         _, g = get_github_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
-                        docs = get_documentation_dict(repo)
-                        logger.info(f"Sweep.yaml docs: {docs}")
-                        # Call the write_documentation function for each of the existing fields in the "docs" mapping
-                        for doc_url, _ in docs.values():
-                            logger.info(f"Writing documentation for {doc_url}")
-                            call_on_write_docs(doc_url)
-                    # this makes it faster for everyone because the queue doesn't get backed up
-                    if chat_logger.is_paying_user():
-                        cloned_repo = ClonedRepo(
-                            request_dict["repository"]["full_name"],
-                            installation_id=request_dict["installation"]["id"],
-                        )
-                        call_get_deeplake_vs_from_repo(cloned_repo)
-                    update_sweep_prs(
-                        request_dict["repository"]["full_name"],
-                        installation_id=request_dict["installation"]["id"],
-                    )
+                        if ref[len("refs/heads/"):] == SweepConfig.get_branch(repo):
+                            if chat_logger.is_paying_user():
+                                cloned_repo = ClonedRepo(
+                                    request_dict["repository"]["full_name"],
+                                    installation_id=request_dict["installation"]["id"],
+                                )
+                                call_get_deeplake_vs_from_repo(cloned_repo)
+                            update_sweep_prs(
+                                request_dict["repository"]["full_name"],
+                                installation_id=request_dict["installation"]["id"],
+                            )
             case "ping", None:
                 return {"message": "pong"}
             case _:
@@ -856,12 +811,6 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
                     feature_branch,
                     repo.default_branch,
                     f"Merge main into {feature_branch}",
-                )
-
-                # logger.info(f"Successfully merged changes from default branch into PR #{pr.number}")
-                logger.info(
-                    f"Merging changes from default branch into PR #{pr.number} for branch"
-                    f" {feature_branch}"
                 )
 
                 # Check if the merged PR is the config PR

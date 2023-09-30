@@ -4,37 +4,30 @@ It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its o
 """
 import re
 import traceback
+from typing import Any
 
 import openai
-from logn import logger, LogTask
-
-from typing import Any
-from tabulate import tabulate
 from github.Repository import Repository
+from tabulate import tabulate
 
-from sweepai.config.client import get_blocked_dirs
+from logn import LogTask, logger
+from sweepai.config.client import get_blocked_dirs, get_documentation_dict
+from sweepai.config.server import ENV, GITHUB_BOT_USERNAME, MONGODB_URI, OPENAI_API_KEY
+from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import (
+    FileChangeRequest,
+    MockPR,
     NoFilesException,
     Snippet,
-    MockPR,
-    FileChangeRequest,
     SweepContext,
-    Message,
 )
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.diff import generate_diff
-from sweepai.config.server import (
-    GITHUB_BOT_USERNAME,
-    ENV,
-    MONGODB_URI,
-    OPENAI_API_KEY,
-)
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
-from sweepai.utils.search_utils import search_snippets
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
+from sweepai.utils.search_utils import search_snippets
 
 openai.api_key = OPENAI_API_KEY
 
@@ -73,7 +66,7 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     return result_snippets[:max_num_of_snippets]
 
 
-@LogTask()
+# @LogTask()
 def on_comment(
     repo_full_name: str,
     repo_description: str,
@@ -164,7 +157,7 @@ def on_comment(
         use_faster_model=use_faster_model,
         is_paying_user=is_paying_user,
         repo=repo,
-        token=None,  # Todo(lukejagg): Make this token for sandbox on comments
+        token=_token,
     )
 
     metadata = {
@@ -211,13 +204,13 @@ def on_comment(
                 reaction = item_to_react_to.create_reaction("eyes")
             except SystemExit:
                 raise SystemExit
-            except Exception as e:
+            except Exception:
                 try:
                     item_to_react_to = pr.get_review_comment(comment_id)
                     reaction = item_to_react_to.create_reaction("eyes")
                 except SystemExit:
                     raise SystemExit
-                except Exception as e:
+                except Exception:
                     pass
 
             if reaction is not None:
@@ -287,7 +280,7 @@ def on_comment(
         else:
             try:
                 logger.info("Fetching relevant files...")
-                snippets, tree = search_snippets(
+                snippets, tree, _ = search_snippets(
                     cloned_repo,
                     f"{comment}\n{pr_title}" + (f"\n{pr_chunk}" if pr_chunk else ""),
                     num_files=30,
@@ -300,7 +293,10 @@ def on_comment(
         snippets = post_process_snippets(
             snippets, max_num_of_snippets=0 if file_comment else 2
         )
-
+        user_dict = get_documentation_dict(repo)
+        docs_results = extract_relevant_docs(
+                pr_title + "\n" + pr_body + "\n" + f" User Comment: {comment}", user_dict, chat_logger
+            )
         logger.info("Getting response from ChatGPT...")
         human_message = HumanMessageCommentPrompt(
             comment=comment,
@@ -316,6 +312,7 @@ def on_comment(
             pr_file_path=pr_file_path,  # may be None
             pr_chunk=formatted_pr_chunk,  # may be None
             original_line=original_line if pr_chunk else None,
+            relevant_docs=docs_results,
         )
         logger.info(f"Human prompt{human_message.construct_prompt()}")
 
@@ -344,7 +341,7 @@ def on_comment(
             file_change_requests = [
                 FileChangeRequest(
                     filename=pr_file_path,
-                    instructions=f"The user left a comment in this chunk of code:\n<review_code_chunk>{formatted_pr_chunk}\n</review_code_chunk>\n. Resolve their comment.",
+                    instructions=f"The user left a comment in this chunk of code:\n<review_code_chunk>{formatted_pr_chunk}\n</review_code_chunk>.\nResolve their comment.",
                     change_type="modify",
                 )
             ]
@@ -397,79 +394,19 @@ def on_comment(
                         "success": True,
                         "message": "Files have been reset to their original state.",
                     }
-                file_change_requests = []
-                if original_issue:
-                    content = original_issue.body
-                    checklist_dropdown = re.search(
-                        "<details>\n<summary>Checklist</summary>.*?</details>",
-                        content,
-                        re.DOTALL,
-                    )
-                    checklist = checklist_dropdown.group(0)
-                    matches = re.findall(
-                        (
-                            "- \[[X ]\] `(?P<filename>.*?)`(?P<instructions>.*?)(?=-"
-                            " \[[X ]\]|</details>)"
-                        ),
-                        checklist,
-                        re.DOTALL,
-                    )
-                    instructions_mapping = {}
-                    for filename, instructions in matches:
-                        instructions_mapping[filename] = instructions
-                    file_change_requests = [
-                        FileChangeRequest(
-                            filename=file_path,
-                            instructions=instructions_mapping[file_path],
-                            change_type="modify",
-                        )
-                        for file_path in file_paths
-                    ]
-                else:
-                    quoted_pr_summary = "> " + pr.body.replace("\n", "\n> ")
-                    file_change_requests = [
-                        FileChangeRequest(
-                            filename=file_path,
-                            instructions=(
-                                f"Modify the file {file_path} based on the PR"
-                                f" summary:\n\n{quoted_pr_summary}"
-                            ),
-                            change_type="modify",
-                        )
-                        for file_path in file_paths
-                    ]
-                logger.print(file_change_requests)
-                file_change_requests = sweep_bot.validate_file_change_requests(
-                    file_change_requests, branch=branch_name
-                )
-
-                logger.info("Getting response from ChatGPT...")
-                human_message = HumanMessageCommentPrompt(
-                    comment=comment,
-                    repo_name=repo_name,
-                    repo_description=repo_description if repo_description else "",
-                    diffs=get_pr_diffs(repo, pr),
-                    issue_url=pr.html_url,
-                    username=username,
-                    title=pr_title,
-                    tree=tree,
-                    summary=pr_body,
-                    snippets=snippets,
-                    pr_file_path=pr_file_path,  # may be None
-                    pr_chunk=pr_chunk,  # may be None
-                    original_line=original_line if pr_chunk else None,
-                )
-
-                logger.info(f"Human prompt{human_message.construct_prompt()}")
-                sweep_bot: SweepBot = SweepBot.from_system_message_content(
-                    human_message=human_message,
-                    repo=repo,
-                    chat_logger=chat_logger,
-                    cloned_repo=cloned_repo,
-                )
+                return {
+                    "success": True,
+                    "message": "Files have been regenerated.",
+                }
             else:
+                non_python_count = sum(
+                    not file_path.endswith(".py")
+                    for file_path in human_message.get_file_paths()
+                )
+                python_count = len(human_message.get_file_paths()) - non_python_count
+                is_python_issue = python_count > non_python_count
                 file_change_requests, _ = sweep_bot.get_files_to_change(
-                    retries=1, pr_diffs=pr_diff_string
+                    is_python_issue, retries=1, pr_diffs=pr_diff_string
                 )
                 file_change_requests = sweep_bot.validate_file_change_requests(
                     file_change_requests, branch=branch_name
@@ -570,13 +507,13 @@ def on_comment(
         reaction = item_to_react_to.create_reaction("rocket")
     except SystemExit:
         raise SystemExit
-    except Exception as e:
+    except Exception:
         try:
             item_to_react_to = pr.get_review_comment(comment_id)
             reaction = item_to_react_to.create_reaction("rocket")
         except SystemExit:
             raise SystemExit
-        except Exception as e:
+        except Exception:
             pass
 
     try:
@@ -584,7 +521,7 @@ def on_comment(
             edit_comment(f"## 🚀 Wrote Changes\n\n{response_for_user}")
     except SystemExit:
         raise SystemExit
-    except Exception as e:
+    except Exception:
         pass
 
     capture_posthog_event(username, "success", properties={**metadata})

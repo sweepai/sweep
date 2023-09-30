@@ -9,8 +9,8 @@ export function PRPreview({ repoName, prId }) {
     const [prData, setPrData] = useState(null)
     const [issueData, setIssueData] = useState(null)
     const [diffData, setDiffData] = useState(null)
-    // const herokuAnywhere = "https://mighty-brook-06697-04a41eb75af8.herokuapp.com/"
-    const herokuAnywhere = "https://cors-anywhere.herokuapp.com/"
+    const key = `prData-${repoName}-${prId}-v0`;
+    const herokuAnywhere = "https://sweep-examples-cors-143adb2b6ffb.herokuapp.com/"
     const headers = {}
 
     useEffect(() => {
@@ -58,7 +58,7 @@ export function PRPreview({ repoName, prId }) {
         console.log(localStorage);
         if (localStorage) {
             try {
-                const cacheHit = localStorage.getItem(`prData-${repoName}-${prId}-v0`)
+                const cacheHit = localStorage.getItem(key)
                 if (cacheHit) {
                     const { prData, diffData, issueData, timestamp } = JSON.parse(cacheHit)
                     if (prData && diffData && issueData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60 * 24) {
@@ -86,7 +86,7 @@ export function PRPreview({ repoName, prId }) {
                 issueData,
                 timestamp: new Date(),
             }
-            localStorage.setItem(`prData-${repoName}-${prId}`, JSON.stringify(data))
+            localStorage.setItem(key, JSON.stringify(data))
         }
     }, [prData, diffData, issueData]);
 
@@ -96,7 +96,7 @@ export function PRPreview({ repoName, prId }) {
 
     const numberDaysAgoMerged = Math.max(Math.round((new Date() - new Date(prData.merged_at)) / (1000 * 60 * 60 * 24)), 71)
     const parsedDiff = parse(diffData)
-    var issueTitle = issueData ? issueData.title.replace("Sweep: ", "") : ""
+    var issueTitle = issueData != null ? issueData.title.replace("Sweep: ", "") : ""
     issueTitle = issueTitle.charAt(0).toUpperCase() + issueTitle.slice(1);
     console.log("parsedDiff", parsedDiff)
 

@@ -1,45 +1,23 @@
-from dataclasses import asdict, dataclass
+import io
 import json
 import os
-import io
-import tarfile
-import uuid
-import requests
-
 import shlex
-from fastapi import FastAPI, Request
-from pydantic import BaseModel
+import tarfile
+from dataclasses import asdict, dataclass
+
 import docker
+import requests
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel
 
 # from sweepai.config.server import DISCORD_WEBHOOK_URL
 from src.chat import fix_file
 from src.sandbox_utils import Sandbox
 
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi import FastAPI, Request
-
 app = FastAPI()
 
 client = docker.from_env()
-
-
-class SandboxContainer:
-    def __init__(self, *args, **kwargs):
-        self.container_name = "sandbox-{}".format(str(uuid.uuid4()))
-
-    def __enter__(self):
-        client.containers.run(
-            "sweepai/sandbox:latest",
-            "tail -f /dev/null",
-            detach=True,
-            name=self.container_name,
-        )  # keeps the container running
-        self.container = client.containers.get(self.container_name)
-        return self.container
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.container.stop()
-        self.container.remove(force=True)
 
 
 @dataclass

@@ -1,8 +1,6 @@
 import re
-from sweepai.config.client import (
-    UPDATES_MESSAGE,
-    SweepConfig,
-)
+
+from sweepai.config.client import UPDATES_MESSAGE, SweepConfig
 from sweepai.core.entities import Snippet
 from sweepai.utils.chat_logger import discord_log_error
 
@@ -64,9 +62,6 @@ def post_process_snippets(
             snippet.file_path == exclude_file for exclude_file in exclude_snippets
         )
     ]
-    for snippet in snippets[:num_full_files]:
-        snippet = snippet.expand()
-
     # snippet fusing
     i = 0
     while i < len(snippets):

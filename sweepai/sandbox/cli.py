@@ -1,20 +1,56 @@
-from itertools import chain
 import os
-import uuid
-import yaml
 import shlex
+import subprocess
 import tarfile
-import docker
-import typer
+import uuid
 from pathlib import Path
-from rich import console
-from posthog import Posthog
+from typing import Optional
 
+import docker
 import pathspec
-
+import typer
+import yaml
+from posthog import Posthog
+from pydantic import BaseModel
+from rich import console
 from tqdm import tqdm
-from src.sandbox_local import SandboxContainer
-from src.sandbox_utils import Sandbox
+
+
+class SandboxContainer:
+    def __init__(self, *args, **kwargs):
+        self.container_name = "sandbox-{}".format(str(uuid.uuid4()))
+
+    def __enter__(self):
+        client.containers.run(
+            "sweepai/sandbox:latest",
+            "tail -f /dev/null",
+            detach=True,
+            name=self.container_name,
+        )  # keeps the container running
+        self.container = client.containers.get(self.container_name)
+        return self.container
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.container.stop()
+        self.container.remove(force=True)
+
+
+class Sandbox(BaseModel):
+    install: list[str] = ["trunk init"]
+    check: list[str] = ["trunk fmt {file_path}", "trunk check --fix {file_path}"]
+
+    @classmethod
+    def from_yaml(cls, yaml_string: str):
+        config = yaml.load(yaml_string, Loader=yaml.FullLoader)
+        return cls(**config.get("sandbox", {}))
+
+    @classmethod
+    def from_config(cls, path: str = "sweep.yaml"):
+        if os.path.exists(path):
+            return cls.from_yaml(open(path).read())
+        else:
+            return cls()
+
 
 app = typer.Typer(name="sweep-sandbox")
 
@@ -68,8 +104,28 @@ def get_sandbox_from_config():
 
 
 @app.command()
-def sandbox(file_path: Path, telemetry: bool = True):
-    print("\n Getting sandbox config... \n", style="bold white on cyan")
+def sandbox(file_path: Optional[Path] = None, telemetry: bool = True):
+    # Check if valid git repo
+    if not os.path.exists(".git"):
+        print("Not a valid git repository", style="bold red")
+        raise typer.Exit(code=1)
+
+    print("")
+
+    # Get last edited file
+    if file_path is None:
+        file_path = Path(
+            subprocess.check_output(
+                "git diff --name-only HEAD~1 HEAD | head -n 1", shell=True
+            )
+            .decode("utf-8")
+            .strip()
+        )
+        print(
+            f"File path was not provided, so we default to the last edited file [bold]{file_path}[/bold]\n"
+        )
+
+    print("Getting sandbox config... \n", style="bold white on cyan")
     sandbox = get_sandbox_from_config()
 
     if telemetry:

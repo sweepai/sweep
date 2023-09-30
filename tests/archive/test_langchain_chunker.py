@@ -1,7 +1,4 @@
-from langchain.text_splitter import (
-    RecursiveCharacterTextSplitter,
-    Language,
-)
+from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
 
 python_text = '''
 import io

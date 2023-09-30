@@ -1,8 +1,8 @@
 import os
+from typing import TypeVar
 
 import yaml
 from pydantic import BaseModel
-from typing import Type, TypeVar, Any
 
 Self = TypeVar("Self", bound="BaseModel")
 

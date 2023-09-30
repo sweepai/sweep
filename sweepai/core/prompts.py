@@ -1,23 +1,15 @@
 """
 List of common prompts used across the codebase.
 """
-from sweepai.core.entities import CustomInstructions
 
 # Following two should be fused
-system_message_prompt = (
-    "Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to"
-    " write code for the following Github issue. When you write code, the code works on"
-    " the first try, is syntactically perfect and is complete. You have the utmost care"
-    " for the code that you write, so you do not make mistakes and every function and"
-    " class will be fully implemented. Take into account the current repository's"
-    " language, frameworks, and dependencies. It is very important that you get this"
-    " right."
-)
+system_message_prompt = """
+Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is fully complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. When writing tests, you will ensure the tests are fully complete, very extensive and cover all cases, and you will make up test data as needed. Take into account the current repository's language, frameworks, and dependencies.
+"""
 
 repo_description_prefix_prompt = "\n\nThis is a description of the repository:"
 
 human_message_prompt = [
-    {"role": "assistant", "content": "Examining repo..."},
     {
         "role": "user",
         "content": """{relevant_snippets}""",
@@ -39,8 +31,7 @@ human_message_prompt = [
         "role": "user",
         "content": """# Repo & Issue Metadata
 Repo: {repo_name}: {repo_description}
-Issue Url: {issue_url}
-Username: {username}
+{issue_url}Username: {username}
 Issue Title: {title}
 Issue Description: {description}""",
     },
@@ -54,11 +45,6 @@ python_human_message_prompt = [
     },
     {
         "role": "user",
-        "content": """{plan_suggestions}""",
-        "key": "plan_suggestions",
-    },
-    {
-        "role": "user",
         "content": """<repo_tree>
 {tree}
 </repo_tree>""",
@@ -68,15 +54,13 @@ python_human_message_prompt = [
         "role": "user",
         "content": """# Repo & Issue Metadata
 Repo: {repo_name}: {repo_description}
-Issue Url: {issue_url}
-Username: {username}
+{issue_url}Username: {username}
 Issue Title: {title}
 Issue Description: {description}""",
     },
 ]
 
 human_message_review_prompt = [
-    {"role": "assistant", "content": "Reviewing my pull request..."},
     {
         "role": "user",
         "content": """{relevant_snippets}""",
@@ -190,7 +174,6 @@ issue_comment_prompt = """
 
 # Prompt for comments
 human_message_prompt_comment = [
-    {"role": "assistant", "content": "Reviewing my pull request..."},
     {
         "role": "user",
         "content": """{relevant_snippets}""",
@@ -209,10 +192,9 @@ human_message_prompt_comment = [
         "role": "user",
         "content": """# Repo, Issue, & PR Metadata
 Repo: {repo_name}: {repo_description}
-Issue Url: {issue_url}
-Username: {username}
+{issue_url}Username: {username}
 Pull Request Title: {title}
-Pull Request Description: {description}""",
+Pull Request Description: {description}{relevant_docs}""",
     },
     {
         "role": "user",
@@ -233,72 +215,69 @@ Gather information to solve the problem. Use "finish" when you feel like you hav
 
 files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
 
-files_to_change_prompt = """
+files_to_change_prompt = """\
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
-Then, provide a list of files you would like to modify, abiding by the following:
-* You may only create, modify, rewrite, delete and rename files
-* Modify tweaks existing code (adding logs, typing, docstrings, etc) whereas rewrite recreates the entire file (migration, changing frameworks etc)
+Then, provide a list of ALL files you would like to change, abiding by the following:
+* You may only create, modify, delete and rename files. Do not delete files unless explicitly requested/required.
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
 * Use detailed, natural language instructions on what to modify regarding business logic, but make reference to files to import
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
-* Create/modify up to 5 FILES
 * Do not modify non-text files such as images, svgs, binary, etc
+* Ensure that the changes completely solve the task.
 
 You MUST follow the following format with the final output in XML tags:
 
 Root cause:
-Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph.
+Identify the root cause of this issue and a minimum plan to address this issue concisely in two sentences.
 
 Step-by-step thoughts with explanations:
-* Thought 1
-* Thought 2
+* Concise imperative thoughts
+* No conjunctions
 ...
 
 <plan>
-<create file="file_path_1">
+<create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
 * Instruction 1 for file_path_1
 * Instruction 2 for file_path_1
 ...
 </create>
+...
 
-<modify file="file_path_3">
-* Instruction 1 for file_path_3
-* Instruction 2 for file_path_3
+
+<modify file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
+* Instruction 1 for file_path_2
+* Instruction 2 for file_path_2
 ...
 </modify>
-
-<rewrite file="file_path_3">
-* Instruction 1 for file_path_3
-* Instruction 2 for file_path_3
 ...
-</rewrite>
 
-<delete file="file_path_4"></delete>
-
-<rename file="file_path_5">new full path for file path 6</rename>
-
+<delete file="file_path_3"></delete>
 ...
+
+<rename file="file_path_4">new full path for file path 4</rename>
+...
+
 </plan>
 """
 
 python_files_to_change_prompt = """
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
-Then, provide a list of files you would like to modify, abiding by the following:
-* You may only create, modify, delete and rename files
+Then, provide a list of ALL files you would like to modify, abiding by the following:
+* You may only create, modify, delete and rename files. Do not delete files unless explicitly requested/required.
 * Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
+* You can modify multiple entities in the same file.
 * Use detailed, natural language instructions on what to modify regarding business logic, but reference files to import
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
-* Create/modify up to 5 FILES
 * Do not modify non-text files such as images, svgs, binary, etc
 
 You MUST follow the following format with the final output in XML tags:
 
 Root cause:
-Write an abstract minimum plan to address this issue. Be clear and concise.
+Identify the root cause of this issue and a minimum plan to address this issue concisely in two sentences.
 
 Step-by-step thoughts with explanations:
-* Thought 1
-* Thought 2
+* Concise imperative thoughts
+* No conjunctions
 ...
 
 <plan>
@@ -308,15 +287,15 @@ Step-by-step thoughts with explanations:
 ...
 </create>
 
-<modify file="file_path_3">
-* Instruction 1 for file_path_3
-* Instruction 2 for file_path_3
+<modify file="file_path_2" entity="name of function or class to modify (optional)">
+* Instruction 1 for file_path_2
+* Instruction 2 for file_path_2
 ...
 </modify>
 
-<delete file="file_path_4"></delete>
+<delete file="file_path_3"></delete>
 
-<rename file="file_path_5">new full path for file_path_6</rename>
+<rename file="file_path_4">new full path for file_path_4</rename>
 
 ...
 </plan>
@@ -327,11 +306,12 @@ Think step-by-step to break down the requested problem into sub-issues each of e
 You MUST follow the following format with the final output in XML tags:
 
 Root cause:
-Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph.
+Identify the root cause of this issue and a minimum plan to address this issue concisely in two sentences.
+
 
 Step-by-step thoughts with explanations:
-* Thought 1
-* Thought 2
+* Concise imperative thoughts
+* No conjunctions
 ...
 
 <plan>
@@ -844,7 +824,7 @@ Code Changes:
 code_repair_check_system_prompt = """\
 You are a genius trained for validating code.
 You will be given two pieces of code marked by xml tags. The code inside <diff></diff> is the changes applied to create user_code, and the code inside <user_code></user_code> is the final product.
-Our goal is to validate if the final code is valid. This means there's undefined variables, no syntax errors, has no unimplemented functions (e.g. pass's, comments saying "rest of code") and the code runs.
+Our goal is to validate if the final code is valid. This means there are no undefined variables, no syntax errors, has no unimplemented functions (e.g. pass's, comments saying "rest of code") and the code runs.
 """
 
 code_repair_check_prompt = """\
@@ -1013,43 +993,6 @@ The user is attempting to solve the following problem:
 Provide a summary of the page relevant to the problem, including all code snippets.
 """
 
-pruning_prompt = """\
-The above text has too much unnecessary information, particularly in the <repo_tree> and the <relevant_paths_in_repo>.
-The snippets, relevant_paths_in_repo and repo_tree are 1:1. All files in the snippets expose parts of the repo tree, so adding or removing snippets will show more or less of the tree.
-The unnecessary information will hurt your performance on this task, so prune relevant_paths_in_repo and repo_tree to keep only the absolutely necessary information.
-
-First, list all of the files and directories we should keep in do_not_remove. These files and directories will be kept.
-List any irrelevant paths in the repo in irrelevant_paths_in_repo and they will be removed.
-List any additional files or directories from the repo_tree that we don't need in irrelevant_repo_tree_paths.
-If you list a directory, you do not need to list its subdirectories or files in its subdirectories.
-Do not remove files or directories that are referenced in the issue title or descriptions.
-
-Reply in the following format:
-
-Plan to address the issue:
-* Step 1
-* Step 2
-...
-
-<do_not_remove>
-* file or directory to keep 1
-* file or directory to keep 2
-...
-</do_not_remove>
-
-<irrelevant_paths_in_repo>
-* path to irrelevant snippet 1
-* path to irrelevant snippet 2
-...
-</irrelevant_paths_in_repo>
-
-<irrelevant_repo_tree_paths>
-* irrelevant repo tree path 1
-* irrelevant repo tree path 2
-* irrelevant repo tree path 3
-...
-</irrelevant_repo_tree_paths>
-"""
 
 docs_qa_system_prompt = """You are an expert at summarizing documentation for programming-related to help the user solve the problem. You will be given a question and relevant snippets of documentation, and be asked to provide a summary of relevant snippets for solving the problem."""
 docs_qa_user_prompt = """Here are the relevant documentation snippets:
@@ -1125,6 +1068,17 @@ fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to e
 Select the smallest spans that let you handle the request. There should not be any unimplemented functions or classes.
 
 Respond in the format:
+
+Step-by-step thoughts:
+1.
+2.
+3.
+...
+
+Changes needed: Yes/No
+
+Snippets to modify:
+
 <snippet_to_modify>
 ```
 first five lines of the original snippet
@@ -1134,19 +1088,31 @@ last five lines of the original snippet (must end on code)
 </snippet_to_modify>
 """
 
-fetch_snippets_prompt = """# Code
+fetch_snippets_prompt = """
+# Code
 File path: {file_path}
+<old_code>
 ```
 {code}
 ```
+</old_code>
 
 # Request
 {request}
 
 # Instructions
-Respond with a list of all non-overlapping snippet(s) from the file above to you would like to modify.
-{chunking_prompt}
+{chunking_message}
+
 Respond in the following format:
+
+Step-by-step thoughts:
+1.
+2.
+...
+
+Changes needed: Yes/No
+
+Snippets to modify:
 
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
@@ -1156,16 +1122,29 @@ last five lines of the original snippet (must end on code)
 ```
 </snippet_to_modify>"""
 
+use_chunking_message = """\
+This is just one section of the file. Determine whether the request is asking to edit this chunk of the file. If not, respond with "No" to "Changes needed".
+
+Otherwise, respond with a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
+
+dont_use_chunking_message = """\
+Respond with a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
+
 update_snippets_system_prompt = (
     "You are a brilliant and meticulous engineer assigned to"
-    " write code for the following Github issue. When you write code, the code works on"
-    " the first try, is syntactically perfect and is complete. You have the utmost care"
+    " write code to complete the user's request. When you write code, the code works on"
+    " the first try, is syntactically perfect and is complete. You will be concise and only write comments when asked to. You have the utmost care"
     " for the code that you write, so you do not make mistakes and every function and"
     " class will be fully implemented. Take into account the current repository's"
     " language, frameworks, and dependencies. It is very important that you get this"
     " right."
     """
 Respond in the following format:
+
+Step-by-step thoughts:
+1.
+2.
+3.
 
 <updated_snippet>
 ```
@@ -1176,9 +1155,11 @@ updated lines
 
 update_snippets_prompt = """# Code
 File path: {file_path}
+<old_code>
 ```
 {code}
 ```
+</old_code>
 
 # Request
 {request}
@@ -1187,100 +1168,22 @@ File path: {file_path}
 {snippets}
 
 # Instructions
-For each snippet above, rewrite it according to their corresponding instructions.
+For each of the {n} snippets above, rewrite it according to their corresponding instructions.
 * Only rewrite within the scope of the snippet, as it will be replaced directly.
 * Do not delete whitespace or comments.
 * The output will be copied into the code LITERALLY so do not close all ending brackets
-* Remember to copy the original code for prepending.
+* To delete code insert an empty string.
 
 Respond in the following format:
+
+Step-by-step thoughts:
+1.
+2.
+3.
+...
 
 <updated_snippet>
 ```
 updated lines
 ```
 </updated_snippet>"""
-
-# Initial agent is used when deciding to explore entities initially.
-# code_graph_initial_agent = CustomInstructions(
-#     user_prompt="hi",
-#     system_prompt="Write code",
-# )
-
-# Todo: Add this to human_message prompt if using GPT-4
-gpt4_human_message_entity_prompt = """\
-Information needed from file:
-
-
-<relevant_snippet>
-...
-</relevant_snippet>
-...
-
-
-<entities_to_explore>
-...
-</entities_to_explore>
-
-
-<entities>
-chat.py:ChatGPT
-prompts.py:Messages
-human.py:RandomEntity
-</entities>
-"""
-
-# Todo: Add this to the end of files_to_change_prompt if using GPT-4
-gpt4_human_message_entity_plan_prompt = """\
-<files_to_explore>
-{file_name}
-...
-</files_to_explore>
-
-<entities_to_explore>
-{entity}
-</entities_to_explore>
-"""
-
-# Todo:
-# Explore agent will partake in the exploration.
-code_graph_explore_agent = CustomInstructions(
-    system_prompt="""You are a developer working on the following issue:
-
-<metadata>
-{metadata}
-</metadata>
-
-You must find the relevant context and information needed to perform these changes on an implementation level.
-
-
-You must return the following format:
-Snippets:
-<relevant_snippet>
-{snippet in file that is needed}
-</relevant_snippet>
-...
-
-
-Paths to Explore:
-<files_to_explore>
-{file_name}
-...
-</files_to_explore>
-
-<entities_to_explore>
-{entity}
-</entities_to_explore>
-""",
-    user_prompt=[
-        """<entity name=\"{entity_name}\" file_path=\"{file_path}\">
-{entity}
-</entity>""",
-        """You have already explored the following entities:
-<explored_already>
-{explored}
-</explored_already>
-
-You are currently exploring entity ChatGPT. Extract relevant content.""",
-    ],
-)

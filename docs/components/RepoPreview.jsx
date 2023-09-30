@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 
 export function RepoPreview({ repoName, displayName=null }) {
     const [repoData, setRepoData] = useState(null)
+    const key = `repoData-${repoName}-v0`
     const headers = {}
 
     if (!displayName) {
@@ -19,7 +20,7 @@ export function RepoPreview({ repoName, displayName=null }) {
         }
         if (localStorage) {
             try {
-                const cacheHit = localStorage.getItem(`repoData-${repoName}-v0`)
+                const cacheHit = localStorage.getItem(key)
                 if (cacheHit) {
                     const { repoData, timestamp } = JSON.parse(cacheHit)
                     if (repoData && timestamp && new Date() - new Date(timestamp) < 1000 * 60 * 60 * 24) {
@@ -32,12 +33,13 @@ export function RepoPreview({ repoName, displayName=null }) {
                 console.error("Error parsing cache hit:", error);
             }
         }
+        console.log("cache miss")
         fetchRepoData()
     }, [repoName])
 
     useEffect(() => {
         if (localStorage && repoData) {
-            localStorage.setItem(`repoData-${repoName}`, JSON.stringify({repoData, timestamp: new Date()}))
+            localStorage.setItem(key, JSON.stringify({repoData, timestamp: new Date()}))
         }
     }, [repoData])
 

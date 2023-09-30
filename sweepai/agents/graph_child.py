@@ -1,57 +1,60 @@
 import re
+
 from tree_sitter_languages import get_parser
 
 from logn import logger
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message, RegexMatchableBaseModel, Snippet
+from sweepai.core.entities import RegexMatchableBaseModel, Snippet
 
 system_prompt = """You are a genius engineer tasked with extracting the code and planning the solution to the following GitHub issue.
-Decide whether the file_path {file_path} needs to be modified to solve this issue.
+Decide whether the file_path {file_path} needs to be modified to solve this issue and the proposed solution.
 
 First determine whether changes in file_path are necessary.
-Then, if code changes need to be made in file_path, extract the relevant_new_snippet and plan code_change_description.
-Extract the code you deem necessary, and then describe the necessary code changes. Otherwise leave both sections blank.
+Then, if code changes need to be made in file_path, extract the relevant_new_snippets and write the code_change_description.
+In code_change_description, mention each relevant_new_snippet and how to modify it.
 
-# Extraction
+1. Analyze the code and extract the relevant_new_snippets.
+Extract only the relevant_new_snippets that allow us to write code_change_description for file_path.
 
-Include only the relevant snippet that provides enough detail to solve the issue.
-When writing the plan for code changes to file_path keep in mind the user can read the metadata and the relevant snippets.
-
-<code_analysis>
+<code_analysis file_path=\"{file_path}\">
 {{thought about potentially relevant snippet and its relevance to the issue}}
 ...
 </code_analysis>
 
-<relevant_new_snippet>
-{{relevant snippet from new_file in the format file_path:start_idx-end_idx}}
+<relevant_new_snippets>
+{{relevant snippet from \"{file_path}\" in the format file_path:start_idx-end_idx. Do not delete any relevant entities.}}
 ...
-</relevant_new_snippet>
+</relevant_new_snippets>
+
+2. Generate a code_change_description for \"{file_path}\".
+When writing the plan for code changes to \"{file_path}\" keep in mind the user will read the metadata and the relevant_new_snippets.
 
 <code_change_description file_path=\"{file_path}\">
-{{The changes should be constrained to the file_path and code mentioned in new_file.
-These are clear and detailed natural language descriptions of modifications to be made in new_file.
-The relevant_snippets_in_repo are read-only so focus on how .}}
+{{The changes are constrained to the file_path and code mentioned in file_path.
+These are clear and detailed natural language descriptions of modifications to be made in file_path.
+The relevant_snippets_in_repo are read-only.}}
 </code_change_description>"""
 
 NO_MODS_KWD = "#NONE"
 
 graph_user_prompt = (
-    """<metadata>
-{issue_metadata}
-</metadata>
+    """\
 <READONLY>
+<issue_metadata>
+{issue_metadata}
+</issue_metadata>
 {previous_snippets}
 
 <all_symbols_and_files>
 {all_symbols_and_files}</all_symbols_and_files>
 </READONLY>
 
-<file_path source=\"{file_path}\" entities=\"{entities}\">
+<file_path=\"{file_path}\" entities=\"{entities}\">
 {code}
 </file_path>
 
-Provide the relevant snippets and changes from the file_path above.
-If there are no relevant snippets or changes, end your message with """
+Provide the relevant_new_snippets and code_change_description to the file_path above.
+If there are no relevant_new_snippets or code_change_description, end your message with """
     + NO_MODS_KWD
 )
 
@@ -64,7 +67,7 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
 
     @classmethod
     def from_string(cls, string: str, file_path: str, **kwargs):
-        snippets_pattern = r"""<relevant_new_snippet>(\n)?(?P<relevant_new_snippet>.*)</relevant_new_snippet>"""
+        snippets_pattern = r"""<relevant_new_snippets.*?>(\n)?(?P<relevant_new_snippet>.*)</relevant_new_snippets>"""
         plan_pattern = r"""<code_change_description.*?>(\n)?(?P<code_change_description>.*)</code_change_description>"""
         snippets_match = re.search(snippets_pattern, string, re.DOTALL)
         relevant_new_snippet_match = None
@@ -86,7 +89,7 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
             generated_file_path, lines = (
                 raw_snippet.split(":")[-2],
                 raw_snippet.split(":")[-1],
-            )  # solves issue with new_file:snippet:line1-line2
+            )  # solves issue with file_path:snippet:line1-line2
             if not generated_file_path or not lines.strip():
                 continue
             generated_file_path, lines = (
@@ -140,32 +143,13 @@ class GraphChildBot(ChatGPT):
         previous_snippets,
         all_symbols_and_files,
     ) -> GraphContextAndPlan:
-        self.messages = [
-            Message(
-                role="system",
-                content=system_prompt.format(file_path=file_path),
-                key="system",
-            )
-        ]
-        code_with_line_numbers = extract_python_span(code, entities)
-
-        user_prompt = graph_user_prompt.format(
-            code=code_with_line_numbers,
+        python_snippet = extract_python_span(code, entities)
+        python_snippet.file_path = file_path
+        return GraphContextAndPlan(
+            relevant_new_snippet=[python_snippet],
+            code_change_description="",
             file_path=file_path,
-            entities=entities,
-            issue_metadata=issue_metadata,
-            previous_snippets=previous_snippets,
-            all_symbols_and_files=all_symbols_and_files,
         )
-        self.model = (
-            "gpt-4-32k-0613"
-            if (self.chat_logger and self.chat_logger.is_paying_user())
-            else "gpt-3.5-turbo-16k-0613"
-        )
-        response = self.chat(user_prompt)
-        graph_plan = GraphContextAndPlan.from_string(response, file_path=file_path)
-        graph_plan.entities = entities
-        return graph_plan
 
 
 def extract_int(s):
@@ -175,7 +159,7 @@ def extract_int(s):
     return None
 
 
-def extract_python_span(code, entities):
+def extract_python_span(code: str, entities: str):
     lines = code.split("\n")
     line_usages = {i: set() for i, line in enumerate(lines)}
 
@@ -199,6 +183,12 @@ def extract_python_span(code, entities):
                 line_usages[i].add(variable)
 
     captured_lines = set()
+
+    # Up to the first variable definition
+    for i, line in enumerate(lines):
+        if "=" in line or line.lstrip().startswith(("class ", "def ")):
+            break
+    captured_lines.update(range(i))
 
     # Capture lines around the variable usage
     for i, line in enumerate(lines):
@@ -230,7 +220,7 @@ def extract_python_span(code, entities):
         walk_tree(tree.root_node)
     except SystemExit:
         raise SystemExit
-    except Exception as e:
+    except Exception:
         print("Failed to parse python file. Using for loop instead.")
         # Capture entire subscope for class and function definitions
         for i, line in enumerate(lines):
@@ -275,18 +265,11 @@ def extract_python_span(code, entities):
         if previous_line_number != -1 and i - previous_line_number > 1:
             result.append("...")
 
-        mentioned_entities = line_usages.get(i, [])
-        if mentioned_entities:
-            mentioned_entities_str = ", ".join(mentioned_entities)
-            result.append(
-                f"{i + 1} {line} <- {mentioned_entities_str} is mentioned here"
-            )
-        else:
-            result.append(f"{i + 1} {line}")
+        result.append(f"{line}")
 
         previous_line_number = i
 
-    return "\n".join(result)
+    return Snippet(file_path="", start=0, end=0, content="\n".join(result))
 
 
 if __name__ == "__main__":
@@ -1700,11 +1683,179 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
-            return False, sandbox_error, None'''
+            return False, sandbox_error, None
+class ModifyBot:
+    def __init__(
+        self,
+        additional_messages: list[Message] = [],
+        chat_logger=None,
+        parent_bot: SweepBot = None,
+        is_pr: bool = False,
+    ):
+        self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
+            fetch_snippets_system_prompt, chat_logger=chat_logger
+        )
+        self.fetch_snippets_bot.messages.extend(additional_messages)
+        self.update_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
+            update_snippets_system_prompt, chat_logger=chat_logger
+        )
+        self.update_snippets_bot.messages.extend(additional_messages)
+        self.parent_bot = parent_bot
+
+    def try_update_file(
+        self,
+        file_path: str,
+        file_contents: str,
+        file_change_request: FileChangeRequest,
+        chunking: bool = False,
+    ):
+        snippet_queries = self.get_snippets_to_modify(
+            file_path=file_path,
+            file_contents=file_contents,
+            file_change_request=file_change_request,
+            chunking=chunking,
+        )
+
+        new_file = self.update_file(
+            file_path=file_path,
+            file_contents=file_contents,
+            file_change_request=file_change_request,
+            snippet_queries=snippet_queries,
+            chunking=chunking,
+        )
+        return new_file
+
+    def get_snippets_to_modify(
+        self,
+        file_path: str,
+        file_contents: str,
+        file_change_request: FileChangeRequest,
+        chunking: bool = False,
+    ):
+        fetch_snippets_response = self.fetch_snippets_bot.chat(
+            fetch_snippets_prompt.format(
+                code=file_contents,
+                file_path=file_path,
+                request=file_change_request.instructions,
+                chunking_prompt='\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n'
+                if chunking
+                else "",
+            )
+        )
+
+        snippet_queries = []
+        query_pattern = r"<snippet_to_modify.*?>(?P<code>.*?)</snippet_to_modify>"
+        for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
+            snippet_queries.append(strip_backticks(code))
+
+        assert len(snippet_queries) > 0, "No snippets found in file"
+        return snippet_queries
+
+    def update_file(
+        self,
+        file_path: str,
+        file_contents: str,
+        file_change_request: FileChangeRequest,
+        snippet_queries: list[str],
+        chunking: bool = False,
+    ):
+        best_matches = []
+        for query in snippet_queries:
+            _match = find_best_match(query, file_contents)
+            if _match.score > 50:
+                best_matches.append(_match)
+
+        assert len(best_matches) > 0, "No matches found in file"
+
+        # Todo: check multiple files for matches using PR changed files
+
+        best_matches.sort(key=lambda x: x.start + x.end * 0.001)
+
+        def fuse_matches(a: Match, b: Match) -> Match:
+            return Match(
+                start=min(a.start, b.start),
+                end=max(a.end, b.end),
+                score=min(a.score, b.score),
+            )
+
+        current_match = best_matches[0]
+        deduped_matches = []
+
+        # Fuse & dedup
+        for _match in best_matches:
+            if current_match.end > _match.start:
+                current_match = fuse_matches(current_match, _match)
+            else:
+                deduped_matches.append(current_match)
+                current_match = _match
+        deduped_matches.append(current_match)
+        selected_snippets = []
+        for _match in deduped_matches:
+            current_contents = "\n".join(
+                file_contents.split("\n")[_match.start : _match.end]
+            )
+            selected_snippets.append(current_contents)
+
+        print(deduped_matches)
+        if file_change_request.start_and_end_lines:
+            plan_extracted_contents = ""
+            for start_line, end_line in file_change_request.start_and_end_lines:
+                split_file_contents = "\n".join(
+                    file_contents.split("\n")[start_line - 1 : end_line]
+                )
+                plan_extracted_contents += f"<{file_change_request.filename}:{start_line}-{end_line}>\n"
+                plan_extracted_contents += split_file_contents
+                plan_extracted_contents += "...\n"
+        else:
+            plan_extracted_contents = file_contents
+
+        update_snippets_response = self.update_snippets_bot.chat(
+            update_snippets_prompt.format(
+                code=plan_extracted_contents,
+                file_path=file_path,
+                snippets="\n\n".join(
+                    [
+                        f"<snippet>\n{snippet}\n</snippet>"
+                        for i, snippet in enumerate(selected_snippets)
+                    ]
+                ),
+                request=file_change_request.instructions,
+            )
+        )
+
+        updated_snippets = []
+        updated_pattern = r"<updated_snippet>(?P<code>.*?)</updated_snippet>"
+        for code in re.findall(updated_pattern, update_snippets_response, re.DOTALL):
+            formatted_code = strip_backticks(code)
+            formatted_code = remove_line_numbers(formatted_code)
+            updated_snippets.append(formatted_code)
+
+        result = file_contents
+        for search, replace in zip(selected_snippets, updated_snippets):
+            result, _, _ = sliding_window_replacement(
+                result.splitlines(),
+                search.splitlines(),
+                match_indent(replace, search).splitlines(),
+            )
+            result = "\n".join(result)
+
+        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
+        result = result.rstrip("\n") + "\n" * ending_newlines
+
+        return result
+
+
+if __name__ == "__main__":
+    response = """
+```python
+```"""
+    stripped = strip_backticks(response)
+    print(stripped)
+'''
 
     print(extract_int("10, 10-11 (message)"))
     print("\nExtracting Span:")
-    span = extract_python_span(file, ["ModifyBot"])
+    span = extract_python_span(file, ["global"]).content
     print(span)
 
     # test response for plan
@@ -1739,5 +1890,4 @@ Please replace 'is_python_issue' with the actual value of the bool.
     gc_and_plan = GraphContextAndPlan.from_string(
         response, "sweepai/handlers/on_ticket.py"
     )
-    print(gc_and_plan.code_change_description)
-    # import pdb; pdb.set_trace()
+    # print(gc_and_plan.code_change_description)

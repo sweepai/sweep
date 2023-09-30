@@ -1,16 +1,16 @@
 {
-  "action": "labeled",
+  "action": "edited",
   "issue": {
-    "url": "https://api.github.com/repos/sweepai/sweep/issues/1747",
+    "url": "https://api.github.com/repos/sweepai/sweep/issues/1915",
     "repository_url": "https://api.github.com/repos/sweepai/sweep",
-    "labels_url": "https://api.github.com/repos/sweepai/sweep/issues/1747/labels{/name}",
-    "comments_url": "https://api.github.com/repos/sweepai/sweep/issues/1747/comments",
-    "events_url": "https://api.github.com/repos/sweepai/sweep/issues/1747/events",
-    "html_url": "https://github.com/sweepai/sweep/issues/1747",
-    "id": 1905872200,
-    "node_id": "I_kwDOJvTCgM5xmU1I",
-    "number": 1747,
-    "title": "Sweep: Posthog logging",
+    "labels_url": "https://api.github.com/repos/sweepai/sweep/issues/1915/labels{/name}",
+    "comments_url": "https://api.github.com/repos/sweepai/sweep/issues/1915/comments",
+    "events_url": "https://api.github.com/repos/sweepai/sweep/issues/1915/events",
+    "html_url": "https://github.com/sweepai/sweep/issues/1915",
+    "id": 1912869093,
+    "node_id": "I_kwDOJvTCgM5yBBDl",
+    "number": 1915,
+    "title": "Sweep: Update deeplake references to use better error logs.",
     "user": {
       "login": "wwzeng1",
       "id": 44910023,
@@ -49,16 +49,16 @@
 
     ],
     "milestone": null,
-    "comments": 0,
-    "created_at": "2023-09-21T00:11:58Z",
-    "updated_at": "2023-09-21T00:11:58Z",
+    "comments": 1,
+    "created_at": "2023-09-26T07:25:54Z",
+    "updated_at": "2023-09-28T01:03:54Z",
     "closed_at": null,
     "author_association": "CONTRIBUTOR",
     "active_lock_reason": null,
-    "body": "### Details\n\nMove the is_python_issue bool in sweep_bot to the on_ticket.py flow. Use the metadata in on_ticket to log this as an event to posthog, and then pass this to get_files_to_change",
+    "body": "\n\n\n<details open>\n<summary>Checklist</summary>\n\n- [ ] `sweepai/core/vector_db.py`\n- [ ] `sweepai/handlers/on_review.py`\n- [ ] `sweepai/utils/search_utils.py`\n</details>\n",
     "reactions": {
-      "url": "https://api.github.com/repos/sweepai/sweep/issues/1747/reactions",
-      "total_count": 0,
+      "url": "https://api.github.com/repos/sweepai/sweep/issues/1915/reactions",
+      "total_count": 1,
       "+1": 0,
       "-1": 0,
       "laugh": 0,
@@ -66,20 +66,19 @@
       "confused": 0,
       "heart": 0,
       "rocket": 0,
-      "eyes": 0
+      "eyes": 1
     },
-    "timeline_url": "https://api.github.com/repos/sweepai/sweep/issues/1747/timeline",
+    "timeline_url": "https://api.github.com/repos/sweepai/sweep/issues/1915/timeline",
     "performed_via_github_app": null,
     "state_reason": null
   },
-  "label": {
-    "id": 5621414028,
-    "node_id": "LA_kwDOJvTCgM8AAAABTw_4jA",
-    "url": "https://api.github.com/repos/sweepai/sweep/labels/sweep",
-    "name": "sweep",
-    "color": "5320E7",
-    "default": false,
-    "description": "Assigns Sweep to an issue or pull request."
+  "changes": {
+    "body": {
+      "from": "\n\n\n<details open>\n<summary>Checklist</summary>\n\n- [ ] `sweepai/core/vector_db.py`\n- [ ] `sweepai/handlers/on_review.py`\n- [ ] `sweepai/utils/search_utils.py`\n</details>\n"
+    },
+    "title": {
+      "from": "Sweep: Update deeplake references to use better error logs"
+    }
   },
   "repository": {
     "id": 653574784,
@@ -148,16 +147,16 @@
     "releases_url": "https://api.github.com/repos/sweepai/sweep/releases{/id}",
     "deployments_url": "https://api.github.com/repos/sweepai/sweep/deployments",
     "created_at": "2023-06-14T10:08:07Z",
-    "updated_at": "2023-09-20T19:55:17Z",
-    "pushed_at": "2023-09-21T00:10:19Z",
+    "updated_at": "2023-09-27T22:54:57Z",
+    "pushed_at": "2023-09-27T23:52:04Z",
     "git_url": "git://github.com/sweepai/sweep.git",
     "ssh_url": "git@github.com:sweepai/sweep.git",
     "clone_url": "https://github.com/sweepai/sweep.git",
     "svn_url": "https://github.com/sweepai/sweep",
     "homepage": "https://sweep.dev",
-    "size": 44321,
-    "stargazers_count": 5389,
-    "watchers_count": 5389,
+    "size": 45294,
+    "stargazers_count": 5442,
+    "watchers_count": 5442,
     "language": "Python",
     "has_issues": true,
     "has_projects": false,
@@ -165,11 +164,11 @@
     "has_wiki": false,
     "has_pages": false,
     "has_discussions": true,
-    "forks_count": 208,
+    "forks_count": 213,
     "mirror_url": null,
     "archived": false,
     "disabled": false,
-    "open_issues_count": 415,
+    "open_issues_count": 479,
     "license": {
       "key": "other",
       "name": "Other",
@@ -192,9 +191,9 @@
       "llm"
     ],
     "visibility": "public",
-    "forks": 208,
-    "open_issues": 415,
-    "watchers": 5389,
+    "forks": 213,
+    "open_issues": 479,
+    "watchers": 5442,
     "default_branch": "main"
   },
   "organization": {

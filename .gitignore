@@ -131,6 +131,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.pythonlibs
 
 # Spyder project settings
 .spyderproject
@@ -180,3 +181,4 @@ repo.tar
 
 **logn_logs/
 logn_logs*
+sweep_docs/

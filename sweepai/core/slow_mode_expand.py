@@ -2,8 +2,8 @@ from logn import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import ExpandedPlan, Message
 from sweepai.core.prompts import (
-    slow_mode_system_prompt,
     generate_plan_and_queries_prompt,
+    slow_mode_system_prompt,
 )
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 

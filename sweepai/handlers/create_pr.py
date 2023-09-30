@@ -6,13 +6,12 @@ import datetime
 from typing import Generator
 
 import openai
-from github.Repository import Repository
 from github.Commit import Commit
-from logn import logger
+from github.Repository import Repository
 
+from logn import logger
 from sweepai.config.client import UPDATES_MESSAGE, SweepConfig, get_blocked_dirs
 from sweepai.config.server import (
-    DB_MODAL_INST_NAME,
     ENV,
     GITHUB_BOT_USERNAME,
     GITHUB_CONFIG_BRANCH,
@@ -25,11 +24,9 @@ from sweepai.core.entities import (
     FileChangeRequest,
     MaxTokensExceeded,
     MockPR,
-    ProposedIssue,
     PullRequest,
 )
 from sweepai.core.sweep_bot import SweepBot
-from sweepai.events import InstallationCreatedRequest
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
@@ -127,12 +124,10 @@ def create_pr_changes(
             )
 
             # Todo: if no changes were made, delete branch
-            error_msg = "No changes made"
             commits = sweep_bot.repo.get_commits(pull_request.branch_name)
             if commits.totalCount == 0:
                 branch = sweep_bot.repo.get_git_ref(f"heads/{pull_request.branch_name}")
                 branch.delete()
-                error_msg = "No changes made. Branch deleted."
 
             return
         # Include issue number in PR description
@@ -238,7 +233,7 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
             return
         except SystemExit:
             raise SystemExit
-        except Exception as e:
+        except Exception:
             pass
 
     title = "Configure Sweep"

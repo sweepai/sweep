@@ -1,15 +1,13 @@
-from dataclasses import dataclass
 import os
 import re
 import string
-from logn import logger
-from typing import ClassVar, Literal, Type, TypeVar, Any, List
-from github.Repository import Repository
-
-from github.Branch import Branch
-from pydantic import BaseModel
+from dataclasses import dataclass
+from typing import Any, ClassVar, List, Literal, Type, TypeVar
 from urllib.parse import quote
 
+from pydantic import BaseModel
+
+from logn import logger
 from sweepai.utils.event_logger import set_highlight_id
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
@@ -114,46 +112,6 @@ class IssueTitleAndDescription(RegexMatchableBaseModel):
         )
 
 
-class ContextToPrune(RegexMatchableBaseModel):
-    excluded_dirs: list[str] = []
-    excluded_snippets: list[str] = []
-
-    @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        excluded_dirs = []
-        excluded_snippets = []
-        irrelevant_paths_in_repo_pattern = r"""<irrelevant_paths_in_repo>(\n)?(?P<irrelevant_paths_in_repo>.*)</irrelevant_paths_in_repo>"""
-        irrelevant_paths_in_repo_match = re.search(
-            irrelevant_paths_in_repo_pattern, string, re.DOTALL
-        )
-        for path in irrelevant_paths_in_repo_match.groupdict()[
-            "irrelevant_paths_in_repo"
-        ].split("\n"):
-            path = path.strip()
-            path = path.replace("* ", "")
-            path = path.replace("...", "")
-            if len(path) > 1:
-                logger.info(f"Excluding path: {path}")
-                excluded_snippets.append(path)
-        irrelevant_repo_tree_paths_pattern = r"""<irrelevant_repo_tree_paths>(\n)?(?P<irrelevant_repo_tree_paths>.*)</irrelevant_repo_tree_paths>"""
-        irrelevant_repo_tree_paths_match = re.search(
-            irrelevant_repo_tree_paths_pattern, string, re.DOTALL
-        )
-        for path in irrelevant_repo_tree_paths_match.groupdict()[
-            "irrelevant_repo_tree_paths"
-        ].split("\n"):
-            path = path.strip()
-            path = path.replace("* ", "")
-            path = path.replace("...", "")
-            if len(path) > 1:
-                logger.info(f"Excluding path: {path}")
-                excluded_dirs.append(path)
-        return cls(
-            excluded_dirs=excluded_dirs,
-            excluded_snippets=excluded_snippets,
-        )
-
-
 class ExpandedPlan(RegexMatchableBaseModel):
     queries: str
     additional_instructions: str
@@ -194,10 +152,11 @@ class FileChangeRequest(RegexMatchableBaseModel):
     change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal[
         "rename"
     ] | Literal["rewrite"]
-    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\">(?P<instructions>.*?)<\/\1>"""
+    _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\"( entity=\"(?P<entity>.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?>(?P<instructions>.*?)<\/\1>"""
+    entity: str | None = None
     new_content: str | None = None
+    raw_relevant_files: str | None = None
     start_and_end_lines: list[tuple] | None = []
-
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
@@ -207,6 +166,17 @@ class FileChangeRequest(RegexMatchableBaseModel):
         if result.instructions.startswith("*"):
             result.instructions = "•" + result.instructions[1:]
         return result
+
+    @property
+    def relevant_files(self):
+        if not self.raw_relevant_files:
+            return []
+
+        return [
+            relevant_file
+            for relevant_file in self.raw_relevant_files.split(",")
+            if relevant_file != self.filename
+        ]
 
     @property
     def instructions_display(self):
@@ -227,7 +197,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
 class FileCreation(RegexMatchableBaseModel):
     commit_message: str
     code: str
-    _regex = r"""<new_file>(?P<code>.*)</new_file>"""
+    _regex = r"""<new_file(.*?)>(?P<code>.*)</new_file>"""
     # Regex updated to support ``` outside of <new_file> tags
 
     @classmethod
@@ -479,11 +449,11 @@ class SweepContext(BaseModel):  # type: ignore
     class Config:
         arbitrary_types_allowed = True
 
-    username: str
+    # username: str
     issue_url: str
     use_faster_model: bool
-    is_paying_user: bool
-    repo: Repository
+    # is_paying_user: bool
+    # repo: Repository
     token: Any = None
 
     _static_instance: Any = None
@@ -493,8 +463,6 @@ class SweepContext(BaseModel):  # type: ignore
         sweep_context = cls(**kwargs)
         if SweepContext._static_instance is None:
             SweepContext._static_instance = sweep_context
-            set_highlight_id(sweep_context.issue_url)
-            # logger.bind(**kwargs)
         return sweep_context
 
     @staticmethod
@@ -529,13 +497,16 @@ class MaxTokensExceeded(Exception):
     def __init__(self, filename):
         self.filename = filename
 
+
 class UnneededEditError(Exception):
     def __init__(self, filename):
         self.filename = filename
 
+
 class MatchingError(Exception):
     def __init__(self, filename):
         self.filename = filename
+
 
 class EmptyRepository(Exception):
     def __init__(self):

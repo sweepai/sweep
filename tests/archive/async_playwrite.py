@@ -1,11 +1,10 @@
-import asyncio
 import os
 import re
 
-from playwright.async_api import async_playwright
 from bs4 import BeautifulSoup
-from tqdm import tqdm
 from markdownify import markdownify as md
+from playwright.async_api import async_playwright
+from tqdm import tqdm
 
 # BASE_URL_PREFIX = "https://python.langchain.com/docs/additional_resources"
 # BASE_URL_PREFIX = "https://react.dev"

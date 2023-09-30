@@ -2,18 +2,15 @@
 Take a PR and provide an AI generated review of the PR.
 """
 from logn import logger
-
 from sweepai.config.server import MONGODB_URI
 from sweepai.core.entities import DiffSummarization, PullRequestComment
 from sweepai.core.prompts import review_prompt
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.github_utils import ClonedRepo
 from sweepai.utils.prompt_constructor import (
     HumanMessageFinalPRComment,
     HumanMessagePromptReview,
 )
-
 
 # Plan:
 # 1. Get PR

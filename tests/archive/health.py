@@ -1,8 +1,9 @@
 import json
-import requests
 import time
 
-from sweepai.config.server import SWEEP_HEALTH_URL, DISCORD_STATUS_WEBHOOK_URL
+import requests
+
+from sweepai.config.server import DISCORD_STATUS_WEBHOOK_URL
 
 
 def log_discord(message):

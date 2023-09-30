@@ -79,4 +79,15 @@ DOCS_ENDPOINTS = {
         "https://github.com/nucypher/nucypher",
         "NuCypher is a Python library for building privacy-preserving applications.",
     ),
+    "Stripe": (
+        "https://docs.stripe.com/",
+        "Stripe is a platform used to help companies accept payments, send payouts, automate financial processes, and grow revenue.",
+    ),
 }
+
+if __name__ == "__main__":
+    for title, (url, description) in DOCS_ENDPOINTS.items():
+        assert title, f"Title for {url} must not be empty"
+        assert url.startswith("http"), f"URL {url} must start with http"
+        assert description, f"Description for {title} must not be empty"
+    print(f"Found {len(DOCS_ENDPOINTS)} docs.")

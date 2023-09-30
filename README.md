@@ -20,6 +20,9 @@
     <a href="https://github.com/sweepai/sweep">
         <img src="https://img.shields.io/github/commit-activity/m/sweepai/sweep" />
     </a>
+    <a href="https://uptime.betterstack.com/?utm_source=status_badge">
+        <img src="https://uptime.betterstack.com/status-badges/v1/monitor/v3bu.svg" alt="Better Stack Badge">
+    </a>
 </p>
 
 *🎉 We recently changed our license to the Elastic License V2 to allow Sweep for commercial usage. Check out https://docs.sweep.dev/deployment*
@@ -129,7 +132,6 @@ We plan on rapidly improving Sweep. To see what we're working on, check out our 
 ## Contributing
 
 Contributions are welcome and greatly appreciated! To get set up, see [Development](https://github.com/sweepai/sweep#development). For detailed guidelines on how to contribute, please see the [CONTRIBUTING.md](CONTRIBUTING.md) file.
-* [Sweep Docs](https://docs.sweep.dev/).
 
 
 <h2 align="center">
@@ -146,3 +148,9 @@ Contributions are welcome and greatly appreciated! To get set up, see [Developme
 <p align="center">
     and, of course, Sweep!
 </p>
+
+---
+
+## Footer
+
+This is a placeholder for the footer content.

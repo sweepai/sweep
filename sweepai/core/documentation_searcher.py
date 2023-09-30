@@ -1,16 +1,12 @@
 from logn import logger
-from sweepai.config.server import DOCS_MODAL_INST_NAME
-
 from sweepai.core.chat import ChatGPT
 from sweepai.core.documentation import DOCS_ENDPOINTS, search_vector_store
 from sweepai.core.entities import Message
-from sweepai.core.prompts import docs_qa_system_prompt, docs_qa_user_prompt
-
-from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message
 from sweepai.core.prompts import (
-    doc_query_rewriter_system_prompt,
     doc_query_rewriter_prompt,
+    doc_query_rewriter_system_prompt,
+    docs_qa_system_prompt,
+    docs_qa_user_prompt,
 )
 from sweepai.utils.chat_logger import ChatLogger
 
@@ -31,7 +27,7 @@ class DocQueryRewriter(ChatGPT):
         self.model = "gpt-3.5-turbo-16k-0613"  # can be optimized
         response = self.chat(doc_query_rewriter_prompt.format(issue=issue))
         self.undo()
-        return response.strip() + "\n"
+        return response.strip().strip('"') + "\n"
 
 
 def extract_docs_links(content: str, user_dict: dict) -> list[str]:
@@ -39,6 +35,10 @@ def extract_docs_links(content: str, user_dict: dict) -> list[str]:
     logger.info(content)
     # add the user_dict to DOC_ENDPOINTS
     assert isinstance(user_dict, dict), "user_dict must be a dict"
+    for value in user_dict.values():
+        if not len(value) == 2:
+            logger.error(user_dict)
+            raise Exception("user_dict values must be tuples of length 2")
     if user_dict:
         DOCS_ENDPOINTS.update(user_dict)
     for framework, (url, _) in DOCS_ENDPOINTS.items():
@@ -58,8 +58,6 @@ class DocumentationSearcher(ChatGPT):
     def extract_resources(
         self, url: str, content: str, user_dict: dict, chat_logger: ChatLogger
     ) -> str:
-        # MVP
-        docs_search = search_vector_store
         description = ""
         package = ""
         for framework, (package_url, description) in DOCS_ENDPOINTS.items():
@@ -70,7 +68,7 @@ class DocumentationSearcher(ChatGPT):
         rewritten_problem = DocQueryRewriter(
             chat_logger=chat_logger, model="gpt-3.5-turbo-16k-0613"
         ).rewrite_query(package=package, description=description, issue=content)
-        urls, docs = docs_search(url, rewritten_problem)
+        urls, docs = search_vector_store(url, rewritten_problem)
 
         self.messages = [
             Message(
@@ -96,7 +94,7 @@ def extract_relevant_docs(content: str, user_dict: dict, chat_logger: ChatLogger
     links = extract_docs_links(content, user_dict)
     if not links:
         return ""
-    result = "\n\n### I also found some related docs:\n\n"
+    result = "\n### I also found some related docs:\n"
     for link in links:
         logger.info(f"Fetching docs summary from {link}")
         try:
@@ -111,4 +109,4 @@ def extract_relevant_docs(content: str, user_dict: dict, chat_logger: ChatLogger
             raise SystemExit
         except Exception as e:
             logger.error(f"Docs search error: {e}")
-    return result
+    return result if result != "\n### I also found some related docs:\n" else ""

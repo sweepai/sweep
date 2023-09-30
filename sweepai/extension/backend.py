@@ -1,14 +1,15 @@
 import os
-import modal
-from pydantic import BaseModel
-from fastapi import FastAPI
-import requests
 from urllib.parse import parse_qs
-from loguru import logger
-from github import Github
 
+import modal
+import requests
+from fastapi import FastAPI
+from github import Github
+from loguru import logger
+from pydantic import BaseModel
+
+from sweepai.config.server import ENV
 from sweepai.utils.event_logger import posthog
-from sweepai.config.server import ENV, BOT_TOKEN_NAME
 
 GITHUB_OAUTH_URL = "https://github.com/login/oauth/access_token"
 
@@ -59,7 +60,7 @@ def _asgi_app():
         else:
             # parse response
             parsed = parse_qs(response.text)
-            access_token = parsed.get("access_token")[0]
+            parsed.get("access_token")[0]
             return "Successfully authorized."
 
     @asgi_app.post("/auth")

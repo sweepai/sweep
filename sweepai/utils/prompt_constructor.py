@@ -1,19 +1,19 @@
-from logn import logger
 from pydantic import BaseModel
 
+from logn import logger
 from sweepai.core.prompts import (
-    human_message_prompt,
-    python_human_message_prompt,
-    human_message_prompt_comment,
-    human_message_review_prompt,
     diff_section_prompt,
     final_review_prompt,
+    human_message_prompt,
+    human_message_prompt_comment,
+    human_message_review_prompt,
+    python_human_message_prompt,
 )
 
 
 class HumanMessagePrompt(BaseModel):
     repo_name: str
-    issue_url: str
+    issue_url: str | None
     username: str
     title: str
     summary: str
@@ -27,56 +27,60 @@ class HumanMessagePrompt(BaseModel):
             snippet for snippet in self.snippets if snippet.file_path != file_path
         ]
 
-    def get_relevant_directories(self):
+    def get_relevant_directories(self, directory_tag = None):
         deduped_paths = []
         for snippet in self.snippets:
             if snippet.file_path not in deduped_paths:
                 deduped_paths.append(snippet.file_path)
         if len(deduped_paths) == 0:
             return ""
+        start_directory_tag = "<relevant_paths_in_repo>" if not directory_tag else f"<{directory_tag}>"
+        end_directory_tag = "</relevant_paths_in_repo>" if not directory_tag else f"</{directory_tag}>"
         return (
-            "<relevant_paths_in_repo>"
+            start_directory_tag
             + "\n"
             + "\n".join(deduped_paths)
             + "\n"
-            + "</relevant_paths_in_repo>"
+            + end_directory_tag
         )
 
     def get_file_paths(self):
         return [snippet.file_path for snippet in self.snippets]
 
     @staticmethod
-    def render_snippet_array(snippets):
+    def render_snippet_array(snippets, snippet_tag = None):
         joined_snippets = "\n".join([snippet.xml for snippet in snippets])
+        start_snippet_tag = "<relevant_snippets_in_repo>" if not snippet_tag else f"<{snippet_tag}>"
+        end_snippet_tag = "</relevant_snippets_in_repo>" if not snippet_tag else f"</{snippet_tag}>"
         if joined_snippets.strip() == "":
             return ""
         return (
-            "<relevant_snippets_in_repo>"
+            start_snippet_tag
             + "\n"
             + joined_snippets
             + "\n"
-            + "</relevant_snippets_in_repo>"
+            + end_snippet_tag
         )
 
     def render_snippets(self):
         return self.render_snippet_array(self.snippets)
 
-    def construct_prompt(self):
+    def construct_prompt(self, snippet_tag = None, directory_tag = None):
         human_messages = [
             {
                 "role": msg["role"],
                 "content": msg["content"].format(
                     repo_name=self.repo_name,
-                    issue_url=self.issue_url,
-                    username=self.username,
+                    issue_url=f"Issue Url: {self.issue_url}\n" if self.issue_url else "\n",
+                    username=self.username ,
                     repo_description=self.repo_description,
                     tree=self.tree,
                     title=self.title,
                     description=self.summary
                     if self.summary
                     else "No description provided.",
-                    relevant_snippets=self.render_snippets(),
-                    relevant_directories=self.get_relevant_directories(),
+                    relevant_snippets=self.render_snippet_array(self.snippets, snippet_tag),
+                    relevant_directories=self.get_relevant_directories(directory_tag),
                 ),
                 "key": msg.get("key"),
             }
@@ -95,8 +99,6 @@ Issue Description: {self.summary}
 
 
 class PythonHumanMessagePrompt(HumanMessagePrompt):
-    plan_suggestions: list
-
     def construct_prompt(self):
         human_messages = [
             {
@@ -113,13 +115,21 @@ class PythonHumanMessagePrompt(HumanMessagePrompt):
                     else "No description provided.",
                     relevant_snippets=self.render_snippets(),
                     relevant_directories=self.get_relevant_directories(),
-                    plan_suggestions="\n".join(self.plan_suggestions),
                 ),
                 "key": msg.get("key"),
             }
             for msg in python_human_message_prompt
         ]
         return human_messages
+
+    def render_snippets(self):
+        res = ""
+        for snippet in self.snippets:
+            snippet_text = (
+                f"<snippet source={snippet.file_path}>\n{snippet.content}\n</snippet>\n"
+            )
+            res += snippet_text
+        return res
 
 
 class HumanMessagePromptReview(HumanMessagePrompt):
@@ -168,6 +178,7 @@ class HumanMessagePromptReview(HumanMessagePrompt):
 class HumanMessageCommentPrompt(HumanMessagePrompt):
     comment: str
     diffs: list
+    relevant_docs: str| None
     pr_file_path: str | None
     pr_chunk: str | None
     original_line: str | None
@@ -205,6 +216,7 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
                     else "No description provided.",
                     relevant_directories=self.get_relevant_directories(),
                     relevant_snippets=self.render_snippets(),
+                    relevant_docs=f"\n{self.relevant_docs}" if self.relevant_docs else "", # conditionally add newline
                 ),
             }
             for msg in human_message_prompt_comment
