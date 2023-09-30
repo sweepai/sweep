@@ -103,10 +103,18 @@ We recommend starting with the formatters, followed by the linters and type-chec
 
 To ensure that your sandbox is set up properly, you can test it locally.
 
-If you ran the installation script at the top, `sweep-sandbox` should be fully installed by now. Ensure that `sweep-sandbox` is installed properly by running `sweep-sandbox --help`. Then execute the following in the base of your repo in the following format:
+If you ran the installation script at the top, `sweep-sandbox` should be fully installed by now. Ensure that `sweep-sandbox` is installed properly by running `sweep-sandbox --help`.
+
+Then, `cd` into the root of your directory and execute the following in the base of your repo in the following format:
 
 ```sh
-sweep-sandbox FILE_PATH
+sweep-sandbox
 ```
 
-Replacing FILE_PATH with the file or directory you want `sweep-sandbox` to run on. For example in the Sweep repo, we run `sweep-sandbox sweepai` to run `pylint` on the entire `sweepai` directory and `sweep-sandbox sweepai/api.py` to check the single file `api.py`.
+By default it will run this on the last file you edited. If you want to run it on a specific file or directory, you can run:
+
+```sh
+sweep-sandbox --file-path FILE_PATH
+```
+
+Replacing FILE_PATH with the file or directory you want `sweep-sandbox` to run on. For example in the Sweep repo, we run `sweep-sandbox sweepai/api.py` to check the file `api.py`.

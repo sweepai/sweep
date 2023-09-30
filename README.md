@@ -20,6 +20,9 @@
     <a href="https://github.com/sweepai/sweep">
         <img src="https://img.shields.io/github/commit-activity/m/sweepai/sweep" />
     </a>
+    <a href="https://uptime.betterstack.com/?utm_source=status_badge">
+        <img src="https://uptime.betterstack.com/status-badges/v1/monitor/v3bu.svg" alt="Better Stack Badge">
+    </a>
 </p>
 
 *🎉 We recently changed our license to the Elastic License V2 to allow Sweep for commercial usage. Check out https://docs.sweep.dev/deployment*
