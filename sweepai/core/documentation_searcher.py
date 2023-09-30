@@ -94,7 +94,7 @@ def extract_relevant_docs(content: str, user_dict: dict, chat_logger: ChatLogger
     links = extract_docs_links(content, user_dict)
     if not links:
         return ""
-    result = "\n\n### I also found some related docs:\n\n"
+    result = "\n### I also found some related docs:\n"
     for link in links:
         logger.info(f"Fetching docs summary from {link}")
         try:
@@ -109,4 +109,4 @@ def extract_relevant_docs(content: str, user_dict: dict, chat_logger: ChatLogger
             raise SystemExit
         except Exception as e:
             logger.error(f"Docs search error: {e}")
-    return result
+    return result if result != "\n### I also found some related docs:\n" else ""
