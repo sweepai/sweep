@@ -1,6 +1,6 @@
 import os
 
-import httpx
+import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
@@ -20,10 +20,9 @@ print(f"DEV_URL: {DEV_URL}")
 print(f"BACKUP_DEV_URL: {BACKUP_URL}")
 
 
-async def is_dev_up():
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(f"{DEV_URL}{HEALTH_ENDPOINT}")
-    return resp.status_code == 200
+def is_dev_up():
+    response = requests.get(f"{DEV_URL}{HEALTH_ENDPOINT}")
+    return response.status_code == 200
 
 
 @app.api_route(
@@ -32,6 +31,6 @@ async def is_dev_up():
     include_in_schema=False,
 )
 async def forward_request(path: str, request: Request):
-    target_url = DEV_URL if await is_dev_up() else BACKUP_URL
+    target_url = DEV_URL if is_dev_up() else BACKUP_URL
     print(f"Forwarding request to {target_url}/{path}")
     return RedirectResponse(url=f"{target_url}/{path}")
