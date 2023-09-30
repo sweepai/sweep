@@ -127,8 +127,8 @@ sandbox:
   install:
     - trunk init
   check:
-    - trunk fmt {file_path}
-    - trunk check --fix {file_path}
+    - trunk fmt {{file_path}}
+    - trunk check --fix {{file_path}}
 
 # This setting contains a list of rules that Sweep will check for. If any of these rules are broken in a new commit, Sweep will create an pull request to fix the broken rule.
 rules:

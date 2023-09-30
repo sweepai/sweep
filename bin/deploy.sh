@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Remove old docker images only after 4 runs to allow for rollbacks.
+# Remove old docker images only after 2 runs to allow for rollbacks.
 # Docker images also need to finish processing their requests before they can be removed.
 echo `docker ps`
-containers_to_remove=$(docker ps -q | awk 'NR>4')
+containers_to_remove=$(docker ps -q | awk 'NR>2')
 
 if [ ! -z "$containers_to_remove" ]; then
     echo "Removing old docker runs"
@@ -13,7 +13,7 @@ else
 fi
 
 # Find next available port to deploy to
-PORT=8082
+PORT=8081
 is_port_free() {
     lsof -i :$1 > /dev/null
     return $?
