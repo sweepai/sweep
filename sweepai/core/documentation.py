@@ -174,10 +174,10 @@ def search_vector_store(doc_url, query, k=100):
     final_docs = []
     final_urls = []
     for url, doc in sorted_docs:
-        if len("".join(final_docs)) + len(doc) < 20000:
+        if url not in final_urls and len("".join(final_docs)) + len(doc) < 20000:
             final_docs.append(doc)
             final_urls.append(url)
-        else:
+        elif len("".join(final_docs)) + len(doc) > 20000:
             break
     logger.info("Done searching vector store")
     return final_urls, final_docs

@@ -196,7 +196,7 @@ human_message_prompt_comment = [
 Repo: {repo_name}: {repo_description}
 {issue_url}Username: {username}
 Pull Request Title: {title}
-Pull Request Description: {description}""",
+Pull Request Description: {description}{relevant_docs}""",
     },
     {
         "role": "user",

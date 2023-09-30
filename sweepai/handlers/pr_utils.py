@@ -121,7 +121,7 @@ def make_pr(
         is_reply=False,
         chat_logger=chat_logger,
         cloned_repo=cloned_repo,
-        sweep_context=SweepContext(token=user_token),
+        sweep_context=SweepContext(issue_url="", use_faster_model=use_faster_model, token=user_token),
     )
 
     non_python_count = sum(
