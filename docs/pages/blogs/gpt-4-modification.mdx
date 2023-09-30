@@ -1,0 +1,496 @@
+# Why getting GPT-4 to modify files is hard
+
+**Kevin Lu** - September 28th, 2023
+
+---
+
+<p align="center">
+  <img src="/modification/drake.jpg" alt="Drake meme"/>
+</p>
+
+<br/>
+
+We’ve been fighting GPT-4 to modify long files of code since its release. As great as it is at solving solving hard problems or creating complex systems from scratch, it struggles to insert logs to a 200-line Flask server without giving up halfway through. However, the latter is infinitely more practical.
+
+A frequent complaint we get is “ChatGPT can do this task but Sweep can’t”. This is because GPT-4 can’t consistently edit long files without writing “# Rest of the code” halfway through or copying sections of code incorrectly, which a human using ChatGPT can easily resolve but algorithms cannot. Thus, we can’t just naively rewrite files from scratch to modify them.
+
+Here's our history of every way we've tried to get GPT-4 to modify files, and what worked and didn't due to various issues with GPT-4 failing to format or count properly.
+
+## V0: Just rewrite the whole file
+
+As indicated earlier, rewriting the whole file yields two major issues:
+
+1. For 50-line+ files, GPT-4 eventually generates something like “# Rest of the code”.
+2. The files are too long. A file with $k$ tokens will take $k$ input tokens and $k$ output tokens.
+3. GPT-4 copies code incorrectly. It would sometimes remove or add extra comments or whitespace, or change the indentation.
+
+Let’s tackle the first problem by looking at an example.
+
+Throughout this article, I’m going to use the following brief Flask server implementation as an example of a file we’re editing. I chose a short example for brevity, so GPT-4 will not make these exact mistakes for this particular example but frequently makes similar mistakes in larger files.
+
+```python filename="app.py" showLineNumbers
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
+
+# Sample data
+tasks = [
+    {"id": 1, "task": "Buy milk"},
+    {"id": 2, "task": "Read book"}
+]
+
+@app.route('/tasks', methods=['GET'])
+def get_tasks():
+    return jsonify({"tasks": tasks})
+
+@app.route('/tasks/<int:task_id>', methods=['GET'])
+def get_task(task_id):
+    task = next((item for item in tasks if item["id"] == task_id), None)
+    return jsonify({"task": task})
+
+@app.route('/tasks', methods=['POST'])
+def create_task():
+    new_task = {"id": len(tasks) + 1, "task": request.json["task"]}
+    tasks.append(new_task)
+    return jsonify({"task": new_task}), 201
+
+@app.route('/tasks/<int:task_id>', methods=['PUT'])
+def update_task(task_id):
+    task = next((item for item in tasks if item["id"] == task_id), None)
+    if task:
+        task["task"] = request.json["task"]
+    return jsonify({"task": task})
+```
+
+Say we ask GPT-4 to add logs, we may get the following:
+
+```python filename="app.py" showLineNumbers {19, 24, 29} /print("Getting tasks")/ /print(f"Getting task {task_id}")/ /print("Creating task")/ /print(f"Updating task {task_id}")/
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
+
+# Sample data
+tasks = [
+    {"id": 1, "task": "Buy milk"},
+    {"id": 2, "task": "Read book"}
+]
+
+@app.route('/tasks', methods=['GET'])
+def get_tasks():
+    print("Getting tasks")
+    return jsonify({"tasks": tasks})
+
+@app.route('/tasks/<int:task_id>', methods=['GET'])
+def get_task(task_id):
+    print(f"Getting task {task_id}")
+    # Rest of get_task
+
+@app.route('/tasks', methods=['POST'])
+def create_task():
+    print("Creating task")
+    # Rest of create_task
+
+@app.route('/tasks/<int:task_id>', methods=['PUT'])
+def update_task(task_id):
+    print(f"Updating task {task_id}")
+    # Rest of update_task
+```
+
+And of course, we can't just create a PR with this code! We have to revert all the changes with the "# Rest of code" comments.
+
+## V1: Fix rest-of-code using `difflib`
+
+### `difflib` to the rescue
+
+The simple solution seemed to be to inspect the diff and compare the two files, and revert any major replacements with comments of the form “Rest of code”, “Remaining of code”, etc.
+
+Now the diff from the example above looks like the following:
+
+```diff filename="app.py" showLineNumbers {9-11, 16-19, 24-28}
+ @app.route('/tasks', methods=['GET'])
+ def get_tasks():
++    print("Getting tasks")
+     return jsonify({"tasks": tasks})
+
+ @app.route('/tasks/<int:task_id>', methods=['GET'])
+ def get_task(task_id):
++    print(f"Getting task {task_id}")
+-    task = next((item for item in tasks if item["id"] == task_id), None)
+-    return jsonify({"task": task})
++    # Rest of get_task
+
+ @app.route('/tasks', methods=['POST'])
+ def create_task():
++    print("Creating task")
+-    new_task = {"id": len(tasks) + 1, "task": request.json["task"]}
+-    tasks.append(new_task)
+-    return jsonify({"task": new_task}), 201
++    # Rest of create_task
+
+ @app.route('/tasks/<int:task_id>', methods=['PUT'])
+ def update_task(task_id):
++    print(f"Updating task {task_id}")
+-    task = next((item for item in tasks if item["id"] == task_id), None)
+-    if task:
+-        task["task"] = request.json["task"]
+-    return jsonify({"task": task})
++    # Rest of update_task
+```
+
+Now we simply revert every set of deletions followed by a line of comment of the form `+ # Rest of test`. Specifically, we checked for these comments with something like the following:
+
+```python
+def is_rest_of_code(s: str):
+    s = s.strip().lower()
+    is_comment = s.startswith("#") or s.startswith("//")
+    says_rest = "rest" in s or "remaining" in s
+    return is_comment and says_rest
+```
+
+In this particular example, it solves the problem: we end up with exactly what we'd expect: a print statement at the beginning of every function.
+
+### Limitations
+
+Unfortunately, this diff reverting system is still rather limited. Firstly, sometimes GPT-4 writes comments like “More unit tests here”, “Complete the implementation”, “...” — the possibilities are endless. Secondly, there are cases where the diff algorithm isn’t able to find the exact lines that were replaced.
+
+For example, let’s ask GPT-4 to add a delete endpoint, to which it responds:
+
+```python filename="app.py" showLineNumbers {5}
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
+
+# Rest of code...
+
+@app.route('/tasks/<int:task_id>', methods=['DELETE'])
+def delete_task(task_id):
+    task = next((item for item in tasks if item["id"] == task_id), None)
+    if task:
+        tasks.remove(task)
+    return jsonify({}), 204
+
+```
+
+But then the diff algo returns with something like
+
+```diff filename="app.py" showLineNumbers {5-10}
+from flask import Flask, jsonify, request
+
+ app = Flask(__name__)
+
+-# Sample data
+-tasks = [
+-    {"id": 1, "task": "Buy milk"},
+-    {"id": 2, "task": "Read book"}
+-]
++# Rest of code...
+
+-@app.route('/tasks', methods=['GET'])
+-def get_tasks():
+-    return jsonify({"tasks": tasks})
+-
+-@app.route('/tasks/<int:task_id>', methods=['GET'])
+-def get_task(task_id):
+-    task = next((item for item in tasks if item["id"] == task_id), None)
+-    return jsonify({"task": task})
+-
+-@app.route('/tasks', methods=['POST'])
+-def create_task():
+-    new_task = {"id": len(tasks) + 1, "task": request.json["task"]}
+-    tasks.append(new_task)
+-    return jsonify({"task": new_task}), 201
+-
+-@app.route('/tasks/<int:task_id>', methods=['PUT'])
+-def update_task(task_id):
++@app.route('/tasks/<int:task_id>', methods=['DELETE'])
++def delete_task(task_id):
+     task = next((item for item in tasks if item["id"] == task_id), None)
+     if task:
+-        task["task"] = request.json["task"]
+-    return jsonify({"task": task})
++        tasks.remove(task)
++    return jsonify({}), 204
+```
+
+Reverting this would only yield:
+
+```python filename="app.py" showLineNumbers
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
+
+# Sample data
+tasks = [
+    {"id": 1, "task": "Buy milk"},
+    {"id": 2, "task": "Read book"}
+]
+
+@app.route('/tasks/<int:task_id>', methods=['DELETE'])
+def delete_task(task_id):
+    task = next((item for item in tasks if item["id"] == task_id), None)
+    if task:
+        tasks.remove(task)
+    return jsonify({}), 204
+
+```
+
+Which of course is completely not what we expected. In the first few weeks of Sweep, Sweep would just randomly delete enormous sections of code due to this issue.
+
+Potentially we can write a smarter diff algorithm to catch these pesky “Rest of code” comments. But even then, it’s impossible to algorithmically determine whether GPT-4’s intention was to replace everything and add the new `delete_task` endpoint or replace the `update_task` endpoint with the `delete_task` endpoint.
+
+The inherent problem is that it’s ambiguous whether `# Rest of code` intends to replace spans up to the `update_task` endpoint or just the `create_task` endpoint. We needed something different: we needed to ask GPT-4 to specify how much each of these replace and modify tags should span.
+
+## V2: Modify / Copy lines
+
+### The idea
+
+We wondered if we could get GPT-4 to write a set of instructions on *specifically* what to replace, and we’ll replace those lines with the new code. We initially settled on a format like as follows:
+
+```python
+<update_lines start="i" end="j">
+new lines of code to replace the old lines with
+</update_lines>
+```
+
+Where we would then replace lines `i` to `j` with the new lines of code, where `i` is inclusive and `j` is exclusive, just like Python.
+
+We generally have a preference for XML-based responses from GPT-4 since they
+
+- Are easy to parse with regex. Our pattern for this case looked something like `<update_lines start="(??<start>\d+)" end="(?P<end>\d+)">(?P<code>.*?)</update_lines>`.
+- Are prevalent in the training data (data from the web), so LLMs understand them well.
+- Work well with quotation marks and newlines, common in code. This is unlike JSON which requires escaping them. Further, the closing tags are generally rare.
+- Are hard to mess up formatting for LLMs.
+
+For example, to add more example data to above Flask API endpoint, GPT-4 would write:
+
+```python
+<update_lines start="5" end="10">
+tasks = [
+    {"id": 1, "task": "Buy milk"},
+    {"id": 2, "task": "Read book"},
+    {"id": 3, "task": "Do the dishes"},
+    {"id": 4, "task": "Dust the shelves"}
+]
+</update_lines>
+```
+
+And to inject new code like the deletion endpoint, GPT-4 would write:
+
+```python
+<update_lines start="31" end="31">
+@app.route('/tasks/<int:task_id>', methods=['DELETE'])
+def delete_task(task_id):
+    task = next((item for item in tasks if item["id"] == task_id), None)
+    if task:
+        tasks.remove(task)
+    return jsonify({}), 204
+</update_lines>
+```
+
+### GPT-4 can't copy line numbers
+
+Of course, we added line numbers to the code in the prompt to help the LLM count correctly. However, even then, GPT-4 would copy the **incorrect line numbers**. This would end up with a **missing line of code** or a **duplicate line of code**, like the following, missing the return statement:
+
+```python filename="app.py" showLineNumbers {5}
+@app.route('/tasks/<int:task_id>', methods=['PUT'])
+def update_task(task_id):
+    task = next((item for item in tasks if item["id"] == task_id), None)
+    if task:
+        task["task"] = request.json["task"]
+
+@app.route('/tasks/<int:task_id>', methods=['DELETE'])
+def delete_task(task_id):
+    task = next((item for item in tasks if item["id"] == task_id), None)
+    if task:
+        tasks.remove(task)
+    return jsonify({}), 204
+```
+
+Or similarly, we get a duplicated line of code like:
+
+```python filename="app.py" showLineNumbers {1}
+tasks = [
+tasks = [
+    {"id": 1, "task": "Buy milk"},
+    {"id": 2, "task": "Read book"},
+    {"id": 3, "task": "Do the dishes"},
+    {"id": 4, "task": "Dust the shelves"}
+]
+```
+
+We had potential remedies for this, neither of which did a particularly good job:
+
+1. **Deleting duplicate lines**: if small line(s) of code were duplicated, we would deduplicate it. Unfortunately, it’s not entirely reliable, and would sometimes over-delete intentionally duplicated code. Further, it doesn’t cover the case of the missing lines.
+2. **Running through another LLM to repair the code**: we would feed the code into GPT-3.5-16k to validate the changes and patch anything that should be fixed. Unfortunately, this is lossy, leads to random mistakes with copying, and yields occasional random “# Rest of code”’s. So we’re back to square one.
+
+We also tried instead of updating lines of code, which felt unnatural, that it would copy old lines of code from the file and writing the rest naturally, like the following:
+
+```python filename="app.py" showLineNumbers {5}
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
+
+<copy_lines start="5" end="31"/>
+
+@app.route('/tasks/<int:task_id>', methods=['DELETE'])
+def delete_task(task_id):
+    task = next((item for item in tasks if item["id"] == task_id), None)
+    if task:
+        tasks.remove(task)
+    return jsonify({}), 204
+```
+
+But once again it would suffer from the same miscounting problem.
+
+## V3: Aider diffs
+
+Around this time, we bumped into a [blog post](https://aider.chat/docs/benchmarks.html#diff) by the creator of `aider`, a similar tool to Sweep, but instead it runs locally. Aider gets GPT-4 to generate search-and-replace pairs in the following format:
+
+```python
+<<<< ORIGINAL
+original code
+====
+updated code
+>>>> UPDATED
+```
+
+We would then search for the ORIGINAL block of code in the code, and replace it with the UPDATED block of code. For example, to generate more test data, it would generate something like
+
+```python
+<<<< ORIGINAL
+tasks = [
+    {"id": 1, "task": "Buy milk"},
+    {"id": 2, "task": "Read book"}
+]
+====
+tasks = [
+    {"id": 1, "task": "Buy milk"},
+    {"id": 2, "task": "Read book"},
+    {"id": 3, "task": "Do the dishes"},
+    {"id": 4, "task": "Dust the shelves"}
+]
+>>>> UPDATED
+```
+
+This new method ended up working **exceptionally better** on all our previous attempts, which I think mainly is because:
+
+- It’s way easier for an LLM to **copy code** than **selecting the right line numbers**.
+- Once the code has been copied to the original block, it’s very easy for Sweep to modify the code since the **ORIGINAL code is closer to where GPT-4 is writing modified code**, and can be used as a reference. The positional embeddings likely bias the LLM to less noisily modify the code block.
+- The **format is similar** to git merge conflicts' format, which was probably part of GPT-4's training data.
+
+We still have a few problems nonetheless:
+
+- It would copy ORIGINAL code incorrectly.
+    - Our initial approach involves building a [fuzzy matching algorithm](https://github.com/sweepai/sweep/blob/main/sweepai/utils/search_and_replace.py). We then built [V4](#v4-search-and-replace) to further remedy this.
+- The ORIGINAL block could appear multiple times in the code.
+    - By default, we would match the first item.
+    - We also prompted Sweep to copy lines before and after the ORIGINAL block to disambiguate the changes.
+    - Also, it’s generally bad practice to have a medium-sized block of code repeated in multiple places: just use a helper function at that point.
+- It would still occasionally write “# Rest of code” when rewriting long sections.
+    - We prompted GPT-4 to make multiple small changes as opposed to larger ones.
+- The code is still too long.
+    - For files beyond 600 lines, we would ask GPT-4 to write these diffs for 400 line blocks at a time. There are several context-related issues that arise from this but this solves the problem for now. More on this under #additional.
+
+## V4: Search, then replace
+
+Our current algorithm is a slight extension on top of Aider diffs. The issue was that for medium-sized files, Sweep frequently copies the wrong lines.
+
+### The problem with Aider diffs
+
+For example, consider asking Sweep to add logging to the endpoint:
+
+```python /create_task/ /start_task/ {3,11,17-18}
+# Original lines from the code:
+@app.route('/tasks', methods=['POST'])
+def create_task():
+    new_task = {"id": len(tasks) + 1, "task": request.json["task"]}
+    tasks.append(new_task)
+    return jsonify({"task": new_task}), 201
+
+# Generated diffs:
+<<<< ORIGINAL
+@app.route('/tasks', methods=['POST'])
+def start_task():
+    new_task = {"id": len(tasks) + 1, "task": request.json["task"]}
+    tasks.append(new_task)
+    return jsonify({"task": new_task}), 201
+====
+@app.route('/tasks', methods=['POST'])
+def start_task():
+    print("Started task!")
+    new_task = {"id": len(tasks) + 1, "task": request.json["task"]}
+    tasks.append(new_task)
+    return jsonify({"task": new_task}), 201
+>>>> UPDATED
+```
+
+In this case, `create_task` was unintentionally changed to `start_task` in the ORIGINAL block. Essentially GPT-4 copies the lines incorrectly, then applies the transformation on the incorrectly copied lines.
+
+More precisely, GPT-4 would want to replace the substring $S$ with $R(S)$, where $R: str \rightarrow str$ is the transformation it wants to perform. However, it generates $S'$ instead and tries replacing the substring with $R(S')$. This ends up replacing $S$ with $R(S')$, which frequently yields code that doesn’t parse or build, or adds additional unrequested changes.
+
+### The improvement to Aider diffs
+
+One solution is to start streaming earlier, by picking 200-line chunks instead of 400-line chunks, but that yields more complications like the algorithm missing context and being less performant and more expensive.
+
+We ended up solving this by generating $S$ and $R(S)$ separately. GPT-4 first generates $S'$, which we use to search for $S$ in the codebase using fuzzy matching. We then ask GPT-4 to perform the requested transformation on $S$, altogether generating $R(S)$.
+
+Specifically, the new algorithm performs the following:
+
+1. Generate a list of snippets $S_1'$, $S_2'$, $\ldots$ $S_n'$ that GPT-4 would like to edit and use the fuzzy matching algorithm to find the correct lines $S_1$, $S_2$, $\ldots$ $S_n$.
+    - If fuzzy matching yields a low similarity score (< 50%) for some candidate $S_i'$, we discard it. We could also re-prompt GPT-4 in the future.
+2. We feed the ground truth snippets of code to GPT-4 to edit.
+
+So we would ask GPT-4 to generate something like
+
+```python /start_task/ /.../
+<selected_snippet>
+@app.route('/tasks', methods=['POST'])
+def start_task():
+    ...
+    return jsonify({"task": new_task}), 201
+</selected_snippet>
+```
+
+It would be allowed to generate ellipses (...) in this case since our matching algorithm can usually match the snippet correctly. Then we would find the ground truth snippet in the codebase and present it to GPT-4 to edit like so:
+
+```python /create_task/
+<selected_snippet>
+@app.route('/tasks', methods=['POST'])
+def create_task():
+    new_task = {"id": len(tasks) + 1, "task": request.json["task"]}
+    tasks.append(new_task)
+    return jsonify({"task": new_task}), 201
+</selected_snippet>
+```
+
+Then, we would ask GPT-4 to edit it by responding with something like:
+
+```python /create_task/ {4}
+<updated_snippet>
+@app.route('/tasks', methods=['POST'])
+def create_task():
+    print("Started task!")
+    new_task = {"id": len(tasks) + 1, "task": request.json["task"]}
+    tasks.append(new_task)
+    return jsonify({"task": new_task}), 201
+</updated_snippet>
+```
+
+This guarantees that no edits were made unintentionally like renaming a variable from `create_task` to `start_task`.
+
+## Additional roadblocks
+
+Here's some other minor roadblocks we ran into:
+
+- **Formatting errors**: we had a backoff system where we would prompt GPT-4 again to provide the response in the right format with a higher temperature.
+- **Indentation**: GPT-4 tends to unindent code and this would make Python code unparsable. We fixed this by matching the original indentation based on the difference in indentation between the ORIGINAL block and the matched section of the original file.
+
+Despite solving most of these, we still have the issue of some files still being too long. We have several > 1000 line files in *our own codebase*.
+- Streaming 400 lines at a time is a bandaid solution but doesn’t solve the problem entirely, since it would break up semantically meaningful parts of the code. Further, the model would sometimes modify no sections of code or multiple sections of the code. It’s difficult to a section of a file without the context of the rest of the file.
+- For Python, we set up entity-based editing. We recently set up a call-graph system for a better repo-level understanding of Python code. We use this at the planning stage by letting the LLM decide which class or function of the file it wants to edit.
+
+## Conclusion
+
+Getting GPT-4 to make the right modification has proven to be a difficult battle and is still prone to all sorts of errors. We’ve been fighting these errors since the release, but still only managed to mitigate only the common ones.
+
+I'm excited to hear your thoughts on tackling long code files with GPT-4. If you have ideas, feel free to share them in our community at https://discord.gg/sweep.

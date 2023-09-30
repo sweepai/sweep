@@ -7,32 +7,34 @@ from sweepai.config.client import (
     SweepConfig,
     get_documentation_dict,
 )
-from sweepai.config.server import (
-    DISCORD_FEEDBACK_WEBHOOK_URL,
-)
+from sweepai.config.server import DISCORD_FEEDBACK_WEBHOOK_URL
 from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import extract_relevant_docs
-from sweepai.core.entities import (
-    NoFilesException,
-    SandboxResponse,
-)
+from sweepai.core.entities import NoFilesException, SandboxResponse, SweepContext
 from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.sweep_bot import SweepBot
 
 # from sandbox.sandbox_utils import Sandbox
-from sweepai.handlers.create_pr import (
-    create_pr_changes,
-)
+from sweepai.handlers.create_pr import create_pr_changes
 from sweepai.utils.buttons import create_action_buttons
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.search_utils import search_snippets
 from sweepai.utils.ticket_utils import *
-from sweepai.core.entities import SweepContext
 
 
-def make_pr(title, repo_description, summary, repo_full_name, installation_id, user_token, use_faster_model, username, chat_logger):
+def make_pr(
+    title,
+    repo_description,
+    summary,
+    repo_full_name,
+    installation_id,
+    user_token,
+    use_faster_model,
+    username,
+    chat_logger,
+):
     _, repo_name = repo_full_name.split("/")
     # heavily copied code from on_ticket
     cloned_repo = ClonedRepo(
@@ -95,8 +97,7 @@ def make_pr(title, repo_description, summary, repo_full_name, installation_id, u
         snippet
         for snippet in snippets
         if any(
-            snippet.file_path.startswith(path_to_keep)
-            for path_to_keep in paths_to_keep
+            snippet.file_path.startswith(path_to_keep) for path_to_keep in paths_to_keep
         )
     ]
     dir_obj.remove_all_not_included(paths_to_keep)
@@ -120,11 +121,11 @@ def make_pr(title, repo_description, summary, repo_full_name, installation_id, u
         is_reply=False,
         chat_logger=chat_logger,
         cloned_repo=cloned_repo,
+        sweep_context=SweepContext(issue_url="", use_faster_model=use_faster_model, token=user_token),
     )
 
     non_python_count = sum(
-        not file_path.endswith(".py")
-        for file_path in human_message.get_file_paths()
+        not file_path.endswith(".py") for file_path in human_message.get_file_paths()
     )
     python_count = len(human_message.get_file_paths()) - non_python_count
     is_python_issue = python_count > non_python_count
@@ -134,18 +135,16 @@ def make_pr(title, repo_description, summary, repo_full_name, installation_id, u
         properties={"is_python_issue": is_python_issue},
     )
     file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
-    file_change_requests = sweep_bot.validate_file_change_requests(
-        file_change_requests
-    )
+    file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
     pull_request = sweep_bot.generate_pull_request()
     generator = create_pr_changes(
-                file_change_requests,
-                pull_request,
-                sweep_bot,
-                username,
-                installation_id,
-                chat_logger=chat_logger,
-            )
+        file_change_requests,
+        pull_request,
+        sweep_bot,
+        username,
+        installation_id,
+        chat_logger=chat_logger,
+    )
     response = {"error": NoFilesException()}
     for item in generator:
         if isinstance(item, dict):

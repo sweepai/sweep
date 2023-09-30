@@ -16,7 +16,9 @@ class Line:
             return self.text
     
     def __eq__(self, other):
-        return self.full_path() == other.full_path()
+        full_relative_path = self.parent.full_path() + self.full_path() if self.parent else self.full_path()
+        other_full_relative_path = other.parent.full_path() + other.full_path() if other.parent else other.full_path()
+        return full_relative_path == other_full_relative_path
     
     def __str__(self):
         return self.full_path()

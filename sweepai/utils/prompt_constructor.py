@@ -178,6 +178,7 @@ class HumanMessagePromptReview(HumanMessagePrompt):
 class HumanMessageCommentPrompt(HumanMessagePrompt):
     comment: str
     diffs: list
+    relevant_docs: str| None
     pr_file_path: str | None
     pr_chunk: str | None
     original_line: str | None
@@ -215,6 +216,7 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
                     else "No description provided.",
                     relevant_directories=self.get_relevant_directories(),
                     relevant_snippets=self.render_snippets(),
+                    relevant_docs=f"\n{self.relevant_docs}" if self.relevant_docs else "", # conditionally add newline
                 ),
             }
             for msg in human_message_prompt_comment
