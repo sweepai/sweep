@@ -674,9 +674,6 @@ class SweepBot(CodeGenBot, GithubBot):
         sandbox_execution: SandboxResponse | None = None
         if SANDBOX_URL:
             try:
-                logger.print("Running Sandbox...")
-                logger.print(content)
-                logger.print(self.sweep_context)
                 output = SweepBot.run_sandbox(
                     token=self.sweep_context.token,
                     repo_url=self.repo.html_url,
@@ -712,7 +709,7 @@ class SweepBot(CodeGenBot, GithubBot):
             self.messages.append(
                 Message(
                     content=changed_files_summary,
-                    role="assistant",
+                    role="user",
                     key="changed_files_summary",
                 )
             )
@@ -846,20 +843,21 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
                 ]
             if file_change_request.relevant_files:
-                relevant_files_content = []
+                relevant_files_contents = []
                 for file_path in file_change_request.relevant_files:
                     try:
-                        relevant_files_content.append(
+                        relevant_files_contents.append(
                             self.get_contents(file_path).decoded_content.decode("utf-8")
                         )
                     except Exception as e:
-                        relevant_files_content.append("File not found")
-                if relevant_files_content:
+                        relevant_files_contents.append("File not found")
+                if relevant_files_contents:
                     relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
                         [
                             f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
                             for file_path, file_contents in zip(
-                                file_change_request.relevant_files, relevant_files_content
+                                file_change_request.relevant_files,
+                                relevant_files_contents,
                             )
                         ]
                     )
@@ -902,7 +900,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 self.delete_messages_from_chat(key)
                 raise e
         try:
-            new_file = format_contents(new_file, file_markdown)
+            # new_file = format_contents(new_file, file_markdown)
             commit_message_match = None
             if commit_message_match:
                 commit_message = commit_message_match.group("commit_message")
