@@ -38,7 +38,7 @@ async def forward_request(path: str, request: Request):
         request_json = await request.json()
     except:
         pass
-    async with httpx.AsyncClient(timeout=3) as client:
+    async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.request(
             request.method,
             f"{target_url}/{path}",
