@@ -13,7 +13,9 @@ class Line:
         return self.text if not self.is_dir else self.text
     
     def __eq__(self, other):
-        return self.full_path() == other.full_path()
+        full_relative_path = self.parent.full_path() + self.full_path() if self.parent else self.full_path()
+        other_full_relative_path = other.parent.full_path() + other.full_path() if other.parent else other.full_path()
+        return full_relative_path == other_full_relative_path
     
     def __str__(self):
         return self.full_path()
@@ -74,7 +76,7 @@ class DirectoryTree:
                 parent_list = []
                 curr_parent = line.parent
                 while curr_parent and curr_parent not in new_lines:
-                    parent_list.append(line.parent)
+                    parent_list.append(curr_parent)
                     curr_parent = curr_parent.parent
                 new_lines.extend(parent_list[::-1])
                 new_lines.append(line)

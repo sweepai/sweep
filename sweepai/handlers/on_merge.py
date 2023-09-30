@@ -90,9 +90,7 @@ def on_merge(request_dict, chat_logger):
                 username=commit_author,
                 chat_logger=chat_logger
             )
-            return # only make one PR per merge
-    if rules:
-        posthog.capture(
-            commit_author,
-            "rule_pr_created"
-        )
+            posthog.capture(
+                commit_author,
+                "rule_pr_created"
+            )
