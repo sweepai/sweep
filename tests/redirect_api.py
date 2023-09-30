@@ -1,6 +1,5 @@
 import os
 
-import httpx
 import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
@@ -38,12 +37,13 @@ async def forward_request(path: str, request: Request):
         request_json = await request.json()
     except:
         pass
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.request(
-            request.method,
-            f"{target_url}/{path}",
-            headers=request.headers,
-            params=request.query_params,
-            json=request_json,
-        )
+    resp = requests.request(
+        request.method,
+        f"{target_url}/{path}",
+        headers=request.headers,
+        params=request.query_params,
+        json=request_json,
+        timeout=10.0,
+    )
+    resp.raise_for_status()
     return resp.text
