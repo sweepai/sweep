@@ -35,6 +35,10 @@ def extract_docs_links(content: str, user_dict: dict) -> list[str]:
     logger.info(content)
     # add the user_dict to DOC_ENDPOINTS
     assert isinstance(user_dict, dict), "user_dict must be a dict"
+    for value in user_dict.values():
+        if not len(value) == 2:
+            logger.error(user_dict)
+            raise Exception("user_dict values must be tuples of length 2")
     if user_dict:
         DOCS_ENDPOINTS.update(user_dict)
     for framework, (url, _) in DOCS_ENDPOINTS.items():
