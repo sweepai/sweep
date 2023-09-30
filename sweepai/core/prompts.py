@@ -61,7 +61,6 @@ Issue Description: {description}""",
 ]
 
 human_message_review_prompt = [
-    {"role": "assistant", "content": "Reviewing my pull request..."},
     {
         "role": "user",
         "content": """{relevant_snippets}""",
@@ -175,7 +174,6 @@ issue_comment_prompt = """
 
 # Prompt for comments
 human_message_prompt_comment = [
-    {"role": "assistant", "content": "Reviewing my pull request..."},
     {
         "role": "user",
         "content": """{relevant_snippets}""",
