@@ -4,6 +4,7 @@ import subprocess
 import tarfile
 import uuid
 from pathlib import Path
+from typing import Optional
 
 import docker
 import pathspec
@@ -103,7 +104,7 @@ def get_sandbox_from_config():
 
 
 @app.command()
-def sandbox(file_path: Path | None = None, telemetry: bool = True):
+def sandbox(file_path: Optional[Path] = None, telemetry: bool = True):
     # Check if valid git repo
     if not os.path.exists(".git"):
         print("Not a valid git repository", style="bold red")
