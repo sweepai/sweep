@@ -728,15 +728,6 @@ async def webhook(raw_request: Request):
                         },
                     )
                 chat_logger = ChatLogger({"username": merged_by})
-                # this makes it faster for everyone because the queue doesn't get backed up
-                # active users also should not see a delay
-
-                # Todo: fix update index for pro users
-                # if chat_logger.is_paying_user():
-                #     update_index(
-                #         request_dict["repository"]["full_name"],
-                #         installation_id=request_dict["installation"]["id"],
-                #     )
             case "push", None:
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
                     chat_logger = ChatLogger(
@@ -744,28 +735,32 @@ async def webhook(raw_request: Request):
                     )
                     # on merge
                     call_on_merge(request_dict, chat_logger)
-                    if request_dict["head_commit"] and (
-                        "sweep.yaml" in request_dict["head_commit"]["added"]
-                        or "sweep.yaml" in request_dict["head_commit"]["modified"]
-                    ):
+                    ref = request_dict["ref"] if "ref" in request_dict else ""
+                    if ref.startswith("refs/heads/"):
+                        if request_dict["head_commit"] and (
+                            "sweep.yaml" in request_dict["head_commit"]["added"]
+                            or "sweep.yaml" in request_dict["head_commit"]["modified"]
+                        ):
+                            _, g = get_github_client(request_dict["installation"]["id"])
+                            repo = g.get_repo(request_dict["repository"]["full_name"])
+                            docs = get_documentation_dict(repo)
+                            # Call the write_documentation function for each of the existing fields in the "docs" mapping
+                            for doc_url, _ in docs.values():
+                                logger.info(f"Writing documentation for {doc_url}")
+                                call_write_documentation(doc_url=doc_url)
                         _, g = get_github_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
-                        docs = get_documentation_dict(repo)
-                        # Call the write_documentation function for each of the existing fields in the "docs" mapping
-                        for doc_url, _ in docs.values():
-                            logger.info(f"Writing documentation for {doc_url}")
-                            call_write_documentation(doc_url=doc_url)
-                    # this makes it faster for everyone because the queue doesn't get backed up
-                    if chat_logger.is_paying_user():
-                        cloned_repo = ClonedRepo(
-                            request_dict["repository"]["full_name"],
-                            installation_id=request_dict["installation"]["id"],
-                        )
-                        call_get_deeplake_vs_from_repo(cloned_repo)
-                    update_sweep_prs(
-                        request_dict["repository"]["full_name"],
-                        installation_id=request_dict["installation"]["id"],
-                    )
+                        if ref[len("refs/heads/"):] == SweepConfig.get_branch(repo):
+                            if chat_logger.is_paying_user():
+                                cloned_repo = ClonedRepo(
+                                    request_dict["repository"]["full_name"],
+                                    installation_id=request_dict["installation"]["id"],
+                                )
+                                call_get_deeplake_vs_from_repo(cloned_repo)
+                            update_sweep_prs(
+                                request_dict["repository"]["full_name"],
+                                installation_id=request_dict["installation"]["id"],
+                            )
             case "ping", None:
                 return {"message": "pong"}
             case _:

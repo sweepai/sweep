@@ -2,6 +2,7 @@
 
 import ast
 import os
+import codecs
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -50,7 +51,11 @@ def condense_paths(paths):
 
 
 def extract_entities(code: str):
-    tree = ast.parse(code)
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        code = codecs.decode(code.encode(), 'utf-8-sig')
+        tree = ast.parse(code)
     imported_modules = []
     defined_classes = []
     defined_functions = []

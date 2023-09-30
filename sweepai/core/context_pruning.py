@@ -65,7 +65,7 @@ class ContextToPrune(RegexMatchableBaseModel):
             path = path.strip()
             path = path.replace("* ", "")
             path = path.replace("...", "")
-            if len(path) > 1:
+            if len(path) > 1 and " " not in path:
                 logger.info(f"paths_to_keep: {path}")
                 paths_to_keep.append(path)
         directories_to_expand_pattern = r"""<directories_to_expand>(\n)?(?P<directories_to_expand>.*)</directories_to_expand>"""
@@ -78,7 +78,7 @@ class ContextToPrune(RegexMatchableBaseModel):
             path = path.strip()
             path = path.replace("* ", "")
             path = path.replace("...", "")
-            if len(path) > 1:
+            if len(path) > 1 and " " not in path:
                 logger.info(f"directories_to_expand: {path}")
                 directories_to_expand.append(path)
         return cls(

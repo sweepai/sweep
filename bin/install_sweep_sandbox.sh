@@ -48,10 +48,15 @@ echo -e "\n${CYAN}${WHITE}--> Creating standalone executable...${NC}\n"
 PYTHONPATH=. pyinstaller --onefile --paths ./src cli.py
 exit_if_fail "Failed to create standalone executable."
 
-echo -e "\n${CYAN}${WHITE}--> Copying executable to home directory and /usr/bin...${NC}\n"
+echo -e "\n${CYAN}${WHITE}--> Copying executable to home directory${NC}\n"
 mv dist/cli dist/sweep-sandbox
 cp -f dist/sweep-sandbox ~/
+
+exit_if_fail "Failed to copy executable."
+
+echo -e "\n${CYAN}${WHITE}--> Adding executable to PATH...${NC}\n"
 alias sweep-sandbox=~/sweep-sandbox
+which sweep-sandbox
 
 if [ -n "$BASH_VERSION" ]; then
     echo "alias sweep-sandbox='~/sweep-sandbox'" >> ~/.bashrc
@@ -62,7 +67,7 @@ elif [ -n "$FISH_VERSION" ]; then
 else
     echo "Shell not supported."
 fi
-exit_if_fail "Failed to copy executable."
+exit_if_fail "Failed to add to PATH."
 
 echo -e "\n${CYAN}${WHITE}--> Pulling sandbox Docker image...${NC}\n"
 docker pull sweepai/sandbox:latest
