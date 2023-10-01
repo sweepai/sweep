@@ -3,9 +3,10 @@ from typing import List
 from sweepai.events import Changes
 
 
-def create_button(label: str, selected: bool = False) -> str:
-    """Create a button for the issue body."""
-    return f"- [{'x' if selected else ' '}] {label}"
+def create_action_buttons(changed_files: List[str], header="## Actions (click)\n") -> str:
+    """Create a list of buttons for the issue body."""
+    buttons = "\n".join(create_button(file) for file in changed_files)
+    return header + buttons
 
 
 def create_action_buttons(labels: List[str], header="## Actions (click)\n") -> str:
