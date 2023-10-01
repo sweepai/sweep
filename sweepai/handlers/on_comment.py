@@ -100,7 +100,7 @@ def on_comment(
     if pr is None:
         pr = repo.get_pull(pr_number)
     pr_title = pr.title
-    pr_body = pr.body or ""
+    pr_body = pr.body.split("🎉 Latest improvements to Sweep:")[0] if pr.body and "🎉 Latest improvements to Sweep:" in pr.body else pr.body
     pr_file_path = None
     diffs = get_pr_diffs(repo, pr)
     pr_chunk = None
