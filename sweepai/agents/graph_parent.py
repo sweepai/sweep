@@ -32,7 +32,7 @@ symbols(function, variable, or classes) is used/defined in file
 Provide your answer in the below format:
 
 <symbol_analysis>
-Concise explanation of relevant symbol's usage and why it is relevant to the issue_metadata
+Concise explanation of each relevant symbol's usage and why it is highly relevant to the issue_metadata
 </symbol_analysis>
 
 <relevant_symbols_to_files>
