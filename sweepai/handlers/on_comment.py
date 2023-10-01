@@ -89,6 +89,18 @@ def on_comment(
     # 3. Get files to change
     # 4. Get file changes
     # 5. Create PR
+
+    # Check if the comment is a button click
+    if comment.startswith("sweep: button:"):
+        button = comment.split(":")[2].strip()
+
+        # Perform the appropriate action based on the button clicked
+        if button == "regenerate":
+            regenerate()
+        elif button == "revert":
+            revert()
+
+    # Rest of the code...
     logger.info(
         f"Calling on_comment() with the following arguments: {comment},"
         f" {repo_full_name}, {repo_description}, {pr_path}"
