@@ -100,6 +100,7 @@ def on_ticket(
     # 4. Get file changes
     # 5. Create PR
 
+    on_ticket_start_time = time.time()
     summary = summary or ""
     # Check for \r since GitHub issues may have \r\n
     summary = re.sub(
@@ -207,7 +208,11 @@ def on_ticket(
 
         if current_issue.state == "closed":
             logger.warning(f"Issue {issue_number} is closed")
-            posthog.capture(username, "issue_closed", properties=metadata)
+            posthog.capture(
+                username,
+                "issue_closed",
+                properties={**metadata, "duration": time.time() - on_ticket_start_time},
+            )
             return {"success": False, "reason": "Issue is closed"}
 
         # Add :eyes: emoji to ticket
@@ -314,7 +319,7 @@ def on_ticket(
 
         def get_comment_header(index, errored=False, pr_message="", done=False):
             config_pr_message = (
-                "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})"
+                "\n" + f"* Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a>"
                 if config_pr_url is not None
                 else ""
             )
@@ -464,7 +469,11 @@ def on_ticket(
                 if issue_comment is None:
                     issue_comment = current_issue.create_comment(msg)
                 else:
-                    issue_comment = [comment for comment in issue.get_comments() if comment.user == GITHUB_BOT_USERNAME][0]
+                    issue_comment = [
+                        comment
+                        for comment in issue.get_comments()
+                        if comment.user == GITHUB_BOT_USERNAME
+                    ][0]
                     issue_comment.edit(msg)
 
         if len(title + summary) < 20:
@@ -476,7 +485,11 @@ def on_ticket(
                 ),
                 -1,
             )
-            posthog.capture(username, "issue_too_short", properties=metadata)
+            posthog.capture(
+                username,
+                "issue_too_short",
+                properties={**metadata, "duration": time.time() - on_ticket_start_time},
+            )
             return {"success": True}
 
         if (
@@ -494,7 +507,14 @@ def on_ticket(
                     ),
                     -1,
                 )
-                posthog.capture(username, "test_repo", properties=metadata)
+                posthog.capture(
+                    username,
+                    "test_repo",
+                    properties={
+                        **metadata,
+                        "duration": time.time() - on_ticket_start_time,
+                    },
+                )
                 return {"success": False}
 
         if lint_mode:
@@ -517,7 +537,13 @@ def on_ticket(
         except SystemExit:
             logger.warning("System exit")
             posthog.capture(
-                username, "failed", properties={**metadata, "error": "System exit"}
+                username,
+                "failed",
+                properties={
+                    **metadata,
+                    "error": "System exit",
+                    "duration": time.time() - on_ticket_start_time,
+                },
             )
             raise SystemExit
         except Exception as e:
@@ -541,7 +567,15 @@ def on_ticket(
                 str(e) + "\n" + traceback.format_exc(),
                 priority=1,
             )
-            posthog.capture(username, "failed", properties={**metadata})
+            posthog.capture(
+                username,
+                "failed",
+                properties={
+                    **metadata,
+                    "error": str(e),
+                    "duration": time.time() - on_ticket_start_time,
+                },
+            )
             raise e
 
         snippets = post_process_snippets(
@@ -713,7 +747,11 @@ def on_ticket(
                 posthog.capture(
                     username,
                     "subissues_created",
-                    properties={**metadata, "count": len(subissues)},
+                    properties={
+                        **metadata,
+                        "count": len(subissues),
+                        "duration": time.time() - start_time,
+                    },
                 )
                 return {"success": True}
 
@@ -1189,6 +1227,7 @@ def on_ticket(
                     "error": str(e),
                     "reason": "Invalid request error / context length",
                     **metadata,
+                    "duration": time.time() - start_time,
                 },
             )
             delete_branch = True
@@ -1257,10 +1296,19 @@ def on_ticket(
         posthog.capture(
             username,
             "error",
-            properties={**metadata, "error": str(e), "trace": traceback.format_exc()},
+            properties={
+                **metadata,
+                "error": str(e),
+                "trace": traceback.format_exc(),
+                "duration": time.time() - on_ticket_start_time,
+            },
         )
         raise e
 
-    posthog.capture(username, "success", properties={**metadata})
+    posthog.capture(
+        username,
+        "success",
+        properties={**metadata, "duration": time.time() - on_ticket_start_time},
+    )
     logger.info("on_ticket success")
     return {"success": True}
