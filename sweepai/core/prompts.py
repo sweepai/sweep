@@ -890,26 +890,6 @@ Plan:
 ...
 """
 
-gha_extraction_system_prompt = """\
-Your job is to extract the relevant lines from the Github Actions workflow logs for debugging.
-"""
-
-# gha_extraction_prompt = """\
-# Here are the logs:
-# {gha_logs}
-# Copy the important lines from the github action logs. Describe the issue as you would report a bug to a developer and do not mention the github action or preparation steps. Only mention the actual issue.
-# For example, if the issue was because of github action -> pip install -> python black formatter -> file xyz is broken, only report that file xyz is broken and fails formatting. Do not mention the github action or pip install.
-# Make sure to mention the file name and line number of the issue (if applicable).
-# Then, suggest 1-2 potential solutions to the issue. Feel free to add ignore comments to the code if you think the linter or static checker has made a mistake.
-# """
-
-gha_extraction_prompt = """\
-Here are the logs:
-{gha_logs}
-
-Copy the lines from the logs corresponding to the error and wrap it in ```. Mention the command that failed.
-"""
-
 doc_query_rewriter_system_prompt = """\
 You must rewrite the user's github issue to leverage the docs. In this case we want to look at {package}. It's used for: {description}. Using the github issue, write a search query that searches for the potential answer using the documentation. This query will be sent to a documentation search engine with vector and lexical based indexing. Make this query contain keywords relevant to the {package} documentation.
 """
