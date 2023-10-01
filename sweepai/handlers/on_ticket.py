@@ -1058,6 +1058,15 @@ def on_ticket(
                 else ""
             )
 
+            # Iterate over the list of changed files
+            for file_path in pr_changes.files_changed:
+                # Create a revert button and a regenerate button for each changed file
+                revert_button = f"sweep:button:revert:{file_path}"
+                regenerate_button = f"sweep:button:regenerate:{file_path}"
+
+                # Add the buttons to the PR comment
+                pr_actions_message += f"\n\n{revert_button}\n{regenerate_button}"
+
             is_draft = config.get("draft", False)
             try:
                 pr = repo.create_pull(
