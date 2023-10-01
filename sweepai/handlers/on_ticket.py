@@ -519,6 +519,10 @@ def on_ticket(
             )
             assert len(snippets) > 0
         except SystemExit:
+            logger.warning("System exit")
+            posthog.capture(
+                username, "failed", properties={**metadata, "error": "System exit"}
+            )
             raise SystemExit
         except Exception as e:
             trace = traceback.format_exc()
