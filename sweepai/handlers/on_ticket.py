@@ -245,6 +245,9 @@ def on_ticket(
         prs = repo.get_pulls(
             state="open", sort="created", base=SweepConfig.get_branch(repo)
         )
+        # Initialize an empty list to store the filenames
+        changed_files = []
+        
         for pr in prs:
             # Check if this issue is mentioned in the PR, and pr is owned by bot
             # This is done in create_pr, (pr_description = ...)
@@ -257,9 +260,12 @@ def on_ticket(
                 # Get the list of changed files in the PR
                 files = pr.get_files()
         
-                # Create a button for each file
+                # Add each filename to the list
                 for file in files:
-                    create_action_buttons([file.filename])
+                    changed_files.append(file.filename)
+        
+        # Create action buttons for all changed files
+        create_action_buttons(changed_files)
 
         # Removed 1, 3
         progress_headers = [
