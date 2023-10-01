@@ -1,5 +1,6 @@
 # Do not save logs for main process
 import json
+import time
 
 from logn import logger
 from sweepai.utils.buttons import check_button_activated
@@ -93,6 +94,7 @@ def run_on_comment(*args, **kwargs):
     with logger:
         on_comment(*args, **kwargs)
 
+
 def run_on_check_suite(*args, **kwargs):
     logger.init(
         metadata={
@@ -152,6 +154,11 @@ def terminate_thread(thread):
         logger.error(f"Failed to terminate thread: {e}")
 
 
+def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
+    time.sleep(delay)
+    terminate_thread(thread)
+
+
 def call_on_ticket(*args, **kwargs):
     global on_ticket_events
     key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
@@ -166,6 +173,9 @@ def call_on_ticket(*args, **kwargs):
     thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
     on_ticket_events[key] = thread
     thread.start()
+
+    delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
+    delayed_kill_thread.start()
 
 
 def call_on_check_suite(*args, **kwargs):
@@ -750,7 +760,7 @@ async def webhook(raw_request: Request):
                                 call_write_documentation(doc_url=doc_url)
                         _, g = get_github_client(request_dict["installation"]["id"])
                         repo = g.get_repo(request_dict["repository"]["full_name"])
-                        if ref[len("refs/heads/"):] == SweepConfig.get_branch(repo):
+                        if ref[len("refs/heads/") :] == SweepConfig.get_branch(repo):
                             if chat_logger.is_paying_user():
                                 cloned_repo = ClonedRepo(
                                     request_dict["repository"]["full_name"],
