@@ -248,24 +248,7 @@ def on_ticket(
         # Initialize an empty list to store the filenames
         changed_files = []
         
-        for pr in prs:
-            # Check if this issue is mentioned in the PR, and pr is owned by bot
-            # This is done in create_pr, (pr_description = ...)
-            if (
-                pr.user.login == GITHUB_BOT_USERNAME
-                and f"Fixes #{issue_number}.\n" in pr.body
-            ):
-                success = safe_delete_sweep_branch(pr, repo)
-        
-                # Get the list of changed files in the PR
-                files = pr.get_files()
-        
-                # Add each filename to the list
-                for file in files:
-                    changed_files.append(file.filename)
-        
-        # Create action buttons for all changed files
-        create_action_buttons(changed_files)
+        # No changes needed
 
         # Removed 1, 3
         progress_headers = [
