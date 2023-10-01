@@ -9,10 +9,6 @@ def create_action_buttons(changed_files: List[str], header="## Actions (click)\n
     return header + buttons
 
 
-def create_action_buttons(labels: List[str], header="## Actions (click)\n") -> str:
-    """Create a list of buttons for the issue body."""
-    buttons = "\n".join(create_button(label) for label in labels)
-    return header + buttons
 
 
 def get_toggled_state(label: str, changes_request: Changes) -> bool:
