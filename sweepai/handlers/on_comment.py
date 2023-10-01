@@ -67,6 +67,8 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
 
 
 # @LogTask()
+from sweepai.utils.buttons import check_button_activated
+
 def on_comment(
     repo_full_name: str,
     repo_description: str,
@@ -180,6 +182,14 @@ def on_comment(
         "issue_number": issue_number if issue_number_match else "",
     }
     # logger.bind(**metadata)
+
+    button_action = check_button_activated(comment)
+    if button_action == 'revert':
+        # revert the changes made in the corresponding file
+        pass
+    elif button_action == 'regenerate':
+        # regenerate the file
+        pass
 
     capture_posthog_event(username, "started", properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
