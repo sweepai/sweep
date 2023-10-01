@@ -1120,6 +1120,11 @@ def on_ticket(
             pr.add_to_labels(GITHUB_LABEL_NAME)
             current_issue.create_reaction("rocket")
 
+            # Add buttons to the PR
+            from sweepai.utils.buttons import create_button
+            buttons = create_button('revert') + create_button('regenerate')
+            pr.create_issue_comment(buttons)
+
             logger.info("Running github actions...")
             try:
                 if is_draft:
