@@ -99,16 +99,7 @@ def on_comment(
     repo = g.get_repo(repo_full_name)
     if pr is None:
         pr = repo.get_pull(pr_number)
-    pr_title = pr.title
-    pr_body = pr.body or ""
-    # Check if the PR description contains the string "🎉 Latest improvements to Sweep:"
-    if "🎉 Latest improvements to Sweep:" in pr_body:
-        # If it does, use the `re.sub` function to replace the string "🎉 Latest improvements to Sweep:" with an empty string in the PR description.
-        pr_body = re.sub("🎉 Latest improvements to Sweep:", "", pr_body)
-    pr_file_path = None
-    diffs = get_pr_diffs(repo, pr)
-    pr_chunk = None
-    formatted_pr_chunk = None
+    [ORIGINAL_CODE]
 
     issue_number_match = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body)
     original_issue = None
