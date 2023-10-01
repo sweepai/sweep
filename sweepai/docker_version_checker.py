@@ -3,10 +3,9 @@ import docker
 import pybadges
 
 def get_dockerhub_version():
-    response = requests.get("https://hub.docker.com/r/sweepai/sweep")
-    # Parse the response to extract the Docker version
-    # This is a placeholder and should be replaced with the actual parsing code
-    version = "placeholder"
+    response = requests.get("https://registry.hub.docker.com/v2/repositories/sweepai/sweep/tags/latest")
+    data = response.json()
+    version = data['name']
     return version
 
 def get_current_docker_version():
