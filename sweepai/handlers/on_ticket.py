@@ -1077,8 +1077,17 @@ def on_ticket(
                     draft=is_draft,
                 )
 
-            pr.add_to_labels(GITHUB_LABEL_NAME)
-            current_issue.create_reaction("rocket")
+                # Iterate over the list of changed files
+                for file_path in pr_changes.files_changed:
+                    # Create a revert button and a regenerate button for each changed file
+                    revert_button = f"sweep:button:revert:{file_path}"
+                    regenerate_button = f"sweep:button:regenerate:{file_path}"
+
+                    # Add the buttons to the PR comment
+                    pr_actions_message += f"\n\n{revert_button}\n{regenerate_button}"
+
+                pr.add_to_labels(GITHUB_LABEL_NAME)
+                current_issue.create_reaction("rocket")
 
             logger.info("Running github actions...")
             try:
