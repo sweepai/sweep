@@ -138,6 +138,26 @@ def get_max_indent(content: str, indent_type: str):
         indent_type
     )
 
+def find_exact_match(query: str, code_file: str) -> list[Match]:
+    matches = [] 
+    
+    query_lines = query.split("\n")
+    code_file_lines = code_file.split("\n")
+
+    # Iterate over all possibilities in the code_file
+    for i in range(len(code_file_lines) - len(query_lines) + 1):
+        match = True 
+
+        # check all lines that match 
+        for j in range(len(query_lines)):
+            if code_file_lines[i + j] != query_lines[j]:
+                match = False
+                break 
+
+        if match:
+            score = 100 
+            matches.append(Match(i, i + len(query_lines), score))
+    return matches
 
 def find_best_match(query: str, code_file: str):
     best_match = Match(-1, -1, 0)

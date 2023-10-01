@@ -63,7 +63,7 @@ from sweepai.utils.diff import (
 )
 from sweepai.utils.graph import Graph
 from sweepai.utils.prompt_constructor import PythonHumanMessagePrompt
-from sweepai.utils.search_and_replace import Match, find_best_match
+from sweepai.utils.search_and_replace import Match, find_best_match, find_hard_match
 from sweepai.utils.utils import chunk_code
 
 USING_DIFF = True
@@ -1396,7 +1396,8 @@ class ModifyBot:
         file_contents: str,
         file_change_request: FileChangeRequest,
         chunking: bool = False,
-    ):
+    ):  
+
         snippet_queries = self.get_snippets_to_modify(
             file_path=file_path,
             file_contents=file_contents,
@@ -1457,6 +1458,9 @@ class ModifyBot:
             _match = find_best_match(query, file_contents)
             if _match.score > 50:
                 best_matches.append(_match)
+
+        # Find hard matches 
+        
 
         if len(best_matches) == 0:
             raise MatchingError("No matches found in file")

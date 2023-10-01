@@ -1057,6 +1057,12 @@ Step-by-step thoughts:
 
 Changes needed: Yes/No
 
+Extract keywords to modify: 
+
+<keywords_extracted>
+
+</keywords_extracted>
+
 Snippets to modify:
 
 <snippet_to_modify>
