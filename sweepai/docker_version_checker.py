@@ -9,8 +9,11 @@ def get_dockerhub_version():
     return version
 
 def get_current_docker_version():
-    client = docker.from_env()
-    version = client.version()["Version"]
+    try:
+        client = docker.from_env()
+        version = client.version()["Version"]
+    except docker.errors.DockerException:
+        version = "Not running in a Docker environment"
     return version
 
 def generate_badge(version1, version2):
