@@ -100,7 +100,8 @@ class ClonedRepo:
         random_bytes = os.urandom(16)
         hash_obj = hashlib.sha256(random_bytes)
         hash_hex = hash_obj.hexdigest()
-        return os.path.join("/tmp/cache/repos", self.repo_full_name, hash_hex)
+        return os.path.join("/tmp/cache/repos", self.repo_full_name, hash_hex, 
+                            self.branch if self.branch else "")
 
     @property
     def clone_url(self):
@@ -109,7 +110,8 @@ class ClonedRepo:
         )
 
     def clone(self):
-        return git.Repo.clone_from(self.clone_url, self.cache_dir)
+        branch = self.branch if self.branch else SweepConfig.get_branch(self.repo)
+        return git.Repo.clone_from(self.clone_url, self.cache_dir, branch=branch)
 
     def __post_init__(self):
         subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])
