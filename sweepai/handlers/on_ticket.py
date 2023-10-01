@@ -1060,19 +1060,22 @@ def on_ticket(
             )
 
             is_draft = config.get("draft", False)
+            # Create buttons for each changed file
+            buttons = [create_action_button(file_change_request.filename) for file_change_request in file_change_requests]
+            
             try:
                 pr = repo.create_pull(
                     title=pr_changes.title,
-                    body=pr_actions_message + pr_changes.body,
+                    body=pr_actions_message + "\n".join(buttons) + pr_changes.body,
                     head=pr_changes.pr_head,
                     base=SweepConfig.get_branch(repo),
                     draft=is_draft,
                 )
             except GithubException as e:
-                is_draft = False
+                is_draft = False;
                 pr = repo.create_pull(
                     title=pr_changes.title,
-                    body=pr_actions_message + pr_changes.body,
+                    body=pr_actions_message + "\n".join(buttons) + pr_changes.body,
                     head=pr_changes.pr_head,
                     base=SweepConfig.get_branch(repo),
                     draft=is_draft,
