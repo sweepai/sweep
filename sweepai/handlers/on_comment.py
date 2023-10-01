@@ -185,10 +185,10 @@ def on_comment(
 
     button_action = check_button_activated(comment)
     if button_action == 'revert':
-        # revert the changes made in the corresponding file
+        # TODO: Implement the action for the 'revert' button
         pass
     elif button_action == 'regenerate':
-        # regenerate the file
+        # TODO: Implement the action for the 'regenerate' button
         pass
 
     capture_posthog_event(username, "started", properties=metadata)
