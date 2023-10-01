@@ -458,18 +458,7 @@ def on_ticket(
                     )
                 suffix = bot_suffix  # don't include discord suffix for error messages
 
-            # Update the issue comment
-            msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
-            try:
-                issue_comment.edit(msg)
-            except BadCredentialsException:
-                logger.error("Bad credentials, refreshing token")
-                _user_token, g = get_github_client(installation_id)
-                repo = g.get_repo(repo_full_name)
-
-                for comment in comments:
-                    if comment.user.login == GITHUB_BOT_USERNAME:
-                        issue_comment = comment
+            [ORIGINAL_CODE]
 
                 if issue_comment is None:
                     issue_comment = current_issue.create_comment(msg)
@@ -1099,10 +1088,16 @@ def on_ticket(
             )
 
             is_draft = config.get("draft", False)
+            from sweepai.utils.buttons import create_button
+            
+            # Create buttons
+            revert_button = create_button('revert')
+            regenerate_button = create_button('regenerate')
+            
             try:
                 pr = repo.create_pull(
                     title=pr_changes.title,
-                    body=pr_actions_message + pr_changes.body,
+                    body=pr_actions_message + pr_changes.body + revert_button + regenerate_button,
                     head=pr_changes.pr_head,
                     base=SweepConfig.get_branch(repo),
                     draft=is_draft,
@@ -1111,7 +1106,7 @@ def on_ticket(
                 is_draft = False
                 pr = repo.create_pull(
                     title=pr_changes.title,
-                    body=pr_actions_message + pr_changes.body,
+                    body=pr_actions_message + pr_changes.body + revert_button + regenerate_button,
                     head=pr_changes.pr_head,
                     base=SweepConfig.get_branch(repo),
                     draft=is_draft,
