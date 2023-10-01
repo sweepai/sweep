@@ -21,7 +21,7 @@ log_message = """GitHub actions yielded the following error.
 
 {error_logs}
 
-This is likely a linting or type-checking issue with the source code. Update the code changed by the PR. Don't modify the existing tests."""
+Fix the code changed by the PR, don't modify the existing tests."""
 
 
 def get_dirs(zipfile: zipfile.ZipFile):
@@ -139,14 +139,10 @@ def on_check_suite(request: CheckRunCompleted):
     problematic_logs = extractor.gha_extract(logs)
     if problematic_logs.count("\n") > 20:
         problematic_logs += (
-            "\n\nThere are a lot of errors. This is likely due to a small parsing issue"
+            "\n\nThere are a lot of errors. This is likely due to a parsing issue"
             " or a missing import with the files changed in the PR."
         )
     comments = list(pr.get_issue_comments())
-
-    # logs_list = [extract_logs_from_comment(comment.body) for comment in comments]
-    # current_logs = extract_logs_from_comment(problematic_logs)
-
     if all([comment.user.login.startswith("sweep") for comment in comments[-4:]]):
         comment = pr.as_issue().create_comment(
             log_message.format(error_logs=problematic_logs)
