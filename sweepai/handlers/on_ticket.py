@@ -468,6 +468,7 @@ def on_ticket(
                 if issue_comment is None:
                     issue_comment = current_issue.create_comment(msg)
                 else:
+                    issue_comment = [comment for comment in issue.get_comments() if comment.user == GITHUB_BOT_USERNAME][0]
                     issue_comment.edit(msg)
 
         if len(title + summary) < 20:
