@@ -1,6 +1,6 @@
 # Deploying your own Sweep instance via Docker
 
-*🎉 We recently changed our license to the[Elastic License V2](https://www.elastic.co/licensing/elastic-license) to allow Sweep for commercial usage.*
+*🎉 We recently changed our license to the&nbsp;[Elastic License V2](https://www.elastic.co/licensing/elastic-license) to allow Sweep for commercial usage.*
 
 This is the guide for self-deploying Sweep. If you would like to use our hosted version, please visit https://sweep.dev. If you would like to develop on Sweep, check out [development](https://github.com/sweepai/sweep?tab=readme-ov-file#development).
 
@@ -111,7 +111,14 @@ Recommended specs:
 
 #### 2. Install Docker and docker compose
 ```sh
-sudo apt install -y apt-transport-https ca-certificates curl software-properties-common -y && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && sudo add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" && sudo apt update -y && sudo apt install docker-ce -y && sudo systemctl enable docker && sudo systemctl start docker && sudo usermod -aG docker ${USER}
+sudo apt install -y apt-transport-https ca-certificates curl software-properties-common -y
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+sudo apt update -y
+sudo apt install docker-ce -y
+sudo systemctl enable docker
+sudo systemctl start docker
+sudo usermod -aG docker ${USER}
 ```
 
 #### 3. Pull Image
