@@ -253,6 +253,13 @@ def on_ticket(
                 and f"Fixes #{issue_number}.\n" in pr.body
             ):
                 success = safe_delete_sweep_branch(pr, repo)
+        
+                # Get the list of changed files in the PR
+                files = pr.get_files()
+        
+                # Create a button for each file
+                for file in files:
+                    create_action_buttons([file.filename])
 
         # Removed 1, 3
         progress_headers = [
