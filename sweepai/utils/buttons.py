@@ -3,9 +3,9 @@ from typing import List
 from sweepai.events import Changes
 
 
-def create_button(label: str, selected: bool = False) -> str:
+def create_button(label: str) -> str:
     """Create a button for the issue body."""
-    return f"- [{'x' if selected else ' '}] {label}"
+    return f"[{label}]({label})"
 
 
 def create_action_buttons(labels: List[str], header="## Actions (click)\n") -> str:
