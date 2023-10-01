@@ -6,8 +6,8 @@ It is only called by the webhook handler in sweepai/api.py.
 
 import math
 import re
-import time
 import traceback
+from time import time
 
 import openai
 from github import BadCredentialsException, GithubException
@@ -101,7 +101,7 @@ def on_ticket(
     # 4. Get file changes
     # 5. Create PR
 
-    on_ticket_start_time = time.time()
+    on_ticket_start_time = time()
     summary = summary or ""
     # Check for \r since GitHub issues may have \r\n
     summary = re.sub(
@@ -212,7 +212,7 @@ def on_ticket(
             posthog.capture(
                 username,
                 "issue_closed",
-                properties={**metadata, "duration": time.time() - on_ticket_start_time},
+                properties={**metadata, "duration": time() - on_ticket_start_time},
             )
             return {"success": False, "reason": "Issue is closed"}
 
@@ -324,7 +324,8 @@ def on_ticket(
 
         def get_comment_header(index, errored=False, pr_message="", done=False):
             config_pr_message = (
-                "\n" + f"* Install Sweep Configs: [Pull Request]({config_pr_url})"
+                "\n"
+                + f"* Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a>"
                 if config_pr_url is not None
                 else ""
             )
@@ -493,7 +494,7 @@ def on_ticket(
             posthog.capture(
                 username,
                 "issue_too_short",
-                properties={**metadata, "duration": time.time() - on_ticket_start_time},
+                properties={**metadata, "duration": time() - on_ticket_start_time},
             )
             return {"success": True}
 
@@ -517,7 +518,7 @@ def on_ticket(
                     "test_repo",
                     properties={
                         **metadata,
-                        "duration": time.time() - on_ticket_start_time,
+                        "duration": time() - on_ticket_start_time,
                     },
                 )
                 return {"success": False}
@@ -547,7 +548,7 @@ def on_ticket(
                 properties={
                     **metadata,
                     "error": "System exit",
-                    "duration": time.time() - on_ticket_start_time,
+                    "duration": time() - on_ticket_start_time,
                 },
             )
             raise SystemExit
@@ -578,7 +579,7 @@ def on_ticket(
                 properties={
                     **metadata,
                     "error": str(e),
-                    "duration": time.time() - on_ticket_start_time,
+                    "duration": time() - on_ticket_start_time,
                 },
             )
             raise e
@@ -755,7 +756,7 @@ def on_ticket(
                     properties={
                         **metadata,
                         "count": len(subissues),
-                        "duration": time.time() - start_time,
+                        "duration": time() - on_ticket_start_time,
                     },
                 )
                 return {"success": True}
@@ -1229,7 +1230,7 @@ def on_ticket(
                     "error": str(e),
                     "reason": "Invalid request error / context length",
                     **metadata,
-                    "duration": time.time() - start_time,
+                    "duration": time() - on_ticket_start_time,
                 },
             )
             delete_branch = True
@@ -1302,7 +1303,7 @@ def on_ticket(
                 **metadata,
                 "error": str(e),
                 "trace": traceback.format_exc(),
-                "duration": time.time() - on_ticket_start_time,
+                "duration": time() - on_ticket_start_time,
             },
         )
         raise e
@@ -1310,7 +1311,7 @@ def on_ticket(
     posthog.capture(
         username,
         "success",
-        properties={**metadata, "duration": time.time() - on_ticket_start_time},
+        properties={**metadata, "duration": time() - on_ticket_start_time},
     )
     logger.info("on_ticket success")
     return {"success": True}
