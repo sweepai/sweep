@@ -22,6 +22,7 @@ from sweepai.config.client import (
     SweepConfig,
     get_documentation_dict,
 )
+from sweepai import docker_version_checker
 from sweepai.config.server import (
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
@@ -117,6 +118,7 @@ def on_ticket(
     repo_name = repo_full_name
     user_token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
+    docker_version_badge = docker_version_checker.generate_badge(repo)
     current_issue = repo.get_issue(number=issue_number)
     assignee = current_issue.assignee.login if current_issue.assignee else None
     if assignee is None:
@@ -230,7 +232,7 @@ def on_ticket(
             ):
                 item_to_react_to.delete_reaction(reaction.id)
 
-        current_issue.edit(body=summary)
+        current_issue.edit(body=summary + docker_version_badge)
 
         replies_text = ""
         comments = list(current_issue.get_comments())
