@@ -615,7 +615,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 "content": content,
                 "only_lint": only_lint,
             },
-            timeout=(5, 600),
+            timeout=(5, 300),
         )
         response.raise_for_status()
         output = response.json()
