@@ -90,15 +90,18 @@ def on_comment(
     # 4. Get file changes
     # 5. Create PR
 
-    # Check if the comment is a button click
-    if comment.startswith("sweep: button:"):
-        button = comment.split(":")[2].strip()
-
+    # New function to handle button clicks
+    def handle_button_click(button):
         # Perform the appropriate action based on the button clicked
         if button == "regenerate":
             regenerate()
         elif button == "revert":
             revert()
+    
+    # Check if the comment is a button click
+    if comment.startswith("sweep: button:"):
+        button = comment.split(":")[2].strip()
+        handle_button_click(button)
 
     # Rest of the code...
     logger.info(
