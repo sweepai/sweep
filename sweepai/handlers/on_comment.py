@@ -111,7 +111,7 @@ def on_comment(
         button_info = comment.split(":")
         button_name = button_info[2]
         file_path = button_info[3]
-
+    
         # Perform the corresponding action based on the button name
         if button_name == "revert":
             # Call the function to revert the changes in the file
@@ -119,7 +119,7 @@ def on_comment(
         elif button_name == "regenerate":
             # Call the function to regenerate the changes in the file
             regenerate_changes(file_path)
-
+    
         return {"success": True}
 
     issue_number_match = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body)
