@@ -48,6 +48,7 @@ def comparison_to_diff(comparison):
     return "\n".join(formatted_diffs)
 
 def on_merge(request_dict, chat_logger):
+    import pdb; pdb.set_trace()
     before_sha = request_dict['before']
     after_sha = request_dict['after']
     commit_author = request_dict['sender']['login']
@@ -72,7 +73,7 @@ def on_merge(request_dict, chat_logger):
         return
     # update the merge_rule_debounce dictionary with the current time for the current repo
     merge_rule_debounce[repo.full_name] = time.time()
-    if commits_diff.count("\n") > CHANGE_BOUNDS[0] and commits_diff.count("\n") < CHANGE_BOUNDS[1]:
+    if not (commits_diff.count("\n") > CHANGE_BOUNDS[0] and commits_diff.count("\n") < CHANGE_BOUNDS[1]):
         return
     for rule in rules:
         changes_required, issue_title, issue_description = PostMerge(
