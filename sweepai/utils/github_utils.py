@@ -100,12 +100,15 @@ class ClonedRepo:
         random_bytes = os.urandom(16)
         hash_obj = hashlib.sha256(random_bytes)
         hash_hex = hash_obj.hexdigest()
-        return os.path.join(
-            "/tmp/cache/repos",
-            self.repo_full_name,
-            hash_hex,
-            self.branch if self.branch else "",
-        )
+        if self.branch:
+            return os.path.join(
+                "/tmp/cache/repos",
+                self.repo_full_name,
+                hash_hex,
+                self.branch,
+            )
+        else:
+            return os.path.join("/tmp/cache/repos", self.repo_full_name, hash_hex)
 
     @property
     def clone_url(self):
@@ -115,7 +118,9 @@ class ClonedRepo:
 
     def clone(self):
         if self.branch:
-            return git.Repo.clone_from(self.clone_url, self.cache_dir, branch=self.branch)
+            return git.Repo.clone_from(
+                self.clone_url, self.cache_dir, branch=self.branch
+            )
         else:
             return git.Repo.clone_from(self.clone_url, self.cache_dir)
 
