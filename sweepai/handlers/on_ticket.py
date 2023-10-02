@@ -6,8 +6,8 @@ It is only called by the webhook handler in sweepai/api.py.
 
 import math
 import re
-from time import time
 import traceback
+from time import time
 
 import openai
 from github import BadCredentialsException, GithubException
@@ -324,7 +324,8 @@ def on_ticket(
 
         def get_comment_header(index, errored=False, pr_message="", done=False):
             config_pr_message = (
-                "\n" + f"* Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a>"
+                "\n"
+                + f"* Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a>"
                 if config_pr_url is not None
                 else ""
             )
