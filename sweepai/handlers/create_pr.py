@@ -78,6 +78,27 @@ def create_pr_changes(
                         except Exception:
                             pass
                 
+                    title = "[Sweep Rules] Configure Sweep"
+                    branch_name = GITHUB_CONFIG_BRANCH
+                    if sweep_bot is not None:
+                        branch_name = sweep_bot.create_branch(branch_name, retry=False)
+                        try:
+                            sweep_bot.repo.create_file(
+                                "sweep.yaml",
+                                "Create sweep.yaml",
+                                GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
+                                branch=branch_name,
+                            )
+                    if repo is not None:
+                        # Check if file exists in repo
+                        try:
+                            repo.get_contents("sweep.yaml")
+                            return
+                        except SystemExit:
+                            raise SystemExit
+                        except Exception:
+                            pass
+                
                     title = "Configure Sweep"
                     if sweep_bot is None:
                         title = "[Sweep Rules] " + title
@@ -278,7 +299,7 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
         except Exception:
             pass
 
-    title = "Configure Sweep"
+    title = "[Sweep Rules] Configure Sweep"
     branch_name = GITHUB_CONFIG_BRANCH
     if sweep_bot is not None:
         branch_name = sweep_bot.create_branch(branch_name, retry=False)
