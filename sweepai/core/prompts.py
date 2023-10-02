@@ -1068,11 +1068,11 @@ Step-by-step thoughts:
 2.
 3.
 
-<search_queries>
-first query
-second query
+<extraction_terms>
+first term from the code
+second term from the code
 ...
-</search_queries>
+</extraction_terms>
 
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
@@ -1085,10 +1085,10 @@ last five lines of the original snippet (must end on code)
 use_chunking_message = """\
 This is just one section of the file. Determine whether the request is asking to edit this chunk of the file. If not, respond with "No" to "Changes needed".
 
-Otherwise, respond with a list of search queries, and optionally a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
+Otherwise, respond with a list of search queries, and a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
 
 dont_use_chunking_message = """\
-Respond with a list of search queries, and optionally a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
+Respond with a list of search queries, and a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
 
 update_snippets_system_prompt = (
     "You are a brilliant and meticulous engineer assigned to"

@@ -1463,9 +1463,6 @@ class ModifyBot:
             if _match.score > 50:
                 best_matches.append(_match)
 
-        if len(best_matches) == 0:
-            raise MatchingError("No matches found in file")
-
         for i, line in enumerate(file_contents.split("\n")):
             for keyword in extraction_terms:
                 if keyword in line:
@@ -1476,6 +1473,9 @@ class ModifyBot:
                             score=100,
                         )
                     )
+
+        if len(best_matches) == 0:
+            raise MatchingError("No matches found in file")
 
         # Todo: check multiple files for matches using PR changed files
 
