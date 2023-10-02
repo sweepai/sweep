@@ -3,7 +3,7 @@ List of common prompts used across the codebase.
 """
 
 # Following two should be fused
-system_message_prompt = """
+system_message_prompt = """\
 Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is fully complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. When writing tests, you will ensure the tests are fully complete, very extensive and cover all cases, and you will make up test data as needed. Take into account the current repository's language, frameworks, and dependencies.
 """
 
@@ -19,29 +19,6 @@ human_message_prompt = [
         "role": "user",
         "content": """{relevant_directories}""",
         "key": "relevant_directories",
-    },
-    {
-        "role": "user",
-        "content": """<repo_tree>
-{tree}
-</repo_tree>""",
-        "key": "relevant_tree",
-    },
-    {
-        "role": "user",
-        "content": """# Repo & Issue Metadata
-Repo: {repo_name}: {repo_description}
-{issue_url}Username: {username}
-Issue Title: {title}
-Issue Description: {description}""",
-    },
-]
-
-python_human_message_prompt = [
-    {
-        "role": "user",
-        "content": """{relevant_snippets}""",
-        "key": "relevant_snippets",
     },
     {
         "role": "user",
@@ -260,7 +237,7 @@ Step-by-step thoughts with explanations:
 </plan>
 """
 
-python_files_to_change_prompt = """
+python_files_to_change_prompt = """\
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
 Then, provide a list of ALL files you would like to modify, abiding by the following:
 * You may only create, modify, delete and rename files. Do not delete files unless explicitly requested/required.
@@ -1118,7 +1095,7 @@ update_snippets_system_prompt = (
     " class will be fully implemented. Take into account the current repository's"
     " language, frameworks, and dependencies. It is very important that you get this"
     " right."
-    """
+    """\
 Respond in the following format:
 
 Step-by-step thoughts:
@@ -1148,10 +1125,10 @@ File path: {file_path}
 {snippets}
 
 # Instructions
-For each of the {n} snippets above, rewrite it according to their corresponding instructions.
-* Only rewrite within the scope of the snippet, as it will be replaced directly.
+Rewrite each of the {n} snippets above according to their corresponding instructions.
+* Only rewrite code that lies within the start and end of the snippet. This code will be replaced directly.
 * Do not delete whitespace or comments.
-* The output will be copied into the code LITERALLY so do not close all ending brackets
+* The output will be copied into the code exactly so do not close hanging parentheses or tags.
 * To delete code insert an empty string.
 
 Respond in the following format:
