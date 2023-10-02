@@ -724,6 +724,8 @@ async def webhook(raw_request: Request):
                     event_name = "merged_sweep_pr"
                     if pr_request.pull_request.title.startswith("[config]"):
                         event_name = "config_pr_merged"
+                    elif pr_request.pull_request.title.startswith("[Sweep Rules]"):
+                        event_name = "sweep_rules_pr_merged"
                     posthog.capture(
                         merged_by,
                         event_name,

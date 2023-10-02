@@ -1024,24 +1024,29 @@ Losslessly summarize the code in a ordered list for an engineer to search for re
 fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original lines from the code that should be modified. The snippets will be modified after extraction so make sure we can match the snippets to the original code.
 Select the smallest spans that let you handle the request. There should not be any unimplemented functions or classes.
 
-Respond in the format:
+Your job is to identify parts of the code that you would like to modify.
+
+First, select search queries. The system will give you all lines containing one of these search queries.
+
+To select any additional spans you would like to modify, add blocks of snippet_to_modify containing the code blocks you want to modify.
+
+# Format
 
 Step-by-step thoughts:
 1.
 2.
 3.
+
+<search_queries>
+first keyword
+second keyword
 ...
-
-Changes needed: Yes/No
-
-Snippets to modify:
+</search_queries>
 
 <snippet_to_modify>
-```
 first five lines of the original snippet
 ...
 last five lines of the original snippet (must end on code)
-```
 </snippet_to_modify>
 """
 
@@ -1060,16 +1065,17 @@ File path: {file_path}
 # Instructions
 {chunking_message}
 
-Respond in the following format:
-
+# Format
 Step-by-step thoughts:
 1.
 2.
+3.
+
+<search_queries>
+first keyword
+second keyword
 ...
-
-Changes needed: Yes/No
-
-Snippets to modify:
+</search_queries>
 
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
@@ -1082,10 +1088,10 @@ last five lines of the original snippet (must end on code)
 use_chunking_message = """\
 This is just one section of the file. Determine whether the request is asking to edit this chunk of the file. If not, respond with "No" to "Changes needed".
 
-Otherwise, respond with a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
+Otherwise, respond with a list of search queries, and optionally a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
 
 dont_use_chunking_message = """\
-Respond with a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
+Respond with a list of search queries, and optionally a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
 
 update_snippets_system_prompt = (
     "You are a brilliant and meticulous engineer assigned to"

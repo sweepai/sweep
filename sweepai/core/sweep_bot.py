@@ -1381,7 +1381,7 @@ class ModifyBot:
         file_change_request: FileChangeRequest,
         chunking: bool = False,
     ):
-        snippet_queries = self.get_snippets_to_modify(
+        snippet_queries, keyword_queries = self.get_snippets_to_modify(
             file_path=file_path,
             file_contents=file_contents,
             file_change_request=file_change_request,
@@ -1393,6 +1393,7 @@ class ModifyBot:
             file_contents=file_contents,
             file_change_request=file_change_request,
             snippet_queries=snippet_queries,
+            keyword_queries=keyword_queries,
             chunking=chunking,
         )
         return new_file
@@ -1419,14 +1420,28 @@ class ModifyBot:
             )
         )
 
+        keyword_queries = []
+        keywords_query_pattern = (
+            r"<search_queries.*?>\n(?P<keywords>.*?)\n</search_queries>"
+        )
+        for keywords in re.findall(
+            keywords_query_pattern, fetch_snippets_response, re.DOTALL
+        ):
+            for keyword in keywords.split("\n"):
+                keyword_queries.append(keyword)
+
         snippet_queries = []
-        query_pattern = r"<snippet_to_modify.*?>\n(?P<code>.*?)\n</snippet_to_modify>"
-        for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
+        snippets_query_pattern = (
+            r"<snippet_to_modify.*?>\n(?P<code>.*?)\n</snippet_to_modify>"
+        )
+        for code in re.findall(
+            snippets_query_pattern, fetch_snippets_response, re.DOTALL
+        ):
             snippet_queries.append(strip_backticks(code))
 
         if len(snippet_queries) == 0:
             raise UnneededEditError("No snippets found in file")
-        return snippet_queries
+        return snippet_queries, keyword_queries
 
     def update_file(
         self,
@@ -1434,6 +1449,7 @@ class ModifyBot:
         file_contents: str,
         file_change_request: FileChangeRequest,
         snippet_queries: list[str],
+        keyword_queries: list[str],
         chunking: bool = False,
     ):
         best_matches = []
@@ -1444,6 +1460,17 @@ class ModifyBot:
 
         if len(best_matches) == 0:
             raise MatchingError("No matches found in file")
+
+        for i, line in enumerate(file_contents.split("\n")):
+            for keyword in keyword_queries:
+                if keyword in line:
+                    best_matches.append(
+                        Match(
+                            start=i,
+                            end=i + 1,
+                            score=100,
+                        )
+                    )
 
         # Todo: check multiple files for matches using PR changed files
 
