@@ -86,7 +86,6 @@ def copy_to(container):
     pbar = tqdm(files_to_copy)
     with tarfile.open("repo.tar", "w") as tar:
         for f in pbar:
-            # pbar.set_description(f"Copying {f}")
             tar.add(f)
     print("Done copying files into container")
 
