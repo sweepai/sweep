@@ -782,10 +782,6 @@ async def webhook(raw_request: Request):
                             )
             case "ping", None:
                 return {"message": "pong"}
-            case _:
-                logger.info(
-                    f"Unhandled event: {event} {request_dict.get('action', None)}"
-                )
     except ValidationError as e:
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
