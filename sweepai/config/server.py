@@ -110,16 +110,15 @@ description: ''
 # This sets whether to create pull requests as drafts. If this is set to True, then all pull requests will be created as drafts and GitHub Actions will not be triggered.
 draft: False
 
-# This is a list of directories that Sweep will not be able to edit. In our example, Sweep is unable to modify the .github folder as we do not want Sweep to modify our GitHub Actions.
-blocked_dirs: [".github/"]
+# This is a list of directories that Sweep will not be able to edit.
+blocked_dirs: []
 
 # This is a list of documentation links that Sweep will use to help it understand your code. You can add links to documentation for any packages you use here.
 #
 # Example:
 #
 # docs:
-#   - Modal: https://modal.com/docs/reference
-#   - PyGitHub: https://pygithub.readthedocs.io/en/latest/
+#   - PyGitHub: ["https://pygithub.readthedocs.io/en/latest/", "We use pygithub to interact with the GitHub API"]
 docs: []
 
 # Sandbox executes commands in a sandboxed environment to validate code changes after every edit to guarantee pristine code. For more details, see the [Sandbox](./sandbox) page.
@@ -132,7 +131,6 @@ sandbox:
 
 # This setting contains a list of rules that Sweep will check for. If any of these rules are broken in a new commit, Sweep will create an pull request to fix the broken rule.
 rules:
- - There should not be large sections of commented out code.
  - All docstrings and comments should be up to date.
 """,
 )
