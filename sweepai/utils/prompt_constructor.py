@@ -7,7 +7,6 @@ from sweepai.core.prompts import (
     human_message_prompt,
     human_message_prompt_comment,
     human_message_review_prompt,
-    python_human_message_prompt,
 )
 
 
@@ -20,6 +19,7 @@ class HumanMessagePrompt(BaseModel):
     snippets: list
     tree: str
     repo_description: str = ""
+    snippet_text = ""
 
     def delete_file(self, file_path):
         # Remove the snippets from the main list
@@ -66,6 +66,8 @@ class HumanMessagePrompt(BaseModel):
         return self.render_snippet_array(self.snippets)
 
     def construct_prompt(self, snippet_tag = None, directory_tag = None):
+        relevant_snippets = self.snippet_text if self.snippet_text else self.render_snippet_array(self.snippets, snippet_tag)
+        relevant_directories = self.get_relevant_directories(directory_tag) if self.get_relevant_directories(directory_tag) else ""
         human_messages = [
             {
                 "role": msg["role"],
@@ -79,8 +81,8 @@ class HumanMessagePrompt(BaseModel):
                     description=self.summary
                     if self.summary
                     else "No description provided.",
-                    relevant_snippets=self.render_snippet_array(self.snippets, snippet_tag),
-                    relevant_directories=self.get_relevant_directories(directory_tag),
+                    relevant_snippets=relevant_snippets,
+                    relevant_directories=relevant_directories,
                 ),
                 "key": msg.get("key"),
             }
@@ -97,39 +99,14 @@ Issue Title: {self.title}
 Issue Description: {self.summary}
 """
 
-
-class PythonHumanMessagePrompt(HumanMessagePrompt):
-    def construct_prompt(self):
-        human_messages = [
-            {
-                "role": msg["role"],
-                "content": msg["content"].format(
-                    repo_name=self.repo_name,
-                    issue_url=self.issue_url,
-                    username=self.username,
-                    repo_description=self.repo_description,
-                    tree=self.tree,
-                    title=self.title,
-                    description=self.summary
-                    if self.summary
-                    else "No description provided.",
-                    relevant_snippets=self.render_snippets(),
-                    relevant_directories=self.get_relevant_directories(),
-                ),
-                "key": msg.get("key"),
-            }
-            for msg in python_human_message_prompt
-        ]
-        return human_messages
-
-    def render_snippets(self):
-        res = ""
-        for snippet in self.snippets:
-            snippet_text = (
-                f"<snippet source={snippet.file_path}>\n{snippet.content}\n</snippet>\n"
-            )
-            res += snippet_text
-        return res
+def render_snippets(snippets):
+    res = ""
+    for snippet in snippets:
+        snippet_text = (
+            f"<snippet source={snippet.file_path}>\n{snippet.content}\n</snippet>\n"
+        )
+        res += snippet_text
+    return res
 
 
 class HumanMessagePromptReview(HumanMessagePrompt):
@@ -173,7 +150,6 @@ class HumanMessagePromptReview(HumanMessagePrompt):
         ]
 
         return human_messages
-
 
 class HumanMessageCommentPrompt(HumanMessagePrompt):
     comment: str
@@ -228,6 +204,16 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
             logger.info(f"General Comment {self.comment}")
 
         return human_messages
+
+    def get_issue_metadata(self):
+        return f"""# Repo & Issue Metadata
+Repo: {self.repo_name}: {self.repo_description}
+Issue: {self.issue_url}
+Username: {self.username}
+Issue Title: {self.title}
+Issue Description: {self.summary}
+The above was the original plan. Please address the user comment: {self.comment}
+"""
 
 
 class HumanMessageFinalPRComment(BaseModel):
