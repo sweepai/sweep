@@ -159,7 +159,7 @@ class SweepConfig(BaseModel):
             logger.warning(f"Error when getting config: {e}, returning empty dict")
             if "This repository is empty." in str(e):
                 raise EmptyRepository()
-            return {}
+            return SweepConfig()
 
 
 @lru_cache(maxsize=None)
