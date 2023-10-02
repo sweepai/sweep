@@ -531,6 +531,6 @@ def on_comment(
     return {"success": True}
 
 
-def capture_posthog_event(username, event, properties):
-    properties['duration'] = time.time() - start_time
+def capture_posthog_event(username, event, properties, start_time=None):
+    properties['duration'] = time.time() - start_time if start_time else 0
     posthog.capture(username, event, properties=properties)
