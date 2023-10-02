@@ -32,7 +32,7 @@ symbols(function, variable, or classes) is used/defined in file
 Provide your answer in the below format:
 
 <symbol_analysis>
-Extract the symbols that are over 90% needed to solve the issue and explain why. Do not mention it if it's "likely" or "possible", only choose ones you are certain about.
+Extract the symbols that are needed to solve the issue and explain why. Do not mention it if it's "likely" or "possible", only choose ones you are certain about. Provide at most 10 symbols, ideally fewer.
 </symbol_analysis>
 
 <relevant_symbols_to_files>

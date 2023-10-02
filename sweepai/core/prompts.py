@@ -193,24 +193,22 @@ Gather information to solve the problem. Use "finish" when you feel like you hav
 files_to_change_abstract_prompt = """Write an abstract minimum plan to address this issue in the least amount of change possible. Try to originate the root causes of this issue. Be clear and concise. 1 paragraph."""
 
 files_to_change_prompt = """\
-Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
-Then, provide a list of ALL files you would like to change, abiding by the following:
+Analyze the snippets, repo, and issue to break down the requested problem or feature. Then propose a high quality plan that completely addresses the user's request.
+
+Provide a list of ALL of the files we should modify, abiding by the following:
 * You may only create, modify, delete and rename files. Do not delete files unless explicitly requested/required.
-* Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
-* Use detailed, natural language instructions on what to modify regarding business logic, but make reference to files to import
+* Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
+* Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
 * Do not modify non-text files such as images, svgs, binary, etc
-* Ensure that the changes completely solve the task.
 
 You MUST follow the following format with the final output in XML tags:
 
-Root cause:
-Identify the root cause of this issue and a minimum plan to address this issue concisely in two sentences.
-
-Step-by-step thoughts with explanations:
-* Concise imperative thoughts
-* No conjunctions
+Contextual Request Analysis:
+<contextual_request_analysis>
+* Contextual analysis of the user request referencing the snippets and any necessary files/directories.
 ...
+</contextual_request_analysis>
 
 <plan>
 <create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
@@ -218,7 +216,6 @@ Step-by-step thoughts with explanations:
 * Instruction 2 for file_path_1
 ...
 </create>
-...
 
 
 <modify file="file_path_2" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
@@ -238,43 +235,45 @@ Step-by-step thoughts with explanations:
 """
 
 python_files_to_change_prompt = """\
-Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
-Then, provide a list of ALL files you would like to modify, abiding by the following:
+Analyze the snippets, repo, and issue to break down the requested problem or feature. Then propose a high quality plan that completely addresses the user's request.
+
+Provide a list of ALL of the files we should modify, abiding by the following:
 * You may only create, modify, delete and rename files. Do not delete files unless explicitly requested/required.
-* Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth
+* Including the FULL path, e.g. src/main.py and not just main.py, using the repo_tree as the source of truth.
 * You can modify multiple entities in the same file.
-* Use detailed, natural language instructions on what to modify regarding business logic, but reference files to import
+* Use detailed, natural language instructions on what to modify regarding business logic, and reference files to import.
 * Be concrete with instructions and do not write "check for x" or "ensure y is done". Simply write "add x" or "change y to z".
 * Do not modify non-text files such as images, svgs, binary, etc
 
 You MUST follow the following format with the final output in XML tags:
 
-Root cause:
-Identify the root cause of this issue and a minimum plan to address this issue concisely in two sentences.
-
-Step-by-step thoughts with explanations:
-* Concise imperative thoughts
-* No conjunctions
+Contextual Request Analysis:
+<contextual_request_analysis>
+* Contextual analysis of the user request referencing the snippets and any necessary files/directories.
 ...
+</contextual_request_analysis>
 
 <plan>
-<create file="file_path_1">
+<create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
 * Instruction 1 for file_path_1
 * Instruction 2 for file_path_1
 ...
 </create>
+...
 
-<modify file="file_path_2" entity="name of function or class to modify (optional)">
+<modify file="file_path_2" entity="name of function or class to modify (optional)" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
 * Instruction 1 for file_path_2
 * Instruction 2 for file_path_2
 ...
 </modify>
+...
 
 <delete file="file_path_3"></delete>
+...
 
 <rename file="file_path_4">new full path for file_path_4</rename>
-
 ...
+
 </plan>
 """
 
@@ -1024,12 +1023,9 @@ Losslessly summarize the code in a ordered list for an engineer to search for re
 fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original lines from the code that should be modified. The snippets will be modified after extraction so make sure we can match the snippets to the original code.
 Select the smallest spans that let you handle the request. There should not be any unimplemented functions or classes.
 
+Write the terms we should extract from the code. The system will then give you all individual lines containing one of these extracted_terms. You can use wildcards like `func(**)` to find all function calls of `func`.
 
-Your job is to identify parts of the code that you would like to modify.
-
-Write search queries. The system will then give you all individual lines containing one of these search queries. You can use wildcards like `func(**)` to find all function calls of `func`.
-
-Then, to select any additional spans you would like to modify, add blocks of snippet_to_modify containing the code blocks you want to modify.
+Select spans you would like to modify by adding blocks of snippet_to_modify containing the code blocks you want to modify.
 
 # Format
 
@@ -1038,16 +1034,16 @@ Step-by-step thoughts:
 2.
 3.
 
-<search_queries>
-first query
-second query
+<extraction_terms>
+first term from the code
+second term from the code
 ...
-</search_queries>
+</extraction_terms>
 
 <snippet_to_modify>
-first five lines of the original snippet
+first five lines of code from the original snippet
 ...
-last five lines of the original snippet (must end on code)
+last five lines of code from the original snippet (the code)
 </snippet_to_modify>
 """
 
