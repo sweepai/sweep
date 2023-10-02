@@ -88,8 +88,7 @@ def copy_to(container):
         for f in pbar:
             # pbar.set_description(f"Copying {f}")
             tar.add(f)
-    print("Done copying files into container")
-
+    
     data = open("repo.tar", "rb").read()
     container.exec_run("mkdir repo")
     container.put_archive("repo", data)
