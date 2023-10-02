@@ -8,7 +8,6 @@ from urllib.parse import quote
 from pydantic import BaseModel
 
 from logn import logger
-from sweepai.utils.event_logger import set_highlight_id
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
@@ -177,6 +176,13 @@ class FileChangeRequest(RegexMatchableBaseModel):
             for relevant_file in self.raw_relevant_files.split(",")
             if relevant_file != self.filename
         ]
+
+    @property
+    def entity_display(self):
+        if self.entity:
+            return f"`{self.filename}:{self.entity}`"
+        else:
+            return f"`{self.filename}`"
 
     @property
     def instructions_display(self):
