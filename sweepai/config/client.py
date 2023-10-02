@@ -112,6 +112,8 @@ class SweepConfig(BaseModel):
                 return branch_name
             except SystemExit:
                 raise SystemExit
+            except Exception as e:
+                logger.warning(f"Error when getting branch: {e}")
 
         if key in branch_overrides:
             return branch_overrides[key]
@@ -160,6 +162,18 @@ class SweepConfig(BaseModel):
             if "This repository is empty." in str(e):
                 raise EmptyRepository()
             return SweepConfig()
+        
+    @staticmethod
+    def get_draft(repo: Repository):
+        try:
+            contents = repo.get_contents("sweep.yaml")
+            config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
+            return config.get("draft", False)
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
+            logger.warning(f"Error when getting draft: {e}, returning False")
+            return False
 
 
 @lru_cache(maxsize=None)
