@@ -91,7 +91,7 @@ def copy_to(container):
     print("Done copying files into container")
 
     data = open("repo.tar", "rb").read()
-    container.put_archive(".", data)
+    container.put_archive("repo", data)
     os.remove("repo.tar")
 
 
@@ -153,7 +153,7 @@ def sandbox(file_path: Optional[Path] = None, telemetry: bool = True):
             copy_to(container)
 
             def wrap_command(command):
-                command = shlex.quote(command.format(file_path=file_path))
+                command = shlex.quote("cd repo" + command.format(file_path=file_path))
                 return f"bash -c {command}"
 
             def summarize_logs(logs):
