@@ -48,7 +48,6 @@ def comparison_to_diff(comparison):
     return "\n".join(formatted_diffs)
 
 def on_merge(request_dict, chat_logger):
-    import pdb; pdb.set_trace()
     before_sha = request_dict['before']
     after_sha = request_dict['after']
     commit_author = request_dict['sender']['login']
