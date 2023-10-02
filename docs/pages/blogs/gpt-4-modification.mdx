@@ -486,7 +486,7 @@ Here's some other minor roadblocks we ran into:
 - **Indentation**: GPT-4 tends to unindent code and this would make Python code unparsable. We fixed this by matching the original indentation based on the difference in indentation between the ORIGINAL block and the matched section of the original file.
 
 Despite solving most of these, we still have the issue of some files still being too long. We have several > 1000 line files in *our own codebase*.
-- Streaming 400 lines at a time is a bandaid solution but doesn’t solve the problem entirely, since it would break up semantically meaningful parts of the code. Further, the model would sometimes modify no sections of code or multiple sections of the code. It’s difficult to a section of a file without the context of the rest of the file.
+- Streaming 400 lines at a time is a bandaid solution but doesn’t solve the problem entirely, since it would break up semantically meaningful parts of the code. Further, the model would sometimes modify no sections of code or multiple sections of the code. It’s difficult to modify a section of a file without the rest of the file in the context.
 - For Python, we set up entity-based editing. We recently set up a call-graph system for a better repo-level understanding of Python code. We use this at the planning stage by letting the LLM decide which class or function of the file it wants to edit.
 
 ## Conclusion
