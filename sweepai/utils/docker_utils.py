@@ -22,8 +22,8 @@ def get_docker_version_badge():
         hub_version = get_docker_hub_version()
         local_version = get_local_docker_version()
         if hub_version == local_version:
-            return 'Up-to-date'
+            return 'Docker Version-Up-to-date-https://img.shields.io/badge/Docker_Version-Up_to_date-blue'
         else:
-            return 'Outdated'
+            return 'Docker Version-Outdated-https://img.shields.io/badge/Docker_Version-Outdated-red'
     except Exception:
         return 'Error'
