@@ -8,6 +8,7 @@ from typing import Generator
 import openai
 from github.Commit import Commit
 from github.Repository import Repository
+from sweepai.utils.docker_utils import get_docker_version_badge
 
 from logn import logger
 from sweepai.config.client import UPDATES_MESSAGE, SweepConfig, get_blocked_dirs
@@ -324,9 +325,12 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
 
     logger.print("Default branch", repo.default_branch)
     logger.print("New branch", branch_name)
+    docker_version_badge = get_docker_version_badge()
     pr = repo.create_pull(
         title=title,
-        body="""🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
+        body=f"""🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
+
+        Docker Version: {docker_version_badge}
 
         ## What's new?
         - **Sweep is now configurable**.
