@@ -142,6 +142,8 @@ def create_pr_changes(
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
+        if "Sweep rules" in pr_title:
+            pr_title = "[Sweep Rules] " + pr_title
     except MaxTokensExceeded as e:
         logger.error(e)
         posthog.capture(
