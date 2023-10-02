@@ -1389,7 +1389,7 @@ class ModifyBot:
         file_change_request: FileChangeRequest,
         chunking: bool = False,
     ):
-        snippet_queries, keyword_queries = self.get_snippets_to_modify(
+        snippet_queries, extraction_terms = self.get_snippets_to_modify(
             file_path=file_path,
             file_contents=file_contents,
             file_change_request=file_change_request,
@@ -1401,7 +1401,7 @@ class ModifyBot:
             file_contents=file_contents,
             file_change_request=file_change_request,
             snippet_queries=snippet_queries,
-            keyword_queries=keyword_queries,
+            extraction_terms=extraction_terms,
             chunking=chunking,
         )
         return new_file
@@ -1428,12 +1428,12 @@ class ModifyBot:
             )
         )
 
-        keyword_queries = []
-        keywords_query_pattern = r"<search_query.*?>\n(?P<keyword>.*?)\n</search_query>"
-        for keyword in re.findall(
-            keywords_query_pattern, fetch_snippets_response, re.DOTALL
+        extraction_terms = []
+        extraction_term_pattern = r"<extraction_terms.*?>\n(?P<extraction_term>.*?)\n</extraction_terms>"
+        for extraction_term in re.findall(
+            extraction_term_pattern, fetch_snippets_response, re.DOTALL
         ):
-            keyword_queries.append(keyword)
+            extraction_terms.append(extraction_term)
 
         snippet_queries = []
         snippets_query_pattern = (
@@ -1446,7 +1446,7 @@ class ModifyBot:
 
         if len(snippet_queries) == 0:
             raise UnneededEditError("No snippets found in file")
-        return snippet_queries, keyword_queries
+        return snippet_queries, extraction_terms
 
     def update_file(
         self,
@@ -1454,7 +1454,7 @@ class ModifyBot:
         file_contents: str,
         file_change_request: FileChangeRequest,
         snippet_queries: list[str],
-        keyword_queries: list[str],
+        extraction_terms: list[str],
         chunking: bool = False,
     ):
         best_matches = []
@@ -1467,7 +1467,7 @@ class ModifyBot:
             raise MatchingError("No matches found in file")
 
         for i, line in enumerate(file_contents.split("\n")):
-            for keyword in keyword_queries:
+            for keyword in extraction_terms:
                 if keyword in line:
                     best_matches.append(
                         Match(
