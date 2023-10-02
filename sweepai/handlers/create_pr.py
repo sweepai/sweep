@@ -67,7 +67,9 @@ def create_pr_changes(
                 "username": username,
                 "installation_id": installation_id,
                 "repo_full_name": sweep_bot.repo.full_name,
-                "title": pull_request.title,
+                pr_title = pull_request.title
+                if "Sweep rules" in pr_title:
+                    pr_title = "[Sweep Rules] " + pr_title
                 "summary": "",
                 "issue_url": "",
             }
@@ -139,8 +141,29 @@ def create_pr_changes(
             )
         else:
             pr_description = f"{pull_request.content}"
-        pr_title = pull_request.title
-        if "sweep.yaml" in pr_title:
+        title = "Configure Sweep"
+        if "Sweep rules" in title:
+            title = "[Sweep Rules] " + title
+        pr = repo.create_pull(
+            title=title,
+            body="""🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
+        
+            ## What's new?
+            - **Sweep is now configurable**.
+            - To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
+            - If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep) for help.
+        
+            If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
+            Thank you for using Sweep! 🧹""".replace(
+                "    ", ""
+            ),
+            head=branch_name,
+            base=SweepConfig.get_branch(repo)
+            if sweep_bot is not None
+            else repo.default_branch,
+        )
+        pr.add_to_labels(GITHUB_LABEL_NAME)
+        return pr
             pr_title = "[config] " + pr_title
         if "Sweep rules" in pr_title:
             pr_title = "[Sweep Rules] " + pr_title
