@@ -67,7 +67,30 @@ def create_pr_changes(
                 "username": username,
                 "installation_id": installation_id,
                 "repo_full_name": sweep_bot.repo.full_name,
-                "title": pull_request.title,
+                def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None):
+                    if repo is not None:
+                        # Check if file exists in repo
+                        try:
+                            repo.get_contents("sweep.yaml")
+                            return
+                        except SystemExit:
+                            raise SystemExit
+                        except Exception:
+                            pass
+                
+                    title = "Configure Sweep"
+                    if sweep_bot is None:
+                        title = "[Sweep Rules] " + title
+                    branch_name = GITHUB_CONFIG_BRANCH
+                    if sweep_bot is not None:
+                        branch_name = sweep_bot.create_branch(branch_name, retry=False)
+                        try:
+                            sweep_bot.repo.create_file(
+                                "sweep.yaml",
+                                "Create sweep.yaml",
+                                GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch),
+                                branch=branch_name,
+                            )
                 "summary": "",
                 "issue_url": "",
             }
@@ -139,8 +162,27 @@ def create_pr_changes(
             )
         else:
             pr_description = f"{pull_request.content}"
-        pr_title = pull_request.title
-        if "sweep.yaml" in pr_title:
+        pr = repo.create_pull(
+            title=title,
+            body="""🎉 Thank you for installing Sweep! We're thrilled to announce the latest update for Sweep, your AI junior developer on GitHub. This PR creates a `sweep.yaml` config file, allowing you to personalize Sweep's performance according to your project requirements.
+        
+            ## What's new?
+            - **Sweep is now configurable**.
+            - To configure Sweep, simply edit the `sweep.yaml` file in the root of your repository.
+            - If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep) for help.
+        
+            If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
+            Thank you for using Sweep! 🧹""".replace(
+                "    ", ""
+            ),
+            head=branch_name,
+            base=SweepConfig.get_branch(repo)
+            if sweep_bot is not None
+            else repo.default_branch,
+        )
+        pr.add_to_labels(GITHUB_LABEL_NAME)
+        return pr
+            create_config_pr(None, repo=repo)
             pr_title = "[config] " + pr_title
     except MaxTokensExceeded as e:
         logger.error(e)
