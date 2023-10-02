@@ -356,7 +356,6 @@ def sliding_window_replacement(
             and len(kwargs) == 0
         ):
             try:
-                # import pdb; pdb.set_trace()
                 radix_original = radix_replace(original, search, replace)
                 if radix_original is not None:
                     return radix_original, None, None
