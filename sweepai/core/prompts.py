@@ -1024,11 +1024,12 @@ Losslessly summarize the code in a ordered list for an engineer to search for re
 fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original lines from the code that should be modified. The snippets will be modified after extraction so make sure we can match the snippets to the original code.
 Select the smallest spans that let you handle the request. There should not be any unimplemented functions or classes.
 
+
 Your job is to identify parts of the code that you would like to modify.
 
-First, select search queries. The system will give you all lines containing one of these search queries.
+Write search queries. The system will then give you all individual lines containing one of these search queries. You can use wildcards like `func(**)` to find all function calls of `func`.
 
-To select any additional spans you would like to modify, add blocks of snippet_to_modify containing the code blocks you want to modify.
+Then, to select any additional spans you would like to modify, add blocks of snippet_to_modify containing the code blocks you want to modify.
 
 # Format
 
@@ -1038,8 +1039,8 @@ Step-by-step thoughts:
 3.
 
 <search_queries>
-first keyword
-second keyword
+first query
+second query
 ...
 </search_queries>
 
@@ -1072,8 +1073,8 @@ Step-by-step thoughts:
 3.
 
 <search_queries>
-first keyword
-second keyword
+first query
+second query
 ...
 </search_queries>
 
@@ -1101,13 +1102,15 @@ update_snippets_system_prompt = (
     " class will be fully implemented. Take into account the current repository's"
     " language, frameworks, and dependencies. It is very important that you get this"
     " right."
-    """\
+    """
 Respond in the following format:
 
 Step-by-step thoughts:
 1.
 2.
 3.
+
+Updated snippets:
 
 <updated_snippet>
 ```
@@ -1144,6 +1147,8 @@ Step-by-step thoughts:
 2.
 3.
 ...
+
+Updated snippets:
 
 <updated_snippet>
 ```

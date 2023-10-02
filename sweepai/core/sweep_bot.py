@@ -245,10 +245,17 @@ class CodeGenBot(ChatGPT):
                         issue_metadata, relevant_snippets, symbols_to_files
                     )
 
-                    file_paths_to_contents = {
-                        file_path: self.cloned_repo.get_file_contents(file_path)
-                        for file_path in relevant_files_to_symbols.keys()
-                    }
+                    file_paths_to_contents = {}
+                    for file_path in relevant_files_to_symbols.keys():
+                        try:
+                            file_paths_to_contents[
+                                file_path
+                            ] = self.cloned_repo.get_file_contents(file_path)
+                        except FileNotFoundError:
+                            logger.warning(
+                                f"File {file_path} not found in repo. Skipping..."
+                            )
+                            continue
 
                     # Create plan for relevant snippets first
                     human_message_snippet_paths = set(
@@ -1421,14 +1428,11 @@ class ModifyBot:
         )
 
         keyword_queries = []
-        keywords_query_pattern = (
-            r"<search_queries.*?>\n(?P<keywords>.*?)\n</search_queries>"
-        )
-        for keywords in re.findall(
+        keywords_query_pattern = r"<search_query.*?>\n(?P<keyword>.*?)\n</search_query>"
+        for keyword in re.findall(
             keywords_query_pattern, fetch_snippets_response, re.DOTALL
         ):
-            for keyword in keywords.split("\n"):
-                keyword_queries.append(keyword)
+            keyword_queries.append(keyword)
 
         snippet_queries = []
         snippets_query_pattern = (
@@ -1527,7 +1531,9 @@ class ModifyBot:
             formatted_code = remove_line_numbers(formatted_code)
             original_tag = "[ORIGINAL_CODE]"
             if original_tag in formatted_code:
-                import pdb; pdb.set_trace()
+                import pdb
+
+                pdb.set_trace()
             updated_snippets.append(formatted_code)
 
         result = file_contents
