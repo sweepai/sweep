@@ -16,7 +16,7 @@ def get_local_docker_version():
     version = result.stdout.decode('utf-8').strip()
     return version if version else 'No version found'
 
-def get_local_docker_version():
+def get_local_docker_tag():
     result = subprocess.run(['docker', 'images', 'sweepai/sweep', '--format', '{{.Tag}}'], stdout=subprocess.PIPE)
     version = result.stdout.decode('utf-8').strip()
     return version
