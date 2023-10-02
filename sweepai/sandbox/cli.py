@@ -86,11 +86,12 @@ def copy_to(container):
     pbar = tqdm(files_to_copy)
     with tarfile.open("repo.tar", "w") as tar:
         for f in pbar:
-            pbar.set_description(f"Copying {f}")
+            # pbar.set_description(f"Copying {f}")
             tar.add(f)
     print("Done copying files into container")
 
     data = open("repo.tar", "rb").read()
+    container.exec_run("mkdir repo")
     container.put_archive("repo", data)
     os.remove("repo.tar")
 
@@ -153,7 +154,9 @@ def sandbox(file_path: Optional[Path] = None, telemetry: bool = True):
             copy_to(container)
 
             def wrap_command(command):
-                command = shlex.quote("cd repo" + command.format(file_path=file_path))
+                command = shlex.quote(
+                    "cd repo && " + command.format(file_path=file_path)
+                )
                 return f"bash -c {command}"
 
             def summarize_logs(logs):
