@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 # from sweepai.config.server import DISCORD_WEBHOOK_URL
 from src.chat import fix_file
+from src.sandbox_container import SandboxContainer
 from src.sandbox_utils import Sandbox
 
 app = FastAPI()
