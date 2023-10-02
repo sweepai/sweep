@@ -1099,7 +1099,7 @@ def on_ticket(
                 else ""
             )
 
-            is_draft = config.get("draft", False)
+            is_draft = SweepConfig.get_draft(repo)
             try:
                 pr = repo.create_pull(
                     title=pr_changes.title,
