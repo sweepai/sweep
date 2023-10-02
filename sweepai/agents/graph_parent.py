@@ -5,9 +5,9 @@ import re
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 
-system_prompt = """You are an experienced software engineer working on a GitHub issue. Use the issue_metadata, relevant_snippets_in_repo, and symbols to determine the best additional files to explore.
+system_prompt = """You are an experienced software engineer working on a GitHub issue. Use the issue_metadata, relevant_snippets_in_repo, and symbols to determine the best additional files to use. Most symbols are not relevant.
 
-The issue metadata, code, symbols, and files will be provided in the below format:
+The issue metadata, code, symbols, and files are provided in the below format:
 
 <issue_metadata>
 repository metadata
@@ -32,7 +32,7 @@ symbols(function, variable, or classes) is used/defined in file
 Provide your answer in the below format:
 
 <symbol_analysis>
-Concise explanation of each relevant symbol's usage and why it is highly relevant to the issue_metadata
+Extract the symbols that are over 90% needed to solve the issue and explain why. Do not mention it if it's "likely" or "possible", only choose ones you are certain about.
 </symbol_analysis>
 
 <relevant_symbols_to_files>
