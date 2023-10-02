@@ -3,7 +3,7 @@ List of common prompts used across the codebase.
 """
 
 # Following two should be fused
-system_message_prompt = """
+system_message_prompt = """\
 Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is fully complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. When writing tests, you will ensure the tests are fully complete, very extensive and cover all cases, and you will make up test data as needed. Take into account the current repository's language, frameworks, and dependencies.
 """
 
@@ -19,29 +19,6 @@ human_message_prompt = [
         "role": "user",
         "content": """{relevant_directories}""",
         "key": "relevant_directories",
-    },
-    {
-        "role": "user",
-        "content": """<repo_tree>
-{tree}
-</repo_tree>""",
-        "key": "relevant_tree",
-    },
-    {
-        "role": "user",
-        "content": """# Repo & Issue Metadata
-Repo: {repo_name}: {repo_description}
-{issue_url}Username: {username}
-Issue Title: {title}
-Issue Description: {description}""",
-    },
-]
-
-python_human_message_prompt = [
-    {
-        "role": "user",
-        "content": """{relevant_snippets}""",
-        "key": "relevant_snippets",
     },
     {
         "role": "user",
@@ -260,7 +237,7 @@ Step-by-step thoughts with explanations:
 </plan>
 """
 
-python_files_to_change_prompt = """
+python_files_to_change_prompt = """\
 Think step-by-step to break down the requested problem or feature, and then figure out what to change in the current codebase.
 Then, provide a list of ALL files you would like to modify, abiding by the following:
 * You may only create, modify, delete and rename files. Do not delete files unless explicitly requested/required.
@@ -1047,24 +1024,29 @@ Losslessly summarize the code in a ordered list for an engineer to search for re
 fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original lines from the code that should be modified. The snippets will be modified after extraction so make sure we can match the snippets to the original code.
 Select the smallest spans that let you handle the request. There should not be any unimplemented functions or classes.
 
-Respond in the format:
+Your job is to identify parts of the code that you would like to modify.
+
+First, select search queries. The system will give you all lines containing one of these search queries.
+
+To select any additional spans you would like to modify, add blocks of snippet_to_modify containing the code blocks you want to modify.
+
+# Format
 
 Step-by-step thoughts:
 1.
 2.
 3.
+
+<search_queries>
+first keyword
+second keyword
 ...
-
-Changes needed: Yes/No
-
-Snippets to modify:
+</search_queries>
 
 <snippet_to_modify>
-```
 first five lines of the original snippet
 ...
 last five lines of the original snippet (must end on code)
-```
 </snippet_to_modify>
 """
 
@@ -1083,16 +1065,17 @@ File path: {file_path}
 # Instructions
 {chunking_message}
 
-Respond in the following format:
-
+# Format
 Step-by-step thoughts:
 1.
 2.
+3.
+
+<search_queries>
+first keyword
+second keyword
 ...
-
-Changes needed: Yes/No
-
-Snippets to modify:
+</search_queries>
 
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
@@ -1105,10 +1088,10 @@ last five lines of the original snippet (must end on code)
 use_chunking_message = """\
 This is just one section of the file. Determine whether the request is asking to edit this chunk of the file. If not, respond with "No" to "Changes needed".
 
-Otherwise, respond with a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
+Otherwise, respond with a list of search queries, and optionally a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
 
 dont_use_chunking_message = """\
-Respond with a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
+Respond with a list of search queries, and optionally a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
 
 update_snippets_system_prompt = (
     "You are a brilliant and meticulous engineer assigned to"
@@ -1118,7 +1101,7 @@ update_snippets_system_prompt = (
     " class will be fully implemented. Take into account the current repository's"
     " language, frameworks, and dependencies. It is very important that you get this"
     " right."
-    """
+    """\
 Respond in the following format:
 
 Step-by-step thoughts:
@@ -1148,10 +1131,10 @@ File path: {file_path}
 {snippets}
 
 # Instructions
-For each of the {n} snippets above, rewrite it according to their corresponding instructions.
-* Only rewrite within the scope of the snippet, as it will be replaced directly.
+Rewrite each of the {n} snippets above according to their corresponding instructions.
+* Only rewrite code that lies within the start and end of the snippet. This code will be replaced directly.
 * Do not delete whitespace or comments.
-* The output will be copied into the code LITERALLY so do not close all ending brackets
+* The output will be copied into the code exactly so do not close hanging parentheses or tags.
 * To delete code insert an empty string.
 
 Respond in the following format:
