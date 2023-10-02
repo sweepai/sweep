@@ -5,6 +5,7 @@ It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its o
 import re
 import traceback
 from typing import Any
+import time
 
 import openai
 from github.Repository import Repository
@@ -83,6 +84,7 @@ def on_comment(
     comment_type: str = "comment",
     type: str = "comment",
 ):
+    start_time = time.time()
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -330,7 +332,7 @@ def on_comment(
         capture_posthog_event(
             username,
             "failed",
-            properties={"error": str(e), "reason": "Failed to get files", **metadata},
+            properties={"error": str(e), "reason": "Failed to get files", "duration": time.time() - start_time, **metadata},
         )
         edit_comment(ERROR_FORMAT.format(title="Failed to get files"))
         raise e
@@ -479,6 +481,7 @@ def on_comment(
             properties={
                 "error": "No files to change",
                 "reason": "No files to change",
+                "duration": time.time() - start_time,
                 **metadata,
             },
         )
@@ -492,6 +495,7 @@ def on_comment(
             properties={
                 "error": str(e),
                 "reason": "Failed to make changes",
+                "duration": time.time() - start_time,
                 **metadata,
             },
         )
@@ -524,7 +528,7 @@ def on_comment(
     except Exception:
         pass
 
-    capture_posthog_event(username, "success", properties={**metadata})
+    capture_posthog_event(username, "success", properties={"duration": time.time() - start_time, **metadata})
     logger.info("on_comment success")
     return {"success": True}
 
