@@ -114,8 +114,10 @@ class ClonedRepo:
         )
 
     def clone(self):
-        branch = self.branch if self.branch else SweepConfig.get_branch(self.repo)
-        return git.Repo.clone_from(self.clone_url, self.cache_dir, branch=branch)
+        if self.branch:
+            return git.Repo.clone_from(self.clone_url, self.cache_dir, branch=self.branch)
+        else:
+            return git.Repo.clone_from(self.clone_url, self.cache_dir)
 
     def __post_init__(self):
         subprocess.run(["git", "config", "--global", "http.postBuffer", "524288000"])
