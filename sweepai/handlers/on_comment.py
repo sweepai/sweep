@@ -183,7 +183,7 @@ def on_comment(
     }
     # logger.bind(**metadata)
 
-    capture_posthog_event(username, "started", properties=metadata)
+    capture_posthog_event(username, "started", properties=metadata, start_time)
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = bool(pr_path) and bool(pr_line_position)
 
@@ -333,6 +333,7 @@ def on_comment(
             username,
             "failed",
             properties={"error": str(e), "reason": "Failed to get files", **metadata},
+            start_time
         )
         edit_comment(ERROR_FORMAT.format(title="Failed to get files"))
         raise e
@@ -483,6 +484,7 @@ def on_comment(
                 "reason": "No files to change",
                 **metadata,
             },
+            start_time
         )
         edit_comment(ERROR_FORMAT.format(title="Could not find files to change"))
         return {"success": True, "message": "No files to change."}
@@ -496,6 +498,7 @@ def on_comment(
                 "reason": "Failed to make changes",
                 **metadata,
             },
+            start_time
         )
         edit_comment(ERROR_FORMAT.format(title="Failed to make changes"))
         raise e
@@ -526,7 +529,7 @@ def on_comment(
     except Exception:
         pass
 
-    capture_posthog_event(username, "success", properties={**metadata})
+    capture_posthog_event(username, "success", properties={**metadata}, start_time)
     logger.info("on_comment success")
     return {"success": True}
 
