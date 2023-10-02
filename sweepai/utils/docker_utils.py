@@ -9,8 +9,8 @@ def get_docker_hub_version():
     return version
 
 def get_local_docker_version():
-    result = subprocess.run(['docker', '--version'], stdout=subprocess.PIPE)
-    version = result.stdout.decode('utf-8').split(' ')[2].strip(',')
+    result = subprocess.run(['docker', 'images', 'sweepai/sweep', '--format', '{{.Tag}}'], stdout=subprocess.PIPE)
+    version = result.stdout.decode('utf-8').strip()
     return version
 
 def get_docker_version_badge():
