@@ -1474,8 +1474,7 @@ class ModifyBot:
                         )
                     )
 
-        if len(best_matches) == 0:
-            raise MatchingError("No matches found in file")
+        import traceback
 
         # Todo: check multiple files for matches using PR changed files
 
