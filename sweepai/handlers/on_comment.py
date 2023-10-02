@@ -4,6 +4,7 @@ It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its o
 """
 import re
 import traceback
+import time
 from typing import Any
 
 import openai
@@ -89,6 +90,7 @@ def on_comment(
     # 3. Get files to change
     # 4. Get file changes
     # 5. Create PR
+    start_time = time.time()
     logger.info(
         f"Calling on_comment() with the following arguments: {comment},"
         f" {repo_full_name}, {repo_description}, {pr_path}"
@@ -530,4 +532,6 @@ def on_comment(
 
 
 def capture_posthog_event(username, event, properties):
+    duration = time.time() - start_time
+    properties["duration"] = duration
     posthog.capture(username, event, properties=properties)
