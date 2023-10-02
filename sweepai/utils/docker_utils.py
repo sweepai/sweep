@@ -6,13 +6,13 @@ def get_docker_hub_version():
     response = requests.get('https://hub.docker.com/v2/repositories/sweepai/sweep/tags')
     data = json.loads(response.text)
     for result in data['results']:
-        version = result['name']
-        if version != 'latest':
-            return version
+        last_pushed = result['last_pushed']
+        if last_pushed:
+            return last_pushed
     return 'No version found'
 
 def get_local_docker_version():
-    result = subprocess.run(['docker', 'images', 'sweepai/sweep', '--format', '{{.Tag}}', '--filter', 'label!=latest'], stdout=subprocess.PIPE)
+    result = subprocess.run(['docker', 'images', 'sweepai/sweep', '--format', '{{.CreatedAt}}', '--filter', 'label!=latest'], stdout=subprocess.PIPE)
     version = result.stdout.decode('utf-8').strip()
     return version if version else 'No version found'
 
