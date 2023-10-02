@@ -121,20 +121,13 @@ sudo systemctl start docker
 sudo usermod -aG docker ${USER}
 ```
 
-#### 3. Pull Image
+#### 3. Configure `.env` and pull Image
+Run the docker client if you are on Mac/Windows.
 ```sh
 git clone https://github.com/sweepai/sweep
 cd sweep
-docker compose pull
-```
-
-#### 4. Configure `.env`
-Using your favorite text editor, create an `.env` file in the `sweep` directory:
-
-```sh
 vim .env
-# or
-nano .env
+docker compose pull
 ```
 
 And copy the following into the file:
@@ -153,12 +146,12 @@ OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 OPENAI_DO_HAVE_32K_MODEL_ACCESS=false
 ```
 
-#### 5. Launch Docker Image
+#### 4. Launch Docker Image
 ```sh
 docker compose up # Add -d to run in background
 ```
 
-#### 6. Update GitHub Webhook URL
+#### 5. Update GitHub Webhook URL
 
 First, get the IP address of your instance, and add the port Sweep is deployed to (in this case, 8080):
 ```sh
