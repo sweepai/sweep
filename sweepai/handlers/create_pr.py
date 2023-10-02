@@ -43,7 +43,19 @@ INSTRUCTIONS_FOR_REVIEW = """\
 * Edit the original issue to get Sweep to recreate the PR from scratch"""
 
 
-def create_pr_changes(
+        if issue_number:
+            # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)
+            pr_description = (
+                f"{pull_request.content}\n\nFixes"
+                f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
+            )
+        else:
+            pr_description = f"{pull_request.content}"
+        pr_title = pull_request.title
+        if "sweep.yaml" in pr_title:
+            pr_title = "[config] " + pr_title
+        elif "rules" in pr_title:
+            pr_title = "[Sweep Rules] " + pr_title
     file_change_requests: list[FileChangeRequest],
     pull_request: PullRequest,
     sweep_bot: SweepBot,
