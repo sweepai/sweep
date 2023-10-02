@@ -277,22 +277,20 @@ class CodeGenBot(ChatGPT):
                             and file_path
                             in human_message_snippet_paths  # <- trim these once the human messages are parsed
                         ]
-                        if (
-                            file_path in human_message_snippet_paths
-                            and file_path in file_paths_to_contents
-                        ):
+                        if file_path in human_message_snippet_paths:
                             snippet = next(
                                 snippet
                                 for snippet in self.human_message.snippets
                                 if snippet.file_path == file_path
                             )
                         else:
-                            snippet = Snippet(
-                                file_path=file_path,
-                                start=0,
-                                end=0,
-                                content=file_paths_to_contents[file_path],
-                            )
+                            if file_path in file_paths_to_contents:
+                                snippet = Snippet(
+                                    file_path=file_path,
+                                    start=0,
+                                    end=0,
+                                    content=file_paths_to_contents[file_path],
+                                )
                         relevant_symbol_list = []
                         for v in relevant_files_to_symbols.values():
                             relevant_symbol_list.extend(v)
