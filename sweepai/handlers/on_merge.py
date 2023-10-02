@@ -80,7 +80,7 @@ def on_merge(request_dict, chat_logger):
         ).check_for_issues(rule=rule, diff=commits_diff)
         if changes_required:
             make_pr(
-                title=issue_title,
+                title="[Sweep Rules] " + issue_title,
                 repo_description=repo.description,
                 summary=issue_description,
                 repo_full_name=request_dict["repository"]["full_name"],

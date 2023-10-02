@@ -62,7 +62,6 @@ from sweepai.utils.diff import (
     sliding_window_replacement,
 )
 from sweepai.utils.graph import Graph
-from sweepai.utils.prompt_constructor import PythonHumanMessagePrompt
 from sweepai.utils.search_and_replace import Match, find_best_match
 from sweepai.utils.utils import chunk_code
 
@@ -325,22 +324,7 @@ class CodeGenBot(ChatGPT):
                     relevant_snippets = []
                     for plan in plans:
                         relevant_snippets.extend(plan.relevant_new_snippet)
-
-                    python_human_message = PythonHumanMessagePrompt(
-                        repo_name=self.human_message.repo_name,
-                        issue_url=self.human_message.issue_url,
-                        username=self.human_message.username,
-                        title=self.human_message.title,
-                        summary=self.human_message.summary,
-                        snippets=relevant_snippets,
-                        tree=self.human_message.tree,
-                        repo_description=self.human_message.repo_description,
-                    )
-                    prompt_message_dicts = python_human_message.construct_prompt()
-                    new_messages = [self.messages[0]]
-                    for message_dict in prompt_message_dicts:
-                        new_messages.append(Message(**message_dict))
-                    self.messages = new_messages
+                    self.human_message.snippet_text = relevant_snippets
                     files_to_change_response = self.chat(
                         python_files_to_change_prompt, message_key="files_to_change"
                     )  # Dedup files to change here
@@ -1397,7 +1381,7 @@ class ModifyBot:
         file_change_request: FileChangeRequest,
         chunking: bool = False,
     ):
-        snippet_queries = self.get_snippets_to_modify(
+        snippet_queries, keyword_queries = self.get_snippets_to_modify(
             file_path=file_path,
             file_contents=file_contents,
             file_change_request=file_change_request,
@@ -1409,6 +1393,7 @@ class ModifyBot:
             file_contents=file_contents,
             file_change_request=file_change_request,
             snippet_queries=snippet_queries,
+            keyword_queries=keyword_queries,
             chunking=chunking,
         )
         return new_file
@@ -1435,14 +1420,28 @@ class ModifyBot:
             )
         )
 
+        keyword_queries = []
+        keywords_query_pattern = (
+            r"<search_queries.*?>\n(?P<keywords>.*?)\n</search_queries>"
+        )
+        for keywords in re.findall(
+            keywords_query_pattern, fetch_snippets_response, re.DOTALL
+        ):
+            for keyword in keywords.split("\n"):
+                keyword_queries.append(keyword)
+
         snippet_queries = []
-        query_pattern = r"<snippet_to_modify.*?>\n(?P<code>.*?)\n</snippet_to_modify>"
-        for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
+        snippets_query_pattern = (
+            r"<snippet_to_modify.*?>\n(?P<code>.*?)\n</snippet_to_modify>"
+        )
+        for code in re.findall(
+            snippets_query_pattern, fetch_snippets_response, re.DOTALL
+        ):
             snippet_queries.append(strip_backticks(code))
 
         if len(snippet_queries) == 0:
             raise UnneededEditError("No snippets found in file")
-        return snippet_queries
+        return snippet_queries, keyword_queries
 
     def update_file(
         self,
@@ -1450,6 +1449,7 @@ class ModifyBot:
         file_contents: str,
         file_change_request: FileChangeRequest,
         snippet_queries: list[str],
+        keyword_queries: list[str],
         chunking: bool = False,
     ):
         best_matches = []
@@ -1460,6 +1460,17 @@ class ModifyBot:
 
         if len(best_matches) == 0:
             raise MatchingError("No matches found in file")
+
+        for i, line in enumerate(file_contents.split("\n")):
+            for keyword in keyword_queries:
+                if keyword in line:
+                    best_matches.append(
+                        Match(
+                            start=i,
+                            end=i + 1,
+                            score=100,
+                        )
+                    )
 
         # Todo: check multiple files for matches using PR changed files
 
@@ -1514,6 +1525,9 @@ class ModifyBot:
         for code in re.findall(updated_pattern, update_snippets_response, re.DOTALL):
             formatted_code = strip_backticks(code)
             formatted_code = remove_line_numbers(formatted_code)
+            original_tag = "[ORIGINAL_CODE]"
+            if original_tag in formatted_code:
+                import pdb; pdb.set_trace()
             updated_snippets.append(formatted_code)
 
         result = file_contents
