@@ -169,7 +169,7 @@ def make_pr(
         else ""
     )
     pr = repo.create_pull(
-        title=pr_changes.title,
+        title='[Sweep Rules] ' + pr_changes.title,
         body=pr_actions_message + pr_changes.body,
         head=pr_changes.pr_head,
         base=SweepConfig.get_branch(repo),
