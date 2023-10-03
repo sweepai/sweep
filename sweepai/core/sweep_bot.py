@@ -333,11 +333,10 @@ class CodeGenBot(ChatGPT):
                     for plan in plans:
                         extracted_code = plan.relevant_new_snippet[0].content
                         if len(relevant_snippet_text) < 60000:
-                            relevant_snippet_text += f"<relevant_snippet file_path={plan.file_path}>{extracted_code}</relevant_snippet>\n"
-                    relevant_snippet_text = relevant_snippet_text.strip()
-                    relevant_snippet_text = f"<relevant_snippets>\n{relevant_snippet_text}\n</relevant_snippets>\n"
+                            relevant_snippet_text += f"<relevant_snippet file_path={plan.file_path}>\n{extracted_code}\n</relevant_snippet>\n"
+                    relevant_snippet_text = relevant_snippet_text.strip("\n")
+                    relevant_snippet_text = f"<relevant_snippets>\n{relevant_snippet_text}\n</relevant_snippets>"
                     self.update_message_content_from_message_key("relevant_snippets", relevant_snippet_text)
-
                     files_to_change_response = self.chat(
                         python_files_to_change_prompt, message_key="files_to_change"
                     )  # Dedup files to change here
