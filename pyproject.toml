@@ -63,6 +63,7 @@ tree-sitter = "^0.20.1"
 tree-sitter-languages = "^1.7.0"
 eventlet = "^0.33.3"
 replicate = "^0.11.0"
+pytz = "^2023.3.post1"
 
 [tool.poetry.dev-dependencies]
 pylint = "^2.17.4"

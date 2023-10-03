@@ -22,6 +22,11 @@ human_message_prompt = [
     },
     {
         "role": "user",
+        "content": """{relevant_commit_history}""",
+        "key": "relevant_commit_history",
+    },
+    {
+        "role": "user",
         "content": """<repo_tree>
 {tree}
 </repo_tree>""",
