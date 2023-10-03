@@ -126,7 +126,7 @@ def sandbox(file_path: Optional[Path] = None, telemetry: bool = True):
             f"File path was not provided, so we default to the last edited file [bold]{file_path}[/bold]\n"
         )
 
-    print("Getting sandbox config... \n", style="bold white on cyan")
+    print(" Getting sandbox config... \n", style="bold white on cyan")
     sandbox = get_sandbox_from_config()
 
     if telemetry:
