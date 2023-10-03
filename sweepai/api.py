@@ -274,10 +274,10 @@ async def webhook(raw_request: Request):
         #         "reason": "User not in whitelist",
         #     }
         action = request_dict.get("action", None)
-        # logger.bind(event=event, action=action)
-        logger.info(f"Received event: {event}, {action}")
+        
         match event, action:
             case "issues", "opened":
+                logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
                 issue_title_lower = request.issue.title.lower()
                 if (
@@ -299,6 +299,7 @@ async def webhook(raw_request: Request):
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
             case "issue_comment", "edited":
+                logger.info(f"Received event: {event}, {action}")
                 request = IssueCommentRequest(**request_dict)
 
                 restart_sweep = False
@@ -396,6 +397,7 @@ async def webhook(raw_request: Request):
                         #     pr_change_request=pr_change_request,
                         # )
             case "issues", "edited":
+                logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
                 if (
                     GITHUB_LABEL_NAME
@@ -427,6 +429,7 @@ async def webhook(raw_request: Request):
                 else:
                     logger.info("Issue edited, but not a sweep issue")
             case "issues", "labeled":
+                logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
                 if any(
                     label.name.lower() == GITHUB_LABEL_NAME
@@ -448,6 +451,7 @@ async def webhook(raw_request: Request):
                         comment_id=None,
                     )
             case "issue_comment", "created":
+                logger.info(f"Received event: {event}, {action}")
                 request = IssueCommentRequest(**request_dict)
                 if (
                     request.issue is not None
@@ -523,6 +527,7 @@ async def webhook(raw_request: Request):
                         )
                         call_on_comment(**pr_change_request.params)
             case "pull_request_review_comment", "created":
+                logger.info(f"Received event: {event}, {action}")
                 # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
                 _, g = get_github_client(request.installation.id)
@@ -742,6 +747,7 @@ async def webhook(raw_request: Request):
                     )
                 chat_logger = ChatLogger({"username": merged_by})
             case "push", None:
+                logger.info(f"Received event: {event}, {action}")
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
                     chat_logger = ChatLogger(
                         {"username": request_dict["pusher"]["name"]}
@@ -776,10 +782,6 @@ async def webhook(raw_request: Request):
                             )
             case "ping", None:
                 return {"message": "pong"}
-            case _:
-                logger.info(
-                    f"Unhandled event: {event} {request_dict.get('action', None)}"
-                )
     except ValidationError as e:
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")

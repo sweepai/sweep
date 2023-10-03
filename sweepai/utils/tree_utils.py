@@ -75,7 +75,7 @@ class DirectoryTree:
                 full_relative_path = line.full_path()
             else:
                 full_relative_path = line.parent.full_path() + line.full_path() if line.parent else line.full_path()
-            if any(included_path.startswith(full_relative_path) for included_path in included):
+            if any(full_relative_path.startswith(included_path) for included_path in included):
                 parent_list = []
                 curr_parent = line.parent
                 while curr_parent and curr_parent not in new_lines:
