@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from logn import logger
 from sweepai.core.entities import EmptyRepository
+import traceback
 
 
 class SweepConfig(BaseModel):
@@ -109,7 +110,7 @@ class SweepConfig(BaseModel):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.warning(f"Error when getting branch: {e}")
+                logger.warning(f"Error when getting branch: {e}, traceback: {traceback.format_exc()}")
 
         default_branch = repo.default_branch
         try:
@@ -128,7 +129,7 @@ class SweepConfig(BaseModel):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.warning(f"Error when getting branch: {e}, creating branch")
+                logger.warning(f"Error when getting branch: {e}, traceback: {traceback.format_exc()}, creating branch")
                 repo.create_git_ref(
                     f"refs/heads/{branch_name}",
                     repo.get_branch(default_branch).commit.sha,
