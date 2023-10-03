@@ -47,14 +47,15 @@ from sweepai.core.prompts import issue_comment_prompt
 from sweepai.core.sweep_bot import SweepBot
 
 # from sandbox.sandbox_utils import Sandbox
-from sweepai.handlers.create_pr import (
-    create_config_pr,
-    create_pr_changes,
-    safe_delete_sweep_branch,
-)
+def create_file_buttons(changed_files):
+    buttons = []
+    for file in changed_files:
+        button = f'<button type="button">{file}</button>'
+        buttons.append(button)
+    return "\n".join(buttons)
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
-from sweepai.utils.buttons import create_action_buttons
+from sweepai.utils.buttons import create_action_buttons, create_file_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
@@ -330,6 +331,12 @@ def on_ticket(
                 else ""
             )
             actions_message = create_action_buttons(
+                [
+                    RESTART_SWEEP_BUTTON,
+                ]
+            )
+            file_buttons = create_file_buttons(changed_files)
+            actions_message += file_buttons
                 [
                     RESTART_SWEEP_BUTTON,
                 ]
@@ -826,7 +833,10 @@ def on_ticket(
             # TODO(lukejagg): Generate PR after modifications are made
             # CREATE PR METADATA
             logger.info("Generating PR...")
+            changed_files = [file_change_request.filename for file_change_request in file_change_requests]
+            file_buttons = create_file_buttons(changed_files)
             pull_request = sweep_bot.generate_pull_request()
+            pull_request.body += file_buttons
             # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
             # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
             # edit_sweep_comment(
