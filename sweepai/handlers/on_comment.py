@@ -1,4 +1,5 @@
 """
+"""
 on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
 It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
 """
@@ -91,6 +92,7 @@ def on_comment(
     # 5. Create PR
     logger.info(
         f"Calling on_comment() with the following arguments: {comment},"
+        f" {repo_full_name}, {repo_description}, {pr_path}"
         f" {repo_full_name}, {repo_description}, {pr_path}"
     )
     organization, repo_name = repo_full_name.split("/")
@@ -348,7 +350,9 @@ def on_comment(
                 )
             ]
         else:
-            regenerate = comment.strip().lower().startswith("sweep: regenerate")
+            regenerate_button = create_action_buttons("Regenerate")
+            if regenerate_button.clicked():
+                # process regenerate action
             reset = comment.strip().lower().startswith("sweep: reset")
             if regenerate or reset:
                 logger.info(f"Running {'regenerate' if regenerate else 'reset'}...")
@@ -400,6 +404,9 @@ def on_comment(
                     "success": True,
                     "message": "Files have been regenerated.",
                 }
+            revert_button = create_action_buttons("Revert")
+            if revert_button.clicked():
+                # process revert action
             else:
                 non_python_count = sum(
                     not file_path.endswith(".py")
