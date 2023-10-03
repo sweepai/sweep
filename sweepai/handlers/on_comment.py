@@ -1,5 +1,6 @@
 """
-on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
+"""
+on_comment is responsible for handling PR comments, PR review comments, and button click events, called from sweepai/api.py.
 It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
 """
 import re
@@ -75,6 +76,22 @@ def on_comment(
     pr_line_position: int | None,
     username: str,
     installation_id: int,
+    button_event: str = None,
+    pr_number: int = None,
+    comment_id: int | None = None,
+    chat_logger: Any = None,
+    pr: MockPR = None,  # For on_comment calls before PR is created
+    repo: Any = None,
+    comment_type: str = "comment",
+    type: str = "comment",
+):
+    repo_full_name: str,
+    repo_description: str,
+    comment: str,
+    pr_path: str | None,
+    pr_line_position: int | None,
+    username: str,
+    installation_id: int,
     pr_number: int = None,
     comment_id: int | None = None,
     chat_logger: Any = None,
@@ -90,7 +107,10 @@ def on_comment(
     # 4. Get file changes
     # 5. Create PR
     logger.info(
-        f"Calling on_comment() with the following arguments: {comment},"
+        logger.info(
+            f"Calling on_comment() with the following arguments: {comment},"
+            f" {repo_full_name}, {repo_description}, {pr_path}, {button_event}"
+        )
         f" {repo_full_name}, {repo_description}, {pr_path}"
     )
     organization, repo_name = repo_full_name.split("/")
@@ -167,7 +187,26 @@ def on_comment(
         "repo_description": repo_description,
         "installation_id": installation_id,
         "username": username if not username.startswith("sweep") else assignee,
-        "function": "on_comment",
+        metadata = {
+            "repo_full_name": repo_full_name,
+            "repo_name": repo_name,
+            "organization": organization,
+            "repo_description": repo_description,
+            "installation_id": installation_id,
+            "username": username if not username.startswith("sweep") else assignee,
+            "function": "on_comment",
+            "button_event": button_event,
+            "model": "gpt-3.5" if use_faster_model else "gpt-4",
+            "tier": "pro" if is_paying_user else "free",
+            "mode": ENV,
+            "pr_path": pr_path,
+            "pr_line_position": pr_line_position,
+            "pr_number": pr_number or pr.id,
+            "pr_html_url": pr.html_url,
+            "comment_id": comment_id,
+            "comment": comment,
+            "issue_number": issue_number if issue_number_match else "",
+        }
         "model": "gpt-3.5" if use_faster_model else "gpt-4",
         "tier": "pro" if is_paying_user else "free",
         "mode": ENV,
@@ -348,8 +387,8 @@ def on_comment(
                 )
             ]
         else:
-            regenerate = comment.strip().lower().startswith("sweep: regenerate")
-            reset = comment.strip().lower().startswith("sweep: reset")
+            regenerate = button_event == "regenerate"
+            reset = button_event == "reset"
             if regenerate or reset:
                 logger.info(f"Running {'regenerate' if regenerate else 'reset'}...")
 
@@ -527,7 +566,7 @@ def on_comment(
         pass
 
     capture_posthog_event(username, "success", properties={**metadata})
-    logger.info("on_comment success")
+    logger.info("on_comment success with button event handling")
     return {"success": True}
 
 
