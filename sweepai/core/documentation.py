@@ -113,7 +113,7 @@ def search_vector_store(doc_url, query, k=100):
             token=ACTIVELOOP_TOKEN,
         )
     logger.info("Embedding query...")
-    query_embedding = embedding_function(query, cpu=True)
+    query_embedding = embedding_function([query])
     logger.info("Searching vector store...")
     results = vector_store.search(embedding=query_embedding, k=k)
     metadatas = results["metadata"]
