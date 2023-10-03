@@ -55,19 +55,20 @@ cp -f dist/sweep-sandbox ~/
 exit_if_fail "Failed to copy executable."
 
 echo -e "\n${CYAN}${WHITE}--> Adding executable to PATH...${NC}\n"
-alias sweep-sandbox=~/sweep-sandbox
-which sweep-sandbox
+sudo mv ~/sweep-sandbox /usr/local/bin
+# alias sweep-sandbox=~/sweep-sandbox
+# which sweep-sandbox
 
-if [ -n "$BASH_VERSION" ]; then
-    echo "alias sweep-sandbox='~/sweep-sandbox'" >> ~/.bashrc
-elif [ -n "$ZSH_VERSION" ]; then
-    echo "alias sweep-sandbox='~/sweep-sandbox'" >> ~/.zshrc
-elif [ -n "$FISH_VERSION" ]; then
-    echo "alias sweep-sandbox='~/sweep-sandbox'" >> ~/.config/fish/config.fish
-else
-    echo "Shell not supported."
-fi
-exit_if_fail "Failed to add to PATH."
+# if [ -n "$BASH_VERSION" ]; then
+#     echo "alias sweep-sandbox='~/sweep-sandbox'" >> ~/.bashrc
+# elif [ -n "$ZSH_VERSION" ]; then
+#     echo "alias sweep-sandbox='~/sweep-sandbox'" >> ~/.zshrc
+# elif [ -n "$FISH_VERSION" ]; then
+#     echo "alias sweep-sandbox='~/sweep-sandbox'" >> ~/.config/fish/config.fish
+# else
+#     echo "Shell not supported."
+# fi
+# exit_if_fail "Failed to add to PATH."
 
 echo -e "\n${CYAN}${WHITE}--> Pulling sandbox Docker image...${NC}\n"
 docker pull sweepai/sandbox:latest
