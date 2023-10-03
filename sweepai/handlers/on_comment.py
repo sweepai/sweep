@@ -67,6 +67,8 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
 
 
 # @LogTask()
+from sweepai.utils.buttons import create_action_buttons
+
 def on_comment(
     repo_full_name: str,
     repo_description: str,
@@ -348,10 +350,8 @@ def on_comment(
                 )
             ]
         else:
-            regenerate = comment.strip().lower().startswith("sweep: regenerate")
-            reset = comment.strip().lower().startswith("sweep: reset")
-            if regenerate or reset:
-                logger.info(f"Running {'regenerate' if regenerate else 'reset'}...")
+            if comment.strip().lower().startswith("sweep: regenerate") or comment.strip().lower().startswith("sweep: regenerate: button"):
+                logger.info(f"Running regenerate...")
 
                 file_paths = comment.strip().split(" ")[2:]
 
@@ -391,7 +391,7 @@ def on_comment(
                             sha=current_content.sha,
                             branch=branch_name,
                         )
-                if reset:
+                if comment.strip().lower().startswith("sweep: reset") or comment.strip().lower().startswith("sweep: reset: button"):
                     return {
                         "success": True,
                         "message": "Files have been reset to their original state.",
