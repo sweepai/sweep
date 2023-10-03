@@ -1105,6 +1105,12 @@ def on_ticket(
                 else ""
             )
             
+            # Create buttons for each changed file
+            for file_change_request in file_change_requests:
+                revert_button = buttons.create_button('Revert', file_change_request.filename)
+                regenerate_button = buttons.create_button('Regenerate', file_change_request.filename)
+                pr_actions_message += revert_button + regenerate_button
+            
             is_draft = False
             try:
                 pr = repo.create_pull(
