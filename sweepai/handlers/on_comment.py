@@ -348,12 +348,11 @@ def on_comment(
                 )
             ]
         else:
-            regenerate = comment.strip().lower().startswith("sweep: regenerate")
-            reset = comment.strip().lower().startswith("sweep: reset")
-            if regenerate or reset:
-                logger.info(f"Running {'regenerate' if regenerate else 'reset'}...")
+            button_clicked = comment.strip().lower().startswith("button: ")
+            if button_clicked:
+                logger.info(f"Running button action...")
 
-                file_paths = comment.strip().split(" ")[2:]
+                file_paths = comment.strip().split(" ")[1:]
 
                 def get_contents_with_fallback(repo: Repository, file_path: str):
                     try:
@@ -391,14 +390,9 @@ def on_comment(
                             sha=current_content.sha,
                             branch=branch_name,
                         )
-                if reset:
-                    return {
-                        "success": True,
-                        "message": "Files have been reset to their original state.",
-                    }
                 return {
                     "success": True,
-                    "message": "Files have been regenerated.",
+                    "message": "Files have been reset to their original state.",
                 }
             else:
                 non_python_count = sum(
