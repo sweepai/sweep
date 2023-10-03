@@ -1026,7 +1026,8 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except:
-                pass
+                # Revert the changes
+                git.checkout('HEAD~1')
 
             changes_required = False
             try:
@@ -1066,10 +1067,10 @@ def on_ticket(
                         command, *args = review_comment.split()
                         if command == '/revert':
                             # Handle revert command
-                            pass
+                            git.checkout('HEAD~1')
                         elif command == '/regenerate':
                             # Handle regenerate command
-                            pass
+                            regenerate_files()
                     else:
                         on_comment(
                             repo_full_name=repo_full_name,
