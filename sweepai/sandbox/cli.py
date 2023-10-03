@@ -88,8 +88,7 @@ def copy_to(container):
         for f in pbar:
             # pbar.set_description(f"Copying {f}")
             tar.add(f)
-    print("Done copying files into container")
-
+    
     data = open("repo.tar", "rb").read()
     container.exec_run("mkdir repo")
     container.put_archive("repo", data)
@@ -126,7 +125,7 @@ def sandbox(file_path: Optional[Path] = None, telemetry: bool = True):
             f"File path was not provided, so we default to the last edited file [bold]{file_path}[/bold]\n"
         )
 
-    print("Getting sandbox config... \n", style="bold white on cyan")
+    print(" Getting sandbox config... \n", style="bold white on cyan")
     sandbox = get_sandbox_from_config()
 
     if telemetry:
