@@ -24,6 +24,10 @@ command -v python3 >/dev/null 2>&1 || { echo -e "${RED}Error: Python3 not found.
 command -v docker >/dev/null 2>&1 || { echo -e "${RED}Error: Docker not found. Install it first.${NC}"; exit 1; }
 python3 -c "import venv" 2>/dev/null || { echo -e "${RED}Error: venv not found. Install it first.${NC}"; exit 1; }
 
+echo -e "\n${CYAN}${WHITE}--> Getting permissions to copy executable...${NC}\n"
+sudo test
+# exit_if_fail "Failed to get permissions to copy executable."
+
 echo -e "\n${CYAN}${WHITE}--> Cloning repository...${NC}\n"
 cd /tmp
 rm -rf sweep
