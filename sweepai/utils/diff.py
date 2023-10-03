@@ -300,23 +300,15 @@ def sliding_window_replacement(
     else:
         modified = [spaces + line for line in replace]
 
-    # replaced original with modified
-    def same_without_whitespace(a: list[str], b: list[str]):
-        return [line for line in a if line.strip()] == [
-            line for line in b if line.strip()
-        ]
-
-    for i in range(2, 40):
-        if same_without_whitespace(
-            modified[:i], original[best_match.start - i : best_match.start]
-        ):
+    for i in range(min(len(modified) * 2, 40), 0, -1):
+        modified_str = "\n".join(modified[:i])
+        original_str = "\n".join(original[best_match.start - i : best_match.start])
+        modified_pref = "\n".join(modified[-i:])
+        original_pref = "\n".join(original[best_match.end : best_match.end + i])
+        if modified_str.strip("\n") == original_str.strip("\n"):
             modified = modified[i:]
-            break
-        if same_without_whitespace(
-            modified[-i:], original[best_match.end : best_match.end + i]
-        ):
+        if modified_pref == original_pref:
             modified = modified[:-i]
-            break
     original = original[: best_match.start] + modified + original[best_match.end :]
     return original, best_match, None
 
@@ -424,3 +416,44 @@ def is_markdown(filename):
         or filename.endswith(".rst")
         or filename.endswith(".txt")
     )
+
+
+
+if __name__ == "__main__":
+    old_file = """
+a
+b
+c
+"""
+
+    search = "b"
+    replace = """a
+b"""
+    print("\n".join(sliding_window_replacement(old_file.split("\n"), search.split("\n"), replace.split("\n"))[0]))
+    old_file = '''
+
+"""
+on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
+It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
+"""
+
+'''
+
+    search = "on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py."
+    replace = '''
+"""
+on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
+It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
+"""'''
+    res = "\n".join(sliding_window_replacement(old_file.split("\n"), search.split("\n"), replace.split("\n"))[0])
+    assert old_file == res
+
+    search = "on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py."
+    replace = '''
+"""
+Add another test line
+on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
+Add another test line'''
+    res = "\n".join(sliding_window_replacement(old_file.split("\n"), search.split("\n"), replace.split("\n"))[0])
+    print(res)
+    assert "Add another test line" in res

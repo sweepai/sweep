@@ -972,7 +972,7 @@ def on_ticket(
                     checkboxes_progress = [
                         (
                             (
-                                f"`{filename}` ❌ Failed",
+                                f"`{filename}` No Changes Made",
                                 instructions + error_logs,
                                 "X",
                             )
