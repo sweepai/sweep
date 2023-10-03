@@ -259,6 +259,12 @@ def on_ticket(
                 and f"Fixes #{issue_number}.\n" in pr.body
             ):
                 success = safe_delete_sweep_branch(pr, repo)
+                # Add buttons for each changed file in the PR
+                changed_files = pr.get_files()
+                for file in changed_files:
+                    file_path = file.filename
+                    buttons = create_action_buttons([file_path])
+                    pr.create_issue_comment(buttons)
 
         # Removed 1, 3
         progress_headers = [
@@ -718,6 +724,12 @@ def on_ticket(
                 + (f"\n\n{docs_results}\n\n" if docs_results else ""),
                 1,
             )
+            # Add buttons for each changed file in the PR
+            changed_files = pr.get_files()
+            for file in changed_files:
+                file_path = file.filename
+                buttons = create_action_buttons([file_path])
+                pr.create_issue_comment(buttons)
 
             if do_map:
                 subissues: list[ProposedIssue] = sweep_bot.generate_subissues()
