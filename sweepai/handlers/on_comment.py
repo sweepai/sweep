@@ -1,5 +1,5 @@
 """
-on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
+from sweepai.utils import buttons
 It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
 """
 import re
@@ -67,7 +67,7 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
 
 
 # @LogTask()
-def on_comment(
+# Removed the code that checks if the comment starts with `sweep: regenerate`
     repo_full_name: str,
     repo_description: str,
     comment: str,
@@ -78,7 +78,7 @@ def on_comment(
     pr_number: int = None,
     comment_id: int | None = None,
     chat_logger: Any = None,
-    pr: MockPR = None,  # For on_comment calls before PR is created
+    # Removed the code that checks if the comment starts with `sweep: reset`
     repo: Any = None,
     comment_type: str = "comment",
     type: str = "comment",
@@ -90,7 +90,49 @@ def on_comment(
     # 4. Get file changes
     # 5. Create PR
     logger.info(
-        f"Calling on_comment() with the following arguments: {comment},"
+        # Add a call to the new button handling function when a button click event is received
+        if buttons.is_button_click_event(comment):
+            buttons.handle_button_click_event(comment, sweep_bot, branch_name)
+        else:
+            non_python_count = sum(
+                not file_path.endswith(".py")
+                for file_path in human_message.get_file_paths()
+            )
+            python_count = len(human_message.get_file_paths()) - non_python_count
+            is_python_issue = python_count > non_python_count
+            file_change_requests, _ = sweep_bot.get_files_to_change(
+                is_python_issue, retries=1, pr_diffs=pr_diff_string
+            )
+            file_change_requests = sweep_bot.validate_file_change_requests(
+                file_change_requests, branch=branch_name
+            )
+        
+        sweep_response = "I couldn't find any relevant files to change."
+        if file_change_requests:
+            table_message = tabulate(
+                [
+                    [
+                        f"`{file_change_request.filename}`",
+                        file_change_request.instructions_display.replace(
+                            "\n", "<br/>"
+                        ).replace("```", "\\```"),
+                    ]
+                    for file_change_request in file_change_requests
+                ],
+                headers=["File Path", "Proposed Changes"],
+                tablefmt="pipe",
+            )
+            sweep_response = (
+                f"I decided to make the following changes:\n\n{table_message}"
+            )
+        quoted_comment = "> " + comment.replace("\n", "\n> ")
+        response_for_user = (
+            f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
+        )
+        if pr_number:
+            edit_comment(response_for_user)
+            # pr.create_issue_comment(response_for_user)
+        logger.info("Making Code Changes...")
         f" {repo_full_name}, {repo_description}, {pr_path}"
     )
     organization, repo_name = repo_full_name.split("/")
