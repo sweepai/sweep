@@ -329,10 +329,14 @@ class CodeGenBot(ChatGPT):
                         )
                     plans = sorted_plans
 
-                    relevant_snippets = []
+                    relevant_snippet_text = ""
                     for plan in plans:
-                        relevant_snippets.extend(plan.relevant_new_snippet)
-                    self.human_message.snippet_text = relevant_snippets
+                        extracted_code = plan.relevant_new_snippet[0].content
+                        if len(relevant_snippet_text) < 60000:
+                            relevant_snippet_text += f"<relevant_snippet file_path={plan.file_path}>\n{extracted_code}\n</relevant_snippet>\n"
+                    relevant_snippet_text = relevant_snippet_text.strip("\n")
+                    relevant_snippet_text = f"<relevant_snippets>\n{relevant_snippet_text}\n</relevant_snippets>"
+                    self.update_message_content_from_message_key("relevant_snippets", relevant_snippet_text)
                     files_to_change_response = self.chat(
                         python_files_to_change_prompt, message_key="files_to_change"
                     )  # Dedup files to change here
@@ -1433,8 +1437,9 @@ class ModifyBot:
         for extraction_term in re.findall(
             extraction_term_pattern, fetch_snippets_response, re.DOTALL
         ):
-            extraction_terms.append(extraction_term)
-
+            for term in extraction_term.split("\n"):
+                term = term.strip()
+                if term: extraction_terms.append(term)
         snippet_queries = []
         snippets_query_pattern = (
             r"<snippet_to_modify.*?>\n(?P<code>.*?)\n</snippet_to_modify>"
@@ -1516,7 +1521,7 @@ class ModifyBot:
                 file_path=file_path,
                 snippets="\n\n".join(
                     [
-                        f"<snippet>\n{snippet}\n</snippet>"
+                        f"<snippet index={i}>\n{snippet}\n</snippet>"
                         for i, snippet in enumerate(selected_snippets)
                     ]
                 ),
@@ -1525,18 +1530,22 @@ class ModifyBot:
             )
         )
 
-        updated_snippets = []
-        updated_pattern = r"<updated_snippet>(?P<code>.*?)</updated_snippet>"
-        for code in re.findall(updated_pattern, update_snippets_response, re.DOTALL):
+        updated_snippets = dict()
+        updated_pattern = r"<updated_snippet index=(?P<index>\d+)>(?P<code>.*?)<\/updated_snippet>"
+
+        for index, code in re.findall(updated_pattern, update_snippets_response, re.DOTALL):
             formatted_code = strip_backticks(code)
             formatted_code = remove_line_numbers(formatted_code)
             original_tag = "[ORIGINAL_CODE]"
             if original_tag in formatted_code:
                 pass
-            updated_snippets.append(formatted_code)
+            updated_snippets[index] = formatted_code
 
         result = file_contents
-        for search, replace in zip(selected_snippets, updated_snippets):
+        for idx, search in enumerate(selected_snippets):
+            if str(idx) not in updated_snippets:
+                continue
+            replace = updated_snippets[str(selected_snippets.index(search))]
             result, _, _ = sliding_window_replacement(
                 result.splitlines(),
                 search.splitlines(),

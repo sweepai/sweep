@@ -57,6 +57,7 @@ def make_pr(
     snippets = post_process_snippets(
         snippets, max_num_of_snippets=2 if use_faster_model else 5
     )
+    commit_history = cloned_repo.get_commit_history(username=username)
     if not repo_description:
         repo_description = "No description provided."
 
@@ -84,6 +85,7 @@ def make_pr(
         summary=message_summary,
         snippets=snippets,
         tree=tree,
+        commit_history=commit_history,
     )
 
     context_pruning = ContextPruning(chat_logger=chat_logger)
@@ -111,6 +113,7 @@ def make_pr(
         summary=message_summary,
         snippets=snippets,
         tree=tree,
+        commit_history=commit_history,
     )
 
     _user_token, g = get_github_client(installation_id)
