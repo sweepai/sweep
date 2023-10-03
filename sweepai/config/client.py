@@ -103,44 +103,40 @@ class SweepConfig(BaseModel):
 
     @staticmethod
     def get_branch(repo: Repository, override_branch: str | None = None) -> str:
-        key = (threading.current_thread(), repo.full_name)
         if override_branch:
             branch_name = override_branch
             try:
                 repo.get_branch(branch_name)
-                branch_overrides[key] = branch_name
                 return branch_name
             except SystemExit:
                 raise SystemExit
             except Exception as e:
                 logger.warning(f"Error when getting branch: {e}")
 
-        if key in branch_overrides:
-            return branch_overrides[key]
-
         default_branch = repo.default_branch
         try:
             try:
                 contents = repo.get_contents("sweep.yaml")
+                sweep_yaml_dict = yaml.safe_load(contents.decoded_content.decode("utf-8"))
             except SystemExit:
                 raise SystemExit
-            except Exception:
-                contents = repo.get_contents(".github/sweep.yaml")
-            branch_name = yaml.safe_load(contents.decoded_content.decode("utf-8"))[
-                "branch"
-            ]
-            try:
-                repo.get_branch(branch_name)
-                return branch_name
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.warning(f"Error when getting branch: {e}, creating branch")
-                repo.create_git_ref(
-                    f"refs/heads/{branch_name}",
-                    repo.get_branch(default_branch).commit.sha,
-                )
-                return branch_name
+                
+            if "branch" in sweep_yaml_dict:
+                branch_name = sweep_yaml_dict["branch"]
+                try:
+                    repo.get_branch(branch_name)
+                    return branch_name
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    logger.warning(f"Error when getting branch: {e}, creating branch")
+                    repo.create_git_ref(
+                        f"refs/heads/{branch_name}",
+                        repo.get_branch(default_branch).commit.sha,
+                    )
+                    return branch_name
+            else:
+                return default_branch
         except SystemExit:
             raise SystemExit
         except Exception as e:
