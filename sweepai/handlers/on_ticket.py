@@ -1,5 +1,26 @@
 """
-on_ticket is the main function that is called when a new issue is created.
+def on_ticket(
+    title: str,
+    summary: str,
+    issue_number: int,
+    issue_url: str,
+    username: str,
+    repo_full_name: str,
+    repo_description: str,
+    installation_id: int,
+    comment_id: int = None,
+    edited: bool = False,
+    comment_body: str = None,
+):
+    (
+        title,
+        slow_mode,
+        do_map,
+        subissues_mode,
+        sandbox_mode,
+        fast_mode,
+        lint_mode,
+    ) = strip_sweep(title)
 It is only called by the webhook handler in sweepai/api.py.
 """
 # TODO: Add file validation
@@ -72,27 +93,15 @@ def center(text: str) -> str:
 
 
 # @LogTask()
-def on_ticket(
-    title: str,
-    summary: str,
-    issue_number: int,
-    issue_url: str,
-    username: str,
-    repo_full_name: str,
-    repo_description: str,
-    installation_id: int,
-    comment_id: int = None,
-    edited: bool = False,
-):
-    (
-        title,
-        slow_mode,
-        do_map,
-        subissues_mode,
-        sandbox_mode,
-        fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
+    user_dict = get_documentation_dict(repo)
+
+    # Handle slash commands
+    if comment_body and comment_body.startswith("/"):
+        command, *args = comment_body.split()
+        if command == "/revert":
+            handle_revert_command(args)
+        elif command == "/regenerate":
+            handle_regenerate_command(args)
 
     # Flow:
     # 1. Get relevant files
@@ -762,6 +771,17 @@ def on_ticket(
                         **metadata,
                         "count": len(subissues),
                         "duration": time() - on_ticket_start_time,
+                        }
+                        )
+                        return {"success": True}
+                        
+                        # Handle slash commands
+                        if comment_body and comment_body.startswith("/"):
+                        command, *args = comment_body.split()
+                        if command == "/revert":
+                        handle_revert_command(args)
+                        elif command == "/regenerate":
+                        handle_regenerate_command(args)
                     },
                 )
                 return {"success": True}
