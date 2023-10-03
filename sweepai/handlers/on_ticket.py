@@ -1104,12 +1104,8 @@ def on_ticket(
                 if DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 else ""
             )
-
-            is_draft = False
-            # we cant do .get on SweepConfig object
-            # if config is not None:
-            #     is_draft = config.get("draft", False)
-                
+            
+            is_draft = SweepConfig.get_draft(repo)
             try:
                 pr = repo.create_pull(
                     title=pr_changes.title,

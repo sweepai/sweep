@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 # from sweepai.config.server import DISCORD_WEBHOOK_URL
 from src.chat import fix_file
+from src.sandbox_container import SandboxContainer
 from src.sandbox_utils import Sandbox
 
 app = FastAPI()
@@ -133,7 +134,7 @@ async def run_sandbox(request: Request):
     success, error_messages, updated_content = False, [], ""
     executions: list[SandboxExecution] = []
     username, _repo_name = sandbox_request.repo_url.split("/")[-2:]
-    sandbox = {}
+    sandbox = Sandbox()
 
     try:
         if sandbox_request.token:
