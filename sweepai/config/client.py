@@ -303,9 +303,7 @@ GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926
 UPDATES_MESSAGE = """\
 🎉 Latest improvements to Sweep:
 
-* Getting Sweep to run linters before committing! Check out [Sweep Sandbox Configs](https://docs.sweep.dev/usage/config) to set it up.
-* Added support for self-hosting! Check out [Self-hosting Sweep](https://docs.sweep.dev/deployment) to get started.
-* [Self Hosting] Multiple options to compute vector embeddings, configure your .env file using [VECTOR_EMBEDDING_SOURCE](https://github.com/sweepai/sweep/blob/main/sweepai/config/server.py#L144)
+* Sweep can now passively improve your repository! Check out [Rules](https://docs.sweep.dev/usage/config#rules) to learn more.
 """
 
 RESTART_SWEEP_BUTTON = "↻ Restart Sweep"
