@@ -1105,6 +1105,11 @@ def on_ticket(
                 else ""
             )
             
+            # Create buttons for each changed file
+            for file in file_change_requests:
+                file_button = create_action_buttons([file.filename])
+                pr_actions_message += file_button + "\n"
+            
             is_draft = False
             try:
                 pr = repo.create_pull(
