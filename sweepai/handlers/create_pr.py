@@ -39,7 +39,7 @@ max_num_of_snippets = 5
 INSTRUCTIONS_FOR_REVIEW = """\
 💡 To get Sweep to edit this pull request, you can:
 * Leave a comment below to get Sweep to edit the entire PR
-* Leave a comment in the code will only modify the file
+* Leave a comment in the code to only modify the file
 * Edit the original issue to get Sweep to recreate the PR from scratch"""
 
 

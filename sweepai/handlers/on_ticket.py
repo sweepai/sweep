@@ -583,7 +583,10 @@ def on_ticket(
                 },
             )
             raise e
-
+        
+        # Fetch git commit history
+        commit_history = cloned_repo.get_commit_history(username=username)
+        
         snippets = post_process_snippets(
             snippets, max_num_of_snippets=2 if use_faster_model else 5
         )
@@ -616,6 +619,7 @@ def on_ticket(
             summary=message_summary,
             snippets=snippets,
             tree=tree,
+            commit_history=commit_history,
         )
 
         context_pruning = ContextPruning(chat_logger=chat_logger)
@@ -646,6 +650,7 @@ def on_ticket(
                 summary=message_summary,
                 snippets=snippets,
                 tree=tree,
+                commit_history=commit_history,
             )
 
         _user_token, g = get_github_client(installation_id)
@@ -955,7 +960,7 @@ def on_ticket(
                     checkboxes_progress = [
                         (
                             (
-                                f"`{filename}` ❌ Failed",
+                                f"`{filename}` No Changes Made",
                                 instructions + error_logs,
                                 "X",
                             )
@@ -1041,6 +1046,7 @@ def on_ticket(
                     lint_output=lint_output,
                     plan=plan,  # plan for the PR
                     chat_logger=chat_logger,
+                    commit_history=commit_history,
                 )
                 # Todo(lukejagg): Execute sandbox after each iteration
                 lint_output = None
@@ -1098,8 +1104,8 @@ def on_ticket(
                 if DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 else ""
             )
-
-            is_draft = SweepConfig.get_draft(repo)
+            
+            is_draft = False
             try:
                 pr = repo.create_pull(
                     title=pr_changes.title,
