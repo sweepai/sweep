@@ -1,5 +1,57 @@
 """
-on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
+        else:
+            regenerate = comment.strip().lower().startswith("/regenerate")
+            reset = comment.strip().lower().startswith("/reset")
+            if regenerate or reset:
+                logger.info(f"Running {'regenerate' if regenerate else 'reset'}...")
+
+                file_paths = comment.strip().split(" ")[1:]
+
+                def get_contents_with_fallback(repo: Repository, file_path: str):
+                    try:
+                        return repo.get_contents(file_path)
+                    except SystemExit:
+                        raise SystemExit
+                    except Exception as e:
+                        logger.error(e)
+                        return None
+
+                old_file_contents = [
+                    get_contents_with_fallback(repo, file_path)
+                    for file_path in file_paths
+                ]
+
+                logger.print(old_file_contents)
+                for file_path, old_file_content in zip(file_paths, old_file_contents):
+                    current_content = sweep_bot.get_contents(
+                        file_path, branch=branch_name
+                    )
+                    if old_file_content:
+                        logger.info("Resetting file...")
+                        sweep_bot.repo.update_file(
+                            file_path,
+                            f"Reset {file_path}",
+                            old_file_content.decoded_content,
+                            sha=current_content.sha,
+                            branch=branch_name,
+                        )
+                    else:
+                        logger.info("Deleting file...")
+                        sweep_bot.repo.delete_file(
+                            file_path,
+                            f"Reset {file_path}",
+                            sha=current_content.sha,
+                            branch=branch_name,
+                        )
+                if reset:
+                    return {
+                        "success": True,
+                        "message": "Files have been reset to their original state.",
+                    }
+                return {
+                    "success": True,
+                    "message": "Files have been regenerated.",
+                }
 It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
 """
 import re
