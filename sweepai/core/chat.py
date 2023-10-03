@@ -106,10 +106,8 @@ class ChatGPT(BaseModel):
         content = system_message_prompt
         repo = kwargs.get("repo")
         if repo:
-            logger.info(f"Repo: {repo}")
             repo_description = get_description(repo)
             if repo_description:
-                logger.info(f"Repo description: {repo_description}")
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"
         messages = [Message(role="system", content=content, key="system")]
 
