@@ -1092,7 +1092,10 @@ def on_ticket(
                     3,
                 )
 
+            revert_button = create_action_buttons("Revert")
+            regenerate_button = create_action_buttons("Regenerate")
             pr_actions_message = (
+                revert_button + regenerate_button +
                 create_action_buttons(
                     [
                         SWEEP_GOOD_FEEDBACK,
