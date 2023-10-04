@@ -1,7 +1,7 @@
 {
   "ref": "refs/heads/main",
-  "before": "fe8ab1b941e1b0178c1cc8f73c7aaadc470590dc",
-  "after": "869f495e403c3c9d8a19f98b8e076713712121d7",
+  "before": "18715475a130927d9205421ea46b37c21e0c5104",
+  "after": "c837519e3cb10b6fde62db00de8b5db38da247ca",
   "repository": {
     "id": 653574784,
     "node_id": "R_kgDOJvTCgA",
@@ -71,16 +71,16 @@
     "releases_url": "https://api.github.com/repos/sweepai/sweep/releases{/id}",
     "deployments_url": "https://api.github.com/repos/sweepai/sweep/deployments",
     "created_at": 1686737287,
-    "updated_at": "2023-10-02T17:03:01Z",
-    "pushed_at": 1696281745,
+    "updated_at": "2023-10-03T21:45:32Z",
+    "pushed_at": 1696370354,
     "git_url": "git://github.com/sweepai/sweep.git",
     "ssh_url": "git@github.com:sweepai/sweep.git",
     "clone_url": "https://github.com/sweepai/sweep.git",
     "svn_url": "https://github.com/sweepai/sweep",
     "homepage": "https://sweep.dev",
-    "size": 45433,
-    "stargazers_count": 5462,
-    "watchers_count": 5462,
+    "size": 45597,
+    "stargazers_count": 5470,
+    "watchers_count": 5470,
     "language": "Python",
     "has_issues": true,
     "has_projects": false,
@@ -88,11 +88,11 @@
     "has_wiki": false,
     "has_pages": false,
     "has_discussions": true,
-    "forks_count": 214,
+    "forks_count": 215,
     "mirror_url": null,
     "archived": false,
     "disabled": false,
-    "open_issues_count": 487,
+    "open_issues_count": 489,
     "license": {
       "key": "other",
       "name": "Other",
@@ -115,11 +115,11 @@
       "llm"
     ],
     "visibility": "public",
-    "forks": 214,
-    "open_issues": 487,
-    "watchers": 5462,
+    "forks": 215,
+    "open_issues": 489,
+    "watchers": 5470,
     "default_branch": "main",
-    "stargazers": 5462,
+    "stargazers": 5470,
     "master_branch": "main",
     "organization": "sweepai"
   },
@@ -169,15 +169,15 @@
   "deleted": false,
   "forced": false,
   "base_ref": null,
-  "compare": "https://github.com/sweepai/sweep/compare/fe8ab1b941e1...869f495e403c",
+  "compare": "https://github.com/sweepai/sweep/compare/18715475a130...c837519e3cb1",
   "commits": [
     {
-      "id": "869f495e403c3c9d8a19f98b8e076713712121d7",
-      "tree_id": "015ccf0ebf92f074adc9bdf2040f1a7799de8eeb",
+      "id": "c837519e3cb10b6fde62db00de8b5db38da247ca",
+      "tree_id": "dba4e2315e1293fa1ef890c5c08881a44c588717",
       "distinct": true,
-      "message": "improve edits and planning",
-      "timestamp": "2023-10-02T21:22:23Z",
-      "url": "https://github.com/sweepai/sweep/commit/869f495e403c3c9d8a19f98b8e076713712121d7",
+      "message": "fix config",
+      "timestamp": "2023-10-03T21:59:11Z",
+      "url": "https://github.com/sweepai/sweep/commit/c837519e3cb10b6fde62db00de8b5db38da247ca",
       "author": {
         "name": "wwzeng1",
         "email": "william@sweep.dev",
@@ -195,18 +195,17 @@
 
       ],
       "modified": [
-        "sweepai/core/prompts.py",
-        "sweepai/core/sweep_bot.py"
+        "sweepai/config/client.py"
       ]
     }
   ],
   "head_commit": {
-    "id": "869f495e403c3c9d8a19f98b8e076713712121d7",
-    "tree_id": "015ccf0ebf92f074adc9bdf2040f1a7799de8eeb",
+    "id": "c837519e3cb10b6fde62db00de8b5db38da247ca",
+    "tree_id": "dba4e2315e1293fa1ef890c5c08881a44c588717",
     "distinct": true,
-    "message": "improve edits and planning",
-    "timestamp": "2023-10-02T21:22:23Z",
-    "url": "https://github.com/sweepai/sweep/commit/869f495e403c3c9d8a19f98b8e076713712121d7",
+    "message": "fix config",
+    "timestamp": "2023-10-03T21:59:11Z",
+    "url": "https://github.com/sweepai/sweep/commit/c837519e3cb10b6fde62db00de8b5db38da247ca",
     "author": {
       "name": "wwzeng1",
       "email": "william@sweep.dev",
@@ -224,8 +223,7 @@
 
     ],
     "modified": [
-      "sweepai/core/prompts.py",
-      "sweepai/core/sweep_bot.py"
+      "sweepai/config/client.py"
     ]
   }
 }

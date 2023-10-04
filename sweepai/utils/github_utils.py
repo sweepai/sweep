@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass
 from functools import cached_property
 import datetime
+import traceback
 import pytz
 
 import git
@@ -286,25 +287,28 @@ class ClonedRepo:
 
     def get_commit_history(self, username: str = "", limit : int = 200, time_limited: bool = True):
         commit_history = []
-        if username != "":
-            commit_list = list(self.git_repo.iter_commits(author=username))
-        else:
-            commit_list = list(self.git_repo.iter_commits())
-        line_count = 0
-        cut_off_date = datetime.datetime.now() - datetime.timedelta(days = 7)
-        for commit in commit_list:
-            # must be within a week
-            if time_limited and commit.authored_datetime.replace(tzinfo=pytz.UTC) <= cut_off_date.replace(tzinfo=pytz.UTC):
-                logger.info(f"Exceeded cut off date, stopping...")
-                break
-            diff = self.git_repo.git.diff(commit, SweepConfig.get_branch(get_github_client(self.installation_id)[1].get_repo(self.repo_full_name)), unified = 1)
-            lines = diff.count('\n')
-            # total diff lines must not exceed 200
-            if lines + line_count > limit:
-                logger.info(f"Exceeded {limit} lines of diff, stopping...")
-                break
-            commit_history.append(f"<commit>\nAuthor: {commit.author.name}\nMessage: {commit.message}\n{diff}\n</commit>")
-            line_count += lines
+        try:
+            if username != "":
+                commit_list = list(self.git_repo.iter_commits(author=username))
+            else:
+                commit_list = list(self.git_repo.iter_commits())
+            line_count = 0
+            cut_off_date = datetime.datetime.now() - datetime.timedelta(days = 7)
+            for commit in commit_list:
+                # must be within a week
+                if time_limited and commit.authored_datetime.replace(tzinfo=pytz.UTC) <= cut_off_date.replace(tzinfo=pytz.UTC):
+                    logger.info(f"Exceeded cut off date, stopping...")
+                    break
+                diff = self.git_repo.git.diff(commit, SweepConfig.get_branch(get_github_client(self.installation_id)[1].get_repo(self.repo_full_name)), unified = 1)
+                lines = diff.count('\n')
+                # total diff lines must not exceed 200
+                if lines + line_count > limit:
+                    logger.info(f"Exceeded {limit} lines of diff, stopping...")
+                    break
+                commit_history.append(f"<commit>\nAuthor: {commit.author.name}\nMessage: {commit.message}\n{diff}\n</commit>")
+                line_count += lines
+        except:
+            logger.error(f"An error occurred: {traceback.print_exc()}")
         return commit_history
 
 
