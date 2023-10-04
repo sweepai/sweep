@@ -559,15 +559,7 @@ async def webhook(raw_request: Request):
                 # request = ReviewSubmittedRequest(**request_dict)
                 pass
             case "check_run", "completed":
-                request = CheckRunCompleted(**request_dict)
-                _, g = get_github_client(request.installation.id)
-                repo = g.get_repo(request.repository.full_name)
-                pull_requests = request.check_run.pull_requests
-                if pull_requests:
-                    pr = repo.get_pull(pull_requests[0].number)
-                    if GITHUB_LABEL_NAME in [label.name.lower() for label in pr.labels]:
-                        # call_on_check_suite(request=request)
-                        pass
+                pass # removed for now
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {
