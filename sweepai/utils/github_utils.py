@@ -299,7 +299,10 @@ class ClonedRepo:
                 if time_limited and commit.authored_datetime.replace(tzinfo=pytz.UTC) <= cut_off_date.replace(tzinfo=pytz.UTC):
                     logger.info(f"Exceeded cut off date, stopping...")
                     break
-                diff = self.git_repo.git.diff(commit, SweepConfig.get_branch(get_github_client(self.installation_id)[1].get_repo(self.repo_full_name)), unified = 1)
+                repo = get_github_client(self.installation_id)[1].get_repo(self.repo_full_name)
+                branch = SweepConfig.get_branch(repo)
+                if branch not in self.git_repo.git.branch(): branch = f'origin/{branch}'
+                diff = self.git_repo.git.diff(commit, branch, unified=1)
                 lines = diff.count('\n')
                 # total diff lines must not exceed 200
                 if lines + line_count > limit:
