@@ -94,6 +94,11 @@ GITHUB_DEFAULT_CONFIG = os.environ.get(
     """# Sweep AI turns bugs & feature requests into code changes (https://sweep.dev)
 # For details on our config file, check out our docs at https://docs.sweep.dev/usage/config
 
+# This setting contains a list of rules that Sweep will check for. If any of these rules are broken in a new commit, Sweep will create an pull request to fix the broken rule.
+rules:
+ - "All docstrings and comments should be up to date."
+{additional_rules}
+
 # This is the branch that Sweep will develop from and make pull requests to. Most people use 'main' or 'master' but some users also use 'dev' or 'staging'.
 branch: 'main'
 
@@ -128,10 +133,6 @@ sandbox:
   check:
     - trunk fmt {{file_path}}
     - trunk check --fix {{file_path}}
-
-# This setting contains a list of rules that Sweep will check for. If any of these rules are broken in a new commit, Sweep will create an pull request to fix the broken rule.
-rules:
- - All docstrings and comments should be up to date.
 """,
 )
 
@@ -174,7 +175,7 @@ SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
-SANDBOX_URL = os.environ.get("SANDBOX_URL", "http://sandbox-web:8080")
+SANDBOX_URL = os.environ.get("SANDBOX_URL", "http://0.0.0.0:8081")
 if SANDBOX_URL is not None:
     logger.print(f"Using Sandbox URL: {SANDBOX_URL}")
 
