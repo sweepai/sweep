@@ -26,7 +26,6 @@ python3 -c "import venv" 2>/dev/null || { echo -e "${RED}Error: venv not found. 
 
 echo -e "\n${CYAN}${WHITE}--> Getting permissions to copy executable...${NC}\n"
 sudo test
-# exit_if_fail "Failed to get permissions to copy executable."
 
 echo -e "\n${CYAN}${WHITE}--> Cloning repository...${NC}\n"
 cd /tmp
