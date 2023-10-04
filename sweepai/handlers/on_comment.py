@@ -348,6 +348,8 @@ def on_comment(
                 )
             ]
         else:
+            from sweepai.utils.buttons import create_action_buttons
+
             regenerate = comment.strip().lower().startswith("sweep: regenerate")
             reset = comment.strip().lower().startswith("sweep: reset")
             if regenerate or reset:
@@ -395,10 +397,12 @@ def on_comment(
                     return {
                         "success": True,
                         "message": "Files have been reset to their original state.",
+                        "buttons": create_action_buttons(["Reset", "Regenerate"])
                     }
                 return {
                     "success": True,
                     "message": "Files have been regenerated.",
+                    "buttons": create_action_buttons(["Reset", "Regenerate"])
                 }
             else:
                 non_python_count = sum(
