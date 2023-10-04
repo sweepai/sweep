@@ -7,12 +7,12 @@ from sweepai.core.entities import IssueTitleAndDescription, Message
 system_prompt = """Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to review the following commit diffs and make sure the file conforms to the user's rules.
 If the diffs do not conform to the rules, we should create a GitHub issue telling the user what changes should be made.
 
-The rule is: {rule}
-Review the diffs then create a GitHub issue.
-"""
+Review the diffs then create a GitHub issue. Give specific instructions on how to solve the issue with file and code references."""
 
 user_message = """Review the following diffs and make sure they conform to the rules:
 {diff}
+
+The rule is: {rule}
 
 Provide your response in the following format.
 Step-by-step thoughts with explanations:
@@ -21,16 +21,18 @@ Step-by-step thoughts with explanations:
 ...
 
 Whether the rule is broken:
-<changes_required>True/False</changes_required>
+<changes_required>
+True/False
+</changes_required>
 
 Github Issue Title:
 <issue_title>
-Issue title referencing the file paths, changes, and any function/class names. This should be imperative rather than descriptive.
+Root cause of the broken rule.
 </issue_title>
 
 GitHub Issue Description:
 <issue_description>
-Issue description with a detailed description of where we should change the code. Reference files and entities in the code.
+High level description of what we want to solve. Do not give any instructions on how to solve it. Do mention files to take a look at and other code pointers.
 </issue_description>"""
 
 

@@ -144,7 +144,7 @@ class SweepConfig(BaseModel):
         try:
             contents = repo.get_contents("sweep.yaml")
             config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
-            return config
+            return SweepConfig(**config)
         except SystemExit:
             raise SystemExit
         except Exception as e:
