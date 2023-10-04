@@ -177,4 +177,5 @@ def make_pr(
         head=pr_changes.pr_head,
         base=SweepConfig.get_branch(repo),
     )
+    pr.add_to_labels(GITHUB_LABEL_NAME)
     return True
