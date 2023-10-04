@@ -613,7 +613,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 "content": content,
                 "only_lint": only_lint,
             },
-            timeout=(5, 300),
+            timeout=(5, 500),
         )
         response.raise_for_status()
         output = response.json()
@@ -1395,7 +1395,7 @@ class ModifyBot:
         file_change_request: FileChangeRequest,
         chunking: bool = False,
     ):
-        snippet_queries, extraction_terms = self.get_snippets_to_modify(
+        snippet_queries, pattern_list = self.get_snippets_to_modify(
             file_path=file_path,
             file_contents=file_contents,
             file_change_request=file_change_request,
@@ -1407,7 +1407,7 @@ class ModifyBot:
             file_contents=file_contents,
             file_change_request=file_change_request,
             snippet_queries=snippet_queries,
-            extraction_terms=extraction_terms,
+            pattern_list=pattern_list,
             chunking=chunking,
         )
         return new_file
@@ -1434,17 +1434,15 @@ class ModifyBot:
             )
         )
 
-        extraction_terms = []
-        extraction_term_pattern = (
-            r"<extraction_terms.*?>\n(?P<extraction_term>.*?)\n</extraction_terms>"
-        )
-        for extraction_term in re.findall(
-            extraction_term_pattern, fetch_snippets_response, re.DOTALL
+        pattern_list = []
+        patterns_pattern = r"<patterns.*?>\n(?P<patterns>.*?)\n</patterns>"
+        for patterns in re.findall(
+            patterns_pattern, fetch_snippets_response, re.DOTALL
         ):
-            for term in extraction_term.split("\n"):
-                term = term.strip()
-                if term:
-                    extraction_terms.append(term)
+            for pattern in patterns.split("\n"):
+                pattern = pattern.strip()
+                if pattern:
+                    pattern_list.append(pattern)
         snippet_queries = []
         snippets_query_pattern = (
             r"<snippet_to_modify.*?>\n(?P<code>.*?)\n</snippet_to_modify>"
@@ -1456,7 +1454,7 @@ class ModifyBot:
 
         if len(snippet_queries) == 0:
             raise UnneededEditError("No snippets found in file")
-        return snippet_queries, extraction_terms
+        return snippet_queries, pattern_list
 
     def update_file(
         self,
@@ -1464,7 +1462,7 @@ class ModifyBot:
         file_contents: str,
         file_change_request: FileChangeRequest,
         snippet_queries: list[str],
-        extraction_terms: list[str],
+        pattern_list: list[str],
         chunking: bool = False,
     ):
         best_matches = []
@@ -1474,7 +1472,7 @@ class ModifyBot:
                 best_matches.append(match_)
 
         for i, line in enumerate(file_contents.split("\n")):
-            for keyword in extraction_terms:
+            for keyword in pattern_list:
                 if keyword in line:
                     best_matches.append(
                         Match(
@@ -1499,7 +1497,7 @@ class ModifyBot:
             )
 
         current_match = best_matches[0]
-        deduped_matches = []
+        deduped_matches: list[Match] = []
 
         # Fuse & dedup
         for match_ in best_matches:
@@ -1510,10 +1508,9 @@ class ModifyBot:
                 current_match = match_
         deduped_matches.append(current_match)
         selected_snippets = []
+        file_contents_lines = file_contents.split("\n")
         for match_ in deduped_matches:
-            current_contents = "\n".join(
-                file_contents.split("\n")[match_.start : match_.end]
-            )
+            current_contents = "\n".join(file_contents_lines[match_.start : match_.end])
             selected_snippets.append(current_contents)
 
         update_snippets_response = self.update_snippets_bot.chat(
@@ -1547,13 +1544,23 @@ class ModifyBot:
             formatted_code = strip_backticks(code)
             formatted_code = remove_line_numbers(formatted_code)
             if position == "prepend":
-                updated_snippets[index] = (
-                    formatted_code + "\n" + selected_snippets[int(index)]
-                )
+                current_contents = selected_snippets[int(index)]
+                current_match = deduped_matches[int(index)]
+                if current_match.start - 1 >= 0:
+                    line_after = file_contents_lines[current_match.start - 1]
+                    formatted_code = match_indent(formatted_code, line_after)
+                formatted_code = formatted_code + "\n" + current_contents
             elif position == "append":
-                updated_snippets[index] = (
-                    selected_snippets[int(index)] + "\n" + formatted_code
-                )
+                current_contents = selected_snippets[int(index)]
+                current_match = deduped_matches[int(index)]
+                if current_match.end + 1 < len(file_contents_lines):
+                    line_after = file_contents_lines[current_match.end + 1]
+                    formatted_code = match_indent(formatted_code, line_after)
+                else:
+                    formatted_code = match_indent(
+                        formatted_code, file_contents_lines[current_match.end]
+                    )
+                formatted_code = current_contents + "\n" + formatted_code
             else:
                 updated_snippets[index] = formatted_code
 
