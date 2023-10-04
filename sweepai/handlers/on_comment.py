@@ -1,4 +1,6 @@
 """
+from sweepai.utils.buttons import Button
+from sweepai.core.entities import FileChangeRequest
 on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
 It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
 """
@@ -82,6 +84,7 @@ def on_comment(
     repo: Any = None,
     comment_type: str = "comment",
     type: str = "comment",
+    button: Button = None,
 ):
     # Flow:
     # 1. Get relevant files
@@ -91,6 +94,7 @@ def on_comment(
     # 5. Create PR
     logger.info(
         f"Calling on_comment() with the following arguments: {comment},"
+        f" {repo_full_name}, {repo_description}, {pr_path}, {button}"
         f" {repo_full_name}, {repo_description}, {pr_path}"
     )
     organization, repo_name = repo_full_name.split("/")
@@ -168,6 +172,7 @@ def on_comment(
         "installation_id": installation_id,
         "username": username if not username.startswith("sweep") else assignee,
         "function": "on_comment",
+        "button": button.name if button else None,
         "model": "gpt-3.5" if use_faster_model else "gpt-4",
         "tier": "pro" if is_paying_user else "free",
         "mode": ENV,
@@ -347,59 +352,8 @@ def on_comment(
                     change_type="modify",
                 )
             ]
-        else:
-            regenerate = comment.strip().lower().startswith("sweep: regenerate")
-            reset = comment.strip().lower().startswith("sweep: reset")
-            if regenerate or reset:
-                logger.info(f"Running {'regenerate' if regenerate else 'reset'}...")
-
-                file_paths = comment.strip().split(" ")[2:]
-
-                def get_contents_with_fallback(repo: Repository, file_path: str):
-                    try:
-                        return repo.get_contents(file_path)
-                    except SystemExit:
-                        raise SystemExit
-                    except Exception as e:
-                        logger.error(e)
-                        return None
-
-                old_file_contents = [
-                    get_contents_with_fallback(repo, file_path)
-                    for file_path in file_paths
-                ]
-
-                logger.print(old_file_contents)
-                for file_path, old_file_content in zip(file_paths, old_file_contents):
-                    current_content = sweep_bot.get_contents(
-                        file_path, branch=branch_name
-                    )
-                    if old_file_content:
-                        logger.info("Resetting file...")
-                        sweep_bot.repo.update_file(
-                            file_path,
-                            f"Reset {file_path}",
-                            old_file_content.decoded_content,
-                            sha=current_content.sha,
-                            branch=branch_name,
-                        )
-                    else:
-                        logger.info("Deleting file...")
-                        sweep_bot.repo.delete_file(
-                            file_path,
-                            f"Reset {file_path}",
-                            sha=current_content.sha,
-                            branch=branch_name,
-                        )
-                if reset:
-                    return {
-                        "success": True,
-                        "message": "Files have been reset to their original state.",
-                    }
-                return {
-                    "success": True,
-                    "message": "Files have been regenerated.",
-                }
+            regenerate = comment.strip().lower().startswith("sweep: regenerate") or button.name == "regenerate"
+            reset = comment.strip().lower().startswith("sweep: reset") or button.name == "reset"
             else:
                 non_python_count = sum(
                     not file_path.endswith(".py")
