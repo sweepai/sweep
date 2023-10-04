@@ -117,7 +117,6 @@ class ChatLogger(BaseModel):
         ticket_count = (
             result_list[0].get(tracking_date, 0) if len(result_list) > 0 else 0
         )
-        logger.info(f"Ticket Count for {username} {ticket_count}")
         return ticket_count
 
     def is_paying_user(self):
