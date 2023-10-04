@@ -11,8 +11,6 @@ from pydantic import BaseModel
 from logn import logger
 from sweepai.core.entities import EmptyRepository
 
-branch_overrides = {}  # type: Dict[(Thread, str), str]
-
 
 class SweepConfig(BaseModel):
     include_dirs: list[str] = []
@@ -103,32 +101,27 @@ class SweepConfig(BaseModel):
 
     @staticmethod
     def get_branch(repo: Repository, override_branch: str | None = None) -> str:
-        key = (threading.current_thread(), repo.full_name)
         if override_branch:
             branch_name = override_branch
             try:
                 repo.get_branch(branch_name)
-                branch_overrides[key] = branch_name
                 return branch_name
             except SystemExit:
                 raise SystemExit
             except Exception as e:
                 logger.warning(f"Error when getting branch: {e}")
 
-        if key in branch_overrides:
-            return branch_overrides[key]
-
         default_branch = repo.default_branch
         try:
+            sweep_yaml_dict = {}
             try:
                 contents = repo.get_contents("sweep.yaml")
+                sweep_yaml_dict = yaml.safe_load(contents.decoded_content.decode("utf-8"))
             except SystemExit:
                 raise SystemExit
-            except Exception:
-                contents = repo.get_contents(".github/sweep.yaml")
-            branch_name = yaml.safe_load(contents.decoded_content.decode("utf-8"))[
-                "branch"
-            ]
+            if "branch" not in sweep_yaml_dict:
+                return default_branch
+            branch_name = sweep_yaml_dict["branch"]
             try:
                 repo.get_branch(branch_name)
                 return branch_name
@@ -144,9 +137,6 @@ class SweepConfig(BaseModel):
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.info(
-                f"Error when getting branch: {e}, falling back to default branch"
-            )
             return default_branch
 
     @staticmethod
@@ -187,20 +177,6 @@ def get_gha_enabled(repo: Repository) -> bool:
     except SystemExit:
         raise SystemExit
     except Exception:
-        try:
-            contents = repo.get_contents(".github/sweep.yaml")
-        except SystemExit:
-            raise SystemExit
-        except Exception:
-            try:
-                contents = repo.get_contents(".github/sweep.yaml")
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.warning(
-                    f"Error when getting gha enabled: {e}, falling back to True"
-                )
-                return True
         gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
             "gha_enabled", True
         )
