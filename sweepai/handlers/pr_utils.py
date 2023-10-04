@@ -1,4 +1,5 @@
 import traceback
+from github.Label import Label
 
 from logn import logger
 from sweepai.config.client import (
@@ -177,4 +178,6 @@ def make_pr(
         head=pr_changes.pr_head,
         base=SweepConfig.get_branch(repo),
     )
+    label = Label(repo, {"name": "sweep"})
+    pr.set_labels(label)
     return True
