@@ -598,6 +598,37 @@ class SweepBot(CodeGenBot, GithubBot):
         repo_url: str,
         file_path: str,
         content: str | None,
+    def handle_revert_button(self, file_path: str):
+        """Revert the changes made to the file in the PR."""
+        # TODO: Implement method to revert changes
+
+    def handle_regenerate_button(self, file_path: str):
+        """Regenerate the changes for the file using the AI model."""
+        # TODO: Implement method to regenerate changes
+
+    def handle_pr_comment(self, comment: str):
+        """Handle a PR comment."""
+        if "sweep: revert" in comment:
+            file_path = self.get_file_path_from_comment(comment)
+            self.handle_revert_button(file_path)
+        elif "sweep: regenerate" in comment:
+            file_path = self.get_file_path_from_comment(comment)
+            self.handle_regenerate_button(file_path)
+        else:
+            # Existing code to handle PR comment
+            pass
+
+    def handle_pr_review_comment(self, comment: str):
+        """Handle a PR review comment."""
+        if "sweep: revert" in comment:
+            file_path = self.get_file_path_from_comment(comment)
+            self.handle_revert_button(file_path)
+        elif "sweep: regenerate" in comment:
+            file_path = self.get_file_path_from_comment(comment)
+            self.handle_regenerate_button(file_path)
+        else:
+            # Existing code to handle PR review comment
+            pass
         token: str,
         only_lint: bool = False,
     ) -> Dict:
