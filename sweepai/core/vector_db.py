@@ -164,7 +164,6 @@ def get_deeplake_vs_from_repo(
     logger.info(f"Downloading repository and indexing for {repo_full_name}...")
     start = time.time()
     logger.info("Recursively getting list of files...")
-
     snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
     logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
     # prepare lexical search
