@@ -348,58 +348,52 @@ def on_comment(
                 )
             ]
         else:
-            regenerate = comment.strip().lower().startswith("sweep: regenerate")
-            reset = comment.strip().lower().startswith("sweep: reset")
-            if regenerate or reset:
-                logger.info(f"Running {'regenerate' if regenerate else 'reset'}...")
+            button_actions = create_action_buttons()
+            action_performed = False
+            for button in button_actions:
+                if comment.strip().lower().startswith(button.text.lower()):
+                    logger.info(f"Running {button.text}...")
+                    button.action(sweep_bot, repo, branch_name)
+                    action_performed = True
+                    break
+            if not action_performed:
+                non_python_count = sum(
+                    not file_path.endswith(".py")
+                    for file_path in human_message.get_file_paths()
+                )
+                python_count = len(human_message.get_file_paths()) - non_python_count
+                is_python_issue = python_count > non_python_count
+                file_change_requests, _ = sweep_bot.get_files_to_change(
+                    is_python_issue, retries=1, pr_diffs=pr_diff_string
+                )
+                file_change_requests = sweep_bot.validate_file_change_requests(
+                    file_change_requests, branch=branch_name
+                )
 
-                file_paths = comment.strip().split(" ")[2:]
-
-                def get_contents_with_fallback(repo: Repository, file_path: str):
-                    try:
-                        return repo.get_contents(file_path)
-                    except SystemExit:
-                        raise SystemExit
-                    except Exception as e:
-                        logger.error(e)
-                        return None
-
-                old_file_contents = [
-                    get_contents_with_fallback(repo, file_path)
-                    for file_path in file_paths
-                ]
-
-                logger.print(old_file_contents)
-                for file_path, old_file_content in zip(file_paths, old_file_contents):
-                    current_content = sweep_bot.get_contents(
-                        file_path, branch=branch_name
-                    )
-                    if old_file_content:
-                        logger.info("Resetting file...")
-                        sweep_bot.repo.update_file(
-                            file_path,
-                            f"Reset {file_path}",
-                            old_file_content.decoded_content,
-                            sha=current_content.sha,
-                            branch=branch_name,
-                        )
-                    else:
-                        logger.info("Deleting file...")
-                        sweep_bot.repo.delete_file(
-                            file_path,
-                            f"Reset {file_path}",
-                            sha=current_content.sha,
-                            branch=branch_name,
-                        )
-                if reset:
-                    return {
-                        "success": True,
-                        "message": "Files have been reset to their original state.",
-                    }
-                return {
-                    "success": True,
-                    "message": "Files have been regenerated.",
-                }
+            sweep_response = "I couldn't find any relevant files to change."
+            if file_change_requests:
+                table_message = tabulate(
+                    [
+                        [
+                            f"`{file_change_request.filename}`",
+                            file_change_request.instructions_display.replace(
+                                "\n", "<br/>"
+                            ).replace("```", "\\```"),
+                        ]
+                        for file_change_request in file_change_requests
+                    ],
+                    headers=["File Path", "Proposed Changes"],
+                    tablefmt="pipe",
+                )
+                sweep_response = (
+                    f"I decided to make the following changes:\n\n{table_message}"
+                )
+            quoted_comment = "> " + comment.replace("\n", "\n> ")
+            response_for_user = (
+                f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
+            )
+            if pr_number:
+                edit_comment(response_for_user)
             else:
                 non_python_count = sum(
                     not file_path.endswith(".py")
