@@ -22,6 +22,11 @@ human_message_prompt = [
     },
     {
         "role": "user",
+        "content": """{relevant_commit_history}""",
+        "key": "relevant_commit_history",
+    },
+    {
+        "role": "user",
         "content": """<repo_tree>
 {tree}
 </repo_tree>""",
@@ -1023,7 +1028,7 @@ Losslessly summarize the code in a ordered list for an engineer to search for re
 fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original lines from the code that should be modified. The snippets will be modified after extraction so make sure we can match the snippets to the original code.
 Select the smallest spans that let you handle the request. There should not be any unimplemented functions or classes.
 
-Write the terms we should extract from the code. The system will then give you all individual lines containing one of these extracted_terms. You can use wildcards like `func(**)` to find all function calls of `func`.
+Extract the terms we need to modify from the code. The system will then modify all of the lines containing the extracted_terms. You can use wildcards like `func(**)` to find all function calls of `func`.
 
 Select spans you would like to modify by adding blocks of snippet_to_modify containing the code blocks you want to modify.
 
@@ -1076,9 +1081,9 @@ second term from the code
 
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
-first five lines of the original snippet
+first five lines of code from the original snippet
 ...
-last five lines of the original snippet (must end on code)
+last five lines of code from the original snippet (the code)
 ```
 </snippet_to_modify>"""
 
@@ -1090,30 +1095,32 @@ Otherwise, respond with a list of search queries, and a list of the MINIMUM snip
 dont_use_chunking_message = """\
 Respond with a list of search queries, and a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
 
-update_snippets_system_prompt = (
-    "You are a brilliant and meticulous engineer assigned to"
-    " write code to complete the user's request. When you write code, the code works on"
-    " the first try, is syntactically perfect and is complete. You will be concise and only write comments when asked to. You have the utmost care"
-    " for the code that you write, so you do not make mistakes and every function and"
-    " class will be fully implemented. Take into account the current repository's"
-    " language, frameworks, and dependencies. It is very important that you get this"
-    " right."
-    """
+update_snippets_system_prompt = """\
+You are a brilliant and meticulous engineer assigned to write code to complete the user's request. When you write code, the code works on the first try, is syntactically perfect, and is complete.
+
+You have the utmost care for the code that you write, so you do not make mistakes and you fully implement every function and class. Take into account the current repository's language, code style, and dependencies. It is very important that you get this right.
+
 Respond in the following format:
 
-Step-by-step thoughts:
-1.
-2.
-3.
+<snippets_and_plan_analysis>
+Completely describe the changes that need to be made in this file.
+Then describe the changes needed to update each snippet and if the snippet should be replaced, prepended, or appended.
+</snippets_and_plan_analysis>
 
-Updated snippets:
-
-<updated_snippet>
+<updated_snippets>
+<updated_snippet index="i">
 ```
-updated lines
+new code to replace the entirety of the old code
 ```
-</updated_snippet>"""
-)
+</updated_snippet>
+...
+<updated_snippet index="j" position="append">
+```
+code to append to the snippet
+```
+</updated_snippet>
+...
+</updated_snippets>"""
 
 update_snippets_prompt = """# Code
 File path: {file_path}
@@ -1126,28 +1133,35 @@ File path: {file_path}
 # Request
 {request}
 
-# Snippets
+<snippets_to_update>
 {snippets}
+</snippets_to_update>
 
 # Instructions
-Rewrite each of the {n} snippets above according to their corresponding instructions.
-* Only rewrite code that lies within the start and end of the snippet. This code will be replaced directly.
+Rewrite each of the {n} snippets above according to the request.
 * Do not delete whitespace or comments.
-* The output will be copied into the code exactly so do not close hanging parentheses or tags.
 * To delete code insert an empty string.
+* Put "prepend" or "append" flags in the updated_snippet to prepend or append code before the entire snippet.
+* To replace the code directly do not add the position tag.
 
 Respond in the following format:
 
-Step-by-step thoughts:
-1.
-2.
-3.
+<snippets_and_plan_analysis>
+Completely describe the changes that need to be made in this file.
+Then describe the changes needed to update each snippet and if the snippet should be replaced, prepended, or appended.
+</snippets_and_plan_analysis>
+
+<updated_snippets>
+<updated_snippet index="i">
+```
+new code to replace the entirety of the old code
+```
+</updated_snippet>
 ...
-
-Updated snippets:
-
-<updated_snippet>
+<updated_snippet index="j" position="append">
 ```
-updated lines
+code to append to the snippet
 ```
-</updated_snippet>"""
+</updated_snippet>
+...
+</updated_snippets>"""
