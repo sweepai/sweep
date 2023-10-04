@@ -332,7 +332,7 @@ class CodeGenBot(ChatGPT):
                     relevant_snippet_text = ""
                     for plan in plans:
                         extracted_code = plan.relevant_new_snippet[0].content
-                        if len(relevant_snippet_text) < 60000:
+                        if len(relevant_snippet_text) + len(extracted_code) < 60000:
                             relevant_snippet_text += f"<relevant_snippet file_path={plan.file_path}>\n{extracted_code}\n</relevant_snippet>\n"
                     relevant_snippet_text = relevant_snippet_text.strip("\n")
                     relevant_snippet_text = f"<relevant_snippets>\n{relevant_snippet_text}\n</relevant_snippets>"
