@@ -1092,6 +1092,10 @@ def on_ticket(
                     3,
                 )
 
+            # Create buttons for each changed file
+            changed_files = [file_change_request.filename for file_change_request in file_change_requests]
+            file_buttons = create_action_buttons(changed_files, header="### Changed Files (click)\n")
+            
             pr_actions_message = (
                 create_action_buttons(
                     [
@@ -1101,6 +1105,7 @@ def on_ticket(
                     header="### PR Feedback (click)\n",
                 )
                 + "\n"
+                + file_buttons
                 if DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 else ""
             )
