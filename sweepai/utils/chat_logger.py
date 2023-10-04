@@ -142,7 +142,7 @@ class ChatLogger(BaseModel):
         if self.is_paying_user():
             return self.get_ticket_count() >= 500
         if self.is_trial_user():
-            return self.get_ticket_count() >= 15
+            return self.get_ticket_count() >= 20
 
         try:
             loc_user = g.get_user(self.data["username"]).location
