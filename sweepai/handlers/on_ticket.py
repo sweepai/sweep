@@ -55,6 +55,7 @@ from sweepai.handlers.create_pr import (
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.buttons import create_action_buttons
+from sweepai.config.client import REVERT_BUTTON, REGENERATE_BUTTON
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
@@ -330,6 +331,12 @@ def on_ticket(
                 else ""
             )
             actions_message = create_action_buttons(
+                [
+                    RESTART_SWEEP_BUTTON,
+                    REVERT_BUTTON,
+                    REGENERATE_BUTTON,
+                ]
+            )
                 [
                     RESTART_SWEEP_BUTTON,
                 ]
@@ -1097,6 +1104,8 @@ def on_ticket(
                     [
                         SWEEP_GOOD_FEEDBACK,
                         SWEEP_BAD_FEEDBACK,
+                        REVERT_BUTTON,
+                        REGENERATE_BUTTON,
                     ],
                     header="### PR Feedback (click)\n",
                 )
