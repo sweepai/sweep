@@ -15,7 +15,7 @@ from sweepai.core.external_searcher import ExternalSearcher
 from sweepai.core.sweep_bot import SweepBot
 
 # from sandbox.sandbox_utils import Sandbox
-from sweepai.handlers.create_pr import create_pr_changes
+from sweepai.handlers.create_pr import create_pr_changes, GITHUB_LABEL_NAME
 from sweepai.utils.buttons import create_action_buttons
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
