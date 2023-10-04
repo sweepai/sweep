@@ -63,7 +63,7 @@ def get_token(installation_id: int):
         except Exception as e:
             logger.error(e)
             time.sleep(timeout)
-    raise Exception("Could not get token")
+    raise Exception("Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after.")
 
 
 def get_github_client(installation_id: int):
@@ -284,21 +284,24 @@ class ClonedRepo:
         file_list = self.get_file_list()
         return len(file_list)
 
-    def get_commit_history(self, username):
+    def get_commit_history(self, username: str = "", limit : int = 200, time_limited: bool = True):
         commit_history = []
-        commit_list = list(self.git_repo.iter_commits(author=username))
+        if username != "":
+            commit_list = list(self.git_repo.iter_commits(author=username))
+        else:
+            commit_list = list(self.git_repo.iter_commits())
         line_count = 0
         cut_off_date = datetime.datetime.now() - datetime.timedelta(days = 7)
         for commit in commit_list:
             # must be within a week
-            if commit.authored_datetime.replace(tzinfo=pytz.UTC) <= cut_off_date.replace(tzinfo=pytz.UTC):
+            if time_limited and commit.authored_datetime.replace(tzinfo=pytz.UTC) <= cut_off_date.replace(tzinfo=pytz.UTC):
                 logger.info(f"Exceeded cut off date, stopping...")
                 break
             diff = self.git_repo.git.diff(commit, SweepConfig.get_branch(get_github_client(self.installation_id)[1].get_repo(self.repo_full_name)), unified = 1)
             lines = diff.count('\n')
             # total diff lines must not exceed 200
-            if lines + line_count > 200:
-                logger.info(f"Exceeded 200 lines of diff, stopping...")
+            if lines + line_count > limit:
+                logger.info(f"Exceeded {limit} lines of diff, stopping...")
                 break
             commit_history.append(f"<commit>\nAuthor: {commit.author.name}\nMessage: {commit.message}\n{diff}\n</commit>")
             line_count += lines
