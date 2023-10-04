@@ -181,19 +181,19 @@ def on_comment(
     }
     # logger.bind(**metadata)
 
-    capture_posthog_event(username, "started", properties=metadata)
+    posthog.capture(username, "started", properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = bool(pr_path) and bool(pr_line_position)
-
+    
     item_to_react_to = None
     reaction = None
-
+    
     bot_comment = None
-
+    
     def edit_comment(new_comment):
         if bot_comment is not None:
             bot_comment.edit(new_comment)
-
+    
     try:
         # Check if the PR is closed
         if pr.state == "closed":
@@ -212,19 +212,19 @@ def on_comment(
                     raise SystemExit
                 except Exception:
                     pass
-
+    
             if reaction is not None:
                 # Delete rocket reaction
                 reactions = item_to_react_to.get_reactions()
                 for r in reactions:
                     if r.content == "rocket" and r.user.login == GITHUB_BOT_USERNAME:
                         item_to_react_to.delete_reaction(r.id)
-
+    
         branch_name = (
             pr.head.ref if pr_number else pr.pr_head  # pylint: disable=no-member
         )
         cloned_repo = ClonedRepo(repo_full_name, installation_id, branch=branch_name)
-
+    
         # Generate diffs for this PR
         pr_diff_string = None
         pr_files_modified = None
@@ -238,14 +238,14 @@ def on_comment(
                     pr_files_modified[file.filename] = repo.get_contents(
                         file.filename, ref=branch_name
                     ).decoded_content.decode("utf-8")
-
+    
                     patches.append(
                         f'<file file_path="{file.filename}">\n{file.patch}\n</file>'
                     )
             pr_diff_string = (
                 "<files_changed>\n" + "\n".join(patches) + "\n</files_changed>"
             )
-
+    
         # This means it's a comment on a file
         if file_comment:
             pr_file = repo.get_contents(
@@ -289,7 +289,7 @@ def on_comment(
             except Exception as e:
                 logger.error(traceback.format_exc())
                 raise e
-
+    
         snippets = post_process_snippets(
             snippets, max_num_of_snippets=0 if file_comment else 2
         )
@@ -317,7 +317,7 @@ def on_comment(
             relevant_docs=docs_results,
         )
         logger.info(f"Human prompt{human_message.construct_prompt()}")
-
+    
         sweep_bot = SweepBot.from_system_message_content(
             # human_message=human_message, model="claude-v1.3-100k", repo=repo
             human_message=human_message,
@@ -329,7 +329,7 @@ def on_comment(
         )
     except Exception as e:
         logger.error(traceback.format_exc())
-        capture_posthog_event(
+        posthog.capture(
             username,
             "failed",
             properties={"error": str(e), "reason": "Failed to get files", **metadata},
@@ -475,7 +475,7 @@ def on_comment(
 
         logger.info("Done!")
     except NoFilesException:
-        capture_posthog_event(
+        posthog.capture(
             username,
             "failed",
             properties={
@@ -488,7 +488,7 @@ def on_comment(
         return {"success": True, "message": "No files to change."}
     except Exception as e:
         logger.error(traceback.format_exc())
-        capture_posthog_event(
+        posthog.capture(
             username,
             "failed",
             properties={
@@ -526,10 +526,9 @@ def on_comment(
     except Exception:
         pass
 
-    capture_posthog_event(username, "success", properties={**metadata})
+    posthog.capture(username, "success", properties={**metadata})
     logger.info("on_comment success")
     return {"success": True}
 
 
-def capture_posthog_event(username, event, properties):
-    posthog.capture(username, event, properties=properties)
+""
