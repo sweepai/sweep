@@ -40,9 +40,6 @@ results = search.call(
 #         final_docs.append(doc)
 #     else:
 #         break
-import pdb
-
-pdb.set_trace()
 # new_docs = []
 # for doc in docs:
 #     if doc not in new_docs:
