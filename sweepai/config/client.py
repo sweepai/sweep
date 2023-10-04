@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from logn import logger
 from sweepai.core.entities import EmptyRepository
+import traceback
 
 
 class SweepConfig(BaseModel):
@@ -176,7 +177,9 @@ def get_gha_enabled(repo: Repository) -> bool:
         return gha_enabled
     except SystemExit:
         raise SystemExit
-    logger.warning(f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True")
+    except Exception as e:
+        logger.warning(f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True")
+        return True
 
 
 @lru_cache(maxsize=None)
