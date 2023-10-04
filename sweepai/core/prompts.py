@@ -1096,26 +1096,31 @@ dont_use_chunking_message = """\
 Respond with a list of search queries, and a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
 
 update_snippets_system_prompt = """\
-You are a brilliant and meticulous engineer assigned to write code to complete the user's request. When you write code, the code works on the first try, is syntactically perfect, and is complete. 
+You are a brilliant and meticulous engineer assigned to write code to complete the user's request. When you write code, the code works on the first try, is syntactically perfect, and is complete.
 
 You have the utmost care for the code that you write, so you do not make mistakes and you fully implement every function and class. Take into account the current repository's language, code style, and dependencies. It is very important that you get this right.
+
 Respond in the following format:
 
 <snippets_and_plan_analysis>
 Completely describe the changes that need to be made in this file.
-Then describe the changes needed to update each snippet.
-...
+Then describe the changes needed to update each snippet and if the snippet should be replaced, prepended, or appended.
 </snippets_and_plan_analysis>
 
 <updated_snippets>
-<updated_snippet index=0>
+<updated_snippet index="i">
 ```
-updated lines
+new code to replace the entirety of the old code
 ```
 </updated_snippet>
 ...
-<updated_snippets>
-"""
+<updated_snippet index="j" position="append">
+```
+code to append to the snippet
+```
+</updated_snippet>
+...
+</updated_snippets>"""
 
 update_snippets_prompt = """# Code
 File path: {file_path}
@@ -1133,26 +1138,30 @@ File path: {file_path}
 </snippets_to_update>
 
 # Instructions
-Update each of the {n} snippets above according to their corresponding instructions.
-* Only rewrite code that lies within the start and end of the snippet. This code will be replaced directly.
+Rewrite each of the {n} snippets above according to the request.
 * Do not delete whitespace or comments.
-* The output will be copied into the code exactly so do not close hanging parentheses or tags.
 * To delete code insert an empty string.
+* Put "prepend" or "append" flags in the updated_snippet to prepend or append code before the entire snippet.
+* To replace the code directly do not add the position tag.
 
 Respond in the following format:
 
 <snippets_and_plan_analysis>
 Completely describe the changes that need to be made in this file.
-Then describe the changes needed to update each snippet.
-...
+Then describe the changes needed to update each snippet and if the snippet should be replaced, prepended, or appended.
 </snippets_and_plan_analysis>
 
 <updated_snippets>
-<updated_snippet index=0>
+<updated_snippet index="i">
 ```
-updated lines
+new code to replace the entirety of the old code
 ```
 </updated_snippet>
 ...
-<updated_snippets>
-"""
+<updated_snippet index="j" position="append">
+```
+code to append to the snippet
+```
+</updated_snippet>
+...
+</updated_snippets>"""
