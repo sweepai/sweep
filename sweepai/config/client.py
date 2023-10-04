@@ -284,3 +284,5 @@ UPDATES_MESSAGE = """\
 RESTART_SWEEP_BUTTON = "↻ Restart Sweep"
 SWEEP_GOOD_FEEDBACK = "👍 Sweep Did Well"
 SWEEP_BAD_FEEDBACK = "👎 Sweep Needs Improvement"
+REVERT_BUTTON = "sweep: revert"
+REGENERATE_BUTTON = "sweep: regenerate"
