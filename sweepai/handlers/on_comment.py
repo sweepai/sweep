@@ -198,6 +198,7 @@ def on_comment(
         # Check if the PR is closed
         if pr.state == "closed":
             return {"success": True, "message": "PR is closed. No event fired."}
+            "buttons": create_action_buttons(["Reset", "Regenerate"])
         if comment_id:
             try:
                 item_to_react_to = pr.get_issue_comment(comment_id)
@@ -490,6 +491,7 @@ def on_comment(
         )
         edit_comment(ERROR_FORMAT.format(title="Could not find files to change"))
         return {"success": True, "message": "No files to change."}
+        "buttons": create_action_buttons(["Reset", "Regenerate"])
     except Exception as e:
         logger.error(traceback.format_exc())
         capture_posthog_event(
