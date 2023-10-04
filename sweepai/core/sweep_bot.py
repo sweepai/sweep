@@ -336,7 +336,9 @@ class CodeGenBot(ChatGPT):
                             relevant_snippet_text += f"<relevant_snippet file_path={plan.file_path}>\n{extracted_code}\n</relevant_snippet>\n"
                     relevant_snippet_text = relevant_snippet_text.strip("\n")
                     relevant_snippet_text = f"<relevant_snippets>\n{relevant_snippet_text}\n</relevant_snippets>"
-                    self.update_message_content_from_message_key("relevant_snippets", relevant_snippet_text)
+                    self.update_message_content_from_message_key(
+                        "relevant_snippets", relevant_snippet_text
+                    )
                     files_to_change_response = self.chat(
                         python_files_to_change_prompt, message_key="files_to_change"
                     )  # Dedup files to change here
@@ -1433,13 +1435,16 @@ class ModifyBot:
         )
 
         extraction_terms = []
-        extraction_term_pattern = r"<extraction_terms.*?>\n(?P<extraction_term>.*?)\n</extraction_terms>"
+        extraction_term_pattern = (
+            r"<extraction_terms.*?>\n(?P<extraction_term>.*?)\n</extraction_terms>"
+        )
         for extraction_term in re.findall(
             extraction_term_pattern, fetch_snippets_response, re.DOTALL
         ):
             for term in extraction_term.split("\n"):
                 term = term.strip()
-                if term: extraction_terms.append(term)
+                if term:
+                    extraction_terms.append(term)
         snippet_queries = []
         snippets_query_pattern = (
             r"<snippet_to_modify.*?>\n(?P<code>.*?)\n</snippet_to_modify>"
@@ -1464,9 +1469,9 @@ class ModifyBot:
     ):
         best_matches = []
         for query in snippet_queries:
-            _match = find_best_match(query, file_contents)
-            if _match.score > 50:
-                best_matches.append(_match)
+            match_ = find_best_match(query, file_contents)
+            if match_.score > 50:
+                best_matches.append(match_)
 
         for i, line in enumerate(file_contents.split("\n")):
             for keyword in extraction_terms:
@@ -1497,17 +1502,17 @@ class ModifyBot:
         deduped_matches = []
 
         # Fuse & dedup
-        for _match in best_matches:
-            if current_match.end > _match.start:
-                current_match = fuse_matches(current_match, _match)
+        for match_ in best_matches:
+            if current_match.end > match_.start:
+                current_match = fuse_matches(current_match, match_)
             else:
                 deduped_matches.append(current_match)
-                current_match = _match
+                current_match = match_
         deduped_matches.append(current_match)
         selected_snippets = []
-        for _match in deduped_matches:
+        for match_ in deduped_matches:
             current_contents = "\n".join(
-                file_contents.split("\n")[_match.start : _match.end]
+                file_contents.split("\n")[match_.start : match_.end]
             )
             selected_snippets.append(current_contents)
 
@@ -1531,15 +1536,26 @@ class ModifyBot:
         )
 
         updated_snippets = dict()
-        updated_pattern = r"<updated_snippet index=(?P<index>\d+)>(?P<code>.*?)<\/updated_snippet>"
+        updated_pattern = r"<updated_snippet index=\"(?P<index>\d+)\"( position=\"(?P<position>prepend|append)\")?>(?P<code>.*?)<\/updated_snippet>"
 
-        for index, code in re.findall(updated_pattern, update_snippets_response, re.DOTALL):
+        # for index, position, code in re.findall(updated_pattern, update_snippets_response, re.DOTALL):
+        for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
+            index = match_.group("index")
+            position = match_.group("position")
+            code = match_.group("code")
+
             formatted_code = strip_backticks(code)
             formatted_code = remove_line_numbers(formatted_code)
-            original_tag = "[ORIGINAL_CODE]"
-            if original_tag in formatted_code:
-                pass
-            updated_snippets[index] = formatted_code
+            if position == "prepend":
+                updated_snippets[index] = (
+                    formatted_code + "\n" + selected_snippets[int(index)]
+                )
+            elif position == "append":
+                updated_snippets[index] = (
+                    selected_snippets[int(index)] + "\n" + formatted_code
+                )
+            else:
+                updated_snippets[index] = formatted_code
 
         result = file_contents
         for idx, search in enumerate(selected_snippets):
