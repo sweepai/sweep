@@ -1108,8 +1108,8 @@ You have the utmost care for the code that you write, so you do not make mistake
 Respond in the following format:
 
 <snippets_and_plan_analysis>
-Completely describe the changes that need to be made in this file.
-Then describe the changes needed to update each snippet and if the snippet should be replaced, prepended, or appended.
+Completely describe the changes that need to be made in this file in a list.
+Then, in a second list, describe the changes needed to update each snippet and if the snippet should be replaced, or if code should be added before or after.
 </snippets_and_plan_analysis>
 
 <updated_snippets>
@@ -1119,9 +1119,9 @@ new code to replace the entirety of the old code
 ```
 </updated_snippet>
 ...
-<updated_snippet index="j" position="append">
+<updated_snippet index="j" position="after">
 ```
-code to append to the snippet
+code to be added after the snippet
 ```
 </updated_snippet>
 ...
@@ -1146,14 +1146,14 @@ File path: {file_path}
 Rewrite each of the {n} snippets above according to the request.
 * Do not delete whitespace or comments.
 * To delete code insert an empty string.
-* Put "prepend" or "append" flags in the updated_snippet to prepend or append code before the entire snippet.
+* Put "before" or "after" arguments in the updated_snippet to add code before or after the entire snippet.
 * To replace the code directly do not add the position tag.
 
 Respond in the following format:
 
 <snippets_and_plan_analysis>
-Completely describe the changes that need to be made in this file.
-Then describe the changes needed to update each snippet and if the snippet should be replaced, prepended, or appended.
+Completely describe the changes that need to be made in this file in a list.
+Then, in a second list, describe the changes needed to update each snippet and if the snippet should be replaced, or if code should be added before or after.
 </snippets_and_plan_analysis>
 
 <updated_snippets>
@@ -1163,9 +1163,9 @@ new code to replace the entirety of the old code
 ```
 </updated_snippet>
 ...
-<updated_snippet index="j" position="append">
+<updated_snippet index="j" position="after">
 ```
-code to append to the snippet
+code to be added after the snippet
 ```
 </updated_snippet>
 ...
