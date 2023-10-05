@@ -61,6 +61,7 @@ from sweepai.utils.diff import (
     is_markdown,
     sliding_window_replacement,
 )
+from sweepai.utils.function_call_utils import find_function_calls
 from sweepai.utils.graph import Graph
 from sweepai.utils.search_and_replace import Match, find_best_match
 from sweepai.utils.utils import chunk_code
@@ -1484,6 +1485,18 @@ class ModifyBot:
                             score=100,
                         )
                     )
+
+        # Get all line matches where the keyword is either mentioned or used as a function call
+        for keyword in pattern_list:
+            keyword = keyword.rstrip("()")
+            for start, end in find_function_calls(keyword, file_contents):
+                best_matches.append(
+                    Match(
+                        start=start,
+                        end=end + 1,
+                        score=100,
+                    )
+                )
 
         if len(best_matches) == 0:
             raise MatchingError("No matches found in file")
