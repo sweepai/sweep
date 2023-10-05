@@ -67,6 +67,8 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
 
 
 # @LogTask()
+import time
+start_time = time.time()
 def on_comment(
     repo_full_name: str,
     repo_description: str,
@@ -181,7 +183,8 @@ def on_comment(
     }
     # logger.bind(**metadata)
 
-    posthog.capture(username, "started", properties=metadata)
+    properties["duration"] = time.time() - start_time
+        posthog.capture(username, "started", properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = bool(pr_path) and bool(pr_line_position)
 
@@ -329,6 +332,7 @@ def on_comment(
         )
     except Exception as e:
         logger.error(traceback.format_exc())
+        properties["duration"] = time.time() - start_time
         posthog.capture(
             username,
             "failed",
@@ -475,19 +479,21 @@ def on_comment(
 
         logger.info("Done!")
     except NoFilesException:
-        posthog.capture(
-            username,
-            "failed",
-            properties={
-                "error": "No files to change",
-                "reason": "No files to change",
-                **metadata,
-            },
-        )
+        properties["duration"] = time.time() - start_time
+            posthog.capture(
+                username,
+                "failed",
+                properties={
+                    "error": "No files to change",
+                    "reason": "No files to change",
+                    **metadata,
+                },
+            )
         edit_comment(ERROR_FORMAT.format(title="Could not find files to change"))
         return {"success": True, "message": "No files to change."}
     except Exception as e:
         logger.error(traceback.format_exc())
+        properties["duration"] = time.time() - start_time
         posthog.capture(
             username,
             "failed",
