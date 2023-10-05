@@ -27,6 +27,7 @@ from sweepai.config.server import (
     ENV,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
+    IS_SELF_HOSTED,
     MONGODB_URI,
     OPENAI_API_KEY,
     OPENAI_USE_3_5_MODEL_ONLY,
@@ -201,6 +202,7 @@ def on_ticket(
         "subissues_mode": subissues_mode,
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
+        "is_self_hosted": IS_SELF_HOSTED,
     }
 
     posthog.capture(username, "started", properties=metadata)
