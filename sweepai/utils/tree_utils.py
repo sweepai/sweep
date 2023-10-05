@@ -1,5 +1,5 @@
 import copy
-from logn import logger
+from sweepai.logn import logger
 from collections import OrderedDict
 
 class Line:

@@ -7,7 +7,7 @@ from geopy import Nominatim
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.config.server import (
     DISCORD_LOW_PRIORITY_URL,
     DISCORD_MEDIUM_PRIORITY_URL,

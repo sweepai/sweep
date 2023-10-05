@@ -19,7 +19,7 @@ from redis.backoff import ExponentialBackoff
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 from redis.retry import Retry
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, REDIS_URL
 from sweepai.utils.ctags import CTags

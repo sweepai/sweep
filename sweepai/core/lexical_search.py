@@ -3,7 +3,7 @@ import traceback
 from dataclasses import dataclass
 
 from whoosh.analysis import Token, Tokenizer
-from logn import logger
+from sweepai.logn import logger
 from sweepai.core.entities import Snippet
 from collections import defaultdict, Counter
 from math import log

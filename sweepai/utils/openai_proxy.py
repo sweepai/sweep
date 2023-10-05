@@ -1,6 +1,6 @@
 import openai
 
-from logn import file_cache, logger
+from sweepai.logn import file_cache, logger
 from sweepai.config.server import (
     AZURE_API_KEY,
     OPENAI_API_BASE,

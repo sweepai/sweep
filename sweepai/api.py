@@ -5,7 +5,7 @@ import time
 
 import psutil
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.utils.buttons import check_button_activated
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 

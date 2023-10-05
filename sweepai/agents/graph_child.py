@@ -2,7 +2,7 @@ import re
 
 from tree_sitter_languages import get_parser
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import RegexMatchableBaseModel, Snippet
 
@@ -280,7 +280,7 @@ import traceback
 import re
 import requests
 from typing import Generator, Any, Dict, List
-from logn import logger
+from sweepai.logn import logger
 
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
