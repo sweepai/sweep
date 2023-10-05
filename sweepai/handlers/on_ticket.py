@@ -83,6 +83,7 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None,
     edited: bool = False,
+    button_clicked: str = None,
 ):
     (
         title,
@@ -100,6 +101,12 @@ def on_ticket(
     # 3. Get files to change
     # 4. Get file changes
     # 5. Create PR
+
+    # Handle button click events
+    if button_clicked == "revert":
+        handle_revert_button()
+    elif button_clicked == "regenerate":
+        handle_regenerate_button()
 
     on_ticket_start_time = time()
     summary = summary or ""
