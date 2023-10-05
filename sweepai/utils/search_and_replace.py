@@ -263,7 +263,7 @@ capture_posthog_event(username, "success", properties={**metadata})
 
 if __name__ == "__main__":
     for section in split_ellipses(test_code):
-        print(section)
+        # print(section)
     code_file = """\
     def try_update_file(
         self,
