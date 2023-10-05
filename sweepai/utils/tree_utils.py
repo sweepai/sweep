@@ -10,7 +10,10 @@ class Line:
         self.is_dir = is_dir
 
     def full_path(self):
-        return self.text if not self.is_dir else self.text
+        if self.parent:
+            return self.parent.full_path() + '/' + self.text
+        else:
+            return self.text
     
     def __eq__(self, other):
         full_relative_path = self.parent.full_path() + self.full_path() if self.parent else self.full_path()
@@ -33,18 +36,18 @@ class DirectoryTree:
         for line in input_str.strip().split("\n"):
             indent_count = (len(line) - len(line.lstrip())) // 2
             line = line.strip()
-
+    
             # Pop items from stack to find the correct parent directory
             while stack and stack[-1].indent_count >= indent_count:
                 stack.pop()
-
+    
             is_directory = line.endswith("/") or line.endswith("...")
-            parent = stack[-1] if stack else None
+            parent = stack[-1] if stack and stack[-1].indent_count == indent_count - 1 else None
             line_obj = Line(indent_count, line, parent, is_dir=is_directory)
-
+    
             if line.endswith("/"):
                 stack.append(line_obj)
-
+    
             self.lines.append(line_obj)
         self.original_lines = copy.deepcopy(self.lines)
 
@@ -89,7 +92,7 @@ class DirectoryTree:
         for line in self.original_lines:
             # In current lines or should be expanded
             full_relative_path = line.parent.full_path() + line.full_path() if line.parent else line.full_path()
-            if any(full_relative_path.startswith(dir) for dir in dirs_to_expand):
+            if line.is_dir and any(full_relative_path.startswith(dir) for dir in dirs_to_expand):
                 expanded_lines.append(line)
             elif line in self.lines:
                 expanded_lines.append(line)
