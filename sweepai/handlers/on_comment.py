@@ -40,6 +40,9 @@ ERROR_FORMAT = "❌ {title}\n\nPlease join our [Discord](https://discord.gg/swee
 
 
 def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3):
+    # Add buttons to the snippets
+    for snippet in result_snippets:
+        snippet += "\n\n[sweep: revert](button://revert) [sweep: regenerate](button://regenerate)"
     for snippet in snippets[:num_full_files]:
         snippet = snippet.expand()
 
@@ -83,6 +86,9 @@ def on_comment(
     comment_type: str = "comment",
     type: str = "comment",
 ):
+    # Handle button click events
+    if comment_type == "button":
+        handle_button_click(comment, repo_full_name, installation_id, pr_number)
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
