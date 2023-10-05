@@ -1554,7 +1554,7 @@ class ModifyBot:
 
         # Todo: check multiple files for matches using PR changed files
 
-        best_matches.sort(key=lambda x: x.start + x.end * 0.001)
+        best_matches.sort(key=lambda x: x.start + x.end * 0.00001)
 
         def fuse_matches(a: Match, b: Match) -> Match:
             return Match(
@@ -1592,7 +1592,7 @@ class ModifyBot:
                 file_path=file_path,
                 snippets="\n\n".join(
                     [
-                        f"<snippet index={i}>\n{snippet}\n</snippet>"
+                        f'<snippet index="{i}">\n{snippet}\n</snippet>'
                         for i, snippet in enumerate(selected_snippets)
                     ]
                 ),
