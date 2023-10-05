@@ -4,8 +4,6 @@ from dataclasses import dataclass
 
 from redis import Redis
 
-from logn import logger
-
 VERSION = "0.0.2"
 
 
@@ -28,7 +26,6 @@ class CTags:
             self.redis_instance.get(ctags_cache_key) if self.redis_instance else None
         )
         if cache_hit:
-            logger.info(f"Cache hit for {ctags_cache_key}")
             data = json.loads(cache_hit)
         else:
             output = subprocess.check_output(cmd, stderr=subprocess.PIPE).decode(
