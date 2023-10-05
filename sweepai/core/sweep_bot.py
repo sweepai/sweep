@@ -65,7 +65,7 @@ from sweepai.utils.diff import (
 )
 from sweepai.utils.function_call_utils import find_function_calls
 from sweepai.utils.graph import Graph
-from sweepai.utils.search_and_replace import Match, find_best_match
+from sweepai.utils.search_and_replace import Match, find_best_match, split_ellipses
 from sweepai.utils.utils import chunk_code
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
@@ -1522,9 +1522,15 @@ class ModifyBot:
     ):
         best_matches = []
         for query in snippet_queries:
-            match_ = find_best_match(query, file_contents)
-            if match_.score > 50:
-                best_matches.append(match_)
+            if query.count("...") > 2:
+                for section in split_ellipses(query):
+                    match_ = find_best_match(section, file_contents)
+                    if match_.score > 50:
+                        best_matches.append(match_)
+            else:
+                match_ = find_best_match(query, file_contents)
+                if match_.score > 50:
+                    best_matches.append(match_)
 
         for i, line in enumerate(file_contents.split("\n")):
             for keyword in extraction_terms:
@@ -1602,7 +1608,7 @@ class ModifyBot:
         )
 
         updated_snippets = dict()
-        updated_pattern = r"<updated_snippet index=\"(?P<index>\d+)\"( position=\"(?P<position>prepend|append)\")?>(?P<code>.*?)<\/updated_snippet>"
+        updated_pattern = r"<updated_snippet index=\"(?P<index>\d+)\"( position=\"(?P<position>before|after)\")?>(?P<code>.*?)<\/updated_snippet>"
 
         # for index, position, code in re.findall(updated_pattern, update_snippets_response, re.DOTALL):
         for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
@@ -1612,14 +1618,14 @@ class ModifyBot:
 
             formatted_code = strip_backticks(code)
             formatted_code = remove_line_numbers(formatted_code)
-            if position == "prepend":
+            if position == "before":
                 current_contents = selected_snippets[index]
                 current_match = deduped_matches[index]
                 if current_match.start - 1 >= 0:
                     line_after = file_contents_lines[current_match.start - 1]
                     formatted_code = match_indent(formatted_code, line_after)
                 formatted_code = formatted_code + "\n" + current_contents
-            elif position == "append":
+            elif position == "after":
                 current_contents = selected_snippets[index]
                 current_match = deduped_matches[index]
                 if current_match.end + 1 < len(file_contents_lines):
