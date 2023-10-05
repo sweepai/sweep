@@ -1039,18 +1039,17 @@ Step-by-step thoughts:
 2.
 3.
 
-<extraction_terms>
-first term from the code
-second term from the code
-...
-</extraction_terms>
-
 <snippet_to_modify>
 first five lines of code from the original snippet
 ...
 last five lines of code from the original snippet (the code)
 </snippet_to_modify>
-"""
+
+<extraction_terms>
+first term from the code
+second term from the code
+...
+</extraction_terms>"""
 
 fetch_snippets_prompt = """
 # Code
@@ -1073,19 +1072,19 @@ Step-by-step thoughts:
 2.
 3.
 
-<extraction_terms>
-first term from the code
-second term from the code
-...
-</extraction_terms>
-
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
 first five lines of code from the original snippet
 ...
 last five lines of code from the original snippet (the code)
 ```
-</snippet_to_modify>"""
+</snippet_to_modify>
+
+<extraction_terms>
+first term from the code
+second term from the code
+...
+</extraction_terms>"""
 
 use_chunking_message = """\
 This is just one section of the file. Determine whether the request is asking to edit this chunk of the file. If not, respond with "No" to "Changes needed".
