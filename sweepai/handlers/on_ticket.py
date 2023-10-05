@@ -965,7 +965,7 @@ def on_ticket(
                     checkboxes_progress = [
                         (
                             (
-                                f"`{entity_display}` No Changes Made",
+                                f"`{entity_display}` ⚠️ No Changes Made",
                                 instructions + error_logs,
                                 "X",
                             )
