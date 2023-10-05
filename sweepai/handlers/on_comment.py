@@ -68,7 +68,6 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
 
 # @LogTask()
 import time
-start_time = time.time()
 def on_comment(
     repo_full_name: str,
     repo_description: str,
@@ -85,6 +84,7 @@ def on_comment(
     comment_type: str = "comment",
     type: str = "comment",
 ):
+    start_time = time.time()
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
