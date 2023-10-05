@@ -1159,6 +1159,3 @@ def on_ticket(
 tokens = tokenize_call(file_contents)
 symbols = list(set([token.text for token in tokens]))
 print(symbols)
-import pdb
-
-pdb.set_trace()

@@ -210,7 +210,6 @@ def match_string(original, search, start_index=None, exact_match=False) -> Match
     # if True:
     best_match = find_best_match("\n".join(search), "\n".join(original))
     # else:
-    #     import pdb; pdb.set_trace()
     #     best_match = Match(index, index + line_matches, score=100)
     logger.print(best_match)
     return best_match
