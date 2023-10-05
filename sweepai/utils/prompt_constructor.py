@@ -211,16 +211,16 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
                     relevant_snippets=self.render_snippets(),
                     relevant_commit_history=self.get_commit_history(),
                     relevant_docs=f"\n{self.relevant_docs}" if self.relevant_docs else "", # conditionally add newline
-                ),
+                ) + "\n\n[sweep: revert](button://revert) [sweep: regenerate](button://regenerate)",
             }
             for msg in human_message_prompt_comment
         ]
-
+    
         if self.pr_file_path and self.pr_chunk and self.original_line:
             logger.info(f"Review Comment {self.comment}")
         else:
             logger.info(f"General Comment {self.comment}")
-
+    
         return human_messages
 
     def get_issue_metadata(self):
