@@ -13,3 +13,4 @@ Please provide a detailed list of the changes made in this pull request.
 # Additional Notes
 
 Please provide any additional notes or screenshots here.
+When you make a PR, please ping us on Discord at http://discord.gg/sweep.
