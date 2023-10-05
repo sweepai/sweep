@@ -51,26 +51,26 @@ def condense_paths(paths):
 
 
 def extract_entities(code: str):
-    try:
-        tree = ast.parse(code)
-    except SyntaxError:
-        code = codecs.decode(code.encode(), 'utf-8-sig')
-        tree = ast.parse(code)
     imported_modules = []
     defined_classes = []
     defined_functions = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import) or isinstance(node, ast.ImportFrom):
-            for n in node.names:
-                imported_modules.append(n.name)
-        elif isinstance(node, ast.ClassDef):
-            defined_classes.append(node.name)
-        elif isinstance(node, ast.FunctionDef):
-            defined_functions.append(node.name)
-        elif isinstance(node, ast.Call):
-            func = node.func
-            if isinstance(func, ast.Attribute):
-                imported_modules.append(func.attr)
+    try:
+        code = codecs.decode(code.encode(), 'utf-8-sig')
+        tree = ast.parse(code)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import) or isinstance(node, ast.ImportFrom):
+                for n in node.names:
+                    imported_modules.append(n.name)
+            elif isinstance(node, ast.ClassDef):
+                defined_classes.append(node.name)
+            elif isinstance(node, ast.FunctionDef):
+                defined_functions.append(node.name)
+            elif isinstance(node, ast.Call):
+                func = node.func
+                if isinstance(func, ast.Attribute):
+                    imported_modules.append(func.attr)
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
     return imported_modules, defined_classes, defined_functions
 
 
@@ -245,7 +245,6 @@ if __name__ == "__main__":
     g = Graph.from_folder(folder_path)
     fd = g.extract_first_degree(selected_files[0])
     print(fd)
-    import pdb; pdb.set_trace()
     # draw_paths_on_graph(g.references_graph, paths=selected_files)
     # # Perform a topological sort on the selected files
     # try:

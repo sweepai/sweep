@@ -182,7 +182,11 @@ def get_deeplake_vs_from_repo(
             score_factors.append(score_factor)
             continue
         cache_key = hash_sha256(file_path) + CACHE_VERSION
-        cache_value = redis_client.get(cache_key)
+        try:
+            cache_value = redis_client.get(cache_key)
+        except Exception as e:
+            logger.error(e)
+            cache_value = None
         if cache_value is not None:
             score_factor = json.loads(cache_value)
             score_factors.append(score_factor)
