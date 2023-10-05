@@ -78,7 +78,7 @@ def score_multiline(query: list[str], target: list[str]) -> float:
                 if match_without_whitespace(line, query[q + 1])
             ]
             if not indices:
-                logger.warning(f"Could not find whitespace match, using brute force")
+                # logger.warning(f"Could not find whitespace match, using brute force")
                 indices = range(t, len(target))
             for i in indices:
                 score, weight = score_multiline(query[q + 1 :], target[i:]), (
@@ -200,7 +200,7 @@ def find_best_match(query: str, code_file: str):
         ):
             end_indices = [
                 j
-                for j, line in enumerate(code_file_lines[i:])
+                for j, line in enumerate(code_file_lines[i:], start=i)
                 if score_line(line, indented_query_lines[-1]) > 50
             ]
             end_indices = end_indices or [
@@ -213,21 +213,21 @@ def find_best_match(query: str, code_file: str):
             ]  # sus code
             if not end_indices:
                 end_pairs = [
-                    (i, score_line(line, indented_query_lines[-1]))
-                    for i, line in enumerate(code_file_lines)
+                    (j, score_line(line, indented_query_lines[-1]))
+                    for j, line in enumerate(code_file_lines[i:], start=i)
                 ]
                 end_pairs.sort(key=lambda x: x[1], reverse=True)
                 end_pairs = end_pairs[: min(40, len(end_pairs) // 5)]
-                end_indices = sorted([i for i, _ in end_pairs])
+                end_indices = sorted([j for j, _ in end_pairs])
 
             for j in tqdm(
                 end_indices, position=1, leave=False, desc=f"Starting line {i}"
             ):
-                candidate = code_file_lines[i:j]
+                candidate = code_file_lines[i : j + 1]
                 raw_score = score_multiline(indented_query_lines, candidate)
 
                 score = raw_score * (1 - num_indents * 0.01)
-                current_match = Match(i, j, score, indent * num_indents)
+                current_match = Match(i, j + 1, score, indent * num_indents)
 
                 if raw_score >= 99.99:  # early exit, 99.99 for floating point error
                     logger.info(f"Exact match found! Returning: {current_match}")
