@@ -260,15 +260,15 @@ Contextual Request Analysis:
 
 <plan>
 <create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
-* Instruction 1 for file_path_1
-* Instruction 2 for file_path_1
+* Detailed and concise instructions on what to create
+* Include references to files, imports and entity names
 ...
 </create>
 ...
 
 <modify file="file_path_2" entity="name of function or class to modify (optional)" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
-* Instruction 1 for file_path_2
-* Instruction 2 for file_path_2
+* Detailed and concise instructions on what to modify
+* Include references to files, imports and entity names
 ...
 </modify>
 ...
@@ -1026,18 +1026,17 @@ summarize_snippet_prompt = """# Code
 Losslessly summarize the code in a ordered list for an engineer to search for relevant code to solve the above GitHub issue."""
 
 fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to extract the original lines from the code that should be modified. The snippets will be modified after extraction so make sure we can match the snippets to the original code.
-Select the smallest spans that let you handle the request. There should not be any unimplemented functions or classes.
 
-Extract the terms we need to modify from the code. The system will then modify all of the lines containing the extracted_terms. You can use wildcards like `func(**)` to find all function calls of `func`.
+Extract the smallest spans that let you handle the request by adding blocks of snippet_to_modify containing the code blocks you want to modify. Use this for implementing or changing functionality.
 
-Select spans you would like to modify by adding blocks of snippet_to_modify containing the code blocks you want to modify.
+Then, write search patterns we need to modify from the code. The system will then modify all of the lines containing the patterns. Use this to make many small changes, such as updating all function calls after changing the signature.
 
 # Format
-
-Step-by-step thoughts:
-1.
-2.
-3.
+<instructions>
+Identify all changes that need to be made to the code file.
+Then identify all snippet sections that should receive these changes. These snippets will go into the snippets_to_modify block.
+Then identify any patterns of code that should be modified, like all function calls of a particular function. These patterns will go into the patterns block.
+</instructions>
 
 <snippet_to_modify>
 first five lines of code from the original snippet
@@ -1067,10 +1066,11 @@ File path: {file_path}
 {chunking_message}
 
 # Format
-Step-by-step thoughts:
-1.
-2.
-3.
+<instructions>
+Identify all changes that need to be made to the code file.
+Then identify all snippet sections that should receive these changes.
+Then identify any patterns of code that should be modified, like all function calls of a particular function.
+</instructions>
 
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
@@ -1089,10 +1089,16 @@ second term from the code
 use_chunking_message = """\
 This is just one section of the file. Determine whether the request is asking to edit this chunk of the file. If not, respond with "No" to "Changes needed".
 
-Otherwise, respond with a list of search queries, and a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
+Otherwise, respond with a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets.
+
+
+Then, select patterns in the code that we should update. The system will then select each line containing any of the patterns."""
 
 dont_use_chunking_message = """\
-Respond with a list of search queries, and a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets."""
+Respond with a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets.
+
+
+Then, select patterns in the code that we should update. The system will then select each line containing any of the patterns."""
 
 update_snippets_system_prompt = """\
 You are a brilliant and meticulous engineer assigned to write code to complete the user's request. When you write code, the code works on the first try, is syntactically perfect, and is complete.
