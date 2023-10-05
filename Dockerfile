@@ -71,6 +71,7 @@ COPY logn /app/logn
 COPY bin/startup.sh /app/startup.sh
 COPY redis.conf /app/redis.conf
 RUN chmod u+x /app/startup.sh
+RUN sweep_docs
 
 EXPOSE 8080
 CMD ["/app/startup.sh"]
