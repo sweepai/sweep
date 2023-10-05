@@ -190,18 +190,18 @@ def find_best_match(query: str, code_file: str):
                 min(len(code_file_lines) + 1, i + 2 * len(indented_query_lines) + 100),
             ):
                 candidate = code_file_lines[i:j]
-                score = score_multiline(indented_query_lines, candidate) * (
-                    1 - num_indents * 0.01
-                )
+                raw_score = score_multiline(indented_query_lines, candidate)
+
+                if score >= 100:
+                    return current_match
+
+                raw_score *= 1 - num_indents * 0.01
                 current_match = Match(i, j, score, indent * num_indents)
 
                 top_matches.append(current_match)
 
                 if score > best_match.score:
                     best_match = current_match
-
-                if score >= 100:
-                    return current_match
 
     unique_top_matches: list[Match] = []
     print(unique_top_matches)
@@ -264,7 +264,6 @@ capture_posthog_event(username, "success", properties={**metadata})
 if __name__ == "__main__":
     for section in split_ellipses(test_code):
         print(section)
-    quit()
     code_file = """\
     def try_update_file(
         self,

@@ -1608,7 +1608,7 @@ class ModifyBot:
         )
 
         updated_snippets = dict()
-        updated_pattern = r"<updated_snippet index=\"(?P<index>\d+)\"( position=\"(?P<position>prepend|append)\")?>(?P<code>.*?)<\/updated_snippet>"
+        updated_pattern = r"<updated_snippet index=\"(?P<index>\d+)\"( position=\"(?P<position>before|after)\")?>(?P<code>.*?)<\/updated_snippet>"
 
         # for index, position, code in re.findall(updated_pattern, update_snippets_response, re.DOTALL):
         for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
@@ -1618,14 +1618,14 @@ class ModifyBot:
 
             formatted_code = strip_backticks(code)
             formatted_code = remove_line_numbers(formatted_code)
-            if position == "prepend":
+            if position == "before":
                 current_contents = selected_snippets[index]
                 current_match = deduped_matches[index]
                 if current_match.start - 1 >= 0:
                     line_after = file_contents_lines[current_match.start - 1]
                     formatted_code = match_indent(formatted_code, line_after)
                 formatted_code = formatted_code + "\n" + current_contents
-            elif position == "append":
+            elif position == "after":
                 current_contents = selected_snippets[index]
                 current_match = deduped_matches[index]
                 if current_match.end + 1 < len(file_contents_lines):
