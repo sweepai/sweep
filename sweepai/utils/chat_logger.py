@@ -38,7 +38,7 @@ class ChatLogger(BaseModel):
             return
         try:
             client = MongoClient(
-                key, serverSelectionTimeoutMS=5000, socketTimeoutMS=5000
+                key, serverSelectionTimeoutMS=10000, socketTimeoutMS=10000
             )
             db = client["llm"]
             self.chat_collection = db["chat_history"]
