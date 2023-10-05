@@ -262,21 +262,14 @@ print('hello world'
 """
 
 
-# file_path = "src/App.tsx"
-file_path = "src/test.js"
-
-# url = "http://0.0.0.0:8081/sandbox/"
-url = "http://0.0.0.0:8081"
-
-headers = {"accept": "application/json", "Content-Type": "application/json"}
-
-data = {
-    "repo_url": "https://github.com/sweepai/landing-page",
-    "file_path": file_path,
-    "content": bad_file_contents,
-}
-
-response = requests.post(url, json=data, timeout=(5, 600))
-
-# Printing the response to see the result
-print(response.text)
+if __name__ == "__main__":
+    file_path = "src/test.js"
+    url = "http://0.0.0.0:8081"
+    headers = {"accept": "application/json", "Content-Type": "application/json"}
+    data = {
+        "repo_url": "https://github.com/sweepai/landing-page",
+        "file_path": file_path,
+        "content": bad_file_contents,
+    }
+    response = requests.post(url, json=data, timeout=(5, 600))
+    print(response.text)

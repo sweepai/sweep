@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 
 import docker
 import requests
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
@@ -127,9 +127,7 @@ class SandboxError(Exception):
 
 
 @app.post("/")
-async def run_sandbox(request: Request):
-    data = await request.json()
-    sandbox_request = SandboxRequest(**data)
+async def run_sandbox(sandbox_request: SandboxRequest):
     print(sandbox_request.repo_url, sandbox_request.file_path, sandbox_request.token)
     success, error_messages, updated_content = False, [], ""
     executions: list[SandboxExecution] = []
@@ -263,6 +261,3 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8081)
-
-
-# uvicorn sandbox_local:app --reload --port 8081
