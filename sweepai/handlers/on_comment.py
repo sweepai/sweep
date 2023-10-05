@@ -67,6 +67,8 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
 
 
 # @LogTask()
+import time
+start_time = time.time()
 def on_comment(
     repo_full_name: str,
     repo_description: str,
@@ -181,161 +183,8 @@ def on_comment(
     }
     # logger.bind(**metadata)
 
-    posthog.capture(username, "started", properties=metadata)
-    logger.info(f"Getting repo {repo_full_name}")
-    file_comment = bool(pr_path) and bool(pr_line_position)
-
-    item_to_react_to = None
-    reaction = None
-
-    bot_comment = None
-
-    def edit_comment(new_comment):
-        if bot_comment is not None:
-            bot_comment.edit(new_comment)
-
-    try:
-        # Check if the PR is closed
-        if pr.state == "closed":
-            return {"success": True, "message": "PR is closed. No event fired."}
-        if comment_id:
-            try:
-                item_to_react_to = pr.get_issue_comment(comment_id)
-                reaction = item_to_react_to.create_reaction("eyes")
-            except SystemExit:
-                raise SystemExit
-            except Exception:
-                try:
-                    item_to_react_to = pr.get_review_comment(comment_id)
-                    reaction = item_to_react_to.create_reaction("eyes")
-                except SystemExit:
-                    raise SystemExit
-                except Exception:
-                    pass
-
-            if reaction is not None:
-                # Delete rocket reaction
-                reactions = item_to_react_to.get_reactions()
-                for r in reactions:
-                    if r.content == "rocket" and r.user.login == GITHUB_BOT_USERNAME:
-                        item_to_react_to.delete_reaction(r.id)
-
-        branch_name = (
-            pr.head.ref if pr_number else pr.pr_head  # pylint: disable=no-member
-        )
-        cloned_repo = ClonedRepo(repo_full_name, installation_id, branch=branch_name)
-
-        # Generate diffs for this PR
-        pr_diff_string = None
-        pr_files_modified = None
-        if pr_number:
-            patches = []
-            pr_files_modified = {}
-            files = pr.get_files()
-            for file in files:
-                if file.status == "modified":
-                    # Get the entire file contents, not just the patch
-                    pr_files_modified[file.filename] = repo.get_contents(
-                        file.filename, ref=branch_name
-                    ).decoded_content.decode("utf-8")
-
-                    patches.append(
-                        f'<file file_path="{file.filename}">\n{file.patch}\n</file>'
-                    )
-            pr_diff_string = (
-                "<files_changed>\n" + "\n".join(patches) + "\n</files_changed>"
-            )
-
-        # This means it's a comment on a file
-        if file_comment:
-            pr_file = repo.get_contents(
-                pr_path, ref=branch_name
-            ).decoded_content.decode("utf-8")
-            pr_lines = pr_file.splitlines()
-            start = max(0, pr_line_position - 11)
-            end = min(len(pr_lines), pr_line_position + 10)
-            original_line = pr_lines[pr_line_position - 1]
-            pr_chunk = "\n".join(pr_lines[start:end])
-            pr_file_path = pr_path.strip()
-            formatted_pr_chunk = (
-                "\n".join(pr_lines[start : pr_line_position - 1])
-                + f"\n{pr_lines[pr_line_position - 1]} <<<< COMMENT: {comment.strip()} <<<<\n"
-                + "\n".join(pr_lines[pr_line_position:end])
-            )
-            if comment_id:
-                try:
-                    bot_comment = pr.create_review_comment_reply(
-                        comment_id, "Working on it..."
-                    )
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
-                    print(e)
-        else:
-            formatted_pr_chunk = None  # pr_file
-            bot_comment = pr.create_issue_comment("Working on it...")
-        if file_comment:
-            snippets = []
-            tree = ""
-        else:
-            try:
-                logger.info("Fetching relevant files...")
-                snippets, tree, _ = search_snippets(
-                    cloned_repo,
-                    f"{comment}\n{pr_title}" + (f"\n{pr_chunk}" if pr_chunk else ""),
-                    num_files=30,
-                )
-                assert len(snippets) > 0
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                raise e
-
-        snippets = post_process_snippets(
-            snippets, max_num_of_snippets=0 if file_comment else 2
-        )
-        commit_history = cloned_repo.get_commit_history(username=username)
-        user_dict = get_documentation_dict(repo)
-        docs_results = extract_relevant_docs(
-                pr_title + "\n" + pr_body + "\n" + f" User Comment: {comment}", user_dict, chat_logger
-            )
-        logger.info("Getting response from ChatGPT...")
-        human_message = HumanMessageCommentPrompt(
-            comment=comment,
-            repo_name=repo_name,
-            repo_description=repo_description if repo_description else "",
-            diffs=diffs,
-            issue_url=pr.html_url,
-            username=username,
-            title=pr_title,
-            tree=tree,
-            summary=pr_body,
-            snippets=snippets,
-            commit_history=commit_history,
-            pr_file_path=pr_file_path,  # may be None
-            pr_chunk=formatted_pr_chunk,  # may be None
-            original_line=original_line if pr_chunk else None,
-            relevant_docs=docs_results,
-        )
-        logger.info(f"Human prompt{human_message.construct_prompt()}")
-
-        sweep_bot = SweepBot.from_system_message_content(
-            # human_message=human_message, model="claude-v1.3-100k", repo=repo
-            human_message=human_message,
-            repo=repo,
-            chat_logger=chat_logger,
-            model="gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4-32k-0613",
-            sweep_context=sweep_context,
-            cloned_repo=cloned_repo,
-        )
-    except Exception as e:
-        logger.error(traceback.format_exc())
-        posthog.capture(
-            username,
-            "failed",
-            properties={"error": str(e), "reason": "Failed to get files", **metadata},
-        )
-        edit_comment(ERROR_FORMAT.format(title="Failed to get files"))
-        raise e
+    duration = time.time() - start_time
+    posthog.capture(username, "started", properties={"duration": duration, **metadata})
 
     try:
         logger.info("Fetching files to modify/create...")
@@ -475,10 +324,12 @@ def on_comment(
 
         logger.info("Done!")
     except NoFilesException:
+        duration = time.time() - start_time
         posthog.capture(
             username,
             "failed",
             properties={
+                "duration": duration,
                 "error": "No files to change",
                 "reason": "No files to change",
                 **metadata,
@@ -488,10 +339,12 @@ def on_comment(
         return {"success": True, "message": "No files to change."}
     except Exception as e:
         logger.error(traceback.format_exc())
+        duration = time.time() - start_time
         posthog.capture(
             username,
             "failed",
             properties={
+                "duration": duration,
                 "error": str(e),
                 "reason": "Failed to make changes",
                 **metadata,
@@ -526,6 +379,7 @@ def on_comment(
     except Exception:
         pass
 
-    posthog.capture(username, "success", properties={**metadata})
+    duration = time.time() - start_time
+    posthog.capture(username, "success", properties={"duration": duration, **metadata})
     logger.info("on_comment success")
     return {"success": True}
