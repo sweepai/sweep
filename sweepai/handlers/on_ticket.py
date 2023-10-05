@@ -107,6 +107,14 @@ def on_ticket(
         handle_revert_button()
     elif button_clicked == "regenerate":
         handle_regenerate_button()
+    
+    def handle_revert_button():
+        # Placeholder function for handling revert button click events
+        logger.info("Revert button clicked.")
+    
+    def handle_regenerate_button():
+        # Placeholder function for handling regenerate button click events
+        logger.info("Regenerate button clicked.")
 
     on_ticket_start_time = time()
     summary = summary or ""
