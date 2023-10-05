@@ -210,7 +210,7 @@ def chunk_node(node: Node, text: str, MAX_CHARS: int = 1500) -> list[str]:
 			new_chunks.append(current_chunk)
 			current_chunk = ""
 			new_chunks.extend(chunk_node(child, text, MAX_CHARS)
-		elif  > MAX_CHARS:
+		elif len(current_chunk) + child.end_byte - child.start_byte > MAX_CHARS:
 			new_chunks.append(current_chunk)
 			current_chunk = text[node.start_byte:node.end_byte]
 		else:
