@@ -192,11 +192,11 @@ def find_best_match(query: str, code_file: str):
                 candidate = code_file_lines[i:j]
                 raw_score = score_multiline(indented_query_lines, candidate)
 
-                if score >= 100:
-                    return current_match
-
-                raw_score *= 1 - num_indents * 0.01
+                score = raw_score * (1 - num_indents * 0.01)
                 current_match = Match(i, j, score, indent * num_indents)
+
+                if raw_score >= 100:
+                    return current_match
 
                 top_matches.append(current_match)
 
