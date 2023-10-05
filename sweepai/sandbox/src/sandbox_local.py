@@ -3,18 +3,19 @@ import json
 import os
 import shlex
 import tarfile
-from dataclasses import asdict, dataclass
+import uuid
+from dataclasses import asdict, dataclass, field
 
 import docker
+import git
 import requests
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
-
-# from sweepai.config.server import DISCORD_WEBHOOK_URL
 from src.chat import fix_file
 from src.sandbox_container import SandboxContainer
 from src.sandbox_utils import Sandbox
+from tqdm import tqdm
 
 app = FastAPI()
 
@@ -126,12 +127,58 @@ class SandboxError(Exception):
     message: str
 
 
+@dataclass
+class ClonedRepo:
+    repo_full_name: str
+    token: str | None = None
+    dir_hash: str = field(default_factory=lambda: uuid.uuid4().hex)
+
+    @property
+    def dir_path(self):
+        return os.path.join("cache/repos", self.repo_full_name, self.dir_hash)
+
+    @property
+    def repo_url(self):
+        return f"https://x-access-token:{self.token}@github.com/{self.repo_full_name}/"
+
+    def __post_init__(self):
+        print("Cloning repo")
+        git.Repo.clone_from(self.repo_url, self.dir_path)
+        print("Done cloning repo")
+
+    # def __del__(self):
+    #     try:
+    #         shutil.rmtree(self.dir_path, ignore_errors=True)
+    #     except FileNotFoundError as e:
+    #         print(f"Could not delete repo {self.dir_path}: {e}")
+
+    @property
+    def installation_cache_key(self):
+        # Get all files in root directory that doesn't end in md or rst
+        files = [
+            f
+            for f in tqdm(os.listdir(self.dir_path))
+            if not f.endswith((".md", ".rst"))
+        ]
+        files_dict = {
+            f: open(os.path.join(self.dir_path, f), "rb").read() for f in files
+        }
+        print(files_dict)
+
+
 @app.post("/")
 async def run_sandbox(sandbox_request: SandboxRequest):
     print(sandbox_request.repo_url, sandbox_request.file_path, sandbox_request.token)
+
+    username, repo_name = sandbox_request.repo_url.split("/")[-2:]
+    cloned_repo = ClonedRepo(
+        repo_full_name=f"{username}/{repo_name}", token=sandbox_request.token
+    )
+    print(cloned_repo.installation_cache_key)
+    return {"status": "ok"}
+
     success, error_messages, updated_content = False, [], ""
     executions: list[SandboxExecution] = []
-    username, _repo_name = sandbox_request.repo_url.split("/")[-2:]
     sandbox = Sandbox()
 
     try:
