@@ -232,6 +232,8 @@ After a few iterations, we settled on the following.
 
 ![executions.png](/trunk/executions.png)
 
+*Example can be found at [`sweepai/landing-page#481`](https://github.com/sweepai/landing-page/issues/481).*
+
 We decided to collapse all execution logs but the last. We gave failures a big red X with the error code, but success cases will have an uncolored checkmark.
 
 In the future, we could also add intermediate diffs to show what Sweep changed as a consequence of each set of logs for transparency. This allows users to inspect what went wrong and provide high-quality feedback. We could also batch the executions for cleanliness so we don’t have 20 executions since `prettier` is executed every time.
