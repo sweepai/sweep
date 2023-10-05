@@ -140,6 +140,10 @@ def create_pr_changes(
             )
         else:
             pr_description = f"{pull_request.content}\n\n[sweep: revert](button://revert) [sweep: regenerate](button://regenerate)"
+        
+        # Check if the buttons are correctly added
+        if "[sweep: revert](button://revert)" not in pr_description or "[sweep: regenerate](button://regenerate)" not in pr_description:
+            raise ValueError("Error: Buttons not correctly added in PR description.")
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
@@ -358,6 +362,10 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None, cloned
         if sweep_bot is not None
         else repo.default_branch,
     )
+    
+    # Check if the buttons are correctly added
+    if "[sweep: revert](button://revert)" not in pr.body or "[sweep: regenerate](button://regenerate)" not in pr.body:
+        raise ValueError("Error: Buttons not correctly added in PR body.")
     pr.add_to_labels(GITHUB_LABEL_NAME)
     return pr
 
