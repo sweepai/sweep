@@ -67,6 +67,9 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
 
 
 # @LogTask()
+import time
+start_time = time.time()
+
 def on_comment(
     repo_full_name: str,
     repo_description: str,
@@ -181,7 +184,8 @@ def on_comment(
     }
     # logger.bind(**metadata)
 
-    posthog.capture(username, "started", properties=metadata)
+    duration = time.time() - start_time
+    posthog.capture(username, "started", properties={**metadata, 'duration': duration})
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = bool(pr_path) and bool(pr_line_position)
 
@@ -329,10 +333,11 @@ def on_comment(
         )
     except Exception as e:
         logger.error(traceback.format_exc())
+        duration = time.time() - start_time
         posthog.capture(
             username,
             "failed",
-            properties={"error": str(e), "reason": "Failed to get files", **metadata},
+            properties={"error": str(e), "reason": "Failed to get files", **metadata, 'duration': duration},
         )
         edit_comment(ERROR_FORMAT.format(title="Failed to get files"))
         raise e
@@ -475,6 +480,7 @@ def on_comment(
 
         logger.info("Done!")
     except NoFilesException:
+        duration = time.time() - start_time
         posthog.capture(
             username,
             "failed",
@@ -482,12 +488,14 @@ def on_comment(
                 "error": "No files to change",
                 "reason": "No files to change",
                 **metadata,
+                'duration': duration,
             },
         )
         edit_comment(ERROR_FORMAT.format(title="Could not find files to change"))
         return {"success": True, "message": "No files to change."}
     except Exception as e:
         logger.error(traceback.format_exc())
+        duration = time.time() - start_time
         posthog.capture(
             username,
             "failed",
@@ -495,6 +503,7 @@ def on_comment(
                 "error": str(e),
                 "reason": "Failed to make changes",
                 **metadata,
+                'duration': duration,
             },
         )
         edit_comment(ERROR_FORMAT.format(title="Failed to make changes"))
@@ -526,6 +535,7 @@ def on_comment(
     except Exception:
         pass
 
-    posthog.capture(username, "success", properties={**metadata})
+    duration = time.time() - start_time
+    posthog.capture(username, "success", properties={**metadata, 'duration': duration})
     logger.info("on_comment success")
     return {"success": True}
