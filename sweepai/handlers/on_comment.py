@@ -82,13 +82,15 @@ def on_comment(
     repo: Any = None,
     comment_type: str = "comment",
     type: str = "comment",
+    button_clicked: str = None,  # New parameter to handle button click events
 ):
     # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
+    # 1. Check for button click events
+    # 2. Get relevant files
+    # 3: Get human message
+    # 4. Get files to change
+    # 5. Get file changes
+    # 6. Create PR
     logger.info(
         f"Calling on_comment() with the following arguments: {comment},"
         f" {repo_full_name}, {repo_description}, {pr_path}"
@@ -348,8 +350,8 @@ def on_comment(
                 )
             ]
         else:
-            regenerate = comment.strip().lower().startswith("sweep: regenerate")
-            reset = comment.strip().lower().startswith("sweep: reset")
+            regenerate = button_clicked == "regenerate"
+            reset = button_clicked == "reset"
             if regenerate or reset:
                 logger.info(f"Running {'regenerate' if regenerate else 'reset'}...")
 
