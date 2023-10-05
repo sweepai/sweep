@@ -194,7 +194,7 @@ def handle_button_click(comment, repo_full_name, installation_id, pr_number):
     }
     # logger.bind(**metadata)
 
-    capture_posthog_event(username, "started", properties=metadata)
+    posthog.capture(username, "started", properties=metadata)
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = bool(pr_path) and bool(pr_line_position)
 
@@ -342,7 +342,7 @@ def handle_button_click(comment, repo_full_name, installation_id, pr_number):
         )
     except Exception as e:
         logger.error(traceback.format_exc())
-        capture_posthog_event(
+        posthog.capture(
             username,
             "failed",
             properties={"error": str(e), "reason": "Failed to get files", **metadata},
@@ -488,7 +488,7 @@ def handle_button_click(comment, repo_full_name, installation_id, pr_number):
 
         logger.info("Done!")
     except NoFilesException:
-        capture_posthog_event(
+        posthog.capture(
             username,
             "failed",
             properties={
@@ -501,7 +501,7 @@ def handle_button_click(comment, repo_full_name, installation_id, pr_number):
         return {"success": True, "message": "No files to change."}
     except Exception as e:
         logger.error(traceback.format_exc())
-        capture_posthog_event(
+        posthog.capture(
             username,
             "failed",
             properties={
@@ -539,10 +539,6 @@ def handle_button_click(comment, repo_full_name, installation_id, pr_number):
     except Exception:
         pass
 
-    capture_posthog_event(username, "success", properties={**metadata})
+    posthog.capture(username, "success", properties={**metadata})
     logger.info("on_comment success")
     return {"success": True}
-
-
-def capture_posthog_event(username, event, properties):
-    posthog.capture(username, event, properties=properties)

@@ -36,6 +36,7 @@ from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import (
     EmptyRepository,
+    FileChangeRequest,
     MaxTokensExceeded,
     NoFilesException,
     ProposedIssue,
@@ -598,10 +599,10 @@ def on_ticket(
                 },
             )
             raise e
-        
+
         # Fetch git commit history
         commit_history = cloned_repo.get_commit_history(username=username)
-        
+
         snippets = post_process_snippets(
             snippets, max_num_of_snippets=2 if use_faster_model else 5
         )
@@ -821,13 +822,13 @@ def on_ticket(
 
             # sweep_bot.summarize_snippets()
 
-            file_change_requests = sweep_bot.validate_file_change_requests(
-                file_change_requests
-            )
+            file_change_requests: list[
+                FileChangeRequest
+            ] = sweep_bot.validate_file_change_requests(file_change_requests)
             table = tabulate(
                 [
                     [
-                        f"`{file_change_request.filename}`",
+                        file_change_request.entity_display,
                         file_change_request.instructions_display.replace(
                             "\n", "<br/>"
                         ).replace("```", "\\```"),
@@ -862,7 +863,7 @@ def on_ticket(
 
             files_progress: list[tuple[str, str, str, str]] = [
                 (
-                    file_change_request.filename,
+                    file_change_request.entity_display,
                     file_change_request.instructions_display,
                     "⏳ In Progress",
                     "",
@@ -871,7 +872,11 @@ def on_ticket(
             ]
 
             checkboxes_progress: list[tuple[str, str, str]] = [
-                (file_change_request.filename, file_change_request.instructions, " ")
+                (
+                    file_change_request.entity_display,
+                    file_change_request.instructions,
+                    " ",
+                )
                 for file_change_request in file_change_requests
             ]
             checkboxes_contents = "\n".join(
@@ -930,7 +935,7 @@ def on_ticket(
                                 "\n\n".join(
                                     [
                                         create_collapsible(
-                                            f"<code>{execution.command.format(file_path=file_change_request.filename)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
+                                            f"<code>{execution.command.format(file_path=file_change_request.entity_display)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
                                             f"<pre>{clean_logs(execution.output)}</pre>",
                                             i == len(sandbox_response.executions) - 1,
                                         )
@@ -961,28 +966,28 @@ def on_ticket(
                     checkboxes_progress = [
                         (
                             (
-                                f"`{filename}` ✅ Commit [`{commit_hash[:7]}`]({commit_url})",
+                                f"`{entity_display}` ✅ Commit [`{commit_hash[:7]}`]({commit_url})",
                                 instructions + error_logs,
                                 "X",
                             )
-                            if file_change_request.filename == filename
-                            else (filename, instructions, progress)
+                            if file_change_request.entity_display == entity_display
+                            else (entity_display, instructions, progress)
                         )
-                        for filename, instructions, progress in checkboxes_progress
+                        for entity_display, instructions, progress in checkboxes_progress
                     ]
                 else:
                     logger.print("Didn't change file!")
                     checkboxes_progress = [
                         (
                             (
-                                f"`{filename}` No Changes Made",
+                                f"`{entity_display}` ⚠️ No Changes Made",
                                 instructions + error_logs,
                                 "X",
                             )
-                            if file_change_request.filename == filename
-                            else (filename, instructions, progress)
+                            if file_change_request.entity_display == entity_display
+                            else (entity_display, instructions, progress)
                         )
-                        for filename, instructions, progress in checkboxes_progress
+                        for entity_display, instructions, progress in checkboxes_progress
                     ]
                 checkboxes_contents = "\n".join(
                     [
@@ -1020,7 +1025,7 @@ def on_ticket(
                 issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
 
                 logger.info(files_progress)
-                logger.info(f"Edited {file_change_request.filename}")
+                logger.info(f"Edited {file_change_request.entity_display}")
                 edit_sweep_comment(checkboxes_contents, 2)
             if not response.get("success"):
                 raise Exception(f"Failed to create PR: {response.get('error')}")
@@ -1119,7 +1124,7 @@ def on_ticket(
                 if DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 else ""
             )
-            
+
             is_draft = False
             try:
                 pr = repo.create_pull(

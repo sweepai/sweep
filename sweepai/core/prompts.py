@@ -1044,11 +1044,11 @@ first five lines of code from the original snippet
 last five lines of code from the original snippet (the code)
 </snippet_to_modify>
 
-<patterns>
-first pattern
-second pattern
+<extraction_terms>
+first term from the code
+second term from the code
 ...
-</pattern>"""
+</extraction_terms>"""
 
 fetch_snippets_prompt = """
 # Code
@@ -1072,17 +1072,19 @@ Then identify all snippet sections that should receive these changes.
 Then identify any patterns of code that should be modified, like all function calls of a particular function.
 </instructions>
 
-<snippet_to_modify reason="reason to change this snippet">
+<snippet_to_modify reason="justification for modifying this snippet">
+```
 first five lines of code from the original snippet
 ...
 last five lines of code from the original snippet (the code)
+```
 </snippet_to_modify>
 
-<patterns>
-first pattern
-second pattern
+<extraction_terms>
+first term from the code
+second term from the code
 ...
-</pattern>"""
+</extraction_terms>"""
 
 use_chunking_message = """\
 This is just one section of the file. Determine whether the request is asking to edit this chunk of the file. If not, respond with "No" to "Changes needed".

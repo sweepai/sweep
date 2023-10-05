@@ -129,7 +129,6 @@ file_path = "sweepai/api.py"
 # run trunk
 # run_format(sandbox, bad_file)
 # pipe out logs
-# import pdb; pdb.set_trace()
 
 # @stub.local_entrypoint()
 # def func():
