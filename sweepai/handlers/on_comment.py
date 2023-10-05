@@ -43,6 +43,9 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     # Add buttons to the snippets
     for snippet in result_snippets:
         snippet += "\n\n[sweep: revert](button://revert) [sweep: regenerate](button://regenerate)"
+        # Check if the buttons are correctly added
+        if "[sweep: revert](button://revert)" not in snippet or "[sweep: regenerate](button://regenerate)" not in snippet:
+            raise ValueError("Error: Buttons not correctly added in snippet.")
     for snippet in snippets[:num_full_files]:
         snippet = snippet.expand()
 
@@ -89,6 +92,10 @@ def on_comment(
     # Handle button click events
     if comment_type == "button":
         handle_button_click(comment, repo_full_name, installation_id, pr_number)
+
+def handle_button_click(comment, repo_full_name, installation_id, pr_number):
+    # Placeholder function for handling button click events
+    logger.info(f"Button click event detected: {comment}")
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
