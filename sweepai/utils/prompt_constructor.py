@@ -222,6 +222,10 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
             logger.info(f"General Comment {self.comment}")
     
         return human_messages
+        # Check if the buttons are correctly added
+        for msg in human_messages:
+            if "[sweep: revert](button://revert)" not in msg["content"] or "[sweep: regenerate](button://regenerate)" not in msg["content"]:
+                raise ValueError("Error: Buttons not correctly added in prompt.")
 
     def get_issue_metadata(self):
         return f"""# Repo & Issue Metadata
