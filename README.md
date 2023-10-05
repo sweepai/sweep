@@ -84,6 +84,9 @@ You can self-host Sweep with the Docker image (`https://hub.docker.com/r/sweepai
 
 ## Limitations of Sweep
 
+* **Gigantic repos**: >5000 files. We have default extensions and directories to exclude but sometimes this doesn't catch them all. You may need to block some directories (see [`blocked_dirs`](https://docs.sweep.dev/usage/config#blocked_dirs))
+    * If Sweep is stuck at 0% for over 30 min and your repo has a few thousand files, let us know.
+
 * **Large-scale refactors**: >3 files or >150 lines of code changes (we're working on this!)
     * e.g. Refactor the entire codebase from TensorFlow to PyTorch
 
