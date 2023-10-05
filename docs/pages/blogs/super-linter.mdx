@@ -156,6 +156,8 @@ Another frustration of linters is that when you install them, most linters by de
 
 Trunk is also extremely configurable and easy to install by users, at https://docs.trunk.io/get-started.
 
+We decided to use Trunk as the default formatter and linters to use for Sweep sandbox.
+
 ## Straight into Production
 
 But how do we run this in production, with various different environments and enabling configurability?
@@ -221,6 +223,18 @@ Initially, I had the user define the “\{file_path\}” but most users got conf
 ```bash
 curl https://raw.githubusercontent.com/sweepai/sweep/main/bin/install_sweep_sandbox.sh | sh
 ```
+
+## Interface
+
+An initial issue with Sandbox is that it **wasn’t clear** to most users what was running. In fact, most users didn’t even know *whether* it was even running. Letting users know what’s happening also allows them to tune the Trunk configurations to not run any unwanted formatters, for example.
+
+After a few iterations, we settled on the following.
+
+![executions.png](/trunk/executions.png)
+
+We decided to collapse all execution logs but the last. We gave failures a big red X with the error code, but success cases will have an uncolored checkmark.
+
+In the future, we could also add intermediate diffs to show what Sweep changed as a consequence of each set of logs for transparency. This allows users to inspect what went wrong and provide high-quality feedback. We could also batch the executions for cleanliness so we don’t have 20 executions since `prettier` is executed every time.
 
 ---
 
