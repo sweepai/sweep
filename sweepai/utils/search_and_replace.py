@@ -328,10 +328,16 @@ if __name__ == "__main__":
         "\n"
     )
 
+    search_query = """\
+    try:
+        logger.info("Fetching files to modify/create...")
+    ...
+    posthog.capture(username, "success", properties={**metadata})"""
+
     # Find the best match
-    best_span = find_best_match(target, code_file)
-    best_code_snippet = "\n".join(
-        code_file.split("\n")[best_span.start : best_span.end]
-    )
-    print(f"Best code snippet:\n{best_code_snippet}")
-    print(f"Best match line numbers: {best_span.start}-{best_span.end}")
+    best_span = find_best_match(search_query, code_file)
+    # best_code_snippet = "\n".join(
+    #     code_file.split("\n")[best_span.start : best_span.end]
+    # )
+    # print(f"Best code snippet:\n{best_code_snippet}")
+    # print(f"Best match line numbers: {best_span.start}-{best_span.end}")
