@@ -672,53 +672,11 @@ async def webhook(raw_request: Request):
                         repo.full_name,
                         installation_id=repos_added_request.installation.id,
                     )
-            case "pull_request", "edited":
-                request = PREdited(**request_dict)
-
-                if (
-                    request.pull_request.user.login == GITHUB_BOT_USERNAME
-                    and not request.sender.login.endswith("[bot]")
-                    and DISCORD_FEEDBACK_WEBHOOK_URL is not None
-                ):
-                    good_button = check_button_activated(
-                        SWEEP_GOOD_FEEDBACK, request.pull_request.body, request.changes
-                    )
-                    bad_button = check_button_activated(
-                        SWEEP_BAD_FEEDBACK, request.pull_request.body, request.changes
-                    )
-
-                    if good_button or bad_button:
-                        emoji = "😕"
-                        if good_button:
-                            emoji = "👍"
-                        elif bad_button:
-                            emoji = "👎"
-                        data = {
-                            "content": f"{emoji} {request.pull_request.html_url} ({request.sender.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
-                        }
-                        headers = {"Content-Type": "application/json"}
-                        response = requests.post(
-                            DISCORD_FEEDBACK_WEBHOOK_URL,
-                            data=json.dumps(data),
-                            headers=headers,
-                        )
-
-                        # Send feedback to PostHog
-                        posthog.capture(
-                            request.sender.login,
-                            "feedback",
-                            properties={
-                                "repo_name": request.repository.full_name,
-                                "pr_url": request.pull_request.html_url,
-                                "pr_commits": request.pull_request.commits,
-                                "pr_additions": request.pull_request.additions,
-                                "pr_deletions": request.pull_request.deletions,
-                                "pr_changed_files": request.pull_request.changed_files,
-                                "username": request.sender.login,
-                                "good_button": good_button,
-                                "bad_button": bad_button,
-                            },
-                        )
+            case "issue_comment", "edited":
+                # Check if the comment was edited by a user (not a bot) and if the comment contains a button click
+                if request.comment.user.type == "User" and check_button_activated("Placeholder Button", request.comment.body):
+                    # Call the placeholder function
+                    placeholder_function()
 
                         def remove_buttons_from_description(body):
                             """
