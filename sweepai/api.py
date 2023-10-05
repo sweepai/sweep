@@ -822,3 +822,14 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
         raise SystemExit
     except:
         logger.warning("Failed to update sweep PRs")
+    except SystemExit:
+        raise SystemExit
+    except:
+        logger.warning("Failed to update sweep PRs")
+    
+    def handle_button_click():
+        pass
+    
+    @app.route('/button_click', methods=['POST'])
+    def button_click_receiver(event_data):
+        handle_button_click()
