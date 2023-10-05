@@ -677,6 +677,8 @@ async def webhook(raw_request: Request):
                 if request.comment.user.type == "User" and check_button_activated("Placeholder Button", request.comment.body):
                     # Call the placeholder function
                     placeholder_function()
+                        def placeholder_function():
+                            logging.info("Placeholder function was called")
 
                         def remove_buttons_from_description(body):
                             """
