@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from fuzzywuzzy import fuzz
 from tqdm import tqdm
 
-from logn import logger
+from sweepai.logn import logger
 
 
 def score_line(str1: str, str2: str) -> float:

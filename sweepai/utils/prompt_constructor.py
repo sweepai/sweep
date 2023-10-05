@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.core.prompts import (
     diff_section_prompt,
     final_review_prompt,

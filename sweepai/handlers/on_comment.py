@@ -11,7 +11,7 @@ import openai
 from github.Repository import Repository
 from tabulate import tabulate
 
-from logn import LogTask, logger
+from sweepai.logn import logger
 from sweepai.config.client import get_blocked_dirs, get_documentation_dict
 from sweepai.config.server import ENV, GITHUB_BOT_USERNAME, MONGODB_URI, OPENAI_API_KEY
 from sweepai.core.documentation_searcher import extract_relevant_docs
@@ -67,7 +67,6 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
     return result_snippets[:max_num_of_snippets]
 
 
-# @LogTask()
 def on_comment(
     repo_full_name: str,
     repo_description: str,

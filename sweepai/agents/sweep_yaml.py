@@ -5,7 +5,7 @@ import re
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 
-from logn import logger
+from sweepai.logn import logger
 
 system_prompt = """
 Your name is Sweep bot. You are a brilliant and meticulous engineer in charge of creating a contribution guide that contributors must follow when submitting PRs to this repository.  Create the initial set of rules that contributors should follow based off of the given commit history. The commit history is formatted in the following way:

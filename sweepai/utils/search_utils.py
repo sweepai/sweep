@@ -1,6 +1,6 @@
 import github
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
 from sweepai.core.vector_db import get_deeplake_vs_from_repo, get_relevant_snippets

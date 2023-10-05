@@ -1,6 +1,6 @@
 import traceback
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.config.client import (
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,

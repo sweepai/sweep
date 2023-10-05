@@ -8,7 +8,7 @@ import zipfile
 import openai
 import requests
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.config.client import get_gha_enabled
 from sweepai.core.entities import PRChangeRequest
 from sweepai.core.gha_extraction import GHAExtractor

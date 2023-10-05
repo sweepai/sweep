@@ -1,4 +1,4 @@
-from logn import logger
+from sweepai.logn import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.documentation import DOCS_ENDPOINTS, search_vector_store
 from sweepai.core.entities import Message
