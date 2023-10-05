@@ -354,6 +354,32 @@ async def webhook(raw_request: Request):
             case "issue_comment", "edited":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueCommentRequest(**request_dict)
+            
+                if (
+                    request.comment.user.type == "Bot"
+                    and GITHUB_BOT_USERNAME in request.comment.user.login
+                    and request.changes.body_from is not None
+                    and check_button_activated(
+                        RESTART_SWEEP_BUTTON, request.comment.body, request.changes
+                    )
+                    and GITHUB_LABEL_NAME
+                    in [label.name.lower() for label in request.issue.labels]
+                    and request.sender.type == "User"
+                ):
+                    # Call the placeholder function
+                    placeholder_function(
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        comment=request.comment.body,
+                        pr_path=None,
+                        pr_line_position=None,
+                        username=request.comment.user.login,
+                        installation_id=request.installation.id,
+                        pr_number=request.issue.number,
+                        comment_id=request.comment.id,
+                    )
+                logger.info(f"Received event: {event}, {action}")
+                request = IssueCommentRequest(**request_dict)
 
                 restart_sweep = False
                 if (
@@ -672,7 +698,33 @@ async def webhook(raw_request: Request):
                         repo.full_name,
                         installation_id=repos_added_request.installation.id,
                     )
-            case "pull_request", "edited":
+            case "issue_comment", "edited":
+                logger.info(f"Received event: {event}, {action}")
+                request = IssueCommentRequest(**request_dict)
+            
+                if (
+                    request.comment.user.type == "Bot"
+                    and GITHUB_BOT_USERNAME in request.comment.user.login
+                    and request.changes.body_from is not None
+                    and check_button_activated(
+                        RESTART_SWEEP_BUTTON, request.comment.body, request.changes
+                    )
+                    and GITHUB_LABEL_NAME
+                    in [label.name.lower() for label in request.issue.labels]
+                    and request.sender.type == "User"
+                ):
+                    # Call the placeholder function
+                    placeholder_function(
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        comment=request.comment.body,
+                        pr_path=None,
+                        pr_line_position=None,
+                        username=request.comment.user.login,
+                        installation_id=request.installation.id,
+                        pr_number=request.issue.number,
+                        comment_id=request.comment.id,
+                    )
                 request = PREdited(**request_dict)
 
                 if (
@@ -683,7 +735,33 @@ async def webhook(raw_request: Request):
                     good_button = check_button_activated(
                         SWEEP_GOOD_FEEDBACK, request.pull_request.body, request.changes
                     )
-                    bad_button = check_button_activated(
+                    case "issue_comment", "edited":
+                        logger.info(f"Received event: {event}, {action}")
+                        request = IssueCommentRequest(**request_dict)
+                    
+                        if (
+                            request.comment.user.type == "Bot"
+                            and GITHUB_BOT_USERNAME in request.comment.user.login
+                            and request.changes.body_from is not None
+                            and check_button_activated(
+                                RESTART_SWEEP_BUTTON, request.comment.body, request.changes
+                            )
+                            and GITHUB_LABEL_NAME
+                            in [label.name.lower() for label in request.issue.labels]
+                            and request.sender.type == "User"
+                        ):
+                            # Call the placeholder function
+                            placeholder_function(
+                                repo_full_name=request.repository.full_name,
+                                repo_description=request.repository.description,
+                                comment=request.comment.body,
+                                pr_path=None,
+                                pr_line_position=None,
+                                username=request.comment.user.login,
+                                installation_id=request.installation.id,
+                                pr_number=request.issue.number,
+                                comment_id=request.comment.id,
+                            )
                         SWEEP_BAD_FEEDBACK, request.pull_request.body, request.changes
                     )
 
@@ -716,20 +794,33 @@ async def webhook(raw_request: Request):
                                 "pr_changed_files": request.pull_request.changed_files,
                                 "username": request.sender.login,
                                 "good_button": good_button,
-                                "bad_button": bad_button,
-                            },
-                        )
-
-                        def remove_buttons_from_description(body):
-                            """
-                            Replace:
-                            ### PR Feedback...
-                            ...
-                            # (until it hits the next #)
-
-                            with
-                            ### PR Feedback: {emoji}
-                            #
+                    case "issue_comment", "edited":
+                        logger.info(f"Received event: {event}, {action}")
+                        request = IssueCommentRequest(**request_dict)
+                    
+                        if (
+                            request.comment.user.type == "Bot"
+                            and GITHUB_BOT_USERNAME in request.comment.user.login
+                            and request.changes.body_from is not None
+                            and check_button_activated(
+                                RESTART_SWEEP_BUTTON, request.comment.body, request.changes
+                            )
+                            and GITHUB_LABEL_NAME
+                            in [label.name.lower() for label in request.issue.labels]
+                            and request.sender.type == "User"
+                        ):
+                            # Call the placeholder function
+                            placeholder_function(
+                                repo_full_name=request.repository.full_name,
+                                repo_description=request.repository.description,
+                                comment=request.comment.body,
+                                pr_path=None,
+                                pr_line_position=None,
+                                username=request.comment.user.login,
+                                installation_id=request.installation.id,
+                                pr_number=request.issue.number,
+                                comment_id=request.comment.id,
+                            )
                             """
                             lines = body.split("\n")
                             if not lines[0].startswith("### PR Feedback"):
@@ -761,7 +852,33 @@ async def webhook(raw_request: Request):
                             raise SystemExit
                         except Exception as e:
                             logger.error(f"Failed to edit PR description: {e}")
-            case "pull_request", "closed":
+            case "issue_comment", "edited":
+                logger.info(f"Received event: {event}, {action}")
+                request = IssueCommentRequest(**request_dict)
+            
+                if (
+                    request.comment.user.type == "Bot"
+                    and GITHUB_BOT_USERNAME in request.comment.user.login
+                    and request.changes.body_from is not None
+                    and check_button_activated(
+                        RESTART_SWEEP_BUTTON, request.comment.body, request.changes
+                    )
+                    and GITHUB_LABEL_NAME
+                    in [label.name.lower() for label in request.issue.labels]
+                    and request.sender.type == "User"
+                ):
+                    # Call the placeholder function
+                    placeholder_function(
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        comment=request.comment.body,
+                        pr_path=None,
+                        pr_line_position=None,
+                        username=request.comment.user.login,
+                        installation_id=request.installation.id,
+                        pr_number=request.issue.number,
+                        comment_id=request.comment.id,
+                    )
                 pr_request = PRRequest(**request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")
                 commit_author = pr_request.pull_request.user.login
@@ -823,55 +940,33 @@ async def webhook(raw_request: Request):
                                 call_get_deeplake_vs_from_repo(cloned_repo)
                             update_sweep_prs(
                                 request_dict["repository"]["full_name"],
-                                installation_id=request_dict["installation"]["id"],
-                            )
-            case "ping", None:
-                return {"message": "pong"}
-    except ValidationError as e:
-        logger.warning(f"Failed to parse request: {e}")
-        raise HTTPException(status_code=422, detail="Failed to parse request")
-    return {"success": True}
-
-
-# Set up cronjob for this
-@app.get("/update_sweep_prs")
-def update_sweep_prs(repo_full_name: str, installation_id: int):
-    # Get a Github client
-    _, g = get_github_client(installation_id)
-
-    # Get the repository
-    repo = g.get_repo(repo_full_name)
-    config = SweepConfig.get_config(repo)
-
-    try:
-        branch_ttl = int(config.get("branch_ttl", 7))
-    except SystemExit:
-        raise SystemExit
-    except:
-        branch_ttl = 7
-    branch_ttl = max(branch_ttl, 1)
-
-    # Get all open pull requests created by Sweep
-    pulls = repo.get_pulls(
-        state="open", head="sweep", sort="updated", direction="desc"
-    )[:5]
-
-    # For each pull request, attempt to merge the changes from the default branch into the pull request branch
-    try:
-        for pr in pulls:
-            try:
-                # make sure it's a sweep ticket
-                feature_branch = pr.head.ref
-                if not feature_branch.startswith(
-                    "sweep/"
-                ) and not feature_branch.startswith("sweep_"):
-                    continue
-
-                repo.merge(
-                    feature_branch,
-                    repo.default_branch,
-                    f"Merge main into {feature_branch}",
-                )
+            case "issue_comment", "edited":
+                logger.info(f"Received event: {event}, {action}")
+                request = IssueCommentRequest(**request_dict)
+            
+                if (
+                    request.comment.user.type == "Bot"
+                    and GITHUB_BOT_USERNAME in request.comment.user.login
+                    and request.changes.body_from is not None
+                    and check_button_activated(
+                        RESTART_SWEEP_BUTTON, request.comment.body, request.changes
+                    )
+                    and GITHUB_LABEL_NAME
+                    in [label.name.lower() for label in request.issue.labels]
+                    and request.sender.type == "User"
+                ):
+                    # Call the placeholder function
+                    placeholder_function(
+                        repo_full_name=request.repository.full_name,
+                        repo_description=request.repository.description,
+                        comment=request.comment.body,
+                        pr_path=None,
+                        pr_line_position=None,
+                        username=request.comment.user.login,
+                        installation_id=request.installation.id,
+                        pr_number=request.issue.number,
+                        comment_id=request.comment.id,
+                    )
 
                 # Check if the merged PR is the config PR
                 if pr.title == "Configure Sweep" and pr.merged:
