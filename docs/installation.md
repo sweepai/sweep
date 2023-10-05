@@ -66,7 +66,9 @@ For configuring Sweep for your repo, see [Config](https://docs.sweep.dev/usage/c
 ## Pricing
 We offer unlimited GPT3.5 tickets to every user. Every user also starts with 5 GPT4 issues a month, and you'll be able to use 2 GPT-4 issues a day.
 
-For professionals who want more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month. In addition, we're also offering 15 PRs for $60 as a one-time purchase for anyone interested in eventually purchasing Sweep Pro. You can avail this offer [here](https://buy.stripe.com/7sI4jlaCR3PaabebIP).
+For hobbyists who want more tickets, check out [Sweep Plus](https://buy.stripe.com/7sI5np26l1H24QU7sA) now at $120/month for 30 tickets.
+
+For professionals who want even more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month for unlimited tickets.
 
 ---
 
