@@ -215,6 +215,15 @@ def on_ticket(
                 properties={**metadata, "duration": time() - on_ticket_start_time},
             )
             return {"success": False, "reason": "Issue is closed"}
+# Create a FileChangeRequest for each changed file
+file_change_requests = [FileChangeRequest(file_path=file_path) for file_path in changed_files]
+
+# Create a button for each FileChangeRequest
+buttons = [Button(file_change_request=file_change_request) for file_change_request in file_change_requests]
+
+# Add the buttons to the PR
+for button in buttons:
+    pr.add_button(button)
 
         # Add :eyes: emoji to ticket
         item_to_react_to = (
@@ -688,6 +697,15 @@ def on_ticket(
                 )
         else:
             logger.info("sweep.yaml file already exists.")
+# Create a FileChangeRequest for each changed file
+file_change_requests = [FileChangeRequest(file_path=file_path) for file_path in changed_files]
+
+# Create a button for each FileChangeRequest
+buttons = [Button(file_change_request=file_change_request) for file_change_request in file_change_requests]
+
+# Add the buttons to the PR
+for button in buttons:
+    pr.add_button(button)
 
         try:
             # ANALYZE SNIPPETS
