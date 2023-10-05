@@ -3,6 +3,7 @@ on_comment is responsible for handling PR comments and PR review comments, calle
 It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
 """
 import re
+import time
 import traceback
 from typing import Any
 
@@ -94,6 +95,7 @@ def on_comment(
         f" {repo_full_name}, {repo_description}, {pr_path}"
     )
     organization, repo_name = repo_full_name.split("/")
+    start_time = time.time()
 
     _token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
@@ -181,7 +183,8 @@ def on_comment(
     }
     # logger.bind(**metadata)
 
-    posthog.capture(username, "started", properties=metadata)
+    elapsed_time = time.time() - start_time
+    posthog.capture(username, "started", properties={**metadata, "duration": elapsed_time})
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = bool(pr_path) and bool(pr_line_position)
 
@@ -329,10 +332,11 @@ def on_comment(
         )
     except Exception as e:
         logger.error(traceback.format_exc())
+        elapsed_time = time.time() - start_time
         posthog.capture(
             username,
             "failed",
-            properties={"error": str(e), "reason": "Failed to get files", **metadata},
+            properties={"error": str(e), "reason": "Failed to get files", "duration": elapsed_time, **metadata},
         )
         edit_comment(ERROR_FORMAT.format(title="Failed to get files"))
         raise e
@@ -475,12 +479,14 @@ def on_comment(
 
         logger.info("Done!")
     except NoFilesException:
+        elapsed_time = time.time() - start_time
         posthog.capture(
             username,
             "failed",
             properties={
                 "error": "No files to change",
                 "reason": "No files to change",
+                "duration": elapsed_time,
                 **metadata,
             },
         )
@@ -488,12 +494,14 @@ def on_comment(
         return {"success": True, "message": "No files to change."}
     except Exception as e:
         logger.error(traceback.format_exc())
+        elapsed_time = time.time() - start_time
         posthog.capture(
             username,
             "failed",
             properties={
                 "error": str(e),
                 "reason": "Failed to make changes",
+                "duration": elapsed_time,
                 **metadata,
             },
         )
@@ -526,6 +534,7 @@ def on_comment(
     except Exception:
         pass
 
-    posthog.capture(username, "success", properties={**metadata})
+    elapsed_time = time.time() - start_time
+    posthog.capture(username, "success", properties={**metadata, "duration": elapsed_time})
     logger.info("on_comment success")
     return {"success": True}
