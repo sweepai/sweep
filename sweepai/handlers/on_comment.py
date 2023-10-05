@@ -94,6 +94,7 @@ def on_comment(
         f" {repo_full_name}, {repo_description}, {pr_path}"
     )
     organization, repo_name = repo_full_name.split("/")
+    start_time = time.time()
 
     _token, g = get_github_client(installation_id)
     repo = g.get_repo(repo_full_name)
@@ -181,7 +182,8 @@ def on_comment(
     }
     # logger.bind(**metadata)
 
-    posthog.capture(username, "started", properties=metadata)
+    elapsed_time = time.time() - start_time
+    posthog.capture(username, "started", properties={**metadata, "duration": elapsed_time})
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = bool(pr_path) and bool(pr_line_position)
 
@@ -288,54 +290,14 @@ def on_comment(
                 assert len(snippets) > 0
             except Exception as e:
                 logger.error(traceback.format_exc())
+                elapsed_time = time.time() - start_time
+                posthog.capture(
+                    username,
+                    "failed",
+                    properties={"error": str(e), "reason": "Failed to get files", **metadata, "duration": elapsed_time},
+                )
+                edit_comment(ERROR_FORMAT.format(title="Failed to get files"))
                 raise e
-
-        snippets = post_process_snippets(
-            snippets, max_num_of_snippets=0 if file_comment else 2
-        )
-        commit_history = cloned_repo.get_commit_history(username=username)
-        user_dict = get_documentation_dict(repo)
-        docs_results = extract_relevant_docs(
-                pr_title + "\n" + pr_body + "\n" + f" User Comment: {comment}", user_dict, chat_logger
-            )
-        logger.info("Getting response from ChatGPT...")
-        human_message = HumanMessageCommentPrompt(
-            comment=comment,
-            repo_name=repo_name,
-            repo_description=repo_description if repo_description else "",
-            diffs=diffs,
-            issue_url=pr.html_url,
-            username=username,
-            title=pr_title,
-            tree=tree,
-            summary=pr_body,
-            snippets=snippets,
-            commit_history=commit_history,
-            pr_file_path=pr_file_path,  # may be None
-            pr_chunk=formatted_pr_chunk,  # may be None
-            original_line=original_line if pr_chunk else None,
-            relevant_docs=docs_results,
-        )
-        logger.info(f"Human prompt{human_message.construct_prompt()}")
-
-        sweep_bot = SweepBot.from_system_message_content(
-            # human_message=human_message, model="claude-v1.3-100k", repo=repo
-            human_message=human_message,
-            repo=repo,
-            chat_logger=chat_logger,
-            model="gpt-3.5-turbo-16k-0613" if use_faster_model else "gpt-4-32k-0613",
-            sweep_context=sweep_context,
-            cloned_repo=cloned_repo,
-        )
-    except Exception as e:
-        logger.error(traceback.format_exc())
-        posthog.capture(
-            username,
-            "failed",
-            properties={"error": str(e), "reason": "Failed to get files", **metadata},
-        )
-        edit_comment(ERROR_FORMAT.format(title="Failed to get files"))
-        raise e
 
     try:
         logger.info("Fetching files to modify/create...")
