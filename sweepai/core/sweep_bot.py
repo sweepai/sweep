@@ -63,7 +63,7 @@ from sweepai.utils.diff import (
 )
 from sweepai.utils.function_call_utils import find_function_calls
 from sweepai.utils.graph import Graph
-from sweepai.utils.search_and_replace import Match, find_best_match
+from sweepai.utils.search_and_replace import Match, find_best_match, split_ellipses
 from sweepai.utils.utils import chunk_code
 
 USING_DIFF = True
@@ -1471,9 +1471,15 @@ class ModifyBot:
     ):
         best_matches = []
         for query in snippet_queries:
-            match_ = find_best_match(query, file_contents)
-            if match_.score > 50:
-                best_matches.append(match_)
+            if query.count("...") > 2:
+                for section in split_ellipses(query):
+                    match_ = find_best_match(section, file_contents)
+                    if match_.score > 50:
+                        best_matches.append(match_)
+            else:
+                match_ = find_best_match(query, file_contents)
+                if match_.score > 50:
+                    best_matches.append(match_)
 
         for i, line in enumerate(file_contents.split("\n")):
             for keyword in pattern_list:
@@ -1539,7 +1545,7 @@ class ModifyBot:
                 file_path=file_path,
                 snippets="\n\n".join(
                     [
-                        f"<snippet index={i}>\n{snippet}\n</snippet>"
+                        f'<snippet index="{i}">\n{snippet}\n</snippet>'
                         for i, snippet in enumerate(selected_snippets)
                     ]
                 ),

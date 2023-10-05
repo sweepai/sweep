@@ -217,7 +217,54 @@ def find_best_match(query: str, code_file: str):
     return unique_top_matches[0] if unique_top_matches else Match(-1, -1, 0)
 
 
+def split_ellipses(query: str) -> list[str]:
+    queries = []
+    current_query = ""
+    for line in query.split("\n"):
+        if line.strip() == "...":
+            queries.append(current_query.strip("\n"))
+            current_query = ""
+        else:
+            current_query += line + "\n"
+    return queries
+
+
+test_code = """\
+capture_posthog_event(username, "started", properties=metadata)
+...
+capture_posthog_event(
+    username,
+    "failed",
+    properties={"error": str(e), "reason": "Failed to get files", **metadata},
+)
+...
+capture_posthog_event(
+    username,
+    "failed",
+    properties={
+        "error": "No files to change",
+        "reason": "No files to change",
+        **metadata,
+    },
+)
+...
+capture_posthog_event(
+    username,
+    "failed",
+    properties={
+        "error": str(e),
+        "reason": "Failed to make changes",
+        **metadata,
+    },
+)
+...
+capture_posthog_event(username, "success", properties={**metadata})
+"""
+
 if __name__ == "__main__":
+    for section in split_ellipses(test_code):
+        print(section)
+    quit()
     code_file = """\
     def try_update_file(
         self,
