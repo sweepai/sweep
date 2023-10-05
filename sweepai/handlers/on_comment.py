@@ -67,32 +67,10 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
 
 
 # @LogTask()
-def on_comment(
-    repo_full_name: str,
-    repo_description: str,
-    comment: str,
-    pr_path: str | None,
-    pr_line_position: int | None,
-    username: str,
-    installation_id: int,
-    pr_number: int = None,
-    comment_id: int | None = None,
-    chat_logger: Any = None,
-    pr: MockPR = None,  # For on_comment calls before PR is created
-    repo: Any = None,
-    comment_type: str = "comment",
-    type: str = "comment",
-):
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
-    logger.info(
-        f"Calling on_comment() with the following arguments: {comment},"
-        f" {repo_full_name}, {repo_description}, {pr_path}"
-    )
+try:
+    # existing code...
+finally:
+    posthog.capture(username, "success", properties={**metadata, "duration": time.time() - start_time})
     organization, repo_name = repo_full_name.split("/")
 
     _token, g = get_github_client(installation_id)
