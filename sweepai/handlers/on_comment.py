@@ -89,6 +89,8 @@ def on_comment(
     # 3. Get files to change
     # 4. Get file changes
     # 5. Create PR
+    # 6. Add buttons to PR
+    add_buttons_to_pr(pr)
     logger.info(
         f"Calling on_comment() with the following arguments: {comment},"
         f" {repo_full_name}, {repo_description}, {pr_path}"
@@ -348,8 +350,8 @@ def on_comment(
                 )
             ]
         else:
-            regenerate = comment.strip().lower().startswith("sweep: regenerate")
-            reset = comment.strip().lower().startswith("sweep: reset")
+            regenerate = handle_button_click("regenerate")
+            reset = handle_button_click("reset")
             if regenerate or reset:
                 logger.info(f"Running {'regenerate' if regenerate else 'reset'}...")
 
