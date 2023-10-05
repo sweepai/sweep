@@ -1,4 +1,5 @@
 from logn import logger
+import traceback
 from sweepai.core.chat import ChatGPT
 from sweepai.core.documentation import DOCS_ENDPOINTS, search_vector_store
 from sweepai.core.entities import Message
@@ -109,5 +110,5 @@ def extract_relevant_docs(content: str, user_dict: dict, chat_logger: ChatLogger
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Docs search error: {e}")
+            logger.error(f"Docs search error: {e}\n{traceback.format_exc()}")
     return result if result != "\n### I also found some related docs:\n" else ""
