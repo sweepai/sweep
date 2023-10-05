@@ -69,7 +69,8 @@ from sweepai.utils.search_and_replace import Match, find_best_match
 from sweepai.utils.utils import chunk_code
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
-to_raw_string = lambda s: repr(s).lstrip('u')[1:-1]
+to_raw_string = lambda s: repr(s).lstrip("u")[1:-1]
+
 
 def strip_backticks(s: str) -> str:
     s = s.strip()
@@ -753,16 +754,25 @@ class SweepBot(CodeGenBot, GithubBot):
         # Add file to list of changed_files
         self.file_change_paths.append(file_change_request.filename)
         file_change = FileCreation.from_string(create_file_response)
-        extract_leftover_comments_bot = ExtractLeftoverComments(chat_logger=self.chat_logger)
-        extract_leftover_comments_bot.messages = copy.deepcopy(self.messages[:-2]) # deletes the request
+        extract_leftover_comments_bot = ExtractLeftoverComments(
+            chat_logger=self.chat_logger
+        )
+        extract_leftover_comments_bot.messages = copy.deepcopy(
+            self.messages[:-2]
+        )  # deletes the request
         leftover_comments = extract_leftover_comments_bot.extract_leftover_comments(
-            file_change.code, file_change_request.filename, "", file_change_request.instructions
+            file_change.code,
+            file_change_request.filename,
+            "",
+            file_change_request.instructions,
         )
         if leftover_comments:
             file_contents = file_change.code
             new_fcr = copy.deepcopy(file_change_request)
             joined_comments = "\n".join(leftover_comments)
-            new_fcr.instructions = f'Address all of the unfinished code changes here: \n{joined_comments}'
+            new_fcr.instructions = (
+                f"Address all of the unfinished code changes here: \n{joined_comments}"
+            )
             (
                 file_contents,
                 _,
@@ -1406,8 +1416,8 @@ class ModifyBot:
         self.update_snippets_bot.messages.extend(additional_messages)
         self.parent_bot = parent_bot
 
-        self.extract_leftover_comments_bot: ExtractLeftoverComments = ExtractLeftoverComments(
-            chat_logger=chat_logger, **kwargs
+        self.extract_leftover_comments_bot: ExtractLeftoverComments = (
+            ExtractLeftoverComments(chat_logger=chat_logger, **kwargs)
         )
         self.extract_leftover_comments_bot.messages.extend(additional_messages)
 
@@ -1435,7 +1445,9 @@ class ModifyBot:
         )
         if leftover_comments:
             joined_comments = "\n".join(leftover_comments)
-            file_change_request.instructions = f'Address all of the unfinished code changes here: \n{joined_comments}'
+            file_change_request.instructions = (
+                f"Address all of the unfinished code changes here: \n{joined_comments}"
+            )
             snippet_queries, extraction_terms = self.get_snippets_to_modify(
                 file_path=file_path,
                 file_contents=file_contents,
@@ -1526,7 +1538,7 @@ class ModifyBot:
                     )
 
         # Get all line matches where the keyword is either mentioned or used as a function call
-        for keyword in pattern_list:
+        for keyword in extraction_terms:
             keyword = keyword.rstrip("()")
             for start, end in find_function_calls(keyword, file_contents):
                 best_matches.append(
@@ -1571,8 +1583,8 @@ class ModifyBot:
         update_snippets_code = file_contents
         if file_change_request.entity:
             update_snippets_code = extract_python_span(
-                    file_contents, [file_change_request.entity]
-                ).content
+                file_contents, [file_change_request.entity]
+            ).content
 
         update_snippets_response = self.update_snippets_bot.chat(
             update_snippets_prompt.format(
@@ -1636,13 +1648,16 @@ class ModifyBot:
         ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
         result = result.rstrip("\n") + "\n" * ending_newlines
         new_code = "\n".join(new_code)
-        leftover_comments = self.extract_leftover_comments_bot.extract_leftover_comments(
-            new_code, 
-            file_path, 
-            update_snippets_code, 
-            file_change_request.instructions
+        leftover_comments = (
+            self.extract_leftover_comments_bot.extract_leftover_comments(
+                new_code,
+                file_path,
+                update_snippets_code,
+                file_change_request.instructions,
+            )
         )
         return result, leftover_comments
+
 
 if __name__ == "__main__":
     response = """
