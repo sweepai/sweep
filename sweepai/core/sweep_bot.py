@@ -1621,9 +1621,7 @@ class ModifyBot:
             if position == "before":
                 current_contents = selected_snippets[index]
                 current_match = deduped_matches[index]
-                if current_match.start - 1 >= 0:
-                    line_after = file_contents_lines[current_match.start - 1]
-                    formatted_code = match_indent(formatted_code, line_after)
+                formatted_code = match_indent(formatted_code, current_contents)
                 formatted_code = formatted_code + "\n" + current_contents
             elif position == "after":
                 current_contents = selected_snippets[index]
