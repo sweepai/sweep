@@ -136,10 +136,10 @@ def create_pr_changes(
             # If the #issue changes, then change on_ticket (f'Fixes #{issue_number}.\n' in pr.body:)
             pr_description = (
                 f"{pull_request.content}\n\nFixes"
-                f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}"
+                f" #{issue_number}.\n\n---\n\n{UPDATES_MESSAGE}\n\n---\n\n{INSTRUCTIONS_FOR_REVIEW}\n\n[sweep: revert](button://revert) [sweep: regenerate](button://regenerate)"
             )
         else:
-            pr_description = f"{pull_request.content}"
+            pr_description = f"{pull_request.content}\n\n[sweep: revert](button://revert) [sweep: regenerate](button://regenerate)"
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
@@ -350,7 +350,7 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None, cloned
         - If you need help, check out the [Sweep Default Config](https://github.com/sweepai/sweep/blob/main/sweep.yaml) or [Join Our Discord](https://discord.gg/sweep) for help.
 
         If you would like me to stop creating this PR, go to issues and say "Sweep: create an empty `sweep.yaml` file".
-        Thank you for using Sweep! 🧹""".replace(
+        Thank you for using Sweep! 🧹\n\n[sweep: revert](button://revert) [sweep: regenerate](button://regenerate)""".replace(
             "    ", ""
         ),
         head=branch_name,
