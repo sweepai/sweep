@@ -92,7 +92,7 @@ def create_collapsible(summary: str, body: str, opened: bool = False):
 
 
 def blockquote(text: str):
-    text = text.replace("\n", "<br>")
+    text = text.replace("\n•", "<br/>•")
     return f"<blockquote>{text}</blockquote>" if text else ""
 
 
