@@ -63,6 +63,7 @@ RUN apt-get update && apt-get install -y redis-server
 
 FROM base as final
 
+RUN mkdir -p /app/sweepai/sweep_docs && chown -R www-data:www-data /app/sweepai/sweep_docs
 COPY sweepai/startup.py /app/sweepai/startup.py
 RUN python sweepai/startup.py
 
