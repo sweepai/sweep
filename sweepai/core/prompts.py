@@ -260,15 +260,15 @@ Contextual Request Analysis:
 
 <plan>
 <create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
-* Instruction 1 for file_path_1
-* Instruction 2 for file_path_1
+* Detailed and concise instructions on what to create
+* Include references to files, imports and entity names
 ...
 </create>
 ...
 
 <modify file="file_path_2" entity="name of function or class to modify (optional)" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
-* Instruction 1 for file_path_2
-* Instruction 2 for file_path_2
+* Detailed and concise instructions on what to modify
+* Include references to files, imports and entity names
 ...
 </modify>
 ...
@@ -1034,8 +1034,8 @@ Then, write search patterns we need to modify from the code. The system will the
 # Format
 <instructions>
 Identify all changes that need to be made to the code file.
-Then identify all snippet sections that should receive these changes.
-Then identify any patterns of code that should be modified, like all function calls of a particular function.
+Then identify all snippet sections that should receive these changes. These snippets will go into the snippets_to_modify block.
+Then identify any patterns of code that should be modified, like all function calls of a particular function. These patterns will go into the patterns block.
 </instructions>
 
 <snippet_to_modify>

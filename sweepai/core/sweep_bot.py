@@ -76,7 +76,10 @@ def strip_backticks(s: str) -> str:
         s = s[s.find("\n") :]
     if s.endswith("```"):
         s = s[: s.rfind("\n")]
-    return s.strip("\n")
+    s = s.strip("\n")
+    if s == '""':
+        return ""
+    return s
 
 
 def remove_line_numbers(s: str) -> str:
@@ -1537,22 +1540,22 @@ class ModifyBot:
 
         # for index, position, code in re.findall(updated_pattern, update_snippets_response, re.DOTALL):
         for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
-            index = match_.group("index")
+            index = int(match_.group("index"))
             position = match_.group("position")
             code = match_.group("code")
 
             formatted_code = strip_backticks(code)
             formatted_code = remove_line_numbers(formatted_code)
             if position == "prepend":
-                current_contents = selected_snippets[int(index)]
-                current_match = deduped_matches[int(index)]
+                current_contents = selected_snippets[index]
+                current_match = deduped_matches[index]
                 if current_match.start - 1 >= 0:
                     line_after = file_contents_lines[current_match.start - 1]
                     formatted_code = match_indent(formatted_code, line_after)
                 formatted_code = formatted_code + "\n" + current_contents
             elif position == "append":
-                current_contents = selected_snippets[int(index)]
-                current_match = deduped_matches[int(index)]
+                current_contents = selected_snippets[index]
+                current_match = deduped_matches[index]
                 if current_match.end + 1 < len(file_contents_lines):
                     line_after = file_contents_lines[current_match.end + 1]
                     formatted_code = match_indent(formatted_code, line_after)
@@ -1561,14 +1564,13 @@ class ModifyBot:
                         formatted_code, file_contents_lines[current_match.end]
                     )
                 formatted_code = current_contents + "\n" + formatted_code
-            else:
-                updated_snippets[index] = formatted_code
+            updated_snippets[index] = formatted_code
 
         result = file_contents
         for idx, search in enumerate(selected_snippets):
-            if str(idx) not in updated_snippets:
+            if idx not in updated_snippets:
                 continue
-            replace = updated_snippets[str(selected_snippets.index(search))]
+            replace = updated_snippets[selected_snippets.index(search)]
             result, _, _ = sliding_window_replacement(
                 result.splitlines(),
                 search.splitlines(),
