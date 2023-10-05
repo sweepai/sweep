@@ -122,6 +122,22 @@ src/App.tsx
 
 As you can see, `prettier` error logs indicate mistakes significantly clearer. We run this before running linters to ensure that parseable, formatted code is fed to GPT-4 to handle linting errors.
 
+### Type-Checker
+
+What’s the point of writing Typescript if we don’t type-check? The last piece to the puzzle is running `tsc`. The most frustrating thing is when all the changes look about right but Netlify wouldn’t deploy the website preview because there’s an `implicit-any`.
+
+## Orchestration
+
+So what exactly should Sweep run? We ended up settling on the following iteration loop:
+
+1. For every command in the list `prettier`, `eslint` and `tsc`, try running them.
+2. If it succeeds move on to the next command.
+3. If it fails, get GPT-4 to fix it based on the above prompt and go back to step one with `prettier`.
+
+Iterate this for a maximum of 15 times. We found that it many times it would fix everything around the 10th iteration, so we put max 15 just to be safe.
+
+We go back to `prettier` because sometimes writing a diff to fix `eslint` or `tsc` breaks the syntax once again. It’s like climbing a very shaky latter: every time you fall you go back to step 1. It's like playing a platformer with one life: every time you die you go back to the beginning.
+
 ## Generalizing
 
 This is amazing, but how do we do this much tuning for **every single user**? Most users will not use Sweep sandbox if high-quality results depend on significant configuration.
@@ -168,7 +184,7 @@ Extremely straightforward. The curly brackets allow injecting the currently modi
 
 Here are some other examples. Our setup at Sweep installs and runs `pre-commit` and `pylint` through `poetry`. The second line checks that it’s a Python file before executing. The sandbox config on our landing page runs `prettier`, `eslint` and `tsc` for JS/TS files.
 
-#### Sweep's config
+### Sweep's config
 
 ```yaml
 sandbox:
@@ -181,7 +197,7 @@ sandbox:
     - '[[ "{file_path}" == *.py ]] && poetry run pylint --errors-only {file_path} || exit 0'
 ```
 
-#### Sweep landing page's config
+### Sweep landing page's config
 
 ```yaml
 sandbox:
