@@ -97,12 +97,11 @@ def discord_log_error(content, priority=0):
             response = requests.post(
                 DISCORD_WEBHOOK_URL, data=json.dumps(data), headers=headers
             )
-            print(response)
             # Success: response.status_code == 204:
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            print(f"Could not log to Discord: {e}")
+            pass
 
 
 sandboxes: dict[str, Sandbox] = {}
@@ -159,7 +158,10 @@ class ClonedRepo:
         try:
             shutil.rmtree(self.dir_path, ignore_errors=True)
         except FileNotFoundError as e:
-            print(f"Could not delete repo {self.dir_path}: {e}")
+            try:
+                shutil.rmtree(self.dir_path, ignore_errors=True)
+            except FileNotFoundError as e:
+                pass
 
     @property
     def installation_dict(self):
@@ -195,7 +197,6 @@ class ClonedRepo:
 
 @app.post("/")
 async def run_sandbox(request: SandboxRequest):
-    print(request.repo_url, request.file_path, request.token)
 
     username, repo_name = request.repo_url.split("/")[-2:]
     cloned_repo = ClonedRepo(
@@ -214,7 +215,6 @@ async def run_sandbox(request: SandboxRequest):
             request.repo_url = request.repo_url.replace(
                 "://", f"://x-access-token:{request.token}@"
             )
-            print(request.repo_url)
 
         if not image_exists:
             sandbox_container = SandboxContainer()
@@ -236,13 +236,8 @@ async def run_sandbox(request: SandboxRequest):
                     )
                 )
 
-            print(f"Updating git repo - Exit Code: {exit_code}")
-            print(output.decode("utf-8"))
-            print("Done git pull.")
-
             exit_code, output = container.exec_run(f"cat repo/sweep.yaml")
             sandbox = Sandbox.from_yaml(output) if exit_code == 0 else Sandbox()
-            print(f"Running sandbox: {sandbox}...")
             error_message = ""
 
             def wrap_command(command):
@@ -262,12 +257,10 @@ async def run_sandbox(request: SandboxRequest):
                 return logs
 
             def run_command(command: str, stage: str = "check", iteration: int = 0):
-                print(f"\n\n### Running {command} ###\n")
                 exit_code, output = container.exec_run(
                     wrap_command(command), stderr=True
                 )
                 output = output.decode("utf-8")
-                print(summarize_logs(output))
                 executions.append(
                     SandboxExecution(
                         command=command,
@@ -282,26 +275,30 @@ async def run_sandbox(request: SandboxRequest):
                 return output
 
             if not image_exists:
-                print("Running installation commands since image not found in cache...")
                 for command in sandbox.install:
-                    print(command)
                     run_command(command, stage="install")
 
-                print("Committing image...")
                 new_image = container.commit()
                 new_image.tag(image_id)
-            else:
-                print("Image already exists, skipping install step...")
 
             if request.file_path is not None and request.content is not None:
                 old_file = ""
                 try:
                     old_file = read_file(container, f"repo/{request.file_path}")
                 except Exception:
-                    print("File does not exist, skipping check step...")
-
-                if old_file:
-                    print("Checking file before edit...")
+                    if old_file:
+                        for command in sandbox.check:
+                            try:
+                                run_command(command, stage="check", iteration=0)
+                            except Exception as e:
+                                raise Exception(
+                                    f"File failed to lint with command {command} before edit: {e}"
+                                )
+    
+                        if request.content == old_file:
+                            raise Exception(
+                                "New contents are the same as the old contents."
+                            )
                     for command in sandbox.check:
                         try:
                             run_command(command, stage="check", iteration=0)
@@ -322,7 +319,6 @@ async def run_sandbox(request: SandboxRequest):
                 # num_iterations = 3
                 for i in range(1, num_iterations + 1):
                     try:
-                        print(f"Trying to lint for the {i}/{num_iterations}th time")
                         for command in sandbox.check:
                             run_command(command, stage="check", iteration=i)
                     except SystemExit:
@@ -353,15 +349,12 @@ async def run_sandbox(request: SandboxRequest):
                 # Read formatted file
                 success = True
                 updated_content = read_file(container, f"repo/{request.file_path}")
-                print(f"Updated Contents:\n```\n{updated_content}\n```")
             else:
                 success = True
-                print("No content provided, skipping edit step...")
     except SystemExit:
         raise SystemExit
     except Exception as e:
         error_message = str(e)
-        print(e)
         discord_log_error(
             f"Error in {request.repo_url}:\nFile: {request.file_path}\nContents: {request.content}\n\nError messages:\n{error_message}"
         )
