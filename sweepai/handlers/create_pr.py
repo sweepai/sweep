@@ -11,6 +11,7 @@ from github.Repository import Repository
 
 from sweepai.logn import logger
 from sweepai.config.client import UPDATES_MESSAGE, SweepConfig, get_blocked_dirs
+from markdownify import markdownify as md
 from sweepai.config.server import (
     ENV,
     GITHUB_BOT_USERNAME,
@@ -143,6 +144,10 @@ def create_pr_changes(
         pr_title = pull_request.title
         if "sweep.yaml" in pr_title:
             pr_title = "[config] " + pr_title
+        
+        # Add buttons to the PR description
+        for button in buttons:
+            pr_description += f"\n\n{md(button)}"
     except MaxTokensExceeded as e:
         logger.error(e)
         posthog.capture(
