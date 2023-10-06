@@ -1,20 +1,23 @@
+import hashlib
 import io
 import json
 import os
 import shlex
 import tarfile
-from dataclasses import asdict, dataclass
+import uuid
+from dataclasses import asdict, dataclass, field
 
 import docker
+import git
 import requests
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
+from loguru import logger
 from pydantic import BaseModel
-
-# from sweepai.config.server import DISCORD_WEBHOOK_URL
 from src.chat import fix_file
 from src.sandbox_container import SandboxContainer
 from src.sandbox_utils import Sandbox
+from tqdm import tqdm
 
 app = FastAPI()
 
@@ -126,44 +129,123 @@ class SandboxError(Exception):
     message: str
 
 
+@dataclass
+class ClonedRepo:
+    repo_full_name: str
+    token: str | None = None
+    dir_hash: str = field(default_factory=lambda: uuid.uuid4().hex)
+
+    @property
+    def dir_path(self):
+        return os.path.join("cache/repos", self.repo_full_name, self.dir_hash)
+
+    @property
+    def repo_url(self):
+        if self.token:
+            return (
+                f"https://x-access-token:{self.token}@github.com/{self.repo_full_name}/"
+            )
+        else:
+            return f"https://github.com/{self.repo_full_name}/"
+
+    def __post_init__(self):
+        print("Cloning repo locally...")
+        git.Repo.clone_from(self.repo_url, self.dir_path)
+        print("Done cloning repo.")
+
+    # def __del__(self):
+    #     try:
+    #         shutil.rmtree(self.dir_path, ignore_errors=True)
+    #     except FileNotFoundError as e:
+    #         print(f"Could not delete repo {self.dir_path}: {e}")
+
+    @property
+    def installation_dict(self):
+        # Get all files in root directory that doesn't end in md or rst
+        files = [
+            f
+            for f in tqdm(os.listdir(self.dir_path))
+            if not f.endswith((".md", ".rst", ".lock"))
+            and os.path.isfile(os.path.join(self.dir_path, f))
+        ]
+        files_dict = {}
+        for file_ in files:
+            with open(os.path.join(self.dir_path, file_), "r") as f:
+                content = f.read()
+                if all(ord(char) < 128 for char in content):  # Check for non-ASCII
+                    files_dict[file_] = content
+        return files_dict
+
+    @property
+    def installation_cache_key(self):
+        repo_dict = {
+            "repo_full_name": self.repo_full_name,
+            "files_dict": self.installation_dict,
+        }
+        return hashlib.sha256(
+            json.dumps(repo_dict, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+
+    @property
+    def installation_string(self):
+        return f"sandbox/{self.repo_full_name}:{self.installation_cache_key}"
+
+
 @app.post("/")
-async def run_sandbox(request: Request):
-    data = await request.json()
-    sandbox_request = SandboxRequest(**data)
-    print(sandbox_request.repo_url, sandbox_request.file_path, sandbox_request.token)
+async def run_sandbox(request: SandboxRequest):
+    print(request.repo_url, request.file_path, request.token)
+
+    username, repo_name = request.repo_url.split("/")[-2:]
+    cloned_repo = ClonedRepo(
+        repo_full_name=f"{username}/{repo_name}", token=request.token
+    )
+
+    image_id = cloned_repo.installation_string
+    image_exists = SandboxContainer.image_exists(image_id)
+
     success, error_messages, updated_content = False, [], ""
     executions: list[SandboxExecution] = []
-    username, _repo_name = sandbox_request.repo_url.split("/")[-2:]
     sandbox = Sandbox()
 
     try:
-        if sandbox_request.token:
-            sandbox_request.repo_url = sandbox_request.repo_url.replace(
-                "://", f"://x-access-token:{sandbox_request.token}@"
+        if request.token:
+            request.repo_url = request.repo_url.replace(
+                "://", f"://x-access-token:{request.token}@"
             )
-            print(sandbox_request.repo_url)
+            print(request.repo_url)
 
-        with SandboxContainer() as container:
-            print("Cloning repo...")
-            exit_code, output = container.exec_run(
-                f"git clone {sandbox_request.repo_url} repo"
-            )
-            write_file(
-                container, f"repo/{sandbox_request.file_path}", sandbox_request.content
-            )
-            print(f"Git Clone - Exit Code: {exit_code}")
+        if not image_exists:
+            sandbox_container = SandboxContainer()
+        else:
+            sandbox_container = SandboxContainer(image_id=image_id)
+
+        with sandbox_container as container:
+            if not image_exists:
+                logger.info("Cloning repo...")
+                exit_code, output = container.exec_run(
+                    f"git clone {request.repo_url} repo"
+                )
+            else:
+                logger.info("Using repo from cached image.")
+                exit_code, output = container.exec_run(
+                    "bash -c "
+                    + shlex.quote(
+                        f"cd repo && git remote set-url origin https://{request.token}@github.com/{username}/{repo_name}.git && git pull"
+                    )
+                )
+
+            print(f"Updating git repo - Exit Code: {exit_code}")
             print(output.decode("utf-8"))
+            print("Done git pull.")
 
             exit_code, output = container.exec_run(f"cat repo/sweep.yaml")
             sandbox = Sandbox.from_yaml(output) if exit_code == 0 else Sandbox()
-            print(f"Running sandbox: {sandbox}")
-
-            print("Running sandbox...")
+            print(f"Running sandbox: {sandbox}...")
             error_message = ""
 
             def wrap_command(command):
                 command = shlex.quote(
-                    "cd repo && " + command.format(file_path=sandbox_request.file_path)
+                    "cd repo && " + command.format(file_path=request.file_path)
                 )
                 return f"bash -c {command}"
 
@@ -197,11 +279,21 @@ async def run_sandbox(request: Request):
                     raise Exception(output)
                 return output
 
-            for command in sandbox.install:
-                print(command)
-                run_command(command, stage="install")
+            if not image_exists:
+                print("Running installation commands since image not found in cache...")
+                for command in sandbox.install:
+                    print(command)
+                    run_command(command, stage="install")
 
-            current_file = sandbox_request.content
+                print("Committing image...")
+                new_image = container.commit()
+                new_image.tag(image_id)
+            else:
+                print("Image already exists, skipping install step...")
+
+            write_file(container, f"repo/{request.file_path}", request.content)
+
+            current_file = request.content
             num_iterations = 15
             # num_iterations = 3
             for i in range(1, num_iterations + 1):
@@ -223,14 +315,12 @@ async def run_sandbox(request: Request):
                         )
                     error_messages.append(error_message)
                     current_file = fix_file(
-                        sandbox_request.file_path,
+                        request.file_path,
                         current_file,
                         error_message,
                         username,
                     )
-                    write_file(
-                        container, f"repo/{sandbox_request.file_path}", current_file
-                    )
+                    write_file(container, f"repo/{request.file_path}", current_file)
                 else:
                     break
             else:
@@ -238,7 +328,7 @@ async def run_sandbox(request: Request):
 
             # Read formatted file
             success = True
-            updated_content = read_file(container, f"repo/{sandbox_request.file_path}")
+            updated_content = read_file(container, f"repo/{request.file_path}")
             print(f"Updated Contents:\n```\n{updated_content}\n```")
     except SystemExit:
         raise SystemExit
@@ -246,7 +336,7 @@ async def run_sandbox(request: Request):
         error_message = str(e)
         print(e)
         discord_log_error(
-            f"Error in {sandbox_request.repo_url}:\nFile: {sandbox_request.file_path}\nContents: {sandbox_request.content}\n\nError messages:\n{error_message}"
+            f"Error in {request.repo_url}:\nFile: {request.file_path}\nContents: {request.content}\n\nError messages:\n{error_message}"
         )
 
     return {
@@ -263,6 +353,3 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8081)
-
-
-# uvicorn sandbox_local:app --reload --port 8081

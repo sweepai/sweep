@@ -2,10 +2,12 @@ import os
 from datetime import datetime, timedelta
 from typing import Any
 
-# from sweepai.logn import logger
+from dotenv import load_dotenv
 from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
+
+load_dotenv()
 
 MONGODB_URI = os.environ.get("MONGODB_URI")
 
