@@ -672,20 +672,27 @@ async def webhook(raw_request: Request):
                         repo.full_name,
                         installation_id=repos_added_request.installation.id,
                     )
-            case "pull_request", "edited":
-                request = PREdited(**request_dict)
-
-                if (
-                    request.pull_request.user.login == GITHUB_BOT_USERNAME
-                    and not request.sender.login.endswith("[bot]")
-                    and DISCORD_FEEDBACK_WEBHOOK_URL is not None
-                ):
-                    good_button = check_button_activated(
-                        SWEEP_GOOD_FEEDBACK, request.pull_request.body, request.changes
-                    )
-                    bad_button = check_button_activated(
-                        SWEEP_BAD_FEEDBACK, request.pull_request.body, request.changes
-                    )
+            from sweepai.events import IssueCommentRequest, PRRequest
+            from sweepai.utils.buttons import check_button_activated
+            
+            def handle_button_click(request: IssueCommentRequest):
+                if request.action == "edited" and request.comment.user.type != "Bot":
+                    button_clicked = check_button_activated(request.comment.body, request.changes)
+                    if button_clicked:
+                        placeholder_function()
+            
+            def placeholder_function():
+                print("A button was clicked!")
+            
+            @app.post("/webhook")
+            async def webhook(request: Request):
+                request_dict = await request.json()
+                event = request.headers.get("X-GitHub-Event")
+                action = request_dict.get("action")
+            
+                if event == "issue_comment" and action == "edited":
+                    request = IssueCommentRequest(**request_dict)
+                    handle_button_click(request)
 
                     if good_button or bad_button:
                         emoji = "😕"
