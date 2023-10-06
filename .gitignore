@@ -182,3 +182,4 @@ repo.tar
 **logn_logs/
 logn_logs*
 sweep_docs/
+.vscode/
