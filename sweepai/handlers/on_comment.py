@@ -66,55 +66,6 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
         result_snippets.append(snippet)
     return result_snippets[:max_num_of_snippets]
 
-def handle_revert_and_regenerate(sweep_bot: SweepBot, comment, pr_number, repo: Repository):
-    import pdb; pdb.set_trace()
-    pr = repo.get_pull(pr_number)
-    branch_name = pr.head.ref if pr_number else pr.pr_head
-    regenerate = comment.strip().lower().startswith("sweep: regenerate")
-    reset = comment.strip().lower().startswith("sweep: reset")
-    if regenerate or reset:
-        logger.info(f"Running {'regenerate' if regenerate else 'reset'}...")
-
-        file_paths = comment.strip().split(" ")[2:]
-
-        def get_contents_with_fallback(repo: Repository, file_path: str, branch: str = None):
-            try:
-                if branch: return repo.get_contents(file_path, ref=branch)
-                return repo.get_contents(file_path)
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(e)
-                return None
-
-        old_file_contents = [
-            get_contents_with_fallback(repo, file_path)
-            for file_path in file_paths
-        ]
-
-        for file_path, old_file_content in zip(file_paths, old_file_contents):
-            current_content = repo.get_contents(
-                file_path, branch=branch_name
-            )
-            if old_file_content:
-                repo.update_file(
-                    file_path,
-                    f"Reset {file_path}",
-                    old_file_content.decoded_content,
-                    sha=current_content.sha,
-                    branch=branch_name,
-                )
-            else:
-                repo.delete_file(
-                    file_path,
-                    f"Reset {file_path}",
-                    sha=current_content.sha,
-                    branch=branch_name,
-                )
-        return True
-    return False
-
-
 def on_comment(
     repo_full_name: str,
     repo_description: str,
@@ -371,8 +322,6 @@ def on_comment(
             sweep_context=sweep_context,
             cloned_repo=cloned_repo,
         )
-        if handle_revert_and_regenerate(sweep_bot, comment, branch_name, repo):
-            return {"success": True, "message": "Reverted"}
     except Exception as e:
         logger.error(traceback.format_exc())
         elapsed_time = time.time() - start_time

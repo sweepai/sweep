@@ -4,9 +4,10 @@ import os
 import time
 
 import psutil
+from sweepai.handlers.on_button_click import handle_button_click
 
 from sweepai.logn import logger
-from sweepai.utils.buttons import ButtonList, check_button_activated, check_button_title_match
+from sweepai.utils.buttons import check_button_activated, check_button_title_match
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
 logger.init(
@@ -367,9 +368,8 @@ async def webhook(raw_request: Request):
                     and sweep_labeled_issue
                     and request.sender.type == "User"
                 ):
-                    import pdb; pdb.set_trace()
-                    button_list = ButtonList.deserialize(request.comment.body)
-                    revert_files = [button.label for button in button_list.get_clicked_buttons()]
+                    handle_button_click(request_dict)
+                    
                 restart_sweep = False
                 if (
                     request.comment.user.type == "Bot"
