@@ -4,6 +4,7 @@ import os
 import time
 
 import psutil
+from sweepai.handlers.on_ticket import handle_button_click
 
 from sweepai.logn import logger
 from sweepai.utils.buttons import check_button_activated
