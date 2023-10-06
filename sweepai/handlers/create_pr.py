@@ -34,6 +34,7 @@ from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.agents.sweep_yaml import SweepYamlBot
 
 openai.api_key = OPENAI_API_KEY
+from sweepai.utils.buttons import buttons
 
 num_of_snippets_to_query = 10
 max_num_of_snippets = 5
