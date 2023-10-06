@@ -5,6 +5,7 @@ import os
 import shlex
 import shutil
 import tarfile
+import traceback
 import uuid
 from dataclasses import asdict, dataclass, field
 
@@ -157,8 +158,8 @@ class ClonedRepo:
     def __del__(self):
         try:
             shutil.rmtree(self.dir_path, ignore_errors=True)
-        except FileNotFoundError as e:
-            print(f"Could not delete repo {self.dir_path}: {e}")
+        except FileNotFoundError:
+            traceback.print_exc()
 
     @property
     def installation_dict(self):
