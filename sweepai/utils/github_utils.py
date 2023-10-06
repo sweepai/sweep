@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from functools import cached_property
 import datetime
 import traceback
-import pytz
 
 import git
 import requests
@@ -296,7 +295,7 @@ class ClonedRepo:
             cut_off_date = datetime.datetime.now() - datetime.timedelta(days = 7)
             for commit in commit_list:
                 # must be within a week
-                if time_limited and commit.authored_datetime.replace(tzinfo=pytz.UTC) <= cut_off_date.replace(tzinfo=pytz.UTC):
+                if time_limited and commit.authored_datetime.replace(tzinfo=None) <= cut_off_date.replace(tzinfo=None):
                     logger.info(f"Exceeded cut off date, stopping...")
                     break
                 repo = get_github_client(self.installation_id)[1].get_repo(self.repo_full_name)
