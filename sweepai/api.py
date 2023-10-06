@@ -10,9 +10,6 @@ from sweepai.utils.buttons import check_button_activated
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
 logger.init(
-    metadata=None,
-    create_file=False,
-)
 
 import ctypes
 import threading
@@ -319,6 +316,12 @@ async def webhook(raw_request: Request):
         metadata=None,
         create_file=False,
     )
+    def handle_button_click(event):
+        if event in ["issue_comment", "edited"]:
+            placeholder_func()
+    
+    def placeholder_func():
+        print("Placeholder function has been called.")
 
     """Handle a webhook request from GitHub."""
     try:
