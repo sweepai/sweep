@@ -286,5 +286,5 @@ RESTART_SWEEP_BUTTON = "↻ Restart Sweep"
 SWEEP_GOOD_FEEDBACK = "👍 Sweep Did Well"
 SWEEP_BAD_FEEDBACK = "👎 Sweep Needs Improvement"
 
-RESET_FILE = "Reset File"
-REGENERATE_FILE = "Regenerate File"
+RESET_FILE = "Reset changes to "
+REVERT_CHANGED_FILES_TITLE = "Revert Changed Files?"
