@@ -67,7 +67,10 @@ LINT_CONFIG = """module.exports = {
 
 class Sandbox(BaseModel):
     install: list[str] = ["trunk init"]
-    check: list[str] = ["trunk fmt {file_path}", "trunk check --fix {file_path}"]
+    check: list[str] = [
+        "trunk fmt {file_path}",
+        "trunk check --fix --print-failures {file_path}",
+    ]
 
     @classmethod
     def from_yaml(cls, yaml_string: str):

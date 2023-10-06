@@ -132,7 +132,7 @@ sandbox:
     - trunk init
   check:
     - trunk fmt {{file_path}}
-    - trunk check --fix {{file_path}}
+    - trunk check --fix --print-failures {{file_path}}
 """,
 )
 
