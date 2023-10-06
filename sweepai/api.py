@@ -672,29 +672,21 @@ async def webhook(raw_request: Request):
                         repo.full_name,
                         installation_id=repos_added_request.installation.id,
                     )
-            case "pull_request", "edited":
-                request = PREdited(**request_dict)
+            case "issue_comment", "edited":
+                request = IssueCommentEdited(**request_dict)
 
                 if (
-                    request.pull_request.user.login == GITHUB_BOT_USERNAME
+                    request.comment.user.login == GITHUB_BOT_USERNAME
                     and not request.sender.login.endswith("[bot]")
                     and DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 ):
-                    good_button = check_button_activated(
-                        SWEEP_GOOD_FEEDBACK, request.pull_request.body, request.changes
-                    )
-                    bad_button = check_button_activated(
-                        SWEEP_BAD_FEEDBACK, request.pull_request.body, request.changes
+                    button_activated = check_button_activated(
+                        request.comment.body, request.changes
                     )
 
-                    if good_button or bad_button:
-                        emoji = "😕"
-                        if good_button:
-                            emoji = "👍"
-                        elif bad_button:
-                            emoji = "👎"
+                    if button_activated:
                         data = {
-                            "content": f"{emoji} {request.pull_request.html_url} ({request.sender.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
+                            "content": f"Button activated in comment: {request.comment.html_url} ({request.sender.login})"
                         }
                         headers = {"Content-Type": "application/json"}
                         response = requests.post(
@@ -706,61 +698,27 @@ async def webhook(raw_request: Request):
                         # Send feedback to PostHog
                         posthog.capture(
                             request.sender.login,
-                            "feedback",
+                            "button_activated",
                             properties={
                                 "repo_name": request.repository.full_name,
-                                "pr_url": request.pull_request.html_url,
-                                "pr_commits": request.pull_request.commits,
-                                "pr_additions": request.pull_request.additions,
-                                "pr_deletions": request.pull_request.deletions,
-                                "pr_changed_files": request.pull_request.changed_files,
+                                "comment_url": request.comment.html_url,
                                 "username": request.sender.login,
-                                "good_button": good_button,
-                                "bad_button": bad_button,
+                                "button_activated": button_activated,
                             },
                         )
 
-                        def remove_buttons_from_description(body):
-                            """
-                            Replace:
-                            ### PR Feedback...
-                            ...
-                            # (until it hits the next #)
-
-                            with
-                            ### PR Feedback: {emoji}
-                            #
-                            """
-                            lines = body.split("\n")
-                            if not lines[0].startswith("### PR Feedback"):
-                                return None
-                            # Find when the second # occurs
-                            i = 0
-                            for i, line in enumerate(lines):
-                                if line.startswith("#") and i > 0:
-                                    break
-
-                            return "\n".join(
-                                [
-                                    f"### PR Feedback: {emoji}",
-                                    *lines[i:],
-                                ]
-                            )
-
-                        # Update PR description to remove buttons
+                        # Update comment to reflect button activation
                         try:
                             _, g = get_github_client(request.installation.id)
                             repo = g.get_repo(request.repository.full_name)
-                            pr = repo.get_pull(request.pull_request.number)
-                            new_body = remove_buttons_from_description(
-                                request.pull_request.body
-                            )
-                            if new_body is not None:
-                                pr.edit(body=new_body)
+                            issue = repo.get_issue(number=request.issue.number)
+                            comment = issue.get_comment(id=request.comment.id)
+                            new_body = comment.body.replace(button_activated, f"{button_activated} (activated)")
+                            comment.edit(body=new_body)
                         except SystemExit:
                             raise SystemExit
                         except Exception as e:
-                            logger.error(f"Failed to edit PR description: {e}")
+                            logger.error(f"Failed to edit comment: {e}")
             case "pull_request", "closed":
                 pr_request = PRRequest(**request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")
