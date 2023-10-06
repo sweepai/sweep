@@ -196,7 +196,6 @@ class ClonedRepo:
 
 @app.post("/")
 async def run_sandbox(request: SandboxRequest):
-    print(request.repo_url, request.file_path, request.token)
 
     username, repo_name = request.repo_url.split("/")[-2:]
     cloned_repo = ClonedRepo(
