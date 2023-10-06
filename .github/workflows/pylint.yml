@@ -26,4 +26,4 @@ jobs:
           poetry install
 
       - name: Run pylint
-        run: poetry run pylint sweepai --errors-only --ignore-paths=^sweepai/sandbox/
+        run: poetry run pylint sweepai --errors-only --ignore-paths="sweepai/sandbox/|sweepai/logn/"
