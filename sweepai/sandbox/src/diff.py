@@ -176,9 +176,6 @@ def match_string(
     index = -1
     max_similarity = 0
     current_hits = 0
-    # sliding window comparison from original to search
-    # Todo: 2 pointer approach (find start, then find end)
-    # Todo: use rapidfuzz to compute fuzzy similarity over code
     for i in range(start_index or 0, len(original)):
         count = 0
         for j in range(len(search)):
@@ -186,7 +183,6 @@ def match_string(
                 continue
             original_line = original[i + j]
             if ignore_comments:
-                # Remove comments
                 original_line = original_line.rsplit("#")[0].rsplit("//")[0]
 
             match = (
@@ -237,36 +233,6 @@ def get_snippet_with_padding(original, index, search):
     return snippet, spaces, strip
 
 
-# Todo: issues with replace being shorter/longer than search
-# def radix_replace(original, search, replace) -> tuple[list[str], bool]:
-#     # remove all whitespaces from all texts for comparison
-#     check_if_span_is_subspan = lambda little_span, big_span: "".join(
-#         [s.strip() for s in little_span]
-#     ) in "".join([s.strip() for s in big_span])
-#     # always anchor on the original line
-#     first_line = search[0]
-#     if first_line not in original:
-#         return None
-#     first_line_idx = original.index(first_line)
-#     # check if the rest of the lines are in the original
-#     for second_pointer in range(
-#         1, len(search)
-#     ):  # when this loop terminates, it becomes a two pointer approach
-#         match_span = search[second_pointer:]
-#         if check_if_span_is_subspan(match_span, original[first_line_idx:]):
-#             # check with whitespace
-#             if match_span[0] not in original:
-#                 continue
-#             # TODO: perhaps we shouldn't match cases like ")" ? but leaving for now
-#             # get the match
-#             end_idx = original.index(match_span[0])
-#             original = (
-#                 original[:first_line_idx]
-#                 + replace
-#                 + original[end_idx + len(match_span) :]
-#             )
-#             return original
-#     return None
 
 
 def radix_replace(original, search, replace) -> tuple[list[str], bool]:

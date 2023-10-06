@@ -38,6 +38,7 @@ from sweepai.config.server import (
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
+    IS_SELF_HOSTED,
     MONGODB_URI,
     REDIS_URL,
     SANDBOX_URL,
@@ -273,7 +274,7 @@ def check_redis_health():
 @app.get("/health")
 def health_check():
     sandbox_status = check_sandbox_health()
-    mongo_status = check_mongodb_health()
+    mongo_status = check_mongodb_health() if IS_SELF_HOSTED else None
     redis_status = check_redis_health()
 
     cpu_usage = psutil.cpu_percent(interval=0.1)
