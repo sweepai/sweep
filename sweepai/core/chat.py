@@ -7,7 +7,7 @@ import backoff
 import openai
 from pydantic import BaseModel
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.config.client import get_description
 from sweepai.config.server import (
     OPENAI_DO_HAVE_32K_MODEL_ACCESS,

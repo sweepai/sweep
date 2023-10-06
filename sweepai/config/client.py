@@ -8,7 +8,7 @@ import yaml
 from github.Repository import Repository
 from pydantic import BaseModel
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.core.entities import EmptyRepository
 import traceback
 

@@ -14,7 +14,7 @@ from github import BadCredentialsException, GithubException
 from tabulate import tabulate
 from tqdm import tqdm
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     SWEEP_BAD_FEEDBACK,
@@ -73,7 +73,6 @@ def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
 
 
-# @LogTask()
 def on_ticket(
     title: str,
     summary: str,
@@ -365,11 +364,9 @@ def on_ticket(
             )
 
         # Find Sweep's previous comment
-        logger.print("USERNAME", GITHUB_BOT_USERNAME)
         for comment in comments:
-            logger.print("COMMENT", comment.user.login)
             if comment.user.login == GITHUB_BOT_USERNAME:
-                logger.print("Found comment")
+                logger.print(f"Found comment USERNAME {GITHUB_BOT_USERNAME} COMMENT {comment.user.login}")
                 issue_comment = comment
 
         try:

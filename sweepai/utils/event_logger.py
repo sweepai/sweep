@@ -8,7 +8,7 @@ import highlight_io
 # from loguru import logger
 from posthog import Posthog
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.config.server import HIGHLIGHT_API_KEY, POSTHOG_API_KEY
 
 if POSTHOG_API_KEY is None or POSTHOG_API_KEY.lower() == "none":
