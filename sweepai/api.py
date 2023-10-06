@@ -96,6 +96,22 @@ def run_on_comment(*args, **kwargs):
         },
         create_file=False,
     )
+    # Handle button click in issue comment
+    @app.post('/webhook')
+    async def on_webhook(request):
+        event = request.headers.get('X-GitHub-Event', None)
+        if event == "issue_comment":
+            action = request.json.get('action', None)
+            if action == "edited":
+                # Check if the button was clicked
+                button_clicked = check_button_activated(request.json)
+                if button_clicked:
+                    # Perform the desired action
+                    # Here is the actual code to perform when the button is clicked
+                    # For example, let's say we want to update the issue comment
+                    issue_comment = request.json.get('comment', {}).get('body', '')
+                    issue_comment += "\n\nButton clicked!"
+                    update_issue_comment(issue_comment)
 
     with logger:
         on_comment(*args, **kwargs)
