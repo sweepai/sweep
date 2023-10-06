@@ -351,6 +351,11 @@ async def webhook(raw_request: Request):
                         )
                     current_issue = repo.get_issue(number=request.issue.number)
                     current_issue.add_to_labels(GITHUB_LABEL_NAME)
+            def placeholder_function(repo_full_name, repo_description, comment, pr_path, pr_line_position, username, installation_id, pr_number, comment_id):
+                logger.debug(f"Placeholder function called with parameters: repo_full_name={repo_full_name}, repo_description={repo_description}, comment={comment}, pr_path={pr_path}, pr_line_position={pr_line_position}, username={username}, installation_id={installation_id}, pr_number={pr_number}, comment_id={comment_id}")
+            
+            # ...
+            
             case "issue_comment", "edited":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueCommentRequest(**request_dict)
@@ -698,7 +703,7 @@ async def webhook(raw_request: Request):
                         repo.full_name,
                         installation_id=repos_added_request.installation.id,
                     )
-            case "issue_comment", "edited":
+            
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueCommentRequest(**request_dict)
             
@@ -714,17 +719,17 @@ async def webhook(raw_request: Request):
                     and request.sender.type == "User"
                 ):
                     # Call the placeholder function
-                    placeholder_function(
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        comment=request.comment.body,
-                        pr_path=None,
-                        pr_line_position=None,
-                        username=request.comment.user.login,
-                        installation_id=request.installation.id,
-                        pr_number=request.issue.number,
-                        comment_id=request.comment.id,
-                    )
+                            "placeholder_function(
+                                repo_full_name=request.repository.full_name,
+                                repo_description=request.repository.description,
+                                comment=request.comment.body,
+                                pr_path=None,
+                                pr_line_position=None,
+                                username=request.comment.user.login,
+                                installation_id=request.installation.id,
+                                pr_number=request.issue.number,
+                                comment_id=request.comment.id,
+                            )"
                 request = PREdited(**request_dict)
 
                 if (
@@ -735,7 +740,7 @@ async def webhook(raw_request: Request):
                     good_button = check_button_activated(
                         SWEEP_GOOD_FEEDBACK, request.pull_request.body, request.changes
                     )
-                    case "issue_comment", "edited":
+                    
                         logger.info(f"Received event: {event}, {action}")
                         request = IssueCommentRequest(**request_dict)
                     
@@ -751,7 +756,7 @@ async def webhook(raw_request: Request):
                             and request.sender.type == "User"
                         ):
                             # Call the placeholder function
-                            placeholder_function(
+                            "placeholder_function("
                                 repo_full_name=request.repository.full_name,
                                 repo_description=request.repository.description,
                                 comment=request.comment.body,
@@ -794,7 +799,7 @@ async def webhook(raw_request: Request):
                                 "pr_changed_files": request.pull_request.changed_files,
                                 "username": request.sender.login,
                                 "good_button": good_button,
-                    case "issue_comment", "edited":
+                    
                         logger.info(f"Received event: {event}, {action}")
                         request = IssueCommentRequest(**request_dict)
                     
@@ -810,7 +815,7 @@ async def webhook(raw_request: Request):
                             and request.sender.type == "User"
                         ):
                             # Call the placeholder function
-                            placeholder_function(
+                            "placeholder_function(
                                 repo_full_name=request.repository.full_name,
                                 repo_description=request.repository.description,
                                 comment=request.comment.body,
@@ -820,7 +825,7 @@ async def webhook(raw_request: Request):
                                 installation_id=request.installation.id,
                                 pr_number=request.issue.number,
                                 comment_id=request.comment.id,
-                            )
+                            )"
                             """
                             lines = body.split("\n")
                             if not lines[0].startswith("### PR Feedback"):
@@ -852,7 +857,7 @@ async def webhook(raw_request: Request):
                             raise SystemExit
                         except Exception as e:
                             logger.error(f"Failed to edit PR description: {e}")
-            case "issue_comment", "edited":
+            
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueCommentRequest(**request_dict)
             
@@ -868,7 +873,7 @@ async def webhook(raw_request: Request):
                     and request.sender.type == "User"
                 ):
                     # Call the placeholder function
-                    placeholder_function(
+                    "placeholder_function("
                         repo_full_name=request.repository.full_name,
                         repo_description=request.repository.description,
                         comment=request.comment.body,
@@ -940,7 +945,7 @@ async def webhook(raw_request: Request):
                                 call_get_deeplake_vs_from_repo(cloned_repo)
                             update_sweep_prs(
                                 request_dict["repository"]["full_name"],
-            case "issue_comment", "edited":
+            
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueCommentRequest(**request_dict)
             
@@ -955,8 +960,7 @@ async def webhook(raw_request: Request):
                     in [label.name.lower() for label in request.issue.labels]
                     and request.sender.type == "User"
                 ):
-                    # Call the placeholder function
-                    placeholder_function(
+                    "placeholder_function(
                         repo_full_name=request.repository.full_name,
                         repo_description=request.repository.description,
                         comment=request.comment.body,
@@ -966,7 +970,7 @@ async def webhook(raw_request: Request):
                         installation_id=request.installation.id,
                         pr_number=request.issue.number,
                         comment_id=request.comment.id,
-                    )
+                    )"
 
                 # Check if the merged PR is the config PR
                 if pr.title == "Configure Sweep" and pr.merged:
