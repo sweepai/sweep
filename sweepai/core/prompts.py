@@ -254,7 +254,7 @@ You MUST follow the following format with the final output in XML tags:
 
 Contextual Request Analysis:
 <contextual_request_analysis>
-* Contextual analysis of the user request referencing the snippets and any necessary files/directories.
+* Contextual analysis of the user request referencing the snippets and any necessary files/directories. Only name an entity if you are absolutely certain it's required to solve the issue.
 ...
 </contextual_request_analysis>
 
@@ -1153,7 +1153,8 @@ Respond in the following format:
 
 <snippets_and_plan_analysis>
 Completely describe the changes that need to be made in this file in a list.
-Then, in a second list, describe the changes needed to update each snippet and if the snippet should be replaced, or if code should be added before or after.
+Then, in a second list, describe the changes needed to update each snippet.
+Finally state whether the new code should replace updated_snippet, added before the updated_snippet, or added after the updated_snippet. Replacement should be the most common.
 </snippets_and_plan_analysis>
 
 <updated_snippets>
