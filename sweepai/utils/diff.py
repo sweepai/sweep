@@ -178,36 +178,7 @@ INCOMPLETE_MATCH = "INCOMPLETE_MATCH"
 def match_string(original, search, start_index=None, exact_match=False) -> Match:
     pass
 
-    # # sliding window comparison from original to search
-    # # Todo: 2 pointer approach (find start, then find end)
-    # # Todo: use rapidfuzz to compute fuzzy similarity over code
-    # for i in range(start_index or 0, len(original)):
-    #     count = 0
-    #     for j in range(len(search)):
-    #         if i + j >= len(original):
-    #             continue
-
-    #         original_line = original[i + j]
-    #         original_line = original_line.rsplit("#")[0].rsplit("//")[0]
-
-    #         match = (
-    #             search[j] == original_line
-    #             if exact_match
-    #             else search[j].strip() == original_line.strip()
-    #         )
-    #         if match:
-    #             count += 1
-    #     if count > line_matches:
-    #         index = i
-    #         print("line_matches: ", line_matches)
-    #         line_matches = count
-    #         num_hits = 1
-    #     elif count == line_matches:
-    #         num_hits += 1
-
-    # if num_hits != 1 or line_matches / len(search) < 0.8:
-    # if False:
-    # if True:
+    
     best_match = find_best_match("\n".join(search), "\n".join(original))
     # else:
     #     best_match = Match(index, index + line_matches, score=100)
@@ -239,7 +210,7 @@ def get_snippet_with_padding(original, best_match, search):
             spaces = ""
         strip = False
     else:  # Do diff between snippet and search
-        # Todo(lukejagg): This might need to be more robust.
+        
 
         # Check multiple lines for their whitespace
         min_whitespace = min([len(s) - len(s.lstrip()) for s in search])
@@ -260,7 +231,6 @@ def get_snippet_with_padding(original, best_match, search):
     return snippet, spaces, strip
 
 
-# Todo: issues with replace being shorter/longer than search
 
 
 def sliding_window_replacement(
@@ -289,7 +259,7 @@ def sliding_window_replacement(
         # Replace the line
         modified = [snippet[0].replace(search[0], replace[0])]
     elif strip:
-        # Todo: What if whitespace in search is incorrect
+        
         first_line_spaces = min([len(s) - len(s.lstrip()) for s in search])
         modified = [
             spaces
