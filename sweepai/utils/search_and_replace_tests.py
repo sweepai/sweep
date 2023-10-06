@@ -1,3 +1,4 @@
+import tempfile
 
 from sweepai.utils.search_and_replace import (
     Match,
@@ -57,8 +58,14 @@ def test_get_max_indent():
 
 
 def test_find_best_match():
-    assert find_best_match("abc", "abc") == Match(0, 1, 100)
-    assert find_best_match("abc", "def") != Match(0, 1, 100)
+    with tempfile.NamedTemporaryFile(mode="w+t") as temp:
+        temp.write("abc")
+        temp.seek(0)
+        assert find_best_match("abc", temp.name) == Match(0, 1, 100)
+    with tempfile.NamedTemporaryFile(mode="w+t") as temp:
+        temp.write("def")
+        temp.seek(0)
+        assert find_best_match("abc", temp.name) != Match(0, 1, 100)
 
 
 def test_split_ellipses():
