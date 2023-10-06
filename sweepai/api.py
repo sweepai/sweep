@@ -4,9 +4,10 @@ import os
 import time
 
 import psutil
+from sweepai.handlers.on_button_click import handle_button_click
 
 from sweepai.logn import logger
-from sweepai.utils.buttons import check_button_activated
+from sweepai.utils.buttons import check_button_activated, check_button_title_match
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
 logger.init(
@@ -27,6 +28,7 @@ from pymongo import MongoClient
 from sweepai.config.client import (
     RESET_FILE,
     RESTART_SWEEP_BUTTON,
+    REVERT_CHANGED_FILES_TITLE,
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
     SweepConfig,
@@ -361,16 +363,14 @@ async def webhook(raw_request: Request):
                     request.comment.user.type == "Bot"
                     and GITHUB_BOT_USERNAME in request.comment.user.login
                     and request.changes.body_from is not None
-                    and check_button_activated(
-                        RESET_FILE, request.comment.body, request.changes
+                    and check_button_title_match(
+                        REVERT_CHANGED_FILES_TITLE, request.comment.body, request.changes
                     )
                     and sweep_labeled_issue
                     and request.sender.type == "User"
                 ):
-                    # Restart Sweep on this issue
-                    # Call on_comment here with revert or regenerate file
-                    pass
-
+                    handle_button_click(request_dict)
+                    
                 restart_sweep = False
                 if (
                     request.comment.user.type == "Bot"

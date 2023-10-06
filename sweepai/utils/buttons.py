@@ -34,8 +34,14 @@ def check_button_activated(
     button = create_button(label, selected=True)
     return button.lower() in body.lower()
 
-import re
-from typing import List
+def check_button_title_match(
+        title: str, body: str, changes_request: Changes | None = None
+):
+    if changes_request:
+        content = changes_request.body_from
+        if title.lower() in content.lower():
+            return True
+    return False
 
 class Button:
     def __init__(self, label: str, selected: bool = False):
