@@ -283,6 +283,10 @@ def on_ticket(
                 and f"Fixes #{issue_number}.\n" in pr.body
             ):
                 success = safe_delete_sweep_branch(pr, repo)
+        # Create a button for each file_change_request in the PR
+        for file_change_request in pr.get_files():
+            button = create_button(file_change_request.filename)
+            pr.add_button(button)
 
         # Removed 1, 3
         progress_headers = [
@@ -555,6 +559,13 @@ def on_ticket(
                 SweepBot.run_sandbox(
                     repo.html_url, file_path, None, user_token, only_lint=True
                 )
+            # Create a button for each file_change_request
+            for file_path in []:
+            SweepBot.run_sandbox(
+                repo.html_url, file_path, None, user_token, only_lint=True
+            )
+            button = create_button(file_path)
+            add_button_to_pr(button)
 
         logger.info("Fetching relevant files...")
         try:
@@ -833,6 +844,12 @@ def on_ticket(
             file_change_requests: list[
                 FileChangeRequest
             ] = sweep_bot.validate_file_change_requests(file_change_requests)
+                # Create a list to store the buttons
+                buttons = []
+                # Iterate over the file_change_requests to create a button for each one
+                for file_change_request in file_change_requests:
+                    button = create_button(file_change_request.file_path)
+                    buttons.append(button)
             table = tabulate(
                 [
                     [
@@ -842,6 +859,9 @@ def on_ticket(
                         ).replace("```", "\\```"),
                     ]
                     for file_change_request in file_change_requests
+                    # Create a button for the file_change_request and add it to the list
+                    button = create_button(file_change_request.file_path)
+                    buttons.append(button)
                 ],
                 headers=["File Path", "Proposed Changes"],
                 tablefmt="pipe",
@@ -877,6 +897,9 @@ def on_ticket(
                     "",
                 )
                 for file_change_request in file_change_requests
+                # Create a button for the file_change_request and add it to the list
+                button = create_button(file_change_request.file_path)
+                buttons.append(button)
             ]
 
             checkboxes_progress: list[tuple[str, str, str]] = [
