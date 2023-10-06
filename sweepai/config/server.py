@@ -8,14 +8,15 @@ logger.print = logger.info
 
 load_dotenv(dotenv_path=".env")
 
-os.environ["GITHUB_APP_PEM"] = (
-    os.environ.get(
-        "GITHUB_APP_PEM",
-        base64.b64decode(os.environ.get("GITHUB_APP_PEM_BASE64", "")).decode("utf-8"),
-    )
-    .replace("\\n", "\n")
-    .strip('"')
+os.environ["GITHUB_APP_PEM"] = os.environ.get(
+    "GITHUB_APP_PEM",
+    base64.b64decode(os.environ.get("GITHUB_APP_PEM_BASE64", "")).decode("utf-8"),
 )
+
+if os.environ["GITHUB_APP_PEM"]:
+    os.environ["GITHUB_APP_ID"] = (
+        os.environ.get("GITHUB_APP_ID").replace("\\n", "\n").strip('"')
+    )
 
 os.environ["TRANSFORMERS_CACHE"] = os.environ.get(
     "TRANSFORMERS_CACHE", "/tmp/cache/model"
