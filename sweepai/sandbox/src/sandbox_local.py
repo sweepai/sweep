@@ -4,12 +4,12 @@ import json
 import os
 import shlex
 import shutil
+import subprocess
 import tarfile
 import uuid
 from dataclasses import asdict, dataclass, field
 
 import docker
-import git
 import requests
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -34,7 +34,7 @@ class SandboxExecution:
     iteration: int = 0
 
 
-def write_file(container, file_path, content):
+def write_file(container, file_path: str, content: str):
     # Convert the content to bytes
     content_bytes = content.encode("utf-8")
 
@@ -56,7 +56,7 @@ def write_file(container, file_path, content):
     container.put_archive(os.path.dirname(file_path), tar_stream)
 
 
-def read_file(container, file_path):
+def read_file(container: str, file_path: str):
     # Get a tarball of the file from the container
     tar_stream, _ = container.get_archive(file_path)
 
@@ -110,9 +110,10 @@ sandboxes: dict[str, Sandbox] = {}
 
 class SandboxRequest(BaseModel):
     repo_url: str
-    file_path: str
-    content: str
+    file_path: str | None = None  # if none, only run install step to hydrate cache
+    content: str | None = None
     token: str | None = None
+    # TODO: need branch
 
 
 @app.get("/health")
@@ -150,9 +151,9 @@ class ClonedRepo:
             return f"https://github.com/{self.repo_full_name}/"
 
     def __post_init__(self):
-        print("Cloning repo locally...")
-        git.Repo.clone_from(self.repo_url, self.dir_path)
-        print("Done cloning repo.")
+        subprocess.run(
+            ["git", "clone", self.repo_url, self.dir_path, "--depth", "1"], text=True
+        )
 
     def __del__(self):
         try:
@@ -223,7 +224,7 @@ async def run_sandbox(request: SandboxRequest):
             if not image_exists:
                 logger.info("Cloning repo...")
                 exit_code, output = container.exec_run(
-                    f"git clone {request.repo_url} repo"
+                    f"git clone {request.repo_url} repo --depth 1"
                 )
             else:
                 logger.info("Using repo from cached image.")
@@ -291,45 +292,70 @@ async def run_sandbox(request: SandboxRequest):
             else:
                 print("Image already exists, skipping install step...")
 
-            write_file(container, f"repo/{request.file_path}", request.content)
-
-            current_file = request.content
-            num_iterations = 15
-            # num_iterations = 3
-            for i in range(1, num_iterations + 1):
+            if request.file_path is not None and request.content is not None:
+                old_file = ""
                 try:
-                    print(f"Trying to lint for the {i}/{num_iterations}th time")
-                    for command in sandbox.check:
-                        run_command(command, stage="check", iteration=i)
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
-                    error_message = str(e)
-                    if (
-                        len(error_messages) >= 2
-                        and error_message == error_messages[-1]
-                        and error_message == error_messages[-2]
-                    ):
-                        raise Exception(
-                            "Failed to fix the code after multiple attempts"
-                        )
-                    error_messages.append(error_message)
-                    current_file = fix_file(
-                        request.file_path,
-                        current_file,
-                        error_message,
-                        username,
-                    )
-                    write_file(container, f"repo/{request.file_path}", current_file)
-                else:
-                    break
-            else:
-                raise Exception("Failed to fix the code")
+                    old_file = read_file(container, f"repo/{request.file_path}")
+                except Exception:
+                    print("File does not exist, skipping check step...")
 
-            # Read formatted file
-            success = True
-            updated_content = read_file(container, f"repo/{request.file_path}")
-            print(f"Updated Contents:\n```\n{updated_content}\n```")
+                if old_file:
+                    print("Checking file before edit...")
+                    for command in sandbox.check:
+                        try:
+                            run_command(command, stage="check", iteration=0)
+                        except Exception as e:
+                            raise Exception(
+                                f"File failed to lint with command {command} before edit: {e}"
+                            )
+
+                    if request.content == old_file:
+                        raise Exception(
+                            "New contents are the same as the old contents."
+                        )
+
+                write_file(container, f"repo/{request.file_path}", request.content)
+
+                current_file = request.content
+                num_iterations = 15
+                # num_iterations = 3
+                for i in range(1, num_iterations + 1):
+                    try:
+                        print(f"Trying to lint for the {i}/{num_iterations}th time")
+                        for command in sandbox.check:
+                            run_command(command, stage="check", iteration=i)
+                    except SystemExit:
+                        raise SystemExit
+                    except Exception as e:
+                        error_message = str(e)
+                        if (
+                            len(error_messages) >= 2
+                            and error_message == error_messages[-1]
+                            and error_message == error_messages[-2]
+                        ):
+                            raise Exception(
+                                "Failed to fix the code after multiple attempts"
+                            )
+                        error_messages.append(error_message)
+                        current_file = fix_file(
+                            request.file_path,
+                            current_file,
+                            error_message,
+                            username,
+                        )
+                        write_file(container, f"repo/{request.file_path}", current_file)
+                    else:
+                        break
+                else:
+                    raise Exception("Failed to fix the code")
+
+                # Read formatted file
+                success = True
+                updated_content = read_file(container, f"repo/{request.file_path}")
+                print(f"Updated Contents:\n```\n{updated_content}\n```")
+            else:
+                success = True
+                print("No content provided, skipping edit step...")
     except SystemExit:
         raise SystemExit
     except Exception as e:
