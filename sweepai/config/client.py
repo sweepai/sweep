@@ -90,7 +90,6 @@ class SweepConfig(BaseModel):
         ".pem",
         ".ttf",
     ]
-    # Image formats
     max_file_limit: int = 60_000
 
     def to_yaml(self) -> str:
@@ -273,7 +272,6 @@ def get_rules(repo: Repository):
         return []
 
 
-# optional, can leave env var blank
 GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926a9f")
 
 UPDATES_MESSAGE = """\
