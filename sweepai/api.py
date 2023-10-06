@@ -672,6 +672,30 @@ async def webhook(raw_request: Request):
                         repo.full_name,
                         installation_id=repos_added_request.installation.id,
                     )
+            case "pull_request", "opened", "synchronize", "reopened":
+                pr_request = PRRequest(**request_dict)
+                organization, repo_name = pr_request.repository.full_name.split("/")
+                commit_author = pr_request.pull_request.user.login
+                if GITHUB_BOT_USERNAME == commit_author:
+                    event_name = "sweep_pr_opened"
+                    if pr_request.pull_request.title.startswith("[config]"):
+                        event_name = "config_pr_opened"
+                    elif pr_request.pull_request.title.startswith("[Sweep Rules]"):
+                        event_name = "sweep_rules_pr_opened"
+                    posthog.capture(
+                        commit_author,
+                        event_name,
+                        properties={
+                            "repo_name": repo_name,
+                            "organization": organization,
+                            "repo_full_name": pr_request.repository.full_name,
+                            "username": commit_author,
+                            "additions": pr_request.pull_request.additions,
+                            "deletions": pr_request.pull_request.deletions,
+                            "total_changes": pr_request.pull_request.additions
+                            + pr_request.pull_request.deletions,
+                        },
+                    )
             from sweepai.events import IssueCommentRequest, PRRequest
             from sweepai.utils.buttons import check_button_activated
             
