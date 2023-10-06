@@ -5,7 +5,6 @@ from test_data import bad_file_contents, file_path
 client = TestClient(app)
 
 if __name__ == "__main__":
-    # headers = {"accept": "application/json", "Content-Type": "application/json"}
     data = {
         "repo_url": "https://github.com/sweepai/landing-page",
         "file_path": file_path,
