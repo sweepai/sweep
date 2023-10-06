@@ -3,6 +3,8 @@ import re
 
 def find_function_calls(keyword: str, file_contents: str):
     spans = []
+    if sum(c.isalnum() for c in keyword) <= 3:
+        return spans # avoid huge regex matches
     pattern = re.compile(
         f"{re.escape(keyword)}\\s*\\(([^()]*|\\([^()]*\\))*\\)", re.DOTALL
     )
