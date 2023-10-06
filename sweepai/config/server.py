@@ -150,7 +150,7 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 # goes under Modal 'mongodb' secret name
 MONGODB_URI = os.environ.get("MONGODB_URI")
 
-IS_SELF_HOSTED = bool(MONGODB_URI)
+IS_SELF_HOSTED = MONGODB_URI is None
 
 # goes under Modal 'redis_url' secret name (optional, can leave env var blank)
 REDIS_URL = os.environ.get("REDIS_URL")
