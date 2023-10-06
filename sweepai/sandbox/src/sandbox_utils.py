@@ -2,6 +2,7 @@ import os
 from typing import TypeVar
 
 import yaml
+from loguru import logger
 from pydantic import BaseModel
 
 Self = TypeVar("Self", bound="BaseModel")
@@ -64,6 +65,16 @@ LINT_CONFIG = """module.exports = {
 }
 """
 
+files_to_install_scripts = {
+    "package-lock.json": "npm i",
+    "requirements.txt": "pip install -r requirements.txt",
+    "poetry.lock": "poetry install",
+    "setup.py": "pip install -e .",
+    "pyproject.toml": "poetry install",
+    "yarn.lock": "yarn install",
+    "pnpm-lock.yaml": "pnpm i",
+}
+
 
 class Sandbox(BaseModel):
     install: list[str] = ["trunk init"]
@@ -83,3 +94,28 @@ class Sandbox(BaseModel):
             return cls.from_yaml(open(path).read())
         else:
             return cls()
+
+    @classmethod
+    def from_directory(cls, path: str):
+        if os.path.exists(path):
+            sandbox = cls.from_yaml(open(os.path.join(path, "sweep.yaml")).read())
+            is_default_sandbox = True
+            if sandbox.install != ["trunk init"]:
+                is_default_sandbox = False
+            if sandbox.check != [
+                "trunk fmt {file_path}",
+                "trunk check --fix --print-failures {file_path}",
+            ] and sandbox.check != [
+                "trunk fmt {file_path}",
+                "trunk check --fix {file_path}",
+            ]:
+                is_default_sandbox = False
+            if not is_default_sandbox:
+                return sandbox
+        logger.info("Using default sandbox")
+        sandbox = cls()
+        for filename, script in files_to_install_scripts.items():
+            if os.path.exists(os.path.join(path, filename)):
+                logger.info(f"Found {filename} in repo, installing {script}")
+                sandbox.install = [script] + sandbox.install
+        return sandbox

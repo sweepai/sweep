@@ -184,6 +184,7 @@ class ClonedRepo:
         repo_dict = {
             "repo_full_name": self.repo_full_name,
             "files_dict": self.installation_dict,
+            "__version__": "0.0.0",
         }
         return hashlib.sha256(
             json.dumps(repo_dict, sort_keys=True).encode("utf-8")
@@ -207,7 +208,8 @@ async def run_sandbox(request: SandboxRequest):
 
     success, error_messages, updated_content = False, [], ""
     executions: list[SandboxExecution] = []
-    sandbox = Sandbox()
+    sandbox = Sandbox.from_directory(cloned_repo.dir_path)
+    print(f"Running sandbox: {sandbox}...")
 
     try:
         if request.token:
@@ -240,9 +242,6 @@ async def run_sandbox(request: SandboxRequest):
             print(output.decode("utf-8"))
             print("Done git pull.")
 
-            exit_code, output = container.exec_run(f"cat repo/sweep.yaml")
-            sandbox = Sandbox.from_yaml(output) if exit_code == 0 else Sandbox()
-            print(f"Running sandbox: {sandbox}...")
             error_message = ""
 
             def wrap_command(command):
