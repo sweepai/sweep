@@ -8,23 +8,19 @@ from sweepai.utils.search_and_replace import Match, find_best_match
 
 
 def diff_contains_dups_or_removals(diff, new_code):
-    # The regex pattern for lines removed or added in the actual code
     removed_line_pattern = r"^-.*"
     added_line_pattern = r"^\+.*"
 
     lines_removed = False
     duplicate_lines_added = False
 
-    # Split the diff and new_code into separate lines
-    diff_lines = diff.split("\n")[3:]  # Start from the third line
+    diff_lines = diff.split("\n")[3:]
     new_code_lines = [line.strip() for line in new_code.split("\n")]
 
-    # Check if there are removed lines
     for line in diff_lines:
         if re.match(removed_line_pattern, line):
             lines_removed = True
 
-    # Check if there are duplicate lines added
     added_lines = [
         line[1:].strip() for line in diff_lines if re.match(added_line_pattern, line)
     ]
@@ -188,7 +184,7 @@ def match_string(original, search, start_index=None, exact_match=False) -> Match
     #             continue
 
     #         original_line = original[i + j]
-    #         original_line = original_line.rsplit("#")[0].rsplit("//")[0]
+    
 
     #         match = (
     #             search[j] == original_line
@@ -431,25 +427,17 @@ b"""
     print("\n".join(sliding_window_replacement(old_file.split("\n"), search.split("\n"), replace.split("\n"))[0]))
     old_file = '''
 
-"""
-on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
-It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
-"""
-
 '''
 
     search = "on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py."
     replace = '''
-"""
-on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
-It is also called in sweepai/handlers/on_ticket.py when Sweep is reviewing its own PRs.
-"""'''
+'''
     res = "\n".join(sliding_window_replacement(old_file.split("\n"), search.split("\n"), replace.split("\n"))[0])
     assert old_file == res
 
     search = "on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py."
     replace = '''
-"""
+'''
 Add another test line
 on_comment is responsible for handling PR comments and PR review comments, called from sweepai/api.py.
 Add another test line'''
