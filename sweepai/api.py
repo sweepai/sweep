@@ -96,25 +96,28 @@ def run_on_comment(*args, **kwargs):
         },
         create_file=False,
     )
-    # Handle button click in issue comment
-    @app.post('/webhook')
-    async def on_webhook(request):
-        event = request.headers.get('X-GitHub-Event', None)
-        if event == "issue_comment":
-            action = request.json.get('action', None)
-            if action == "edited":
-                # Check if the button was clicked
-                button_clicked = check_button_activated(request.json)
-                if button_clicked:
-                    # Perform the desired action
-                    # Here is the actual code to perform when the button is clicked
-                    # For example, let's say we want to update the issue comment
-                    issue_comment = request.json.get('comment', {}).get('body', '')
-                    issue_comment += "\n\nButton clicked!"
-                    update_issue_comment(issue_comment)
-
     with logger:
         on_comment(*args, **kwargs)
+
+@app.post('/webhook')
+async def on_webhook(request):
+    event = request.headers.get('X-GitHub-Event', None)
+    if event == "issue_comment":
+        action = request.json.get('action', None)
+        if action == "edited":
+            # Check if the button was clicked
+            button_clicked = check_button_activated(request.json)
+            if button_clicked:
+                # Perform the desired action
+                # Here is the actual code to perform when the button is clicked
+                # For example, let's say we want to update the issue comment
+                issue_comment = request.json.get('comment', {}).get('body', None)
+                if issue_comment is not None:
+                    issue_comment += "\n\nButton clicked!"
+                    update_issue_comment(issue_comment)
+                else:
+                    logger.error("Issue comment not found in request JSON")
+    return {"success": True}
 
 
 def run_on_check_suite(*args, **kwargs):
@@ -376,9 +379,7 @@ async def webhook(raw_request: Request):
                     request.comment.user.type == "Bot"
                     and GITHUB_BOT_USERNAME in request.comment.user.login
                     and request.changes.body_from is not None
-                    and check_button_activated(
-                        RESTART_SWEEP_BUTTON, request.comment.body, request.changes
-                    )
+                    and check_button_activated(request.json)
                     and GITHUB_LABEL_NAME
                     in [label.name.lower() for label in request.issue.labels]
                     and request.sender.type == "User"
