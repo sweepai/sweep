@@ -97,7 +97,7 @@ class Sandbox(BaseModel):
 
     @classmethod
     def from_directory(cls, path: str):
-        if os.path.exists(path):
+        if os.path.exists(os.path.join(path, "sweep.yaml")):
             sandbox = cls.from_yaml(open(os.path.join(path, "sweep.yaml")).read())
             is_default_sandbox = True
             if sandbox.install != ["trunk init"]:
