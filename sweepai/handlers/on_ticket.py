@@ -17,6 +17,8 @@ from tabulate import tabulate
 from tqdm import tqdm
 
 from sweepai.config.client import (
+    RESET_FILE,
+    REVERT_CHANGED_FILES_TITLE,
     RESTART_SWEEP_BUTTON,
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
@@ -59,7 +61,7 @@ from sweepai.handlers.create_pr import (
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.logn import logger
-from sweepai.utils.buttons import create_action_buttons
+from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
@@ -846,27 +848,9 @@ def on_ticket(
                 headers=["File Path", "Proposed Changes"],
                 tablefmt="pipe",
             )
-            # edit_sweep_comment(
-            #     "From looking through the relevant snippets, I decided to make the"
-            #     " following modifications:\n\n" + table + "\n\n",
-            #     2,
-            # )
-
-            # TODO(lukejagg): Generate PR after modifications are made
             # CREATE PR METADATA
             logger.info("Generating PR...")
             pull_request = sweep_bot.generate_pull_request()
-            # pull_request_content = pull_request.content.strip().replace("\n", "\n>")
-            # pull_request_summary = f"**{pull_request.title}**\n`{pull_request.branch_name}`\n>{pull_request_content}\n"
-            # edit_sweep_comment(
-            #     (
-            #         "I have created a plan for writing the pull request. I am now working"
-            #         " my plan and coding the required changes to address this issue. Here"
-            #         f" is the planned pull request:\n\n{pull_request_summary}"
-            #     ),
-            #     3,
-            # )
-
             logger.info("Making PR...")
 
             files_progress: list[tuple[str, str, str, str]] = [
@@ -925,6 +909,7 @@ def on_ticket(
             )
             edit_sweep_comment(checkboxes_contents, 2)
             response = {"error": NoFilesException()}
+            changed_files = []
             for item in generator:
                 if isinstance(item, dict):
                     response = item
@@ -983,6 +968,7 @@ def on_ticket(
                         )
                         for entity_display, instructions, progress in checkboxes_progress
                     ]
+                    changed_files.append(file_change_request.filename)
                 else:
                     logger.print("Didn't change file!")
                     checkboxes_progress = [
@@ -1058,9 +1044,7 @@ def on_ticket(
 
             changes_required = False
             try:
-                # Todo(lukejagg): Pass sandbox linter results to review_pr
                 # CODE REVIEW
-
                 changes_required, review_comment = review_pr(
                     repo=repo,
                     pr=pr_changes,
@@ -1076,7 +1060,6 @@ def on_ticket(
                     chat_logger=chat_logger,
                     commit_history=commit_history,
                 )
-                # Todo(lukejagg): Execute sandbox after each iteration
                 lint_output = None
                 review_message += (
                     f"Here is the {ordinal(1)} review\n"
@@ -1132,45 +1115,21 @@ def on_ticket(
                 if DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 else ""
             )
+            buttons = []
+            for changed_file in changed_files:
+                buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
+            buttons_list = ButtonList(buttons=buttons, title=REVERT_CHANGED_FILES_TITLE)
 
-            is_draft = False
-            try:
-                pr = repo.create_pull(
-                    title=pr_changes.title,
-                    body=pr_actions_message + pr_changes.body,
-                    head=pr_changes.pr_head,
-                    base=SweepConfig.get_branch(repo),
-                    draft=is_draft,
-                )
-            except GithubException as e:
-                is_draft = False
-                pr = repo.create_pull(
-                    title=pr_changes.title,
-                    body=pr_actions_message + pr_changes.body,
-                    head=pr_changes.pr_head,
-                    base=SweepConfig.get_branch(repo),
-                    draft=is_draft,
-                )
-
+            pr = repo.create_pull(
+                title=pr_changes.title,
+                body=pr_actions_message + pr_changes.body,
+                head=pr_changes.pr_head,
+                base=SweepConfig.get_branch(repo),
+            )
+            # add comments before labelling
+            pr.create_issue_comment(buttons_list.serialize())
             pr.add_to_labels(GITHUB_LABEL_NAME)
             current_issue.create_reaction("rocket")
-
-            logger.info("Running github actions...")
-            try:
-                if is_draft:
-                    logger.info("Skipping github actions because PR is a draft")
-                else:
-                    commit = pr.get_commits().reversed[0]
-                    check_runs = commit.get_check_runs()
-
-                    for check_run in check_runs:
-                        check_run.rerequest()
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(e)
-
-            # Completed code review
             edit_sweep_comment(
                 review_message + "\n\nSuccess! 🚀",
                 4,
