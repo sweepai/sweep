@@ -10,11 +10,12 @@ import traceback
 from time import time
 
 import openai
+import requests
 from github import BadCredentialsException, GithubException
+from requests.exceptions import Timeout
 from tabulate import tabulate
 from tqdm import tqdm
 
-from sweepai.logn import logger
 from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     SWEEP_BAD_FEEDBACK,
@@ -31,6 +32,7 @@ from sweepai.config.server import (
     MONGODB_URI,
     OPENAI_API_KEY,
     OPENAI_USE_3_5_MODEL_ONLY,
+    SANDBOX_URL,
     WHITELISTED_REPOS,
 )
 from sweepai.core.context_pruning import ContextPruning
@@ -56,6 +58,7 @@ from sweepai.handlers.create_pr import (
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
+from sweepai.logn import logger
 from sweepai.utils.buttons import create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -137,6 +140,25 @@ def on_ticket(
     assignee = current_issue.assignee.login if current_issue.assignee else None
     if assignee is None:
         assignee = current_issue.user.login
+
+    # Hydrate cache of sandbox
+    logger.info("Hydrating cache of sandbox.")
+    try:
+        requests.post(
+            SANDBOX_URL,
+            json={
+                "repo_url": f"https://github.com/{repo_full_name}",
+                "token": user_token,
+            },
+            timeout=2,
+        )
+    except Timeout:
+        logger.info("Sandbox hydration timed out.")
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        logger.warning(f"Error hydrating cache of sandbox: {e}")
+    logger.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
@@ -381,7 +403,9 @@ def on_ticket(
         # Find Sweep's previous comment
         for comment in comments:
             if comment.user.login == GITHUB_BOT_USERNAME:
-                logger.print(f"Found comment USERNAME {GITHUB_BOT_USERNAME} COMMENT {comment.user.login}")
+                logger.print(
+                    f"Found comment USERNAME {GITHUB_BOT_USERNAME} COMMENT {comment.user.login}"
+                )
                 issue_comment = comment
 
         try:
