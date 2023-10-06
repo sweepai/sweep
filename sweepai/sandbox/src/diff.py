@@ -11,15 +11,13 @@ def diff_contains_dups_or_removals(diff, new_code):
     duplicate_lines_added = False
 
     # Split the diff and new_code into separate lines
-    diff_lines = diff.split("\n")[3:]  # Start from the third line
+    diff_lines = diff.split("\n")[3:]
     new_code_lines = [line.strip() for line in new_code.split("\n")]
 
-    # Check if there are removed lines
     for line in diff_lines:
         if re.match(removed_line_pattern, line):
             lines_removed = True
 
-    # Check if there are duplicate lines added
     added_lines = [
         line[1:].strip() for line in diff_lines if re.match(added_line_pattern, line)
     ]
@@ -158,8 +156,30 @@ def generate_new_file(
                         append = False
 
         if append:
-            result.append(line)
-    result = "\n".join(result)
+            for i in range(start_index or 0, len(original)):
+                count = 0
+                for j in range(len(search)):
+                    if i + j >= len(original):
+                        continue
+                    original_line = original[i + j]
+        
+                    match = (
+                        search[j] == original_line
+                        if exact_match
+                        else search[j].strip() == original_line.strip()
+                    )
+                    if match:
+                        count += 1
+        
+                        if start_index is not None and search[j] == original[i + j]:
+                            count += 0.001
+                if count > max_similarity:
+                    index = i
+                    max_similarity = count
+                    current_hits = 1
+                elif count == max_similarity:
+                    current_hits += 1
+            return index, max_similarity, current_hits
 
     return result
 
@@ -170,46 +190,55 @@ MULTIPLE_HITS = "MULTIPLE_HITS"
 INCOMPLETE_MATCH = "INCOMPLETE_MATCH"
 
 
-def match_string(
-    original, search, start_index=None, exact_match=False, ignore_comments=False
-):
-    index = -1
-    max_similarity = 0
-    current_hits = 0
-    # sliding window comparison from original to search
-    # Todo: 2 pointer approach (find start, then find end)
-    # Todo: use rapidfuzz to compute fuzzy similarity over code
-    for i in range(start_index or 0, len(original)):
-        count = 0
-        for j in range(len(search)):
-            if i + j >= len(original):
-                continue
-            original_line = original[i + j]
-            if ignore_comments:
-                # Remove comments
-                original_line = original_line.rsplit("#")[0].rsplit("//")[0]
+    status, replace_index = None, None
+    if canDoDotCheck:
+        first_line_idx = -1
+        for i in range(len(search)):
+            if search[i].strip() == "...":
+                first_line_idx = i
+                break
 
-            match = (
-                search[j] == original_line
-                if exact_match
-                else search[j].strip() == original_line.strip()
+        first_line_idx_replace = -1
+        for i in range(len(replace)):
+            if replace[i].strip() == "...":
+                first_line_idx_replace = i
+                break
+
+        if (
+            first_line_idx == -1
+            and first_line_idx_replace == -1
+            and search_context_before is None
+            and len(kwargs) == 0
+        ):
+            try:
+                radix_original = radix_replace(original, search, replace)
+                if radix_original is not None:
+                    return radix_original, None, None
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                print(f"Modify skipped lines error: {e}")
+
+        if first_line_idx == 0 and first_line_idx_replace == 0:
+            search = search[1:]
+            replace = replace[1:]
+        elif (
+            first_line_idx == len(search) - 1
+            and first_line_idx_replace == len(replace) - 1
+        ):
+            search = search[:first_line_idx]
+            replace = replace[:first_line_idx_replace]
+        elif first_line_idx != -1 and first_line_idx_replace != -1:
+            search_context_before = search[:first_line_idx]
+            original, replace_index, status = sliding_window_replacement(
+                original,
+                search[first_line_idx + 1 :],
+                replace[first_line_idx_replace + 1 :],
+                search_context_before,
+                **kwargs,
             )
-            if match:
-                count += 1
-
-                # If searching for previous snippet (like regex)
-                if start_index is not None and search[j] == original[i + j]:
-                    count += 0.001
-        if count > max_similarity:
-            index = i
-            max_similarity = count
-            current_hits = 1
-        elif count == max_similarity:
-            current_hits += 1
-    return index, max_similarity, current_hits
-
-
-def lstrip_max(s, chars, max_count):
+            search = search[:first_line_idx]
+            replace = replace[:first_line_idx_replace]
     count = 0
     for char in s:
         if char in chars and count < max_count:
