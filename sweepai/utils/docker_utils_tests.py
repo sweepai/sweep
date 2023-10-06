@@ -7,7 +7,7 @@ class TestDockerUtils(unittest.TestCase):
     def test_get_latest_docker_version(self):
         result = get_latest_docker_version()
         self.assertIsInstance(result, str)
-        self.assertEqual(result, "actual_known_latest_version")
+        self.assertRegex(result, r"^\d+\.\d+\.\d+$")
 
 
 if __name__ == "__main__":
