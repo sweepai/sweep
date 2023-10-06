@@ -37,7 +37,10 @@ class SandboxContainer:
 
 class Sandbox(BaseModel):
     install: list[str] = ["trunk init"]
-    check: list[str] = ["trunk fmt {file_path}", "trunk check --fix {file_path}"]
+    check: list[str] = [
+        "trunk fmt {file_path}",
+        "trunk check --fix --print-failures {file_path}",
+    ]
 
     @classmethod
     def from_yaml(cls, yaml_string: str):
@@ -87,7 +90,7 @@ def copy_to(container):
     with tarfile.open("repo.tar", "w") as tar:
         for f in pbar:
             tar.add(f)
-    
+
     data = open("repo.tar", "rb").read()
     container.exec_run("mkdir repo")
     container.put_archive("repo", data)

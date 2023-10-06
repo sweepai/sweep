@@ -3,6 +3,7 @@ import io
 import json
 import os
 import shlex
+import shutil
 import tarfile
 import uuid
 from dataclasses import asdict, dataclass, field
@@ -153,11 +154,11 @@ class ClonedRepo:
         git.Repo.clone_from(self.repo_url, self.dir_path)
         print("Done cloning repo.")
 
-    # def __del__(self):
-    #     try:
-    #         shutil.rmtree(self.dir_path, ignore_errors=True)
-    #     except FileNotFoundError as e:
-    #         print(f"Could not delete repo {self.dir_path}: {e}")
+    def __del__(self):
+        try:
+            shutil.rmtree(self.dir_path, ignore_errors=True)
+        except FileNotFoundError as e:
+            print(f"Could not delete repo {self.dir_path}: {e}")
 
     @property
     def installation_dict(self):
