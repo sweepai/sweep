@@ -66,10 +66,6 @@ LINT_CONFIG = """module.exports = {
 
 
 class Sandbox(BaseModel):
-    # Make these multi-command
-    # install_command: str = "trunk init"
-    # linter_command: list[str] = ["trunk check {file_path}"]
-    # format_command: str = "trunk fmt {file_path}"
     install: list[str] = ["trunk init"]
     check: list[str] = ["trunk fmt {file_path}", "trunk check --fix {file_path}"]
 
@@ -84,38 +80,3 @@ class Sandbox(BaseModel):
             return cls.from_yaml(open(path).read())
         else:
             return cls()
-
-
-# class Sandbox(BaseModel):
-#     # Make these multi-command
-#     install_command: str = None
-#     format_command: str | list[str] = None
-#     linter_command: str = None
-#     repo: Any
-#     repo_url: str = None
-
-#     class Config:
-#         arbitrary_types_allowed = True
-
-#     @classmethod
-#     def from_token(cls: Type[Self], repo, repo_url, config=None) -> Self | None:
-#         config = config or get_sandbox_config(repo)
-#         install_command = config.get("install", None)  # TODO: auto-detect
-#         formatter = config.get("formatter", None)
-#         linter = config.get("linter", None)
-
-#         if install_command or formatter or linter:
-#             logger.info(f"Using sandbox {install_command}, {formatter} and {linter}")
-#         else:
-#             logger.info("No sandbox config found")
-#             return None
-
-#         sandbox = cls(
-#             install_command=install_command,
-#             format_command=formatter,
-#             linter_command=linter,
-#             repo=repo,
-#             repo_url=repo_url,
-#         )
-
-#         return sandbox

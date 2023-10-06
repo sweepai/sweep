@@ -5,7 +5,7 @@ from markdownify import markdownify as md
 from playwright.sync_api import sync_playwright
 from tqdm import tqdm
 
-from logn import logger
+from sweepai.logn import logger
 
 
 def parse_html(html):

@@ -1,5 +1,5 @@
 import copy
-from logn import logger
+from sweepai.logn import logger
 from collections import OrderedDict
 
 class Line:
@@ -85,11 +85,14 @@ class DirectoryTree:
         self.lines = new_lines
 
     def expand_directory(self, dirs_to_expand):
+        parent_dirs = lambda path: [path[:i + 1] for i in range(len(path)) if path[i] == '/']
+        dir_parents = []
+        for dir in dirs_to_expand:
+            dir_parents.extend(parent_dirs(dir))
+        dirs_to_expand = list(set(dirs_to_expand))
         expanded_lines = []
         for line in self.original_lines:
-            # In current lines or should be expanded
-            full_relative_path = line.parent.full_path() + line.full_path() if line.parent else line.full_path()
-            if any(full_relative_path.startswith(dir) for dir in dirs_to_expand):
+            if line.parent and any(line.parent.full_path() == dir for dir in dirs_to_expand) or line.full_path() in dir_parents:
                 expanded_lines.append(line)
             elif line in self.lines:
                 expanded_lines.append(line)

@@ -6,7 +6,7 @@ import requests
 import typer
 from github import Github
 
-from logn.cache import file_cache
+from sweepai.logn.cache import file_cache
 from sweepai.events import Account, Installation, IssueRequest
 from sweepai.utils.github_utils import get_github_client, get_installation_id
 

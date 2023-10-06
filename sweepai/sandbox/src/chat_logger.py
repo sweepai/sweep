@@ -2,10 +2,12 @@ import os
 from datetime import datetime, timedelta
 from typing import Any
 
-# from logn import logger
+from dotenv import load_dotenv
 from loguru import logger
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
+
+load_dotenv()
 
 MONGODB_URI = os.environ.get("MONGODB_URI")
 
@@ -121,13 +123,16 @@ class ChatLogger(BaseModel):
         result = self.ticket_collection.find_one({"username": username})
         return result.get("is_paying_user", False) if result else False
 
-    def is_trial_user(self):
+    def is_consumer_tier(self):
+        """
+        Check if the user is a consumer tier user.
+        """
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
             return False
         username = self.data["username"]
         result = self.ticket_collection.find_one({"username": username})
-        return result.get("is_trial_user", False) if result else False
+        return result.get("is_consumer_tier", False) if result else False
 
     def use_faster_model(self, g):
         if self.ticket_collection is None:
@@ -135,7 +140,7 @@ class ChatLogger(BaseModel):
             return True
         if self.is_paying_user():
             return self.get_ticket_count() >= 500
-        if self.is_trial_user():
+        if self.is_consumer_tier():
             return self.get_ticket_count() >= 20
 
         # try:

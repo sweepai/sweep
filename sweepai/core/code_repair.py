@@ -1,6 +1,6 @@
 import subprocess
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.core.prompts import (

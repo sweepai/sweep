@@ -1,8 +1,11 @@
 # Do not save logs for main process
 import json
+import os
 import time
 
-from logn import logger
+import psutil
+
+from sweepai.logn import logger
 from sweepai.utils.buttons import check_button_activated
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
@@ -12,13 +15,14 @@ logger.init(
 )
 
 import ctypes
-import sys
 import threading
 
+import redis
 import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
+from pymongo import MongoClient
 
 from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
@@ -33,12 +37,14 @@ from sweepai.config.server import (
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
+    MONGODB_URI,
+    REDIS_URL,
+    SANDBOX_URL,
 )
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
 from sweepai.core.vector_db import get_deeplake_vs_from_repo
 from sweepai.events import (
-    CheckRunCompleted,
     CommentCreatedRequest,
     InstallationCreatedRequest,
     IssueCommentRequest,
@@ -234,12 +240,71 @@ def call_write_documentation(*args, **kwargs):
     thread.start()
 
 
+def check_sandbox_health():
+    try:
+        requests.get(os.path.join(SANDBOX_URL, "health"))
+        return "UP"
+    except Exception as e:
+        logger.error(e)
+        return "DOWN"
+
+
+def check_mongodb_health():
+    try:
+        client = MongoClient(MONGODB_URI)
+        client.server_info()  # Attempt to fetch server information
+        return "UP"
+    except Exception as e:
+        logger.error(e)
+        return "DOWN"
+
+
+def check_redis_health():
+    try:
+        redis_client = redis.Redis.from_url(REDIS_URL)
+        redis_client.ping()  # Ping the Redis server
+        return "UP"
+    except Exception as e:
+        logger.error(e)
+        return "DOWN"
+
+
 @app.get("/health")
 def health_check():
-    return JSONResponse(
-        status_code=200,
-        content={"status": "UP", "port": sys.argv[-1] if len(sys.argv) > 0 else -1},
-    )
+    sandbox_status = check_sandbox_health()
+    mongo_status = check_mongodb_health()
+    redis_status = check_redis_health()
+
+    cpu_usage = psutil.cpu_percent(interval=0.1)
+    memory_info = psutil.virtual_memory()
+    disk_usage = psutil.disk_usage("/")
+    network_traffic = psutil.net_io_counters()
+
+    status = {
+        "status": "UP",
+        "details": {
+            "sandbox": {
+                "status": sandbox_status,
+            },
+            "mongodb": {
+                "status": mongo_status,
+            },
+            "redis": {
+                "status": redis_status,
+            },
+            "system_resources": {
+                "cpu_usage": cpu_usage,
+                "memory_usage": memory_info.used,
+                "disk_usage": disk_usage.used,
+                "network_traffic": {
+                    "bytes_sent": network_traffic.bytes_sent,
+                    "bytes_received": network_traffic.bytes_recv,
+                },
+            },
+        },
+    }
+
+    return JSONResponse(status_code=200, content=status)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -262,7 +327,7 @@ async def webhook(raw_request: Request):
         assert event is not None
 
         action = request_dict.get("action", None)
-        
+
         match event, action:
             case "issues", "opened":
                 logger.info(f"Received event: {event}, {action}")
@@ -547,7 +612,7 @@ async def webhook(raw_request: Request):
                 # request = ReviewSubmittedRequest(**request_dict)
                 pass
             case "check_run", "completed":
-                pass # removed for now
+                pass  # removed for now
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
                 metadata = {

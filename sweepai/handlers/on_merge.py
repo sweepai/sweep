@@ -4,7 +4,7 @@ on_merge is called by sweepai/api.py
 """
 import time
 
-from logn import LogTask, logger
+from sweepai.logn import logger
 from sweepai.config.client import SweepConfig, get_rules
 from sweepai.core.post_merge import PostMerge
 from sweepai.handlers.pr_utils import make_pr

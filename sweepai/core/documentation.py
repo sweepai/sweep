@@ -5,7 +5,7 @@ import re
 from deeplake.core.vectorstore.deeplake_vectorstore import VectorStore
 from tqdm import tqdm
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.core.lexical_search import prepare_index_from_docs, search_docs
 from sweepai.core.robots import is_url_allowed
 from sweepai.core.vector_db import embed_texts

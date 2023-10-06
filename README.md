@@ -84,6 +84,9 @@ You can self-host Sweep with the Docker image (`https://hub.docker.com/r/sweepai
 
 ## Limitations of Sweep
 
+* **Gigantic repos**: >5000 files. We have default extensions and directories to exclude but sometimes this doesn't catch them all. You may need to block some directories (see [`blocked_dirs`](https://docs.sweep.dev/usage/config#blocked_dirs))
+    * If Sweep is stuck at 0% for over 30 min and your repo has a few thousand files, let us know.
+
 * **Large-scale refactors**: >3 files or >150 lines of code changes (we're working on this!)
     * e.g. Refactor the entire codebase from TensorFlow to PyTorch
 
@@ -122,7 +125,9 @@ Examine pull requests created by Sweep [here](https://docs.sweep.dev/about/examp
 ## Pricing
 Every user receives unlimited GPT-3.5 tickets and 5 GPT-4 tickets per month. To prevent abuse, users can use 2 GPT-4 tickets a day.
 
-For professionals who want more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month. In addition, we're also offering 15 PRs for $60 as a one-time purchase for anyone interested in eventually purchasing Sweep Pro. You can purchase this [here](https://buy.stripe.com/7sI4jlaCR3PaabebIP).
+For hobbyists who want more tickets, check out [Sweep Plus](https://buy.stripe.com/7sI5np26l1H24QU7sA) now at $120/month for 30 tickets.
+
+For professionals who want even more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month for unlimited tickets.
 
 ## Roadmap
 We plan on rapidly improving Sweep. To see what we're working on, check out our [Roadmap](https://docs.sweep.dev/about/roadmap).

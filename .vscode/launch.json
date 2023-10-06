@@ -5,6 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name":"Python: Current File",
+            "type":"python",
+            "request":"launch",
+            "program":"${file}",
+            "console":"integratedTerminal",
+            "justMyCode":true
+        },
+        {
             "name":"Issue creation",
             "type":"python",
             "request":"launch",
@@ -13,7 +21,7 @@
             "justMyCode":true,
             "args": [
                 "--issue-url",
-                "https://github.com/sweepai/sweep/issues/2012"
+                "https://github.com/sweepai/sweep/issues/1940"
             ]
         },
         {

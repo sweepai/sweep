@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import tiktoken
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.core.entities import Snippet
 
 

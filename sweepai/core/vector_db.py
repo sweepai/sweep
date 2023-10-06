@@ -14,7 +14,7 @@ from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
 from tqdm import tqdm
 
-from logn import file_cache, logger
+from sweepai.logn import file_cache, logger
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import (
     BATCH_SIZE,

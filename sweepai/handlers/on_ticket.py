@@ -14,7 +14,7 @@ from github import BadCredentialsException, GithubException
 from tabulate import tabulate
 from tqdm import tqdm
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     SWEEP_BAD_FEEDBACK,
@@ -27,6 +27,7 @@ from sweepai.config.server import (
     ENV,
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
+    IS_SELF_HOSTED,
     MONGODB_URI,
     OPENAI_API_KEY,
     OPENAI_USE_3_5_MODEL_ONLY,
@@ -72,7 +73,6 @@ def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
 
 
-# @LogTask()
 def on_ticket(
     title: str,
     summary: str,
@@ -171,11 +171,11 @@ def on_ticket(
 
     if chat_logger:
         is_paying_user = chat_logger.is_paying_user()
-        is_trial_user = chat_logger.is_trial_user()
+        is_consumer_tier = chat_logger.is_consumer_tier()
         use_faster_model = OPENAI_USE_3_5_MODEL_ONLY or chat_logger.use_faster_model(g)
     else:
         is_paying_user = True
-        is_trial_user = False
+        is_consumer_tier = False
         use_faster_model = False
 
     if fast_mode:
@@ -216,6 +216,7 @@ def on_ticket(
         "subissues_mode": subissues_mode,
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
+        "is_self_hosted": IS_SELF_HOSTED,
     }
 
     posthog.capture(username, "started", properties=metadata)
@@ -289,7 +290,7 @@ def on_ticket(
         # Find the first comment made by the bot
         issue_comment = None
         tickets_allocated = 5
-        if is_trial_user:
+        if is_consumer_tier:
             tickets_allocated = 15
         if is_paying_user:
             tickets_allocated = 500
@@ -312,7 +313,7 @@ def on_ticket(
         payment_link = "https://buy.stripe.com/6oE5npbGVbhC97afZ4"
         daily_message = (
             f" and {daily_ticket_count} for the day"
-            if not is_paying_user and not is_trial_user
+            if not is_paying_user and not is_consumer_tier
             else ""
         )
         user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
@@ -378,11 +379,9 @@ def on_ticket(
             )
 
         # Find Sweep's previous comment
-        logger.print("USERNAME", GITHUB_BOT_USERNAME)
         for comment in comments:
-            logger.print("COMMENT", comment.user.login)
             if comment.user.login == GITHUB_BOT_USERNAME:
-                logger.print("Found comment")
+                logger.print(f"Found comment USERNAME {GITHUB_BOT_USERNAME} COMMENT {comment.user.login}")
                 issue_comment = comment
 
         try:
@@ -517,7 +516,7 @@ def on_ticket(
         if (
             repo_name.lower() not in WHITELISTED_REPOS
             and not is_paying_user
-            and not is_trial_user
+            and not is_consumer_tier
         ):
             if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
                 logger.info("Test repository detected")
@@ -582,7 +581,7 @@ def on_ticket(
             )
             log_error(
                 is_paying_user,
-                is_trial_user,
+                is_consumer_tier,
                 username,
                 issue_url,
                 "File Fetch",
@@ -1177,7 +1176,7 @@ def on_ticket(
             logger.info("Max tokens exceeded")
             log_error(
                 is_paying_user,
-                is_trial_user,
+                is_consumer_tier,
                 username,
                 issue_url,
                 "Max Tokens Exceeded",
@@ -1210,7 +1209,7 @@ def on_ticket(
             logger.info("Sweep could not find files to modify")
             log_error(
                 is_paying_user,
-                is_trial_user,
+                is_consumer_tier,
                 username,
                 issue_url,
                 "Sweep could not find files to modify",
@@ -1242,7 +1241,7 @@ def on_ticket(
             )
             log_error(
                 is_paying_user,
-                is_trial_user,
+                is_consumer_tier,
                 username,
                 issue_url,
                 "Context Length",
@@ -1288,7 +1287,7 @@ def on_ticket(
                 )
             log_error(
                 is_paying_user,
-                is_trial_user,
+                is_consumer_tier,
                 username,
                 issue_url,
                 "Workflow",

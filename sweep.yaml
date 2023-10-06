@@ -23,7 +23,7 @@ sandbox:
     - pip install poetry
     - poetry install
   check:
-    # - pre-commit run --files {file_path}
+    - pre-commit run --files {file_path}
     - '[[ "{file_path}" == *.py ]] && poetry run pylint --errors-only {file_path} || exit 0'
 
 rules:

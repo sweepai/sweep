@@ -404,50 +404,11 @@ class _LogN(_Logger):
             self.close()
 
 
-class _LogTask:
-    def __init__(self):
-        pass
-
-    def __call__(self, func):
-        def wrapper(*args, **kwargs):
-            key, parent_task, child_task = _Task.create_child_task(
-                name=func.__name__, function_name=func.__name__
-            )
-            parent_task.write_metadata(
-                child_task=child_task.meta_path,  # function_name=func.__name__
-            )
-
-            # Todo: update to use with logger instead of try/except
-            # try:
-            result = func(*args, **kwargs)
-            # except SystemExit as e:
-            #     child_task.write_metadata(state="Exited", exception=type(e).__name__)
-            #     _Task.update_task(task_key=key, task=parent_task)
-            #     raise e
-            # except Exception as e:
-            #     child_task.write_metadata(state="Errored", exception=type(e).__name__)
-            #     _Task.update_task(task_key=key, task=parent_task)
-            #     raise e
-
-            # child_task.write_metadata(state="Done")
-            _Task.update_task(task_key=key, task=parent_task)
-
-            # print(self.name, f"Logging after calling {func.__name__}")
-            return result
-
-        return wrapper
-
 
 class LogN:
     @staticmethod
     def print():
         pass
 
-
-# Export logger
-logn_logger = _LogN()
-
-# Export method attribute
-LogTask = _LogTask
 
 logger = _LogN()

@@ -11,7 +11,7 @@ from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from pydantic import BaseModel
 
-from logn import logger
+from sweepai.logn import logger
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.graph_child import (
     GraphChildBot,
@@ -777,7 +777,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 file_contents,
                 _,
                 _,
-                changed_files,
+                _, # Don't use changed_files here
             ) = self.modify_file(
                 file_change_request,
                 contents=file_contents,
@@ -837,20 +837,6 @@ class SweepBot(CodeGenBot, GithubBot):
         # TODO(sweep): edge case at empty file
         new_file = ""
         try:
-            file_path_to_contents = OrderedDict()
-            for file_path, diffs in changed_files:
-                if not diffs.strip():
-                    continue
-                if file_path in file_path_to_contents:
-                    file_path_to_contents[file_path] += diffs
-                else:
-                    file_path_to_contents[file_path] = diffs
-            changed_files_summary = "We have previously changed these files:\n" + "\n".join(
-                [
-                    f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
-                    for file_path, diffs in file_path_to_contents.items()
-                ]
-            )
             additional_messages = [
                 Message(
                     role="user",
@@ -867,6 +853,20 @@ class SweepBot(CodeGenBot, GithubBot):
                         key="pr_diffs",
                     )
                 ]
+            file_path_to_contents = OrderedDict()
+            for file_path, diffs in changed_files:
+                if not diffs.strip():
+                    continue
+                if file_path in file_path_to_contents:
+                    file_path_to_contents[file_path] += diffs
+                else:
+                    file_path_to_contents[file_path] = diffs
+            changed_files_summary = "We have previously changed these files:\n" + "\n".join(
+                [
+                    f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
+                    for file_path, diffs in file_path_to_contents.items()
+                ]
+            )
             if changed_files:
                 additional_messages += [
                     Message(
@@ -1573,8 +1573,9 @@ class ModifyBot:
         deduped_matches: list[Match] = []
 
         # Fuse & dedup
+        FUSE_OFFSET = 5
         for match_ in best_matches:
-            if current_match.end > match_.start:
+            if current_match.end > match_.start + FUSE_OFFSET:
                 current_match = fuse_matches(current_match, match_)
             else:
                 deduped_matches.append(current_match)

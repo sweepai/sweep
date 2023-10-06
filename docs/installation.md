@@ -41,24 +41,20 @@ Sweep will mess up sometimes. Comment on it's PR. (ex: "use PyTorch instead of T
 ## Sweep Prompting Tricks 📝
 
 * Mention filenames or function names.
-* Describe the changes or fixes you want.
-* Provide any additional context that might be helpful.
-* For more guidance, visit [Sweep Recipes](https://docs.sweep.dev/usage/advanced).
+* Describe the changes or fixes you want, optionally mentioning implementation details.
+* Provide any additional context that might be helpful, e.g. see "src/App.test.tsx" for an example of a good unit test.
+* For more guidance, visit [Advanced](https://docs.sweep.dev/usage/advanced), or watch the following video.
 
-Learn to use Sweep better by installing the extension:
-
-<a href="https://chrome.google.com/webstore/detail/sweep-extension/fdjiilckbdcgjdpfhipnojhemphhjjbl">
-  <img src="https://storage.googleapis.com/web-dev-uploads/image/WlD8wC6g8khYWPJUsQceQkhXSlv1/iNEddTyWiMfLSwFD6qGq.png" width="200px" />
-</a>
-
-### Advanced Sweep Tricks and Feedback Tips
 [![Video](http://img.youtube.com/vi/Qn9vB71R4UM/0.jpg)](http://www.youtube.com/watch?v=Qn9vB71R4UM "Advanced Sweep Tricks and Feedback Tips")
 
-This video provides advanced tips and tricks for using Sweep and controlling feedback.
+For configuring Sweep for your repo, see [Config](https://docs.sweep.dev/usage/config), especially for setting up Sweep Rules and Sweep Sweep.
 
 ## Limitations of Sweep (for now) ⚠️
 
-* 🏗️ **Large-scale refactors**: >3 files or >150 lines of code changes (we're working on this!)
+* 🗃️ **Gigantic repos**: >5000 files. We have default extensions and directories to exclude but sometimes this doesn't catch them all. You may need to block some directories (see [`blocked_dirs`](https://docs.sweep.dev/usage/config#blocked_dirs))
+    * If Sweep is stuck at 0% for over 30 min and your repo has a few thousand files, let us know.
+
+* 🏗️ **Large-scale refactors**: >5 files or >300 lines of code changes (we're working on this!)
     * We can't do this - "Refactor entire codebase from Tensorflow to PyTorch"
 
 * 🖼️ **Editing images** and other non-text assets
@@ -68,9 +64,11 @@ This video provides advanced tips and tricks for using Sweep and controlling fee
     * We can't do this - "Set up sign-in using Ethereum"
 
 ## Pricing
-We offer unlimited GPT3.5 tickets to every user. Every user also starts with 5 GPT4 issues a month, and you'll be able to use 2 GPT4 issues a day.
+We offer unlimited GPT3.5 tickets to every user. Every user also starts with 5 GPT4 issues a month, and you'll be able to use 2 GPT-4 issues a day.
 
-For professionals who want more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month. In addition, we're also offering 15 PRs for $60 as a one-time purchase for anyone interested in eventually purchasing Sweep Pro. You can avail this offer [here](https://buy.stripe.com/7sI4jlaCR3PaabebIP).
+For hobbyists who want more tickets, check out [Sweep Plus](https://buy.stripe.com/7sI5np26l1H24QU7sA) now at $120/month for 30 tickets.
+
+For professionals who want even more tickets and priority support/feature requests, check out [Sweep Pro](https://buy.stripe.com/6oE5npbGVbhC97afZ4) now at $480/month for unlimited tickets.
 
 ---
 

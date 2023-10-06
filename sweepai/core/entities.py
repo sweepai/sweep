@@ -7,7 +7,7 @@ from urllib.parse import quote
 
 from pydantic import BaseModel
 
-from logn import logger
+from sweepai.logn import logger
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from fuzzywuzzy import fuzz
 from tqdm import tqdm
 
-from logn import logger
+from sweepai.logn import logger
 
 
 def score_line(str1: str, str2: str) -> float:
@@ -71,8 +71,16 @@ def score_multiline(query: list[str], target: list[str]) -> float:
                 t = len(target)
                 break
             max_score = 0
-            for i in range(t, len(target)):
-                # TODO: use radix to optimize
+            # Radix optimization
+            indices = [
+                t + i
+                for i, line in enumerate(target[t:])
+                if match_without_whitespace(line, query[q + 1])
+            ]
+            if not indices:
+                # logger.warning(f"Could not find whitespace match, using brute force")
+                indices = range(t, len(target))
+            for i in indices:
                 score, weight = score_multiline(query[q + 1 :], target[i:]), (
                     100 - (i - t) / len(target) * 10
                 )
@@ -181,21 +189,48 @@ def find_best_match(query: str, code_file: str):
                 for i, line in enumerate(code_file_lines)
             ]
             start_pairs.sort(key=lambda x: x[1], reverse=True)
-            start_pairs = start_pairs[: min(20, len(start_pairs) // 10)]
+            start_pairs = start_pairs[: min(40, len(start_pairs) // 5)]
             start_indices = sorted([i for i, _ in start_pairs])
 
-        for i in tqdm(start_indices):
-            for j in range(
-                i + len(indented_query_lines),
-                min(len(code_file_lines) + 1, i + 2 * len(indented_query_lines) + 100),
+        for i in tqdm(
+            start_indices,
+            position=0,
+            desc=f"Indent {num_indents}/{max_indents}",
+            leave=False,
+        ):
+            end_indices = [
+                j
+                for j, line in enumerate(code_file_lines[i:], start=i)
+                if score_line(line, indented_query_lines[-1]) > 50
+            ]
+            end_indices = end_indices or [
+                j
+                for j in end_indices
+                if score_multiline(
+                    indented_query_lines[-2:], code_file_lines[i + j - 1 : i + j + 1]
+                )
+                > 50
+            ]  # sus code
+            if not end_indices:
+                end_pairs = [
+                    (j, score_line(line, indented_query_lines[-1]))
+                    for j, line in enumerate(code_file_lines[i:], start=i)
+                ]
+                end_pairs.sort(key=lambda x: x[1], reverse=True)
+                end_pairs = end_pairs[: min(40, len(end_pairs) // 5)]
+                end_indices = sorted([j for j, _ in end_pairs])
+
+            for j in tqdm(
+                end_indices, position=1, leave=False, desc=f"Starting line {i}"
             ):
-                candidate = code_file_lines[i:j]
+                candidate = code_file_lines[i : j + 1]
                 raw_score = score_multiline(indented_query_lines, candidate)
 
                 score = raw_score * (1 - num_indents * 0.01)
-                current_match = Match(i, j, score, indent * num_indents)
+                current_match = Match(i, j + 1, score, indent * num_indents)
 
-                if raw_score >= 100:
+                if raw_score >= 99.99:  # early exit, 99.99 for floating point error
+                    logger.info(f"Exact match found! Returning: {current_match}")
                     return current_match
 
                 top_matches.append(current_match)
@@ -262,85 +297,199 @@ capture_posthog_event(username, "success", properties={**metadata})
 """
 
 if __name__ == "__main__":
-    for section in split_ellipses(test_code):
-        print(section)
-    code_file = """\
-    def try_update_file(
-        self,
-        file_path: str,
-        file_contents: str,
-        file_change_request: FileChangeRequest,
-        chunking: bool = False,
-    ):
-        snippet_queries = self.get_snippets_to_modify(
-            file_path=file_path,
-            file_contents=file_contents,
-            file_change_request=file_change_request,
-            chunking=chunking,
-        )
+    # for section in split_ellipses(test_code):
+    #     print(section)
+    code_file = r"""
+    try:
+        logger.info("Fetching files to modify/create...")
+        if file_comment:
+            file_change_requests = [
+                FileChangeRequest(
+                    filename=pr_file_path,
+                    instructions=f"The user left a comment in this chunk of code:\n<review_code_chunk>{formatted_pr_chunk}\n</review_code_chunk>.\nResolve their comment.",
+                    change_type="modify",
+                )
+            ]
+        else:
+            regenerate = comment.strip().lower().startswith("sweep: regenerate")
+            reset = comment.strip().lower().startswith("sweep: reset")
+            if regenerate or reset:
+                logger.info(f"Running {'regenerate' if regenerate else 'reset'}...")
 
-        new_file = self.update_file(
-            file_path=file_path,
-            file_contents=file_contents,
-            file_change_request=file_change_request,
-            snippet_queries=snippet_queries,
-            chunking=chunking,
-        )
-        return new_file
+                file_paths = comment.strip().split(" ")[2:]
 
-    def get_snippets_to_modify(
-        self,
-        file_path: str,
-        file_contents: str,
-        file_change_request: FileChangeRequest,
-        chunking: bool = False,
-    ):
-        fetch_snippets_response = self.fetch_snippets_bot.chat(
-            fetch_snippets_prompt.format(
-                code=file_contents,
-                file_path=file_path,
-                request=file_change_request.instructions,
-                chunking_prompt='\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n'
-                if chunking
-                else "",
+                def get_contents_with_fallback(repo: Repository, file_path: str):
+                    try:
+                        return repo.get_contents(file_path)
+                    except SystemExit:
+                        raise SystemExit
+                    except Exception as e:
+                        logger.error(e)
+                        return None
+
+                old_file_contents = [
+                    get_contents_with_fallback(repo, file_path)
+                    for file_path in file_paths
+                ]
+
+                logger.print(old_file_contents)
+                for file_path, old_file_content in zip(file_paths, old_file_contents):
+                    current_content = sweep_bot.get_contents(
+                        file_path, branch=branch_name
+                    )
+                    if old_file_content:
+                        logger.info("Resetting file...")
+                        sweep_bot.repo.update_file(
+                            file_path,
+                            f"Reset {file_path}",
+                            old_file_content.decoded_content,
+                            sha=current_content.sha,
+                            branch=branch_name,
+                        )
+                    else:
+                        logger.info("Deleting file...")
+                        sweep_bot.repo.delete_file(
+                            file_path,
+                            f"Reset {file_path}",
+                            sha=current_content.sha,
+                            branch=branch_name,
+                        )
+                if reset:
+                    return {
+                        "success": True,
+                        "message": "Files have been reset to their original state.",
+                    }
+                return {
+                    "success": True,
+                    "message": "Files have been regenerated.",
+                }
+            else:
+                non_python_count = sum(
+                    not file_path.endswith(".py")
+                    for file_path in human_message.get_file_paths()
+                )
+                python_count = len(human_message.get_file_paths()) - non_python_count
+                is_python_issue = python_count > non_python_count
+                file_change_requests, _ = sweep_bot.get_files_to_change(
+                    is_python_issue, retries=1, pr_diffs=pr_diff_string
+                )
+                file_change_requests = sweep_bot.validate_file_change_requests(
+                    file_change_requests, branch=branch_name
+                )
+
+            sweep_response = "I couldn't find any relevant files to change."
+            if file_change_requests:
+                table_message = tabulate(
+                    [
+                        [
+                            f"`{file_change_request.filename}`",
+                            file_change_request.instructions_display.replace(
+                                "\n", "<br/>"
+                            ).replace("```", "\\```"),
+                        ]
+                        for file_change_request in file_change_requests
+                    ],
+                    headers=["File Path", "Proposed Changes"],
+                    tablefmt="pipe",
+                )
+                sweep_response = (
+                    f"I decided to make the following changes:\n\n{table_message}"
+                )
+            quoted_comment = "> " + comment.replace("\n", "\n> ")
+            response_for_user = (
+                f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
             )
+            if pr_number:
+                edit_comment(response_for_user)
+                # pr.create_issue_comment(response_for_user)
+        logger.info("Making Code Changes...")
+
+        blocked_dirs = get_blocked_dirs(sweep_bot.repo)
+
+        sweep_bot.comment_pr_diff_str = pr_diff_string
+        sweep_bot.comment_pr_files_modified = pr_files_modified
+        changes_made = sum(
+            [
+                change_made
+                for _, change_made, _, _ in sweep_bot.change_files_in_github_iterator(
+                    file_change_requests, branch_name, blocked_dirs
+                )
+            ]
         )
+        try:
+            if comment_id:
+                if changes_made:
+                    # PR Review Comment Reply
+                    edit_comment("Done.")
+                else:
+                    # PR Review Comment Reply
+                    edit_comment(
+                        'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR(at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discord](https://discord.com/invite/sweep)'
+                    )
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
+            logger.error(f"Failed to reply to comment: {e}")
 
-        snippet_queries = []
-        query_pattern = r"<snippet_to_modify.*?>(?P<code>.*?)</snippet_to_modify>"
-        for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
-            snippet_queries.append(strip_backticks(code))
+        if not isinstance(pr, MockPR):
+            if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
+                # Update the PR title to remove the "[DRAFT]" prefix
+                pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
 
-        assert len(snippet_queries) > 0, "No snippets found in file"
-        return snippet_queries
+        logger.info("Done!")
+    except NoFilesException:
+        posthog.capture(
+            username,
+            "failed",
+            properties={
+                "error": "No files to change",
+                "reason": "No files to change",
+                **metadata,
+            },
+        )
+        edit_comment(ERROR_FORMAT.format(title="Could not find files to change"))
+        return {"success": True, "message": "No files to change."}
+    except Exception as e:
+        logger.error(traceback.format_exc())
+        posthog.capture(
+            username,
+            "failed",
+            properties={
+                "error": str(e),
+                "reason": "Failed to make changes",
+                **metadata,
+            },
+        )
+        edit_comment(ERROR_FORMAT.format(title="Failed to make changes"))
+        raise e
 
-    def update_file(
-        self,
-        file_path: str,
-        file_contents: str,
-        file_change_request: FileChangeRequest,
-        snippet_queries: list[str],
-        chunking: bool = False,
-    ):
-        best_matches = []
-        for query in snippet_queries:
-            _match = find_best_match(query, file_contents)
-            if _match.score > 50:
-                best_matches.append(_match)
+    # Delete eyes
+    if reaction is not None:
+        item_to_react_to.delete_reaction(reaction.id)
 
-        if len(best_matches) == 0:
-            raise UnneededEditError("No matches found in file")
+    try:
+        item_to_react_to = pr.get_issue_comment(comment_id)
+        reaction = item_to_react_to.create_reaction("rocket")
+    except SystemExit:
+        raise SystemExit
+    except Exception:
+        try:
+            item_to_react_to = pr.get_review_comment(comment_id)
+            reaction = item_to_react_to.create_reaction("rocket")
+        except SystemExit:
+            raise SystemExit
+        except Exception:
+            pass
 
-        # Todo: check multiple files for matches using PR changed files
+    try:
+        if response_for_user is not None:
+            edit_comment(f"## 🚀 Wrote Changes\n\n{response_for_user}")
+    except SystemExit:
+        raise SystemExit
+    except Exception:
+        pass
 
-        best_matches.sort(key=lambda x: x.start + x.end * 0.001)
-
-        def fuse_matches(a: Match, b: Match) -> Match:
-            return Match(
-                start=min(a.start, b.start),
-                end=max(a.end, b.end),
-                score=min(a.score, b.score),
-            )
+    posthog.capture(username, "success", properties={**metadata})
 """
 
     # Sample target snippet
@@ -374,11 +523,11 @@ if __name__ == "__main__":
         "\n"
     )
 
-    search_query = """\
+    search_query = r"""
     try:
         logger.info("Fetching files to modify/create...")
     ...
-    posthog.capture(username, "success", properties={**metadata})"""
+    posthog.capture(username, "success", properties={**metadata}) """
 
     # Find the best match
     best_span = find_best_match(search_query, code_file)
