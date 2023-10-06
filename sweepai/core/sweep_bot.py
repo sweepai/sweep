@@ -1475,9 +1475,7 @@ class ModifyBot:
     ):
         fetch_snippets_response = self.fetch_snippets_bot.chat(
             fetch_snippets_prompt.format(
-                code=extract_python_span(
-                    file_contents, [file_change_request.entity]
-                ).content
+                code=extract_python_span(file_contents, [file_change_request.entity]).content
                 if file_change_request.entity
                 else file_contents,
                 file_path=file_path,
