@@ -1,4 +1,5 @@
 import copy
+import math
 import re
 import traceback
 from collections import OrderedDict
@@ -1575,7 +1576,7 @@ class ModifyBot:
         # Fuse & dedup
         FUSE_OFFSET = 5
         for match_ in best_matches:
-            if current_match.end > match_.start + FUSE_OFFSET:
+            if current_match.end > match_.start or abs(current_match.end - match_.start) <= FUSE_OFFSET:
                 current_match = fuse_matches(current_match, match_)
             else:
                 deduped_matches.append(current_match)
