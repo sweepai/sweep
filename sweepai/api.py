@@ -25,6 +25,7 @@ from pydantic import ValidationError
 from pymongo import MongoClient
 
 from sweepai.config.client import (
+    RESET_FILE,
     RESTART_SWEEP_BUTTON,
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
@@ -354,6 +355,20 @@ async def webhook(raw_request: Request):
             case "issue_comment", "edited":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueCommentRequest(**request_dict)
+                sweep_labeled_issue = GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels]
+                if (
+                    request.comment.user.type == "Bot"
+                    and GITHUB_BOT_USERNAME in request.comment.user.login
+                    and request.changes.body_from is not None
+                    and check_button_activated(
+                        RESET_FILE, request.comment.body, request.changes
+                    )
+                    and sweep_labeled_issue
+                    and request.sender.type == "User"
+                ):
+                    # Restart Sweep on this issue
+                    # Call on_comment here with revert or regenerate file
+                    pass
 
                 restart_sweep = False
                 if (
@@ -363,8 +378,7 @@ async def webhook(raw_request: Request):
                     and check_button_activated(
                         RESTART_SWEEP_BUTTON, request.comment.body, request.changes
                     )
-                    and GITHUB_LABEL_NAME
-                    in [label.name.lower() for label in request.issue.labels]
+                    and sweep_labeled_issue
                     and request.sender.type == "User"
                 ):
                     # Restart Sweep on this issue
@@ -372,8 +386,7 @@ async def webhook(raw_request: Request):
 
                 if (
                     request.issue is not None
-                    and GITHUB_LABEL_NAME
-                    in [label.name.lower() for label in request.issue.labels]
+                    and sweep_labeled_issue
                     and request.comment.user.type == "User"
                     and not request.comment.user.login.startswith("sweep")
                     and not (

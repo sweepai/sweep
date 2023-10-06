@@ -1,3 +1,4 @@
+import re
 from typing import List
 
 from sweepai.events import Changes
@@ -32,3 +33,55 @@ def check_button_activated(
 
     button = create_button(label, selected=True)
     return button.lower() in body.lower()
+
+import re
+from typing import List
+
+class Button:
+    def __init__(self, label: str, selected: bool = False):
+        self.label = label
+        self.selected = selected
+    
+    def __str__(self):
+        return f"- [{'x' if self.selected else ' '}] {self.label}"
+
+class ButtonList:
+    def __init__(self, title: str = "", buttons: List[Button] = None):
+        self.title = title
+        self.buttons = buttons or []
+        
+    def serialize(self) -> str:
+        return f"{self.title}\n" + "\n".join(str(button) for button in self.buttons)
+    
+    @classmethod
+    def deserialize(cls, message: str):
+        lines = message.split("\n")
+        title = lines[0]
+        button_pattern = r"- \[(?P<state>[ x])\] (?P<label>.+)"
+        matches = re.findall(button_pattern, message)
+        buttons = [Button(label, state=='x') for state, label in matches]
+        return cls(title, buttons)
+    
+    def get_clicked_buttons(self) -> List[Button]:
+        return [button for button in self.buttons if button.selected]
+
+if __name__ == "__main__":
+    # Example serialized string (str -> buttons)
+    serialized_str = """## My Favorite Foods
+    - [x] Pizza
+    - [x] Burger
+    - [x] Sushi"""
+
+    # Deserialize the string to get a ButtonList object
+    deserialized_btn_list = ButtonList.deserialize(serialized_str)
+
+    # Display the deserialized list
+    print(f"Title: {deserialized_btn_list.title}")
+    for btn in deserialized_btn_list.buttons:
+        print(btn)
+
+    # Get clicked buttons
+    clicked_buttons = deserialized_btn_list.get_clicked_buttons()
+    print("\nClicked Buttons:")
+    for btn in clicked_buttons:
+        print(btn)
