@@ -254,7 +254,7 @@ You MUST follow the following format with the final output in XML tags:
 
 Contextual Request Analysis:
 <contextual_request_analysis>
-* Contextual analysis of the user request referencing the snippets and any necessary files/directories.
+* Contextual analysis of the user request referencing the snippets and any necessary files/directories. Only name an entity if you are absolutely certain it's required to solve the issue.
 ...
 </contextual_request_analysis>
 
