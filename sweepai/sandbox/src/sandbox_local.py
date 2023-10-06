@@ -141,18 +141,23 @@ class ClonedRepo:
 
     @property
     def repo_url(self):
-        return f"https://x-access-token:{self.token}@github.com/{self.repo_full_name}/"
+        if self.token:
+            return (
+                f"https://x-access-token:{self.token}@github.com/{self.repo_full_name}/"
+            )
+        else:
+            return f"https://github.com/{self.repo_full_name}/"
 
     def __post_init__(self):
         print("Cloning repo locally...")
         git.Repo.clone_from(self.repo_url, self.dir_path)
         print("Done cloning repo.")
 
-    # def __del__(self):
-    #     try:
-    #         shutil.rmtree(self.dir_path, ignore_errors=True)
-    #     except FileNotFoundError as e:
-    #         print(f"Could not delete repo {self.dir_path}: {e}")
+    def __del__(self):
+        try:
+            shutil.rmtree(self.dir_path, ignore_errors=True)
+        except FileNotFoundError as e:
+            print(f"Could not delete repo {self.dir_path}: {e}")
 
     @property
     def installation_dict(self):
