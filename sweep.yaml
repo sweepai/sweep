@@ -2,7 +2,7 @@ gha_enabled: True
 branch: main
 blocked_dirs: []
 draft: False
-description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. All imports should be global (like `import sweepai.utils.github_utils`). Write code that adheres to PEP8."
+description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. All imports should be global (like `import sweepai.utils.github_utils`). Write unit tests in the same directory as their corresponding code, i.e. sweepai/api_test.py tests sweepai/api.py."
 # These are the docs that we index for Sweep.
 # We scrape these docs once a day and store them in our database.
 # You can use it by adding the key to your GitHub issue.
@@ -24,11 +24,11 @@ sandbox:
     - poetry install
   check:
     - pre-commit run --files {file_path}
-    - '[[ "{file_path}" == *.py ]] && poetry run pylint --errors-only {file_path} || exit 0'
-    - '[[ "{file_path}" == *.py ]] && poetry run python {file_path} || exit 0'
+    - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint --errors-only {file_path}; else return 0; fi'
+    - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else return 0; fi'
 
 rules:
  - "There should not be large chunks of code that are just commented out. Docstrings and explanations in code are okay though."
- - "Make sure all error logs use traceback during exceptions."
+ - "Make sure all error logs use traceback during exceptions. We should use loguru for logging."
  - "There should be no instances of `import pdb; pdb.set_trace()` in production code."
  - "There should be no debug log or print statements in production code."

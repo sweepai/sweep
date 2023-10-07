@@ -11,17 +11,17 @@ from time import time
 
 import openai
 import requests
-from github import BadCredentialsException, GithubException
+from github import BadCredentialsException
 from requests.exceptions import Timeout
 from tabulate import tabulate
 from tqdm import tqdm
 
 from sweepai.config.client import (
     RESET_FILE,
-    REVERT_CHANGED_FILES_TITLE,
     RESTART_SWEEP_BUTTON,
     RULES_LABEL,
     RULES_TITLE,
+    REVERT_CHANGED_FILES_TITLE,
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
     SweepConfig,
@@ -552,14 +552,14 @@ def on_ticket(
                 )
                 return {"success": False}
 
-        if lint_mode:
-            # Get files to change
-            # Create new branch
-            # Send request to endpoint
-            for file_path in []:
-                SweepBot.run_sandbox(
-                    repo.html_url, file_path, None, user_token, only_lint=True
-                )
+        # if lint_mode:
+        # Get files to change
+        # Create new branch
+        # Send request to endpoint
+        # for file_path in []:
+        # SweepBot.run_sandbox(
+        #     repo.html_url, file_path, None, user_token, only_lint=True
+        # )
 
         logger.info("Fetching relevant files...")
         try:
