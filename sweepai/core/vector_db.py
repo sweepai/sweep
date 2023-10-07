@@ -7,6 +7,7 @@ from typing import Generator, List
 import numpy as np
 import replicate
 import requests
+import traceback
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
 )
@@ -82,13 +83,17 @@ def embed_huggingface(texts):
             return response.json()["embeddings"]
         except requests.exceptions.RequestException as e:
             logger.error(
-                f"Error occurred when sending request to Hugging Face endpoint: {e}"
+                f"Error occurred when sending request to Hugging Face endpoint: {traceback.format_exc()}"
             )
 
 
 def embed_replicate(texts):
     client = replicate.Client(api_token=REPLICATE_API_KEY)
-    outputs = client.run(REPLICATE_URL, input={"text_batch": json.dumps(texts)})
+    for i in range(3):
+        try:
+            outputs = client.run(REPLICATE_URL, input={"text_batch": json.dumps(texts)}, timeout=15)
+        except Exception as e:
+            logger.error(f"Replicate timeout: {traceback.format_exc()}")
     return [output["embedding"] for output in outputs]
 
 
@@ -119,7 +124,7 @@ def embed_texts(texts: tuple[str]):
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.error(e)
+                    logger.error(traceback.format_exc())
                     logger.error(f"Failed to get embeddings for {batch}")
             return embeddings
         case "huggingface":
@@ -185,7 +190,7 @@ def get_deeplake_vs_from_repo(
         try:
             cache_value = redis_client.get(cache_key)
         except Exception as e:
-            logger.error(e)
+            logger.error(traceback.format_exc())
             cache_value = None
         if cache_value is not None:
             score_factor = json.loads(cache_value)
@@ -328,7 +333,7 @@ def get_relevant_snippets(
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.error(e)
+        logger.error(traceback.format_exc())
     logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
         logger.info(f"Results query {query} was empty")
