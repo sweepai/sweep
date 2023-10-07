@@ -88,7 +88,11 @@ def embed_huggingface(texts):
 
 def embed_replicate(texts):
     client = replicate.Client(api_token=REPLICATE_API_KEY)
-    outputs = client.run(REPLICATE_URL, input={"text_batch": json.dumps(texts)})
+    for i in range(3):
+        try:
+            outputs = client.run(REPLICATE_URL, input={"text_batch": json.dumps(texts)}, timeout=15)
+        except Exception as e:
+            logger.error(f"Replicate timeout: {e}")
     return [output["embedding"] for output in outputs]
 
 
