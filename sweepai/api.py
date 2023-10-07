@@ -7,7 +7,7 @@ import psutil
 
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
-from sweepai.utils.buttons import ButtonList, check_button_activated, check_button_title_match
+from sweepai.utils.buttons import Button, ButtonList, check_button_activated, check_button_title_match
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
 logger.init(
@@ -28,11 +28,13 @@ from pymongo import MongoClient
 from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     REVERT_CHANGED_FILES_TITLE,
+    RULES_LABEL,
     RULES_TITLE,
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
     SweepConfig,
     get_documentation_dict,
+    get_rules,
 )
 from sweepai.config.server import (
     DISCORD_FEEDBACK_WEBHOOK_URL,
@@ -338,12 +340,15 @@ async def webhook(raw_request: Request):
         match event, action:
             case "pull_request", "opened":
                 logger.info(f"Received event: {event}, {action}")
-                request = PRRequest(**request_dict)
-                _, g = get_github_client(request.installation.id)
-                repo = g.get_repo(request.repository.full_name)
-                pr = repo.get_pull(request.pull_request.number)
-                rule_buttons = ButtonList(buttons=repo.get_rules(), title=RULES_TITLE)
-                pr.create_issue_comment(rule_buttons.serialize())
+                _, g = get_github_client(request_dict["installation"]["id"])
+                repo = g.get_repo(request_dict["repository"]["full_name"])
+                pr = repo.get_pull(request_dict["pull_request"]["number"])
+                rule_buttons = []
+                for rule in get_rules(repo):
+                    rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+                if rule_buttons:
+                    rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
+                    pr.create_issue_comment(rules_buttons_list.serialize())
             case "issues", "opened":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
