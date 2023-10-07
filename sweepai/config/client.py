@@ -287,7 +287,7 @@ SWEEP_GOOD_FEEDBACK = "👍 Sweep Did Well"
 SWEEP_BAD_FEEDBACK = "👎 Sweep Needs Improvement"
 
 RESET_FILE = "Rollback changes to "
-REVERT_CHANGED_FILES_TITLE = "Rollback Files For Sweep"
+REVERT_CHANGED_FILES_TITLE = "## Rollback Files For Sweep"
 
 RULES_TITLE = "## Apply [Sweep Rules](https://docs.sweep.dev/usage/config#rules) to your PR?"
 RULES_LABEL = "**Apply:** "
