@@ -343,7 +343,7 @@ async def webhook(raw_request: Request):
                 repo = g.get_repo(request.repository.full_name)
                 pr = repo.get_pull(request.pull_request.number)
                 rule_buttons = ButtonList(buttons=repo.get_rules(), title=RULES_TITLE)
-                pr.create_issue_comment(json.dumps(rule_buttons))
+                pr.create_issue_comment(rule_buttons.serialize())
             case "issues", "opened":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
@@ -618,6 +618,7 @@ async def webhook(raw_request: Request):
                 logger.info(f"Received event: {event}, {action}")
                 # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
+                handle_button_click(request_dict)
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pr = repo.get_pull(request.pull_request.number)
