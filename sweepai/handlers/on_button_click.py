@@ -1,6 +1,5 @@
 
 
-import traceback
 from loguru import logger
 from github.Repository import Repository
 from sweepai.config.client import RESET_FILE, REVERT_CHANGED_FILES_TITLE, RULES_LABEL, RULES_TITLE, get_rules
@@ -86,7 +85,7 @@ def handle_revert(file_paths, pr_number, repo: Repository):
                     branch=branch_name,
                 )
         except Exception as e:
-            logger.error(traceback.format_exc()) # file may not exist and this is expected
+            pass # file may not exist and this is expected
 
 def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
     pr = repo.get_pull(request_dict["issue"]["number"])
