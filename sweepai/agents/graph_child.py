@@ -2,9 +2,9 @@ import re
 
 from tree_sitter_languages import get_parser
 
-from sweepai.logn import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import RegexMatchableBaseModel, Snippet
+from sweepai.logn import logger
 
 system_prompt = """You are a genius engineer tasked with extracting the code and planning the solution to the following GitHub issue.
 Decide whether the file_path {file_path} needs to be modified to solve this issue and the proposed solution.
@@ -1855,8 +1855,9 @@ if __name__ == "__main__":
 
     print(extract_int("10, 10-11 (message)"))
     print("\nExtracting Span:")
-    span = extract_python_span(file, ["global"]).content
+    span = extract_python_span(file, ["ModifyBot", "try_update_file"]).content
     print(span)
+    quit()
 
     # test response for plan
     response = """<code_analysis>
