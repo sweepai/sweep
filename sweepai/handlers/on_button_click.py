@@ -21,11 +21,14 @@ def handle_button_click(request_dict):
 def handle_revert(file_paths, pr_number, repo: Repository):
     pr = repo.get_pull(pr_number)
     branch_name = pr.head.ref if pr_number else pr.pr_head
+    import traceback
+    
     def get_contents_with_fallback(repo: Repository, file_path: str, branch: str = None):
         try:
             if branch: return repo.get_contents(file_path, ref=branch)
             return repo.get_contents(file_path)
         except Exception as e:
+            logger.error(f"{e}\n{traceback.format_exc()}")
             return None
     old_file_contents = [ get_contents_with_fallback(repo, file_path) for file_path in file_paths]
     for file_path, old_file_content in zip(file_paths, old_file_contents):
@@ -47,4 +50,4 @@ def handle_revert(file_paths, pr_number, repo: Repository):
                     branch=branch_name,
                 )
         except Exception as e:
-            pass # file may not exist and this is expected
+            logger.error(f"{e}\n{traceback.format_exc()}")

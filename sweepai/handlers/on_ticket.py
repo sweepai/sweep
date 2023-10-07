@@ -144,7 +144,7 @@ def on_ticket(
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.warning(f"Error hydrating cache of sandbox: {e}")
+        logger.warning(f"Error hydrating cache of sandbox: {e}\n{traceback.format_exc()}")
     logger.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
@@ -634,7 +634,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
+            logger.error(f"Failed to extract docs: {e}\n{traceback.format_exc()}")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -707,11 +707,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(
-                    "Failed to create new branch for sweep.yaml file.\n",
-                    e,
-                    traceback.format_exc(),
-                )
+                logger.error(f"Failed to create new branch for sweep.yaml file.\n{e}\n{traceback.format_exc()}")
         else:
             logger.info("sweep.yaml file already exists.")
 
@@ -1089,8 +1085,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
+                logger.error(f"{e}\n{traceback.format_exc()}")
 
             if changes_required:
                 edit_sweep_comment(
@@ -1196,8 +1191,7 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.error.InvalidRequestError as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"{e}\n{traceback.format_exc()}")
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1231,8 +1225,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"{e}\n{traceback.format_exc()}")
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1270,7 +1263,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
+                logger.error(f"{e}\n{traceback.format_exc()}")
         finally:
             cloned_repo.delete()
 
@@ -1285,8 +1278,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                logger.error(f"{e}\n{traceback.format_exc()}")
                 logger.print("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
