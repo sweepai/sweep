@@ -117,5 +117,5 @@ class Sandbox(BaseModel):
         for filename, script in files_to_install_scripts.items():
             if os.path.exists(os.path.join(path, filename)):
                 logger.info(f"Found {filename} in repo, installing {script}")
-                sandbox.install = [script] + sandbox.install
+                sandbox.install = ["cd repo && " + script] + sandbox.install
         return sandbox
