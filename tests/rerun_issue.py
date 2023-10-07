@@ -1,13 +1,12 @@
 import html
 import time
-from typing import Optional
 
 import requests
 import typer
 from github import Github
 
-from sweepai.logn.cache import file_cache
 from sweepai.events import Account, Installation, IssueRequest
+from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import get_github_client, get_installation_id
 
 
@@ -90,7 +89,7 @@ def fetch_issue_request(issue_url: str, __version__: str = "0"):
 
 
 def main(
-    issue_url: Optional[str] = None,
+    issue_url: str,
     host: str = "http://127.0.0.1:8080",
     better_stack_prefix: str = "https://logs.betterstack.com/team/199101/tail?rf=now-30m&q=metadata.issue_url%3A",
 ):
