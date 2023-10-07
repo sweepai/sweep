@@ -53,6 +53,7 @@ def create_pr_changes(
     issue_number: int | None = None,
     sandbox=None,
     chat_logger: ChatLogger = None,
+    base_branch: str = None,
 ) -> Generator[tuple[FileChangeRequest, int, Commit], None, dict]:
     # Flow:
     # 1. Get relevant files
@@ -93,7 +94,7 @@ def create_pr_changes(
 
     try:
         logger.info("Making PR...")
-        pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name)
+        pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name, base_branch=base_branch)
         completed_count, fcr_count = 0, len(file_change_requests)
 
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
