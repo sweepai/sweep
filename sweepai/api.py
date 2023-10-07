@@ -104,6 +104,9 @@ def run_on_comment(*args, **kwargs):
     with logger:
         on_comment(*args, **kwargs)
 
+def run_on_button_click(*args, **kwargs):
+    thread = threading.Thread(target=handle_button_click, args=args, kwargs=kwargs)
+    thread.start()
 
 def run_on_check_suite(*args, **kwargs):
     logger.init(
@@ -386,7 +389,8 @@ async def webhook(raw_request: Request):
                     and sweep_labeled_issue
                     and request.sender.type == "User"
                 ):
-                    handle_button_click(request_dict)
+                    
+                    run_on_button_click(**request_dict)
 
                 restart_sweep = False
                 if (
