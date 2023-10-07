@@ -290,4 +290,4 @@ RESET_FILE = "Rollback changes to "
 REVERT_CHANGED_FILES_TITLE = "Rollback Files For Sweep"
 
 RULES_TITLE = "## Apply [Sweep Rules](https://docs.sweep.dev/usage/config#rules) to your PR?"
-RULES_LABEL = "**Fix:** "
+RULES_LABEL = "**Apply:** "

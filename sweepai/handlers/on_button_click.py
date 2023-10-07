@@ -92,7 +92,7 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
             new_pr = make_pr(
                 title="[Sweep Rules] " + issue_title,
                 repo_description=repo.description,
-                summary=issue_description,
+                summary=f"Apply this change: {rule}\n{issue_description}",
                 repo_full_name=request_dict["repository"]["full_name"],
                 installation_id=request_dict["installation"]["id"],
                 user_token=user_token,
@@ -102,7 +102,7 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
                 branch_name=pr.head.ref,
             )
             pr.create_issue_comment(
-                f"✨ **Created PR: {new_pr.html_url}** to fix `{rule}`"
+                f"✨ **Created PR: {new_pr.html_url}** to fix `{rule}`.\n This PR was made against the `{pr.head.ref}` branch, not your main branch, so it's safe to merge if it looks good!"
             )
             posthog.capture(
                 request_dict["sender"]["login"],
