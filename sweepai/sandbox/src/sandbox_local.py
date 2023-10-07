@@ -321,7 +321,7 @@ async def run_sandbox(request: SandboxRequest):
                 write_file(container, f"repo/{request.file_path}", request.content)
 
                 current_file = request.content
-                num_iterations = 15
+                num_iterations = 5
                 # num_iterations = 3
                 for i in range(1, num_iterations + 1):
                     try:
