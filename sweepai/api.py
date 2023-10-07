@@ -6,8 +6,9 @@ import time
 import psutil
 from sweepai.handlers.on_ticket import handle_button_click
 
+from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
-from sweepai.utils.buttons import check_button_activated
+from sweepai.utils.buttons import check_button_activated, check_button_title_match
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
 logger.init(
@@ -26,8 +27,8 @@ from pydantic import ValidationError
 from pymongo import MongoClient
 
 from sweepai.config.client import (
-    RESET_FILE,
     RESTART_SWEEP_BUTTON,
+    REVERT_CHANGED_FILES_TITLE,
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
     SweepConfig,
@@ -275,7 +276,7 @@ def check_redis_health():
 @app.get("/health")
 def health_check():
     sandbox_status = check_sandbox_health()
-    mongo_status = check_mongodb_health() if IS_SELF_HOSTED else None
+    mongo_status = check_mongodb_health() if not IS_SELF_HOSTED else None
     redis_status = check_redis_health()
 
     cpu_usage = psutil.cpu_percent(interval=0.1)
@@ -357,20 +358,22 @@ async def webhook(raw_request: Request):
             case "issue_comment", "edited":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueCommentRequest(**request_dict)
-                sweep_labeled_issue = GITHUB_LABEL_NAME in [label.name.lower() for label in request.issue.labels]
+                sweep_labeled_issue = GITHUB_LABEL_NAME in [
+                    label.name.lower() for label in request.issue.labels
+                ]
                 if (
                     request.comment.user.type == "Bot"
                     and GITHUB_BOT_USERNAME in request.comment.user.login
                     and request.changes.body_from is not None
-                    and check_button_activated(
-                        RESET_FILE, request.comment.body, request.changes
+                    and check_button_title_match(
+                        REVERT_CHANGED_FILES_TITLE,
+                        request.comment.body,
+                        request.changes,
                     )
                     and sweep_labeled_issue
                     and request.sender.type == "User"
                 ):
-                    # Restart Sweep on this issue
-                    # Call on_comment here with revert or regenerate file
-                    pass
+                    handle_button_click(request_dict)
 
                 button_label = check_button_activated(request.comment.body)
                 if button_label:
