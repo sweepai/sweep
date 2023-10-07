@@ -21,20 +21,30 @@ def handle_button_click(request_dict):
     button_list = ButtonList.deserialize(request_dict["comment"]["body"])
     selected_buttons = [button.label for button in button_list.get_clicked_buttons()]
     repo = gh_client.get_repo(request_dict["repository"]["full_name"]) # do this after checking ref
+    comment_id = request.comment.id
+    pr = repo.get_pull(request_dict["issue"]["number"])
+    comment = pr.get_issue_comment(comment_id)
     if check_button_title_match(REVERT_CHANGED_FILES_TITLE, request.comment.body, request.changes):
         revert_files = []
         for button_text in selected_buttons:
             revert_files.append(button_text.split(f"{RESET_FILE} ")[-1].strip())
         handle_revert(revert_files, request_dict["issue"]["number"], repo)
+        comment.edit(
+            body=ButtonList(
+                buttons=[
+                    button
+                    for button in button_list.buttons
+                    if button.label not in selected_buttons
+                ],
+                title = REVERT_CHANGED_FILES_TITLE,
+            ).serialize()
+        )
+
     if check_button_title_match(RULES_TITLE, request.comment.body, request.changes):
         rules = []
         for button_text in selected_buttons:
             rules.append(button_text.split(f"{RULES_LABEL} ")[-1].strip())
         handle_rules(request_dict, rules, user_token, repo, gh_client)
-        # update original comment to delete clicked button
-        comment_id = request.comment.id
-        pr = repo.get_pull(request_dict["issue"]["number"])
-        comment = pr.get_issue_comment(comment_id)
         comment.edit(
             body=ButtonList(
                 buttons=[
