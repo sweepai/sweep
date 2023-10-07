@@ -192,7 +192,7 @@ class ClonedRepo:
 
     @property
     def installation_string(self):
-        return f"sandbox/{self.repo_full_name}:{self.installation_cache_key}"
+        return f"sandbox/{self.repo_full_name.lower()}:{self.installation_cache_key}"
 
 
 @app.post("/")
