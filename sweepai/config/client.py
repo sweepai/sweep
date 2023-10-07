@@ -288,3 +288,6 @@ SWEEP_BAD_FEEDBACK = "👎 Sweep Needs Improvement"
 
 RESET_FILE = "Rollback changes to "
 REVERT_CHANGED_FILES_TITLE = "Rollback Files For Sweep"
+
+RULES_TITLE = "Sweep can apply your rules to your PR!"
+RULES_LABEL = "Apply Rules"

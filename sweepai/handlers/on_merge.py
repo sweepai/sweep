@@ -66,13 +66,12 @@ def on_merge(request_dict, chat_logger):
         and time.time() - merge_rule_debounce[repo.full_name] < DEBOUNCE_TIME
     ):
         return
-
-    rules = get_rules(repo)
-    if not rules:
-        return
-    # update the merge_rule_debounce dictionary with the current time for the current repo
     merge_rule_debounce[repo.full_name] = time.time()
     if not (commits_diff.count("\n") > CHANGE_BOUNDS[0] and commits_diff.count("\n") < CHANGE_BOUNDS[1]):
+        return
+    
+    rules = get_rules(repo)
+    if not rules:
         return
     for rule in rules:
         changes_required, issue_title, issue_description = PostMerge(

@@ -2,6 +2,8 @@ import traceback
 
 from sweepai.logn import logger
 from sweepai.config.client import (
+    RESET_FILE,
+    REVERT_CHANGED_FILES_TITLE,
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
     SweepConfig,
@@ -16,7 +18,7 @@ from sweepai.core.sweep_bot import SweepBot
 
 # from sandbox.sandbox_utils import Sandbox
 from sweepai.handlers.create_pr import create_pr_changes, GITHUB_LABEL_NAME
-from sweepai.utils.buttons import create_action_buttons
+from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
@@ -34,11 +36,12 @@ def make_pr(
     use_faster_model,
     username,
     chat_logger,
+    branch_name=None,
 ):
     _, repo_name = repo_full_name.split("/")
     # heavily copied code from on_ticket
     cloned_repo = ClonedRepo(
-        repo_full_name, installation_id=installation_id, token=user_token
+        repo_full_name, installation_id=installation_id, token=user_token, branch=branch_name
     )
     logger.info("Fetching relevant files...")
     try:
@@ -149,11 +152,14 @@ def make_pr(
         chat_logger=chat_logger,
     )
     response = {"error": NoFilesException()}
+    changed_files = []
     for item in generator:
         if isinstance(item, dict):
             response = item
             break
         file_change_request, changed_file, sandbox_response, commit = item
+        if changed_file:
+            changed_files.append(file_change_request.filename)
         sandbox_response: SandboxResponse | None = sandbox_response
         format_exit_code = (
             lambda exit_code: "✓" if exit_code == 0 else f"❌ (`{exit_code}`)"
@@ -175,7 +181,12 @@ def make_pr(
         title=pr_changes.title,
         body=pr_actions_message + pr_changes.body,
         head=pr_changes.pr_head,
-        base=SweepConfig.get_branch(repo),
+        base=branch_name if branch_name else SweepConfig.get_branch(repo),
     )
+    buttons = []
+    for changed_file in changed_files:
+        buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
+    revert_buttons_list = ButtonList(buttons=buttons, title=REVERT_CHANGED_FILES_TITLE)
+    pr.create_issue_comment(revert_buttons_list.serialize())
     pr.add_to_labels(GITHUB_LABEL_NAME)
     return True
