@@ -133,22 +133,22 @@ def on_ticket(
 
     # Hydrate cache of sandbox
     logger.info("Hydrating cache of sandbox.")
-        try:
-            requests.post(
-                SANDBOX_URL,
-                json={
-                    "repo_url": f"https://github.com/{repo_full_name}",
-                    "token": user_token,
-                },
-                timeout=2,
-            )
-        except Timeout:
-            logger.info("Sandbox hydration timed out.")
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.warning(f"Error hydrating cache of sandbox: {traceback.format_exc()}")
-        logger.info("Done sending, letting it run in the background.")
+    try:
+        requests.post(
+            SANDBOX_URL,
+            json={
+                "repo_url": f"https://github.com/{repo_full_name}",
+                "token": user_token,
+            },
+            timeout=2,
+        )
+    except Timeout:
+        logger.info("Sandbox hydration timed out.")
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        logger.warning(f"Error hydrating cache of sandbox: {e}")
+    logger.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
@@ -156,8 +156,8 @@ def on_ticket(
         branch_name = branch_match.group(1)
         SweepConfig.get_branch(repo, branch_name)
         logger.info(f"Overrides Branch name: {branch_name}")
-            else:
-                logger.info(f"Overrides not detected for branch {summary}")
+    else:
+        logger.info(f"Overrides not detected for branch {summary}")
 
     chat_logger = (
         ChatLogger(
@@ -235,9 +235,9 @@ def on_ticket(
 
     try:
         logger.info(f"Getting repo {repo_full_name}")
-        
-                if current_issue.state == "closed":
-                    logger.warning(f"Issue {issue_number} is closed")
+
+        if current_issue.state == "closed":
+            logger.warning(f"Issue {issue_number} is closed")
             posthog.capture(
                 username,
                 "issue_closed",
@@ -491,28 +491,28 @@ def on_ticket(
             # Update the issue comment
             msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
             try:
-                            issue_comment.edit(msg)
-                        except BadCredentialsException:
-                            logger.error("Bad credentials, refreshing token")
-                            _user_token, g = get_github_client(installation_id)
-                            repo = g.get_repo(repo_full_name)
-            
-                            for comment in comments:
-                                if comment.user.login == GITHUB_BOT_USERNAME:
-                                    issue_comment = comment
-            
-                            if issue_comment is None:
-                                issue_comment = current_issue.create_comment(msg)
-                            else:
-                                issue_comment = [
-                                    comment
-                                    for comment in issue.get_comments()
-                                    if comment.user == GITHUB_BOT_USERNAME
-                                ][0]
-                                issue_comment.edit(msg)
-            
-                    if len(title + summary) < 20:
-                        logger.info("Issue too short")
+                issue_comment.edit(msg)
+            except BadCredentialsException:
+                logger.error("Bad credentials, refreshing token")
+                _user_token, g = get_github_client(installation_id)
+                repo = g.get_repo(repo_full_name)
+
+                for comment in comments:
+                    if comment.user.login == GITHUB_BOT_USERNAME:
+                        issue_comment = comment
+
+                if issue_comment is None:
+                    issue_comment = current_issue.create_comment(msg)
+                else:
+                    issue_comment = [
+                        comment
+                        for comment in issue.get_comments()
+                        if comment.user == GITHUB_BOT_USERNAME
+                    ][0]
+                    issue_comment.edit(msg)
+
+        if len(title + summary) < 20:
+            logger.info("Issue too short")
             edit_sweep_comment(
                 (
                     "Please add more details to your issue. I need at least 20 characters"
@@ -583,7 +583,8 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             trace = traceback.format_exc()
-            logger.error(traceback.format_exc())
+            logger.error(e)
+            logger.error(trace)
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
@@ -636,7 +637,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(traceback.format_exc())
+            logger.error(f"Failed to extract docs: {e}")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -711,6 +712,7 @@ def on_ticket(
             except Exception as e:
                 logger.error(
                     "Failed to create new branch for sweep.yaml file.\n",
+                    e,
                     traceback.format_exc(),
                 )
         else:
@@ -1091,6 +1093,7 @@ def on_ticket(
                 raise SystemExit
             except Exception as e:
                 logger.error(traceback.format_exc())
+                logger.error(e)
 
             if changes_required:
                 edit_sweep_comment(
