@@ -389,7 +389,6 @@ async def webhook(raw_request: Request):
                     and sweep_labeled_issue
                     and request.sender.type == "User"
                 ):
-                    
                     run_on_button_click(request_dict=request_dict)
 
                 restart_sweep = False
