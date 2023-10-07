@@ -391,10 +391,9 @@ async def webhook(raw_request: Request):
                     and GITHUB_BOT_USERNAME in request.comment.user.login
                     and request.changes.body_from is not None
                     and button_title_match
-                    and sweep_labeled_issue
                     and request.sender.type == "User"
                 ):
-                    run_on_button_click(request_dict=request_dict)
+                    run_on_button_click(request_dict)
 
                 restart_sweep = False
                 if (
