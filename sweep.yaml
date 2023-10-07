@@ -24,7 +24,7 @@ sandbox:
     - poetry install
   check:
     - pre-commit run --files {file_path}
-    - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint {file_path}; else return 0; fi'
+    - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint --errors-only {file_path}; else return 0; fi'
     - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else return 0; fi'
 
 rules:

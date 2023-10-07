@@ -352,6 +352,32 @@ Step-by-step thoughts with explanations:
 Commit message: "feat/fix: the commit message"
 """
 
+create_file_prompt = """You are creating a file of code as part of a PR to solve the GitHub user's request under "# Metadata". You will follow the request under "# Request" and respond based on the format under "# Format".
+
+# Request
+
+file_name: "{filename}"
+
+{instructions}
+
+# Format
+
+Respond in the following XML format:
+
+<contextual_request_analysis>
+Concisely identify the language and stack used in the repo, based on other files (e.g. React, Typescript, Jest etc.).
+Concisely analyze the request and list step-by-step thoughts on what to create in each section, with low-level, detailed references to functions, variables, and imports to create, and what each function does. Be as explicit and specific as possible.
+Maximize information density in this section.
+</contextual_request_analysis>
+
+<new_file>
+The contents of the new files. NEVER write comments. All functions and classes will be fully implemented.
+When writing unit tests, they will be complete, extensive, and cover ALL edge cases. You will make up data for unit tests. Create mocks when necessary.
+</new_file>
+
+Commit message: "feat/fix: the commit message"
+""".strip()
+
 """
 Reply in the format below.
 * You MUST use the new_file XML tags

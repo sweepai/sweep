@@ -1,5 +1,4 @@
 import copy
-import math
 import re
 import traceback
 from collections import OrderedDict
@@ -12,7 +11,6 @@ from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from pydantic import BaseModel
 
-from sweepai.logn import logger
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.graph_child import (
     GraphChildBot,
@@ -57,6 +55,7 @@ from sweepai.core.prompts import (
     update_snippets_system_prompt,
     use_chunking_message,
 )
+from sweepai.logn import logger
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.diff import (
     format_contents,
@@ -605,6 +604,7 @@ class SweepBot(CodeGenBot, GithubBot):
         file_path: str,
         content: str | None,
         token: str,
+        changed_files: tuple[str, str],
         only_lint: bool = False,
     ) -> Dict:
         if not SANDBOX_URL:
@@ -617,6 +617,9 @@ class SweepBot(CodeGenBot, GithubBot):
                 "repo_url": repo_url,
                 "file_path": file_path,
                 "content": content,
+                "changed_files": {
+                    file_path: file_content for file_path, file_content in changed_files
+                },
                 "only_lint": only_lint,
             },
             timeout=(5, 500),
@@ -673,6 +676,7 @@ class SweepBot(CodeGenBot, GithubBot):
         self,
         file_path: str,
         content: str,
+        changed_files: list[tuple[str, str]],
     ):
         # Format file
         sandbox_execution: SandboxResponse | None = None
@@ -683,6 +687,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     repo_url=self.repo.html_url,
                     file_path=file_path,
                     content=content,
+                    changed_files=changed_files,
                 )
                 logger.print(output)
                 sandbox_execution = SandboxResponse(**output)
@@ -778,7 +783,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 file_contents,
                 _,
                 _,
-                _, # Don't use changed_files here
+                _,  # Don't use changed_files here
             ) = self.modify_file(
                 file_change_request,
                 contents=file_contents,
@@ -814,7 +819,7 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.error(f"Error: {e}")
 
         file_change.code, sandbox_execution = self.check_sandbox(
-            file_change_request.filename, file_change.code
+            file_change_request.filename, file_change.code, changed_files
         )
 
         self.messages = old_messages
@@ -944,7 +949,7 @@ class SweepBot(CodeGenBot, GithubBot):
             sandbox_execution = None
             if not chunking:
                 new_file, sandbox_execution = self.check_sandbox(
-                    file_change_request.filename, new_file
+                    file_change_request.filename, new_file, changed_files
                 )
             changed_files.append(
                 (
@@ -1036,7 +1041,7 @@ class SweepBot(CodeGenBot, GithubBot):
             ]
         )
         final_contents, sandbox_execution = self.check_sandbox(
-            file_change_request.filename, contents
+            file_change_request.filename, contents, []
         )
         self.repo.update_file(
             file_change_request.filename,
@@ -1475,7 +1480,9 @@ class ModifyBot:
     ):
         fetch_snippets_response = self.fetch_snippets_bot.chat(
             fetch_snippets_prompt.format(
-                code=extract_python_span(file_contents, [file_change_request.entity]).content
+                code=extract_python_span(
+                    file_contents, [file_change_request.entity]
+                ).content
                 if file_change_request.entity
                 else file_contents,
                 file_path=file_path,
@@ -1574,7 +1581,10 @@ class ModifyBot:
         # Fuse & dedup
         FUSE_OFFSET = 5
         for match_ in best_matches:
-            if current_match.end > match_.start or abs(current_match.end - match_.start) <= FUSE_OFFSET:
+            if (
+                current_match.end > match_.start
+                or abs(current_match.end - match_.start) <= FUSE_OFFSET
+            ):
                 current_match = fuse_matches(current_match, match_)
             else:
                 deduped_matches.append(current_match)
