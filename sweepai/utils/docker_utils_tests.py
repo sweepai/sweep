@@ -26,3 +26,11 @@ class TestDockerUtils(unittest.TestCase):
         mock_get.return_value.json.return_value = {"unexpected": "response"}
         with self.assertRaises(Exception):
             get_latest_docker_version()
+    @mock.patch('requests.get')
+    @mock.patch('logging.error')
+    def test_get_latest_docker_version_exception_logging(self, mock_logging_error, mock_get):
+        mock_get.side_effect = Exception("Test exception")
+        with self.assertLogs(level='ERROR') as cm:
+            get_latest_docker_version()
+        self.assertIn("Test exception", cm.output[0])
+        self.assertIn("Traceback", cm.output[0])
