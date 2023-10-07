@@ -111,6 +111,7 @@ sandboxes: dict[str, Sandbox] = {}
 
 class SandboxRequest(BaseModel):
     repo_url: str
+    changed_files: dict[str, str]
     file_path: str | None = None  # if none, only run install step to hydrate cache
     content: str | None = None
     token: str | None = None
@@ -197,7 +198,6 @@ class ClonedRepo:
 
 @app.post("/")
 async def run_sandbox(request: SandboxRequest):
-
     username, repo_name = request.repo_url.split("/")[-2:]
     cloned_repo = ClonedRepo(
         repo_full_name=f"{username}/{repo_name}", token=request.token
@@ -291,6 +291,11 @@ async def run_sandbox(request: SandboxRequest):
                 new_image.tag(image_id)
             else:
                 print("Image already exists, skipping install step...")
+
+            if request.changed_files:
+                for file_path, file_content in request.changed_files.items():
+                    print(f"Writing file {file_path}...")
+                    write_file(container, f"repo/{file_path}", file_content)
 
             if request.file_path is not None and request.content is not None:
                 old_file = ""
