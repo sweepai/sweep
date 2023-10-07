@@ -78,13 +78,6 @@ def read_file(container: str, file_path: str):
     return None
 
 
-trunk_setup_commands = [
-    "cd repo && ls",
-    "cd repo && trunk init && npm init -y && npm install --force prettier",
-    "cd repo && npx prettier --write {file_path}",
-]
-
-
 def discord_log_error(content, priority=0):
     """
     priority: 0 (high), 1 (medium), 2 (low)
