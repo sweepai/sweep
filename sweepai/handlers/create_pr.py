@@ -125,7 +125,7 @@ def create_pr_changes(
                 },
             )
 
-            # Todo: if no changes were made, delete branch
+            # If no changes were made, delete branch
             commits = sweep_bot.repo.get_commits(pull_request.branch_name)
             if commits.totalCount == 0:
                 branch = sweep_bot.repo.get_git_ref(f"heads/{pull_request.branch_name}")
