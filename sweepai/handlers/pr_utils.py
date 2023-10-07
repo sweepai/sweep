@@ -141,7 +141,7 @@ def make_pr(
         properties={"is_python_issue": is_python_issue},
     )
     file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue)
-    file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests)
+    file_change_requests = sweep_bot.validate_file_change_requests(file_change_requests, branch_name)
     pull_request = sweep_bot.generate_pull_request()
     generator = create_pr_changes(
         file_change_requests,
@@ -150,6 +150,7 @@ def make_pr(
         username,
         installation_id,
         chat_logger=chat_logger,
+        base_branch=branch_name,
     )
     response = {"error": NoFilesException()}
     changed_files = []
@@ -189,4 +190,4 @@ def make_pr(
     revert_buttons_list = ButtonList(buttons=buttons, title=REVERT_CHANGED_FILES_TITLE)
     pr.create_issue_comment(revert_buttons_list.serialize())
     pr.add_to_labels(GITHUB_LABEL_NAME)
-    return True
+    return pr

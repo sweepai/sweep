@@ -370,7 +370,6 @@ async def webhook(raw_request: Request):
                     request.comment.body,
                     request.changes,
                 )
-                import pdb; pdb.set_trace()
                 if (
                     request.comment.user.type == "Bot"
                     and GITHUB_BOT_USERNAME in request.comment.user.login

@@ -2,8 +2,8 @@
 
 from loguru import logger
 from github.Repository import Repository
-from sweepai.config.client import RESET_FILE, REVERT_CHANGED_FILES_TITLE, RULES_TITLE, get_rules
-import posthog
+from sweepai.config.client import RESET_FILE, REVERT_CHANGED_FILES_TITLE, RULES_LABEL, RULES_TITLE, get_rules
+from sweepai.utils.event_logger import posthog
 from sweepai.core.post_merge import PostMerge
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.events import IssueCommentRequest
@@ -26,13 +26,25 @@ def handle_button_click(request_dict):
         for button_text in selected_buttons:
             revert_files.append(button_text.split(f"{RESET_FILE} ")[-1].strip())
         handle_revert(revert_files, request_dict["issue"]["number"], repo)
-    import pdb; pdb.set_trace()
     if check_button_title_match(RULES_TITLE, request.comment.body, request.changes):
         rules = []
-        import pdb; pdb.set_trace()
         for button_text in selected_buttons:
-            rules.append(button_text.split(f"{RULES_TITLE} ")[-1].strip())
+            rules.append(button_text.split(f"{RULES_LABEL} ")[-1].strip())
         handle_rules(request_dict, rules, user_token, repo, gh_client)
+        # update original comment to delete clicked button
+        comment_id = request.comment.id
+        pr = repo.get_pull(request_dict["issue"]["number"])
+        comment = pr.get_issue_comment(comment_id)
+        comment.edit(
+            body=ButtonList(
+                buttons=[
+                    button
+                    for button in button_list.buttons
+                    if button.label not in selected_buttons
+                ],
+                title = RULES_TITLE,
+            ).serialize()
+        )
 
 def handle_revert(file_paths, pr_number, repo: Repository):
     pr = repo.get_pull(pr_number)
@@ -77,7 +89,7 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
             chat_logger=chat_logger
         ).check_for_issues(rule=rule, diff=commits_diff)
         if changes_required:
-            make_pr(
+            new_pr = make_pr(
                 title="[Sweep Rules] " + issue_title,
                 repo_description=repo.description,
                 summary=issue_description,
@@ -88,6 +100,9 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
                 username=request_dict["sender"]["login"],
                 chat_logger=chat_logger,
                 branch_name=pr.head.ref,
+            )
+            pr.create_issue_comment(
+                f"Created PR: {new_pr.html_url} to fix `{rule}`"
             )
             posthog.capture(
                 request_dict["sender"]["login"],
