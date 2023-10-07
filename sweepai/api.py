@@ -341,7 +341,6 @@ async def webhook(raw_request: Request):
                 pr = repo.get_pull(request.pull_request.number)
                 rule_buttons = ButtonList(buttons=repo.get_rules(), title=RULES_TITLE)
                 pr.create_issue_comment(json.dumps(rule_buttons))
-                handle_button_click(request_dict)
             case "issues", "opened":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
@@ -387,7 +386,7 @@ async def webhook(raw_request: Request):
                     and sweep_labeled_issue
                     and request.sender.type == "User"
                 ):
-                    handle_button_click(request_dict)
+                    
 
                 restart_sweep = False
                 if (
