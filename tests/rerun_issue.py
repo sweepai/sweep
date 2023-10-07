@@ -6,7 +6,6 @@ import typer
 from github import Github
 
 from sweepai.events import Account, Installation, IssueRequest
-from sweepai.logn.cache import file_cache
 from sweepai.utils.github_utils import get_github_client, get_installation_id
 
 
@@ -28,7 +27,6 @@ def wait_for_server(host: str):
         print(f"Waited for server to start ({i+1}s)")
 
 
-@file_cache()
 def fetch_issue_request(issue_url: str, __version__: str = "0"):
     (
         protocol_name,

@@ -28,6 +28,7 @@ from pymongo import MongoClient
 from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
     REVERT_CHANGED_FILES_TITLE,
+    RULES_TITLE,
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
     SweepConfig,
@@ -360,15 +361,20 @@ async def webhook(raw_request: Request):
                 sweep_labeled_issue = GITHUB_LABEL_NAME in [
                     label.name.lower() for label in request.issue.labels
                 ]
+                button_title_match = check_button_title_match(
+                    REVERT_CHANGED_FILES_TITLE,
+                    request.comment.body,
+                    request.changes,
+                ) or check_button_title_match(
+                    RULES_TITLE,
+                    request.comment.body,
+                    request.changes,
+                )
                 if (
                     request.comment.user.type == "Bot"
                     and GITHUB_BOT_USERNAME in request.comment.user.login
                     and request.changes.body_from is not None
-                    and check_button_title_match(
-                        REVERT_CHANGED_FILES_TITLE,
-                        request.comment.body,
-                        request.changes,
-                    )
+                    and button_title_match
                     and sweep_labeled_issue
                     and request.sender.type == "User"
                 ):
