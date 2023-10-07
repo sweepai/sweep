@@ -110,7 +110,7 @@ sandboxes: dict[str, Sandbox] = {}
 
 class SandboxRequest(BaseModel):
     repo_url: str
-    changed_files: dict[str, str]
+    changed_files: dict[str, str] = {}
     file_path: str | None = None  # if none, only run install step to hydrate cache
     content: str | None = None
     token: str | None = None

@@ -687,7 +687,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     repo_url=self.repo.html_url,
                     file_path=file_path,
                     content=content,
-                    changed_files=self.changed_files,
+                    changed_files=changed_files,
                 )
                 logger.print(output)
                 sandbox_execution = SandboxResponse(**output)
