@@ -102,7 +102,7 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
                 branch_name=pr.head.ref,
             )
             pr.create_issue_comment(
-                f"Created PR: {new_pr.html_url} to fix `{rule}`"
+                f"✨ **Created PR: {new_pr.html_url}** to fix `{rule}`"
             )
             posthog.capture(
                 request_dict["sender"]["login"],
