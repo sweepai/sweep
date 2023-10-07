@@ -38,7 +38,7 @@ def check_button_title_match(
         title: str, body: str, changes_request: Changes | None = None
 ):
     if changes_request:
-        content = changes_request.body_from
+        content = changes_request.body_from or ""
         if title.lower() in content.lower():
             return True
     return False

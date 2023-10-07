@@ -19,11 +19,14 @@ from tqdm import tqdm
 from sweepai.config.client import (
     RESET_FILE,
     RESTART_SWEEP_BUTTON,
+    RULES_LABEL,
+    RULES_TITLE,
     REVERT_CHANGED_FILES_TITLE,
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
     SweepConfig,
     get_documentation_dict,
+    get_rules,
 )
 from sweepai.config.server import (
     DISCORD_FEEDBACK_WEBHOOK_URL,
@@ -1115,10 +1118,15 @@ def on_ticket(
                 if DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 else ""
             )
-            buttons = []
+            revert_buttons = []
             for changed_file in changed_files:
-                buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
-            buttons_list = ButtonList(buttons=buttons, title=REVERT_CHANGED_FILES_TITLE)
+                revert_buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
+            revert_buttons_list = ButtonList(buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE)
+
+            rule_buttons = []
+            for rule in get_rules(repo):
+                rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+            rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
 
             pr = repo.create_pull(
                 title=pr_changes.title,
@@ -1126,8 +1134,11 @@ def on_ticket(
                 head=pr_changes.pr_head,
                 base=SweepConfig.get_branch(repo),
             )
+            if revert_buttons:
+                pr.create_issue_comment(revert_buttons_list.serialize())
+            if rule_buttons:
+                pr.create_issue_comment(rules_buttons_list.serialize())
             # add comments before labelling
-            pr.create_issue_comment(buttons_list.serialize())
             pr.add_to_labels(GITHUB_LABEL_NAME)
             current_issue.create_reaction("rocket")
             edit_sweep_comment(
