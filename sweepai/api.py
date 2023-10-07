@@ -7,7 +7,7 @@ import psutil
 
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
-from sweepai.utils.buttons import check_button_activated, check_button_title_match
+from sweepai.utils.buttons import ButtonList, check_button_activated, check_button_title_match
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
 logger.init(
@@ -333,6 +333,15 @@ async def webhook(raw_request: Request):
         action = request_dict.get("action", None)
 
         match event, action:
+            case "pull_request", "opened":
+                logger.info(f"Received event: {event}, {action}")
+                request = PRRequest(**request_dict)
+                _, g = get_github_client(request.installation.id)
+                repo = g.get_repo(request.repository.full_name)
+                pr = repo.get_pull(request.pull_request.number)
+                rule_buttons = ButtonList(buttons=repo.get_rules(), title=RULES_TITLE)
+                pr.create_issue_comment(json.dumps(rule_buttons))
+                handle_button_click(request_dict)
             case "issues", "opened":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
