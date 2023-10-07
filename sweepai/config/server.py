@@ -85,9 +85,9 @@ GITHUB_LABEL_DESCRIPTION = os.environ.get(
 )
 GITHUB_APP_PEM = os.environ.get("GITHUB_APP_PEM")
 GITHUB_APP_PEM = GITHUB_APP_PEM or os.environ.get("PRIVATE_KEY")
-GITHUB_APP_PEM = GITHUB_APP_PEM.strip(' \n"')  # Remove whitespace and quotes
-GITHUB_APP_PEM = GITHUB_APP_PEM.replace("\\n", "\n")
-assert GITHUB_APP_PEM, "GITHUB_APP_PEM is required"
+if GITHUB_APP_PEM is not None:
+    GITHUB_APP_PEM = GITHUB_APP_PEM.strip(' \n"')  # Remove whitespace and quotes
+    GITHUB_APP_PEM = GITHUB_APP_PEM.replace("\\n", "\n")
 
 GITHUB_CONFIG_BRANCH = os.environ.get("GITHUB_CONFIG_BRANCH", "sweep/add-sweep-config")
 GITHUB_DEFAULT_CONFIG = os.environ.get(
