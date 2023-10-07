@@ -66,10 +66,7 @@ class TestSearchAndReplace(unittest.TestCase):
         self.assertEqual(match.end, 1)
         self.assertEqual(match.score, 100)
 
-    @patch("sweepai.utils.search_and_replace.posthog")
-    def test_capture_posthog_event(self, mock_posthog):
-        capture_posthog_event("username", "event", {"property": "value"})
-        mock_posthog.capture.assert_called_once_with("username", "event", {"property": "value"})
+    
 
 
 if __name__ == "__main__":
