@@ -11,19 +11,22 @@ from time import time
 
 import openai
 import requests
-from github import BadCredentialsException, GithubException
+from github import BadCredentialsException
 from requests.exceptions import Timeout
 from tabulate import tabulate
 from tqdm import tqdm
 
 from sweepai.config.client import (
     RESET_FILE,
-    REVERT_CHANGED_FILES_TITLE,
     RESTART_SWEEP_BUTTON,
+    RULES_LABEL,
+    RULES_TITLE,
+    REVERT_CHANGED_FILES_TITLE,
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
     SweepConfig,
     get_documentation_dict,
+    get_rules,
 )
 from sweepai.config.server import (
     DISCORD_FEEDBACK_WEBHOOK_URL,
@@ -549,14 +552,14 @@ def on_ticket(
                 )
                 return {"success": False}
 
-        if lint_mode:
-            # Get files to change
-            # Create new branch
-            # Send request to endpoint
-            for file_path in []:
-                SweepBot.run_sandbox(
-                    repo.html_url, file_path, None, user_token, only_lint=True
-                )
+        # if lint_mode:
+        # Get files to change
+        # Create new branch
+        # Send request to endpoint
+        # for file_path in []:
+        # SweepBot.run_sandbox(
+        #     repo.html_url, file_path, None, user_token, only_lint=True
+        # )
 
         logger.info("Fetching relevant files...")
         try:
@@ -1118,7 +1121,12 @@ def on_ticket(
             buttons = []
             for changed_file in changed_files:
                 buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
-            buttons_list = ButtonList(buttons=buttons, title=REVERT_CHANGED_FILES_TITLE)
+            revert_buttons_list = ButtonList(buttons=buttons, title=REVERT_CHANGED_FILES_TITLE)
+
+            rule_buttons = []
+            for rule in get_rules(repo):
+                rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+            rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
 
             pr = repo.create_pull(
                 title=pr_changes.title,
@@ -1126,8 +1134,9 @@ def on_ticket(
                 head=pr_changes.pr_head,
                 base=SweepConfig.get_branch(repo),
             )
+            pr.create_issue_comment(revert_buttons_list.serialize())
+            pr.create_issue_comment(rules_buttons_list.serialize())
             # add comments before labelling
-            pr.create_issue_comment(buttons_list.serialize())
             pr.add_to_labels(GITHUB_LABEL_NAME)
             current_issue.create_reaction("rocket")
             edit_sweep_comment(

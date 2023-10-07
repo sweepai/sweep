@@ -470,10 +470,10 @@ class GithubBot(BaseModel):
 
         return branch
 
-    def create_branch(self, branch: str, retry=True) -> str:
+    def create_branch(self, branch: str, base_branch: str= None, retry=True) -> str:
         # Generate PR if nothing is supplied maybe
         branch = self.clean_branch_name(branch)
-        base_branch = self.repo.get_branch(SweepConfig.get_branch(self.repo))
+        base_branch = self.repo.get_branch(base_branch if base_branch else SweepConfig.get_branch(self.repo))
         try:
             try:
                 test = self.repo.get_branch("sweep")
@@ -728,7 +728,7 @@ class SweepBot(CodeGenBot, GithubBot):
             for file_path in file_change_request.relevant_files:
                 try:
                     relevant_files_contents.append(
-                        self.get_contents(file_path).decoded_content.decode("utf-8")
+                        self.get_contents(file_path, branch=self.cloned_repo.branch).decoded_content.decode("utf-8")
                     )
                 except Exception as e:
                     relevant_files_contents.append("File not found")
