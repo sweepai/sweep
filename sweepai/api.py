@@ -390,7 +390,7 @@ async def webhook(raw_request: Request):
                     and request.sender.type == "User"
                 ):
                     
-                    run_on_button_click(**request_dict)
+                    run_on_button_click(request_dict=request_dict)
 
                 restart_sweep = False
                 if (
@@ -618,7 +618,7 @@ async def webhook(raw_request: Request):
                 logger.info(f"Received event: {event}, {action}")
                 # Add a separate endpoint for this
                 request = CommentCreatedRequest(**request_dict)
-                handle_button_click(request_dict)
+                run_on_button_click(request_dict=request_dict)
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pr = repo.get_pull(request.pull_request.number)
