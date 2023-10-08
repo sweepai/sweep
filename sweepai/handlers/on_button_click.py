@@ -60,8 +60,6 @@ def handle_button_click(request_dict):
                 comment.delete()
             except Exception as e:
                 logger.error(f"Error deleting comment: {e}")
-                user_token, gh_client = get_github_client(request_dict["installation"]["id"])
-                gh_client.get_repo(request_dict["repository"]["full_name"]).get_pull(request_dict["issue"]["number"]).get_issue_comment(comment_id).delete()
 
 def handle_revert(file_paths, pr_number, repo: Repository):
     pr = repo.get_pull(pr_number)
@@ -71,7 +69,6 @@ def handle_revert(file_paths, pr_number, repo: Repository):
             if branch: return repo.get_contents(file_path, ref=branch)
             return repo.get_contents(file_path)
         except Exception as e:
-            logger.error(f"Error getting contents with fallback: {e}")
             return None
     old_file_contents = [ get_contents_with_fallback(repo, file_path) for file_path in file_paths]
     for file_path, old_file_content in zip(file_paths, old_file_contents):

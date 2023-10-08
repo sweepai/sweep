@@ -340,6 +340,9 @@ async def webhook(raw_request: Request):
         match event, action:
             case "pull_request", "opened":
                 logger.info(f"Received event: {event}, {action}")
+                # if the request author is sweep bot do nothing
+                if request_dict["pull_request"]["user"]["login"] == GITHUB_BOT_USERNAME:
+                    return {"success": True, "reason": "Pull request opened by bot"}
                 _, g = get_github_client(request_dict["installation"]["id"])
                 repo = g.get_repo(request_dict["repository"]["full_name"])
                 pr = repo.get_pull(request_dict["pull_request"]["number"])
