@@ -36,3 +36,15 @@ class TestFunctionCalls(unittest.TestCase):
             find_function_calls(extraction_term, test_code),
             [(2, 6), (7, 11), (17, 22), (20, 21)],
         )
+file_contents = """\
+    call_this(
+        x,
+        y
+    )
+    dontcallthis
+    call_this(inside())
+"""
+
+if __name__ == "__main__":
+    keyword = "call_this"
+    print(find_function_calls(keyword, file_contents))
