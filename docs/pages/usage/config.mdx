@@ -3,6 +3,8 @@
 You can configure Sweep by modifying the `sweep.yaml` file, which should be in the root directory of your repository.
 
 After making your first Sweep issue, Sweep will make a PR to add the config file for you. If it's not there, you can create it yourself and add the following default config file:
+# Sweep Config
+
 ## Rules
 
 In the context of the Sweep application, rules are specific guidelines that the application follows when making changes to your repository. These rules should be specific to your repository and should mention any technologies you use. For example, a rule could be "All Python code should adhere to PEP8 standards". You can refer to the `sweep.yaml` file for more examples of rules.
@@ -12,6 +14,12 @@ In the context of the Sweep application, rules are specific guidelines that the 
 When writing rules for the Sweep application, it's important to be specific and clear. Here are a few tips for writing effective rules:
 
 - Be specific: Instead of writing "Code should be clean", write "Python code should adhere to PEP8 standards".
+- Mention technologies: If your repository uses specific technologies, mention them in your rules. For example, "All React components should have PropTypes defined".
+- Use the `sweep.yaml` file: All rules should be written in the `sweep.yaml` file in your repository's root directory.
+
+You can configure Sweep by modifying the `sweep.yaml` file, which should be in the root directory of your repository.
+
+After making your first Sweep issue, Sweep will make a PR to add the config file for you. If it's not there, you can create it yourself and add the following default config file:
 - Mention technologies: If your repository uses specific technologies, mention them in your rules. For example, "All React components should have PropTypes defined".
 - Use the `sweep.yaml` file: All rules should be written in the `sweep.yaml` file in your repository's root directory.
 
