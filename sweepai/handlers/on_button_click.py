@@ -55,6 +55,11 @@ def handle_button_click(request_dict):
                 title = RULES_TITLE,
             ).serialize()
         )
+        if not rules:
+            try:
+                comment.delete()
+            except Exception as e:
+                logger.error(f"Error deleting comment: {e}")
 
 def handle_revert(file_paths, pr_number, repo: Repository):
     pr = repo.get_pull(pr_number)
