@@ -73,6 +73,7 @@ files_to_install_scripts = {
     "pyproject.toml": "poetry install",
     "yarn.lock": "yarn install",
     "pnpm-lock.yaml": "pnpm i",
+    ".pre-commit-config.yaml": "pre-commit install",
 }
 
 
