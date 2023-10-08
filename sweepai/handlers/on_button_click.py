@@ -1,6 +1,7 @@
 
 
 from loguru import logger
+from github import GithubException
 from github.Repository import Repository
 from sweepai.config.client import RESET_FILE, REVERT_CHANGED_FILES_TITLE, RULES_LABEL, RULES_TITLE, get_rules
 from sweepai.utils.event_logger import posthog
@@ -12,23 +13,6 @@ from sweepai.handlers.pr_utils import make_pr
 from sweepai.utils.buttons import ButtonList, check_button_title_match
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.github_utils import get_github_client
-
-
-
-def handle_button_click(request_dict):
-    request = IssueCommentRequest(**request_dict)
-    user_token, gh_client = get_github_client(request_dict["installation"]["id"])
-    button_list = ButtonList.deserialize(request_dict["comment"]["body"])
-    selected_buttons = [button.label for button in button_list.get_clicked_buttons()]
-    repo = gh_client.get_repo(request_dict["repository"]["full_name"]) # do this after checking ref
-    # Moved the retrieval of the repository to a later point in the function
-    repo = gh_client.get_repo(request_dict["repository"]["full_name"])
-    comment_id = request.comment.id
-    pr = repo.get_pull(request_dict["issue"]["number"])
-    comment = pr.get_issue_comment(comment_id)
-    if check_button_title_match(REVERT_CHANGED_FILES_TITLE, request.comment.body, request.changes):
-        revert_files = []
-        for button_text in selected_buttons:
             revert_files.append(button_text.split(f"{RESET_FILE} ")[-1].strip())
         handle_revert(revert_files, request_dict["issue"]["number"], repo)
         comment.edit(
@@ -55,6 +39,11 @@ def handle_button_click(request_dict):
                     if button.label not in selected_buttons
                 ],
                 title = RULES_TITLE,
+                if not selected_buttons and check_button_title_match(RULES_TITLE, request.comment.body):
+                try:
+                comment.delete()
+                except GithubException as e:
+                logger.exception(f"Failed to delete comment: {e}")
             ).serialize()
         )
 
