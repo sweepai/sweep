@@ -2,6 +2,15 @@ import unittest
 
 from sweepai.utils.function_call_utils import find_function_calls
 
+file_contents = """\
+    call_this(
+        x,
+        y
+    )
+    dontcallthis
+    call_this(inside())
+"""
+
 test_code = """import React, { useState, useEffect } from 'react';
 
   useEffect(() => {
@@ -35,4 +44,11 @@ class TestFunctionCalls(unittest.TestCase):
         self.assertEqual(
             find_function_calls(extraction_term, test_code),
             [(2, 6), (7, 11), (17, 22), (20, 21)],
+        )
+
+    def test_find_function_call_file_contents(self):
+        keyword = "call_this"
+        self.assertEqual(
+            find_function_calls(keyword, file_contents),
+            [(1, 4), (6, 7)],
         )
