@@ -1059,16 +1059,28 @@ Then, write search patterns we need to modify from the code. The system will the
 
 # Format
 <instructions>
-Identify all changes that need to be made to the code file.
+Identify all changes that need to be made to the file.
 Then identify all snippet sections that should receive these changes. These snippets will go into the snippets_to_modify block.
 Then identify any patterns of code that should be modified, like all function calls of a particular function. These patterns will go into the patterns block.
 </instructions>
 
-<snippet_to_modify>
-first five lines of code from the original snippet
+<snippets_to_modify>
+<snippet_to_modify reason="justification for modifying this snippet">
+```
+first five lines from the first original snippet
 ...
-last five lines of code from the original snippet (the code)
+last five lines from the first original snippet (the code)
+```
 </snippet_to_modify>
+<snippet_to_modify reason="justification for modifying this snippet">
+```
+first five lines from the second original snippet
+...
+last five lines from the second original snippet (the code)
+```
+</snippet_to_modify>
+...
+</snippets_to_modify>
 
 <extraction_terms>
 first term from the code
@@ -1093,18 +1105,28 @@ File path: {file_path}
 
 # Format
 <instructions>
-Identify all changes that need to be made to the code file.
+Identify all changes that need to be made to the file.
 Then identify all snippet sections that should receive these changes.
 Then identify any patterns of code that should be modified, like all function calls of a particular function.
 </instructions>
 
+<snippets_to_modify>
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
-first five lines of code from the original snippet
+first five lines from the first original snippet
 ...
-last five lines of code from the original snippet (the code)
+last five lines from the first original snippet (the code)
 ```
 </snippet_to_modify>
+<snippet_to_modify reason="justification for modifying this snippet">
+```
+first five lines from the second original snippet
+...
+last five lines from the second original snippet (the code)
+```
+</snippet_to_modify>
+...
+</snippets_to_modify>
 
 <extraction_terms>
 first term from the code
