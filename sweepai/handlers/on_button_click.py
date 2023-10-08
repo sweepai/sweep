@@ -1,7 +1,7 @@
 
 
 from loguru import logger
-from github import Repository
+from github.Repository import Repository
 from sweepai.config.client import RESET_FILE, REVERT_CHANGED_FILES_TITLE, RULES_LABEL, RULES_TITLE, get_rules
 from sweepai.utils.event_logger import posthog
 from sweepai.core.post_merge import PostMerge
