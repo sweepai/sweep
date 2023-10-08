@@ -19,9 +19,9 @@ from tqdm import tqdm
 from sweepai.config.client import (
     RESET_FILE,
     RESTART_SWEEP_BUTTON,
+    REVERT_CHANGED_FILES_TITLE,
     RULES_LABEL,
     RULES_TITLE,
-    REVERT_CHANGED_FILES_TITLE,
     SWEEP_BAD_FEEDBACK,
     SWEEP_GOOD_FEEDBACK,
     SweepConfig,
@@ -1006,7 +1006,7 @@ def on_ticket(
                     [
                         checkbox_template.format(
                             check=check,
-                            filename=filename,
+                            filename=filename.strip("`"),
                             instructions="",
                         ).strip()
                         for filename, instructions, check in checkboxes_progress
@@ -1121,7 +1121,9 @@ def on_ticket(
             revert_buttons = []
             for changed_file in changed_files:
                 revert_buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
-            revert_buttons_list = ButtonList(buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE)
+            revert_buttons_list = ButtonList(
+                buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
+            )
 
             rule_buttons = []
             for rule in get_rules(repo):
