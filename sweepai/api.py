@@ -343,6 +343,15 @@ async def webhook(raw_request: Request):
                 _, g = get_github_client(request_dict["installation"]["id"])
                 repo = g.get_repo(request_dict["repository"]["full_name"])
                 pr = repo.get_pull(request_dict["pull_request"]["number"])
+                # if the pr already has a comment from sweep bot do nothing
+                if any(
+                    comment.user.login == GITHUB_BOT_USERNAME
+                    for comment in pr.get_issue_comments()
+                ):
+                    return {
+                        "success": True,
+                        "reason": "PR already has a comment from sweep bot",
+                    }
                 rule_buttons = []
                 for rule in get_rules(repo):
                     rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
