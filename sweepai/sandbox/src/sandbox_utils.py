@@ -73,6 +73,7 @@ files_to_install_scripts = {
     "pyproject.toml": "poetry install",
     "yarn.lock": "yarn install",
     "pnpm-lock.yaml": "pnpm i",
+    ".pre-commit-config.yaml": "pre-commit install",
 }
 
 
@@ -117,5 +118,5 @@ class Sandbox(BaseModel):
         for filename, script in files_to_install_scripts.items():
             if os.path.exists(os.path.join(path, filename)):
                 logger.info(f"Found {filename} in repo, installing {script}")
-                sandbox.install = ["cd repo && " + script] + sandbox.install
+                sandbox.install = [script] + sandbox.install
         return sandbox
