@@ -3,6 +3,17 @@
 You can configure Sweep by modifying the `sweep.yaml` file, which should be in the root directory of your repository.
 
 After making your first Sweep issue, Sweep will make a PR to add the config file for you. If it's not there, you can create it yourself and add the following default config file:
+## Rules
+
+In the context of the Sweep application, rules are specific guidelines that the application follows when making changes to your repository. These rules should be specific to your repository and should mention any technologies you use. For example, a rule could be "All Python code should adhere to PEP8 standards". You can refer to the `sweep.yaml` file for more examples of rules.
+
+### Guide for Writing Good Rules
+
+When writing rules for the Sweep application, it's important to be specific and clear. Here are a few tips for writing effective rules:
+
+- Be specific: Instead of writing "Code should be clean", write "Python code should adhere to PEP8 standards".
+- Mention technologies: If your repository uses specific technologies, mention them in your rules. For example, "All React components should have PropTypes defined".
+- Use the `sweep.yaml` file: All rules should be written in the `sweep.yaml` file in your repository's root directory.
 
 <details>
 <summary>Default content for&nbsp;`sweep.yaml`</summary>
@@ -62,7 +73,7 @@ sandbox:
 | `description` | `str` | The description of the repository |
 | `docs` | `dict` | A dictionary of documentation links |
 | `sandbox` | `dict` | Sandbox settings for validating code changes |
-| `rules` | `dict` | Leave chores for Sweep by following these rules |
+| `rules` | `list` | A list of specific guidelines that Sweep follows when making changes to your repository. These should be specific to your repository and mention any technologies you use. |
 
 ---
 
@@ -127,14 +138,13 @@ Sandbox executes commands in a sandboxed environment to validate code changes af
 ### `rules`
 ```yml
 rules:
- - There should not be commented out code.
- - Update UPDATES_MESSAGE section in sweepai/config/client.py if there is a major new feature.
- - Update docs/pages/usage/config.mdx for changes that affect sweep.yaml.
- - Add appropriate documentation when large new features are released. Make sure all envvars are documented in sweepai/config/server.py
- - Make sure all error logs use traceback and any unnecessary info logs are deleted.
+ - All Python code should adhere to PEP8 standards.
+ - All React components should have PropTypes defined.
+ - Update the README.md file whenever a new feature is added.
+ - Remove any console.log statements before committing JavaScript code.
 ```
 
-This setting contains a list of rules that Sweep will check for. If any of these rules are broken in a new commit, Sweep will create an pull request to fix the broken rule.
+These are examples of rules that Sweep will check for. If any of these rules are broken in a new commit, Sweep will create a pull request to fix the broken rule. Remember, these rules should be specific to your repository and should mention any technologies you use. You can refer to the `sweep.yaml` file for more examples of rules.
 
 ---
 
