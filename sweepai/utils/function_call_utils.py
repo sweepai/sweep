@@ -28,17 +28,3 @@ def find_function_calls(keyword: str, file_contents: str):
             spans.append((start_line, end_line + 1))
 
     return spans
-
-
-file_contents = """\
-    call_this(
-        x,
-        y
-    )
-    dontcallthis
-    call_this(inside())
-"""
-
-if __name__ == "__main__":
-    keyword = "call_this"
-    print(find_function_calls(keyword, file_contents))
