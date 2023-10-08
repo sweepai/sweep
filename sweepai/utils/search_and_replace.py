@@ -300,239 +300,83 @@ if __name__ == "__main__":
     # for section in split_ellipses(test_code):
     #     print(section)
     code_file = r"""
-    try:
-        logger.info("Fetching files to modify/create...")
-        if file_comment:
-            file_change_requests = [
-                FileChangeRequest(
-                    filename=pr_file_path,
-                    instructions=f"The user left a comment in this chunk of code:\n<review_code_chunk>{formatted_pr_chunk}\n</review_code_chunk>.\nResolve their comment.",
-                    change_type="modify",
-                )
-            ]
-        else:
-            regenerate = comment.strip().lower().startswith("sweep: regenerate")
-            reset = comment.strip().lower().startswith("sweep: reset")
-            if regenerate or reset:
-                logger.info(f"Running {'regenerate' if regenerate else 'reset'}...")
 
-                file_paths = comment.strip().split(" ")[2:]
 
-                def get_contents_with_fallback(repo: Repository, file_path: str):
-                    try:
-                        return repo.get_contents(file_path)
-                    except SystemExit:
-                        raise SystemExit
-                    except Exception as e:
-                        logger.error(e)
-                        return None
+from loguru import logger
+from github.Repository import Repository
+from sweepai.config.client import RESET_FILE, REVERT_CHANGED_FILES_TITLE, RULES_LABEL, RULES_TITLE, get_rules
+from sweepai.utils.event_logger import posthog
+from sweepai.core.post_merge import PostMerge
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.events import IssueCommentRequest
+from sweepai.handlers.on_merge import comparison_to_diff
+from sweepai.handlers.pr_utils import make_pr
+from sweepai.utils.buttons import ButtonList, check_button_title_match
+from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.github_utils import get_github_client
 
-                old_file_contents = [
-                    get_contents_with_fallback(repo, file_path)
-                    for file_path in file_paths
-                ]
 
-                logger.print(old_file_contents)
-                for file_path, old_file_content in zip(file_paths, old_file_contents):
-                    current_content = sweep_bot.get_contents(
-                        file_path, branch=branch_name
-                    )
-                    if old_file_content:
-                        logger.info("Resetting file...")
-                        sweep_bot.repo.update_file(
-                            file_path,
-                            f"Reset {file_path}",
-                            old_file_content.decoded_content,
-                            sha=current_content.sha,
-                            branch=branch_name,
-                        )
-                    else:
-                        logger.info("Deleting file...")
-                        sweep_bot.repo.delete_file(
-                            file_path,
-                            f"Reset {file_path}",
-                            sha=current_content.sha,
-                            branch=branch_name,
-                        )
-                if reset:
-                    return {
-                        "success": True,
-                        "message": "Files have been reset to their original state.",
-                    }
-                return {
-                    "success": True,
-                    "message": "Files have been regenerated.",
-                }
-            else:
-                non_python_count = sum(
-                    not file_path.endswith(".py")
-                    for file_path in human_message.get_file_paths()
-                )
-                python_count = len(human_message.get_file_paths()) - non_python_count
-                is_python_issue = python_count > non_python_count
-                file_change_requests, _ = sweep_bot.get_files_to_change(
-                    is_python_issue, retries=1, pr_diffs=pr_diff_string
-                )
-                file_change_requests = sweep_bot.validate_file_change_requests(
-                    file_change_requests, branch=branch_name
-                )
 
-            sweep_response = "I couldn't find any relevant files to change."
-            if file_change_requests:
-                table_message = tabulate(
-                    [
-                        [
-                            f"`{file_change_request.filename}`",
-                            file_change_request.instructions_display.replace(
-                                "\n", "<br/>"
-                            ).replace("```", "\\```"),
-                        ]
-                        for file_change_request in file_change_requests
-                    ],
-                    headers=["File Path", "Proposed Changes"],
-                    tablefmt="pipe",
-                )
-                sweep_response = (
-                    f"I decided to make the following changes:\n\n{table_message}"
-                )
-            quoted_comment = "> " + comment.replace("\n", "\n> ")
-            response_for_user = (
-                f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
-            )
-            if pr_number:
-                edit_comment(response_for_user)
-                # pr.create_issue_comment(response_for_user)
-        logger.info("Making Code Changes...")
-
-        blocked_dirs = get_blocked_dirs(sweep_bot.repo)
-
-        sweep_bot.comment_pr_diff_str = pr_diff_string
-        sweep_bot.comment_pr_files_modified = pr_files_modified
-        changes_made = sum(
-            [
-                change_made
-                for _, change_made, _, _ in sweep_bot.change_files_in_github_iterator(
-                    file_change_requests, branch_name, blocked_dirs
-                )
-            ]
+def handle_button_click(request_dict):
+    request = IssueCommentRequest(**request_dict)
+    user_token, gh_client = get_github_client(request_dict["installation"]["id"])
+    button_list = ButtonList.deserialize(request_dict["comment"]["body"])
+    selected_buttons = [button.label for button in button_list.get_clicked_buttons()]
+    repo = gh_client.get_repo(request_dict["repository"]["full_name"]) # do this after checking ref
+    comment_id = request.comment.id
+    pr = repo.get_pull(request_dict["issue"]["number"])
+    comment = pr.get_issue_comment(comment_id)
+    if check_button_title_match(REVERT_CHANGED_FILES_TITLE, request.comment.body, request.changes):
+        revert_files = []
+        for button_text in selected_buttons:
+            revert_files.append(button_text.split(f"{RESET_FILE} ")[-1].strip())
+        handle_revert(revert_files, request_dict["issue"]["number"], repo)
+        comment.edit(
+            body=ButtonList(
+                buttons=[
+                    button
+                    for button in button_list.buttons
+                    if button.label not in selected_buttons
+                ],
+                title = REVERT_CHANGED_FILES_TITLE,
+            ).serialize()
         )
-        try:
-            if comment_id:
-                if changes_made:
-                    # PR Review Comment Reply
-                    edit_comment("Done.")
-                else:
-                    # PR Review Comment Reply
-                    edit_comment(
-                        'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR(at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discord](https://discord.com/invite/sweep)'
-                    )
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.error(f"Failed to reply to comment: {e}")
-
-        if not isinstance(pr, MockPR):
-            if pr.user.login == GITHUB_BOT_USERNAME and pr.title.startswith("[DRAFT] "):
-                # Update the PR title to remove the "[DRAFT]" prefix
-                pr.edit(title=pr.title.replace("[DRAFT] ", "", 1))
-
-        logger.info("Done!")
-    except NoFilesException:
-        posthog.capture(
-            username,
-            "failed",
-            properties={
-                "error": "No files to change",
-                "reason": "No files to change",
-                **metadata,
-            },
-        )
-        edit_comment(ERROR_FORMAT.format(title="Could not find files to change"))
-        return {"success": True, "message": "No files to change."}
-    except Exception as e:
-        logger.error(traceback.format_exc())
-        posthog.capture(
-            username,
-            "failed",
-            properties={
-                "error": str(e),
-                "reason": "Failed to make changes",
-                **metadata,
-            },
-        )
-        edit_comment(ERROR_FORMAT.format(title="Failed to make changes"))
-        raise e
-
-    # Delete eyes
-    if reaction is not None:
-        item_to_react_to.delete_reaction(reaction.id)
-
-    try:
-        item_to_react_to = pr.get_issue_comment(comment_id)
-        reaction = item_to_react_to.create_reaction("rocket")
-    except SystemExit:
-        raise SystemExit
-    except Exception:
-        try:
-            item_to_react_to = pr.get_review_comment(comment_id)
-            reaction = item_to_react_to.create_reaction("rocket")
-        except SystemExit:
-            raise SystemExit
-        except Exception:
-            pass
-
-    try:
-        if response_for_user is not None:
-            edit_comment(f"## 🚀 Wrote Changes\n\n{response_for_user}")
-    except SystemExit:
-        raise SystemExit
-    except Exception:
-        pass
-
-    posthog.capture(username, "success", properties={**metadata})
 """
 
     # Sample target snippet
     target = """
-    def get_snippets_to_modify(
-        self,
-        file_path: str,
-        file_contents: str,
-        file_change_request: FileChangeRequest,
-        chunking: bool = False,
-    ):
-        fetch_snippets_response = self.fetch_snippets_bot.chat(
-            fetch_snippets_prompt.format(
-                code=file_contents,
-                file_path=file_path,
-                request=file_change_request.instructions,
-                chunking_prompt='\nThe request may not apply to this section of the code. If so, reply with "No changes needed"\n'
-                if chunking
-                else "",
-            )
-        )
+from loguru import logger
+from github.Repository import Repository
+from sweepai.config.client import RESET_FILE, REVERT_CHANGED_FILES_TITLE, RULES_LABEL, RULES_TITLE, get_rules
+from sweepai.utils.event_logger import posthog
+from sweepai.core.post_merge import PostMerge
+from sweepai.core.sweep_bot import SweepBot
+from sweepai.events import IssueCommentRequest
+from sweepai.handlers.on_merge import comparison_to_diff
+from sweepai.handlers.pr_utils import make_pr
+from sweepai.utils.buttons import ButtonList, check_button_title_match
+from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.github_utils import get_github_client
 
-        snippet_queries = []
-        query_pattern = r"<snippet_to_modify.*?>(?P<code>.*?)</snippet_to_modify>"
-        for code in re.findall(query_pattern, fetch_snippets_response, re.DOTALL):
-            snippet_queries.append(strip_backticks(code))
-
-        assert len(snippet_queries) > 0, "No snippets found in file"
-        return snippet_queries
+def handle_button_click(request_dict):
+    request = IssueCommentRequest(**request_dict)
+    user_token, gh_client = get_github_client(request_dict["installation"]["id"])
+    button_list = ButtonList.deserialize(request_dict["comment"]["body"])
+    selected_buttons = [button.label for button in button_list.get_clicked_buttons()]
+    repo = gh_client.get_repo(request_dict["repository"]["full_name"]) # do this after checking ref
+    comment_id = request.comment.id
+    pr = repo.get_pull(request_dict["issue"]["number"])
+    comment = pr.get_issue_comment(comment_id)
+    ...
     """.strip(
         "\n"
     )
 
-    search_query = r"""
-    try:
-        logger.info("Fetching files to modify/create...")
-    ...
-    posthog.capture(username, "success", properties={**metadata}) """
-
     # Find the best match
-    best_span = find_best_match(search_query, code_file)
-    # best_code_snippet = "\n".join(
-    #     code_file.split("\n")[best_span.start : best_span.end]
-    # )
-    # print(f"Best code snippet:\n{best_code_snippet}")
+    best_span = find_best_match(target, code_file)
+
+    best_code_snippet = "\n".join(
+        code_file.split("\n")[best_span.start : best_span.end]
+    )
+    print(f"Best code snippet:\n{best_code_snippet}")
     # print(f"Best match line numbers: {best_span.start}-{best_span.end}")
