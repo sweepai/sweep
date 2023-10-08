@@ -1,7 +1,7 @@
 
 
 from loguru import logger
-from github import Repository, BadCredentialsException
+from github import Repository, Exception
 from sweepai.config.client import RESET_FILE, REVERT_CHANGED_FILES_TITLE, RULES_LABEL, RULES_TITLE, get_rules
 from sweepai.utils.event_logger import posthog
 from sweepai.core.post_merge import PostMerge
@@ -58,7 +58,7 @@ def handle_button_click(request_dict):
         if not rules:
             try:
                 comment.delete()
-            except BadCredentialsException:
+            except Exception:
                 user_token, gh_client = get_github_client(request_dict["installation"]["id"])
                 gh_client.get_repo(request_dict["repository"]["full_name"]).get_pull(request_dict["issue"]["number"]).get_issue_comment(comment_id).delete()
 
