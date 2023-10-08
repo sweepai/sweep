@@ -21,6 +21,8 @@ def handle_button_click(request_dict):
     button_list = ButtonList.deserialize(request_dict["comment"]["body"])
     selected_buttons = [button.label for button in button_list.get_clicked_buttons()]
     repo = gh_client.get_repo(request_dict["repository"]["full_name"]) # do this after checking ref
+    # Moved the retrieval of the repository to a later point in the function
+    repo = gh_client.get_repo(request_dict["repository"]["full_name"])
     comment_id = request.comment.id
     pr = repo.get_pull(request_dict["issue"]["number"])
     comment = pr.get_issue_comment(comment_id)
