@@ -3,21 +3,15 @@ import re
 
 def find_function_calls(keyword: str, file_contents: str):
     spans = []
-    if sum(c.isalnum() for c in keyword) <= 3:
-        return spans  # avoid huge regex matches
-    # regex_pattern = f"{re.escape(keyword)}\\s*\\((?:[^()]*|\\((?:[^()]*|\\([^()]*\\))*\\))*?\\)"
-    # pattern = re.compile(regex_pattern, re.DOTALL)
 
     for match_ in re.finditer(re.escape(keyword), file_contents):
         parenthesis_count = 0
         is_function_call = False
         keyword_start = match_.end()
-        print(f'"{file_contents[keyword_start]}"')
         for end_index, char in enumerate(
             file_contents[keyword_start:], start=keyword_start
         ):
             if char.isspace():
-                print("here")
                 continue
             if char == "(":
                 is_function_call = True
@@ -27,7 +21,6 @@ def find_function_calls(keyword: str, file_contents: str):
             if parenthesis_count == 0:
                 break
         else:
-            print("continue")
             continue
         if is_function_call:
             start_line = file_contents.count("\n", 0, keyword_start)
