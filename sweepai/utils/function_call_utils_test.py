@@ -36,3 +36,14 @@ class TestFunctionCalls(unittest.TestCase):
             find_function_calls(extraction_term, test_code),
             [(2, 6), (7, 11), (17, 22), (20, 21)],
         )
+    def test_find_function_calls(self):
+        file_contents = """\
+            call_this(
+                x,
+                y
+            )
+            dontcallthis
+            call_this(inside())
+        """
+        keyword = "call_this"
+        self.assertEqual(find_function_calls(keyword, file_contents), [(1, 4), (6, 7)])
