@@ -2,7 +2,7 @@ import unittest
 
 from sweepai.utils.function_call_utils import find_function_calls
 
-file_contents = """\
+file_contents = """
     call_this(
         x,
         y
@@ -38,6 +38,13 @@ export default Component;"""
 
 extraction_term = "useEffect"
 
+another_code_file = """
+def download_models():
+    from sentence_transformers import (  # pylint: disable=import-error
+        SentenceTransformer,
+    )
+"""
+
 
 class TestFunctionCalls(unittest.TestCase):
     def test_find_function_call(self):
@@ -50,5 +57,13 @@ class TestFunctionCalls(unittest.TestCase):
         keyword = "call_this"
         self.assertEqual(
             find_function_calls(keyword, file_contents),
-            [(1, 4), (6, 7)],
+            [(1, 5), (6, 7)],
         )
+
+    def test_find_function_call_another_code_file(self):
+        keyword = "import"
+        self.assertEqual(find_function_calls(keyword, another_code_file), [(2, 5)])
+
+
+if __name__ == "__main__":
+    unittest.main()
