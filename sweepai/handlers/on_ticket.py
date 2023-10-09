@@ -596,6 +596,14 @@ def on_ticket(
                 is_consumer_tier,
                 username,
                 issue_url,
+                "Context Length",
+                str(e),
+                priority=2,
+            )
+                is_paying_user,
+                is_consumer_tier,
+                username,
+                issue_url,
                 "File Fetch",
                 str(e),
                 priority=1,
@@ -1222,7 +1230,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Context Length",
-                str(e),
+                str(e) + "\n" + traceback.format_exc(),
                 priority=2,
             )
             posthog.capture(
