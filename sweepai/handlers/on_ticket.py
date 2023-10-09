@@ -1304,7 +1304,7 @@ def on_ticket(
     except Exception as e:
         posthog.capture(
             username,
-            "error",
+            "failed",
             properties={
                 **metadata,
                 "error": str(e),
