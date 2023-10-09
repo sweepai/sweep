@@ -75,6 +75,28 @@ from sweepai.utils.ticket_utils import *
 openai.api_key = OPENAI_API_KEY
 
 sweeping_gif = """<a href="https://github.com/sweepai/sweep"><img class="swing" src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping"></a>"""
+def handle_button_click(button_label, request):
+    """
+    Handles a button click event.
+
+    Parameters:
+    button_label (str): The label of the button that was clicked.
+    request (IssueCommentRequest or PREdited): The request object containing information about the event.
+
+    Returns:
+    None
+    """
+    # Implement the logic to handle the button click event based on the button_label and request parameters.
+    # This is just a placeholder implementation and should be replaced with the actual logic.
+    if button_label == 'restart':
+        # Trigger a restart of the issue handling process.
+        pass
+    elif button_label == 'close':
+        # Close the issue.
+        pass
+    else:
+        # Handle other button labels.
+        pass
 
 
 def center(text: str) -> str:

@@ -4,6 +4,7 @@ import os
 import time
 
 import psutil
+from sweepai.handlers.on_ticket import handle_button_click
 
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
@@ -181,7 +182,7 @@ def delayed_kill(thread: threading.Thread, delay: int = 60 * 60):
     terminate_thread(thread)
 
 
-def call_on_ticket(*args, **kwargs):
+def call_on_ticket(button_label=None, *args, **kwargs):
     global on_ticket_events
     key = f"{kwargs['repo_full_name']}-{kwargs['issue_number']}"  # Full name, issue number as key
 
@@ -413,6 +414,10 @@ async def webhook(raw_request: Request):
                 ):
                     run_on_button_click(request_dict)
 
+                button_label = check_button_activated(request.comment.body)
+                if button_label:
+                    handle_button_click(button_label, request)
+
                 restart_sweep = False
                 if (
                     request.comment.user.type == "Bot"
@@ -461,6 +466,7 @@ async def webhook(raw_request: Request):
                     (request.repository.full_name, request.issue.number)
 
                     call_on_ticket(
+                        button_label=button_label,
                         title=request.issue.title,
                         summary=request.issue.body,
                         issue_number=request.issue.number,
@@ -525,6 +531,7 @@ async def webhook(raw_request: Request):
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
                     call_on_ticket(
+                        button_label=None,
                         title=request.issue.title,
                         summary=request.issue.body,
                         issue_number=request.issue.number,
@@ -549,6 +556,7 @@ async def webhook(raw_request: Request):
                         request.repository.description or ""
                     )
                     call_on_ticket(
+                        button_label=None,
                         title=request.issue.title,
                         summary=request.issue.body,
                         issue_number=request.issue.number,
@@ -559,7 +567,6 @@ async def webhook(raw_request: Request):
                         installation_id=request.installation.id,
                         comment_id=None,
                     )
-            case "issue_comment", "created":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueCommentRequest(**request_dict)
                 if (
@@ -599,6 +606,7 @@ async def webhook(raw_request: Request):
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
                     call_on_ticket(
+                        button_label=None,
                         title=request.issue.title,
                         summary=request.issue.body,
                         issue_number=request.issue.number,
@@ -736,12 +744,9 @@ async def webhook(raw_request: Request):
                     and not request.sender.login.endswith("[bot]")
                     and DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 ):
-                    good_button = check_button_activated(
-                        SWEEP_GOOD_FEEDBACK, request.pull_request.body, request.changes
-                    )
-                    bad_button = check_button_activated(
-                        SWEEP_BAD_FEEDBACK, request.pull_request.body, request.changes
-                    )
+                    button_label = check_button_activated(request.comment.body)
+                    if button_label:
+                        handle_button_click(button_label, request)
 
                     if good_button or bad_button:
                         emoji = "😕"
