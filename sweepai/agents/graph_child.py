@@ -181,7 +181,8 @@ def extract_python_span(code: str, entities: str):
 
     # Up to the first variable definition
     for i, line in enumerate(lines):
-        if "=" in line or line.lstrip().startswith(("class ", "def ")):
+        if line.lstrip().startswith(("class ", "def ")):
+            print(line)
             break
     captured_lines.update(range(i))
 
@@ -269,308 +270,428 @@ def extract_python_span(code: str, entities: str):
 
 if __name__ == "__main__":
     file = r'''
+import json
 import re
-from dataclasses import dataclass
+import time
+from functools import lru_cache
+from typing import Generator, List
 
-from fuzzywuzzy import fuzz
+import numpy as np
+import replicate
+import requests
+import traceback
+from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
+    VectorStore,
+)
+from redis import Redis
+from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
 from tqdm import tqdm
 
-from sweepai.logn import logger
+from sweepai.logn import file_cache, logger
+from sweepai.config.client import SweepConfig
+from sweepai.config.server import (
+    BATCH_SIZE,
+    HUGGINGFACE_TOKEN,
+    HUGGINGFACE_URL,
+    REDIS_URL,
+    REPLICATE_API_KEY,
+    REPLICATE_URL,
+    SENTENCE_TRANSFORMERS_MODEL,
+    VECTOR_EMBEDDING_SOURCE,
+)
+from sweepai.core.entities import Snippet
+from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
+from sweepai.core.repo_parsing_utils import repo_to_chunks
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.hash import hash_sha256
+from sweepai.utils.scorer import compute_score, get_scores
+
+from ..utils.github_utils import ClonedRepo
+
+MODEL_DIR = "/tmp/cache/model"
+DEEPLAKE_DIR = "/tmp/cache/"
+timeout = 60 * 60  # 30 minutes
+CACHE_VERSION = "v1.0.13"
+MAX_FILES = 500
+
+redis_client = Redis.from_url(REDIS_URL)
 
 
-def score_line(str1: str, str2: str) -> float:
-    if str1 == str2:
-        return 100
-
-    if str1.lstrip() == str2.lstrip():
-        whitespace_ratio = abs(len(str1) - len(str2)) / (len(str1) + len(str2))
-        score = 90 - whitespace_ratio * 10
-        return max(score, 0)
-
-    if str1.strip() == str2.strip():
-        whitespace_ratio = abs(len(str1) - len(str2)) / (len(str1) + len(str2))
-        score = 80 - whitespace_ratio * 10
-        return max(score, 0)
-
-    levenshtein_ratio = fuzz.ratio(str1, str2)
-
-    score = 70 * (levenshtein_ratio / 100)
-    return max(score, 0)
-
-
-def match_without_whitespace(str1: str, str2: str) -> bool:
-    return str1.strip() == str2.strip()
-
-
-def line_cost(line: str) -> float:
-    if line.strip() == "":
-        return 50
-    if line.strip().startswith("#") or line.strip().startswith("//"):
-        return 50 + len(line) / (len(line) + 1) * 30
-    return len(line) / (len(line) + 1) * 100
-
-
-def score_multiline(query: list[str], target: list[str]) -> float:
-    # TODO: add weighting on first and last lines
-
-    q, t = 0, 0  # indices for query and target
-    scores: list[tuple[float, float]] = []
-    skipped_comments = 0
-
-    def get_weight(q: int) -> float:
-        # Prefers lines at beginning and end of query
-        # Sequence: 1, 2/3, 1/2, 2/5...
-        index = min(q, len(query) - q)
-        return 100 / (index / 2 + 1)
-
-    while q < len(query) and t < len(target):
-        q_line = query[q]
-        t_line = target[t]
-        weight = get_weight(q)
-
-        if match_without_whitespace(q_line, t_line):
-            # Case 1: lines match
-            scores.append((score_line(q_line, t_line), weight))
-            q += 1
-            t += 1
-        elif "..." in q_line:
-            # Case 3: ellipsis wildcard
-            t += 1
-            if q + 1 == len(query):
-                scores.append((100 - (len(target) - t), weight))
-                q += 1
-                t = len(target)
-                break
-            max_score = 0
-            # Radix optimization
-            indices = [
-                t + i
-                for i, line in enumerate(target[t:])
-                if match_without_whitespace(line, query[q + 1])
-            ]
-            if not indices:
-                # logger.warning(f"Could not find whitespace match, using brute force")
-                indices = range(t, len(target))
-            for i in indices:
-                score, weight = score_multiline(query[q + 1 :], target[i:]), (
-                    100 - (i - t) / len(target) * 10
-                )
-                new_scores = scores + [(score, weight)]
-                total_score = sum(
-                    [value * weight for value, weight in new_scores]
-                ) / sum([weight for _, weight in new_scores])
-                max_score = max(max_score, total_score)
-            return max_score
-        elif (
-            t_line.strip() == ""
-            or t_line.strip().startswith("#")
-            or t_line.strip().startswith("//")
-        ):
-            # Case 2: skipped comment
-            skipped_comments += 1
-            t += 1
-            scores.append((90, weight))
-        else:
-            break
-
-    if q < len(query):
-        scores.extend(
-            (100 - line_cost(line), get_weight(index))
-            for index, line in enumerate(query[q:])
-        )
-    if t < len(target):
-        scores.extend(
-            (100 - line_cost(line), 100) for index, line in enumerate(target[t:])
-        )
-
-    final_score = (
-        sum([value * weight for value, weight in scores])
-        / sum([weight for _, weight in scores])
-        if scores
-        else 0
+def download_models():
+    from sentence_transformers import (  # pylint: disable=import-error
+        SentenceTransformer,
     )
-    final_score *= 1 - 0.05 * skipped_comments
 
-    return final_score
-
-
-@dataclass
-class Match:
-    start: int
-    end: int
-    score: float
-    indent: str = ""
-
-    def __gt__(self, other):
-        return self.score > other.score
+    model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
 
 
-def get_indent_type(content: str):
-    two_spaces = len(re.findall(r"\n {2}[^ ]", content))
-    four_spaces = len(re.findall(r"\n {4}[^ ]", content))
+def init_deeplake_vs(repo_name):
+    deeplake_repo_path = f"mem://{int(time.time())}{repo_name}"
+    deeplake_vector_store = VectorStore(
+        path=deeplake_repo_path, read_only=False, overwrite=False
+    )
+    return deeplake_vector_store
 
-    return "  " if two_spaces > four_spaces else "    "
+
+def parse_collection_name(name: str) -> str:
+    # Replace any non-alphanumeric characters with hyphens
+    name = re.sub(r"[^\w-]", "--", name)
+    # Ensure the name is between 3 and 63 characters and starts/ends with alphanumeric
+    name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
+    return name
 
 
-def get_max_indent(content: str, indent_type: str):
-    return max(len(line) - len(line.lstrip()) for line in content.split("\n")) // len(
-        indent_type
+def embed_huggingface(texts):
+    """Embeds a list of texts using Hugging Face's API."""
+    for i in range(3):
+        try:
+            headers = {
+                "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
+                "Content-Type": "application/json",
+            }
+            response = requests.post(
+                HUGGINGFACE_URL, headers=headers, json={"inputs": texts}
+            )
+            return response.json()["embeddings"]
+        except requests.exceptions.RequestException as e:
+            logger.error(
+                f"Error occurred when sending request to Hugging Face endpoint: {traceback.format_exc()}"
+            )
+
+
+def embed_replicate(texts):
+    client = replicate.Client(api_token=REPLICATE_API_KEY)
+    for i in range(3):
+        try:
+            outputs = client.run(REPLICATE_URL, input={"text_batch": json.dumps(texts)}, timeout=60)
+        except Exception as e:
+            logger.error(f"Replicate timeout: {traceback.format_exc()}")
+    return [output["embedding"] for output in outputs]
+
+
+@lru_cache(maxsize=64)
+def embed_texts(texts: tuple[str]):
+    logger.info(
+        f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}..."
+    )
+    match VECTOR_EMBEDDING_SOURCE:
+        case "sentence-transformers":
+            sentence_transformer_model = SentenceTransformer(
+                SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
+            )
+            vector = sentence_transformer_model.encode(
+                texts, show_progress_bar=True, batch_size=BATCH_SIZE
+            )
+            return vector
+        case "openai":
+            import openai
+
+            embeddings = []
+            for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+                try:
+                    response = openai.Embedding.create(
+                        input=batch, model="text-embedding-ada-002"
+                    )
+                    embeddings.extend([r["embedding"] for r in response["data"]])
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    logger.error(traceback.format_exc())
+                    logger.error(f"Failed to get embeddings for {batch}")
+            return embeddings
+        case "huggingface":
+            if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
+                embeddings = []
+                for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+                    embeddings.extend(embed_huggingface(texts))
+                return embeddings
+            else:
+                raise Exception("Hugging Face URL and token not set")
+        case "replicate":
+            if REPLICATE_API_KEY:
+                embeddings = []
+                for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE)):
+                    embeddings.extend(embed_replicate(batch))
+                return embeddings
+            else:
+                raise Exception("Replicate URL and token not set")
+        case _:
+            raise Exception("Invalid vector embedding mode")
+    logger.info(
+        f"Computed embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}"
     )
 
 
-def find_best_match(query: str, code_file: str):
-    best_match = Match(-1, -1, 0)
-
-    code_file_lines = code_file.split("\n")
-    query_lines = query.split("\n")
-    if len(query_lines) > 0 and query_lines[-1].strip() == "...":
-        query_lines = query_lines[:-1]
-    if len(query_lines) > 0 and query_lines[0].strip() == "...":
-        query_lines = query_lines[1:]
-    indent = get_indent_type(code_file)
-    max_indents = get_max_indent(code_file, indent)
-
-    top_matches = []
-
-    if len(query_lines) == 1:
-        for i, line in enumerate(code_file_lines):
-            score = score_line(line, query_lines[0])
-            if score > best_match.score:
-                best_match = Match(i, i + 1, score)
-        return best_match
-
-    for num_indents in range(0, min(max_indents + 1, 20)):
-        indented_query_lines = [indent * num_indents + line for line in query_lines]
-
-        start_indices = [
-            i
-            for i, line in enumerate(code_file_lines)
-            if score_line(line, indented_query_lines[0]) > 50
-        ]
-        start_indices = start_indices or [
-            i
-            for i in start_indices
-            if score_multiline(indented_query_lines[:2], code_file_lines[i : i + 2])
-            > 50
-        ]
-
-        if not start_indices:
-            start_pairs = [
-                (i, score_line(line, indented_query_lines[0]))
-                for i, line in enumerate(code_file_lines)
-            ]
-            start_pairs.sort(key=lambda x: x[1], reverse=True)
-            start_pairs = start_pairs[: min(40, len(start_pairs) // 5)]
-            start_indices = sorted([i for i, _ in start_pairs])
-
-        for i in tqdm(
-            start_indices,
-            position=0,
-            desc=f"Indent {num_indents}/{max_indents}",
-            leave=False,
-        ):
-            end_indices = [
-                j
-                for j, line in enumerate(code_file_lines[i:], start=i)
-                if score_line(line, indented_query_lines[-1]) > 50
-            ]
-            end_indices = end_indices or [
-                j
-                for j in end_indices
-                if score_multiline(
-                    indented_query_lines[-2:], code_file_lines[i + j - 1 : i + j + 1]
-                )
-                > 50
-            ]  # sus code
-            if not end_indices:
-                end_pairs = [
-                    (j, score_line(line, indented_query_lines[-1]))
-                    for j, line in enumerate(code_file_lines[i:], start=i)
-                ]
-                end_pairs.sort(key=lambda x: x[1], reverse=True)
-                end_pairs = end_pairs[: min(40, len(end_pairs) // 5)]
-                end_indices = sorted([j for j, _ in end_pairs])
-
-            for j in tqdm(
-                end_indices, position=1, leave=False, desc=f"Starting line {i}"
-            ):
-                candidate = code_file_lines[i : j + 1]
-                raw_score = score_multiline(indented_query_lines, candidate)
-
-                score = raw_score * (1 - num_indents * 0.01)
-                current_match = Match(i, j + 1, score, indent * num_indents)
-
-                if raw_score >= 99.99:  # early exit, 99.99 for floating point error
-                    logger.info(f"Exact match found! Returning: {current_match}")
-                    return current_match
-
-                top_matches.append(current_match)
-
-                if score > best_match.score:
-                    best_match = current_match
-
-    unique_top_matches: list[Match] = []
-    print(unique_top_matches)
-    unique_spans = set()
-    for top_match in sorted(top_matches, reverse=True):
-        if (top_match.start, top_match.end) not in unique_spans:
-            unique_top_matches.append(top_match)
-            unique_spans.add((top_match.start, top_match.end))
-    for top_match in unique_top_matches[:5]:
-        logger.print(top_match)
-
-    # Todo: on_comment file comments able to modify multiple files
-    return unique_top_matches[0] if unique_top_matches else Match(-1, -1, 0)
+def embedding_function(texts: list[str]):
+    # For LRU cache to work
+    return embed_texts(tuple(texts))
 
 
-def split_ellipses(query: str) -> list[str]:
-    queries = []
-    current_query = ""
-    for line in query.split("\n"):
-        if line.strip() == "...":
-            queries.append(current_query.strip("\n"))
-            current_query = ""
+def get_deeplake_vs_from_repo(
+    cloned_repo: ClonedRepo,
+    sweep_config: SweepConfig = SweepConfig(),
+):
+    deeplake_vs = None
+
+    repo_full_name = cloned_repo.repo_full_name
+    repo = cloned_repo.repo
+    commits = repo.get_commits()
+    commit_hash = commits[0].sha
+
+    logger.info(f"Downloading repository and indexing for {repo_full_name}...")
+    start = time.time()
+    logger.info("Recursively getting list of files...")
+    snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
+    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
+    # prepare lexical search
+    index = prepare_index_from_snippets(
+        snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
+    )
+    logger.print("Prepared index from snippets")
+    # scoring for vector search
+    files_to_scores = {}
+    score_factors = []
+    for file_path in tqdm(file_list):
+        if not redis_client:
+            score_factor = compute_score(
+                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+            )
+            score_factors.append(score_factor)
+            continue
+        cache_key = hash_sha256(file_path) + CACHE_VERSION
+        try:
+            cache_value = redis_client.get(cache_key)
+        except Exception as e:
+            logger.error(traceback.format_exc())
+            cache_value = None
+        if cache_value is not None:
+            score_factor = json.loads(cache_value)
+            score_factors.append(score_factor)
         else:
-            current_query += line + "\n"
-    return queries
+            score_factor = compute_score(
+                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
+            )
+            score_factors.append(score_factor)
+            redis_client.set(cache_key, json.dumps(score_factor))
+    # compute all scores
+    all_scores = get_scores(score_factors)
+    files_to_scores = {
+        file_path: score for file_path, score in zip(file_list, all_scores)
+    }
+    logger.info(f"Found {len(file_list)} files in repository {repo_full_name}")
+
+    documents = []
+    metadatas = []
+    ids = []
+    for snippet in snippets:
+        documents.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
+        metadata = {
+            "file_path": snippet.file_path[len(cloned_repo.cache_dir) + 1 :],
+            "start": snippet.start,
+            "end": snippet.end,
+            "score": files_to_scores[snippet.file_path],
+        }
+        metadatas.append(metadata)
+        gh_file_path = snippet.file_path[len("repo/") :]
+        ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")
+    logger.info(f"Getting list of all files took {time.time() - start}")
+    logger.info(f"Received {len(documents)} documents from repository {repo_full_name}")
+    collection_name = parse_collection_name(repo_full_name)
+
+    deeplake_vs = deeplake_vs or compute_deeplake_vs(
+        collection_name, documents, ids, metadatas, commit_hash
+    )
+
+    return deeplake_vs, index, len(documents)
 
 
-test_code = """\
-capture_posthog_event(username, "started", properties=metadata)
-...
-capture_posthog_event(
-    username,
-    "failed",
-    properties={"error": str(e), "reason": "Failed to get files", **metadata},
-)
-...
-capture_posthog_event(
-    username,
-    "failed",
-    properties={
-        "error": "No files to change",
-        "reason": "No files to change",
-        **metadata,
-    },
-)
-...
-capture_posthog_event(
-    username,
-    "failed",
-    properties={
-        "error": str(e),
-        "reason": "Failed to make changes",
-        **metadata,
-    },
-)
-...
-capture_posthog_event(username, "success", properties={**metadata})
-"""
+def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
+    if len(documents) > 0:
+        logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
+        # Check cache here for all documents
+        embeddings = [None] * len(documents)
+        if redis_client:
+            cache_keys = [
+                hash_sha256(doc)
+                + SENTENCE_TRANSFORMERS_MODEL
+                + VECTOR_EMBEDDING_SOURCE
+                + CACHE_VERSION
+                for doc in documents
+            ]
+            cache_values = redis_client.mget(cache_keys)
+            for idx, value in enumerate(cache_values):
+                if value is not None:
+                    arr = json.loads(value)
+                    if isinstance(arr, list):
+                        embeddings[idx] = np.array(arr, dtype=np.float32)
+
+        logger.info(
+            f"Found {len([x for x in embeddings if x is not None])} embeddings in cache"
+        )
+        indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
+        documents_to_compute = [documents[idx] for idx in indices_to_compute]
+
+        logger.info(f"Computing {len(documents_to_compute)} embeddings...")
+        computed_embeddings = embedding_function(documents_to_compute)
+        logger.info(f"Computed {len(computed_embeddings)} embeddings")
+
+        for idx, embedding in zip(indices_to_compute, computed_embeddings):
+            embeddings[idx] = embedding
+
+        try:
+            embeddings = np.array(embeddings, dtype=np.float32)
+        except SystemExit:
+            raise SystemExit
+        except:
+            logger.print([len(embedding) for embedding in embeddings])
+            logger.error(
+                "Failed to convert embeddings to numpy array, recomputing all of them"
+            )
+            embeddings = embedding_function(documents)
+            embeddings = np.array(embeddings, dtype=np.float32)
+
+        logger.info("Adding embeddings to deeplake vector store...")
+        deeplake_vs = init_deeplake_vs(collection_name)
+        deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
+        logger.info("Added embeddings to deeplake vector store")
+        if redis_client and len(documents_to_compute) > 0:
+            logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
+            cache_keys = [
+                hash_sha256(doc)
+                + SENTENCE_TRANSFORMERS_MODEL
+                + VECTOR_EMBEDDING_SOURCE
+                + CACHE_VERSION
+                for doc in documents_to_compute
+            ]
+            redis_client.mset(
+                {
+                    key: json.dumps(
+                        embedding.tolist()
+                        if isinstance(embedding, np.ndarray)
+                        else embedding
+                    )
+                    for key, embedding in zip(cache_keys, computed_embeddings)
+                }
+            )
+        return deeplake_vs
+    else:
+        logger.error("No documents found in repository")
+        return deeplake_vs
+
+
+# Only works on functions without side effects
+@file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
+def get_relevant_snippets(
+    cloned_repo: ClonedRepo,
+    query: str,
+    username: str | None = None,
+    sweep_config: SweepConfig = SweepConfig(),
+    lexical=True,
+):
+    repo_name = cloned_repo.repo_full_name
+    installation_id = cloned_repo.installation_id
+    logger.info("Getting query embedding...")
+    query_embedding = embedding_function([query])  # pylint: disable=no-member
+    logger.info("Starting search by getting vector store...")
+    deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
+        cloned_repo, sweep_config=sweep_config
+    )
+    content_to_lexical_score = search_index(query, lexical_index)
+    logger.info(f"Found {len(content_to_lexical_score)} lexical results")
+    logger.info(f"Searching for relevant snippets... with {num_docs} docs")
+    results = {"metadata": [], "text": []}
+    try:
+        results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
+    except SystemExit:
+        raise SystemExit
+    except Exception as e:
+        logger.error(traceback.format_exc())
+    logger.info("Fetched relevant snippets...")
+    if len(results["text"]) == 0:
+        logger.info(f"Results query {query} was empty")
+        logger.info(f"Results: {results}")
+        if username is None:
+            username = "anonymous"
+        posthog.capture(
+            username,
+            "failed",
+            {
+                "reason": "Results query was empty",
+                "repo_name": repo_name,
+                "installation_id": installation_id,
+                "query": query,
+            },
+        )
+        return []
+    metadatas = results["metadata"]
+    code_scores = [metadata["score"] for metadata in metadatas]
+    lexical_scores = []
+    for metadata in metadatas:
+        key = f"{metadata['file_path']}:{str(metadata['start'])}:{str(metadata['end'])}"
+        if key in content_to_lexical_score:
+            lexical_scores.append(content_to_lexical_score[key])
+        else:
+            lexical_scores.append(0.3)
+    vector_scores = results["score"]
+    combined_scores = [
+        code_score * 4
+        + vector_score
+        + lexical_score * 2.5  # increase weight of lexical search
+        for code_score, vector_score, lexical_score in zip(
+            code_scores, vector_scores, lexical_scores
+        )
+    ]
+    combined_list = list(zip(combined_scores, metadatas))
+    sorted_list = sorted(combined_list, key=lambda x: x[0], reverse=True)
+    sorted_metadatas = [metadata for _, metadata in sorted_list]
+    relevant_paths = [metadata["file_path"] for metadata in sorted_metadatas]
+    logger.info("Relevant paths: {}".format(relevant_paths[:5]))
+    return [
+        Snippet(
+            content="",
+            start=metadata["start"],
+            end=metadata["end"],
+            file_path=file_path,
+        )
+        for metadata, file_path in zip(sorted_metadatas, relevant_paths)
+    ][:num_docs]
+
+
+def chunk(texts: List[str], batch_size: int) -> Generator[List[str], None, None]:
+    """
+    Split a list of texts into batches of a given size for embed_texts.
+
+    Args:
+    ----
+        texts (List[str]): A list of texts to be chunked into batches.
+        batch_size (int): The maximum number of texts in each batch.
+
+    Yields:
+    ------
+        Generator[List[str], None, None]: A generator that yields batches of texts as lists.
+
+    Example:
+    -------
+        texts = ["text1", "text2", "text3", "text4", "text5"]
+        batch_size = 2
+        for batch in chunk(texts, batch_size):
+            print(batch)
+        # Output:
+        # ['text1', 'text2']
+        # ['text3', 'text4']
+        # ['text5']
+    """
+    texts = [text[:4096] if text else " " for text in texts]
+    for text in texts:
+        assert isinstance(text, str), f"Expected str, got {type(text)}"
+        assert len(text) <= 4096, f"Expected text length <= 4096, got {len(text)}"
+    for i in range(0, len(texts), batch_size):
+        yield texts[i : i + batch_size] if i + batch_size < len(texts) else texts[i:]
 '''
 
     print(extract_int("10, 10-11 (message)"))
     print("\nExtracting Span:")
-    span = extract_python_span(file, ["find_best_match", "__gt__"]).content
+    span = extract_python_span(file, ["embed_replicate"]).content
     print(span)
     quit()
 

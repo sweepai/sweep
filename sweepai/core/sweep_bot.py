@@ -1549,7 +1549,7 @@ class ModifyBot:
                 if keyword in line:
                     best_matches.append(
                         Match(
-                            start=i,
+                            start=max(i - 1, 0),
                             end=i + 1,
                             score=100,
                         )
@@ -1561,7 +1561,7 @@ class ModifyBot:
             for start, end in find_function_calls(keyword, file_contents):
                 best_matches.append(
                     Match(
-                        start=start,
+                        start=max(start - 1, 0),
                         end=end + 1,
                         score=100,
                     )
@@ -1582,7 +1582,7 @@ class ModifyBot:
             )
 
         current_match = best_matches[0]
-        deduped_untruncated_matches: list[Match] = []
+        deduped_matches: list[Match] = []
 
         # Fuse & dedup
         FUSE_OFFSET = 5
@@ -1593,22 +1593,9 @@ class ModifyBot:
             ):
                 current_match = fuse_matches(current_match, match_)
             else:
-                deduped_untruncated_matches.append(current_match)
+                deduped_matches.append(current_match)
                 current_match = match_
-        deduped_untruncated_matches.append(
-            current_match
-        )  # TODO: this should be somehow truncated
-
-        deduped_matches: list[Match] = []
-        for match_ in deduped_untruncated_matches:
-            start = match_.start
-            end = match_.end
-            while not file_contents[start].strip():
-                start += 1
-            while not file_contents[end - 1].strip():
-                end -= 1
-            if start < end:
-                deduped_matches.append(Match(start, end, match_.score))
+        deduped_matches.append(current_match)
 
         selected_snippets = []
         file_contents_lines = file_contents.split("\n")
