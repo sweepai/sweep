@@ -597,7 +597,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "File Fetch",
-                str(e) + "\n" + logger.exception("An error occurred"),
+                str(e) + "\n" + traceback.format_exc(),
                 priority=1,
             )
             posthog.capture(
@@ -711,7 +711,7 @@ def on_ticket(
                 logger.error(
                     "Failed to create new branch for sweep.yaml file.\n",
                     e,
-                    logger.exception("An error occurred"),
+                    traceback.format_exc(),
                 )
         else:
             logger.info("sweep.yaml file already exists.")
@@ -1090,7 +1090,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.exception("An error occurred")
+                traceback.format_exc()
                 logger.error(e)
 
             if changes_required:
@@ -1207,7 +1207,7 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.error.InvalidRequestError as e:
-            logger.exception("An error occurred")
+            traceback.format_exc()
             logger.error(e)
             edit_sweep_comment(
                 (
@@ -1242,7 +1242,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.exception("An error occurred")
+            traceback.format_exc()
             logger.error(e)
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
@@ -1297,9 +1297,9 @@ def on_ticket(
                 raise SystemExit
             except Exception as e:
                 logger.error(e)
-                logger.exception("An error occurred")
+                traceback.format_exc()
                 logger.print("Deleted branch", pull_request.branch_name)
-    except Exception as e:
+                except Exception as e:
         posthog.capture(
             username,
             "failed",
