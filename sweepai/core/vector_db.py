@@ -7,7 +7,7 @@ from typing import Generator, List
 import numpy as np
 import replicate
 import requests
-import traceback
+from loguru import logger
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
 )
@@ -15,7 +15,7 @@ from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
 from tqdm import tqdm
 
-from sweepai.logn import file_cache, logger
+from sweepai.logn import file_cache
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import (
     BATCH_SIZE,
@@ -83,18 +83,14 @@ def embed_huggingface(texts):
             return response.json()["embeddings"]
         except requests.exceptions.RequestException as e:
             logger.error(
-                f"Error occurred when sending request to Hugging Face endpoint: {traceback.format_exc()}"
-            )
-
-
-def embed_replicate(texts):
-    client = replicate.Client(api_token=REPLICATE_API_KEY)
-    for i in range(3):
-        try:
-            outputs = client.run(REPLICATE_URL, input={"text_batch": json.dumps(texts)}, timeout=60)
-        except Exception as e:
-            logger.error(f"Replicate timeout: {traceback.format_exc()}")
-    return [output["embedding"] for output in outputs]
+                def embed_replicate(texts):
+                    client = replicate.Client(api_token=REPLICATE_API_KEY)
+                    for i in range(3):
+                        try:
+                            outputs = client.run(REPLICATE_URL, input={"text_batch": json.dumps(texts)}, timeout=60)
+                        except Exception as e:
+                            logger.exception("Replicate timeout")
+                    return [output["embedding"] for output in outputs]
 
 
 @lru_cache(maxsize=64)
@@ -124,9 +120,8 @@ def embed_texts(texts: tuple[str]):
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.error(traceback.format_exc())
-                    logger.error(f"Failed to get embeddings for {batch}")
-            return embeddings
+                    logger.exception("Failed to get embeddings for {}", batch)
+                    return embeddings
         case "huggingface":
             if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
                 embeddings = []
@@ -190,7 +185,7 @@ def get_deeplake_vs_from_repo(
         try:
             cache_value = redis_client.get(cache_key)
         except Exception as e:
-            logger.error(traceback.format_exc())
+            logger.exception("Error occurred")
             cache_value = None
         if cache_value is not None:
             score_factor = json.loads(cache_value)
@@ -333,7 +328,7 @@ def get_relevant_snippets(
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.error(traceback.format_exc())
+        logger.exception("Error occurred")
     logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
         logger.info(f"Results query {query} was empty")
