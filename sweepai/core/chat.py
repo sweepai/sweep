@@ -106,9 +106,13 @@ class ChatGPT(BaseModel):
         content = system_message_prompt
         repo = kwargs.get("repo")
         if repo:
-            repo_description = get_description(repo)
+            repo_info = get_description(repo)
+            repo_description = repo_info.get("description", "")
+            repo_rules = repo_info.get("rules", "")
             if repo_description:
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"
+            if repo_rules:
+                content += f"\nRules:\n{repo_rules}"
         messages = [Message(role="system", content=content, key="system")]
 
         added_messages = human_message.construct_prompt()  # [ { role, content }, ... ]
