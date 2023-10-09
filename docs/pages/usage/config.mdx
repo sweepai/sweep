@@ -96,11 +96,14 @@ These can also be applied to any pull requests in your repository. In this case 
 
 #### Tips for writing rules:
 1. Rules should describe the technologies to use:
- - For example, if you usually have to clean up logs, write "Python error logs should use loguru. If they are under an exception, they should use traceback."
+
+Ex: if you usually have to clean up logs, write `"Python error logs should use loguru. If they are under an exception, they should use traceback."`
 2. Rules should be specific in the type of change:
- - "Update the README.md file whenever a new feature is added." Instead, say "Update the README.md file whenever a new feature is added. Make sure to include a description of the feature and any new commands."
+
+Ex: `"Update the README.md file whenever a new feature is added."` Instead, say `"Update the README.md file whenever a new feature is added. Make sure to include a description of the feature and any new commands."`
 3. Tell Sweep where the new code should go:
- - Example: "We use unit tests for our code. If we have "class.py", we should have "class_test.py" in the same directory."
+
+Ex: `"We use unit tests for our code. If we have "class.py", we should have "class_test.py" in the same directory."`
 
 ### `gha_enabled`
 ```yaml
