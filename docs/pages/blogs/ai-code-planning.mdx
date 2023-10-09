@@ -1,4 +1,4 @@
-# **How to plan with GPT4**
+# **🗺️ Walking the Call Graph for Repository-Level Planning of Code Changes with AI**
 
 **William Zeng** - October 9th, 2023
 
@@ -83,7 +83,7 @@ It’s definitely not as performant and we lost a bunch of utilities. But we don
 
 N-grams (another historical trick) also helps here. For context, TF-IDF leverages the inverse frequency of a term to boost the ranking. An N-gram captures patterns like `vector_db.search` or `logger.error(")`, giving us more context than just single tokens.
 
-We also tokenized on pascal-case, camel-case, and snake-case. This means that `ChatGPT`, `chat_gpt`, and `chatGPT` all become `chat` and `GPT`.  This also allows us to heavily match any code that is copied verbatim as well as class definitions and instantiations.
+We also [tokenized](https://github.com/sweepai/sweep/blob/main/sweepai/core/lexical_search.py#L70-L102) on pascal-case, camel-case, and snake-case. This means that `ChatGPT`, `chat_gpt`, and `chatGPT` all become `chat` and `GPT`.  This also allows us to heavily match any code that is copied verbatim as well as class definitions and instantiations.
 
 Finally, a title like "Change the ChatGPT.chat method to use the new API" can match `chat`, `gpt`, `chat_gpt.chat` and `class ChatGPT`. This works great for code when combined with vector search, which we discussed here: [https://docs.sweep.dev/blogs/search-infra](https://docs.sweep.dev/blogs/search-infra).
 
@@ -162,16 +162,15 @@ count defined in sweepai/utils/utils.py
 on_ticket used in sweepai/api.py
 ```
 
-We ran into another issue after this.
+Now that we're able to identify a file and entity, we need to make the correct change. Even if we point GPT4 to a function call, this is still unclear.
 
-{/* I don't understand this sentence tbh */}
-
-For example, if I ask you to add a parameter to a function (without context), is it an input or output parameter?
+For example, if we ask GPT$ to add a parameter to a function (without context), is it an input or output parameter?
 `def foo(new_param):` or `def foo(): -> new_param`?
+`foo(new_param)` or `new_param = foo()`?
 
-What’s the best way to make sure a changed function signature is passed down to the future modification steps?
+We need to figure out a way to make sure a changed function signature is passed down to the future modification steps.
 
-## Context passing
+## Passing context through the change sequence
 
 The trick we used was to pass down the diffs every time we make edits. This is incredibly useful in any scenario where we want to make sure a changed signature func(a, b) → func(a, b, c) has its usages modified.
 
