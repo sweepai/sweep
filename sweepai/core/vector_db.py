@@ -91,7 +91,7 @@ def embed_replicate(texts):
     client = replicate.Client(api_token=REPLICATE_API_KEY)
     for i in range(3):
         try:
-            outputs = client.run(REPLICATE_URL, input={"text_batch": json.dumps(texts)}, timeout=15)
+            outputs = client.run(REPLICATE_URL, input={"text_batch": json.dumps(texts)}, timeout=60)
         except Exception as e:
             logger.error(f"Replicate timeout: {traceback.format_exc()}")
     return [output["embedding"] for output in outputs]
