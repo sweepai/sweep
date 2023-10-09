@@ -8,6 +8,7 @@ from sweepai.logn import logger
 from sweepai.config.client import SweepConfig, get_rules
 from sweepai.core.post_merge import PostMerge
 from sweepai.handlers.pr_utils import make_pr
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
 
@@ -47,7 +48,7 @@ def comparison_to_diff(comparison):
         formatted_diffs.append(format_diff)
     return "\n".join(formatted_diffs)
 
-def on_merge(request_dict, chat_logger):
+def on_merge(request_dict: dict, chat_logger: ChatLogger):
     before_sha = request_dict['before']
     after_sha = request_dict['after']
     commit_author = request_dict['sender']['login']
@@ -78,6 +79,7 @@ def on_merge(request_dict, chat_logger):
             chat_logger=chat_logger
         ).check_for_issues(rule=rule, diff=commits_diff)
         if changes_required:
+            chat_logger.data["title"] = "[Sweep Rules] " + issue_title
             make_pr(
                 title="[Sweep Rules] " + issue_title,
                 repo_description=repo.description,
