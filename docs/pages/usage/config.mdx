@@ -3,29 +3,9 @@
 You can configure Sweep by modifying the `sweep.yaml` file, which should be in the root directory of your repository.
 
 After making your first Sweep issue, Sweep will make a PR to add the config file for you. If it's not there, you can create it yourself and add the following default config file:
-# Sweep Config
-
-## Rules
-
-In the context of the Sweep application, rules are specific guidelines that the application follows when making changes to your repository. These rules should be specific to your repository and should mention any technologies you use. For example, a rule could be "All Python code should adhere to PEP8 standards". You can refer to the `sweep.yaml` file for more examples of rules.
-
-### Guide for Writing Good Rules
-
-When writing rules for the Sweep application, it's important to be specific and clear. Here are a few tips for writing effective rules:
-
-- Be specific: Instead of writing "Code should be clean", write "Python code should adhere to PEP8 standards".
-- Mention technologies: If your repository uses specific technologies, mention them in your rules. For example, "All React components should have PropTypes defined".
-- Use the `sweep.yaml` file: All rules should be written in the `sweep.yaml` file in your repository's root directory.
-
-You can configure Sweep by modifying the `sweep.yaml` file, which should be in the root directory of your repository.
-
-After making your first Sweep issue, Sweep will make a PR to add the config file for you. If it's not there, you can create it yourself and add the following default config file:
-- Mention technologies: If your repository uses specific technologies, mention them in your rules. For example, "All React components should have PropTypes defined".
-- Use the `sweep.yaml` file: All rules should be written in the `sweep.yaml` file in your repository's root directory.
 
 <details>
 <summary>Default content for&nbsp;`sweep.yaml`</summary>
-
 ```yaml
 # Sweep AI turns bugs & feature requests into code changes (https://sweep.dev)
 # For details on our config file, check out our docs at https://docs.sweep.dev/usage/config
@@ -74,6 +54,7 @@ sandbox:
 ### Config Table
 | Key | Type | Description |
 | --- | --- | --- |
+| `rules` | `list` | A list of specific guidelines that Sweep follows when making changes to your repository. These should be specific to your repository and mention any technologies you use. |
 | `gha_enabled` | `bool` | Whether or not to enable GitHub Actions |
 | `branch` | `str` | The branch to run on |
 | `blocked_dirs` | `list` | A list of directories to ignore |
@@ -81,9 +62,45 @@ sandbox:
 | `description` | `str` | The description of the repository |
 | `docs` | `dict` | A dictionary of documentation links |
 | `sandbox` | `dict` | Sandbox settings for validating code changes |
-| `rules` | `list` | A list of specific guidelines that Sweep follows when making changes to your repository. These should be specific to your repository and mention any technologies you use. |
 
 ---
+
+### `sandbox`
+```yml
+sandbox:
+  install:
+    - pre-commit install
+    - pip install poetry
+    - poetry install
+  check:
+    - pre-commit run --files {file_path}
+    - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint --errors-only {file_path}; else return 0; fi'
+    - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else return 0; fi'
+```
+
+Sandbox executes commands in a sandboxed environment to validate code changes after every edit. For example, our sandbox can run tests! For more details, see the [Sandbox](./sandbox) page.
+
+### `rules`
+```yml
+rules:
+ - "All React components should have PropTypes defined."
+ - "Update the README.md file whenever a new feature is added. Make sure to include a description of the feature and any new commands."
+ - "Remove any console.log statements before committing JavaScript code."
+ - "All docstrings and comments should be up to date."
+ - "Python error logs should use loguru. If they are under an exception, they should use traceback."
+ - "We use unit tests for our code. If we have "class.py", we should have "class_test.py" in the same directory."
+```
+
+Sweep will check each pull request to see if any of these rules are broken. If so, Sweep will create a pull request to fix the broken rule. 
+These can also be applied to any pull requests in your repository. In this case Sweep will make the pull request against your pull request instead of your main branch.
+
+#### Tips for writing rules:
+1. Rules should describe the technologies to use:
+ - For example, if you usually have to clean up logs, write "Python error logs should use loguru. If they are under an exception, they should use traceback."
+2. Rules should be specific in the type of change:
+ - "Update the README.md file whenever a new feature is added." Instead, say "Update the README.md file whenever a new feature is added. Make sure to include a description of the feature and any new commands."
+3. Tell Sweep where the new code should go:
+ - Example: "We use unit tests for our code. If we have "class.py", we should have "class_test.py" in the same directory."
 
 ### `gha_enabled`
 ```yaml
@@ -129,31 +146,6 @@ This setting contains documentation links that Sweep is able to search through. 
 
 **Important**: Please contact us if you would like to add a documentation link so we can add it to our database.
 
-### `sandbox`
-```yml
-sandbox:
-  install:
-    - apt install python3.11 -y
-    - pip install poetry
-    - poetry env use python3.11
-    - poetry install
-  check:
-    - poetry run pylint --errors-only {file_path}
-```
-
-Sandbox executes commands in a sandboxed environment to validate code changes after every edit to guarantee pristine code. For more details, see the [Sandbox](./sandbox) page.
-
-### `rules`
-```yml
-rules:
- - All Python code should adhere to PEP8 standards.
- - All React components should have PropTypes defined.
- - Update the README.md file whenever a new feature is added.
- - Remove any console.log statements before committing JavaScript code.
-```
-
-These are examples of rules that Sweep will check for. If any of these rules are broken in a new commit, Sweep will create a pull request to fix the broken rule. Remember, these rules should be specific to your repository and should mention any technologies you use. You can refer to the `sweep.yaml` file for more examples of rules.
-
 ---
 
 ## Our Configuration File
@@ -171,12 +163,13 @@ docs:
 
 sandbox:
   install:
-    - apt install python3.11 -y
+    - pre-commit install
     - pip install poetry
-    - poetry env use python3.11
     - poetry install
   check:
-    - poetry run pylint --errors-only {file_path}
+    - pre-commit run --files {file_path}
+    - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint --errors-only {file_path}; else return 0; fi'
+    - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else return 0; fi'
 
 rules:
  - There should not be commented out code.
