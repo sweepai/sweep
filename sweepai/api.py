@@ -7,7 +7,12 @@ import psutil
 
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
-from sweepai.utils.buttons import Button, ButtonList, check_button_activated, check_button_title_match
+from sweepai.utils.buttons import (
+    Button,
+    ButtonList,
+    check_button_activated,
+    check_button_title_match,
+)
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
 logger.init(
@@ -106,9 +111,11 @@ def run_on_comment(*args, **kwargs):
     with logger:
         on_comment(*args, **kwargs)
 
+
 def run_on_button_click(*args, **kwargs):
     thread = threading.Thread(target=handle_button_click, args=args, kwargs=kwargs)
     thread.start()
+
 
 def run_on_check_suite(*args, **kwargs):
     logger.init(
@@ -356,7 +363,9 @@ async def webhook(raw_request: Request):
                 for rule in get_rules(repo):
                     rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
                 if rule_buttons:
-                    rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
+                    rules_buttons_list = ButtonList(
+                        buttons=rule_buttons, title=RULES_TITLE
+                    )
                     pr.create_issue_comment(rules_buttons_list.serialize())
             case "issues", "opened":
                 logger.info(f"Received event: {event}, {action}")
@@ -927,7 +936,7 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(
+                logger.warning(
                     f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
                 )
     except SystemExit:
