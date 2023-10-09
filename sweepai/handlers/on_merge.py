@@ -81,8 +81,6 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
             chat_logger=chat_logger
         ).check_for_issues(rule=rule, diff=commits_diff)
         if changes_required:
-            new_chat_logger = copy.deepcopy(chat_logger)
-            new_chat_logger.data["title"] = "[Sweep Rules] " + issue_title
             make_pr(
                 title="[Sweep Rules] " + issue_title,
                 repo_description=repo.description,
@@ -92,7 +90,7 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
                 user_token=user_token,
                 use_faster_model=chat_logger.use_faster_model(g),
                 username=commit_author,
-                chat_logger=new_chat_logger
+                chat_logger=chat_logger
             )
             posthog.capture(
                 commit_author,
