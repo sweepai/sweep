@@ -26,6 +26,8 @@ import threading
 import redis
 import requests
 from fastapi import FastAPI, HTTPException, Request
+import datetime
+import schedule
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
 from pymongo import MongoClient
@@ -78,6 +80,47 @@ from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.search_utils import index_full_repository
 
 app = FastAPI()
+
+from sweepai.core.entities import PRChangeRequest, create_issue_comment
+from sweepai.core.vector_db import get_deeplake_vs_from_repo
+from sweepai.events import (
+    CommentCreatedRequest,
+    InstallationCreatedRequest,
+    IssueCommentRequest,
+    IssueRequest,
+    PREdited,
+    PRRequest,
+    ReposAddedRequest,
+)
+from sweepai.handlers.create_pr import (  # type: ignore
+    add_config_to_top_repos,
+    create_gha_pr,
+)
+from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
+from sweepai.handlers.on_comment import on_comment
+from sweepai.handlers.on_merge import on_merge
+from sweepai.handlers.on_ticket import on_ticket
+from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.search_utils import index_full_repository
+
+app = FastAPI()
+
+def delete_old_sweep_issues_and_prs():
+    g = get_github_client()
+    issues = g.get_issues()
+    prs = g.get_pulls()
+    for issue in issues:
+        if issue.created_at < datetime.datetime.now() - datetime.timedelta(weeks=2) and ('Sweep' in issue.labels or issue.title.startswith('Sweep')):
+            create_issue_comment(issue, 'This issue is being closed due to inactivity.')
+            issue.close()
+    for pr in prs:
+        if pr.created_at < datetime.datetime.now() - datetime.timedelta(weeks=2) and ('Sweep' in pr.labels or pr.title.startswith('Sweep')):
+            create_issue_comment(pr, 'This PR is being closed due to inactivity.')
+            pr.close()
+
+schedule.every().day.at("00:00").do(delete_old_sweep_issues_and_prs)
 
 import tracemalloc
 
@@ -943,3 +986,17 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
         raise SystemExit
     except:
         logger.warning("Failed to update sweep PRs")
+def delete_old_sweep_issues_and_prs():
+    g = get_github_client()
+    issues = g.get_issues()
+    prs = g.get_pulls()
+    for issue in issues:
+        if issue.created_at < datetime.datetime.now() - datetime.timedelta(weeks=2) and ('Sweep' in issue.labels or issue.title.startswith('Sweep')):
+            create_issue_comment(issue, 'This issue is being closed due to inactivity.')
+            issue.close()
+    for pr in prs:
+        if pr.created_at < datetime.datetime.now() - datetime.timedelta(weeks=2) and ('Sweep' in pr.labels or pr.title.startswith('Sweep')):
+            create_issue_comment(pr, 'This PR is being closed due to inactivity.')
+            pr.close()
+
+schedule.every().day.at("00:00").do(delete_old_sweep_issues_and_prs)
