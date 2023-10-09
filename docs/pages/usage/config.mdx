@@ -55,30 +55,15 @@ sandbox:
 | Key | Type | Description |
 | --- | --- | --- |
 | `rules` | `list` | A list of specific guidelines that Sweep follows when making changes to your repository. These should be specific to your repository and mention any technologies you use. |
+| `sandbox` | `dict` | Sandbox settings for validating code changes |
 | `gha_enabled` | `bool` | Whether or not to enable GitHub Actions |
 | `branch` | `str` | The branch to run on |
 | `blocked_dirs` | `list` | A list of directories to ignore |
 | `draft` | `bool` | Whether or not to create PRs as drafts |
 | `description` | `str` | The description of the repository |
 | `docs` | `dict` | A dictionary of documentation links |
-| `sandbox` | `dict` | Sandbox settings for validating code changes |
 
 ---
-
-### `sandbox`
-```yml
-sandbox:
-  install:
-    - pre-commit install
-    - pip install poetry
-    - poetry install
-  check:
-    - pre-commit run --files {file_path}
-    - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint --errors-only {file_path}; else return 0; fi'
-    - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else return 0; fi'
-```
-
-Sandbox executes commands in a sandboxed environment to validate code changes after every edit. For example, our sandbox can run tests! For more details, see the [Sandbox](./sandbox) page.
 
 ### `rules`
 ```yml
@@ -106,6 +91,21 @@ If you usually have to clean up logs, write `"Python error logs should use logur
 ##### 3. Tell Sweep where the new code should go:
 
 `"We use unit tests for our code. If we have "class.py", we should have "class_test.py" in the same directory."`
+
+### `sandbox`
+```yml
+sandbox:
+  install:
+    - pre-commit install
+    - pip install poetry
+    - poetry install
+  check:
+    - pre-commit run --files {file_path}
+    - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint --errors-only {file_path}; else return 0; fi'
+    - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else return 0; fi'
+```
+
+Sandbox executes commands in a sandboxed environment to validate code changes after every edit. For example, our sandbox can run tests! For more details, see the [Sandbox](./sandbox) page.
 
 ### `gha_enabled`
 ```yaml
