@@ -7,13 +7,26 @@ from pathlib import Path
 from typing import Optional
 
 import docker
-import pathspec
-import typer
-import yaml
-from posthog import Posthog
-from pydantic import BaseModel
-from rich import console
-from tqdm import tqdm
+
+# import pathspec
+# import typer
+# import yaml
+# from posthog import Posthog
+# from pydantic import BaseModel
+# from rich import console
+# from tqdm import tqdm
+
+
+# console = console.Console()
+# print = console.print
+
+client = docker.from_env()
+print(client)
+print(client.containers)
+import pdb
+
+pdb.set_trace()
+quit()
 
 
 class SandboxContainer:
@@ -21,6 +34,8 @@ class SandboxContainer:
         self.container_name = "sandbox-{}".format(str(uuid.uuid4()))
 
     def __enter__(self):
+        print(client)
+        print(client.containers)
         client.containers.run(
             "sweepai/sandbox:latest",
             "tail -f /dev/null",
@@ -61,11 +76,6 @@ posthog = Posthog(
     project_api_key="phc_CnzwIB0W548wN4wEGeRuxXqidOlEUH2AcyV2sKTku8n",
     host="https://app.posthog.com",
 )
-
-console = console.Console()
-print = console.print
-
-client = docker.from_env()
 
 
 def copy_to(container):
