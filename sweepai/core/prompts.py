@@ -1055,7 +1055,7 @@ fetch_snippets_system_prompt = """You are a masterful engineer. Your job is to e
 
 Extract the smallest spans that let you handle the request by adding blocks of snippet_to_modify containing the code blocks you want to modify. Use this for implementing or changing functionality.
 
-Then, write search patterns we need to modify from the code. The system will then modify all of the lines containing the patterns. Use this to make many small changes, such as updating all function calls after changing the signature.
+Then, write search terms to extract that we need to modify from the code. The system will then modify all of the lines containing the patterns. Use this to make many small changes, such as updating all function calls after changing the signature.
 
 # Format
 <instructions>
@@ -1139,14 +1139,12 @@ This is just one section of the file. Determine whether the request is asking to
 
 Otherwise, respond with a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets.
 
-
-Then, select patterns in the code that we should update. The system will then select each line containing any of the patterns."""
+Then, select terms in the code that we should extract to update. The system will then select each line containing any of the patterns. Only select terms that MUST be updated."""
 
 dont_use_chunking_message = """\
 Respond with a list of the MINIMUM snippet(s) from old_code that should be modified. Unless absolutely necessary, keep these snippets less than 50 lines long. If a snippet is too long, split it into two or more snippets.
 
-
-Then, select patterns in the code that we should update. The system will then select each line containing any of the patterns."""
+Then, select terms in the code that we should extract to update. The system will then select each line containing any of the patterns. Only select terms that MUST be updated."""
 
 update_snippets_system_prompt = """\
 You are a brilliant and meticulous engineer assigned to write code to complete the user's request. When you write code, the code works on the first try, is syntactically perfect, and is complete.

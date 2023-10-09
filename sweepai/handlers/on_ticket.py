@@ -1006,7 +1006,7 @@ def on_ticket(
                     [
                         checkbox_template.format(
                             check=check,
-                            filename=filename.strip("`"),
+                            filename=filename,
                             instructions="",
                         ).strip()
                         for filename, instructions, check in checkboxes_progress
