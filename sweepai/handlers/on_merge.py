@@ -75,8 +75,8 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
     rules = get_rules(repo)
     if not rules:
         return
-    chat_logger.data["title"] = "Sweep Rules - Post Merge"
     for rule in rules:
+        chat_logger.data["title"] = f"Sweep Rules - {rule}"
         changes_required, issue_title, issue_description = PostMerge(
             chat_logger=chat_logger
         ).check_for_issues(rule=rule, diff=commits_diff)
