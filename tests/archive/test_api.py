@@ -46,8 +46,10 @@
 #     return {"message": "Task not found"}
 
 
+import datetime
 import multiprocessing
 import time
+from unittest.mock import patch
 
 from fastapi import FastAPI
 
@@ -94,3 +96,79 @@ async def start_task_endpoint(key: str):
 @app.post("/cancel/{key}")
 async def cancel_task_endpoint(key: str):
     return cancel_task(key)
+
+
+class MockIssue:
+    def __init__(self, created_at, labels, title):
+        self.created_at = created_at
+        self.labels = labels
+        self.title = title
+
+
+class MockPR:
+    def __init__(self, created_at, labels, title):
+        self.created_at = created_at
+        self.labels = labels
+        self.title = title
+
+
+def delete_old_sweep_issues_and_prs():
+    pass
+
+
+def test_delete_old_sweep_issues_and_prs():
+    with patch("sweepai.api.get_github_client") as mock_get_github_client:
+        mock_github_client = mock_get_github_client.return_value
+        mock_github_client.get_issues.return_value = [
+            # Mock issues
+            MockIssue(
+                created_at=datetime.datetime.now() - datetime.timedelta(weeks=3),
+                labels=["Sweep"],
+                title="Sweep issue 1",
+            ),
+            MockIssue(
+                created_at=datetime.datetime.now() - datetime.timedelta(weeks=1),
+                labels=["Sweep"],
+                title="Sweep issue 2",
+            ),
+            MockIssue(
+                created_at=datetime.datetime.now() - datetime.timedelta(weeks=3),
+                labels=[],
+                title="Sweep issue 3",
+            ),
+            MockIssue(
+                created_at=datetime.datetime.now() - datetime.timedelta(weeks=1),
+                labels=[],
+                title="Non-Sweep issue 1",
+            ),
+        ]
+        mock_github_client.get_pulls.return_value = [
+            # Mock PR's
+            MockPR(
+                created_at=datetime.datetime.now() - datetime.timedelta(weeks=3),
+                labels=["Sweep"],
+                title="Sweep PR 1",
+            ),
+            MockPR(
+                created_at=datetime.datetime.now() - datetime.timedelta(weeks=1),
+                labels=["Sweep"],
+                title="Sweep PR 2",
+            ),
+            MockPR(
+                created_at=datetime.datetime.now() - datetime.timedelta(weeks=3),
+                labels=[],
+                title="Sweep PR 3",
+            ),
+            MockPR(
+                created_at=datetime.datetime.now() - datetime.timedelta(weeks=1),
+                labels=[],
+                title="Non-Sweep PR 1",
+            ),
+        ]
+        delete_old_sweep_issues_and_prs()
+        # Add assertions here to check that the correct issues and PR's were deleted
+        assert mock_github_client.get_issues.call_count == 1
+        assert mock_github_client.get_pulls.call_count == 1
+        assert mock_github_client.create_issue_comment.call_count == 3
+        assert mock_github_client.close_issue.call_count == 2
+        assert mock_github_client.close_pr.call_count == 1
