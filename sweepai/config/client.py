@@ -134,6 +134,8 @@ class SweepConfig(BaseModel):
                 repo.create_git_ref(
                     f"refs/heads/{branch_name}",
                     repo.get_branch(default_branch).commit.sha,
+                logger.exception("Exception details:")
+                logger.exception("Exception details:")
                 )
                 return branch_name
         except SystemExit:
@@ -180,7 +182,9 @@ def get_gha_enabled(repo: Repository) -> bool:
         raise SystemExit
     except Exception as e:
         logger.warning(f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True")
+        logger.exception("Exception details:")
         return True
+logger.exception("Exception details:")
 
 
 @lru_cache(maxsize=None)
