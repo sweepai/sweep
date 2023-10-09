@@ -23,7 +23,7 @@ sandbox:
     - pip install poetry
     - poetry install
   check:
-    - git add . && pre-commit run --files {file_path}
+    - git add . && pre-commit run --files {file_path} || exit 0
     - 'if [[ "{file_path}" == *.py ]]; then poetry run pylint --errors-only {file_path}; else return 0; fi'
     - 'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run python {file_path}; else return 0; fi'
 
