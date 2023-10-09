@@ -66,7 +66,7 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
     entities: str = None
 
     @classmethod
-    def from_string(cls, string: str, file_path: str, **kwargs):
+    def from_string(cls, string: str, file_path: str, **kwargs) -> 'GraphContextAndPlan':
         snippets_pattern = r"""<relevant_new_snippets.*?>(\n)?(?P<relevant_new_snippet>.*)</relevant_new_snippets>"""
         plan_pattern = r"""<code_change_description.*?>(\n)?(?P<code_change_description>.*)</code_change_description>"""
         snippets_match = re.search(snippets_pattern, string, re.DOTALL)
@@ -131,36 +131,36 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
 
     def __str__(self) -> str:
         return f"{self.relevant_new_snippet}\n{self.code_change_description}"
-
-
-class GraphChildBot(ChatGPT):
-    def code_plan_extraction(
-        self,
-        code,
-        file_path,
-        entities,
-        issue_metadata,
-        previous_snippets,
-        all_symbols_and_files,
-    ) -> GraphContextAndPlan:
-        python_snippet = extract_python_span(code, entities)
-        python_snippet.file_path = file_path
-        return GraphContextAndPlan(
-            relevant_new_snippet=[python_snippet],
-            code_change_description="",
-            file_path=file_path,
-        )
-
-
-def extract_int(s):
-    match = re.search(r"\d+", s)
-    if match:
-        return int(match.group())
-    return None
-
-
-def extract_python_span(code: str, entities: str):
-    lines = code.split("\n")
+    
+    
+    class GraphChildBot(ChatGPT):
+        def code_plan_extraction(
+            self,
+            code: str,
+            file_path: str,
+            entities: str,
+            issue_metadata: str,
+            previous_snippets: str,
+            all_symbols_and_files: str,
+        ) -> GraphContextAndPlan:
+            python_snippet = extract_python_span(code, entities)
+            python_snippet.file_path = file_path
+            return GraphContextAndPlan(
+                relevant_new_snippet=[python_snippet],
+                code_change_description="",
+                file_path=file_path,
+            )
+    
+    
+    def extract_int(s: str) -> Optional[int]:
+        match = re.search(r"\d+", s)
+        if match:
+            return int(match.group())
+        return None
+    
+    
+    def extract_python_span(code: str, entities: str) -> Snippet:
+        lines = code.split("\n")
 
     # Identify lines where entities are declared as variables
     variables_with_entity = set()
@@ -317,7 +317,7 @@ MAX_FILES = 500
 redis_client = Redis.from_url(REDIS_URL)
 
 
-def download_models():
+def download_models() -> None:
     from sentence_transformers import (  # pylint: disable=import-error
         SentenceTransformer,
     )
@@ -325,7 +325,7 @@ def download_models():
     model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
 
 
-def init_deeplake_vs(repo_name):
+def init_deeplake_vs(repo_name: str) -> VectorStore:
     deeplake_repo_path = f"mem://{int(time.time())}{repo_name}"
     deeplake_vector_store = VectorStore(
         path=deeplake_repo_path, read_only=False, overwrite=False
@@ -341,7 +341,7 @@ def parse_collection_name(name: str) -> str:
     return name
 
 
-def embed_huggingface(texts):
+def embed_huggingface(texts: List[str]) -> List[Dict[str, Any]]:
     """Embeds a list of texts using Hugging Face's API."""
     for i in range(3):
         try:
@@ -359,7 +359,7 @@ def embed_huggingface(texts):
             )
 
 
-def embed_replicate(texts):
+def embed_replicate(texts: List[str]) -> List[List[float]]:
     client = replicate.Client(api_token=REPLICATE_API_KEY)
     for i in range(3):
         try:
@@ -370,7 +370,7 @@ def embed_replicate(texts):
 
 
 @lru_cache(maxsize=64)
-def embed_texts(texts: tuple[str]):
+def embed_texts(texts: Tuple[str]) -> List[List[float]]:
     logger.info(
         f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}..."
     )
@@ -422,7 +422,7 @@ def embed_texts(texts: tuple[str]):
     )
 
 
-def embedding_function(texts: list[str]):
+def embedding_function(texts: List[str]) -> List[List[float]]:
     # For LRU cache to work
     return embed_texts(tuple(texts))
 
@@ -430,7 +430,7 @@ def embedding_function(texts: list[str]):
 def get_deeplake_vs_from_repo(
     cloned_repo: ClonedRepo,
     sweep_config: SweepConfig = SweepConfig(),
-):
+) -> Tuple[Optional[VectorStore], Any, int]:
     deeplake_vs = None
 
     repo_full_name = cloned_repo.repo_full_name
@@ -505,7 +505,7 @@ def get_deeplake_vs_from_repo(
     return deeplake_vs, index, len(documents)
 
 
-def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
+def compute_deeplake_vs(collection_name: str, documents: List[str], ids: List[str], metadatas: List[Dict[str, Any]], sha: str) -> Optional[VectorStore]:
     if len(documents) > 0:
         logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
         # Check cache here for all documents
@@ -584,10 +584,10 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
 def get_relevant_snippets(
     cloned_repo: ClonedRepo,
     query: str,
-    username: str | None = None,
+    username: Optional[str] = None,
     sweep_config: SweepConfig = SweepConfig(),
-    lexical=True,
-):
+    lexical: bool = True,
+) -> Tuple[VectorStore, Any, int]:
     repo_name = cloned_repo.repo_full_name
     installation_id = cloned_repo.installation_id
     logger.info("Getting query embedding...")
