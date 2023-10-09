@@ -19,6 +19,7 @@ from sweepai.core.sweep_bot import SweepBot
 # from sandbox.sandbox_utils import Sandbox
 from sweepai.handlers.create_pr import create_pr_changes, GITHUB_LABEL_NAME
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
@@ -35,9 +36,10 @@ def make_pr(
     user_token,
     use_faster_model,
     username,
-    chat_logger,
+    chat_logger: ChatLogger,
     branch_name=None,
 ):
+    chat_logger.data["title"] = title
     _, repo_name = repo_full_name.split("/")
     # heavily copied code from on_ticket
     cloned_repo = ClonedRepo(
