@@ -3,6 +3,7 @@ import re
 import time
 from functools import lru_cache
 from typing import Generator, List
+from loguru import logger
 
 import numpy as np
 import replicate
@@ -82,8 +83,8 @@ def embed_huggingface(texts):
             )
             return response.json()["embeddings"]
         except requests.exceptions.RequestException as e:
-            logger.error(
-                f"Error occurred when sending request to Hugging Face endpoint: {traceback.format_exc()}"
+            logger.exception(
+                f"Error occurred when sending request to Hugging Face endpoint: {e}"
             )
 
 
@@ -93,7 +94,7 @@ def embed_replicate(texts):
         try:
             outputs = client.run(REPLICATE_URL, input={"text_batch": json.dumps(texts)}, timeout=60)
         except Exception as e:
-            logger.error(f"Replicate timeout: {traceback.format_exc()}")
+            logger.exception(f"Replicate timeout: {e}")
     return [output["embedding"] for output in outputs]
 
 
@@ -124,7 +125,7 @@ def embed_texts(texts: tuple[str]):
                 except SystemExit:
                     raise SystemExit
                 except Exception as e:
-                    logger.error(traceback.format_exc())
+                    logger.exception("Failed to get embeddings for batch")
                     logger.error(f"Failed to get embeddings for {batch}")
             return embeddings
         case "huggingface":
@@ -190,7 +191,7 @@ def get_deeplake_vs_from_repo(
         try:
             cache_value = redis_client.get(cache_key)
         except Exception as e:
-            logger.error(traceback.format_exc())
+            logger.exception(e)
             cache_value = None
         if cache_value is not None:
             score_factor = json.loads(cache_value)
@@ -271,10 +272,7 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
         except SystemExit:
             raise SystemExit
         except:
-            logger.print([len(embedding) for embedding in embeddings])
-            logger.error(
-                "Failed to convert embeddings to numpy array, recomputing all of them"
-            )
+            logger.exception("Failed to convert embeddings to numpy array, recomputing all of them")
             embeddings = embedding_function(documents)
             embeddings = np.array(embeddings, dtype=np.float32)
 
@@ -333,7 +331,7 @@ def get_relevant_snippets(
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.error(traceback.format_exc())
+        logger.exception("Exception occurred while fetching relevant snippets")
     logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
         logger.info(f"Results query {query} was empty")
