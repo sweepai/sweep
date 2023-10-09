@@ -132,7 +132,7 @@ class ChatLogger(BaseModel):
             return False
         username = self.data["username"]
         result = self.ticket_collection.find_one({"username": username})
-        return result.get("is_consumer_tier", False) if result else False
+        return result.get("is_trial_user", False) if result else False
 
     def use_faster_model(self, g):
         if self.ticket_collection is None:
