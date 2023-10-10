@@ -1305,7 +1305,6 @@ class SweepBot(CodeGenBot, GithubBot):
                         )
                         commit_message = suggested_commit_message
                     else:
-                        # for i in range(0, len(lines), CHUNK_SIZE):
                         for i, chunk in enumerate(
                             chunk_code(
                                 file_contents,
@@ -1314,12 +1313,8 @@ class SweepBot(CodeGenBot, GithubBot):
                                 coalesce=5_000,
                             )
                         ):
-                            # chunk_contents = "\n".join(lines[i : i + CHUNK_SIZE])
-                            # contents_line_numbers = "\n".join(
-                            #     all_lines_numbered[i : i + CHUNK_SIZE]
-                            # )
                             chunk.start += 1
-                            if chunk.end >= len(lines) - 1:
+                            if chunk.end >= len(lines) - 2:
                                 chunk.end += 1
                             chunk_contents = chunk.get_snippet(
                                 add_ellipsis=False, add_lines=False
@@ -1340,11 +1335,7 @@ class SweepBot(CodeGenBot, GithubBot):
                                 changed_files=changed_files,
                                 temperature=temperature,
                             )
-                            # commit_message = commit_message or suggested_commit_message
                             commit_message = suggested_commit_message
-                            # if i + CHUNK_SIZE < len(lines):
-                            #     new_file_contents += new_chunk + "\n"
-                            # else:
                             new_file_contents += new_chunk + "\n"
                 except Exception as e:
                     logger.print(e)
