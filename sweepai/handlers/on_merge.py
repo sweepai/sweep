@@ -90,7 +90,8 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
                 user_token=user_token,
                 use_faster_model=chat_logger.use_faster_model(g),
                 username=commit_author,
-                chat_logger=chat_logger
+                chat_logger=chat_logger,
+                rule=rule,
             )
             posthog.capture(
                 commit_author,
