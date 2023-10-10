@@ -58,6 +58,7 @@ from sweepai.core.prompts import (
 from sweepai.logn import logger
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
+from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.diff import (
     format_contents,
     generate_diff,
@@ -1532,6 +1533,8 @@ class ModifyBot:
         extraction_terms: list[str],
         chunking: bool = False,
     ):
+        is_python_file = file_path.strip().endswith(".py")
+
         best_matches = []
         for query in snippet_queries:
             if query.count("...") > 2:
@@ -1544,13 +1547,22 @@ class ModifyBot:
                 if match_.score > 50:
                     best_matches.append(match_)
 
+        code_tree = CodeTree.from_code(file_contents) if is_python_file else None
         for i, line in enumerate(file_contents.split("\n")):
             for keyword in extraction_terms:
                 if keyword in line:
+                    try:
+                        if is_python_file:
+                            start_line, end_line = code_tree.get_lines_surrounding(i)
+                        else:
+                            start_line, end_line = i, i
+                    except Exception as e:
+                        logger.error(e)
+                        start_line, end_line = i, i
                     best_matches.append(
                         Match(
-                            start=max(i - 1, 0),
-                            end=i + 1,
+                            start=start_line,
+                            end=end_line + 1,
                             score=100,
                         )
                     )
@@ -1561,7 +1573,7 @@ class ModifyBot:
             for start, end in find_function_calls(keyword, file_contents):
                 best_matches.append(
                     Match(
-                        start=max(start - 1, 0),
+                        start=start,
                         end=end + 1,
                         score=100,
                     )
