@@ -6,7 +6,7 @@ It is only called by the webhook handler in sweepai/api.py.
 
 import math
 import re
-import traceback
+from loguru import logger
 from time import time
 
 import openai
@@ -582,9 +582,7 @@ def on_ticket(
             )
             raise SystemExit
         except Exception as e:
-            trace = traceback.format_exc()
-            logger.error(e)
-            logger.error(trace)
+            logger.exception("An error occurred")
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
@@ -599,7 +597,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "File Fetch",
-                str(e) + "\n" + traceback.format_exc(),
+                str(e) + "\n" + logger.exception("An error occurred"),
                 priority=1,
             )
             posthog.capture(
@@ -713,7 +711,7 @@ def on_ticket(
                 logger.error(
                     "Failed to create new branch for sweep.yaml file.\n",
                     e,
-                    traceback.format_exc(),
+                    logger.exception("An error occurred"),
                 )
         else:
             logger.info("sweep.yaml file already exists.")
@@ -1092,7 +1090,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(traceback.format_exc())
+                logger.exception("An error occurred")
                 logger.error(e)
 
             if changes_required:
@@ -1209,7 +1207,7 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.error.InvalidRequestError as e:
-            logger.error(traceback.format_exc())
+            logger.exception("An error occurred")
             logger.error(e)
             edit_sweep_comment(
                 (
@@ -1244,7 +1242,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(traceback.format_exc())
+            logger.exception("An error occurred")
             logger.error(e)
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
@@ -1299,7 +1297,7 @@ def on_ticket(
                 raise SystemExit
             except Exception as e:
                 logger.error(e)
-                logger.error(traceback.format_exc())
+                logger.exception("An error occurred")
                 logger.print("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
@@ -1308,7 +1306,7 @@ def on_ticket(
             properties={
                 **metadata,
                 "error": str(e),
-                "trace": traceback.format_exc(),
+                "trace": logger.exception("An error occurred"),
                 "duration": time() - on_ticket_start_time,
             },
         )
