@@ -2,12 +2,14 @@
 This file contains the on_merge handler which is called when a pull request is merged to master.
 on_merge is called by sweepai/api.py
 """
+import copy
 import time
 
 from sweepai.logn import logger
 from sweepai.config.client import SweepConfig, get_rules
 from sweepai.core.post_merge import PostMerge
 from sweepai.handlers.pr_utils import make_pr
+from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
 
@@ -47,7 +49,7 @@ def comparison_to_diff(comparison):
         formatted_diffs.append(format_diff)
     return "\n".join(formatted_diffs)
 
-def on_merge(request_dict, chat_logger):
+def on_merge(request_dict: dict, chat_logger: ChatLogger):
     before_sha = request_dict['before']
     after_sha = request_dict['after']
     commit_author = request_dict['sender']['login']
@@ -74,6 +76,7 @@ def on_merge(request_dict, chat_logger):
     if not rules:
         return
     for rule in rules:
+        chat_logger.data["title"] = f"Sweep Rules - {rule}"
         changes_required, issue_title, issue_description = PostMerge(
             chat_logger=chat_logger
         ).check_for_issues(rule=rule, diff=commits_diff)
