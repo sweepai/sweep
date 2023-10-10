@@ -6,7 +6,7 @@ It is only called by the webhook handler in sweepai/api.py.
 
 import math
 import re
-import traceback
+from loguru import logger
 from time import time
 
 import openai
@@ -582,9 +582,7 @@ def on_ticket(
             )
             raise SystemExit
         except Exception as e:
-            trace = traceback.format_exc()
-            logger.error(e)
-            logger.error(trace)
+            logger.exception("An error occurred")
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
@@ -710,10 +708,9 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "Failed to create new branch for sweep.yaml file.\n",
-                    e,
-                    traceback.format_exc(),
+                    e
                 )
         else:
             logger.info("sweep.yaml file already exists.")
@@ -1092,7 +1089,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(traceback.format_exc())
+                logger.exception("An error occurred")
                 logger.error(e)
 
             if changes_required:
