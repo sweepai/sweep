@@ -46,51 +46,32 @@
 #     return {"message": "Task not found"}
 
 
-import multiprocessing
-import time
+import unittest
+from unittest.mock import patch, MagicMock
+from sweepai.api import delete_old_issues_and_prs
 
-from fastapi import FastAPI
+class TestDeleteOldIssuesAndPrs(unittest.TestCase):
+    @patch('github.Github')
+    def test_delete_old_issues_and_prs(self, mock_github):
+        # Mock the Github API
+        mock_github.return_value.get_repo.return_value.get_issues.return_value = [
+            MagicMock(created_at=datetime.datetime.now() - datetime.timedelta(days=15), labels=['Sweep'], title='Sweep issue 1'),
+            MagicMock(created_at=datetime.datetime.now() - datetime.timedelta(days=10), labels=['Sweep'], title='Sweep issue 2'),
+            MagicMock(created_at=datetime.datetime.now() - datetime.timedelta(days=20), labels=[], title='Non-Sweep issue'),
+            MagicMock(created_at=datetime.datetime.now() - datetime.timedelta(days=5), labels=['Sweep'], title='Sweep issue 3'),
+        ]
 
-app = FastAPI()
-processes_dict = {}
+        # Call the delete_old_issues_and_prs function
+        delete_old_issues_and_prs()
 
+        # Assert that the function deleted the correct issues and PR's and left a comment on each one before deleting it
+        for issue in mock_github.return_value.get_repo.return_value.get_issues.return_value:
+            if (datetime.datetime.now() - issue.created_at).days > 14 and ('Sweep' in issue.labels or issue.title.startswith('Sweep')):
+                issue.create_comment.assert_called_once_with('This issue is over two weeks old and will be deleted.')
+                issue.edit.assert_called_once_with(state='closed')
+            else:
+                issue.create_comment.assert_not_called()
+                issue.edit.assert_not_called()
 
-def long_task(key):
-    for i in range(100):
-        print(f"{key}", i)
-        time.sleep(1)
-
-
-def start_task(key):
-    print(processes_dict)
-    if key in processes_dict:
-        processes_dict[key].terminate()
-        processes_dict[key].join()
-        print("Terminated ", key)
-
-    process = multiprocessing.Process(target=long_task, args=(key,))
-    processes_dict[key] = process
-    process.start()
-
-    return {"status": "started"}
-
-
-def cancel_task(key):
-    if key in processes_dict:
-        process = processes_dict[key]
-        process.terminate()
-        process.join()
-        del processes_dict[key]
-        return {"status": "cancelled"}
-
-    return {"status": "not_found"}
-
-
-@app.post("/start/{key}")
-async def start_task_endpoint(key: str):
-    return start_task(key)
-
-
-@app.post("/cancel/{key}")
-async def cancel_task_endpoint(key: str):
-    return cancel_task(key)
+if __name__ == '__main__':
+    unittest.main()
