@@ -582,7 +582,7 @@ def on_ticket(
             )
             raise SystemExit
         except Exception as e:
-            logger.exception("An error occurred")
+            str(e) + "\n" + traceback.format_exc()
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
@@ -597,7 +597,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "File Fetch",
-                logger.exception("An error occurred"),
+                str(e) + "\n" + traceback.format_exc(),
                 priority=1,
             )
             posthog.capture(
@@ -1086,7 +1086,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.exception("An error occurred")
+                str(e) + "\n" + traceback.format_exc()
 
             if changes_required:
                 edit_sweep_comment(
