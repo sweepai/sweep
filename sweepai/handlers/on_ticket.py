@@ -597,7 +597,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "File Fetch",
-                str(e),
+                e,
                 priority=1,
             )
             posthog.capture(
@@ -1154,7 +1154,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Max Tokens Exceeded",
-                str(e) + "\n" + traceback.format_exc(),
+                e,
                 priority=2,
             )
             if chat_logger.is_paying_user():
@@ -1187,7 +1187,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Sweep could not find files to modify",
-                str(e) + "\n" + traceback.format_exc(),
+                e,
                 priority=2,
             )
             edit_sweep_comment(
@@ -1218,7 +1218,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Context Length",
-                str(e) + "\n" + traceback.format_exc(),
+                e,
                 priority=2,
             )
             posthog.capture(
@@ -1263,7 +1263,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Workflow",
-                str(e) + "\n" + traceback.format_exc(),
+                e,
                 priority=1,
             )
             raise e
@@ -1297,7 +1297,7 @@ def on_ticket(
             "failed",
             properties={
                 **metadata,
-                "error": str(e),
+                "error": e,
                 "trace": traceback.format_exc(),
                 "duration": time() - on_ticket_start_time,
             },
