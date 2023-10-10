@@ -87,16 +87,68 @@ events = {}
 on_ticket_events = {}
 
 
-def run_on_ticket(*args, **kwargs):
-    logger.init(
-        metadata={
-            **kwargs,
-            "name": "ticket_" + kwargs["username"],
-        },
-        create_file=False,
-    )
-    with logger:
-        on_ticket(*args, **kwargs)
+import datetime
+import github
+import ctypes
+import threading
+
+import redis
+import requests
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import ValidationError
+from pymongo import MongoClient
+
+from sweepai.config.client import (
+    RESTART_SWEEP_BUTTON,
+    REVERT_CHANGED_FILES_TITLE,
+    RULES_LABEL,
+    RULES_TITLE,
+    SWEEP_BAD_FEEDBACK,
+    SWEEP_GOOD_FEEDBACK,
+    SweepConfig,
+    get_documentation_dict,
+    get_rules,
+)
+from sweepai.config.server import (
+    DISCORD_FEEDBACK_WEBHOOK_URL,
+    GITHUB_BOT_USERNAME,
+    GITHUB_LABEL_COLOR,
+    GITHUB_LABEL_DESCRIPTION,
+    GITHUB_LABEL_NAME,
+    IS_SELF_HOSTED,
+    MONGODB_URI,
+    REDIS_URL,
+    SANDBOX_URL,
+)
+from sweepai.core.documentation import write_documentation
+from sweepai.core.entities import PRChangeRequest
+from sweepai.core.vector_db import get_deeplake_vs_from_repo
+from sweepai.events import (
+    CommentCreatedRequest,
+    InstallationCreatedRequest,
+    IssueCommentRequest,
+    IssueRequest,
+    PREdited,
+    PRRequest,
+    ReposAddedRequest,
+)
+from sweepai.handlers.create_pr import (  # type: ignore
+    add_config_to_top_repos,
+    create_gha_pr,
+)
+from sweepai.handlers.on_check_suite import on_check_suite  # type: ignore
+from sweepai.handlers.on_comment import on_comment
+from sweepai.handlers.on_merge import on_merge
+from sweepai.handlers.on_ticket import on_ticket
+from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.event_logger import posthog
+from sweepai.utils.github_utils import ClonedRepo, get_github_client
+from sweepai.utils.search_utils import index_full_repository
+
+app = FastAPI()
+
+import tracemalloc
 
 
 def run_on_comment(*args, **kwargs):
@@ -887,6 +939,36 @@ async def webhook(raw_request: Request):
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
     return {"success": True}
+    
+    # Import the required libraries
+    import datetime
+    import github
+    import schedule
+    
+    # Define the function to delete old issues and PR's
+    def delete_old_issues_and_prs():
+    # Get a Github client
+    _, g = get_github_client()
+    
+    # Get the repository
+    repo = g.get_repo("sweepai/sweep")
+    
+    # Get the current date and time
+    now = datetime.datetime.now()
+    
+    # Fetch all issues and PR's from the repository
+    issues = repo.get_issues(state="all")
+    for issue in issues:
+        # Check if the issue is over two weeks old and if it is labeled with Sweep or has a title prefixed with Sweep
+        if (now - issue.created_at).days > 14 and ("Sweep" in issue.labels or issue.title.startswith("Sweep")):
+            # Leave a comment on the issue saying that it will be deleted because it is over two weeks old
+            issue.create_comment("This issue is over two weeks old and will be deleted.")
+    
+            # Delete the issue
+            issue.edit(state="closed")
+    
+    # Schedule the delete_old_issues_and_prs function to run once a day
+    schedule.every().day.at("00:00").do(delete_old_issues_and_prs)
 
 
 # Set up cronjob for this
