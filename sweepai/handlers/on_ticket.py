@@ -232,6 +232,7 @@ def on_ticket(
     }
 
     posthog.capture(username, "started", properties=metadata)
+    return {"success": True}
 
     try:
         logger.info(f"Getting repo {repo_full_name}")
@@ -1042,6 +1043,7 @@ def on_ticket(
                 pass
 
             changes_required = False
+            return {"success": True}
             try:
                 # CODE REVIEW
                 changes_required, review_comment = review_pr(
@@ -1311,4 +1313,4 @@ def on_ticket(
         "success",
         properties={**metadata, "duration": time() - on_ticket_start_time},
     )
-    logger.info("on_ticket success")
+    return {"success": True}
