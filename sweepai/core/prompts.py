@@ -8,7 +8,7 @@ Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to 
 
 repo_description_prefix_prompt = "\nThis is a description of the repository:"
 
-rules_prefix_prompt = "\nThese are the user's preferences and instructions. Use them when they are relevant:"
+rules_prefix_prompt = "\nThese are the user's preferences and instructions. Use them as needed"
 
 human_message_prompt = [
     {

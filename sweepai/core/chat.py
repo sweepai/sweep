@@ -113,7 +113,7 @@ class ChatGPT(BaseModel):
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"
             if repo_rules:
                 joined_rules = "\n".join(repo_rules)
-                content += f"\{rules_prefix_prompt}:\n{joined_rules}"
+                content += f"{rules_prefix_prompt}:\n{joined_rules}"
         messages = [Message(role="system", content=content, key="system")]
 
         added_messages = human_message.construct_prompt()  # [ { role, content }, ... ]
