@@ -4,10 +4,11 @@ List of common prompts used across the codebase.
 
 # Following two should be fused
 system_message_prompt = """\
-Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is fully complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. When writing tests, you will ensure the tests are fully complete, very extensive and cover all cases, and you will make up test data as needed. Take into account the current repository's language, frameworks, and dependencies.
-"""
+Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to write code for the following Github issue. When you write code, the code works on the first try, is syntactically perfect and is fully complete. You have the utmost care for the code that you write, so you do not make mistakes and every function and class will be fully implemented. When writing tests, you will ensure the tests are fully complete, very extensive and cover all cases, and you will make up test data as needed. Take into account the current repository's language, frameworks, and dependencies."""
 
-repo_description_prefix_prompt = "\n\nThis is a description of the repository:"
+repo_description_prefix_prompt = "\nThis is a description of the repository:"
+
+rules_prefix_prompt = "\nThese are the user's preferences and instructions. Use them as needed"
 
 human_message_prompt = [
     {
@@ -261,14 +262,14 @@ Contextual Request Analysis:
 <plan>
 <create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
 * Detailed and concise instructions on what to create
-* Include references to files, imports and entity names
+* Include references to all files, imports and entity names
 ...
 </create>
 ...
 
 <modify file="file_path_2" entity="name of function or class to modify (optional)" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
 * Detailed and concise instructions on what to modify
-* Include references to files, imports and entity names
+* Include references to all files, imports and entity names
 ...
 </modify>
 ...
