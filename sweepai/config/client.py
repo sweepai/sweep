@@ -184,17 +184,17 @@ def get_gha_enabled(repo: Repository) -> bool:
 
 
 @lru_cache(maxsize=None)
-def get_description(repo: Repository) -> str:
+def get_description(repo: Repository) -> dict:
     try:
         contents = repo.get_contents("sweep.yaml")
-        description = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "description", ""
-        )
-        return description
+        sweep_yaml = yaml.safe_load(contents.decoded_content.decode("utf-8"))
+        description = sweep_yaml.get("description", "")
+        rules = sweep_yaml.get("rules", "")
+        return {"description": description, "rules": rules}
     except SystemExit:
         raise SystemExit
     except Exception:
-        return ""
+        return {"description": "", "rules": ""}
 
 
 @lru_cache(maxsize=None)

@@ -91,7 +91,7 @@ class HumanMessagePrompt(BaseModel):
                     issue_url=f"Issue Url: {self.issue_url}\n" if self.issue_url else "\n",
                     username=self.username ,
                     repo_description=self.repo_description,
-                    tree=self.tree,
+                    tree=self.tree.strip("\n"),
                     title=self.title,
                     description=self.summary
                     if self.summary
