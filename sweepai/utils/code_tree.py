@@ -11,13 +11,13 @@ class CodeTree(BaseModel):
         arbitrary_types_allowed = True
 
     @classmethod
-    def from_code(cls, code: str):
+    def from_code(cls, code: str) -> "CodeTree":
         parser = Parser()
         parser.set_language(tree_sitter_languages.get_language("python"))
         tree = parser.parse(bytes(code, "utf8"))
         return cls(code=code, tree=tree)
 
-    def get_path_to_line(self, line_number) -> list[Node]:
+    def get_path_to_line(self, line_number: int) -> list[Node]:
         children: list[Node] = self.tree.root_node.children
         path: list[Node] = [self.tree.root_node]
 
@@ -40,7 +40,7 @@ class CodeTree(BaseModel):
         return path
 
     def get_lines_surrounding(
-        self, line_number, threshold: int = 20
+        self, line_number: int, threshold: int = 20
     ) -> tuple[int, int]:
         max_lines = self.code.count("\n") + 1
         path = self.get_path_to_line(line_number)
