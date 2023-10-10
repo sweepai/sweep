@@ -597,7 +597,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "File Fetch",
-                logger.exception("An error occurred"),
+                str(e) + "\n" + traceback.format_exc(),
                 priority=1,
             )
             posthog.capture(
@@ -1086,7 +1086,15 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.exception("An error occurred")
+                log_error(
+                    is_paying_user,
+                    is_consumer_tier,
+                    username,
+                    issue_url,
+                    "File Fetch",
+                    str(e) + "\n" + traceback.format_exc(),
+                    priority=1,
+                )
 
             if changes_required:
                 edit_sweep_comment(
