@@ -107,13 +107,12 @@ class ChatGPT(BaseModel):
         repo = kwargs.get("repo")
         if repo:
             repo_info = get_description(repo)
-            repo_description = repo_info.get("description", "")
-            repo_rules = repo_info.get("rules", [])
+            repo_description = repo_info["description"]
+            repo_rules = repo_info["rules"]
             if repo_description:
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"
             if repo_rules:
-                joined_rules = "\n".join(repo_rules)
-                content += f"{rules_prefix_prompt}:\n{joined_rules}"
+                content += f"{rules_prefix_prompt}:\n{repo_rules}"
         messages = [Message(role="system", content=content, key="system")]
 
         added_messages = human_message.construct_prompt()  # [ { role, content }, ... ]
