@@ -182,7 +182,6 @@ class GraphContextAndPlan(RegexMatchableBaseModel):
     # Up to the first variable definition
     for i, line in enumerate(lines):
         if line.lstrip().startswith(("class ", "def ")):
-            print(line)
             break
     captured_lines.update(range(i))
 
