@@ -14,7 +14,7 @@ from sweepai.config.server import (
     OPENAI_USE_3_5_MODEL_ONLY,
 )
 from sweepai.core.entities import Message, SweepContext
-from sweepai.core.prompts import repo_description_prefix_prompt, system_message_prompt
+from sweepai.core.prompts import repo_description_prefix_prompt, rules_prefix_prompt, system_message_prompt
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -108,11 +108,12 @@ class ChatGPT(BaseModel):
         if repo:
             repo_info = get_description(repo)
             repo_description = repo_info.get("description", "")
-            repo_rules = repo_info.get("rules", "")
+            repo_rules = repo_info.get("rules", [])
             if repo_description:
                 content += f"{repo_description_prefix_prompt}\n{repo_description}"
             if repo_rules:
-                content += f"\nRules:\n{repo_rules}"
+                joined_rules = "\n".join(repo_rules)
+                content += f"\{rules_prefix_prompt}:\n{joined_rules}"
         messages = [Message(role="system", content=content, key="system")]
 
         added_messages = human_message.construct_prompt()  # [ { role, content }, ... ]
