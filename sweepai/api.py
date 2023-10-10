@@ -2,6 +2,8 @@
 import json
 import os
 import time
+import datetime
+import schedule
 
 import psutil
 
@@ -323,9 +325,27 @@ def health_check():
     return JSONResponse(status_code=200, content=status)
 
 
-@app.get("/", response_class=HTMLResponse)
-def home():
-    return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
+def delete_old_sweep_issues_and_prs():
+    # Get all issues and PR's from the Github API
+    issues_and_prs = get_github_client().get_issues_and_prs()
+
+    # Get the current date and time
+    now = datetime.datetime.now()
+
+    # Filter the issues and PR's
+    for issue_or_pr in issues_and_prs:
+        # Check if the issue or PR is over two weeks old
+        if (now - issue_or_pr.created_at).days > 14:
+            # Check if the issue or PR is labeled with Sweep or has a title prefixed with Sweep
+            if 'Sweep' in issue_or_pr.labels or issue_or_pr.title.startswith('Sweep'):
+                # Leave a comment
+                issue_or_pr.create_comment('This issue or PR is being deleted because it is over two weeks old.')
+
+                # Delete the issue or PR
+                issue_or_pr.delete()
+
+# Schedule the job to run once a day
+schedule.every().day.at("00:00").do(delete_old_sweep_issues_and_prs)
 
 
 @app.post("/")
@@ -335,6 +355,28 @@ async def webhook(raw_request: Request):
         metadata=None,
         create_file=False,
     )
+
+def delete_old_sweep_issues_and_prs():
+    # Get all issues and PR's from the Github API
+    issues_and_prs = get_github_client().get_issues_and_prs()
+
+    # Get the current date and time
+    now = datetime.datetime.now()
+
+    # Filter the issues and PR's
+    for issue_or_pr in issues_and_prs:
+        # Check if the issue or PR is over two weeks old
+        if (now - issue_or_pr.created_at).days > 14:
+            # Check if the issue or PR is labeled with Sweep or has a title prefixed with Sweep
+            if 'Sweep' in issue_or_pr.labels or issue_or_pr.title.startswith('Sweep'):
+                # Leave a comment
+                issue_or_pr.create_comment('This issue or PR is being deleted because it is over two weeks old.')
+
+                # Delete the issue or PR
+                issue_or_pr.delete()
+
+# Schedule the job to run once a day
+schedule.every().day.at("00:00").do(delete_old_sweep_issues_and_prs)
 
     """Handle a webhook request from GitHub."""
     try:
@@ -898,6 +940,28 @@ def update_sweep_prs(repo_full_name: str, installation_id: int):
     # Get the repository
     repo = g.get_repo(repo_full_name)
     config = SweepConfig.get_config(repo)
+
+def delete_old_sweep_issues_and_prs():
+    # Get all issues and PR's from the Github API
+    issues_and_prs = get_github_client().get_issues_and_prs()
+
+    # Get the current date and time
+    now = datetime.datetime.now()
+
+    # Filter the issues and PR's
+    for issue_or_pr in issues_and_prs:
+        # Check if the issue or PR is over two weeks old
+        if (now - issue_or_pr.created_at).days > 14:
+            # Check if the issue or PR is labeled with Sweep or has a title prefixed with Sweep
+            if 'Sweep' in issue_or_pr.labels or issue_or_pr.title.startswith('Sweep'):
+                # Leave a comment
+                issue_or_pr.create_comment('This issue or PR is being deleted because it is over two weeks old.')
+
+                # Delete the issue or PR
+                issue_or_pr.delete()
+
+# Schedule the job to run once a day
+schedule.every().day.at("00:00").do(delete_old_sweep_issues_and_prs)
 
     try:
         branch_ttl = int(config.get("branch_ttl", 7))
