@@ -6,8 +6,8 @@ It is only called by the webhook handler in sweepai/api.py.
 
 import math
 import re
-import traceback
 from time import time
+from loguru import logger
 
 import openai
 import requests
@@ -147,7 +147,7 @@ def on_ticket(
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.warning(f"Error hydrating cache of sandbox: {e}")
+        logger.exception(f"Error hydrating cache of sandbox: {e}")
     logger.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
@@ -582,9 +582,7 @@ def on_ticket(
             )
             raise SystemExit
         except Exception as e:
-            trace = traceback.format_exc()
-            logger.error(e)
-            logger.error(trace)
+            logger.exception("An error occurred")
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
@@ -599,7 +597,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "File Fetch",
-                str(e) + "\n" + traceback.format_exc(),
+                str(e),
                 priority=1,
             )
             posthog.capture(
@@ -710,10 +708,9 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "Failed to create new branch for sweep.yaml file.\n",
-                    e,
-                    traceback.format_exc(),
+                    e
                 )
         else:
             logger.info("sweep.yaml file already exists.")
@@ -1092,8 +1089,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
+                logger.exception(e)
 
             if changes_required:
                 edit_sweep_comment(
@@ -1161,7 +1157,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Max Tokens Exceeded",
-                str(e) + "\n" + traceback.format_exc(),
+                str(e),
                 priority=2,
             )
             if chat_logger.is_paying_user():
@@ -1194,7 +1190,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Sweep could not find files to modify",
-                str(e) + "\n" + traceback.format_exc(),
+                str(e),
                 priority=2,
             )
             edit_sweep_comment(
@@ -1209,8 +1205,7 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.error.InvalidRequestError as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.exception(e)
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1226,7 +1221,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Context Length",
-                str(e) + "\n" + traceback.format_exc(),
+                str(e),
                 priority=2,
             )
             posthog.capture(
@@ -1244,8 +1239,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.exception(e)
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1272,7 +1266,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Workflow",
-                str(e) + "\n" + traceback.format_exc(),
+                str(e),
                 priority=1,
             )
             raise e
@@ -1283,7 +1277,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
+                logger.exception(e)
         finally:
             cloned_repo.delete()
 
@@ -1298,8 +1292,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                logger.exception(e)
                 logger.print("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
@@ -1308,7 +1301,6 @@ def on_ticket(
             properties={
                 **metadata,
                 "error": str(e),
-                "trace": traceback.format_exc(),
                 "duration": time() - on_ticket_start_time,
             },
         )
