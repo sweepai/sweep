@@ -946,8 +946,39 @@ async def webhook(raw_request: Request):
     import schedule
     
     # Define the function to delete old issues and PR's
+    from github import PullRequest
+    
     def delete_old_issues_and_prs():
-    # Get a Github client
+        # Get a Github client
+        g = github.Github("<access_token>")
+        repo = g.get_repo("<repo_name>")
+    
+        # Fetch all issues
+        issues = repo.get_issues(state='all')
+    
+        # Fetch all PRs
+        prs = repo.get_pulls(state='all')
+    
+        # Get the current date and time
+        now = datetime.datetime.now()
+    
+        # Iterate over the issues
+        for issue in issues:
+            # Check if the issue is over two weeks old and is labeled with Sweep
+            if (now - issue.created_at).days > 14 and 'Sweep' in [label.name for label in issue.get_labels()]:
+                # Leave a comment on the issue
+                issue.create_comment("This issue is over two weeks old and will be deleted.")
+                # Delete the issue
+                issue.edit(state='closed')
+    
+        # Iterate over the PRs
+        for pr in prs:
+            # Check if the PR is over two weeks old and is labeled with Sweep
+            if (now - pr.created_at).days > 14 and 'Sweep' in [label.name for label in pr.get_labels()]:
+                # Leave a comment on the PR
+                pr.create_issue_comment("This PR is over two weeks old and will be deleted.")
+                # Delete the PR
+                pr.edit(state='closed')
     _, g = get_github_client()
     
     # Get the repository
