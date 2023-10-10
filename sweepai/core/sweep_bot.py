@@ -1345,12 +1345,10 @@ class SweepBot(CodeGenBot, GithubBot):
                             # if i + CHUNK_SIZE < len(lines):
                             #     new_file_contents += new_chunk + "\n"
                             # else:
-                            new_file_contents += new_chunk
+                            new_file_contents += new_chunk + "\n"
                 except Exception as e:
                     logger.print(e)
                     raise e
-                if chunking:
-                    new_file_contents += "\n"
                 return new_file_contents, commit_message, sandbox_error, changed_files
 
             (
