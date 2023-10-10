@@ -1,6 +1,6 @@
 import unittest
 
-from code_tree import CodeTree
+from sweepai.utils.code_tree import CodeTree
 
 
 class TestCodeTree(unittest.TestCase):
