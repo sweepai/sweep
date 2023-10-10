@@ -1156,19 +1156,14 @@ Respond in the following format:
 
 <snippets_and_plan_analysis>
 Completely describe the changes that need to be made in this file in a list.
-Then, in a second list, describe the changes needed to update each snippet and if the snippet should be replaced, or if code should be added before or after.
+Then, in a second list, describe the changes needed to update each snippet. If no changes are needed, do not write an updated_snippet block for this snippet.
 </snippets_and_plan_analysis>
+
 
 <updated_snippets>
 <updated_snippet index="i">
 ```
 new code to replace the entirety of the old code
-```
-</updated_snippet>
-...
-<updated_snippet index="j" position="after">
-```
-code to be added after the snippet
 ```
 </updated_snippet>
 ...
@@ -1193,27 +1188,18 @@ File path: {file_path}
 Rewrite each of the {n} snippets above according to the request.
 * Do not delete whitespace or comments.
 * To delete code insert an empty string.
-* Put "before" or "after" arguments in the updated_snippet to add code before or after the entire snippet.
-* To replace the code directly do not add the position tag.
 
 Respond in the following format:
 
 <snippets_and_plan_analysis>
 Completely describe the changes that need to be made in this file in a list.
-Then, in a second list, describe the changes needed to update each snippet.
-Finally state whether the new code should replace updated_snippet, added before the updated_snippet, or added after the updated_snippet. Replacement should be the most common.
+Then, in a second list, describe the changes needed to update each snippet. If no changes are needed, do not write an updated_snippet block for this snippet.
 </snippets_and_plan_analysis>
 
 <updated_snippets>
 <updated_snippet index="i">
 ```
 new code to replace the entirety of the old code
-```
-</updated_snippet>
-...
-<updated_snippet index="j" position="after">
-```
-code to be added after the snippet
 ```
 </updated_snippet>
 ...
