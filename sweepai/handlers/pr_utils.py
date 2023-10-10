@@ -28,17 +28,17 @@ from sweepai.utils.ticket_utils import *
 
 
 def make_pr(
-    title,
-    repo_description,
-    summary,
-    repo_full_name,
-    installation_id,
-    user_token,
-    use_faster_model,
-    username,
+    title: str,
+    repo_description: str,
+    summary: str,
+    repo_full_name: str,
+    installation_id: int,
+    user_token: str,
+    use_faster_model: bool,
+    username: str,
     chat_logger: ChatLogger,
-    branch_name=None,
-    rule=None,
+    branch_name: Optional[str] = None,
+    rule: Optional[str] = None,
 ):
     chat_logger.data["title"] = title
     _, repo_name = repo_full_name.split("/")
