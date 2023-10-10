@@ -2,7 +2,7 @@
 on_ticket is the main function that is called when a new issue is created.
 It is only called by the webhook handler in sweepai/api.py.
 """
-# TODO: Add file validation
+# TODO: Add file validation - More details needed on what kind of file validation is required.
 
 import math
 import re
@@ -1156,7 +1156,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Max Tokens Exceeded",
-                str(e) + "\n" + traceback.format_exc(),
+                str(e),
                 priority=2,
             )
             if chat_logger.is_paying_user():
@@ -1189,7 +1189,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Sweep could not find files to modify",
-                str(e) + "\n" + traceback.format_exc(),
+                str(e),
                 priority=2,
             )
             edit_sweep_comment(
@@ -1220,7 +1220,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Context Length",
-                str(e) + "\n" + traceback.format_exc(),
+                str(e),
                 priority=2,
             )
             posthog.capture(
@@ -1265,7 +1265,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Workflow",
-                str(e) + "\n" + traceback.format_exc(),
+                str(e),
                 priority=1,
             )
             raise e
@@ -1276,7 +1276,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
+                logger.exception(e)
         finally:
             cloned_repo.delete()
 
@@ -1300,7 +1300,6 @@ def on_ticket(
             properties={
                 **metadata,
                 "error": str(e),
-                "trace": traceback.format_exc(),
                 "duration": time() - on_ticket_start_time,
             },
         )
