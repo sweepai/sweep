@@ -5,6 +5,7 @@ from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 from sweepai.core.prompts import (
     repo_description_prefix_prompt,
+    rules_prefix_prompt,
     system_message_prompt,
 )
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
@@ -91,10 +92,13 @@ class ContextPruning(ChatGPT):
         try:
             content = system_message_prompt
             repo = kwargs.get("repo")
-            if repo:
-                repo_description = get_description(repo)
-                if repo_description:
-                    content += f"{repo_description_prefix_prompt}\n{repo_description}"
+            repo_info = get_description(repo)
+            repo_description = repo_info["description"]
+            repo_rules = repo_info["rules"]
+            if repo_description:
+                content += f"{repo_description_prefix_prompt}\n{repo_description}"
+            if repo_rules:
+                content += f"{rules_prefix_prompt}:\n{repo_rules}"
             self.messages = [Message(role="system", content=content, key="system")]
             added_messages = (
                 human_message.construct_prompt(snippet_tag="snippets_in_repo", 

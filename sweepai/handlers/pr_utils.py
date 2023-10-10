@@ -38,6 +38,7 @@ def make_pr(
     username,
     chat_logger: ChatLogger,
     branch_name=None,
+    rule=None,
 ):
     chat_logger.data["title"] = title
     _, repo_name = repo_full_name.split("/")
@@ -180,9 +181,10 @@ def make_pr(
         if DISCORD_FEEDBACK_WEBHOOK_URL is not None
         else ""
     )
+    rule_description = f"### I created this PR to address the {rule} rule."
     pr = repo.create_pull(
         title=pr_changes.title,
-        body=pr_actions_message + pr_changes.body,
+        body=pr_actions_message + rule_description + pr_changes.body,
         head=pr_changes.pr_head,
         base=branch_name if branch_name else SweepConfig.get_branch(repo),
     )
