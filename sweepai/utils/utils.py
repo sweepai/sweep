@@ -6,8 +6,8 @@ from dataclasses import dataclass
 
 import tiktoken
 
-from sweepai.logn import logger
 from sweepai.core.entities import Snippet
+from sweepai.logn import logger
 
 
 def non_whitespace_len(s: str) -> int:  # new len function
@@ -192,7 +192,7 @@ def chunk_code(
         snippets = []
         for idx, chunk in enumerate(chunks):
             new_snippet = Snippet(
-                content=chunk,
+                content=code,
                 start=idx * 30,
                 end=(idx + 1) * 30,
                 file_path=path,

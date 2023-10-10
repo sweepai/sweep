@@ -262,14 +262,14 @@ Contextual Request Analysis:
 <plan>
 <create file="file_path_1" relevant_files="space-separated list of ALL files relevant for creating file_path_1">
 * Detailed and concise instructions on what to create
-* Include references to files, imports and entity names
+* Include references to all files, imports and entity names
 ...
 </create>
 ...
 
 <modify file="file_path_2" entity="name of function or class to modify (optional)" relevant_files="space-separated list of ALL files relevant for modifying file_path_2">
 * Detailed and concise instructions on what to modify
-* Include references to files, imports and entity names
+* Include references to all files, imports and entity names
 ...
 </modify>
 ...
