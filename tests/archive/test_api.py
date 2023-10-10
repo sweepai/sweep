@@ -60,6 +60,13 @@ class TestDeleteOldIssuesAndPrs(unittest.TestCase):
             MagicMock(created_at=datetime.datetime.now() - datetime.timedelta(days=20), labels=[], title='Non-Sweep issue'),
             MagicMock(created_at=datetime.datetime.now() - datetime.timedelta(days=5), labels=['Sweep'], title='Sweep issue 3'),
         ]
+        
+        mock_github.return_value.get_repo.return_value.get_pulls.return_value = [
+            MagicMock(created_at=datetime.datetime.now() - datetime.timedelta(days=15), labels=['Sweep'], title='Sweep PR 1'),
+            MagicMock(created_at=datetime.datetime.now() - datetime.timedelta(days=10), labels=['Sweep'], title='Sweep PR 2'),
+            MagicMock(created_at=datetime.datetime.now() - datetime.timedelta(days=20), labels=[], title='Non-Sweep PR'),
+            MagicMock(created_at=datetime.datetime.now() - datetime.timedelta(days=5), labels=['Sweep'], title='Sweep PR 3'),
+        ]
 
         # Call the delete_old_issues_and_prs function
         delete_old_issues_and_prs()
@@ -72,6 +79,14 @@ class TestDeleteOldIssuesAndPrs(unittest.TestCase):
             else:
                 issue.create_comment.assert_not_called()
                 issue.edit.assert_not_called()
+                
+        for pr in mock_github.return_value.get_repo.return_value.get_pulls.return_value:
+            if (datetime.datetime.now() - pr.created_at).days > 14 and ('Sweep' in pr.labels or pr.title.startswith('Sweep')):
+                pr.create_issue_comment.assert_called_once_with('This PR is over two weeks old and will be deleted.')
+                pr.edit.assert_called_once_with(state='closed')
+            else:
+                pr.create_issue_comment.assert_not_called()
+                pr.edit.assert_not_called()
 
 if __name__ == '__main__':
     unittest.main()
