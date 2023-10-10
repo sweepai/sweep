@@ -6,6 +6,7 @@ It is only called by the webhook handler in sweepai/api.py.
 
 import math
 import re
+import traceback
 from time import time
 from loguru import logger
 
@@ -147,7 +148,7 @@ def on_ticket(
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.exception(f"Error hydrating cache of sandbox: {e}")
+        logger.error(f"Error hydrating cache of sandbox: {e}\n{traceback.format_exc()}")
     logger.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
@@ -493,7 +494,7 @@ def on_ticket(
             try:
                 issue_comment.edit(msg)
             except BadCredentialsException:
-                logger.exception("Bad credentials, refreshing token")
+                logger.error("Bad credentials, refreshing token\n{traceback.format_exc()}")
                 _user_token, g = get_github_client(installation_id)
                 repo = g.get_repo(repo_full_name)
 
@@ -582,7 +583,7 @@ def on_ticket(
             )
             raise SystemExit
         except Exception as e:
-            logger.exception(e)
+            logger.error(f"{e}\n{traceback.format_exc()}")
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
@@ -635,7 +636,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.exception(f"Failed to extract docs: {e}")
+            logger.error(f"Failed to extract docs: {e}\n{traceback.format_exc()}")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -708,7 +709,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.exception("Failed to create new branch for sweep.yaml file.")
+                logger.error("Failed to create new branch for sweep.yaml file.\n{traceback.format_exc()}")
         else:
             logger.info("sweep.yaml file already exists.")
 
@@ -1236,7 +1237,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.exception(e)
+            logger.error(f"{e}\n{traceback.format_exc()}")
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
