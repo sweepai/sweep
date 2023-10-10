@@ -1435,6 +1435,12 @@ class SweepBot(CodeGenBot, GithubBot):
                             )
                             commit_message = suggested_commit_message
                             new_file_contents += new_chunk + "\n"
+                        if len(lines) < 1000:
+                            new_file_contents, sandbox_error = self.check_sandbox(
+                                file_path=file_change_request.filename,
+                                content=new_file_contents,
+                                changed_files=changed_files,
+                            )
                 except Exception as e:
                     logger.print(e)
                     raise e
