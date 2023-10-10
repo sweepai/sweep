@@ -20,7 +20,7 @@ print(f"BACKUP_DEV_URL: {BACKUP_URL}")
 
 
 def is_dev_up():
-    response = requests.get(f"{DEV_URL}{HEALTH_ENDPOINT}")
+    response = requests.get(f"{DEV_URL}/health")
     return response.status_code == 200
 
 
