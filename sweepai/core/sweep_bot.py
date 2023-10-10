@@ -681,8 +681,8 @@ class SweepBot(CodeGenBot, GithubBot):
         self,
         file_path: str,
         content: str,
-        changed_files: list[tuple[str, str]],
-    ):
+        changed_files: List[Tuple[str, str]],
+    ) -> Tuple[str, Optional[SandboxResponse]]:
         # Format file
         sandbox_execution: SandboxResponse | None = None
         if SANDBOX_URL:
@@ -826,7 +826,7 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.error(f"Error: {e}")
 
         file_change.code, sandbox_execution = self.check_sandbox(
-            file_change_request.filename, file_change.code, changed_files
+            file_change_request.filename: str, file_change.code: str, changed_files: List[Tuple[str, str]]
         )
 
         self.messages = old_messages
@@ -956,7 +956,7 @@ class SweepBot(CodeGenBot, GithubBot):
             sandbox_execution = None
             if not chunking:
                 new_file, sandbox_execution = self.check_sandbox(
-                    file_change_request.filename, new_file, changed_files
+                    file_change_request.filename: str, new_file: str, changed_files: List[Tuple[str, str]]
                 )
             changed_files.append(
                 (
@@ -1048,8 +1048,8 @@ class SweepBot(CodeGenBot, GithubBot):
             ]
         )
         final_contents, sandbox_execution = self.check_sandbox(
-            file_change_request.filename, contents, []
-        )
+            file_change_request.filename: str, contents: str, []: List[Tuple[str, str]]
+        ) -> Tuple[str, Optional[SandboxResponse]]
         self.repo.update_file(
             file_change_request.filename,
             commit_message,
@@ -1339,10 +1339,10 @@ class SweepBot(CodeGenBot, GithubBot):
                             new_file_contents += new_chunk + "\n"
                         if len(lines) < 1000:
                             new_file_contents, sandbox_error = self.check_sandbox(
-                                file_path=file_change_request.filename,
-                                content=new_file_contents,
-                                changed_files=changed_files,
-                            )
+                                file_path=file_change_request.filename: str,
+                                content=new_file_contents: str,
+                                changed_files=changed_files: List[Tuple[str, str]]
+                            ) -> Tuple[str, Optional[SandboxResponse]]
                 except Exception as e:
                     logger.print(e)
                     raise e
