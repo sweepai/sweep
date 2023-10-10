@@ -97,7 +97,7 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
     chat_logger = ChatLogger(
         {"username": request_dict["sender"]["login"]},
     )
-    comparison = repo.compare(pr.base.sha, pr.head.sha) # Comparison between the base and head of the pull request
+    comparison = repo.compare(pr.base.sha, pr.head.sha) # head is the most recent
     commits_diff = comparison_to_diff(comparison)
     for rule in rules:
         changes_required, issue_title, issue_description = PostMerge(
