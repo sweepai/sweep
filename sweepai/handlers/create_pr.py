@@ -220,11 +220,16 @@ def safe_delete_sweep_branch(
         and GITHUB_BOT_USERNAME in pr_commit_authors
         and pr.head.ref.startswith("sweep")
     ):
-        # Add a comment on the PR saying that it will be deleted because it is over two weeks old
-        pr.create_issue_comment("This PR is over two weeks old and will be deleted.")
+        # Check if the PR is over two weeks old
+        if (datetime.datetime.now() - pr.created_at).days > 14:
+            # Add a comment on the PR saying that it will be deleted because it is over two weeks old
+            pr.create_issue_comment(
+                "This PR is over two weeks old and will be deleted."
+            )
+            # Delete the PR
+            pr.edit(state="closed")
 
         branch = repo.get_git_ref(f"heads/{pr.head.ref}")
-        # pr.edit(state='closed')
         branch.delete()
         return True
     else:
