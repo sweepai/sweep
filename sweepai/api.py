@@ -3,8 +3,6 @@ import json
 import os
 import time
 
-import psutil
-
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
 from sweepai.utils.buttons import (
@@ -14,6 +12,7 @@ from sweepai.utils.buttons import (
     check_button_title_match,
 )
 from sweepai.utils.safe_pqueue import SafePriorityQueue
+from sweepai.health import health_check
 
 logger.init(
     metadata=None,
@@ -23,12 +22,9 @@ logger.init(
 import ctypes
 import threading
 
-import redis
-import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
-from pymongo import MongoClient
 
 from sweepai.config.client import (
     RESTART_SWEEP_BUTTON,
@@ -256,71 +252,6 @@ def call_write_documentation(*args, **kwargs):
     thread.start()
 
 
-def check_sandbox_health():
-    try:
-        requests.get(os.path.join(SANDBOX_URL, "health"))
-        return "UP"
-    except Exception as e:
-        logger.error(e)
-        return "DOWN"
-
-
-def check_mongodb_health():
-    try:
-        client = MongoClient(MONGODB_URI)
-        client.server_info()  # Attempt to fetch server information
-        return "UP"
-    except Exception as e:
-        logger.error(e)
-        return "DOWN"
-
-
-def check_redis_health():
-    try:
-        redis_client = redis.Redis.from_url(REDIS_URL)
-        redis_client.ping()  # Ping the Redis server
-        return "UP"
-    except Exception as e:
-        logger.error(e)
-        return "DOWN"
-
-
-@app.get("/health")
-def health_check():
-    sandbox_status = check_sandbox_health()
-    mongo_status = check_mongodb_health() if not IS_SELF_HOSTED else None
-    redis_status = check_redis_health()
-
-    cpu_usage = psutil.cpu_percent(interval=0.1)
-    memory_info = psutil.virtual_memory()
-    disk_usage = psutil.disk_usage("/")
-    network_traffic = psutil.net_io_counters()
-
-    status = {
-        "status": "UP",
-        "details": {
-            "sandbox": {
-                "status": sandbox_status,
-            },
-            "mongodb": {
-                "status": mongo_status,
-            },
-            "redis": {
-                "status": redis_status,
-            },
-            "system_resources": {
-                "cpu_usage": cpu_usage,
-                "memory_usage": memory_info.used,
-                "disk_usage": disk_usage.used,
-                "network_traffic": {
-                    "bytes_sent": network_traffic.bytes_sent,
-                    "bytes_received": network_traffic.bytes_recv,
-                },
-            },
-        },
-    }
-
-    return JSONResponse(status_code=200, content=status)
 
 
 @app.get("/", response_class=HTMLResponse)
