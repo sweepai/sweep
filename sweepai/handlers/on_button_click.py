@@ -20,7 +20,11 @@ def handle_button_click(request_dict):
     user_token, gh_client = get_github_client(request_dict["installation"]["id"])
     button_list = ButtonList.deserialize(request_dict["comment"]["body"])
     selected_buttons = [button.label for button in button_list.get_clicked_buttons()]
-    repo = gh_client.get_repo(request_dict["repository"]["full_name"]) # do this after checking ref
+    # Check ref before getting the repo
+    if 'ref' in request_dict and request_dict['ref']:
+        repo = gh_client.get_repo(request_dict["repository"]["full_name"])
+    else:
+        raise ValueError("Missing or invalid 'ref' in request_dict")
     comment_id = request.comment.id
     pr = repo.get_pull(request_dict["issue"]["number"])
     comment = pr.get_issue_comment(comment_id)
@@ -97,7 +101,10 @@ def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
     chat_logger = ChatLogger(
         {"username": request_dict["sender"]["login"]},
     )
-    comparison = repo.compare(pr.base.sha, pr.head.sha) # head is the most recent
+    # Ensure the head is the most recent
+    if pr.head.sha != repo.get_commits()[0].sha:
+        raise ValueError("The head is not the most recent commit")
+    comparison = repo.compare(pr.base.sha, pr.head.sha)
     commits_diff = comparison_to_diff(comparison)
     for rule in rules:
         changes_required, issue_title, issue_description = PostMerge(
