@@ -15,10 +15,11 @@ user_message = """Review the following diffs and make sure they conform to the r
 The rule is: {rule}
 
 Provide your response in the following format.
-Step-by-step thoughts with explanations:
-- Explanation of code change 1 and whether it breaks the rule
-- Explanation of code change 2 and whether it breaks the rule
+<rule_analysis>
+- Analysis of code diff 1 and whether it breaks the rule
+- Analysis of code diff 2 and whether it breaks the rule
 ...
+</rule_analysis>
 
 Whether the rule is broken:
 <changes_required>
