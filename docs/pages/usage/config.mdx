@@ -15,7 +15,7 @@ rules:
 - "All docstrings and comments should be up to date."
 - "Leftover TODOs in the code should be handled."
 - "All new business logic should have corresponding unit tests in the tests/ directory."
-- "Any inefficient or redundant code can be optimized or refactored."
+- "Any clearly inefficient or repeated code should be optimized or refactored."
 
 # This is the branch that Sweep will develop from and make pull requests to. Most people use 'main' or 'master' but some users also use 'dev' or 'staging'.
 branch: 'main'
@@ -73,7 +73,7 @@ sandbox:
 rules:
 - "Leftover TODOs in the code should be handled."
 - "All new business logic should have corresponding unit tests in the tests/ directory."
-- "Any inefficient or redundant code can be optimized or refactored."
+- "Any clearly inefficient or repeated code should be optimized or refactored."
 - "All React components should have PropTypes defined."
 - "Update the README.md file whenever a new feature is added. Make sure to include a description of the feature and any new commands."
 - "Remove any console.log statements before committing JavaScript code."
@@ -82,7 +82,7 @@ rules:
 - "We use unit tests for our code. If we have "class.py", we should have "class_test.py" in the same directory."
 ```
 
-Sweep will check each pull request to see if any of these rules are broken. If so, Sweep will create a pull request to fix the broken rule. 
+Sweep will check each pull request to see if any of these rules are broken. If so, Sweep will create a pull request to fix the broken rule.
 These can also be applied to any pull requests in your repository. In this case Sweep will make the pull request against your pull request instead of your main branch.
 
 #### Tips for writing rules:
@@ -92,7 +92,7 @@ If you usually have to clean up logs, write `"Python error logs should use logur
 
 ##### 2. Rules should be specific in the type of change:
 
-Don't say `"Update the README.md file whenever a new feature is added."` 
+Don't say `"Update the README.md file whenever a new feature is added."`
 Instead, say `"Update the README.md file whenever a new feature is added. Make sure to include a description of the feature and any new commands."`
 
 ##### 3. Tell Sweep where the new code should go:
@@ -186,5 +186,5 @@ sandbox:
 rules:
 - "Leftover TODOs in the code should be handled."
 - "All new business logic should have corresponding unit tests in the tests/ directory."
-- "Any inefficient or redundant code can be optimized or refactored."
+- "Any clearly inefficient or repeated code should be optimized or refactored."
 ```

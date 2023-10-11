@@ -36,4 +36,4 @@ rules:
 - "All functions should have parameters and output annotated with type hints. Use list, tuple and dict instead of typing.List, typing.Tuple and typing.dict."
 - "Leftover TODOs in the code should be handled."
 - "All new business logic should have corresponding unit tests in the same directory. For example, sweepai/api_test.py tests sweepai/api.py. Use unittest and unittest.mock as required."
-- "Any inefficient or redundant code can be optimized or refactored."
+- "Any clearly inefficient or repeated code should be optimized or refactored."
