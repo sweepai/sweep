@@ -292,96 +292,30 @@ class _Task:
         return task_key, parent_task, child_task
 
 
-class _Logger:
-    def __init__(self, printfn):
-        # Check if printfn is a _Logger instance
-        if isinstance(printfn, _Logger):
-            print("Warning: self-reference logger can result in infinite loop")
-            self.printfn = print
-            return
+from loguru import logger as loguru_logger
 
-        self.printfn = printfn
-
-    def __call__(self, *args, **kwargs):
-        try:
-            self._log(*args, **kwargs)
-        except SystemExit:
-            raise SystemExit
-        except Exception:
-            print(traceback.format_exc())
-            print("Failed to write log")
-
-    def _log(self, *args, **kwargs):
-        task = _Task.get_task()
-
-        if self.printfn in logging_parsers:
-            parser = logging_parsers[self.printfn]
-            log = parser.parse(*args, **kwargs)
-
-            if task.logtail_logger is not None:
-                try:
-                    # switch case
-                    match parser.level:
-                        case 0:
-                            task.logtail_logger.info(
-                                log, extra=task.get_logtail_metadata()
-                            )
-                        case 1:
-                            task.logtail_logger.info(
-                                log, extra=task.get_logtail_metadata()
-                            )
-                        case 2:
-                            task.logtail_logger.error(
-                                log, extra=task.get_logtail_metadata()
-                            )
-                        case 3:
-                            task.logtail_logger.warning(
-                                log, extra=task.get_logtail_metadata()
-                            )
-                except SystemExit:
-                    raise SystemExit
-                except Exception:
-                    pass
-
-            print(log)
-            task.write_log(parser.level, log)
-        else:
-            print(
-                "Warning: no parser found for printfn:",
-                self.printfn.__module__,
-                self.printfn.__name__,
-            )
-            self.printfn(*args, **kwargs)
-            task.write_log(0, *args, **kwargs)
-
-    def init(self, metadata, create_file):
-        task = _Task.set_metadata(metadata=metadata, create_file=create_file)
-        return self
-
-
-class _LogN(_Logger):
+class _LogN:
     # Logging for N tasks
     def __init__(self, printfn=print):
-        super().__init__(printfn=printfn)
+        self.printfn = printfn
 
     def __getitem__(self, printfn):
-        return _Logger(printfn=printfn)
+        return loguru_logger
 
     def print(self, *args, **kwargs):
-        self[print](*args, **kwargs)
+        loguru_logger.info(*args, **kwargs)
 
     def info(self, *args, **kwargs):
-        self[loguru_logger.info](*args, **kwargs)
+        loguru_logger.info(*args, **kwargs)
 
     def error(self, *args, **kwargs):
-        self[loguru_logger.error](*args, **kwargs)
+        loguru_logger.error(*args, **kwargs)
 
     def warning(self, *args, **kwargs):
-        self[loguru_logger.warning](*args, **kwargs)
+        loguru_logger.warning(*args, **kwargs)
 
     def debug(self, *args, **kwargs):
-        # Todo: add debug level
-        self[loguru_logger.info](*args, **kwargs)
+        loguru_logger.debug(*args, **kwargs)
 
     @staticmethod
     def close(state="Done", exception=None):
