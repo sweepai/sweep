@@ -292,3 +292,7 @@ REVERT_CHANGED_FILES_TITLE = "## Rollback Files For Sweep"
 
 RULES_TITLE = "## Apply [Sweep Rules](https://docs.sweep.dev/usage/config#rules) to your PR?"
 RULES_LABEL = "**Apply:** "
+
+DEFAULT_RULES = ["Make sure any leftover TODOs in the code are handled.",
+"All new business logic should have corresponding unit tests in the tests/ directory.",
+"Any inefficient or redundant code can be optimized or refactored."]

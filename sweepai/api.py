@@ -31,6 +31,7 @@ from pydantic import ValidationError
 from pymongo import MongoClient
 
 from sweepai.config.client import (
+    DEFAULT_RULES,
     RESTART_SWEEP_BUTTON,
     REVERT_CHANGED_FILES_TITLE,
     RULES_LABEL,
@@ -362,6 +363,9 @@ async def webhook(raw_request: Request):
                 rule_buttons = []
                 for rule in get_rules(repo):
                     rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+                else:
+                    for rule in DEFAULT_RULES:
+                        rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
                 if rule_buttons:
                     rules_buttons_list = ButtonList(
                         buttons=rule_buttons, title=RULES_TITLE
