@@ -351,17 +351,39 @@ def on_ticket(
             )
         )
 
-        def get_comment_header(index, errored=False, pr_message="", done=False):
+        def get_comment_header(index, buttons, errored=False, pr_message="", done=False):
             config_pr_message = (
                 "\n"
                 + f"* Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a>"
                 if config_pr_url is not None
                 else ""
             )
-            actions_message = create_action_buttons(
-                [
-                    RESTART_SWEEP_BUTTON,
-                ]
+            actions_message = create_action_buttons(buttons)
+        
+            if index < 0:
+                index = 0
+            if index == 4:
+                return pr_message + f"\n\n---\n{actions_message}" + config_pr_message
+        
+            total = len(progress_headers)
+            index += 1 if done else 0
+            index *= 100 / total
+            index = int(index)
+            index = min(100, index)
+            if errored:
+                pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Errored&width=600' alt='{index}%' />"
+                return (
+                    f"{center(sweeping_gif)}<br/>{center(pbar)}\n\n"
+                    + f"\n\n---\n{actions_message}"
+                )
+            pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
+            return (
+                f"{center(sweeping_gif)}<br/>{center(pbar)}"
+                + ("\n" + stars_suffix if index != -1 else "")
+                + "\n"
+                + center(payment_message_start)
+                + config_pr_message
+                + f"\n\n---\n{actions_message}"
             )
 
             if index < 0:
@@ -443,7 +465,7 @@ def on_ticket(
         # Random variables to save in case of errors
         table = None  # Show plan so user can finetune prompt
 
-        def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
+        def edit_sweep_comment(message: str, buttons, index: int, pr_message="", done=False):
             nonlocal current_index, user_token, g, repo, issue_comment
             # -1 = error, -2 = retry
             # Only update the progress bar if the issue generation errors.
@@ -451,7 +473,7 @@ def on_ticket(
             if index >= 0:
                 past_messages[index] = message
                 current_index = index
-
+        
             agg_message = None
             # Include progress history
             # index = -2 is reserved for
@@ -470,7 +492,7 @@ def on_ticket(
                     agg_message = msg
                 else:
                     agg_message = agg_message + f"\n{sep}" + msg
-
+        
             suffix = bot_suffix + discord_suffix
             if errored:
                 agg_message = (
@@ -487,20 +509,20 @@ def on_ticket(
                         f" wrong, please add more details to your issue.\n\n{table}"
                     )
                 suffix = bot_suffix  # don't include discord suffix for error messages
-
+        
             # Update the issue comment
-            msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
+            msg = f"{get_comment_header(current_index, buttons, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
             try:
                 issue_comment.edit(msg)
             except BadCredentialsException:
                 logger.error("Bad credentials, refreshing token")
                 _user_token, g = get_github_client(installation_id)
                 repo = g.get_repo(repo_full_name)
-
+        
                 for comment in comments:
                     if comment.user.login == GITHUB_BOT_USERNAME:
                         issue_comment = comment
-
+        
                 if issue_comment is None:
                     issue_comment = current_issue.create_comment(msg)
                 else:
@@ -510,17 +532,6 @@ def on_ticket(
                         if comment.user == GITHUB_BOT_USERNAME
                     ][0]
                     issue_comment.edit(msg)
-
-        if len(title + summary) < 20:
-            logger.info("Issue too short")
-            edit_sweep_comment(
-                (
-                    "Please add more details to your issue. I need at least 20 characters"
-                    " to generate a plan."
-                ),
-                -1,
-            )
-            posthog.capture(
                 username,
                 "issue_too_short",
                 properties={**metadata, "duration": time() - on_ticket_start_time},
@@ -706,7 +717,7 @@ def on_ticket(
                 logger.info("Creating sweep.yaml file...")
                 config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
                 config_pr_url = config_pr.html_url
-                edit_sweep_comment(message="", index=-2)
+                edit_sweep_comment(message="", buttons, index=-2)
             except SystemExit:
                 raise SystemExit
             except Exception as e:
@@ -745,6 +756,7 @@ def on_ticket(
                     else ""
                 )
                 + (f"\n\n{docs_results}\n\n" if docs_results else ""),
+                buttons,
                 1,
             )
 
@@ -779,6 +791,7 @@ def on_ticket(
                 edit_sweep_comment(
                     f"I finished creating the subissues! Track them at:\n\n"
                     + "\n".join(f"* #{subissue.issue_id}" for subissue in subissues),
+                    buttons,
                     3,
                     done=True,
                 )
@@ -829,6 +842,7 @@ def on_ticket(
                             "Sorry, I could not find any files to modify, can you please"
                             " provide more details?"
                         ),
+                        buttons,
                         -1,
                     )
                 raise Exception("No files to modify.")
@@ -1031,6 +1045,7 @@ def on_ticket(
             edit_sweep_comment(
                 "I have finished coding the issue. I am now reviewing it for completeness.",
                 3,
+                buttons,
             )
             change_location = f" [`{pr_changes.pr_head}`](https://github.com/{repo_full_name}/commits/{pr_changes.pr_head}).\n\n"
             review_message = (
@@ -1073,6 +1088,7 @@ def on_ticket(
                     edit_sweep_comment(
                         review_message
                         + "\n\nI'm currently addressing these suggestions.",
+                        buttons,
                         3,
                     )
                     logger.info(f"Addressing review comment {review_comment}")
@@ -1096,13 +1112,15 @@ def on_ticket(
                 logger.error(e)
 
             if changes_required:
-                edit_sweep_comment(
-                    review_message + "\n\nI finished incorporating these changes.",
-                    3,
-                )
+                    edit_sweep_comment(
+                        review_message + "\n\nI finished incorporating these changes.",
+                        buttons,
+                        3,
+                    )
             else:
                 edit_sweep_comment(
                     f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
+                    buttons,
                     3,
                 )
 
@@ -1145,6 +1163,7 @@ def on_ticket(
             current_issue.create_reaction("rocket")
             edit_sweep_comment(
                 review_message + "\n\nSuccess! 🚀",
+                buttons,
                 4,
                 pr_message=(
                     f"## Here's the PR! [{pr.html_url}]({pr.html_url}).\n{center(payment_message_start)}"
@@ -1171,6 +1190,7 @@ def on_ticket(
                         " We are currently working on improved file streaming to address"
                         " this issue.\n"
                     ),
+                    buttons,
                     -1,
                 )
             else:
@@ -1248,6 +1268,7 @@ def on_ticket(
             logger.error(e)
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
+                buttons = create_action_buttons(file_change_requests)
                 edit_sweep_comment(
                     (
                         "I'm sorry, but it looks like an error has occurred due to"
@@ -1255,6 +1276,7 @@ def on_ticket(
                         " so I can better address it. If this error persists report it at"
                         " https://discord.gg/sweep."
                     ),
+                    buttons,
                     -1,
                 )
             else:
@@ -1264,6 +1286,7 @@ def on_ticket(
                         " the issue description to re-trigger Sweep. If this error persists"
                         " report it at https://discord.gg/sweep."
                     ),
+                    buttons,
                     -1,
                 )
             log_error(

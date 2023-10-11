@@ -29,6 +29,7 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessageCommentPrompt
 from sweepai.utils.search_utils import search_snippets
+from sweepai.utils.buttons import create_action_buttons
 
 openai.api_key = OPENAI_API_KEY
 
@@ -185,8 +186,9 @@ def on_comment(
 
     bot_comment = None
 
-    def edit_comment(new_comment):
+    def edit_comment(new_comment, buttons):
         if bot_comment is not None:
+            bot_comment.edit(new_comment + buttons)
             bot_comment.edit(new_comment)
 
     try:
@@ -330,7 +332,8 @@ def on_comment(
             "failed",
             properties={"error": str(e), "reason": "Failed to get files", "duration": elapsed_time, **metadata},
         )
-        edit_comment(ERROR_FORMAT.format(title="Failed to get files"))
+        buttons = create_action_buttons(file_change_requests)
+        edit_comment(ERROR_FORMAT.format(title="Failed to get files"), buttons)
         raise e
 
     try:
@@ -380,8 +383,8 @@ def on_comment(
             f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
         )
         if pr_number:
-            edit_comment(response_for_user)
-            # pr.create_issue_comment(response_for_user)
+            buttons = create_action_buttons(file_change_requests)
+            edit_comment(response_for_user, buttons)
         logger.info("Making Code Changes...")
 
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
@@ -400,13 +403,16 @@ def on_comment(
             if comment_id:
                 if changes_made:
                     # PR Review Comment Reply
-                    edit_comment("Done.")
-                else:
-                    # PR Review Comment Reply
-                    edit_comment(
-                        'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR(at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discord](https://discord.com/invite/sweep)'
-                    )
-        except SystemExit:
+                    buttons = create_action_buttons(file_change_requests)
+                    if changes_made:
+                        # PR Review Comment Reply
+                        edit_comment("Done.", buttons)
+                    else:
+                        # PR Review Comment Reply
+                        edit_comment(
+                            'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR(at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discord](https://discord.com/invite/sweep)', buttons
+                        )
+                    except SystemExit:
             raise SystemExit
         except Exception as e:
             logger.error(f"Failed to reply to comment: {e}")
@@ -444,7 +450,8 @@ def on_comment(
                 **metadata,
             },
         )
-        edit_comment(ERROR_FORMAT.format(title="Failed to make changes"))
+        buttons = create_action_buttons(file_change_requests)
+        edit_comment(ERROR_FORMAT.format(title="Failed to make changes"), buttons)
         raise e
 
     # Delete eyes
@@ -467,8 +474,9 @@ def on_comment(
 
     try:
         if response_for_user is not None:
-            edit_comment(f"## 🚀 Wrote Changes\n\n{response_for_user}")
-    except SystemExit:
+            buttons = create_action_buttons(file_change_requests)
+            edit_comment(f"## 🚀 Wrote Changes\n\n{response_for_user}", buttons)
+        except SystemExit:
         raise SystemExit
     except Exception:
         pass
