@@ -7,7 +7,6 @@ from geopy import Nominatim
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
 
-from sweepai.logn import logger
 from sweepai.config.server import (
     DISCORD_LOW_PRIORITY_URL,
     DISCORD_MEDIUM_PRIORITY_URL,
@@ -15,6 +14,7 @@ from sweepai.config.server import (
     MONGODB_URI,
     SUPPORT_COUNTRY,
 )
+from sweepai.logn import logger
 
 
 class ChatLogger(BaseModel):
@@ -30,31 +30,32 @@ class ChatLogger(BaseModel):
         default_factory=lambda: datetime.utcnow().strftime("%m/%Y")
     )
 
-    def __init__(self, data: dict):
+    def __init__(self, data: dict[str, str] = {}, mock=False):
         super().__init__(data=data)  # Call the BaseModel's __init__ method
         key = MONGODB_URI
         if key is None:
             logger.warning("Chat history logger has no key")
             return
-        try:
-            client = MongoClient(
-                key, serverSelectionTimeoutMS=10000, socketTimeoutMS=10000
-            )
-            db = client["llm"]
-            self.chat_collection = db["chat_history"]
-            self.ticket_collection = db["tickets"]
-            self.ticket_collection.create_index("username")
-            self.chat_collection.create_index(
-                "expiration", expireAfterSeconds=2419200
-            )  # 28 days data persistence
-            self.expiration = datetime.utcnow() + timedelta(
-                days=1
-            )  # 1 day since historical use case
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.warning("Chat history could not connect to MongoDB")
-            logger.warning(e)
+        if not mock:
+            try:
+                client = MongoClient(
+                    key, serverSelectionTimeoutMS=10000, socketTimeoutMS=10000
+                )
+                db = client["llm"]
+                self.chat_collection = db["chat_history"]
+                self.ticket_collection = db["tickets"]
+                self.ticket_collection.create_index("username")
+                self.chat_collection.create_index(
+                    "expiration", expireAfterSeconds=2419200
+                )  # 28 days data persistence
+                self.expiration = datetime.utcnow() + timedelta(
+                    days=1
+                )  # 1 day since historical use case
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                logger.warning("Chat history could not connect to MongoDB")
+                logger.warning(e)
 
     def get_chat_history(self, filters):
         return (
