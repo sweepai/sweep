@@ -35,40 +35,30 @@ class SandboxExecution:
 
 
 def write_file(container, file_path: str, content: str):
-    # Convert the content to bytes
     content_bytes = content.encode("utf-8")
 
     tar_stream = io.BytesIO()
     with tarfile.TarFile(fileobj=tar_stream, mode="w") as tar:
-        file_data = tarfile.TarInfo(
-            name=file_path.split("/")[-1]
-        )  # Use only the filename, not the full path
+        file_data = tarfile.TarInfo(name=file_path.split("/")[-1])
         file_data.size = len(content_bytes)
         tar.addfile(file_data, io.BytesIO(content_bytes))
 
-    # Ensure directories exist
     directory = os.path.dirname(file_path)
-    container.exec_run(
-        f"mkdir -p {directory}", user="root"
-    )  # Execute the mkdir command within the container
+    container.exec_run(f"mkdir -p {directory}", user="root")
 
     tar_stream.seek(0)
     container.put_archive(os.path.dirname(file_path), tar_stream)
 
 
 def read_file(container: str, file_path: str):
-    # Get a tarball of the file from the container
     tar_stream, _ = container.get_archive(file_path)
 
-    # Create a BytesIO object from the tar stream
     tar_byte_stream = io.BytesIO()
     for chunk in tar_stream:
         tar_byte_stream.write(chunk)
 
-    # Set the stream position to the beginning
     tar_byte_stream.seek(0)
 
-    # Extract the file content from the tarball
     with tarfile.TarFile(fileobj=tar_byte_stream) as tar:
         member = tar.next()  # Get the first (and only) member in the tarball
         if member is not None:
@@ -107,6 +97,7 @@ class SandboxRequest(BaseModel):
     file_path: str | None = None  # if none, only run install step to hydrate cache
     content: str | None = None
     token: str | None = None
+    num_iterations: int = 1
     # TODO: need branch
 
 
