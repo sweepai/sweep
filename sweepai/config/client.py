@@ -278,7 +278,7 @@ def get_rules(repo: Repository):
 GITHUB_APP_CLIENT_ID = os.environ.get("GITHUB_APP_CLIENT_ID", "Iv1.91fd31586a926a9f")
 
 UPDATES_MESSAGE = """\
-🎉 Latest improvements to Sweep:
+### 🎉 Latest improvements to Sweep:
 
 * Sweep can now passively improve your repository! Check out [Rules](https://docs.sweep.dev/usage/config#rules) to learn more.
 """
