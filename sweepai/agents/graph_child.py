@@ -143,6 +143,12 @@ class GraphChildBot(ChatGPT):
         previous_snippets,
         all_symbols_and_files,
     ) -> GraphContextAndPlan:
+        if not entities:
+            return GraphContextAndPlan(
+                relevant_new_snippet=Snippet(file_path="", start=0, end=0, content=code),
+                code_change_description="",
+                file_path=file_path,
+            )
         python_snippet = extract_python_span(code, entities)
         python_snippet.file_path = file_path
         return GraphContextAndPlan(
@@ -268,462 +274,455 @@ def extract_python_span(code: str, entities: str):
 
 
 if __name__ == "__main__":
-    file = r'''
+    file = r'''import datetime
+import inspect
 import json
-import re
-import time
-from functools import lru_cache
-from typing import Generator, List
-
-import numpy as np
-import replicate
-import requests
+import logging
+import os
+import threading
 import traceback
-from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
-    VectorStore,
-)
-from redis import Redis
-from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
-from tqdm import tqdm
 
-from sweepai.logn import file_cache, logger
-from sweepai.config.client import SweepConfig
-from sweepai.config.server import (
-    BATCH_SIZE,
-    HUGGINGFACE_TOKEN,
-    HUGGINGFACE_URL,
-    REDIS_URL,
-    REPLICATE_API_KEY,
-    REPLICATE_URL,
-    SENTENCE_TRANSFORMERS_MODEL,
-    VECTOR_EMBEDDING_SOURCE,
-)
-from sweepai.core.entities import Snippet
-from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
-from sweepai.core.repo_parsing_utils import repo_to_chunks
-from sweepai.utils.event_logger import posthog
-from sweepai.utils.hash import hash_sha256
-from sweepai.utils.scorer import compute_score, get_scores
-
-from ..utils.github_utils import ClonedRepo
-
-MODEL_DIR = "/tmp/cache/model"
-DEEPLAKE_DIR = "/tmp/cache/"
-timeout = 60 * 60  # 30 minutes
-CACHE_VERSION = "v1.0.13"
-MAX_FILES = 500
-
-redis_client = Redis.from_url(REDIS_URL)
+LOG_PATH = "logn_logs/logs"
+META_PATH = "logn_logs/meta"
+END_OF_LINE = "󰀀{level}󰀀\n"
 
 
-def download_models():
-    from sentence_transformers import (  # pylint: disable=import-error
-        SentenceTransformer,
-    )
+# Add logtail support
+try:
+    from logtail import LogtailHandler
 
-    model = SentenceTransformer(SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR)
+    from sweepai.config.server import LOGTAIL_SOURCE_KEY
 
+    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
 
-def init_deeplake_vs(repo_name):
-    deeplake_repo_path = f"mem://{int(time.time())}{repo_name}"
-    deeplake_vector_store = VectorStore(
-        path=deeplake_repo_path, read_only=False, overwrite=False
-    )
-    return deeplake_vector_store
-
-
-def parse_collection_name(name: str) -> str:
-    # Replace any non-alphanumeric characters with hyphens
-    name = re.sub(r"[^\w-]", "--", name)
-    # Ensure the name is between 3 and 63 characters and starts/ends with alphanumeric
-    name = re.sub(r"^(-*\w{0,61}\w)-*$", r"\1", name[:63].ljust(3, "x"))
-    return name
-
-
-def embed_huggingface(texts):
-    """Embeds a list of texts using Hugging Face's API."""
-    for i in range(3):
+    def get_logtail_logger(logger_name):
         try:
-            headers = {
-                "Authorization": f"Bearer {HUGGINGFACE_TOKEN}",
-                "Content-Type": "application/json",
-            }
-            response = requests.post(
-                HUGGINGFACE_URL, headers=headers, json={"inputs": texts}
-            )
-            return response.json()["embeddings"]
-        except requests.exceptions.RequestException as e:
-            logger.error(
-                f"Error occurred when sending request to Hugging Face endpoint: {traceback.format_exc()}"
-            )
-
-
-def embed_replicate(texts):
-    client = replicate.Client(api_token=REPLICATE_API_KEY)
-    for i in range(3):
-        try:
-            outputs = client.run(REPLICATE_URL, input={"text_batch": json.dumps(texts)}, timeout=60)
-        except Exception as e:
-            logger.error(f"Replicate timeout: {traceback.format_exc()}")
-    return [output["embedding"] for output in outputs]
-
-
-@lru_cache(maxsize=64)
-def embed_texts(texts: tuple[str]):
-    logger.info(
-        f"Computing embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}..."
-    )
-    match VECTOR_EMBEDDING_SOURCE:
-        case "sentence-transformers":
-            sentence_transformer_model = SentenceTransformer(
-                SENTENCE_TRANSFORMERS_MODEL, cache_folder=MODEL_DIR
-            )
-            vector = sentence_transformer_model.encode(
-                texts, show_progress_bar=True, batch_size=BATCH_SIZE
-            )
-            return vector
-        case "openai":
-            import openai
-
-            embeddings = []
-            for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-                try:
-                    response = openai.Embedding.create(
-                        input=batch, model="text-embedding-ada-002"
-                    )
-                    embeddings.extend([r["embedding"] for r in response["data"]])
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
-                    logger.error(traceback.format_exc())
-                    logger.error(f"Failed to get embeddings for {batch}")
-            return embeddings
-        case "huggingface":
-            if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
-                embeddings = []
-                for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-                    embeddings.extend(embed_huggingface(texts))
-                return embeddings
-            else:
-                raise Exception("Hugging Face URL and token not set")
-        case "replicate":
-            if REPLICATE_API_KEY:
-                embeddings = []
-                for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE)):
-                    embeddings.extend(embed_replicate(batch))
-                return embeddings
-            else:
-                raise Exception("Replicate URL and token not set")
-        case _:
-            raise Exception("Invalid vector embedding mode")
-    logger.info(
-        f"Computed embeddings for {len(texts)} texts using {VECTOR_EMBEDDING_SOURCE}"
-    )
-
-
-def embedding_function(texts: list[str]):
-    # For LRU cache to work
-    return embed_texts(tuple(texts))
-
-
-def get_deeplake_vs_from_repo(
-    cloned_repo: ClonedRepo,
-    sweep_config: SweepConfig = SweepConfig(),
-):
-    deeplake_vs = None
-
-    repo_full_name = cloned_repo.repo_full_name
-    repo = cloned_repo.repo
-    commits = repo.get_commits()
-    commit_hash = commits[0].sha
-
-    logger.info(f"Downloading repository and indexing for {repo_full_name}...")
-    start = time.time()
-    logger.info("Recursively getting list of files...")
-    snippets, file_list = repo_to_chunks(cloned_repo.cache_dir, sweep_config)
-    logger.info(f"Found {len(snippets)} snippets in repository {repo_full_name}")
-    # prepare lexical search
-    index = prepare_index_from_snippets(
-        snippets, len_repo_cache_dir=len(cloned_repo.cache_dir) + 1
-    )
-    logger.print("Prepared index from snippets")
-    # scoring for vector search
-    files_to_scores = {}
-    score_factors = []
-    for file_path in tqdm(file_list):
-        if not redis_client:
-            score_factor = compute_score(
-                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
-            )
-            score_factors.append(score_factor)
-            continue
-        cache_key = hash_sha256(file_path) + CACHE_VERSION
-        try:
-            cache_value = redis_client.get(cache_key)
-        except Exception as e:
-            logger.error(traceback.format_exc())
-            cache_value = None
-        if cache_value is not None:
-            score_factor = json.loads(cache_value)
-            score_factors.append(score_factor)
-        else:
-            score_factor = compute_score(
-                file_path[len(cloned_repo.cache_dir) + 1 :], cloned_repo.git_repo
-            )
-            score_factors.append(score_factor)
-            redis_client.set(cache_key, json.dumps(score_factor))
-    # compute all scores
-    all_scores = get_scores(score_factors)
-    files_to_scores = {
-        file_path: score for file_path, score in zip(file_list, all_scores)
-    }
-    logger.info(f"Found {len(file_list)} files in repository {repo_full_name}")
-
-    documents = []
-    metadatas = []
-    ids = []
-    for snippet in snippets:
-        documents.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
-        metadata = {
-            "file_path": snippet.file_path[len(cloned_repo.cache_dir) + 1 :],
-            "start": snippet.start,
-            "end": snippet.end,
-            "score": files_to_scores[snippet.file_path],
-        }
-        metadatas.append(metadata)
-        gh_file_path = snippet.file_path[len("repo/") :]
-        ids.append(f"{gh_file_path}:{snippet.start}:{snippet.end}")
-    logger.info(f"Getting list of all files took {time.time() - start}")
-    logger.info(f"Received {len(documents)} documents from repository {repo_full_name}")
-    collection_name = parse_collection_name(repo_full_name)
-
-    deeplake_vs = deeplake_vs or compute_deeplake_vs(
-        collection_name, documents, ids, metadatas, commit_hash
-    )
-
-    return deeplake_vs, index, len(documents)
-
-
-def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
-    if len(documents) > 0:
-        logger.info(f"Computing embeddings with {VECTOR_EMBEDDING_SOURCE}...")
-        # Check cache here for all documents
-        embeddings = [None] * len(documents)
-        if redis_client:
-            cache_keys = [
-                hash_sha256(doc)
-                + SENTENCE_TRANSFORMERS_MODEL
-                + VECTOR_EMBEDDING_SOURCE
-                + CACHE_VERSION
-                for doc in documents
-            ]
-            cache_values = redis_client.mget(cache_keys)
-            for idx, value in enumerate(cache_values):
-                if value is not None:
-                    arr = json.loads(value)
-                    if isinstance(arr, list):
-                        embeddings[idx] = np.array(arr, dtype=np.float32)
-
-        logger.info(
-            f"Found {len([x for x in embeddings if x is not None])} embeddings in cache"
-        )
-        indices_to_compute = [idx for idx, x in enumerate(embeddings) if x is None]
-        documents_to_compute = [documents[idx] for idx in indices_to_compute]
-
-        logger.info(f"Computing {len(documents_to_compute)} embeddings...")
-        computed_embeddings = embedding_function(documents_to_compute)
-        logger.info(f"Computed {len(computed_embeddings)} embeddings")
-
-        for idx, embedding in zip(indices_to_compute, computed_embeddings):
-            embeddings[idx] = embedding
-
-        try:
-            embeddings = np.array(embeddings, dtype=np.float32)
+            logger = logging.getLogger(logger_name)
+            logger.setLevel(logging.INFO)
+            logger.handlers = []
+            logger.addHandler(handler)
+            return logger
         except SystemExit:
             raise SystemExit
-        except:
-            logger.print([len(embedding) for embedding in embeddings])
-            logger.error(
-                "Failed to convert embeddings to numpy array, recomputing all of them"
-            )
-            embeddings = embedding_function(documents)
-            embeddings = np.array(embeddings, dtype=np.float32)
+        except Exception:
+            return None
 
-        logger.info("Adding embeddings to deeplake vector store...")
-        deeplake_vs = init_deeplake_vs(collection_name)
-        deeplake_vs.add(text=ids, embedding=embeddings, metadata=metadatas)
-        logger.info("Added embeddings to deeplake vector store")
-        if redis_client and len(documents_to_compute) > 0:
-            logger.info(f"Updating cache with {len(computed_embeddings)} embeddings")
-            cache_keys = [
-                hash_sha256(doc)
-                + SENTENCE_TRANSFORMERS_MODEL
-                + VECTOR_EMBEDDING_SOURCE
-                + CACHE_VERSION
-                for doc in documents_to_compute
-            ]
-            redis_client.mset(
-                {
-                    key: json.dumps(
-                        embedding.tolist()
-                        if isinstance(embedding, np.ndarray)
-                        else embedding
-                    )
-                    for key, embedding in zip(cache_keys, computed_embeddings)
-                }
-            )
-        return deeplake_vs
-    else:
-        logger.error("No documents found in repository")
-        return deeplake_vs
+except Exception as e:
+    print("Failed to import logtail")
+    print(e)
+
+    def get_logtail_logger(logger_name):
+        return None
 
 
-# Only works on functions without side effects
-@file_cache(ignore_params=["cloned_repo", "sweep_config", "token"])
-def get_relevant_snippets(
-    cloned_repo: ClonedRepo,
-    query: str,
-    username: str | None = None,
-    sweep_config: SweepConfig = SweepConfig(),
-    lexical=True,
-):
-    repo_name = cloned_repo.repo_full_name
-    installation_id = cloned_repo.installation_id
-    logger.info("Getting query embedding...")
-    query_embedding = embedding_function([query])  # pylint: disable=no-member
-    logger.info("Starting search by getting vector store...")
-    deeplake_vs, lexical_index, num_docs = get_deeplake_vs_from_repo(
-        cloned_repo, sweep_config=sweep_config
+class LogParser:
+    def __init__(self, level: int, parse_args):
+        self.level = level
+        self.parse_args = parse_args
+
+    def parse(self, *args, **kwargs):
+        return self.parse_args(*args, **kwargs)
+
+
+def print2(message, level="INFO"):
+    if level is None:
+        return message
+
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+    current_frame = inspect.currentframe()
+    calling_frame = next(
+        frame
+        for frame in inspect.stack()
+        if frame.filename != current_frame.f_code.co_filename
     )
-    content_to_lexical_score = search_index(query, lexical_index)
-    logger.info(f"Found {len(content_to_lexical_score)} lexical results")
-    logger.info(f"Searching for relevant snippets... with {num_docs} docs")
-    results = {"metadata": [], "text": []}
-    try:
-        results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.error(traceback.format_exc())
-    logger.info("Fetched relevant snippets...")
-    if len(results["text"]) == 0:
-        logger.info(f"Results query {query} was empty")
-        logger.info(f"Results: {results}")
-        if username is None:
-            username = "anonymous"
-        posthog.capture(
-            username,
-            "failed",
-            {
-                "reason": "Results query was empty",
-                "repo_name": repo_name,
-                "installation_id": installation_id,
-                "query": query,
-            },
+    function_name = calling_frame.function
+    line_number = calling_frame.lineno
+
+    # module_name = inspect.getmodule(calling_frame).__name__
+    module_name = calling_frame.filename.split("/")[-1].replace(".py", "")
+
+    log_string = f"{timestamp} | {level:<8} | {module_name}:{function_name}:{line_number} - {message}"
+    return log_string
+
+
+logging_parsers = {
+    print: LogParser(
+        level=0, parse_args=lambda *args, **kwargs: " ".join([str(arg) for arg in args])
+    ),
+}
+
+try:
+    from loguru import logger as loguru_logger
+
+    logging_parsers[loguru_logger.info] = LogParser(
+        level=1, parse_args=lambda *args, **kwargs: print2(args[0], level="INFO")
+    )
+    logging_parsers[loguru_logger.error] = LogParser(
+        level=2, parse_args=lambda *args, **kwargs: print2(args[0], level="ERROR")
+    )
+    logging_parsers[loguru_logger.warning] = LogParser(
+        level=3, parse_args=lambda *args, **kwargs: print2(args[0], level="WARNING")
+    )
+except:
+    print("Failed to import loguru")
+
+
+def get_task_key():
+    return threading.current_thread()
+
+
+# Task only stores the thread and key
+_task_dictionary = {}
+
+
+def _find_available_path(path, extension=".txt"):
+    index = 0
+    available_path = f"{path}{extension}"
+    while os.path.exists(available_path):
+        available_path = f"{path}{index}{extension}"
+        index += 1
+    return available_path
+
+
+class _Task:
+    def __init__(
+        self,
+        logn_task_key,
+        logn_parent_task=None,
+        metadata=None,
+        create_file=True,
+        function_name=None,
+    ):
+        if logn_task_key is None:
+            logn_task_key = get_task_key()
+
+        self.task_key = logn_task_key
+        self.metadata = metadata
+        self.parent_task = logn_parent_task
+        if self.metadata is None:
+            self.metadata = {}
+        if "name" not in self.metadata:
+            self.metadata["name"] = str(self.task_key.name.split(" ")[0])
+        self.create_file = create_file
+        self.name, self.log_path, self.meta_path = self.create_files()
+        self.state = "Created"
+        self.children = []
+        self.function_name = function_name
+        self.exception = None
+        # self.write_metadata(state="Created")
+
+        self.logtail_logger = get_logtail_logger(
+            self.log_path.split("/")[-1].replace(".txt", "")
         )
-        return []
-    metadatas = results["metadata"]
-    code_scores = [metadata["score"] for metadata in metadatas]
-    lexical_scores = []
-    for metadata in metadatas:
-        key = f"{metadata['file_path']}:{str(metadata['start'])}:{str(metadata['end'])}"
-        if key in content_to_lexical_score:
-            lexical_scores.append(content_to_lexical_score[key])
+
+    def get_logtail_metadata(self):
+        return {
+            "metadata": self.metadata,
+            "function_name": self.function_name,
+            "state": self.state,
+            "children": self.children,
+            "exception": self.exception,
+        }
+
+    @staticmethod
+    def create(metadata, create_file=True):
+        return _Task(
+            logn_task_key=threading.current_thread(),
+            metadata=metadata,
+            create_file=create_file,
+        )
+
+    def write_metadata(
+        self,
+        state: str | None = None,
+        child_task: str | None = None,
+        function_name: str | None = None,
+        exception: str | None = None,
+    ):
+        if state is not None:
+            self.state = state
+        if child_task is not None:
+            self.children.append(child_task)
+        if function_name is not None:
+            self.function_name = function_name
+        if exception is not None:
+            self.exception = exception
+        if not self.create_file:
+            return
+
+        # Todo: keep track of state, and allow metadata updates
+        # state: str | None
+        # self.state = state
+        # with open(self.meta_path, "w") as f:
+        #     f.write(
+        #         json.dumps(
+        #             {
+        #                 "task_key": self.name,
+        #                 "logs": self.log_path,
+        #                 "datetime": str(datetime.datetime.now()),
+        #                 "metadata": self.metadata if self.metadata is not None else {},
+        #                 # Todo: Write parent task in here
+        #                 "function_name": self.function_name,
+        #                 "parent_task": self.parent_task.meta_path
+        #                 if self.parent_task is not None
+        #                 else None,
+        #                 "children": self.children,
+        #                 "exception": self.exception,
+        #                 "state": state,
+        #             }
+        #         )
+        #     )
+
+    def create_files(self):
+        name = self.metadata["name"]
+
+        # Write logging file
+        log_path = os.path.join(LOG_PATH, name + ".txt")
+        if self.create_file:
+            log_path = _find_available_path(os.path.join(LOG_PATH, name))
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            with open(log_path, "w") as f:
+                pass
+
+        # Write metadata file
+        meta_path = os.path.join(META_PATH, name + ".json")
+        if self.create_file:
+            meta_path = _find_available_path(
+                os.path.join(META_PATH, name), extension=".json"
+            )
+            os.makedirs(os.path.dirname(meta_path), exist_ok=True)
+            with open(meta_path, "w") as f:
+                pass
+
+        return name, log_path, meta_path
+
+    def write_log(self, logn_level, *args, **kwargs):
+        return
+        # if not self.create_file:
+        #     return
+
+        # if self.log_path is None:
+        #     raise ValueError("Task has no log path")
+
+        # with open(self.log_path, "a") as f:
+        #     log = " ".join([str(arg) for arg in args])
+        #     f.write(f"{log}{END_OF_LINE.format(level=logn_level)}")
+
+    @staticmethod
+    def get_task(
+        task_key=None, create_if_not_exist=True, metadata=None, create_file=True
+    ):
+        if task_key is None:
+            task_key = get_task_key()
+
+        task = None
+        if _task_dictionary.get(task_key) is not None:
+            task = _task_dictionary[task_key]
+        elif create_if_not_exist:
+            task = _Task.create(metadata=metadata, create_file=create_file)
+            _task_dictionary[task_key] = task
+
+        return task
+
+    @staticmethod
+    def set_metadata(metadata, create_file):
+        task = _Task.get_task(metadata=metadata, create_file=create_file)
+        if task is None:
+            return
+        task.create_file = create_file
+        task.metadata = metadata
+        # task.write_metadata()
+        return task
+
+    @staticmethod
+    def update_task(task_key=None, task=None):
+        if task_key is None:
+            task_key = get_task_key()
+
+        _task_dictionary[task_key] = task
+
+    @staticmethod
+    def create_child_task(name: str, function_name: str = None):
+        # Todo: make child task metadata
+        parent_task = _Task.get_task(create_if_not_exist=False)
+        if parent_task is None:
+            task_key = get_task_key()
+            child_task = _Task(
+                logn_task_key=None,
+                logn_parent_task=parent_task,
+                metadata={"name": name},
+                function_name=function_name,
+            )
         else:
-            lexical_scores.append(0.3)
-    vector_scores = results["score"]
-    combined_scores = [
-        code_score * 4
-        + vector_score
-        + lexical_score * 2.5  # increase weight of lexical search
-        for code_score, vector_score, lexical_score in zip(
-            code_scores, vector_scores, lexical_scores
-        )
-    ]
-    combined_list = list(zip(combined_scores, metadatas))
-    sorted_list = sorted(combined_list, key=lambda x: x[0], reverse=True)
-    sorted_metadatas = [metadata for _, metadata in sorted_list]
-    relevant_paths = [metadata["file_path"] for metadata in sorted_metadatas]
-    logger.info("Relevant paths: {}".format(relevant_paths[:5]))
-    return [
-        Snippet(
-            content="",
-            start=metadata["start"],
-            end=metadata["end"],
-            file_path=file_path,
-        )
-        for metadata, file_path in zip(sorted_metadatas, relevant_paths)
-    ][:num_docs]
+            task_key = parent_task.task_key
+            child_task = _Task(
+                logn_task_key=parent_task.task_key,
+                logn_parent_task=parent_task,
+                metadata={
+                    **parent_task.metadata,
+                    "name": parent_task.metadata.get("name", "NO_NAME") + "_" + name,
+                },
+                function_name=function_name,
+            )
+        _task_dictionary[task_key] = child_task
+        return task_key, parent_task, child_task
 
 
-def chunk(texts: List[str], batch_size: int) -> Generator[List[str], None, None]:
-    """
-    Split a list of texts into batches of a given size for embed_texts.
+class _Logger:
+    def __init__(self, printfn):
+        # Check if printfn is a _Logger instance
+        if isinstance(printfn, _Logger):
+            print("Warning: self-reference logger can result in infinite loop")
+            self.printfn = print
+            return
 
-    Args:
-    ----
-        texts (List[str]): A list of texts to be chunked into batches.
-        batch_size (int): The maximum number of texts in each batch.
+        self.printfn = printfn
 
-    Yields:
-    ------
-        Generator[List[str], None, None]: A generator that yields batches of texts as lists.
+    def __call__(self, *args, **kwargs):
+        try:
+            self._log(*args, **kwargs)
+        except SystemExit:
+            raise SystemExit
+        except Exception:
+            print(traceback.format_exc())
+            print("Failed to write log")
 
-    Example:
-    -------
-        texts = ["text1", "text2", "text3", "text4", "text5"]
-        batch_size = 2
-        for batch in chunk(texts, batch_size):
-            print(batch)
-        # Output:
-        # ['text1', 'text2']
-        # ['text3', 'text4']
-        # ['text5']
-    """
-    texts = [text[:4096] if text else " " for text in texts]
-    for text in texts:
-        assert isinstance(text, str), f"Expected str, got {type(text)}"
-        assert len(text) <= 4096, f"Expected text length <= 4096, got {len(text)}"
-    for i in range(0, len(texts), batch_size):
-        yield texts[i : i + batch_size] if i + batch_size < len(texts) else texts[i:]
-'''
+    def _log(self, *args, **kwargs):
+        task = _Task.get_task()
 
-    print(extract_int("10, 10-11 (message)"))
-    print("\nExtracting Span:")
-    span = extract_python_span(file, ["embed_replicate"]).content
+        if self.printfn in logging_parsers:
+            parser = logging_parsers[self.printfn]
+            log = parser.parse(*args, **kwargs)
+
+            if task.logtail_logger is not None:
+                try:
+                    # switch case
+                    match parser.level:
+                        case 0:
+                            task.logtail_logger.info(
+                                log, extra=task.get_logtail_metadata()
+                            )
+                        case 1:
+                            task.logtail_logger.info(
+                                log, extra=task.get_logtail_metadata()
+                            )
+                        case 2:
+                            task.logtail_logger.error(
+                                log, extra=task.get_logtail_metadata()
+                            )
+                        case 3:
+                            task.logtail_logger.warning(
+                                log, extra=task.get_logtail_metadata()
+                            )
+                except SystemExit:
+                    raise SystemExit
+                except Exception:
+                    pass
+
+            print(log)
+            task.write_log(parser.level, log)
+        else:
+            print(
+                "Warning: no parser found for printfn:",
+                self.printfn.__module__,
+                self.printfn.__name__,
+            )
+            self.printfn(*args, **kwargs)
+            task.write_log(0, *args, **kwargs)
+
+    def init(self, metadata, create_file):
+        task = _Task.set_metadata(metadata=metadata, create_file=create_file)
+        return self
+
+
+class _LogN(_Logger):
+    # Logging for N tasks
+    def __init__(self, printfn=print):
+        super().__init__(printfn=printfn)
+
+    def __getitem__(self, printfn):
+        return _Logger(printfn=printfn)
+
+    def print(self, *args, **kwargs):
+        self[print](*args, **kwargs)
+
+    def info(self, *args, **kwargs):
+        self[loguru_logger.info](*args, **kwargs)
+
+    def error(self, *args, **kwargs):
+        self[loguru_logger.error](*args, **kwargs)
+
+    def warning(self, *args, **kwargs):
+        self[loguru_logger.warning](*args, **kwargs)
+
+    def debug(self, *args, **kwargs):
+        # Todo: add debug level
+        self[loguru_logger.info](*args, **kwargs)
+
+    @staticmethod
+    def close(state="Done", exception=None):
+        task = _Task.get_task(create_if_not_exist=False)
+        if task is not None:
+            task.write_metadata(state=state, exception=exception)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit will close the logger after leaving the with statement."""
+        # Check if it errored
+        if exc_type is not None:
+            if type(exc_type) == SystemExit:
+                self.close(state="Exited", exception=type(exc_type).__name__)
+            else:
+                self.close(state="Errored", exception=type(exc_type).__name__)
+        else:
+            self.close()
+
+
+
+class LogN:
+    @staticmethod
+    def print():
+        pass
+
+
+logger = _LogN()'''
+
+    span = extract_python_span(file, []).content
     print(span)
     quit()
 
-    # test response for plan
-    response = """<code_analysis>
-The issue requires moving the is_python_issue bool in sweep_bot to the on_ticket.py flow. The is_python_issue bool is used in the get_files_to_change function in sweep_bot.py to determine if the issue is related to a Python file. This information is then logged and used to generate a plan for the relevant snippets.
+#     # test response for plan
+#     response = """<code_analysis>
+# The issue requires moving the is_python_issue bool in sweep_bot to the on_ticket.py flow. The is_python_issue bool is used in the get_files_to_change function in sweep_bot.py to determine if the issue is related to a Python file. This information is then logged and used to generate a plan for the relevant snippets.
 
-In the on_ticket.py file, the get_files_to_change function is called, but the is_python_issue bool is not currently used or logged. The issue also requires using the metadata in on_ticket to log this event to posthog, which is a platform for product analytics.
+# In the on_ticket.py file, the get_files_to_change function is called, but the is_python_issue bool is not currently used or logged. The issue also requires using the metadata in on_ticket to log this event to posthog, which is a platform for product analytics.
 
-The posthog.capture function is used in on_ticket.py to log events with specific properties. The properties include various metadata about the issue and the user. The issue requires passing the is_python_issue bool to get_files_to_change and then logging this as an event to posthog.
-</code_analysis>
+# The posthog.capture function is used in on_ticket.py to log events with specific properties. The properties include various metadata about the issue and the user. The issue requires passing the is_python_issue bool to get_files_to_change and then logging this as an event to posthog.
+# </code_analysis>
 
-<relevant_new_snippet>
-sweepai/handlers/on_ticket.py:590-618
-</relevant_new_snippet>
+# <relevant_new_snippet>
+# sweepai/handlers/on_ticket.py:590-618
+# </relevant_new_snippet>
 
-<code_change_description file_path="sweepai/handlers/on_ticket.py">
-First, you need to modify the get_files_to_change function call in on_ticket.py to pass the is_python_issue bool. You can do this by adding an argument to the function call at line 690. The argument should be a key-value pair where the key is 'is_python_issue' and the value is the is_python_issue bool.
+# <code_change_description file_path="sweepai/handlers/on_ticket.py">
+# First, you need to modify the get_files_to_change function call in on_ticket.py to pass the is_python_issue bool. You can do this by adding an argument to the function call at line 690. The argument should be a key-value pair where the key is 'is_python_issue' and the value is the is_python_issue bool.
 
-Next, you need to log the is_python_issue bool as an event to posthog. You can do this by adding a new posthog.capture function call after the get_files_to_change function call. The first argument to posthog.capture should be 'username', the second argument should be a string describing the event (for example, 'is_python_issue'), and the third argument should be a dictionary with the properties to log. The properties should include 'is_python_issue' and its value.
+# Next, you need to log the is_python_issue bool as an event to posthog. You can do this by adding a new posthog.capture function call after the get_files_to_change function call. The first argument to posthog.capture should be 'username', the second argument should be a string describing the event (for example, 'is_python_issue'), and the third argument should be a dictionary with the properties to log. The properties should include 'is_python_issue' and its value.
 
-Here is an example of how to make these changes:
+# Here is an example of how to make these changes:
 
-```python
-# Add is_python_issue to get_files_to_change function call
-file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue=is_python_issue)
+# ```python
+# # Add is_python_issue to get_files_to_change function call
+# file_change_requests, plan = sweep_bot.get_files_to_change(is_python_issue=is_python_issue)
 
-# Log is_python_issue to posthog
-posthog.capture(username, 'is_python_issue', properties={'is_python_issue': is_python_issue})
-```
-Please replace 'is_python_issue' with the actual value of the bool.
-</code_change_description>"""
-    gc_and_plan = GraphContextAndPlan.from_string(
-        response, "sweepai/handlers/on_ticket.py"
-    )
-    # print(gc_and_plan.code_change_description)
+# # Log is_python_issue to posthog
+# posthog.capture(username, 'is_python_issue', properties={'is_python_issue': is_python_issue})
+# ```
+# Please replace 'is_python_issue' with the actual value of the bool.
+# </code_change_description>"""
+#     gc_and_plan = GraphContextAndPlan.from_string(
+#         response, "sweepai/handlers/on_ticket.py"
+#     )
+#     # print(gc_and_plan.code_change_description)
