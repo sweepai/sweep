@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import os
-import threading
+import traceback
 from functools import lru_cache
 
 import yaml
 from github.Repository import Repository
 from pydantic import BaseModel
 
-from sweepai.logn import logger
 from sweepai.core.entities import EmptyRepository
-import traceback
+from sweepai.logn import logger
 
 
 class SweepConfig(BaseModel):
@@ -111,14 +110,18 @@ class SweepConfig(BaseModel):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.warning(f"Error when getting branch: {e}, traceback: {traceback.format_exc()}")
+                logger.warning(
+                    f"Error when getting branch: {e}, traceback: {traceback.format_exc()}"
+                )
 
         default_branch = repo.default_branch
         try:
             sweep_yaml_dict = {}
             try:
                 contents = repo.get_contents("sweep.yaml")
-                sweep_yaml_dict = yaml.safe_load(contents.decoded_content.decode("utf-8"))
+                sweep_yaml_dict = yaml.safe_load(
+                    contents.decoded_content.decode("utf-8")
+                )
             except SystemExit:
                 raise SystemExit
             if "branch" not in sweep_yaml_dict:
@@ -130,7 +133,9 @@ class SweepConfig(BaseModel):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.warning(f"Error when getting branch: {e}, traceback: {traceback.format_exc()}, creating branch")
+                logger.warning(
+                    f"Error when getting branch: {e}, traceback: {traceback.format_exc()}, creating branch"
+                )
                 repo.create_git_ref(
                     f"refs/heads/{branch_name}",
                     repo.get_branch(default_branch).commit.sha,
@@ -138,7 +143,7 @@ class SweepConfig(BaseModel):
                 return branch_name
         except SystemExit:
             raise SystemExit
-        except Exception as e:
+        except Exception:
             return default_branch
 
     @staticmethod
@@ -154,7 +159,7 @@ class SweepConfig(BaseModel):
             if "This repository is empty." in str(e):
                 raise EmptyRepository()
             return SweepConfig()
-        
+
     @staticmethod
     def get_draft(repo: Repository):
         try:
@@ -179,7 +184,9 @@ def get_gha_enabled(repo: Repository) -> bool:
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.warning(f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True")
+        logger.warning(
+            f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True"
+        )
         return True
 
 
@@ -189,7 +196,7 @@ def get_description(repo: Repository) -> dict:
         contents = repo.get_contents("sweep.yaml")
         sweep_yaml = yaml.safe_load(contents.decoded_content.decode("utf-8"))
         description = sweep_yaml.get("description", "")
-        rules = sweep_yaml.get("rules", []) 
+        rules = sweep_yaml.get("rules", [])
         rules = "\n * ".join(rules)
         return {"description": description, "rules": rules}
     except SystemExit:
@@ -237,8 +244,7 @@ def get_documentation_dict(repo: Repository):
         return docs
     except SystemExit:
         raise SystemExit
-    except Exception as e:
-        logger.warning(f"Error when getting docs: {e}, returning empty dict")
+    except Exception:
         return {}
 
 
@@ -253,8 +259,7 @@ def get_blocked_dirs(repo: Repository):
         return dirs
     except SystemExit:
         raise SystemExit
-    except Exception as e:
-        logger.warning(f"Error when getting docs: {e}, returning empty dict")
+    except Exception:
         return []
 
 
@@ -269,8 +274,7 @@ def get_rules(repo: Repository):
         return rules
     except SystemExit:
         raise SystemExit
-    except Exception as e:
-        logger.warning(f"Error when getting rules: {e}, returning empty array")
+    except Exception:
         return []
 
 
@@ -290,5 +294,13 @@ SWEEP_BAD_FEEDBACK = "👎 Sweep Needs Improvement"
 RESET_FILE = "Rollback changes to "
 REVERT_CHANGED_FILES_TITLE = "## Rollback Files For Sweep"
 
-RULES_TITLE = "## Apply [Sweep Rules](https://docs.sweep.dev/usage/config#rules) to your PR?"
+RULES_TITLE = (
+    "## Apply [Sweep Rules](https://docs.sweep.dev/usage/config#rules) to your PR?"
+)
 RULES_LABEL = "**Apply:** "
+
+DEFAULT_RULES = [
+    "Leftover TODOs in the code should be handled.",
+    "All new business logic should have corresponding unit tests in the tests/ directory.",
+    "Any clearly inefficient or repeated code should be optimized or refactored.",
+]

@@ -17,6 +17,7 @@ from tabulate import tabulate
 from tqdm import tqdm
 
 from sweepai.config.client import (
+    DEFAULT_RULES,
     RESET_FILE,
     RESTART_SWEEP_BUTTON,
     REVERT_CHANGED_FILES_TITLE,
@@ -1124,10 +1125,14 @@ def on_ticket(
             revert_buttons_list = ButtonList(
                 buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
             )
-
+            
             rule_buttons = []
             for rule in get_rules(repo):
                 rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+            else:
+                for rule in DEFAULT_RULES:
+                    rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+                
             rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
 
             pr = repo.create_pull(
