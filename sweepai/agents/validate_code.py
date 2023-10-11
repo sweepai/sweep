@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import difflib
+
+from loguru import logger
+
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message, RegexMatchableBaseModel
 from sweepai.utils.chat_logger import ChatLogger
@@ -33,11 +37,7 @@ B
 </diffs_to_revert>"""
 
 hunk_format = """<hunk id="{id}">
-<<<< ORIGINAL
-{old_code}
-====
-{new_code}
->>>> UPDATED
+{diff}
 </hunk>"""
 
 validate_changes_prompt = """\
@@ -150,7 +150,9 @@ class ChangeValidator(ChatGPT):
 
     @staticmethod
     def make_hunk(old_code: str, new_code: str, id_: str):
-        return hunk_format.format(old_code=old_code, new_code=new_code, id=id_)
+        differ = difflib.Differ()
+        diff = differ.compare(old_code.splitlines(), new_code.splitlines())
+        return hunk_format.format(diff="\n".join(diff), id=id_)
 
     def generate_diffs(self):
         hunks: list[str] = []
@@ -177,6 +179,9 @@ class ChangeValidator(ChatGPT):
 
     def apply_validated_changes(self, change_validation: ChangeValidation):
         for diff in change_validation.diffs_to_revert:
+            if diff not in alphabet:
+                logger.warning(f"Invalid diff ID: {diff}")
+                continue
             idx = alphabet.index(diff)
             del self.updated_snippets[idx]
         new_code = self.create_new_file()
