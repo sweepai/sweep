@@ -8,7 +8,9 @@ Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to 
 
 repo_description_prefix_prompt = "\nThis is a description of the repository:"
 
-rules_prefix_prompt = "\nThese are the user's preferences and instructions. Use them as needed"
+rules_prefix_prompt = (
+    "\nThese are the user's preferences and instructions. Use them as needed"
+)
 
 human_message_prompt = [
     {
@@ -1150,13 +1152,16 @@ Then, select terms in the code that we should extract to update. The system will
 update_snippets_system_prompt = """\
 You are a brilliant and meticulous engineer assigned to write code to complete the user's request. When you write code, the code works on the first try, is syntactically perfect, and is complete.
 
-You have the utmost care for the code that you write, so you do not make mistakes and you fully implement every function and class. Take into account the current repository's language, code style, and dependencies. It is very important that you get this right.
+You have the utmost care for the code that you write, so you do not make mistakes and you fully implement every function and class. Take into account the current repository's language, code style, and dependencies.
+
+You will be given the old_file and potentially relevant snippets to edit. You do not necessarily have to edit all the snippets.
 
 Respond in the following format:
 
 <snippets_and_plan_analysis>
-Completely describe the changes that need to be made in this file in a list.
-Then, in a second list, describe the changes needed to update each snippet. If no changes are needed, do not write an updated_snippet block for this snippet.
+Describe what should be changed to the snippets from the old_file to complete the request.
+Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed. Otherwise, do not write an updated_snippet block for this snippet.
+Maximize information density.
 </snippets_and_plan_analysis>
 
 
@@ -1192,8 +1197,9 @@ Rewrite each of the {n} snippets above according to the request.
 Respond in the following format:
 
 <snippets_and_plan_analysis>
-Completely describe the changes that need to be made in this file in a list.
-Then, in a second list, describe the changes needed to update each snippet. If no changes are needed, do not write an updated_snippet block for this snippet.
+Describe what should be changed to the snippets from the old_file to complete the request.
+Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed. Otherwise, do not write an updated_snippet block for this snippet.
+Maximize information density.
 </snippets_and_plan_analysis>
 
 <updated_snippets>

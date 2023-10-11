@@ -7,14 +7,18 @@ import backoff
 import openai
 from pydantic import BaseModel
 
-from sweepai.logn import logger
 from sweepai.config.client import get_description
 from sweepai.config.server import (
     OPENAI_DO_HAVE_32K_MODEL_ACCESS,
     OPENAI_USE_3_5_MODEL_ONLY,
 )
 from sweepai.core.entities import Message, SweepContext
-from sweepai.core.prompts import repo_description_prefix_prompt, rules_prefix_prompt, system_message_prompt
+from sweepai.core.prompts import (
+    repo_description_prefix_prompt,
+    rules_prefix_prompt,
+    system_message_prompt,
+)
+from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo
@@ -130,7 +134,7 @@ class ChatGPT(BaseModel):
 
     @classmethod
     def from_system_message_string(
-        cls, prompt_string, chat_logger: ChatLogger, **kwargs
+        cls, prompt_string: str, chat_logger: ChatLogger, **kwargs
     ) -> Any:
         return cls(
             messages=[Message(role="system", content=prompt_string, key="system")],
@@ -250,7 +254,10 @@ class ChatGPT(BaseModel):
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )  # this is for the function tokens
-        if model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer < 1000 and not OPENAI_DO_HAVE_32K_MODEL_ACCESS: # use 16k if it's OOC and no 32k
+        if (
+            model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer < 1000
+            and not OPENAI_DO_HAVE_32K_MODEL_ACCESS
+        ):  # use 16k if it's OOC and no 32k
             model = "gpt-3.5-turbo-16k-0613"
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
