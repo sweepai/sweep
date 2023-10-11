@@ -106,18 +106,6 @@ def embed_replicate(texts):
     return [output["embedding"] for output in outputs]
 
 
-# def embed_replicate(texts):
-#     client = replicate.Client(api_token=REPLICATE_API_KEY)
-#     for i in range(3):
-#         try:
-#             outputs = client.run(
-#                 REPLICATE_URL, input={"text_batch": json.dumps(texts)}, timeout=60
-#             )
-#         except Exception as e:
-#             logger.exception(f"Replicate timeout: {e}")
-#     return [output["embedding"] for output in outputs]
-
-
 @lru_cache(maxsize=64)
 def embed_texts(texts: tuple[str]):
     logger.info(
