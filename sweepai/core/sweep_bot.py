@@ -701,8 +701,7 @@ class SweepBot(CodeGenBot, GithubBot):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(f"Sandbox Error: {e}")
-                logger.error(traceback.format_exc())
+                loguru.exception(f"Sandbox Error: {e}")
         return content, sandbox_execution
 
     def create_file(
@@ -823,6 +822,10 @@ class SweepBot(CodeGenBot, GithubBot):
         except SystemExit:
             raise SystemExit
         except Exception as e:
+            loguru.exception(f"Error: {e}")
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
             logger.error(f"Error: {e}")
 
         file_change.code, sandbox_execution = self.check_sandbox(
@@ -925,25 +928,100 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_path=file_change_request.filename,
                     file_contents=contents,
                     file_change_request=file_change_request,
-                    chunking=chunking,
-                )
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                if chunking:
-                    return contents, "", None, changed_files
-                raise e
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:  # Check for max tokens error
-            if "max tokens" in str(e).lower():
-                logger.error(f"Max tokens exceeded for {file_change_request.filename}")
-                raise MaxTokensExceeded(file_change_request.filename)
-            else:
-                logger.error(f"Error: {e}")
-                logger.error(traceback.format_exc())
-                self.delete_messages_from_chat(key)
-                raise e
+                    try:
+                        additional_messages = [
+                            Message(
+                                role="user",
+                                content=self.human_message.get_issue_metadata(),
+                                key="issue_metadata",
+                            )
+                        ]
+                        if self.comment_pr_diff_str and self.comment_pr_diff_str.strip():
+                            additional_messages = [
+                                Message(
+                                    role="user",
+                                    content="The following are the changes in the PR:\n"
+                                    + self.comment_pr_diff_str,
+                                    key="pr_diffs",
+                                )
+                            ]
+                        file_path_to_contents = OrderedDict()
+                        for file_path, diffs in changed_files:
+                            if not diffs.strip():
+                                continue
+                            if file_path in file_path_to_contents:
+                                file_path_to_contents[file_path] += diffs
+                            else:
+                                file_path_to_contents[file_path] = diffs
+                        changed_files_summary = "We have previously changed these files:\n" + "\n".join(
+                            [
+                                f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
+                                for file_path, diffs in file_path_to_contents.items()
+                            ]
+                        )
+                        if changed_files:
+                            additional_messages += [
+                                Message(
+                                    content=changed_files_summary,
+                                    role="user",
+                                )
+                            ]
+                        if file_change_request.relevant_files:
+                            relevant_files_contents = []
+                            for file_path in file_change_request.relevant_files:
+                                try:
+                                    relevant_files_contents.append(
+                                        self.get_contents(file_path).decoded_content.decode("utf-8")
+                                    )
+                                except Exception as e:
+                                    relevant_files_contents.append("File not found")
+                            if relevant_files_contents:
+                                relevant_files_summary = "Relevant files in this PR:\n\n" + "\n".join(
+                                    [
+                                        f'<relevant_file file_path="{file_path}">\n{file_contents}\n</relevant_file>'
+                                        for file_path, file_contents in zip(
+                                            file_change_request.relevant_files,
+                                            relevant_files_contents,
+                                        )
+                                    ]
+                                )
+                                additional_messages.append(
+                                    Message(
+                                        content=relevant_files_summary,
+                                        role="user",
+                                        key="relevant_files_summary",
+                                    )
+                                )
+                        modify_file_bot = ModifyBot(
+                            additional_messages,
+                            parent_bot=self,
+                            chat_logger=self.chat_logger,
+                            is_pr=bool(self.comment_pr_diff_str),
+                            temperature=temperature,
+                        )
+                        try:
+                            new_file = modify_file_bot.try_update_file(
+                                file_path=file_change_request.filename,
+                                file_contents=contents,
+                                file_change_request=file_change_request,
+                                chunking=chunking,
+                            )
+                        except SystemExit:
+                            raise SystemExit
+                        except Exception as e:
+                            if chunking:
+                                return contents, "", None, changed_files
+                            raise e
+                    except SystemExit:
+                        raise SystemExit
+                    except Exception as e:  # Check for max tokens error
+                        if "max tokens" in str(e).lower():
+                            loguru.exception(f"Max tokens exceeded for {file_change_request.filename}")
+                            raise MaxTokensExceeded(file_change_request.filename)
+                        else:
+                            loguru.exception(f"Error: {e}")
+                            self.delete_messages_from_chat(key)
+                            raise e
         try:
             # new_file = format_contents(new_file, file_markdown)
             commit_message_match = None
@@ -997,7 +1075,7 @@ class SweepBot(CodeGenBot, GithubBot):
         try:
             section_rewrite = SectionRewrite.from_string(rewrite_section_response)
             self.delete_messages_from_chat(key_to_delete=key)
-
+        
             try:
                 implemented = self.check_completion(  # use async
                     file_change_request.filename, section_rewrite.section
@@ -1010,16 +1088,15 @@ class SweepBot(CodeGenBot, GithubBot):
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(f"Error: {e}")
-
+                loguru.exception(f"Error: {e}")
+        
             return section_rewrite
         except SystemExit:
             raise SystemExit
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
-            logger.info(traceback.format_exc())
-            logger.warning(e)
-            logger.warning(f"Failed to parse. Retrying for the 1st time...")
+            loguru.exception(e)
+            loguru.exception(f"Failed to parse. Retrying for the 1st time...")
             self.delete_messages_from_chat(key)
         raise Exception("Failed to parse response after 5 attempts.")
 
@@ -1111,7 +1188,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         " blocked."
                     )
                     continue
-
+            
                 logger.print(
                     f"Processing {file_change_request.filename} for change type"
                     f" {file_change_request.change_type}..."
@@ -1181,6 +1258,27 @@ class SweepBot(CodeGenBot, GithubBot):
                             file_change_request.instructions,
                             (
                                 f"Renamed {file_change_request.filename} to"
+                                f" {file_change_request.instructions}"
+                            ),
+                            contents.decoded_content,
+                            branch=branch,
+                        )
+                        self.repo.delete_file(
+                            file_change_request.filename,
+                            f"Deleted {file_change_request.filename}",
+                            sha=contents.sha,
+                            branch=branch,
+                        )
+                        changed_file = True
+                    case _:
+                        raise Exception(
+                            f"Unknown change type {file_change_request.change_type}"
+                        )
+                logger.print(f"Done processing {file_change_request.filename}.")
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                loguru.exception(e)
                                 f" {file_change_request.instructions}"
                             ),
                             contents.decoded_content,
