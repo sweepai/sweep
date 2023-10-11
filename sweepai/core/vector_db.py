@@ -87,7 +87,7 @@ def embed_huggingface(texts):
             )
 
 
-def embed_replicate(texts):
+def embed_replicate(texts: List[str]) -> List[np.ndarray]:
     client = replicate.Client(api_token=REPLICATE_API_KEY)
     deployment = client.deployments.get(REPLICATE_DEPLOYMENT_URL)
     e = None
