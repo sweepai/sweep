@@ -82,6 +82,52 @@ B
 alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
+def generate_diff(str1, str2):
+    d = difflib.Differ()
+    diff = d.compare(str1.splitlines(), str2.splitlines())
+    return "\n".join(diff)
+
+
+def git_conflict_format(diff_str):
+    lines = diff_str.split("\n")
+    output = []
+    state = "neutral"
+
+    UPDATED_MARKER = ">>>>>>> UPDATED"
+    ORIGINAL_MARKER = "<<<<<<< ORIGINAL"
+    SEPARATOR_MARKER = "======="
+
+    for line in lines:
+        if line.startswith("  "):
+            if state == "add":
+                output.append(UPDATED_MARKER)
+            elif state == "del":
+                output.extend([SEPARATOR_MARKER, UPDATED_MARKER])
+            output.append(line[2:])
+            state = "neutral"
+        elif line.startswith("- "):
+            if state == "neutral":
+                output.append(ORIGINAL_MARKER)
+            elif state == "add":
+                output.extend([UPDATED_MARKER, ORIGINAL_MARKER])
+            output.append(line[2:])
+            state = "del"
+        elif line.startswith("+ "):
+            if state == "del":
+                output.append(SEPARATOR_MARKER)
+            elif state == "neutral":
+                output.extend([ORIGINAL_MARKER, SEPARATOR_MARKER])
+            output.append(line[2:])
+            state = "add"
+
+    if state == "add":
+        output.append(UPDATED_MARKER)
+    elif state == "del":
+        output.extend([SEPARATOR_MARKER, UPDATED_MARKER])
+
+    return "\n".join(output)
+
+
 class ChangeValidation(RegexMatchableBaseModel):
     analysis: str
     additional_changes: str
@@ -150,8 +196,7 @@ class ChangeValidator(ChatGPT):
 
     @staticmethod
     def make_hunk(old_code: str, new_code: str, id_: str):
-        differ = difflib.Differ()
-        diff = differ.compare(old_code.splitlines(), new_code.splitlines())
+        diff = git_conflict_format(generate_diff(old_code, new_code))
         return hunk_format.format(diff="\n".join(diff), id=id_)
 
     def generate_diffs(self):
