@@ -1061,25 +1061,25 @@ Extract the smallest spans that let you handle the request by adding blocks of s
 Then, write search terms to extract that we need to modify from the code. The system will then modify all of the lines containing the patterns. Use this to make many small changes, such as updating all function calls after changing the signature.
 
 # Format
-<instructions>
+<analysis_and_identification>
 Identify all changes that need to be made to the file.
-Then identify all snippet sections that should receive these changes. These snippets will go into the snippets_to_modify block.
+In a list, identify all code sections that should receive these changes and all locations code should be added. These snippets will go into the snippets_to_modify block. Pick many small snippets and locations to add code instead of a single large one.
 Then identify any patterns of code that should be modified, like all function calls of a particular function. These patterns will go into the patterns block.
-</instructions>
+</analysis_and_identification>
 
 <snippets_to_modify>
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
-first five lines from the first original snippet
+first few lines from the first original snippet
 ...
-last five lines from the first original snippet (the code)
+last few lines from the first original snippet (the code)
 ```
 </snippet_to_modify>
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
-first five lines from the second original snippet
+first few lines from the second original snippet
 ...
-last five lines from the second original snippet (the code)
+last few lines from the second original snippet (the code)
 ```
 </snippet_to_modify>
 ...
@@ -1107,25 +1107,25 @@ File path: {file_path}
 {chunking_message}
 
 # Format
-<instructions>
+<analysis_and_identification>
 Identify all changes that need to be made to the file.
-Then identify all snippet sections that should receive these changes.
-Then identify any patterns of code that should be modified, like all function calls of a particular function.
-</instructions>
+In a list, identify all code sections that should receive these changes and all locations code should be added. These snippets will go into the snippets_to_modify block. Pick many small snippets and locations to add code instead of a single large one.
+Then identify any patterns of code that should be modified, like all function calls of a particular function. These patterns will go into the patterns block.
+</analysis_and_identification>
 
 <snippets_to_modify>
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
-first five lines from the first original snippet
+first few lines from the first original snippet
 ...
-last five lines from the first original snippet (the code)
+last few lines from the first original snippet (the code)
 ```
 </snippet_to_modify>
 <snippet_to_modify reason="justification for modifying this snippet">
 ```
-first five lines from the second original snippet
+first few lines from the second original snippet
 ...
-last five lines from the second original snippet (the code)
+last few lines from the second original snippet (the code)
 ```
 </snippet_to_modify>
 ...
