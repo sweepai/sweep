@@ -244,8 +244,7 @@ def get_documentation_dict(repo: Repository):
         return docs
     except SystemExit:
         raise SystemExit
-    except Exception as e:
-        logger.warning(f"Error when getting docs: {e}, returning empty dict")
+    except Exception:
         return {}
 
 
@@ -260,8 +259,7 @@ def get_blocked_dirs(repo: Repository):
         return dirs
     except SystemExit:
         raise SystemExit
-    except Exception as e:
-        logger.warning(f"Error when getting docs: {e}, returning empty dict")
+    except Exception:
         return []
 
 
@@ -276,8 +274,7 @@ def get_rules(repo: Repository):
         return rules
     except SystemExit:
         raise SystemExit
-    except Exception as e:
-        logger.warning(f"Error when getting rules: {e}, returning empty array")
+    except Exception:
         return []
 
 
