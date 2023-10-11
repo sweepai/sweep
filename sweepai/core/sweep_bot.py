@@ -3,6 +3,7 @@ import re
 import traceback
 from collections import OrderedDict
 from typing import Any, Dict, Generator
+from loguru import logger
 
 import requests
 from github.Commit import Commit
@@ -368,7 +369,7 @@ class CodeGenBot(ChatGPT):
             if file_change_requests:
                 return file_change_requests, files_to_change_response
         except RegexMatchError as e:
-            logger.print(e)
+            logger.exception(e)
             logger.warning("Failed to parse! Retrying...")
             self.delete_messages_from_chat("files_to_change")
             self.delete_messages_from_chat("pr_diffs")
@@ -404,7 +405,7 @@ class CodeGenBot(ChatGPT):
                 e_str = str(e)
                 if "too long" in e_str:
                     too_long = True
-                logger.warning(f"Exception {e_str}. Failed to parse! Retrying...")
+                logger.exception(f"Exception {e_str}. Failed to parse! Retrying...")
                 self.delete_messages_from_chat("pull_request")
                 continue
             pull_request = PullRequest.from_string(pr_text_response)
@@ -682,7 +683,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     content=content,
                     changed_files=changed_files,
                 )
-                logger.print(output)
+                logger.exception(output)
                 sandbox_execution = SandboxResponse(**output)
                 if output["success"]:
                     content = output["updated_content"]
@@ -1007,8 +1008,8 @@ class SweepBot(CodeGenBot, GithubBot):
             raise SystemExit
         except Exception as e:
             # Todo: should we undo appending to file_change_paths?
-            logger.info(traceback.format_exc())
-            logger.warning(e)
+            logger.exception(traceback.format_exc())
+            logger.exception(e)
             logger.warning(f"Failed to parse. Retrying for the 1st time...")
             self.delete_messages_from_chat(key)
         raise Exception("Failed to parse response after 5 attempts.")
