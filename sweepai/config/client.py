@@ -277,7 +277,6 @@ def get_rules(repo: Repository):
     except SystemExit:
         raise SystemExit
     except Exception as e:
-        logger.warning(f"Error when getting rules: {e}, returning empty array")
         return []
 
 
