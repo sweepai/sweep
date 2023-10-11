@@ -34,3 +34,6 @@ rules:
 - "There should be no instances of `import pdb; pdb.set_trace()` in production code."
 - "There should be no debug log or print statements in production code."
 - "All functions should have parameters and output annotated with type hints. Use list, tuple and dict instead of typing.List, typing.Tuple and typing.dict."
+- "Make sure any leftover TODOs in the code are handled."
+- "All new business logic should have corresponding unit tests in the tests/ directory."
+- "Any inefficient or redundant code can be optimized or refactored."
