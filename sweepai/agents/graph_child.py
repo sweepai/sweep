@@ -183,7 +183,6 @@ def extract_python_span(code: str, entities: str):
                     variables_with_entity.add(variable_name)
                     lines_with_entity.add(i)
 
-    import pdb; pdb.set_trace()
     captured_lines = set()
 
     # Up to the first variable definition
