@@ -195,6 +195,7 @@ HUGGINGFACE_TOKEN = os.environ.get("HUGGINGFACE_TOKEN", None)
 # Replicate settings, only checked if VECTOR_EMBEDDING_SOURCE == "replicate"
 REPLICATE_API_KEY = os.environ.get("REPLICATE_API_KEY", None)
 REPLICATE_URL = os.environ.get("REPLICATE_URL", None)
+REPLICATE_DEPLOYMENT_URL = os.environ.get("REPLICATE_DEPLOYMENT_URL", None)
 
 # Default OpenAI
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
