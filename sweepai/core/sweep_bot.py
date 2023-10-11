@@ -1629,6 +1629,20 @@ class ModifyBot:
                 current_match = match_
         deduped_matches.append(current_match)
 
+        if is_python_file:
+            new_deduped_matches = []
+            for match_ in deduped_matches:
+                start_line = code_tree.get_lines_surrounding(match_.start)[0]
+                end_line = code_tree.get_lines_surrounding(match_.end)[1]
+                new_deduped_matches.append(
+                    Match(
+                        start=start_line,
+                        end=end_line + 1,
+                        score=match_.score,
+                    )
+                )
+            deduped_matches = new_deduped_matches
+
         selected_snippets = []
         file_contents_lines = file_contents.split("\n")
         for match_ in deduped_matches:
