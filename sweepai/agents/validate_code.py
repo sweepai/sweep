@@ -197,7 +197,7 @@ class ChangeValidator(ChatGPT):
     @staticmethod
     def make_hunk(old_code: str, new_code: str, id_: str):
         diff = git_conflict_format(generate_diff(old_code, new_code))
-        return hunk_format.format(diff="\n".join(diff), id=id_)
+        return hunk_format.format(diff=diff, id=id_)
 
     def generate_diffs(self):
         hunks: list[str] = []
