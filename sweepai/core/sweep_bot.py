@@ -600,7 +600,17 @@ class SweepBot(CodeGenBot, GithubBot):
         changed_files: tuple[str, str],
         only_lint: bool = False,
     ) -> Dict:
+        import difflib
+
         if not SANDBOX_URL:
+            return {"success": False}
+
+        # Get the current file content
+        current_content = self.get_contents(file_path).decoded_content.decode("utf-8")
+
+        # Check if there are any changes in the file
+        if difflib.SequenceMatcher(None, current_content, content).ratio() == 1.0:
+            logger.info(f"No changes were made in the file {file_path}. Skipping sandbox run.")
             return {"success": False}
 
         response = requests.post(
@@ -686,6 +696,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 sandbox_execution = SandboxResponse(**output)
                 if output["success"]:
                     content = output["updated_content"]
+                else:
+                    logger.info(f"Sandbox run was skipped for the file {file_path}.")
             except SystemExit:
                 raise SystemExit
             except Exception as e:
@@ -1005,49 +1017,45 @@ class SweepBot(CodeGenBot, GithubBot):
             return section_rewrite
         except SystemExit:
             raise SystemExit
-        except Exception as e:
-            # Todo: should we undo appending to file_change_paths?
-            logger.info(traceback.format_exc())
-            logger.warning(e)
-            logger.warning(f"Failed to parse. Retrying for the 1st time...")
-            self.delete_messages_from_chat(key)
-        raise Exception("Failed to parse response after 5 attempts.")
-
-    def rewrite_file(
-        self,
-        file_change_request: FileChangeRequest,
-        branch: str,
-    ) -> FileCreation:
-        chunks = []
-        original_file = self.repo.get_contents(file_change_request.filename, ref=branch)
-        original_contents = original_file.decoded_content.decode("utf-8")
-        contents = original_contents
-        for snippet in chunk_code(
-            contents, file_change_request.filename, MAX_CHARS=2300, coalesce=200
-        ):
-            chunks.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
-        for i, chunk in enumerate(chunks):
-            section_rewrite = self.rewrite_section(file_change_request, contents, chunk)
-            chunks[i] = section_rewrite.section
-            contents = "\n".join(chunks)
-
-        commit_message = (
-            f"Rewrote {file_change_request.filename} to do "
-            + file_change_request.instructions[
-                : min(len(file_change_request.instructions), 30)
-            ]
-        )
-        final_contents, sandbox_execution = self.check_sandbox(
-            file_change_request.filename, contents, []
-        )
-        self.repo.update_file(
-            file_change_request.filename,
-            commit_message,
-            final_contents,
-            sha=original_file.sha,
-            branch=branch,
-        )
-        return final_contents != original_contents, sandbox_execution
+        def rewrite_file(
+            self,
+            file_change_request: FileChangeRequest,
+            branch: str,
+        ) -> FileCreation:
+            import difflib
+            chunks = []
+            original_file = self.repo.get_contents(file_change_request.filename, ref=branch)
+            original_contents = original_file.decoded_content.decode("utf-8")
+            contents = original_contents
+            for snippet in chunk_code(
+                contents, file_change_request.filename, MAX_CHARS=2300, coalesce=200
+            ):
+                chunks.append(snippet.get_snippet(add_ellipsis=False, add_lines=False))
+            for i, chunk in enumerate(chunks):
+                section_rewrite = self.rewrite_section(file_change_request, contents, chunk)
+                chunks[i] = section_rewrite.section
+                contents = "\n".join(chunks)
+    
+            commit_message = (
+                f"Rewrote {file_change_request.filename} to do "
+                + file_change_request.instructions[
+                    : min(len(file_change_request.instructions), 30)
+                ]
+            )
+            if difflib.SequenceMatcher(None, original_contents, contents).ratio() == 1.0:
+                logger.info(f"No changes were made in the file {file_change_request.filename}. Skipping sandbox run.")
+                return False, None
+            final_contents, sandbox_execution = self.check_sandbox(
+                file_change_request.filename, contents, []
+            )
+            self.repo.update_file(
+                file_change_request.filename,
+                commit_message,
+                final_contents,
+                sha=original_file.sha,
+                branch=branch,
+            )
+            return final_contents != original_contents, sandbox_execution
 
     def change_files_in_github(
         self,
@@ -1328,11 +1336,16 @@ class SweepBot(CodeGenBot, GithubBot):
                             commit_message = suggested_commit_message
                             new_file_contents += new_chunk + "\n"
                         if len(lines) < 1000:
-                            new_file_contents, sandbox_error = self.check_sandbox(
-                                file_path=file_change_request.filename,
-                                content=new_file_contents,
-                                changed_files=changed_files,
-                            )
+                            import difflib
+                            if difflib.SequenceMatcher(None, file_contents, new_file_contents).ratio() == 1.0:
+                                logger.info(f"No changes were made in the file {file_change_request.filename}. Skipping sandbox run.")
+                                sandbox_error = None
+                            else:
+                                new_file_contents, sandbox_error = self.check_sandbox(
+                                    file_path=file_change_request.filename,
+                                    content=new_file_contents,
+                                    changed_files=changed_files,
+                                )
                 except Exception as e:
                     logger.print(e)
                     raise e
@@ -1362,6 +1375,11 @@ class SweepBot(CodeGenBot, GithubBot):
                     sandbox_error,
                     changed_files,
                 ) = get_new_file(temperature=0.4)
+
+            import difflib
+            if difflib.SequenceMatcher(None, file_contents, new_file_contents).ratio() == 1.0:
+                logger.info(f"No changes were made in the file {file_change_request.filename}. Skipping sandbox run.")
+                sandbox_error = None
 
             # If the original file content is identical to the new file content, log a warning and return
             if file_contents == new_file_contents:
