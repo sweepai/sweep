@@ -190,7 +190,7 @@ def get_description(repo: Repository) -> dict:
         sweep_yaml = yaml.safe_load(contents.decoded_content.decode("utf-8"))
         description = sweep_yaml.get("description", "")
         rules = sweep_yaml.get("rules", []) 
-        rules = "\n".join(rules)
+        rules = "\n * ".join(rules)
         return {"description": description, "rules": rules}
     except SystemExit:
         raise SystemExit
