@@ -56,6 +56,7 @@ def write_documentation(doc_url):
         if not url_allowed:
             logger.info(f"URL {doc_url} is not allowed")
             return False
+        idx_name = remove_non_alphanumeric(doc_url)
         if not ACTIVELOOP_TOKEN:
             path = f"sweep_docs/{idx_name}"
             if os.path.exists(path):
@@ -72,7 +73,6 @@ def write_documentation(doc_url):
                 overwrite=True,
                 token=ACTIVELOOP_TOKEN,
             )
-        idx_name = remove_non_alphanumeric(doc_url)
         url_to_documents = webscrape(doc_url)
         urls, document_chunks = [], []
         for url, document in url_to_documents.items():
