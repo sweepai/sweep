@@ -856,7 +856,7 @@ async def webhook(raw_request: Request):
                     # on merge
                     call_on_merge(request_dict, chat_logger)
                     ref = request_dict["ref"] if "ref" in request_dict else ""
-                    if ref.startswith("refs/heads/"):
+                    if ref.startswith("refs/heads") and not ref.startswith("ref/heads/sweep"):
                         if request_dict["head_commit"] and (
                             "sweep.yaml" in request_dict["head_commit"]["added"]
                             or "sweep.yaml" in request_dict["head_commit"]["modified"]
