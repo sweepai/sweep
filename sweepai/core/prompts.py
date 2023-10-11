@@ -117,7 +117,9 @@ Indicate all breaking changes. Do not point out stylistic issues. Ensure that th
 Respond in the following format:
 
 <diff_analysis>
-Analysis of 
+Analysis of each diff and any potential errors in the diff. Reason about each change and highlight potential issues.
+...
+</diff_analysis>
 
 <file_summaries>
 * file_1 - changes made and potential errors in file_1
