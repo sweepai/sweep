@@ -57,9 +57,7 @@ human_message_review_prompt = [
     {"role": "user", "content": """{plan}"""},
     {
         "role": "user",
-        "content": """These are the file changes.
-Use the diffs along with the original plan to verify if each step of the plan was implemented.
-{diffs}""",
+        "content": """{diffs}""",
     },
 ]
 
@@ -97,7 +95,6 @@ diff_section_prompt = """
 
 review_prompt = """\
 Repo & Issue Metadata:
-
 <metadata>
 Repo: {repo_name}: {repo_description}
 Issue Url: {issue_url}
@@ -107,28 +104,26 @@ Issue Description:
 {description}
 </metadata>
 
-I need you to carefully review the code diffs in this pull request.
 
-The code was written by an inexperienced programmer. It already passes the linter so it's unlikely there any syntax errors. However it may contain
-* Logical errors (the change may not accomplish the goal of the issue)
-* Unimplemented sections (such as "pass", "...", "# rest of code here")
+The code was written by an inexperienced programmer. Carefully review the code diffs in this pull request. Use the diffs along with the original plan to verify that each step of the plan was implemented correctly.
+
+Check for the following:
+* Missing imports
+* Incorrect functionality
 * Other errors not listed above
 
-Be sure to indicate any of these errors. Do not include formatting errors like missing ending newlines. Ensure that the code resolves the issue requested by the user and every function and class is fully implemented.
+Indicate all breaking changes. Do not point out stylistic issues. Ensure that the code resolves the issue requested by the user and every function and class is fully implemented.
 
-Think step-by-step to summarize the changes and indicate errors. Respond in the following format:
+Respond in the following format:
 
-Step-by-step thoughts:
-* Lines x1-x2: Brief summary of changes and errors
-* Lines y1-y2: Brief summary of changes and errors
-...
+<diff_analysis>
+Analysis of 
 
 <file_summaries>
-* file_1 - changes and errors in file_1
-* file_1 - more changes and errors in file_1
+* file_1 - changes made and potential errors in file_1
 ...
-* file_n - changes and errors in file_n
-* file_n - more changes and errors in file_n
+* file_n - changes made and potential errors in file_n
+...
 </file_summaries>
 """
 
