@@ -14,25 +14,24 @@ user_message = """Review the following diffs and make sure they conform to the r
 
 The rule is: {rule}
 
-Provide your response in the following format.
-Step-by-step thoughts with explanations:
-- Explanation of code change 1 and whether it breaks the rule
-- Explanation of code change 2 and whether it breaks the rule
-...
+Provide your response in the following format:
 
-Whether the rule is broken:
+<rule_analysis>
+- Analysis of code diff 1 and whether it breaks the rule
+- Analysis of code diff 2 and whether it breaks the rule
+...
+</rule_analysis>
+
 <changes_required>
-True/False
+True if the rule is broken, False otherwise
 </changes_required>
 
-Github Issue Title:
 <issue_title>
-Root cause of the broken rule.
+Github issue title describing the root cause of the broken rule.
 </issue_title>
 
-GitHub Issue Description:
 <issue_description>
-High level description of what we want to solve. Do not give any instructions on how to solve it. Do mention files to take a look at and other code pointers.
+GitHub issue description for what we want to solve. Do not give any instructions on how to solve it. Do mention files to take a look at and other code pointers.
 </issue_description>"""
 
 
