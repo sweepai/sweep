@@ -264,6 +264,18 @@ def split_ellipses(query: str) -> list[str]:
     return queries
 
 
+def match_indent(generated: str, original: str) -> str:
+    indent_type = "\t" if "\t" in original[:5] else " "
+    generated_indents = len(generated) - len(generated.lstrip())
+    target_indents = len(original) - len(original.lstrip())
+    diff_indents = target_indents - generated_indents
+    if diff_indents > 0:
+        generated = indent_type * diff_indents + generated.replace(
+            "\n", "\n" + indent_type * diff_indents
+        )
+    return generated
+
+
 test_code = """\
 capture_posthog_event(username, "started", properties=metadata)
 ...

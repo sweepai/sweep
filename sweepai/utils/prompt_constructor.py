@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 
-from sweepai.logn import logger
 from sweepai.core.prompts import (
     diff_section_prompt,
     final_review_prompt,
@@ -8,6 +7,7 @@ from sweepai.core.prompts import (
     human_message_prompt_comment,
     human_message_review_prompt,
 )
+from sweepai.logn import logger
 
 
 class HumanMessagePrompt(BaseModel):
@@ -28,15 +28,19 @@ class HumanMessagePrompt(BaseModel):
             snippet for snippet in self.snippets if snippet.file_path != file_path
         ]
 
-    def get_relevant_directories(self, directory_tag = None):
+    def get_relevant_directories(self, directory_tag=None):
         deduped_paths = []
         for snippet in self.snippets:
             if snippet.file_path not in deduped_paths:
                 deduped_paths.append(snippet.file_path)
         if len(deduped_paths) == 0:
             return ""
-        start_directory_tag = "<relevant_paths_in_repo>" if not directory_tag else f"<{directory_tag}>"
-        end_directory_tag = "</relevant_paths_in_repo>" if not directory_tag else f"</{directory_tag}>"
+        start_directory_tag = (
+            "<relevant_paths_in_repo>" if not directory_tag else f"<{directory_tag}>"
+        )
+        end_directory_tag = (
+            "</relevant_paths_in_repo>" if not directory_tag else f"</{directory_tag}>"
+        )
         return (
             start_directory_tag
             + "\n"
@@ -45,11 +49,16 @@ class HumanMessagePrompt(BaseModel):
             + end_directory_tag
         )
 
-    def get_commit_history(self, commit_tag = None):
+    def get_commit_history(self, commit_tag=None):
+        return ""
         if len(self.commit_history) == 0:
             return ""
-        start_commit_tag = "<relevant_commit_history>" if not commit_tag else f"<{commit_tag}>"
-        end_commit_tag = "</relevant_commit_history>" if not commit_tag else f"</{commit_tag}>"
+        start_commit_tag = (
+            "<relevant_commit_history>" if not commit_tag else f"<{commit_tag}>"
+        )
+        end_commit_tag = (
+            "</relevant_commit_history>" if not commit_tag else f"</{commit_tag}>"
+        )
         return (
             start_commit_tag
             + "\n"
@@ -62,34 +71,42 @@ class HumanMessagePrompt(BaseModel):
         return [snippet.file_path for snippet in self.snippets]
 
     @staticmethod
-    def render_snippet_array(snippets, snippet_tag = None):
+    def render_snippet_array(snippets, snippet_tag=None):
         joined_snippets = "\n".join([snippet.xml for snippet in snippets])
-        start_snippet_tag = "<relevant_snippets_in_repo>" if not snippet_tag else f"<{snippet_tag}>"
-        end_snippet_tag = "</relevant_snippets_in_repo>" if not snippet_tag else f"</{snippet_tag}>"
+        start_snippet_tag = (
+            "<relevant_snippets_in_repo>" if not snippet_tag else f"<{snippet_tag}>"
+        )
+        end_snippet_tag = (
+            "</relevant_snippets_in_repo>" if not snippet_tag else f"</{snippet_tag}>"
+        )
         if joined_snippets.strip() == "":
             return ""
-        return (
-            start_snippet_tag
-            + "\n"
-            + joined_snippets
-            + "\n"
-            + end_snippet_tag
-        )
+        return start_snippet_tag + "\n" + joined_snippets + "\n" + end_snippet_tag
 
     def render_snippets(self):
         return self.render_snippet_array(self.snippets)
 
-    def construct_prompt(self, snippet_tag = None, directory_tag = None, commit_tag = None):
-        relevant_snippets = self.snippet_text if self.snippet_text else self.render_snippet_array(self.snippets, snippet_tag)
-        relevant_directories = self.get_relevant_directories(directory_tag) if self.get_relevant_directories(directory_tag) else ""
+    def construct_prompt(self, snippet_tag=None, directory_tag=None, commit_tag=None):
+        relevant_snippets = (
+            self.snippet_text
+            if self.snippet_text
+            else self.render_snippet_array(self.snippets, snippet_tag)
+        )
+        relevant_directories = (
+            self.get_relevant_directories(directory_tag)
+            if self.get_relevant_directories(directory_tag)
+            else ""
+        )
         relevant_commit_history = self.get_commit_history(commit_tag)
         human_messages = [
             {
                 "role": msg["role"],
                 "content": msg["content"].format(
                     repo_name=self.repo_name,
-                    issue_url=f"Issue Url: {self.issue_url}\n" if self.issue_url else "\n",
-                    username=self.username ,
+                    issue_url=f"Issue Url: {self.issue_url}\n"
+                    if self.issue_url
+                    else "\n",
+                    username=self.username,
                     repo_description=self.repo_description,
                     tree=self.tree.strip("\n"),
                     title=self.title,
@@ -114,6 +131,7 @@ Username: {self.username}
 Issue Title: {self.title}
 Issue Description: {self.summary}
 """
+
 
 def render_snippets(snippets):
     res = ""
@@ -168,10 +186,11 @@ class HumanMessagePromptReview(HumanMessagePrompt):
 
         return human_messages
 
+
 class HumanMessageCommentPrompt(HumanMessagePrompt):
     comment: str
     diffs: list
-    relevant_docs: str| None
+    relevant_docs: str | None
     pr_file_path: str | None
     pr_chunk: str | None
     original_line: str | None
@@ -210,7 +229,9 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
                     relevant_directories=self.get_relevant_directories(),
                     relevant_snippets=self.render_snippets(),
                     relevant_commit_history=self.get_commit_history(),
-                    relevant_docs=f"\n{self.relevant_docs}" if self.relevant_docs else "", # conditionally add newline
+                    relevant_docs=f"\n{self.relevant_docs}"
+                    if self.relevant_docs
+                    else "",  # conditionally add newline
                 ),
             }
             for msg in human_message_prompt_comment

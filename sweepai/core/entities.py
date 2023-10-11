@@ -173,7 +173,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
 
         return [
             relevant_file
-            for relevant_file in self.raw_relevant_files.split(",")
+            for relevant_file in self.raw_relevant_files.split(", \n")
             if relevant_file != self.filename
         ]
 
