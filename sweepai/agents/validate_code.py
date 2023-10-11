@@ -178,12 +178,13 @@ class ChangeValidator(ChatGPT):
         return change_validation
 
     def apply_validated_changes(self, change_validation: ChangeValidation):
-        for diff in change_validation.diffs_to_revert:
-            if diff not in alphabet:
-                logger.warning(f"Invalid diff ID: {diff}")
-                continue
-            idx = alphabet.index(diff)
-            del self.updated_snippets[idx]
+        if change_validation.additional_changes_required:
+            for diff in change_validation.diffs_to_revert:
+                if diff not in alphabet:
+                    logger.warning(f"Invalid diff ID: {diff}")
+                    continue
+                idx = alphabet.index(diff)
+                del self.updated_snippets[idx]
         new_code = self.create_new_file()
         return new_code
 
