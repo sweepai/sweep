@@ -18,13 +18,13 @@ from sweepai.agents.graph_child import (
     extract_python_span,
 )
 from sweepai.agents.graph_parent import GraphParentBot
+from sweepai.agents.validate_code import ChangeValidator
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import SANDBOX_URL, SECONDARY_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
     FileChangeRequest,
     FileCreation,
-    MatchingError,
     MaxTokensExceeded,
     Message,
     NoFilesException,
@@ -59,15 +59,15 @@ from sweepai.logn import logger
 from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.code_tree import CodeTree
-from sweepai.utils.diff import (
-    format_contents,
-    generate_diff,
-    is_markdown,
-    sliding_window_replacement,
-)
+from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.function_call_utils import find_function_calls
 from sweepai.utils.graph import Graph
-from sweepai.utils.search_and_replace import Match, find_best_match, split_ellipses
+from sweepai.utils.search_and_replace import (
+    Match,
+    find_best_match,
+    match_indent,
+    split_ellipses,
+)
 from sweepai.utils.utils import chunk_code
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
@@ -96,18 +96,6 @@ def remove_line_numbers(s: str) -> str:
     if len(re.findall(r"\d+?:", s)) > len(s.split("\n")) / 2:
         return re.sub(r"\d+?:", "", s, flags=re.MULTILINE)
     return s
-
-
-def match_indent(generated: str, original: str) -> str:
-    indent_type = "\t" if "\t" in original[:5] else " "
-    generated_indents = len(generated) - len(generated.lstrip())
-    target_indents = len(original) - len(original.lstrip())
-    diff_indents = target_indents - generated_indents
-    if diff_indents > 0:
-        generated = indent_type * diff_indents + generated.replace(
-            "\n", "\n" + indent_type * diff_indents
-        )
-    return generated
 
 
 class CodeGenBot(ChatGPT):
@@ -929,9 +917,11 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
             except SystemExit:
                 raise SystemExit
-            except Exception as e:
+            except UnneededEditError as e:
                 if chunking:
                     return contents, "", None, changed_files
+                raise e
+            except Exception as e:
                 raise e
         except SystemExit:
             raise SystemExit
@@ -1444,6 +1434,8 @@ class ModifyBot:
             ExtractLeftoverComments(chat_logger=chat_logger, **kwargs)
         )
         self.extract_leftover_comments_bot.messages.extend(additional_messages)
+        self.chat_logger = chat_logger
+        self.additional_messages = additional_messages
 
     def try_update_file(
         self,
@@ -1459,7 +1451,7 @@ class ModifyBot:
             chunking=chunking,
         )
 
-        new_file, leftover_comments = self.update_file(
+        new_file, leftover_comments, change_validation = self.update_file(
             file_path=file_path,
             file_contents=file_contents,
             file_change_request=file_change_request,
@@ -1479,7 +1471,24 @@ class ModifyBot:
                 chunking=chunking,
             )
 
-            new_file, leftover_comments = self.update_file(
+            new_file, leftover_comments, _change_validation = self.update_file(
+                file_path=file_path,
+                file_contents=file_contents,
+                file_change_request=file_change_request,
+                snippet_queries=snippet_queries,
+                extraction_terms=extraction_terms,
+                chunking=chunking,
+            )
+        if change_validation.additional_changes_required:
+            file_change_request.new_content = new_file
+            file_change_request.instructions = change_validation.additional_changes
+            snippet_queries, extraction_terms = self.get_snippets_to_modify(
+                file_path=file_path,
+                file_contents=file_contents,
+                file_change_request=file_change_request,
+                chunking=chunking,
+            )
+            new_file, leftover_comments, _change_validation = self.update_file(
                 file_path=file_path,
                 file_contents=file_contents,
                 file_change_request=file_change_request,
@@ -1591,7 +1600,7 @@ class ModifyBot:
                 )
 
         if len(best_matches) == 0:
-            raise MatchingError("No matches found in file")
+            raise UnneededEditError("No matches found in file")
 
         # Todo: check multiple files for matches using PR changed files
 
@@ -1647,10 +1656,9 @@ class ModifyBot:
             )
         )
 
-        updated_snippets = dict()
+        updated_snippets: dict[int, str] = {}
         updated_pattern = r"<updated_snippet index=\"(?P<index>\d+)\"( position=\"(?P<position>before|after)\")?>(?P<code>.*?)<\/updated_snippet>"
 
-        # for index, position, code in re.findall(updated_pattern, update_snippets_response, re.DOTALL):
         for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
             index = int(match_.group("index"))
             position = match_.group("position")
@@ -1679,21 +1687,28 @@ class ModifyBot:
                 formatted_code = current_contents + "\n" + formatted_code
             updated_snippets[index] = formatted_code
 
-        result = file_contents
+        # Weird interface tbh
+        change_validator = ChangeValidator.create(
+            file_contents,
+            file_change_request,
+            selected_snippets,
+            updated_snippets,
+            chat_logger=self.chat_logger,
+            additional_messages=self.additional_messages,
+        )
+        change_validation = change_validator.validate_changes()
+        result = change_validator.apply_validated_changes(change_validation)
+
         new_code = []
         for idx, search in enumerate(selected_snippets):
             if idx not in updated_snippets:
                 continue
-            replace = updated_snippets[selected_snippets.index(search)]
-            result, _, _ = sliding_window_replacement(
-                result.splitlines(),
-                search.splitlines(),
-                match_indent(replace, search).splitlines(),
-            )
-            result = "\n".join(result)
+            replace = change_validator.updated_snippets[selected_snippets.index(search)]
             new_code.append(replace)
+
         ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
         result = result.rstrip("\n") + "\n" * ending_newlines
+
         new_code = "\n".join(new_code)
         leftover_comments = (
             self.extract_leftover_comments_bot.extract_leftover_comments(
@@ -1703,7 +1718,8 @@ class ModifyBot:
                 file_change_request.instructions,
             )
         )
-        return result, leftover_comments
+
+        return result, leftover_comments, change_validation
 
 
 if __name__ == "__main__":

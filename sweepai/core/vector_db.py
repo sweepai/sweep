@@ -3,20 +3,18 @@ import re
 import time
 from functools import lru_cache
 from typing import Generator, List
-from loguru import logger
 
 import numpy as np
 import replicate
 import requests
-import traceback
 from deeplake.core.vectorstore.deeplake_vectorstore import (  # pylint: disable=import-error
     VectorStore,
 )
+from loguru import logger
 from redis import Redis
 from sentence_transformers import SentenceTransformer  # pylint: disable=import-error
 from tqdm import tqdm
 
-from sweepai.logn import file_cache
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import (
     BATCH_SIZE,
@@ -31,6 +29,7 @@ from sweepai.config.server import (
 from sweepai.core.entities import Snippet
 from sweepai.core.lexical_search import prepare_index_from_snippets, search_index
 from sweepai.core.repo_parsing_utils import repo_to_chunks
+from sweepai.logn import file_cache
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.hash import hash_sha256
 from sweepai.utils.scorer import compute_score, get_scores
@@ -90,9 +89,14 @@ def embed_huggingface(texts):
 
 def embed_replicate(texts):
     client = replicate.Client(api_token=REPLICATE_API_KEY)
+    deployment = client.deployments.get(REPLICATE_URL)
     for i in range(3):
         try:
-            outputs = client.run(REPLICATE_URL, input={"text_batch": json.dumps(texts)}, timeout=60)
+            prediction = deployment.predictions.create(
+                REPLICATE_URL, input={"text_batch": json.dumps(texts)}, timeout=60
+            )
+            prediction.wait()
+            outputs = prediction.output
         except Exception as e:
             logger.exception(f"Replicate timeout: {e}")
     return [output["embedding"] for output in outputs]
@@ -124,7 +128,7 @@ def embed_texts(texts: tuple[str]):
                     embeddings.extend([r["embedding"] for r in response["data"]])
                 except SystemExit:
                     raise SystemExit
-                except Exception as e:
+                except Exception:
                     logger.exception("Failed to get embeddings for batch")
                     logger.error(f"Failed to get embeddings for {batch}")
             return embeddings
@@ -272,7 +276,9 @@ def compute_deeplake_vs(collection_name, documents, ids, metadatas, sha):
         except SystemExit:
             raise SystemExit
         except:
-            logger.exception("Failed to convert embeddings to numpy array, recomputing all of them")
+            logger.exception(
+                "Failed to convert embeddings to numpy array, recomputing all of them"
+            )
             embeddings = embedding_function(documents)
             embeddings = np.array(embeddings, dtype=np.float32)
 
@@ -330,7 +336,7 @@ def get_relevant_snippets(
         results = deeplake_vs.search(embedding=query_embedding, k=num_docs)
     except SystemExit:
         raise SystemExit
-    except Exception as e:
+    except Exception:
         logger.exception("Exception occurred while fetching relevant snippets")
     logger.info("Fetched relevant snippets...")
     if len(results["text"]) == 0:
