@@ -246,7 +246,11 @@ def call_write_documentation(*args, **kwargs):
     thread.start()
 
 
-from sweepai import health
+# Ensure the 'health' module is properly initialized
+try:
+    from sweepai import health
+except ImportError:
+    print("The 'health' module does not exist or is not properly initialized.")
 
 
 @app.get("/health")
@@ -258,6 +262,9 @@ def health_check():
 def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
+
+# Import the necessary modules
+from sweepai import health
 
 @app.post("/")
 async def webhook(raw_request: Request):
