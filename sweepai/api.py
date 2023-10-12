@@ -333,14 +333,15 @@ from . import health
 @app.get("/health")
 def redirect_to_health():
     return health.app
-        event = raw_request.headers.get("X-GitHub-Event")
-        assert event is not None
 
-        action = request_dict.get("action", None)
+event = raw_request.headers.get("X-GitHub-Event")
+assert event is not None
 
-        match event, action:
-            case "pull_request", "opened":
-                logger.info(f"Received event: {event}, {action}")
+action = request_dict.get("action", None)
+
+match event, action:
+    case "pull_request", "opened":
+        logger.info(f"Received event: {event}, {action}")
                 _, g = get_github_client(request_dict["installation"]["id"])
                 repo = g.get_repo(request_dict["repository"]["full_name"])
                 pr = repo.get_pull(request_dict["pull_request"]["number"])
