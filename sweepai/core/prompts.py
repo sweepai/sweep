@@ -39,7 +39,6 @@ human_message_prompt = [
         "role": "user",
         "content": """# Repo & Issue Metadata
 Repo: {repo_name}: {repo_description}
-{issue_url}Username: {username}
 Issue Title: {title}
 Issue Description: {description}""",
     },
@@ -97,8 +96,6 @@ review_prompt = """\
 Repo & Issue Metadata:
 <metadata>
 Repo: {repo_name}: {repo_description}
-Issue Url: {issue_url}
-Username: {username}
 Issue Title: {title}
 Issue Description:
 {description}
@@ -174,7 +171,6 @@ human_message_prompt_comment = [
         "role": "user",
         "content": """# Repo, Issue, & PR Metadata
 Repo: {repo_name}: {repo_description}
-{issue_url}Username: {username}
 Pull Request Title: {title}
 Pull Request Description: {description}{relevant_docs}""",
     },
