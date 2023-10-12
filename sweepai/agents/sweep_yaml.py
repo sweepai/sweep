@@ -85,6 +85,6 @@ class SweepYamlBot(ChatGPT):
         rules = re.findall(pattern, response, re.DOTALL)
         logger.info(f"Successfully added {len(rules)} additional rules.")
         if rules:
-            return '- "'  + '"\n - "'.join(rules) + '"'
+            return '- "'  + '"\n- "'.join(rules) + '"'
         return ""
 

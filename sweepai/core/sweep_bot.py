@@ -56,6 +56,7 @@ from sweepai.core.prompts import (
     use_chunking_message,
 )
 from sweepai.logn import logger
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
@@ -74,7 +75,9 @@ to_raw_string = lambda s: repr(s).lstrip("u")[1:-1]
 
 sandbox_error_prompt = """The following are the failing error logs from running `{command}`. Please make changes to the current file so that it passes this CI/CD command.
 
+```
 {error_logs}
+```
 
 Again, edit this file so that it passes the CI/CD. For unit tests, check the expected output and try to match the input to the expected output."""
 
@@ -596,7 +599,7 @@ class SweepBot(CodeGenBot, GithubBot):
     comment_pr_files_modified: Dict[str, str] | None = None
 
     @staticmethod
-    # @file_cache(ignore_params=["token"])
+    @file_cache(ignore_params=["token"])
     def run_sandbox(
         repo_url: str,
         file_path: str,
@@ -1632,12 +1635,12 @@ class ModifyBot:
         # get first 10 lines for imports
         IMPORT_LINES = 10
         best_matches.append(
-                    Match(
-                        start=0,
-                        end=min(IMPORT_LINES, len(file_contents.split("\n"))),
-                        score=100,
-                    )
-                )
+            Match(
+                start=0,
+                end=min(IMPORT_LINES, len(file_contents.split("\n"))),
+                score=100,
+            )
+        )
 
         if len(best_matches) == 0:
             raise UnneededEditError("No matches found in file")
