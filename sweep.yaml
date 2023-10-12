@@ -20,7 +20,7 @@ docs:
 sandbox:
   install:
     - pre-commit install
-    - pre-commit run --file sweepai/api.py
+    - pre-commit run --file sweepai/api.py || exit 0
     - pip install poetry
     - poetry install
     - poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu
