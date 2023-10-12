@@ -575,13 +575,11 @@ async def webhook(raw_request: Request):
                         )
                         call_on_comment(**pr_change_request.params)
             from sweepai import health
-            
             @app.get("/health")
             def redirect_to_health():
                 return health.app
             case "pull_request_review", "submitted":
-                # request = ReviewSubmittedRequest(**request_dict)
-                pass
+                request = ReviewSubmittedRequest(**request_dict)
             case "check_run", "completed":
                 pass  # removed for now
             case "installation_repositories", "added":
