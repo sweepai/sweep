@@ -30,6 +30,7 @@ from sweepai.config.client import (
     get_rules,
 )
 from sweepai.config.server import (
+    DEBUG,
     DISCORD_FEEDBACK_WEBHOOK_URL,
     ENV,
     GITHUB_BOT_USERNAME,
@@ -133,23 +134,24 @@ def on_ticket(
         assignee = current_issue.user.login
 
     # Hydrate cache of sandbox
-    logger.info("Hydrating cache of sandbox.")
-    try:
-        requests.post(
-            SANDBOX_URL,
-            json={
-                "repo_url": f"https://github.com/{repo_full_name}",
-                "token": user_token,
-            },
-            timeout=2,
-        )
-    except Timeout:
-        logger.info("Sandbox hydration timed out.")
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.warning(f"Error hydrating cache of sandbox: {e}")
-    logger.info("Done sending, letting it run in the background.")
+    if not DEBUG:
+        logger.info("Hydrating cache of sandbox.")
+        try:
+            requests.post(
+                SANDBOX_URL,
+                json={
+                    "repo_url": f"https://github.com/{repo_full_name}",
+                    "token": user_token,
+                },
+                timeout=2,
+            )
+        except Timeout:
+            logger.info("Sandbox hydration timed out.")
+        except SystemExit:
+            raise SystemExit
+        except Exception as e:
+            logger.warning(f"Error hydrating cache of sandbox: {e}")
+        logger.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
@@ -914,20 +916,18 @@ def on_ticket(
             edit_sweep_comment(checkboxes_contents, 2)
             response = {"error": NoFilesException()}
             changed_files = []
-            for item in generator:
-                if isinstance(item, dict):
-                    response = item
-                    break
-                file_change_request, changed_file, sandbox_response, commit = item
-                sandbox_response: SandboxResponse | None = sandbox_response
-                format_exit_code = (
-                    lambda exit_code: "✓" if exit_code == 0 else f"❌ (`{exit_code}`)"
-                )
-                logger.print(sandbox_response)
-                error_logs = (
+            format_exit_code = (
+                lambda exit_code: "✓" if exit_code == 0 else f"❌ (`{exit_code}`)"
+            )
+
+            def create_error_logs(
+                commit_url_display: str, sandbox_response: SandboxResponse
+            ):
+                return (
                     (
-                        create_collapsible(
-                            "Sandbox Execution Logs",
+                        "<br/>"
+                        + create_collapsible(
+                            f"Sandbox logs for {commit_url_display}",
                             blockquote(
                                 "\n\n".join(
                                     [
@@ -950,43 +950,63 @@ def on_ticket(
                     if sandbox_response
                     else ""
                 )
+
+            def update_progress(
+                entity_display: str,
+                header: str,
+                error_logs: str,
+                status: str,
+            ):
+                nonlocal checkboxes_progress
+                for i, (entity_display_, instructions, status_) in enumerate(
+                    checkboxes_progress
+                ):
+                    if entity_display_ == entity_display:
+                        checkboxes_progress[i] = (
+                            entity_display,
+                            instructions + error_logs,
+                            status,
+                        )
+                        break
+
+            for item in generator:
+                if isinstance(item, dict):
+                    response = item
+                    break
+                file_change_request, changed_file, sandbox_response, commit = item
+                sandbox_response: SandboxResponse | None = sandbox_response
+                logger.print(sandbox_response)
+                commit_hash: str = (
+                    commit.sha
+                    if commit is not None
+                    else repo.get_branch(pull_request.branch_name).commit.sha
+                )
+                commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
+                commit_url_display = (
+                    f"<a href='{commit_url}'><code>{commit_hash[:7]}</code></a>"
+                )
+                error_logs: str = create_error_logs(
+                    commit_url_display, sandbox_response
+                )
                 if changed_file:
                     logger.print("Changed File!")
-                    commit_hash = (
-                        commit.sha
-                        if commit is not None
-                        else repo.get_branch(pull_request.branch_name).commit.sha
+                    entity_display = file_change_request.entity_display
+                    update_progress(
+                        entity_display,
+                        f"`{entity_display}` ✅ Commit {commit_url_display}",
+                        error_logs,
+                        "X",
                     )
-                    commit_url = (
-                        f"https://github.com/{repo_full_name}/commit/{commit_hash}"
-                    )
-                    checkboxes_progress = [
-                        (
-                            (
-                                f"`{entity_display}` ✅ Commit [`{commit_hash[:7]}`]({commit_url})",
-                                instructions + error_logs,
-                                "X",
-                            )
-                            if file_change_request.entity_display == entity_display
-                            else (entity_display, instructions, progress)
-                        )
-                        for entity_display, instructions, progress in checkboxes_progress
-                    ]
                     changed_files.append(file_change_request.filename)
                 else:
                     logger.print("Didn't change file!")
-                    checkboxes_progress = [
-                        (
-                            (
-                                f"`{entity_display}` ⚠️ No Changes Made",
-                                instructions + error_logs,
-                                "X",
-                            )
-                            if file_change_request.entity_display == entity_display
-                            else (entity_display, instructions, progress)
-                        )
-                        for entity_display, instructions, progress in checkboxes_progress
-                    ]
+                    entity_display = file_change_request.entity_display
+                    update_progress(
+                        entity_display,
+                        f"`{entity_display}` ⚠️ No Changes Made",
+                        error_logs,
+                        "X",
+                    )
                 checkboxes_contents = "\n".join(
                     [
                         checkbox_template.format(
@@ -1002,7 +1022,6 @@ def on_ticket(
                     body=checkboxes_contents,
                     opened="open",
                 )
-
                 condensed_checkboxes_contents = "\n".join(
                     [
                         checkbox_template.format(
@@ -1125,14 +1144,14 @@ def on_ticket(
             revert_buttons_list = ButtonList(
                 buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
             )
-            
+
             rule_buttons = []
             for rule in get_rules(repo):
                 rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
             else:
                 for rule in DEFAULT_RULES:
                     rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-                
+
             rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
 
             pr = repo.create_pull(

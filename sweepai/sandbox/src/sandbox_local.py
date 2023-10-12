@@ -246,22 +246,28 @@ async def run_sandbox(request: SandboxRequest):
                     )
                 return logs
 
-            def run_command(command: str, stage: str = "check", iteration: int = 0):
+            def run_command(
+                command: str,
+                stage: str = "check",
+                iteration: int = 0,
+                save_execution: bool = True,
+            ):
                 print(f"\n\n### Running {command} ###\n")
                 exit_code, output = container.exec_run(
                     wrap_command(command), stderr=True
                 )
                 output = output.decode("utf-8")
                 print(summarize_logs(output))
-                executions.append(
-                    SandboxExecution(
-                        command=command,
-                        output=output,
-                        exit_code=exit_code,
-                        stage=stage,
-                        iteration=iteration,
+                if save_execution:
+                    executions.append(
+                        SandboxExecution(
+                            command=command,
+                            output=output,
+                            exit_code=exit_code,
+                            stage=stage,
+                            iteration=iteration,
+                        )
                     )
-                )
                 if exit_code != 0 and not ("prettier" in command and exit_code == 1):
                     raise Exception(output)
                 return output

@@ -5,7 +5,6 @@ from collections import OrderedDict
 from typing import Dict, Generator
 
 import requests
-from github.Commit import Commit
 from github.ContentFile import ContentFile
 from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
@@ -18,9 +17,9 @@ from sweepai.agents.graph_child import (
     extract_python_span,
 )
 from sweepai.agents.graph_parent import GraphParentBot
-from sweepai.agents.validate_code import ChangeValidator
+from sweepai.agents.validate_code import ChangeValidation, ChangeValidator
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import SANDBOX_URL, SECONDARY_MODEL
+from sweepai.config.server import DEBUG, SANDBOX_URL, SECONDARY_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
     FileChangeRequest,
@@ -294,6 +293,8 @@ class CodeGenBot(ChatGPT):
                                     end=0,
                                     content=file_paths_to_contents[file_path],
                                 )
+                            else:
+                                continue
                         relevant_symbol_list = []
                         for v in relevant_files_to_symbols.values():
                             relevant_symbol_list.extend(v)
@@ -689,7 +690,7 @@ class SweepBot(CodeGenBot, GithubBot):
             changed_files_summary = "Changed files in this PR:\n\n" + "\n".join(
                 [
                     f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
-                    for file_path, diffs in file_path_to_contents
+                    for file_path, diffs in file_path_to_contents.items()
                 ]
             )
             self.messages.append(
@@ -745,13 +746,17 @@ class SweepBot(CodeGenBot, GithubBot):
         extract_leftover_comments_bot.messages = copy.deepcopy(
             self.messages[:-2]
         )  # deletes the request
-        leftover_comments = extract_leftover_comments_bot.extract_leftover_comments(
-            file_change.code,
-            file_change_request.filename,
-            "",
-            file_change_request.instructions,
+        leftover_comments = (
+            extract_leftover_comments_bot.extract_leftover_comments(
+                file_change.code,
+                file_change_request.filename,
+                "",
+                file_change_request.instructions,
+            )
+            if not DEBUG
+            else []
         )
-        if leftover_comments:
+        if leftover_comments and not DEBUG:
             file_contents = file_change.code
             new_fcr = copy.deepcopy(file_change_request)
             joined_comments = "\n".join(leftover_comments)
@@ -1048,21 +1053,22 @@ class SweepBot(CodeGenBot, GithubBot):
                 )
                 match file_change_request.change_type:
                     case "create":
-                        (
+                        for (
                             changed_file,
                             sandbox_execution,
                             commit,
-                        ) = self.handle_create_file(
+                            changed_files,
+                        ) in self.handle_create_file_iterator(
                             file_change_request,
                             branch,
                             changed_files=changed_files,
-                        )
-                        changed_files.append(
-                            (
-                                file_change_request.filename,
-                                file_change_request.new_content,
+                        ):
+                            yield (
+                                file_change_request,
+                                changed_file,
+                                sandbox_execution,
+                                commit,
                             )
-                        )
                     case "modify" | "rewrite":
                         # Remove snippets from this file if they exist
                         snippet_msgs = [
@@ -1070,7 +1076,6 @@ class SweepBot(CodeGenBot, GithubBot):
                         ]
                         if len(snippet_msgs) > 0:  # Should always be true
                             snippet_msg = snippet_msgs[0]
-                            # Use regex to remove this snippet from the message
                             file = re.escape(file_change_request.filename)
                             regex = rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
                             snippet_msg.content = re.sub(
@@ -1079,16 +1084,22 @@ class SweepBot(CodeGenBot, GithubBot):
                                 snippet_msg.content,
                                 flags=re.DOTALL,
                             )
-                        (
+                        for (
                             changed_file,
                             sandbox_execution,
                             commit,
                             changed_files,
-                        ) = self.handle_modify_file(
+                        ) in self.handle_modify_file_iterator(
                             file_change_request,
                             branch,
                             changed_files=changed_files,
-                        )
+                        ):
+                            yield (
+                                file_change_request,
+                                changed_file,
+                                sandbox_execution,
+                                commit,
+                            )
                     case "delete":
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch
@@ -1100,6 +1111,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             branch=branch,
                         )
                         changed_file = True
+                        yield file_change_request, changed_file, sandbox_execution, commit
                     case "rename":
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch
@@ -1120,29 +1132,30 @@ class SweepBot(CodeGenBot, GithubBot):
                             branch=branch,
                         )
                         changed_file = True
+                        yield file_change_request, changed_file, sandbox_execution, commit
                     case _:
                         raise Exception(
                             f"Unknown change type {file_change_request.change_type}"
                         )
                 logger.print(f"Done processing {file_change_request.filename}.")
-                yield file_change_request, changed_file, sandbox_execution, commit
             except MaxTokensExceeded as e:
                 raise e
             except SystemExit:
                 raise SystemExit
             except Exception as e:
                 logger.error(f"Error in change_files_in_github {e}")
+                logger.error(traceback.format_exc())
 
             if changed_file:
                 completed += 1
 
-    def handle_create_file(
+    def handle_create_file_iterator(
         self,
         file_change_request: FileChangeRequest,
         branch: str,
         changed_files: list[tuple[str, str]] = [],
-    ) -> tuple[bool, None, Commit]:
-        file_change, sandbox_execution = self.create_file(
+    ):
+        file_change, sandbox_response = self.create_file(
             file_change_request, changed_files=changed_files
         )
         file_markdown = is_markdown(file_change_request.filename)
@@ -1160,28 +1173,41 @@ class SweepBot(CodeGenBot, GithubBot):
             branch=branch,
         )
 
-        if not sandbox_execution.success:
+        changed_files.append((file_change_request.filename, file_change.code))
+
+        file_change_request.new_content = file_change.code, changed_files
+
+        yield True, sandbox_response, result["commit"], changed_files
+
+        if not sandbox_response.success:
             new_file_change_request = file_change_request
             new_file_change_request.change_type = "modify"
-            new_file_change_request.instructions = sandbox_execution.executions[
-                -1
-            ].output
-            (
+            new_file_change_request.instructions = sandbox_error_prompt.format(
+                command=sandbox_response.executions[
+                    -1
+                ].command.format(  # can use prompt tuning here
+                    file_path=file_change_request.filename
+                ),
+                error_logs=sandbox_response.executions[-1].output,
+            )
+            logger.warning(sandbox_response.executions[-1].output)
+            for (
                 new_file_contents,
                 new_sandbox_execution,
                 commit_message,
                 changed_files,
-            ) = self.handle_modify_file(
+            ) in self.handle_modify_file_iterator(
                 file_change_request=new_file_change_request,
                 branch=branch,
                 changed_files=changed_files,
-            )
-            file_change_request.new_content = new_file_contents
-            return True, new_sandbox_execution, commit_message
+            ):
+                file_change_request.new_content = new_file_contents
+                yield True, new_sandbox_execution, commit_message, changed_files
 
-        file_change_request.new_content = file_change.code
-
-        return True, sandbox_execution, result["commit"]
+    def handle_create_file(self, *args, **kwargs):
+        for response in self.handle_create_file_iterator(*args, **kwargs):
+            pass
+        return response
 
     def handle_modify_file_main(
         self,
@@ -1221,6 +1247,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             contents="\n".join(lines),
                             chunking=False,
                             temperature=temperature,
+                            changed_files=changed_files,
                         )
                         commit_message = suggested_commit_message
                     elif not chunking:
@@ -1275,6 +1302,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 except Exception as e:
                     logger.print(e)
                     raise e
+                changed_files.append((file_name, new_file_contents))
                 return new_file_contents, commit_message, sandbox_error, changed_files
 
             (
@@ -1315,6 +1343,9 @@ class SweepBot(CodeGenBot, GithubBot):
                     changed_files,
                 )
 
+            import pdb
+
+            pdb.set_trace()
             try:
                 result = self.repo.update_file(
                     file_name,
@@ -1346,12 +1377,11 @@ class SweepBot(CodeGenBot, GithubBot):
             logger.info(f"Error in handle_modify_file: {tb}")
             return False, sandbox_execution, None, changed_files
 
-    def handle_modify_file(
+    def handle_modify_file_iterator(
         self,
         file_change_request: FileChangeRequest,
         branch: str,
         changed_files: list[tuple[str, str]] = [],
-        iteration_num=0,
     ):
         (
             file_changed,
@@ -1363,29 +1393,37 @@ class SweepBot(CodeGenBot, GithubBot):
             branch=branch,
             changed_files=changed_files,
         )
-        sandbox_execution = None
-        if sandbox_execution and not sandbox_execution.success and iteration_num < 0:
-            new_file_change_request = file_change_request
-            new_file_change_request.instructions = sandbox_error_prompt.format(
-                command=sandbox_execution.executions[-1].command.format(
-                    file_path=file_change_request.filename
-                ),
-                error_logs=sandbox_execution.executions[-1].output,
-            )
-            logger.warning(sandbox_execution.executions[-1].output)
-            (
-                new_file_contents,
-                sandbox_execution,
-                commit_message,
-                changed_files,
-            ) = self.handle_modify_file(
-                file_change_request=new_file_change_request,
-                branch=branch,
-                changed_files=changed_files,
-                iteration_num=iteration_num + 1,
-            )
-            file_change_request.new_content = new_file_contents
-        return file_changed, sandbox_response, commit_message, changed_files
+        yield file_changed, sandbox_response, commit_message, changed_files
+        for _ in range(3):
+            if sandbox_response.success:
+                break
+            if sandbox_response and not sandbox_response.success:
+                new_file_change_request = file_change_request
+                new_file_change_request.instructions = sandbox_error_prompt.format(
+                    command=sandbox_response.executions[
+                        -1
+                    ].command.format(  # can use prompt tuning here
+                        file_path=file_change_request.filename
+                    ),
+                    error_logs=sandbox_response.executions[-1].output,
+                )
+                logger.warning(sandbox_response.executions[-1].output)
+                (
+                    file_changed,
+                    sandbox_response,
+                    commit_message,
+                    changed_files,
+                ) = self.handle_modify_file_main(
+                    file_change_request=new_file_change_request,
+                    branch=branch,
+                    changed_files=changed_files,
+                )
+            yield file_changed, sandbox_response, commit_message, changed_files
+
+    def handle_modify_file(self, *args, **kwargs):
+        for response in self.handle_modify_file_iterator(*args, **kwargs):
+            pass
+        return response
 
 
 class ModifyBot:
@@ -1436,7 +1474,7 @@ class ModifyBot:
             extraction_terms=extraction_terms,
             chunking=chunking,
         )
-        if leftover_comments:
+        if leftover_comments and not DEBUG:
             joined_comments = "\n".join(leftover_comments)
             file_change_request.instructions = (
                 f"Address all of the unfinished code changes here: \n{joined_comments}"
@@ -1687,7 +1725,6 @@ class ModifyBot:
                 formatted_code = current_contents + "\n" + formatted_code
             updated_snippets[index] = formatted_code
 
-        # Weird interface tbh
         change_validator = ChangeValidator.create(
             file_contents,
             file_change_request,
@@ -1696,7 +1733,15 @@ class ModifyBot:
             chat_logger=self.chat_logger,
             additional_messages=self.additional_messages,
         )
-        change_validation = change_validator.validate_changes()
+        if DEBUG:
+            change_validation = ChangeValidation(
+                analysis="",
+                additional_changes="",
+                additional_changes_required_raw="no",
+                diffs_to_revert_raw="",
+            )
+        else:
+            change_validation = change_validator.validate_changes()
         result = change_validator.apply_validated_changes(change_validation)
 
         new_code = []
@@ -1713,12 +1758,16 @@ class ModifyBot:
 
         new_code = "\n".join(new_code)
         leftover_comments = (
-            self.extract_leftover_comments_bot.extract_leftover_comments(
-                new_code,
-                file_path,
-                update_snippets_code,
-                file_change_request.instructions,
+            (
+                self.extract_leftover_comments_bot.extract_leftover_comments(
+                    new_code,
+                    file_path,
+                    update_snippets_code,
+                    file_change_request.instructions,
+                )
             )
+            if not DEBUG
+            else []
         )
 
         return result, leftover_comments, change_validation
