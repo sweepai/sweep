@@ -2,6 +2,8 @@
 import json
 import os
 import time
+import datetime
+import schedule
 
 import psutil
 
@@ -14,6 +16,8 @@ from sweepai.utils.buttons import (
     check_button_title_match,
 )
 from sweepai.utils.safe_pqueue import SafePriorityQueue
+from sweepai.utils.github_utils import get_github_client
+from sweepai.core.entities import create_issue_comment
 
 logger.init(
     metadata=None,
@@ -328,6 +332,22 @@ def health_check():
 def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
+def delete_old_sweep_issues_and_prs():
+    github_client = get_github_client()
+    now = datetime.datetime.now()
+    for repo in github_client.get_user().get_repos():
+        for issue in repo.get_issues(state='open'):
+            if 'Sweep' in issue.labels or issue.title.startswith('Sweep'):
+                issue_created_at = issue.created_at
+                if (now - issue_created_at).days > 14:
+                    try:
+                        create_issue_comment(issue, "This issue is being closed as it is over two weeks old.")
+                        issue.edit(state='closed')
+                    except Exception as e:
+                        logger.error(f"Failed to close issue: {e}")
+
+schedule.every().day.at("00:00").do(delete_old_sweep_issues_and_prs)
+
 
 @app.post("/")
 async def webhook(raw_request: Request):
@@ -340,6 +360,22 @@ async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
+
+def delete_old_sweep_issues_and_prs():
+    github_client = get_github_client()
+    now = datetime.datetime.now()
+    for repo in github_client.get_user().get_repos():
+        for issue in repo.get_issues(state='open'):
+            if 'Sweep' in issue.labels or issue.title.startswith('Sweep'):
+                issue_created_at = issue.created_at
+                if (now - issue_created_at).days > 14:
+                    try:
+                        create_issue_comment(issue, "This issue is being closed as it is over two weeks old.")
+                        issue.edit(state='closed')
+                    except Exception as e:
+                        logger.error(f"Failed to close issue: {e}")
+
+schedule.every().day.at("00:00").do(delete_old_sweep_issues_and_prs)
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
 
