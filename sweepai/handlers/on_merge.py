@@ -6,7 +6,7 @@ import copy
 import time
 
 from sweepai.logn import logger
-from sweepai.config.client import SweepConfig, get_rules
+from sweepai.config.client import SweepConfig, get_rules, get_blocked_dirs
 from sweepai.core.post_merge import PostMerge
 from sweepai.handlers.pr_utils import make_pr
 from sweepai.utils.chat_logger import ChatLogger
@@ -62,6 +62,7 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
     comparison = repo.compare(before_sha, after_sha)
     commits_diff = comparison_to_diff(comparison)
     # check if the current repo is in the merge_rule_debounce dictionary
+    blocked_dirs = get_blocked_dirs(repo)
     # and if the difference between the current time and the time stored in the dictionary is less than DEBOUNCE_TIME seconds
     if (
         repo.full_name in merge_rule_debounce
@@ -77,23 +78,27 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
         return
     for rule in rules:
         chat_logger.data["title"] = f"Sweep Rules - {rule}"
-        changes_required, issue_title, issue_description = PostMerge(
-            chat_logger=chat_logger
-        ).check_for_issues(rule=rule, diff=commits_diff)
-        if changes_required:
-            make_pr(
-                title="[Sweep Rules] " + issue_title,
-                repo_description=repo.description,
-                summary=issue_description,
-                repo_full_name=request_dict["repository"]["full_name"],
-                installation_id=request_dict["installation"]["id"],
-                user_token=user_token,
-                use_faster_model=chat_logger.use_faster_model(g),
-                username=commit_author,
-                chat_logger=chat_logger,
-                rule=rule,
-            )
-            posthog.capture(
-                commit_author,
-                "rule_pr_created"
-            )
+        for diff in commits_diff:
+            diff_dir = '/'.join(diff.file.split('/')[:-1])
+            if diff_dir in blocked_dirs:
+                continue
+            changes_required, issue_title, issue_description = PostMerge(
+                chat_logger=chat_logger
+            ).check_for_issues(rule=rule, diff=diff)
+            if changes_required:
+                make_pr(
+                    title="[Sweep Rules] " + issue_title,
+                    repo_description=repo.description,
+                    summary=issue_description,
+                    repo_full_name=request_dict["repository"]["full_name"],
+                    installation_id=request_dict["installation"]["id"],
+                    user_token=user_token,
+                    use_faster_model=chat_logger.use_faster_model(g),
+                    username=commit_author,
+                    chat_logger=chat_logger,
+                    rule=rule,
+                )
+                posthog.capture(
+                    commit_author,
+                    "rule_pr_created"
+                )
