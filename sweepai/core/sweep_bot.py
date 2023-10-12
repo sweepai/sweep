@@ -675,7 +675,7 @@ class SweepBot(CodeGenBot, GithubBot):
         if changed_files:
             file_path_to_contents = OrderedDict()
             for file_path, (old_contents, new_contents) in changed_files:
-                if not file_contents.strip():
+                if not new_contents.strip():
                     continue
                 diffs = generate_diff(old_contents, new_contents)
                 if file_path in file_path_to_contents:
@@ -1435,6 +1435,10 @@ class ModifyBot:
         self.extract_leftover_comments_bot: ExtractLeftoverComments = (
             ExtractLeftoverComments(chat_logger=chat_logger, **kwargs)
         )
+
+        self.extract_leftover_comments_bot: ExtractLeftoverComments = (
+            ExtractLeftoverComments(chat_logger=chat_logger, **kwargs)
+        )
         self.extract_leftover_comments_bot.messages.extend(additional_messages)
         self.chat_logger = chat_logger
         self.additional_messages = additional_messages
@@ -1669,6 +1673,10 @@ class ModifyBot:
             update_snippets_code = extract_python_span(
                 file_contents, [file_change_request.entity]
             ).content
+
+        # if there are more than 3 snippets, prune them
+        if len(selected_snippets) > 3:
+            
 
         update_snippets_response = self.update_snippets_bot.chat(
             update_snippets_prompt.format(
