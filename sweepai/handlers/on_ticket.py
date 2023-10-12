@@ -83,7 +83,6 @@ sweeping_gif = """<a href="https://github.com/sweepai/sweep"><img class="swing" 
 def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
 
-
 def on_ticket(
     title: str,
     summary: str,
@@ -95,7 +94,7 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None,
     edited: bool = False,
-):
+) -> None:
     (
         title,
         slow_mode,
@@ -237,17 +236,29 @@ def on_ticket(
 
     posthog.capture(username, "started", properties=metadata)
 
-    try:
-        logger.info(f"Getting repo {repo_full_name}")
-
-        if current_issue.state == "closed":
-            logger.warning(f"Issue {issue_number} is closed")
-            posthog.capture(
-                username,
-                "issue_closed",
-                properties={**metadata, "duration": time() - on_ticket_start_time},
-            )
-            return {"success": False, "reason": "Issue is closed"}
+    def on_ticket(
+         title: str,
+         summary: str,
+         repo_full_name: str,
+         issue_number: int,
+         issue_url: str,
+         username: str,
+         user_token: str,
+         installation_id: int,
+         comment_id: int = None,
+         edited: bool = False,
+    ) -> Dict[str, Union[bool, str]]:
+        try:
+            logger.info(f"Getting repo {repo_full_name}")
+    
+            if current_issue.state == "closed":
+                logger.warning(f"Issue {issue_number} is closed")
+                posthog.capture(
+                    username,
+                    "issue_closed",
+                    properties={**metadata, "duration": time() - on_ticket_start_time},
+                )
+                return {"success": False, "reason": "Issue is closed"}
 
         # Add :eyes: emoji to ticket
         item_to_react_to = (
@@ -627,21 +638,33 @@ def on_ticket(
             repo_description = "No description provided."
 
         message_summary = summary + replies_text
-        external_results = ExternalSearcher.extract_summaries(message_summary)
-        if external_results:
-            message_summary += "\n\n" + external_results
-        user_dict = get_documentation_dict(repo)
-        docs_results = ""
-        try:
-            docs_results = extract_relevant_docs(
-                title + "\n" + message_summary, user_dict, chat_logger
-            )
-            if docs_results:
-                message_summary += "\n\n" + docs_results
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
+        def on_ticket(
+             title: str,
+             summary: str,
+             repo_full_name: str,
+             issue_number: int,
+             issue_url: str,
+             username: str,
+             user_token: str,
+             installation_id: int,
+             comment_id: int = None,
+             edited: bool = False,
+        ) -> Dict[str, Union[bool, str]]:
+            external_results = ExternalSearcher.extract_summaries(message_summary)
+            if external_results:
+                message_summary += "\n\n" + external_results
+            user_dict = get_documentation_dict(repo)
+            docs_results = ""
+            try:
+                docs_results = extract_relevant_docs(
+                    title + "\n" + message_summary, user_dict, chat_logger
+                )
+                if docs_results:
+                    message_summary += "\n\n" + docs_results
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                logger.error(f"Failed to extract docs: {e}")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -1076,23 +1099,35 @@ def on_ticket(
                 pass
 
             changes_required = False
-            try:
-                # CODE REVIEW
-                changes_required, review_comment = review_pr(
-                    repo=repo,
-                    pr=pr_changes,
-                    issue_url=issue_url,
-                    username=username,
-                    repo_description=repo_description,
-                    title=title,
-                    summary=summary,
-                    replies_text=replies_text,
-                    tree=tree,
-                    lint_output=lint_output,
-                    plan=plan,  # plan for the PR
-                    chat_logger=chat_logger,
-                    commit_history=commit_history,
-                )
+            def on_ticket(
+                 title: str,
+                 summary: str,
+                 repo_full_name: str,
+                 issue_number: int,
+                 issue_url: str,
+                 username: str,
+                 user_token: str,
+                 installation_id: int,
+                 comment_id: int = None,
+                 edited: bool = False,
+            ) -> Dict[str, Union[bool, str]]:
+                try:
+                    # CODE REVIEW
+                    changes_required, review_comment = review_pr(
+                        repo=repo,
+                        pr=pr_changes,
+                        issue_url=issue_url,
+                        username=username,
+                        repo_description=repo_description,
+                        title=title,
+                        summary=summary,
+                        replies_text=replies_text,
+                        tree=tree,
+                        lint_output=lint_output,
+                        plan=plan,  # plan for the PR
+                        chat_logger=chat_logger,
+                        commit_history=commit_history,
+                    )
                 lint_output = None
                 review_message += (
                     f"Here is the {ordinal(1)} review\n"
