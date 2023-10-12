@@ -56,26 +56,12 @@ def write_file(container, file_path: str, content: str):
     container.put_archive(os.path.dirname(file_path), tar_stream)
 
 
-def read_file(container: str, file_path: str):
-    # Get a tarball of the file from the container
-    tar_stream, _ = container.get_archive(file_path)
+def read_file(file_path: str):
+    # Open the file in read mode and read its contents
+    with open(file_path, 'r') as file:
+        file_content = file.read()
 
-    # Create a BytesIO object from the tar stream
-    tar_byte_stream = io.BytesIO()
-    for chunk in tar_stream:
-        tar_byte_stream.write(chunk)
-
-    # Set the stream position to the beginning
-    tar_byte_stream.seek(0)
-
-    # Extract the file content from the tarball
-    with tarfile.TarFile(fileobj=tar_byte_stream) as tar:
-        member = tar.next()  # Get the first (and only) member in the tarball
-        if member is not None:
-            file_content = tar.extractfile(member).read()
-            return file_content.decode("utf-8")
-
-    return None
+    return file_content
 
 
 def discord_log_error(content, priority=0):
@@ -295,7 +281,7 @@ async def run_sandbox(request: SandboxRequest):
             if request.file_path is not None and request.content is not None:
                 old_file = ""
                 try:
-                    old_file = read_file(container, f"repo/{request.file_path}")
+                    old_file = read_file(f"repo/{request.file_path}")
                 except Exception:
                     print("File does not exist, skipping check step...")
 
@@ -351,11 +337,11 @@ async def run_sandbox(request: SandboxRequest):
 
                 # Read formatted file
                 success = True
-                updated_content = read_file(container, f"repo/{request.file_path}")
+                updated_content = read_file(f"repo/{request.file_path}")
                 print(f"Updated Contents:\n```\n{updated_content}\n```")
-            else:
-                success = True
-                print("No content provided, skipping edit step...")
+                else:
+                    success = True
+                    print("No content provided, skipping edit step...")
     except SystemExit:
         raise SystemExit
     except Exception as e:
