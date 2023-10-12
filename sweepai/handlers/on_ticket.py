@@ -358,7 +358,7 @@ def on_ticket(
         def get_comment_header(index, errored=False, pr_message="", done=False):
             config_pr_message = (
                 "\n"
-                + f"* Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a>"
+                + f"<div align='center'>Install Sweep Configs: <a href='{config_pr_url}'>Pull Request</a></div>"
                 if config_pr_url is not None
                 else ""
             )

@@ -2,6 +2,9 @@
     "editor.wordWrap": "on",
     "python.analysis.autoImportCompletions": true,
     "python.analysis.autoImportUserSymbols": true,
+<<<<<<< HEAD
     "python.analysis.inlayHints.functionReturnTypes": false,
     "python.analysis.inlayHints.variableTypes": false
+=======
+>>>>>>> c68d1b7c5af5db7b6e9d2414b3d93c0b3494918a
 }
