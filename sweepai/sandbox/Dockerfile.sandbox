@@ -3,8 +3,6 @@ FROM ubuntu:latest
 # Install common packages
 RUN apt-get update && apt-get install -y git curl wget coreutils python3 python3-pip qemu-system
 
-# RUN ln -s /usr/bin/python3 /usr/bin/python && ln -s /usr/bin/pip3 /usr/bin/pip
-
 # Specify VERSION and BINARY for yq (or directly put them into the wget command)
 ARG VERSION="v4.9.6"
 ARG BINARY="yq_linux_amd64"
@@ -31,3 +29,4 @@ RUN npm install -g pnpm
 
 # Python stuff
 RUN pip install black isort pre-commit
+RUN pip install poetry
