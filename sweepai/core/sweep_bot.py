@@ -619,7 +619,8 @@ class SweepBot(CodeGenBot, GithubBot):
                 "file_path": file_path,
                 "content": content,
                 "changed_files": {
-                    file_path: file_content for file_path, file_content in changed_files
+                    file_path: new_contents
+                    for file_path, (_old_contents, new_contents) in changed_files
                 },
                 "only_lint": only_lint,
                 "do_fix": False,
@@ -672,20 +673,14 @@ class SweepBot(CodeGenBot, GithubBot):
         old_messages = self.messages
         if changed_files:
             file_path_to_contents = OrderedDict()
-            for file_path, file_contents in changed_files:
+            for file_path, (old_contents, new_contents) in changed_files:
                 if not file_contents.strip():
                     continue
+                diffs = generate_diff(old_contents, new_contents)
                 if file_path in file_path_to_contents:
-                    file_path_to_contents[file_path] += file_contents
+                    file_path_to_contents[file_path] += diffs
                 else:
-                    file_path_to_contents[file_path] = file_contents
-            for file_path in file_path_to_contents:
-                try:
-                    old_contents = self.get_contents(file_path).decoded_content.decode()
-                    diff = generate_diff(old_contents, file_path_to_contents[file_path])
-                    file_path_to_contents[file_path] = diff
-                except Exception as e:
-                    logger.error(e)
+                    file_path_to_contents[file_path] = diffs
             changed_files_summary = "Changed files in this PR:\n\n" + "\n".join(
                 [
                     f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
@@ -839,20 +834,12 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
                 ]
             file_path_to_contents = OrderedDict()
-            for file_path, file_contents in changed_files:
-                if not file_contents.strip():
-                    continue
+            for file_path, (old_contents, new_contents) in changed_files:
+                diffs = generate_diff(old_contents, new_contents)
                 if file_path in file_path_to_contents:
-                    file_path_to_contents[file_path] += file_contents
+                    file_path_to_contents[file_path] += diffs
                 else:
-                    file_path_to_contents[file_path] = file_contents
-            for file_path in file_path_to_contents:
-                try:
-                    old_contents = self.get_contents(file_path).decoded_content.decode()
-                    diff = generate_diff(old_contents, file_path_to_contents[file_path])
-                    file_path_to_contents[file_path] = diff
-                except Exception as e:
-                    logger.error(e)
+                    file_path_to_contents[file_path] = diffs
             changed_files_summary = "We have previously changed these files:\n" + "\n".join(
                 [
                     f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
@@ -939,7 +926,10 @@ class SweepBot(CodeGenBot, GithubBot):
             changed_files.append(
                 (
                     file_change_request.filename,
-                    new_file,
+                    (
+                        contents,
+                        new_file,
+                    ),
                 )
             )
             return new_file, commit_message, sandbox_execution, changed_files
@@ -1172,7 +1162,7 @@ class SweepBot(CodeGenBot, GithubBot):
             branch=branch,
         )
 
-        changed_files.append((file_change_request.filename, file_change.code))
+        changed_files.append((file_change_request.filename, ("", file_change.code)))
 
         file_change_request.new_content = file_change.code, changed_files
 
@@ -1301,7 +1291,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 except Exception as e:
                     logger.print(e)
                     raise e
-                changed_files.append((file_name, new_file_contents))
+                changed_files.append((file_name, ("\n".join(lines), new_file_contents)))
                 return new_file_contents, commit_message, sandbox_error, changed_files
 
             (

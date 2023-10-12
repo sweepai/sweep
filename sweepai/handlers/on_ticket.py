@@ -50,6 +50,7 @@ from sweepai.core.entities import (
     MaxTokensExceeded,
     NoFilesException,
     ProposedIssue,
+    PullRequest,
     SandboxResponse,
     SweepContext,
 )
@@ -1160,7 +1161,7 @@ def on_ticket(
 
             rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
 
-            pr = repo.create_pull(
+            pr: PullRequest = repo.create_pull(
                 title=pr_changes.title,
                 body=pr_actions_message + pr_changes.body,
                 head=pr_changes.pr_head,
