@@ -20,7 +20,7 @@ def check_sandbox_health() -> str:
         response.raise_for_status()
         return "UP"
     except Exception as e:
-        logger.exception(f"Error checking sandbox health: {e}")
+        logger.error(f"Error checking sandbox health: {e}")
         return "DOWN"
 
 def check_mongodb_health() -> str:
@@ -29,7 +29,7 @@ def check_mongodb_health() -> str:
         client.admin.command('ismaster')
         return "UP"
     except Exception as e:
-        logger.exception(f"Error checking MongoDB health: {e}")
+        logger.error(f"Error checking MongoDB health: {e}")
         return "DOWN"
 
 def check_redis_health() -> str:
@@ -38,7 +38,7 @@ def check_redis_health() -> str:
         redis_client.ping()
         return "UP"
     except Exception as e:
-        logger.exception(f"Error checking Redis health: {e}")
+        logger.error(f"Error checking Redis health: {e}")
         return "DOWN"
 
 @app.get("/health")
