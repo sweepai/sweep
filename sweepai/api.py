@@ -342,297 +342,161 @@ action = request_dict.get("action", None)
 match event, action:
     case "pull_request", "opened":
         logger.info(f"Received event: {event}, {action}")
-                _, g = get_github_client(request_dict["installation"]["id"])
-                repo = g.get_repo(request_dict["repository"]["full_name"])
-                pr = repo.get_pull(request_dict["pull_request"]["number"])
-                # if the pr already has a comment from sweep bot do nothing
-                if any(
-                    comment.user.login == GITHUB_BOT_USERNAME
-                    for comment in pr.get_issue_comments()
-                ):
-                    return {
-                        "success": True,
-                        "reason": "PR already has a comment from sweep bot",
-                    }
-                rule_buttons = []
-                for rule in get_rules(repo):
-                    rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-                else:
-                    for rule in DEFAULT_RULES:
-                        rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-                if rule_buttons:
-                    rules_buttons_list = ButtonList(
-                        buttons=rule_buttons, title=RULES_TITLE
-                    )
-                    pr.create_issue_comment(rules_buttons_list.serialize())
-            case "issues", "opened":
-                logger.info(f"Received event: {event}, {action}")
-                request = IssueRequest(**request_dict)
-                issue_title_lower = request.issue.title.lower()
-                if (
-                    issue_title_lower.startswith("sweep")
-                    or "sweep:" in issue_title_lower
-                ):
-                    _, g = get_github_client(request.installation.id)
-                    repo = g.get_repo(request.repository.full_name)
+        _, g = get_github_client(request_dict["installation"]["id"])
+        repo = g.get_repo(request_dict["repository"]["full_name"])
+        pr = repo.get_pull(request_dict["pull_request"]["number"])
+        # if the pr already has a comment from sweep bot do nothing
+        if any(
+            comment.user.login == GITHUB_BOT_USERNAME
+            for comment in pr.get_issue_comments()
+        ):
+            return {
+                "success": True,
+                "reason": "PR already has a comment from sweep bot",
+            }
+        rule_buttons = []
+        for rule in get_rules(repo):
+            rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+        else:
+            for rule in DEFAULT_RULES:
+                rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
+        if rule_buttons:
+            rules_buttons_list = ButtonList(
+                buttons=rule_buttons, title=RULES_TITLE
+            )
+            pr.create_issue_comment(rules_buttons_list.serialize())
+    case "issues", "opened":
+        logger.info(f"Received event: {event}, {action}")
+        request = IssueRequest(**request_dict)
+        issue_title_lower = request.issue.title.lower()
+        if (
+            issue_title_lower.startswith("sweep")
+            or "sweep:" in issue_title_lower
+        ):
+            _, g = get_github_client(request.installation.id)
+            repo = g.get_repo(request.repository.full_name)
 
-                    labels = repo.get_labels()
-                    label_names = [label.name for label in labels]
+            labels = repo.get_labels()
+            label_names = [label.name for label in labels]
 
-                    if GITHUB_LABEL_NAME not in label_names:
-                        repo.create_label(
-                            name=GITHUB_LABEL_NAME,
-                            color=GITHUB_LABEL_COLOR,
-                            description=GITHUB_LABEL_DESCRIPTION,
-                        )
-                    current_issue = repo.get_issue(number=request.issue.number)
-                    current_issue.add_to_labels(GITHUB_LABEL_NAME)
-            case "issue_comment", "edited":
-                logger.info(f"Received event: {event}, {action}")
-                request = IssueCommentRequest(**request_dict)
-                sweep_labeled_issue = GITHUB_LABEL_NAME in [
-                    label.name.lower() for label in request.issue.labels
-                ]
-                button_title_match = check_button_title_match(
-                    REVERT_CHANGED_FILES_TITLE,
-                    request.comment.body,
-                    request.changes,
-                ) or check_button_title_match(
-                    RULES_TITLE,
-                    request.comment.body,
-                    request.changes,
+            if GITHUB_LABEL_NAME not in label_names:
+                repo.create_label(
+                    name=GITHUB_LABEL_NAME,
+                    color=GITHUB_LABEL_COLOR,
+                    description=GITHUB_LABEL_DESCRIPTION,
                 )
-                if (
-                    request.comment.user.type == "Bot"
-                    and GITHUB_BOT_USERNAME in request.comment.user.login
-                    and request.changes.body_from is not None
-                    and button_title_match
-                    and request.sender.type == "User"
-                ):
-                    run_on_button_click(request_dict)
+            current_issue = repo.get_issue(number=request.issue.number)
+            current_issue.add_to_labels(GITHUB_LABEL_NAME)
+    case "issue_comment", "edited":
+        logger.info(f"Received event: {event}, {action}")
+        request = IssueCommentRequest(**request_dict)
+        sweep_labeled_issue = GITHUB_LABEL_NAME in [
+            label.name.lower() for label in request.issue.labels
+        ]
+        button_title_match = check_button_title_match(
+            REVERT_CHANGED_FILES_TITLE,
+            request.comment.body,
+            request.changes,
+        ) or check_button_title_match(
+            RULES_TITLE,
+            request.comment.body,
+            request.changes,
+        )
+        if (
+            request.comment.user.type == "Bot"
+            and GITHUB_BOT_USERNAME in request.comment.user.login
+            and request.changes.body_from is not None
+            and button_title_match
+            and request.sender.type == "User"
+        ):
+            run_on_button_click(request_dict)
 
-                restart_sweep = False
-                if (
-                    request.comment.user.type == "Bot"
-                    and GITHUB_BOT_USERNAME in request.comment.user.login
-                    and request.changes.body_from is not None
-                    and check_button_activated(
-                        RESTART_SWEEP_BUTTON, request.comment.body, request.changes
-                    )
-                    and sweep_labeled_issue
-                    and request.sender.type == "User"
-                ):
-                    # Restart Sweep on this issue
-                    restart_sweep = True
+        restart_sweep = False
+        if (
+            request.comment.user.type == "Bot"
+            and GITHUB_BOT_USERNAME in request.comment.user.login
+            and request.changes.body_from is not None
+            and check_button_activated(
+                RESTART_SWEEP_BUTTON, request.comment.body, request.changes
+            )
+            and sweep_labeled_issue
+            and request.sender.type == "User"
+        ):
+            # Restart Sweep on this issue
+            restart_sweep = True
 
-                if (
-                    request.issue is not None
-                    and sweep_labeled_issue
-                    and request.comment.user.type == "User"
-                    and not request.comment.user.login.startswith("sweep")
-                    and not (
-                        request.issue.pull_request and request.issue.pull_request.url
-                    )
-                    or restart_sweep
-                ):
-                    logger.info("New issue comment edited")
-                    request.issue.body = request.issue.body or ""
-                    request.repository.description = (
-                        request.repository.description or ""
-                    )
+        if (
+            request.issue is not None
+            and sweep_labeled_issue
+            and request.comment.user.type == "User"
+            and not request.comment.user.login.startswith("sweep")
+            and not (
+                request.issue.pull_request and request.issue.pull_request.url
+            )
+            or restart_sweep
+        ):
+            logger.info("New issue comment edited")
+            request.issue.body = request.issue.body or ""
+            request.repository.description = (
+                request.repository.description or ""
+            )
 
-                    if (
-                        not request.comment.body.strip()
-                        .lower()
-                        .startswith(GITHUB_LABEL_NAME)
-                        and not restart_sweep
-                    ):
-                        logger.info("Comment does not start with 'Sweep', passing")
-                        return {
-                            "success": True,
-                            "reason": "Comment does not start with 'Sweep', passing",
-                        }
+            if (
+                not request.comment.body.strip()
+                .lower()
+                .startswith(GITHUB_LABEL_NAME)
+                and not restart_sweep
+            ):
+                logger.info("Comment does not start with 'Sweep', passing")
+                return {
+                    "success": True,
+                    "reason": "Comment does not start with 'Sweep', passing",
+                }
 
-                    # Update before we handle the ticket to make sure index is up to date
-                    # other ways suboptimal
+            # Update before we handle the ticket to make sure index is up to date
+            # other ways suboptimal
 
-                    (request.repository.full_name, request.issue.number)
+            (request.repository.full_name, request.issue.number)
 
-                    call_on_ticket(
-                        title=request.issue.title,
-                        summary=request.issue.body,
-                        issue_number=request.issue.number,
-                        issue_url=request.issue.html_url,
-                        username=request.issue.user.login,
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        installation_id=request.installation.id,
-                        comment_id=request.comment.id if not restart_sweep else None,
-                        edited=True,
-                    )
-                elif (
-                    request.issue.pull_request and request.comment.user.type == "User"
-                ):  # TODO(sweep): set a limit
-                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
-                    _, g = get_github_client(request.installation.id)
-                    repo = g.get_repo(request.repository.full_name)
-                    pr = repo.get_pull(request.issue.number)
-                    labels = pr.get_labels()
-                    comment = request.comment.body
-                    if comment.lower().startswith("sweep:") or any(
-                        label.name.lower() == "sweep" for label in labels
-                    ):
-                        pr_change_request = PRChangeRequest(
-                            params={
-                                "comment_type": "comment",
-                                "repo_full_name": request.repository.full_name,
-                                "repo_description": request.repository.description,
-                                "comment": request.comment.body,
-                                "pr_path": None,
-                                "pr_line_position": None,
-                                "username": request.comment.user.login,
-                                "installation_id": request.installation.id,
-                                "pr_number": request.issue.number,
-                                "comment_id": request.comment.id,
-                                "g": g,
-                                "repo": repo,
-                            },
-                        )
-                        # push_to_queue(
-                        #     repo_full_name=request.repository.full_name,
-                        #     pr_id=request.issue.number,
-                        #     pr_change_request=pr_change_request,
-                        # )
-            case "issues", "edited":
-                logger.info(f"Received event: {event}, {action}")
-                request = IssueRequest(**request_dict)
-                if (
-                    GITHUB_LABEL_NAME
-                    in [label.name.lower() for label in request.issue.labels]
-                    and request.sender.type == "User"
-                    and not request.sender.login.startswith("sweep")
-                ):
-                    logger.info("New issue edited")
-                    (request.repository.full_name, request.issue.number)
-                    # logger.info(f"Checking if {key} is in {stub.issue_lock}")
-                    # process = stub.issue_lock[key] if key in stub.issue_lock else None
-                    # if process:
-                    #     logger.info("Cancelling process")
-                    #     process.cancel()
-                    # stub.issue_lock[
-                    #     (request.repository.full_name, request.issue.number)
-                    # ] =
-                    call_on_ticket(
-                        title=request.issue.title,
-                        summary=request.issue.body,
-                        issue_number=request.issue.number,
-                        issue_url=request.issue.html_url,
-                        username=request.issue.user.login,
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        installation_id=request.installation.id,
-                        comment_id=None,
-                    )
-                else:
-                    logger.info("Issue edited, but not a sweep issue")
-            case "issues", "labeled":
-                logger.info(f"Received event: {event}, {action}")
-                request = IssueRequest(**request_dict)
-                if any(
-                    label.name.lower() == GITHUB_LABEL_NAME
-                    for label in request.issue.labels
-                ):
-                    request.issue.body = request.issue.body or ""
-                    request.repository.description = (
-                        request.repository.description or ""
-                    )
-                    call_on_ticket(
-                        title=request.issue.title,
-                        summary=request.issue.body,
-                        issue_number=request.issue.number,
-                        issue_url=request.issue.html_url,
-                        username=request.issue.user.login,
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        installation_id=request.installation.id,
-                        comment_id=None,
-                    )
-            case "issue_comment", "created":
-                logger.info(f"Received event: {event}, {action}")
-                request = IssueCommentRequest(**request_dict)
-                if (
-                    request.issue is not None
-                    and GITHUB_LABEL_NAME
-                    in [label.name.lower() for label in request.issue.labels]
-                    and request.comment.user.type == "User"
-                    and not (
-                        request.issue.pull_request and request.issue.pull_request.url
-                    )
-                ):
-                    request.issue.body = request.issue.body or ""
-                    request.repository.description = (
-                        request.repository.description or ""
-                    )
-
-                    if (
-                        not request.comment.body.strip()
-                        .lower()
-                        .startswith(GITHUB_LABEL_NAME)
-                    ):
-                        logger.info("Comment does not start with 'Sweep', passing")
-                        return {
-                            "success": True,
-                            "reason": "Comment does not start with 'Sweep', passing",
-                        }
-
-                    # Update before we handle the ticket to make sure index is up to date
-                    # other ways suboptimal
-                    (request.repository.full_name, request.issue.number)
-                    # logger.info(f"Checking if {key} is in {stub.issue_lock}")
-                    # process = stub.issue_lock[key] if key in stub.issue_lock else None
-                    # if process:
-                    #     logger.info("Cancelling process")
-                    #     process.cancel()
-                    # stub.issue_lock[
-                    #     (request.repository.full_name, request.issue.number)
-                    # ] =
-                    call_on_ticket(
-                        title=request.issue.title,
-                        summary=request.issue.body,
-                        issue_number=request.issue.number,
-                        issue_url=request.issue.html_url,
-                        username=request.issue.user.login,
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        installation_id=request.installation.id,
-                        comment_id=request.comment.id,
-                    )
-                elif (
-                    request.issue.pull_request and request.comment.user.type == "User"
-                ):  # TODO(sweep): set a limit
-                    _, g = get_github_client(request.installation.id)
-                    repo = g.get_repo(request.repository.full_name)
-                    pr = repo.get_pull(request.issue.number)
-                    labels = pr.get_labels()
-                    comment = request.comment.body
-                    if comment.lower().startswith("sweep:") or any(
-                        label.name.lower() == "sweep" for label in labels
-                    ):
-                        pr_change_request = PRChangeRequest(
-                            params={
-                                "comment_type": "comment",
-                                "repo_full_name": request.repository.full_name,
-                                "repo_description": request.repository.description,
-                                "comment": request.comment.body,
-                                "pr_path": None,
-                                "pr_line_position": None,
-                                "username": request.comment.user.login,
-                                "installation_id": request.installation.id,
-                                "pr_number": request.issue.number,
-                                "comment_id": request.comment.id,
-                            },
-                        )
-                        call_on_comment(**pr_change_request.params)
+            call_on_ticket(
+                title=request.issue.title,
+                summary=request.issue.body,
+                issue_number=request.issue.number,
+                issue_url=request.issue.html_url,
+                username=request.issue.user.login,
+                repo_full_name=request.repository.full_name,
+                repo_description=request.repository.description,
+                installation_id=request.installation.id,
+                comment_id=request.comment.id if not restart_sweep else None,
+                edited=True,
+            )
+        elif (
+            request.issue.pull_request and request.comment.user.type == "User"
+        ):  # TODO(sweep): set a limit
+            logger.info(f"Handling comment on PR: {request.issue.pull_request}")
+            _, g = get_github_client(request.installation.id)
+            repo = g.get_repo(request.repository.full_name)
+            pr = repo.get_pull(request.issue.number)
+            labels = pr.get_labels()
+            comment = request.comment.body
+            if comment.lower().startswith("sweep:") or any(
+                label.name.lower() == "sweep" for label in labels
+            ):
+                pr_change_request = PRChangeRequest(
+                    params={
+                        "comment_type": "comment",
+                        "repo_full_name": request.repository.full_name,
+                        "repo_description": request.repository.description,
+                        "comment": request.comment.body,
+                        "pr_path": None,
+                        "pr_line_position": None,
+                        "username": request.comment.user.login,
+                        "installation_id": request.installation.id,
+                        "pr_number": request.issue.number,
+                        "comment_id": request.comment.id,
+                    },
+                )
+                call_on_comment(**pr_change_request.params)
             case "pull_request_review_comment", "created":
                 logger.info(f"Received event: {event}, {action}")
                 # Add a separate endpoint for this
