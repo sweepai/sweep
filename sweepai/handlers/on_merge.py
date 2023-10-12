@@ -78,13 +78,12 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
         return
     for rule in rules:
         chat_logger.data["title"] = f"Sweep Rules - {rule}"
-        for diff in commits_diff:
-            diff_dir = '/'.join(diff.file.split('/')[:-1])
-            if diff_dir in blocked_dirs:
-                continue
+        filtered_diffs = [diff for diff in commits_diff if '/'.join(diff.file.split('/')[:-1]) not in blocked_dirs]
+        for rule in rules:
+            chat_logger.data["title"] = f"Sweep Rules - {rule}"
             changes_required, issue_title, issue_description = PostMerge(
                 chat_logger=chat_logger
-            ).check_for_issues(rule=rule, diff=diff)
+            ).check_for_issues(rule=rule, diff=filtered_diffs)
             if changes_required:
                 make_pr(
                     title="[Sweep Rules] " + issue_title,
