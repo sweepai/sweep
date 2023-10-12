@@ -2,6 +2,7 @@
 import json
 import time
 
+from . import health
 
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
@@ -71,6 +72,10 @@ from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.search_utils import index_full_repository
 
 app = FastAPI()
+
+@app.get("/health")
+def redirect_to_health():
+    return health.app
 
 import tracemalloc
 
