@@ -1674,10 +1674,6 @@ class ModifyBot:
                 file_contents, [file_change_request.entity]
             ).content
 
-        # if there are more than 3 snippets, prune them
-        if len(selected_snippets) > 3:
-            
-
         update_snippets_response = self.update_snippets_bot.chat(
             update_snippets_prompt.format(
                 code=update_snippets_code,
