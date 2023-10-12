@@ -1001,7 +1001,7 @@ def on_ticket(
                     suffix = (
                         f"✅ Commit {commit_url_display}"
                         if (sandbox_response is None or sandbox_response.success)
-                        else "⌛ Current Commit {commit_url_display}"
+                        else f"⌛ Current Commit {commit_url_display}"
                     )
                     update_progress(
                         entity_display,
