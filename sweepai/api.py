@@ -363,7 +363,7 @@ async def webhook(raw_request: Request):
                 rule_buttons = []
                 for rule in get_rules(repo):
                     rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-                else:
+                if not rule_buttons:
                     for rule in DEFAULT_RULES:
                         rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
                 if rule_buttons:
