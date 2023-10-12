@@ -1,3 +1,5 @@
 {
-    "editor.wordWrap": "on"
+    "editor.wordWrap": "on",
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.autoImportUserSymbols": true,
 }
