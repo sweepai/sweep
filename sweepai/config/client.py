@@ -101,6 +101,13 @@ class SweepConfig(BaseModel):
         return cls.parse_obj(data)
 
     @staticmethod
+    def is_blocked_directory(file_path: str) -> bool:
+        for dir in SweepConfig.exclude_dirs:
+            if file_path.startswith(dir):
+                return True
+        return False
+
+    @staticmethod
     def get_branch(repo: Repository, override_branch: str | None = None) -> str:
         if override_branch:
             branch_name = override_branch
