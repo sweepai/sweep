@@ -56,12 +56,14 @@ def write_file(container, file_path: str, content: str):
     container.put_archive(os.path.dirname(file_path), tar_stream)
 
 
-def read_file(file_path: str):
-    # Open the file in read mode and read its contents
-    with open(file_path, 'r') as file:
-        file_content = file.read()
+def calculate_file_hash(file_path: str) -> str:
+    # Use the read_file function to read the file contents
+    file_content = read_file(file_path)
 
-    return file_content
+    # Calculate the SHA256 hash of the file contents
+    file_hash = hashlib.sha256(file_content.encode()).hexdigest()
+
+    return file_hash
 
 
 def discord_log_error(content, priority=0):
