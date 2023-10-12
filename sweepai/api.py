@@ -2,6 +2,7 @@
 import json
 import time
 
+from . import health
 
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
@@ -255,6 +256,10 @@ def call_write_documentation(*args, **kwargs):
 @app.get("/", response_class=HTMLResponse)
 def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
+
+@app.get("/health")
+def redirect_to_health():
+    return health.app
 
 
 @app.post("/")
