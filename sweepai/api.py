@@ -1,10 +1,9 @@
 # Do not save logs for main process
 import json
-import os
 import time
 
-import psutil
 
+from sweepai import health
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
 from sweepai.utils.buttons import (
@@ -23,12 +22,10 @@ logger.init(
 import ctypes
 import threading
 
-import redis
 import requests
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
-from pymongo import MongoClient
 
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -48,10 +45,6 @@ from sweepai.config.server import (
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
-    IS_SELF_HOSTED,
-    MONGODB_URI,
-    REDIS_URL,
-    SANDBOX_URL,
 )
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
@@ -257,71 +250,9 @@ def call_write_documentation(*args, **kwargs):
     thread.start()
 
 
-def check_sandbox_health():
-    try:
-        requests.get(os.path.join(SANDBOX_URL, "health"))
-        return "UP"
-    except Exception as e:
-        logger.error(e)
-        return "DOWN"
-
-
-def check_mongodb_health():
-    try:
-        client = MongoClient(MONGODB_URI)
-        client.server_info()  # Attempt to fetch server information
-        return "UP"
-    except Exception as e:
-        logger.error(e)
-        return "DOWN"
-
-
-def check_redis_health():
-    try:
-        redis_client = redis.Redis.from_url(REDIS_URL)
-        redis_client.ping()  # Ping the Redis server
-        return "UP"
-    except Exception as e:
-        logger.error(e)
-        return "DOWN"
-
-
 @app.get("/health")
-def health_check():
-    sandbox_status = check_sandbox_health()
-    mongo_status = check_mongodb_health() if not IS_SELF_HOSTED else None
-    redis_status = check_redis_health()
-
-    cpu_usage = psutil.cpu_percent(interval=0.1)
-    memory_info = psutil.virtual_memory()
-    disk_usage = psutil.disk_usage("/")
-    network_traffic = psutil.net_io_counters()
-
-    status = {
-        "status": "UP",
-        "details": {
-            "sandbox": {
-                "status": sandbox_status,
-            },
-            "mongodb": {
-                "status": mongo_status,
-            },
-            "redis": {
-                "status": redis_status,
-            },
-            "system_resources": {
-                "cpu_usage": cpu_usage,
-                "memory_usage": memory_info.used,
-                "disk_usage": disk_usage.used,
-                "network_traffic": {
-                    "bytes_sent": network_traffic.bytes_sent,
-                    "bytes_received": network_traffic.bytes_recv,
-                },
-            },
-        },
-    }
-
-    return JSONResponse(status_code=200, content=status)
+def redirect_to_health():
+    return health.health_check()
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -860,7 +791,9 @@ async def webhook(raw_request: Request):
                     # on merge
                     call_on_merge(request_dict, chat_logger)
                     ref = request_dict["ref"] if "ref" in request_dict else ""
-                    if ref.startswith("refs/heads") and not ref.startswith("ref/heads/sweep"):
+                    if ref.startswith("refs/heads") and not ref.startswith(
+                        "ref/heads/sweep"
+                    ):
                         if request_dict["head_commit"] and (
                             "sweep.yaml" in request_dict["head_commit"]["added"]
                             or "sweep.yaml" in request_dict["head_commit"]["modified"]
@@ -881,7 +814,7 @@ async def webhook(raw_request: Request):
                                     installation_id=request_dict["installation"]["id"],
                                 )
                                 call_get_deeplake_vs_from_repo(cloned_repo)
-                            update_sweep_prs(
+                            update_sweep_prs_v2(
                                 request_dict["repository"]["full_name"],
                                 installation_id=request_dict["installation"]["id"],
                             )
@@ -894,8 +827,8 @@ async def webhook(raw_request: Request):
 
 
 # Set up cronjob for this
-@app.get("/update_sweep_prs")
-def update_sweep_prs(repo_full_name: str, installation_id: int):
+@app.get("/update_sweep_prs_v2")
+def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
     # Get a Github client
     _, g = get_github_client(installation_id)
 
