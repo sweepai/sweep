@@ -270,11 +270,6 @@ async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
-        # update_sweep_prs is not defined
-        # update_sweep_prs(
-        #     request_dict["repository"]["full_name"],
-        #     installation_id=request_dict["installation"]["id"],
-        # )
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
 
@@ -820,10 +815,7 @@ async def webhook(raw_request: Request):
                                     installation_id=request_dict["installation"]["id"],
                                 )
                                 call_get_deeplake_vs_from_repo(cloned_repo)
-                            # update_sweep_prs(
-                            #     request_dict["repository"]["full_name"],
-                            #     installation_id=request_dict["installation"]["id"],
-                            # )
+                            
             case "ping", None:
                 return {"message": "pong"}
     except ValidationError as e:
@@ -833,4 +825,3 @@ async def webhook(raw_request: Request):
 
 
 # Set up cronjob for this
-# This is a duplicate function definition and should be removed
