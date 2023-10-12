@@ -9,7 +9,7 @@ import openai
 from github.Commit import Commit
 from github.Repository import Repository
 
-from sweepai.logn import logger
+from sweepai.agents.sweep_yaml import SweepYamlBot
 from sweepai.config.client import UPDATES_MESSAGE, SweepConfig, get_blocked_dirs
 from sweepai.config.server import (
     ENV,
@@ -27,10 +27,10 @@ from sweepai.core.entities import (
     PullRequest,
 )
 from sweepai.core.sweep_bot import SweepBot
+from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
-from sweepai.agents.sweep_yaml import SweepYamlBot
 
 openai.api_key = OPENAI_API_KEY
 
@@ -94,7 +94,9 @@ def create_pr_changes(
 
     try:
         logger.info("Making PR...")
-        pull_request.branch_name = sweep_bot.create_branch(pull_request.branch_name, base_branch=base_branch)
+        pull_request.branch_name = sweep_bot.create_branch(
+            pull_request.branch_name, base_branch=base_branch
+        )
         completed_count, fcr_count = 0, len(file_change_requests)
 
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
@@ -108,7 +110,6 @@ def create_pr_changes(
             file_change_requests,
             pull_request.branch_name,
             blocked_dirs,
-            sandbox=sandbox,
         ):
             completed_count += changed_file
             logger.info(f"Completed {completed_count}/{fcr_count} files")
@@ -227,7 +228,9 @@ def safe_delete_sweep_branch(
         return False
 
 
-def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None, cloned_repo: ClonedRepo = None):
+def create_config_pr(
+    sweep_bot: SweepBot | None, repo: Repository = None, cloned_repo: ClonedRepo = None
+):
     if repo is not None:
         # Check if file exists in repo
         try:
@@ -245,16 +248,23 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None, cloned
         try:
             commit_history = []
             if cloned_repo is not None:
-                commit_history = cloned_repo.get_commit_history(limit=1000, time_limited=False)
+                commit_history = cloned_repo.get_commit_history(
+                    limit=1000, time_limited=False
+                )
             commit_string = "\n".join(commit_history)
 
             sweep_yaml_bot = SweepYamlBot()
-            generated_rules = sweep_yaml_bot.get_sweep_yaml_rules(commit_history=commit_string)
+            generated_rules = sweep_yaml_bot.get_sweep_yaml_rules(
+                commit_history=commit_string
+            )
 
             sweep_bot.repo.create_file(
                 "sweep.yaml",
                 "Create sweep.yaml",
-                GITHUB_DEFAULT_CONFIG.format(branch=sweep_bot.repo.default_branch, additional_rules=generated_rules),
+                GITHUB_DEFAULT_CONFIG.format(
+                    branch=sweep_bot.repo.default_branch,
+                    additional_rules=generated_rules,
+                ),
                 branch=branch_name,
             )
             sweep_bot.repo.create_file(
@@ -277,16 +287,22 @@ def create_config_pr(sweep_bot: SweepBot | None, repo: Repository = None, cloned
         try:
             commit_history = []
             if cloned_repo is not None:
-                commit_history = cloned_repo.get_commit_history(limit=1000, time_limited=False)
+                commit_history = cloned_repo.get_commit_history(
+                    limit=1000, time_limited=False
+                )
             commit_string = "\n".join(commit_history)
 
             sweep_yaml_bot = SweepYamlBot()
-            generated_rules = sweep_yaml_bot.get_sweep_yaml_rules(commit_history=commit_string)
+            generated_rules = sweep_yaml_bot.get_sweep_yaml_rules(
+                commit_history=commit_string
+            )
 
             repo.create_file(
                 "sweep.yaml",
                 "Create sweep.yaml",
-                GITHUB_DEFAULT_CONFIG.format(branch=repo.default_branch, additional_rules=generated_rules),
+                GITHUB_DEFAULT_CONFIG.format(
+                    branch=repo.default_branch, additional_rules=generated_rules
+                ),
                 branch=branch_name,
             )
             repo.create_file(
@@ -369,7 +385,15 @@ def add_config_to_top_repos(installation_id, username, repositories, max_repos=3
     for repo in sorted_repos:
         try:
             logger.print("Creating config for", repo.full_name)
-            create_config_pr(None, repo=repo, cloned_repo=ClonedRepo(repo_full_name=repo.full_name, installation_id=installation_id, token=user_token))
+            create_config_pr(
+                None,
+                repo=repo,
+                cloned_repo=ClonedRepo(
+                    repo_full_name=repo.full_name,
+                    installation_id=installation_id,
+                    token=user_token,
+                ),
+            )
         except SystemExit:
             raise SystemExit
         except Exception as e:
@@ -406,6 +430,7 @@ def create_gha_pr(g, repo):
         base=repo.default_branch,
     )
     return pr
+
 
 SWEEP_TEMPLATE = """\
 name: Sweep Issue
