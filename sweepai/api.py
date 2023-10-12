@@ -199,8 +199,6 @@ def call_on_ticket(*args, **kwargs):
 
 
 def call_on_check_suite(*args, **kwargs):
-    kwargs["request"].repository.full_name
-    kwargs["request"].check_run.pull_requests[0].number
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
@@ -259,11 +257,6 @@ from sweepai import health
 @app.get("/health")
 def health_check():
     return health.health_check()
-
-@app.get("/", response_class=HTMLResponse)
-def home():
-    return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
-
 
 @app.get("/", response_class=HTMLResponse)
 def home():
