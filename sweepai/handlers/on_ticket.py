@@ -958,7 +958,7 @@ def on_ticket(
                 entity_display: str,
                 header: str,
                 error_logs: str,
-                status: str,
+                status: str = "X",
             ):
                 nonlocal checkboxes_progress
                 for i, (entity_display_, instructions, status_) in enumerate(
@@ -966,7 +966,7 @@ def on_ticket(
                 ):
                     if entity_display_ == entity_display:
                         checkboxes_progress[i] = (
-                            entity_display,
+                            header,
                             instructions + error_logs,
                             status,
                         )
@@ -998,11 +998,15 @@ def on_ticket(
                 if changed_file:
                     logger.print("Changed File!")
                     entity_display = file_change_request.entity_display
+                    suffix = (
+                        f"✅ Commit {commit_url_display}"
+                        if (sandbox_response is None or sandbox_response.success)
+                        else f"⌛ Current Commit {commit_url_display}"
+                    )
                     update_progress(
                         entity_display,
-                        f"`{entity_display}` ✅ Commit {commit_url_display}",
+                        f"`{entity_display}` {suffix}",
                         error_logs,
-                        "X",
                     )
                     changed_files.append(file_change_request.filename)
                 else:
@@ -1012,7 +1016,6 @@ def on_ticket(
                         entity_display,
                         f"`{entity_display}` ⚠️ No Changes Made",
                         error_logs,
-                        "X",
                     )
                 checkboxes_contents = "\n".join(
                     [
