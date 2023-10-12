@@ -266,11 +266,6 @@ def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
 
-@app.get("/", response_class=HTMLResponse)
-def home():
-    return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
-
-
 @app.post("/")
 async def webhook(raw_request: Request):
     # Do not create logs for api
@@ -836,8 +831,8 @@ async def webhook(raw_request: Request):
 
 
 # Set up cronjob for this
-@app.get("/update_sweep_prs")
-def update_sweep_prs(repo_full_name: str, installation_id: int):
+@app.get("/update_sweep_prs_v2")
+def update_sweep_prs_v2(repo_full_name: str, installation_id: int):
     # Get a Github client
     _, g = get_github_client(installation_id)
 
