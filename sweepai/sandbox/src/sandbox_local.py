@@ -97,7 +97,7 @@ class SandboxRequest(BaseModel):
     file_path: str | None = None  # if none, only run install step to hydrate cache
     content: str | None = None
     token: str | None = None
-    num_iterations: int = 1
+    do_fix: bool = True
     # TODO: need branch
 
 
@@ -296,6 +296,7 @@ async def run_sandbox(request: SandboxRequest):
                         try:
                             run_command(command, stage="check", iteration=0)
                         except Exception as e:
+                            print(old_file)
                             raise Exception(
                                 f"File failed to lint with command {command} before edit: {e}"
                             )
@@ -307,43 +308,58 @@ async def run_sandbox(request: SandboxRequest):
 
                 write_file(container, f"repo/{request.file_path}", request.content)
 
-                current_file = request.content
-                num_iterations = 5
-                # num_iterations = 3
-                for i in range(1, num_iterations + 1):
+                if request.do_fix:
+                    current_file = request.content
+                    num_iterations = 5
+                    for i in range(1, num_iterations + 1):
+                        try:
+                            print(f"Trying to lint for the {i}/{num_iterations}th time")
+                            for command in sandbox.check:
+                                run_command(command, stage="check", iteration=i)
+                        except SystemExit:
+                            raise SystemExit
+                        except Exception as e:
+                            error_message = str(e)
+                            if (
+                                len(error_messages) >= 2
+                                and error_message == error_messages[-1]
+                                and error_message == error_messages[-2]
+                            ):
+                                raise Exception(
+                                    "Failed to fix the code after multiple attempts"
+                                )
+                            error_messages.append(error_message)
+                            current_file = fix_file(
+                                request.file_path,
+                                current_file,
+                                error_message,
+                                username,
+                            )
+                            write_file(
+                                container, f"repo/{request.file_path}", current_file
+                            )
+                        else:
+                            break
+                    else:
+                        raise Exception("Failed to fix the code")
+                    success = True
+                    updated_content = read_file(container, f"repo/{request.file_path}")
+                    print(f"Updated Contents:\n```\n{updated_content}\n```")
+                else:
+                    print("Checking file after edit...")
+                    print("Length of content:", len(request.content))
+                    current_file = request.content
                     try:
-                        print(f"Trying to lint for the {i}/{num_iterations}th time")
+                        print(f"Trying to lint")
                         for command in sandbox.check:
-                            run_command(command, stage="check", iteration=i)
-                    except SystemExit:
-                        raise SystemExit
+                            run_command(command, stage="check")
+                        success = True
                     except Exception as e:
                         error_message = str(e)
-                        if (
-                            len(error_messages) >= 2
-                            and error_message == error_messages[-1]
-                            and error_message == error_messages[-2]
-                        ):
-                            raise Exception(
-                                "Failed to fix the code after multiple attempts"
-                            )
                         error_messages.append(error_message)
-                        current_file = fix_file(
-                            request.file_path,
-                            current_file,
-                            error_message,
-                            username,
-                        )
-                        write_file(container, f"repo/{request.file_path}", current_file)
-                    else:
-                        break
-                else:
-                    raise Exception("Failed to fix the code")
-
-                # Read formatted file
-                success = True
-                updated_content = read_file(container, f"repo/{request.file_path}")
-                print(f"Updated Contents:\n```\n{updated_content}\n```")
+                        logger.warning(f"Error message: {error_message}")
+                    updated_content = read_file(container, f"repo/{request.file_path}")
+                    print(f"Updated Contents:\n```\n{updated_content}\n```")
             else:
                 success = True
                 print("No content provided, skipping edit step...")
