@@ -199,8 +199,6 @@ def call_on_ticket(*args, **kwargs):
 
 
 def call_on_check_suite(*args, **kwargs):
-    kwargs["request"].repository.full_name
-    kwargs["request"].check_run.pull_requests[0].number
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
     thread.start()
 
@@ -259,11 +257,6 @@ from sweepai import health
 @app.get("/health")
 def health_check():
     return health.health_check()
-
-@app.get("/", response_class=HTMLResponse)
-def home():
-    return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
-
 
 @app.get("/", response_class=HTMLResponse)
 def home():
@@ -698,12 +691,14 @@ async def webhook(raw_request: Request):
                             "content": f"{emoji} {request.pull_request.html_url} ({request.sender.login})\n{request.pull_request.commits} commits, {request.pull_request.changed_files} files: +{request.pull_request.additions}, -{request.pull_request.deletions}"
                         }
                         headers = {"Content-Type": "application/json"}
+                        import requests
+                        
                         response = requests.post(
                             DISCORD_FEEDBACK_WEBHOOK_URL,
                             data=json.dumps(data),
                             headers=headers,
                         )
-
+                        
                         # Send feedback to PostHog
                         posthog.capture(
                             request.sender.login,
@@ -835,56 +830,4 @@ async def webhook(raw_request: Request):
 
 
 # Set up cronjob for this
-@app.get("/update_sweep_prs")
-def update_sweep_prs(repo_full_name: str, installation_id: int):
-    # Get a Github client
-    _, g = get_github_client(installation_id)
-
-    # Get the repository
-    repo = g.get_repo(repo_full_name)
-    config = SweepConfig.get_config(repo)
-
-    try:
-        branch_ttl = int(config.get("branch_ttl", 7))
-    except SystemExit:
-        raise SystemExit
-    except:
-        branch_ttl = 7
-    branch_ttl = max(branch_ttl, 1)
-
-    # Get all open pull requests created by Sweep
-    pulls = repo.get_pulls(
-        state="open", head="sweep", sort="updated", direction="desc"
-    )[:5]
-
-    # For each pull request, attempt to merge the changes from the default branch into the pull request branch
-    try:
-        for pr in pulls:
-            try:
-                # make sure it's a sweep ticket
-                feature_branch = pr.head.ref
-                if not feature_branch.startswith(
-                    "sweep/"
-                ) and not feature_branch.startswith("sweep_"):
-                    continue
-
-                repo.merge(
-                    feature_branch,
-                    repo.default_branch,
-                    f"Merge main into {feature_branch}",
-                )
-
-                # Check if the merged PR is the config PR
-                if pr.title == "Configure Sweep" and pr.merged:
-                    # Create a new PR to add "gha_enabled: True" to sweep.yaml
-                    create_gha_pr(g, repo)
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.warning(
-                    f"Failed to merge changes from default branch into PR #{pr.number}: {e}"
-                )
-    except SystemExit:
-        raise SystemExit
-    except:
-        logger.warning("Failed to update sweep PRs")
+# This is a duplicate function definition and should be removed
