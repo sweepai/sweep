@@ -4,7 +4,7 @@ on_merge is called by sweepai/api.py
 """
 import time
 
-from sweepai.config.client import SweepConfig, get_rules
+from sweepai.config.client import SweepConfig, get_rules, get_blocked_dirs
 from sweepai.core.post_merge import PostMerge
 from sweepai.handlers.pr_utils import make_pr
 from sweepai.logn import logger
@@ -27,7 +27,7 @@ diff_section_prompt = """
 </file_diff>"""
 
 
-def comparison_to_diff(comparison):
+def comparison_to_diff(comparison, blocked_dirs):
     pr_diffs = []
     for file in comparison.files:
         diff = file.patch
@@ -37,13 +37,14 @@ def comparison_to_diff(comparison):
             or file.status == "removed"
         ):
             # Check if the file is in a blocked directory
-            if not SweepConfig.is_blocked_directory(file.filename):
+            if file.filename not in blocked_dirs:
                 pr_diffs.append((file.filename, diff))
         elif file.status == "renamed":
             # Check if the file is in a blocked directory
-            if not SweepConfig.is_blocked_directory(
-                file.previous_filename
-            ) and not SweepConfig.is_blocked_directory(file.filename):
+            if (
+                file.previous_filename not in blocked_dirs
+                and file.filename not in blocked_dirs
+            ):
                 pr_diffs.append((file.previous_filename, file.filename, diff))
         else:
             logger.info(f"File status {file.status} not recognized")
@@ -69,8 +70,9 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
     )  # do this after checking ref
     if ref[len("refs/heads/") :] != SweepConfig.get_branch(repo):
         return
+    blocked_dirs = get_blocked_dirs()
     comparison = repo.compare(before_sha, after_sha)
-    commits_diff = comparison_to_diff(comparison)
+    commits_diff = comparison_to_diff(comparison, blocked_dirs)
     # check if the current repo is in the merge_rule_debounce dictionary
     # and if the difference between the current time and the time stored in the dictionary is less than DEBOUNCE_TIME seconds
     if (
