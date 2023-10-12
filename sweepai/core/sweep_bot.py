@@ -1463,19 +1463,21 @@ class ModifyBot:
         )
         if leftover_comments and not DEBUG:
             joined_comments = "\n".join(leftover_comments)
+            file_change_request.new_content = new_file
             file_change_request.instructions = (
                 f"Address all of the unfinished code changes here: \n{joined_comments}"
             )
+            self.fetch_snippets_bot.messages = self.fetch_snippets_bot.messages[:-2]
             snippet_queries, extraction_terms = self.get_snippets_to_modify(
                 file_path=file_path,
-                file_contents=file_contents,
+                file_contents=new_file,
                 file_change_request=file_change_request,
                 chunking=chunking,
             )
-
+            self.update_snippets_bot.messages = self.update_snippets_bot.messages[:-2]
             new_file, leftover_comments, _change_validation = self.update_file(
                 file_path=file_path,
-                file_contents=file_contents,
+                file_contents=new_file,
                 file_change_request=file_change_request,
                 snippet_queries=snippet_queries,
                 extraction_terms=extraction_terms,
@@ -1484,12 +1486,14 @@ class ModifyBot:
         if change_validation.additional_changes_required:
             file_change_request.new_content = new_file
             file_change_request.instructions = change_validation.additional_changes
+            self.fetch_snippets_bot.messages = self.fetch_snippets_bot.messages[:-2]
             snippet_queries, extraction_terms = self.get_snippets_to_modify(
                 file_path=file_path,
                 file_contents=file_contents,
                 file_change_request=file_change_request,
                 chunking=chunking,
             )
+            self.update_snippets_bot.messages = self.update_snippets_bot.messages[:-2]
             new_file, leftover_comments, _change_validation = self.update_file(
                 file_path=file_path,
                 file_contents=file_contents,
