@@ -1140,7 +1140,6 @@ class SweepBot(CodeGenBot, GithubBot):
                                 snippet_msg.content,
                                 flags=re.DOTALL,
                             )
-                        file_change_request.new_content
                         (
                             changed_file,
                             sandbox_execution,
@@ -1595,6 +1594,15 @@ class ModifyBot:
                     Match(
                         start=start,
                         end=end + 1,
+                        score=100,
+                    )
+                )
+        # get first 10 lines for imports
+        IMPORT_LINES = 10
+        best_matches.append(
+                    Match(
+                        start=0,
+                        end=min(IMPORT_LINES, len(file_contents.split("\n"))),
                         score=100,
                     )
                 )
