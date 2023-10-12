@@ -12,8 +12,7 @@ If the diffs do not conform to the rules, we should create a GitHub issue tellin
 Provide your response in the following format:
 
 <rule_analysis>
-- Analysis of code diff 1 and whether it breaks the rule
-- Analysis of code diff 2 and whether it breaks the rule
+- Analysis of each file_diff and whether it breaks the rule
 ...
 </rule_analysis>
 
