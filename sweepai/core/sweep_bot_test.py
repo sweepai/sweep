@@ -7,13 +7,13 @@ class TestSweepBot(unittest.TestCase):
     def setUp(self):
         self.sweep_bot = SweepBot()  # Instantiate the class
 
-    def test_function1(self):  # Replace with actual function name
+    def test_actual_function(self):  # Replace with actual function name
         # Set up mock objects and inputs
-        mock_input = "input"  # Replace with actual input
-        expected_output = "output"  # Replace with expected output
+        mock_input = "actual_input"  # Replace with actual input
+        expected_output = "actual_output"  # Replace with expected output
 
         # Call the function with the inputs
-        actual_output = self.sweep_bot.function1(mock_input)  # Replace with actual function call
+        actual_output = self.sweep_bot.actual_function(mock_input)  # Replace with actual function call
 
         # Assert that the output is as expected
         self.assertEqual(actual_output, expected_output)
