@@ -999,9 +999,9 @@ def on_ticket(
                     logger.print("Changed File!")
                     entity_display = file_change_request.entity_display
                     suffix = (
-                        f"⌛ Current Commit {commit_url_display}"
+                        f"✅ Commit {commit_url_display}"
                         if (sandbox_response is None or sandbox_response.success)
-                        else f"✅ Commit {commit_url_display}"
+                        else "⌛ Current Commit {commit_url_display}"
                     )
                     update_progress(
                         entity_display,
