@@ -284,33 +284,33 @@ async def run_sandbox(request: SandboxRequest):
             else:
                 print("Image already exists, skipping install step...")
 
-            if request.changed_files:
+            if request.file_path is not None and request.content is not None:
+                if request.file_path not in request.changed_files:
+                    old_file = ""
+                    try:
+                        old_file = read_file(container, f"repo/{request.file_path}")
+                    except Exception:
+                        print("File does not exist, skipping check step...")
+
+                    if old_file:
+                        print("Checking file before edit...")
+                        for command in sandbox.check:
+                            try:
+                                run_command(command, stage="check", iteration=0)
+                            except Exception as e:
+                                print(old_file)
+                                raise Exception(
+                                    f"File failed to lint with command {command} before edit: {e}"
+                                )
+
+                        if request.content == old_file:
+                            raise Exception(
+                                "New contents are the same as the old contents."
+                            )
+
                 for file_path, file_content in request.changed_files.items():
                     print(f"Writing file {file_path}...")
                     write_file(container, f"repo/{file_path}", file_content)
-
-            if request.file_path is not None and request.content is not None:
-                old_file = ""
-                try:
-                    old_file = read_file(container, f"repo/{request.file_path}")
-                except Exception:
-                    print("File does not exist, skipping check step...")
-
-                if old_file:
-                    print("Checking file before edit...")
-                    for command in sandbox.check:
-                        try:
-                            run_command(command, stage="check", iteration=0)
-                        except Exception as e:
-                            print(old_file)
-                            raise Exception(
-                                f"File failed to lint with command {command} before edit: {e}"
-                            )
-
-                    if request.content == old_file:
-                        raise Exception(
-                            "New contents are the same as the old contents."
-                        )
 
                 write_file(container, f"repo/{request.file_path}", request.content)
 
