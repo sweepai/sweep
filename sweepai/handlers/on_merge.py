@@ -36,9 +36,15 @@ def comparison_to_diff(comparison):
             or file.status == "modified"
             or file.status == "removed"
         ):
-            pr_diffs.append((file.filename, diff))
+            # Check if the file is in a blocked directory
+            if not SweepConfig.is_blocked_directory(file.filename):
+                pr_diffs.append((file.filename, diff))
         elif file.status == "renamed":
-            pr_diffs.append((file.previous_filename, file.filename, diff))
+            # Check if the file is in a blocked directory
+            if not SweepConfig.is_blocked_directory(
+                file.previous_filename
+            ) and not SweepConfig.is_blocked_directory(file.filename):
+                pr_diffs.append((file.previous_filename, file.filename, diff))
         else:
             logger.info(f"File status {file.status} not recognized")
     formatted_diffs = []
