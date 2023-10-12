@@ -1,8 +1,10 @@
+import re
 import traceback
+from typing import TypeVar
 
 from sweepai.logn import logger
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import IssueTitleAndDescription, Message
+from sweepai.core.entities import Message, RegexMatchableBaseModel
 
 system_prompt = """Your name is Sweep bot. You are a brilliant and meticulous engineer assigned to review the following commit diffs and make sure the file conforms to the user's rules.
 If the diffs do not conform to the rules, we should create a GitHub issue telling the user what changes should be made.
@@ -23,7 +25,7 @@ Provide your response in the following format:
 </rule_analysis>
 
 <changes_required>
-True if the rule is broken, False otherwise
+Output "True" if the rule is broken, "False" otherwise
 </changes_required>
 
 <issue_title>
@@ -34,6 +36,51 @@ Github issue title describing the root cause of the broken rule.
 GitHub issue description for what we want to solve. Do not give any instructions on how to solve it. Do mention files to take a look at and other code pointers.
 </issue_description>"""
 
+Self = TypeVar("Self", bound="RegexMatchableBaseModel")
+
+class IssueTitleAndDescription(RegexMatchableBaseModel):
+    changes_required: bool = False
+    issue_title: str
+    issue_description: str
+
+    @classmethod
+    def from_string(cls: type[Self], string: str, **kwargs) -> Self:
+        changes_required_pattern = (
+            r"""<changes_required>(\n)?(?P<changes_required>.*)</changes_required>"""
+        )
+        changes_required_match = re.search(changes_required_pattern, string, re.DOTALL)
+        changes_required = (
+            changes_required_match.groupdict()["changes_required"].strip()
+            if changes_required_match
+            else None
+        )
+        if changes_required and "true" in changes_required.lower():
+            changes_required = True
+        else:
+            changes_required = False
+        issue_title_pattern = r"""<issue_title>(\n)?(?P<issue_title>.*)</issue_title>"""
+        issue_title_match = re.search(issue_title_pattern, string, re.DOTALL)
+        issue_title = (
+            issue_title_match.groupdict()["issue_title"].strip()
+            if issue_title_match
+            else ""
+        )
+        issue_description_pattern = (
+            r"""<issue_description>(\n)?(?P<issue_description>.*)</issue_description>"""
+        )
+        issue_description_match = re.search(
+            issue_description_pattern, string, re.DOTALL
+        )
+        issue_description = (
+            issue_description_match.groupdict()["issue_description"].strip()
+            if issue_description_match
+            else ""
+        )
+        return cls(
+            changes_required=changes_required,
+            issue_title=issue_title,
+            issue_description=issue_description,
+        )
 
 class PostMerge(ChatGPT):
     def check_for_issues(self, rule, diff) -> tuple[str, str]:
@@ -65,3 +112,31 @@ class PostMerge(ChatGPT):
         except Exception:
             logger.error(f"An error occurred: {traceback.print_exc()}")
             return False, "", ""
+
+if __name__ == "__main__":
+    changes_required_response = """<rule_analysis>
+- Analysis of code diff 1 and whether it breaks the rule
+The code diff 1 does not break the rule. There are no docstrings or comments that need to be updated.
+
+- Analysis of code diff 2 and whether it breaks the rule
+The code diff 2 breaks the rule. There is a commented out code block that should be removed.
+
+</rule_analysis>
+
+<changes_required>
+True if the rule is broken, False otherwise
+True
+
+</changes_required>
+
+<issue_title>
+Outdated Commented Code Block in plan-list.blade.php
+</issue_title>
+
+<issue_description>
+There is an outdated commented out code block in the file `resources/views/livewire/plan-list.blade.php` that should be removed. The code block starts at line 104 and ends at line 110. Please remove this code block as it is no longer needed.
+
+Please refer to the file `resources/views/livewire/plan-list.blade.php` and remove the commented out code block starting at line 104 and ending at line 110.
+
+</issue_description>"""
+    changes_required = IssueTitleAndDescription.from_string(changes_required_response)
