@@ -14,6 +14,7 @@ from sweepai.utils.buttons import (
     check_button_title_match,
 )
 from sweepai.utils.safe_pqueue import SafePriorityQueue
+from . import health
 
 logger.init(
     metadata=None,
@@ -23,12 +24,9 @@ logger.init(
 import ctypes
 import threading
 
-import redis
-import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
-from pymongo import MongoClient
 
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -49,9 +47,6 @@ from sweepai.config.server import (
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
-    MONGODB_URI,
-    REDIS_URL,
-    SANDBOX_URL,
 )
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
@@ -79,6 +74,10 @@ from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.search_utils import index_full_repository
 
 app = FastAPI()
+
+@app.get("/health")
+def redirect_to_health():
+    return health.app
 
 import tracemalloc
 
@@ -329,17 +328,11 @@ def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
 
-@app.post("/")
-async def webhook(raw_request: Request):
-    # Do not create logs for api
-    logger.init(
-        metadata=None,
-        create_file=False,
-    )
+from . import health
 
-    """Handle a webhook request from GitHub."""
-    try:
-        request_dict = await raw_request.json()
+@app.get("/health")
+def redirect_to_health():
+    return health.app
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
 
