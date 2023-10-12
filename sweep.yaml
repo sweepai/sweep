@@ -1,6 +1,6 @@
 gha_enabled: True
 branch: main
-blocked_dirs: []
+blocked_dirs: ["tests/archive"]
 draft: False
 description: "sweepai/sweep is a python 3.10 project. The main api endpoints are in sweepai/api.py. All imports should be global (like `import sweepai.utils.github_utils`). Write unit tests in the same directory as their corresponding code, i.e. sweepai/api_test.py tests sweepai/api.py. We use unittest and unittest.mock for tests."
 # These are the docs that we index for Sweep.
@@ -20,6 +20,7 @@ docs:
 sandbox:
   install:
     - pre-commit install
+    - pre-commit run --file sweepai/api.py || exit 0
     - pip install poetry
     - poetry install
     - poetry run pip install torch --index-url https://download.pytorch.org/whl/cpu

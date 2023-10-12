@@ -25,7 +25,7 @@ Github issue title describing the root cause of the broken rule.
 </issue_title>
 
 <issue_description>
-GitHub issue description for what we want to solve. Do not give any instructions on how to solve it. Do mention files to take a look at and other code pointers.
+GitHub issue description for what we want to solve. Give general instructions on how to solve it. Mention files to take a look at and other code pointers.
 </issue_description>"""
 
 user_message = """Review the following diffs and make sure they conform to the rules:
@@ -50,7 +50,7 @@ Github issue title describing the root cause of the broken rule.
 </issue_title>
 
 <issue_description>
-GitHub issue description for what we want to solve. Do not give any instructions on how to solve it. Do mention files to take a look at and other code pointers.
+GitHub issue description for what we want to solve. Give general instructions on how to solve it. Mention files to take a look at and other code pointers.
 </issue_description>"""
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
