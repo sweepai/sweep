@@ -56,6 +56,7 @@ from sweepai.core.prompts import (
     use_chunking_message,
 )
 from sweepai.logn import logger
+from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
@@ -598,7 +599,7 @@ class SweepBot(CodeGenBot, GithubBot):
     comment_pr_files_modified: Dict[str, str] | None = None
 
     @staticmethod
-    # @file_cache(ignore_params=["token"])
+    @file_cache(ignore_params=["token"])
     def run_sandbox(
         repo_url: str,
         file_path: str,
