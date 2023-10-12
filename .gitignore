@@ -182,5 +182,5 @@ repo.tar
 **logn_logs/
 logn_logs*
 sweep_docs/
-.vscode/
 sweepai/sandbox/sandbox.venv
+.vscode/settings.json
