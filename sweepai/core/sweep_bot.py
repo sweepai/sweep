@@ -74,7 +74,9 @@ to_raw_string = lambda s: repr(s).lstrip("u")[1:-1]
 
 sandbox_error_prompt = """The following are the failing error logs from running `{command}`. Please make changes to the current file so that it passes this CI/CD command.
 
+```
 {error_logs}
+```
 
 Again, edit this file so that it passes the CI/CD. For unit tests, check the expected output and try to match the input to the expected output."""
 
@@ -1632,12 +1634,12 @@ class ModifyBot:
         # get first 10 lines for imports
         IMPORT_LINES = 10
         best_matches.append(
-                    Match(
-                        start=0,
-                        end=min(IMPORT_LINES, len(file_contents.split("\n"))),
-                        score=100,
-                    )
-                )
+            Match(
+                start=0,
+                end=min(IMPORT_LINES, len(file_contents.split("\n"))),
+                score=100,
+            )
+        )
 
         if len(best_matches) == 0:
             raise UnneededEditError("No matches found in file")
