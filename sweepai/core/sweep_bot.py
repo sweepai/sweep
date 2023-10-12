@@ -36,6 +36,7 @@ from sweepai.core.entities import (
     Snippet,
     UnneededEditError,
 )
+from sweepai.sandbox.src.sandbox_local import calculate_file_hash
 
 # from sandbox.modal_sandbox import SandboxError  # pylint: disable=E0401
 from sweepai.core.prompts import (
@@ -599,9 +600,15 @@ class SweepBot(CodeGenBot, GithubBot):
         token: str,
         changed_files: tuple[str, str],
         only_lint: bool = False,
+        old_file_hash: str = None,
+        new_file_hash: str = None,
     ) -> Dict:
         if not SANDBOX_URL:
             return {"success": False}
+
+        # If the old and new file hashes are the same, skip running the sandbox
+        if old_file_hash is not None and new_file_hash is not None and old_file_hash == new_file_hash:
+            return {"success": True, "updated_content": content}
 
         response = requests.post(
             SANDBOX_URL,
@@ -675,12 +682,22 @@ class SweepBot(CodeGenBot, GithubBot):
         sandbox_execution: SandboxResponse | None = None
         if SANDBOX_URL:
             try:
+                # Calculate the hashes of the old and new files
+                old_file_hash = None
+                new_file_hash = calculate_file_hash(content)
+                try:
+                    old_file_hash = calculate_file_hash(file_path)
+                except FileNotFoundError:
+                    pass
+        
                 output = SweepBot.run_sandbox(
                     token=self.sweep_context.token,
                     repo_url=self.repo.html_url,
                     file_path=file_path,
                     content=content,
                     changed_files=changed_files,
+                    old_file_hash=old_file_hash,
+                    new_file_hash=new_file_hash,
                 )
                 logger.print(output)
                 sandbox_execution = SandboxResponse(**output)
@@ -1126,6 +1143,43 @@ class SweepBot(CodeGenBot, GithubBot):
                         )
                     case "modify" | "rewrite":
                         # Remove snippets from this file if they exist
+                        snippet_msgs = [
+                            m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
+                        ]
+                        if len(snippet_msgs) > 0:  # Should always be true
+                            snippet_msg = snippet_msgs[0]
+                            # Use regex to remove this snippet from the message
+                            file = re.escape(file_change_request.filename)
+                            regex = rf'<snippet source="{file}:\d*-?\d*.*?<\/snippet>'
+                            snippet_msg.content = re.sub(
+                                regex,
+                                "",
+                                snippet_msg.content,
+                                flags=re.DOTALL,
+                            )
+                        file_change_request.new_content
+                        # Calculate the hashes of the old and new files
+                        old_file_hash = None
+                        new_file_hash = calculate_file_hash(file_change_request.new_content)
+                        try:
+                            old_file_hash = calculate_file_hash(file_change_request.filename)
+                        except FileNotFoundError:
+                            pass
+                        # If the old and new file hashes are the same, skip running the sandbox
+                        if old_file_hash is not None and new_file_hash is not None and old_file_hash == new_file_hash:
+                            print("Old and new files are the same, skipping sandbox...")
+                        else:
+                            (
+                                changed_file,
+                                sandbox_execution,
+                                commit,
+                                changed_files,
+                            ) = self.handle_modify_file(
+                                file_change_request,
+                                branch,
+                                sandbox=sandbox,
+                                changed_files=changed_files,
+                            )
                         snippet_msgs = [
                             m for m in self.messages if m.key == BOT_ANALYSIS_SUMMARY
                         ]
