@@ -574,7 +574,26 @@ async def webhook(raw_request: Request):
                             },
                         )
                         call_on_comment(**pr_change_request.params)
+            # Import the health module at the top of the file
             from sweepai import health
+            
+            @app.post("/")
+            async def webhook(raw_request: Request):
+                # Do not create logs for api
+                logger.init(
+                    metadata=None,
+                    create_file=False,
+                )
+            
+                """Handle a webhook request from GitHub."""
+                try:
+                    request_dict = await raw_request.json()
+                    # Rest of the code...
+            
+            # Add a new route that redirects to the health endpoint in `sweepai/health.py`
+            @app.get("/health")
+            def redirect_to_health():
+                return health.app
             @app.get("/health")
             def redirect_to_health():
                 return health.app
