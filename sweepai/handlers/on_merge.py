@@ -48,6 +48,7 @@ def comparison_to_diff(comparison, blocked_dirs):
                 pr_diffs.append((file.previous_filename, file.filename, diff))
         else:
             logger.info(f"File status {file.status} not recognized")
+    return pr_diffs
     formatted_diffs = []
     for file_name, file_patch in pr_diffs:
         format_diff = diff_section_prompt.format(
