@@ -180,13 +180,12 @@ Pull Request Description: {description}{relevant_docs}""",
     },
     {
         "role": "user",
-        "content": """These are the file changes
+        "content": """These are the previous file changes
 {diff}""",
     },
     {
         "role": "user",
-        "content": """Please handle the user review comment, taking into account the snippets, paths, tree, pull request title, pull request description, and the file changes.
-Sometimes the user may not request changes, don't change anything in that case.
+        "content": """Please handle the user review comment using the snippets, pull request title, pull request description, and the file changes.
 User pull request review: "{comment}" """,
     },
 ]
