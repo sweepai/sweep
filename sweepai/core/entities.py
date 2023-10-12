@@ -70,47 +70,6 @@ class RegexMatchableBaseModel(BaseModel):
         )
 
 
-class IssueTitleAndDescription(RegexMatchableBaseModel):
-    changes_required: bool = False
-    issue_title: str
-    issue_description: str
-
-    @classmethod
-    def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
-        changes_required_pattern = (
-            r"""<changes_required>(\n)?(?P<changes_required>.*)</changes_required>"""
-        )
-        changes_required_match = re.search(changes_required_pattern, string, re.DOTALL)
-        changes_required = (
-            changes_required_match.groupdict()["changes_required"].strip()
-            if changes_required_match
-            else False
-        )
-        issue_title_pattern = r"""<issue_title>(\n)?(?P<issue_title>.*)</issue_title>"""
-        issue_title_match = re.search(issue_title_pattern, string, re.DOTALL)
-        issue_title = (
-            issue_title_match.groupdict()["issue_title"].strip()
-            if issue_title_match
-            else ""
-        )
-        issue_description_pattern = (
-            r"""<issue_description>(\n)?(?P<issue_description>.*)</issue_description>"""
-        )
-        issue_description_match = re.search(
-            issue_description_pattern, string, re.DOTALL
-        )
-        issue_description = (
-            issue_description_match.groupdict()["issue_description"].strip()
-            if issue_description_match
-            else ""
-        )
-        return cls(
-            changes_required=changes_required,
-            issue_title=issue_title,
-            issue_description=issue_description,
-        )
-
-
 class ExpandedPlan(RegexMatchableBaseModel):
     queries: str
     additional_instructions: str
