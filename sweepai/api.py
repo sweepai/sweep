@@ -1,9 +1,8 @@
 # Do not save logs for main process
 import json
-import os
 import time
 
-import psutil
+import requests
 
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
@@ -24,7 +23,7 @@ import ctypes
 import threading
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
 from sweepai.config.client import (
@@ -45,10 +44,6 @@ from sweepai.config.server import (
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
-    IS_SELF_HOSTED,
-    MONGODB_URI,
-    REDIS_URL,
-    SANDBOX_URL,
 )
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
@@ -254,13 +249,18 @@ def call_write_documentation(*args, **kwargs):
 
 from sweepai import health
 
+
 @app.get("/health")
 def health_check():
     return health.health_check()
 
+
 @app.get("/", response_class=HTMLResponse)
 def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
+
+
+import requests
 
 
 @app.post("/")
@@ -794,7 +794,9 @@ async def webhook(raw_request: Request):
                     # on merge
                     call_on_merge(request_dict, chat_logger)
                     ref = request_dict["ref"] if "ref" in request_dict else ""
-                    if ref.startswith("refs/heads") and not ref.startswith("ref/heads/sweep"):
+                    if ref.startswith("refs/heads") and not ref.startswith(
+                        "ref/heads/sweep"
+                    ):
                         if request_dict["head_commit"] and (
                             "sweep.yaml" in request_dict["head_commit"]["added"]
                             or "sweep.yaml" in request_dict["head_commit"]["modified"]
