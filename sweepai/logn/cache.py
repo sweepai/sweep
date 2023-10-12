@@ -47,7 +47,7 @@ def file_cache(ignore_params=[]):
                 result = func(*args, **kwargs)
                 return result
 
-            cache_dir = "/tmp/cache"
+            cache_dir = "/tmp/file_cache"
             os.makedirs(cache_dir, exist_ok=True)
 
             # Convert args to a dictionary based on the function's signature
