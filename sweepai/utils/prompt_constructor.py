@@ -21,13 +21,13 @@ class HumanMessagePrompt(BaseModel):
     snippet_text = ""
     commit_history: list = []
 
-    def delete_file(self, file_path):
+    def delete_file(self, file_path: str) -> None:
         # Remove the snippets from the main list
         self.snippets = [
             snippet for snippet in self.snippets if snippet.file_path != file_path
         ]
 
-    def get_relevant_directories(self, directory_tag=None):
+    def get_relevant_directories(self, directory_tag: str = None) -> str:
         deduped_paths = []
         for snippet in self.snippets:
             if snippet.file_path not in deduped_paths:
@@ -48,7 +48,7 @@ class HumanMessagePrompt(BaseModel):
             + end_directory_tag
         )
 
-    def get_commit_history(self, commit_tag=None):
+    def get_commit_history(self, commit_tag: str = None) -> str:
         return ""
         if len(self.commit_history) == 0:
             return ""
@@ -66,11 +66,11 @@ class HumanMessagePrompt(BaseModel):
             + end_commit_tag
         )
 
-    def get_file_paths(self):
+    def get_file_paths(self) -> list[str]:
         return [snippet.file_path for snippet in self.snippets]
 
     @staticmethod
-    def render_snippet_array(snippets, snippet_tag=None):
+    def render_snippet_array(snippets: list, snippet_tag: str = None) -> str:
         joined_snippets = "\n".join([snippet.xml for snippet in snippets])
         start_snippet_tag = (
             "<relevant_snippets_in_repo>" if not snippet_tag else f"<{snippet_tag}>"
@@ -82,10 +82,10 @@ class HumanMessagePrompt(BaseModel):
             return ""
         return start_snippet_tag + "\n" + joined_snippets + "\n" + end_snippet_tag
 
-    def render_snippets(self):
+    def render_snippets(self) -> str:
         return self.render_snippet_array(self.snippets)
 
-    def construct_prompt(self, snippet_tag=None, directory_tag=None, commit_tag=None):
+    def construct_prompt(self, snippet_tag: str = None, directory_tag: str = None, commit_tag: str = None) -> list[dict]:
         relevant_snippets = (
             self.snippet_text
             if self.snippet_text
@@ -118,7 +118,7 @@ class HumanMessagePrompt(BaseModel):
         ]
         return human_messages
 
-    def get_issue_metadata(self):
+    def get_issue_metadata(self) -> str:
         return f"""# Repo & Issue Metadata
 Repo: {self.repo_name}: {self.repo_description}
 Issue Title: {self.title}
@@ -126,7 +126,7 @@ Issue Description: {self.summary}
 """
 
 
-def render_snippets(snippets):
+def render_snippets(snippets: list) -> str:
     res = ""
     for snippet in snippets:
         snippet_text = (
@@ -142,7 +142,7 @@ class HumanMessagePromptReview(HumanMessagePrompt):
     diffs: list
     plan: str
 
-    def format_diffs(self):
+    def format_diffs(self) -> str:
         formatted_diffs = []
         for file_name, file_patch in self.diffs:
             if not file_name and not file_patch:
@@ -153,7 +153,7 @@ class HumanMessagePromptReview(HumanMessagePrompt):
             formatted_diffs.append(format_diff)
         return "\n".join(formatted_diffs)
 
-    def construct_prompt(self):
+    def construct_prompt(self) -> list[dict]:
         human_messages = [
             {
                 "role": msg["role"],
@@ -186,7 +186,7 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
     pr_chunk: str | None
     original_line: str | None
 
-    def format_diffs(self):
+    def format_diffs(self) -> str:
         formatted_diffs = []
         for file_name, file_patch in self.diffs:
             format_diff = diff_section_prompt.format(
@@ -195,7 +195,7 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
             formatted_diffs.append(format_diff)
         return "\n".join(formatted_diffs)
 
-    def construct_prompt(self):
+    def construct_prompt(self) -> list[dict]:
         human_messages = [
             {
                 "role": msg["role"],
@@ -227,7 +227,7 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
         ]
         return human_messages
 
-    def get_issue_metadata(self):
+    def get_issue_metadata(self) -> str:
         return f"""# Repo & Issue Metadata
 Repo: {self.repo_name}: {self.repo_description}
 Issue Title: {self.title}
@@ -239,7 +239,7 @@ The above was the original plan. Please address the user comment: {self.comment}
 class HumanMessageFinalPRComment(BaseModel):
     summarization_replies: list
 
-    def construct_prompt(self):
+    def construct_prompt(self) -> str:
         final_review = final_review_prompt.format(
             file_summaries="\n".join(self.summarization_replies)
         )
