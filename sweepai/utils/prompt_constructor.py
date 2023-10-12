@@ -7,7 +7,6 @@ from sweepai.core.prompts import (
     human_message_prompt_comment,
     human_message_review_prompt,
 )
-from sweepai.logn import logger
 
 
 class HumanMessagePrompt(BaseModel):
@@ -103,10 +102,6 @@ class HumanMessagePrompt(BaseModel):
                 "role": msg["role"],
                 "content": msg["content"].format(
                     repo_name=self.repo_name,
-                    issue_url=f"Issue Url: {self.issue_url}\n"
-                    if self.issue_url
-                    else "\n",
-                    username=self.username,
                     repo_description=self.repo_description,
                     tree=self.tree.strip("\n"),
                     title=self.title,
@@ -126,8 +121,6 @@ class HumanMessagePrompt(BaseModel):
     def get_issue_metadata(self):
         return f"""# Repo & Issue Metadata
 Repo: {self.repo_name}: {self.repo_description}
-Issue: {self.issue_url}
-Username: {self.username}
 Issue Title: {self.title}
 Issue Description: {self.summary}
 """
@@ -166,8 +159,6 @@ class HumanMessagePromptReview(HumanMessagePrompt):
                 "role": msg["role"],
                 "content": msg["content"].format(
                     repo_name=self.repo_name,
-                    issue_url=self.issue_url,
-                    username=self.username,
                     repo_description=self.repo_description,
                     tree=self.tree,
                     title=self.title,
@@ -219,8 +210,6 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
                     if self.repo_description
                     else "",
                     diff=self.format_diffs(),
-                    issue_url=self.issue_url,
-                    username=self.username,
                     title=self.title,
                     tree=self.tree,
                     description=self.summary
@@ -241,8 +230,6 @@ class HumanMessageCommentPrompt(HumanMessagePrompt):
     def get_issue_metadata(self):
         return f"""# Repo & Issue Metadata
 Repo: {self.repo_name}: {self.repo_description}
-Issue: {self.issue_url}
-Username: {self.username}
 Issue Title: {self.title}
 Issue Description: {self.summary}
 The above was the original plan. Please address the user comment: {self.comment}
