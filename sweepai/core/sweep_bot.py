@@ -2,7 +2,7 @@ import copy
 import re
 import traceback
 from collections import OrderedDict
-from typing import Any, Dict, Generator
+from typing import Dict, Generator
 
 import requests
 from github.Commit import Commit
@@ -56,7 +56,6 @@ from sweepai.core.prompts import (
     use_chunking_message,
 )
 from sweepai.logn import logger
-from sweepai.logn.cache import file_cache
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
@@ -72,6 +71,12 @@ from sweepai.utils.utils import chunk_code
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 to_raw_string = lambda s: repr(s).lstrip("u")[1:-1]
+
+sandbox_error_prompt = """The following are the failing error logs from running `{command}`. Please make changes to the current file so that it passes this CI/CD command.
+
+{error_logs}
+
+Again, edit this file so that it passes the CI/CD. For unit tests, check the expected output and try to match the input to the expected output."""
 
 
 def strip_backticks(s: str) -> str:
@@ -591,13 +596,13 @@ class SweepBot(CodeGenBot, GithubBot):
     comment_pr_files_modified: Dict[str, str] | None = None
 
     @staticmethod
-    @file_cache(ignore_params=["token"])
+    # @file_cache(ignore_params=["token"])
     def run_sandbox(
         repo_url: str,
         file_path: str,
         content: str | None,
         token: str,
-        changed_files: tuple[str, str],
+        changed_files: list[tuple[str, str]],
         only_lint: bool = False,
     ) -> Dict:
         if not SANDBOX_URL:
@@ -614,6 +619,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     file_path: file_content for file_path, file_content in changed_files
                 },
                 "only_lint": only_lint,
+                "do_fix": False,
             },
             timeout=(5, 500),
         )
@@ -622,47 +628,6 @@ class SweepBot(CodeGenBot, GithubBot):
         return output
 
     def check_completion(self, file_name: str, new_content: str) -> bool:
-        can_check = False
-        for ext in [".js", ".ts", ".jsx", ".tsx", ".py"]:
-            if file_name.endswith(ext):
-                can_check = True
-                break
-        if not can_check:
-            return True
-
-        # GPT-4 generated conditions
-        # Checking for unimplemented Python code with NotImplementedError
-        if "raise NotImplementedError" in new_content:
-            return False
-
-        # Checking for TODO or FIXME comments
-        if "TODO" in new_content or "FIXME" in new_content:
-            return False
-
-        # Checking for Python functions with only a 'pass' statement
-        if "def " in new_content and ":\n    pass\n" in new_content:
-            return False
-
-        # Checking for TypeScript/JavaScript functions that are empty
-        if "function" in new_content and "){}" in new_content:
-            return False
-
-        # Checking for TypeScript/JavaScript arrow functions that are empty
-        if ") => {}" in new_content:
-            return False
-
-        # Checking for abstract methods in TypeScript
-        if "abstract" in new_content and "): void;" in new_content:
-            return False
-
-        # Checking for TypeScript/JavaScript methods that only contain a comment
-        if (
-            "function" in new_content
-            and "){\n    // " in new_content
-            and " \n}" in new_content
-        ):
-            return False
-
         return True
 
     def check_sandbox(
@@ -702,10 +667,25 @@ class SweepBot(CodeGenBot, GithubBot):
         key = f"file_change_created_{file_change_request.filename}"
         old_messages = self.messages
         if changed_files:
+            file_path_to_contents = OrderedDict()
+            for file_path, file_contents in changed_files:
+                if not file_contents.strip():
+                    continue
+                if file_path in file_path_to_contents:
+                    file_path_to_contents[file_path] += file_contents
+                else:
+                    file_path_to_contents[file_path] = file_contents
+            for file_path in file_path_to_contents:
+                try:
+                    old_contents = self.get_contents(file_path).decoded_content.decode()
+                    diff = generate_diff(old_contents, file_path_to_contents[file_path])
+                    file_path_to_contents[file_path] = diff
+                except Exception as e:
+                    logger.error(e)
             changed_files_summary = "Changed files in this PR:\n\n" + "\n".join(
                 [
-                    f'<changed_file file_path="{file_path}">\n{file_contents}\n</changed_file>'
-                    for file_path, file_contents in changed_files
+                    f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
+                    for file_path, diffs in file_path_to_contents
                 ]
             )
             self.messages.append(
@@ -836,7 +816,7 @@ class SweepBot(CodeGenBot, GithubBot):
         key = f"file_change_modified_{file_change_request.filename}"
         file_markdown = is_markdown(file_change_request.filename)
         # TODO(sweep): edge case at empty file
-        new_file = ""
+        new_file = None
         try:
             additional_messages = [
                 Message(
@@ -855,13 +835,20 @@ class SweepBot(CodeGenBot, GithubBot):
                     )
                 ]
             file_path_to_contents = OrderedDict()
-            for file_path, diffs in changed_files:
-                if not diffs.strip():
+            for file_path, file_contents in changed_files:
+                if not file_contents.strip():
                     continue
                 if file_path in file_path_to_contents:
-                    file_path_to_contents[file_path] += diffs
+                    file_path_to_contents[file_path] += file_contents
                 else:
-                    file_path_to_contents[file_path] = diffs
+                    file_path_to_contents[file_path] = file_contents
+            for file_path in file_path_to_contents:
+                try:
+                    old_contents = self.get_contents(file_path).decoded_content.decode()
+                    diff = generate_diff(old_contents, file_path_to_contents[file_path])
+                    file_path_to_contents[file_path] = diff
+                except Exception as e:
+                    logger.error(e)
             changed_files_summary = "We have previously changed these files:\n" + "\n".join(
                 [
                     f'<changed_file file_path="{file_path}">\n{diffs}\n</changed_file>'
@@ -935,23 +922,21 @@ class SweepBot(CodeGenBot, GithubBot):
                 self.delete_messages_from_chat(key)
                 raise e
         try:
-            # new_file = format_contents(new_file, file_markdown)
             commit_message_match = None
             if commit_message_match:
                 commit_message = commit_message_match.group("commit_message")
             else:
                 commit_message = f"feat: Updated {file_change_request.filename}"
             commit_message = commit_message[: min(len(commit_message), 50)]
-
             sandbox_execution = None
-            if not chunking:
+            if not chunking and new_file is not None:
                 new_file, sandbox_execution = self.check_sandbox(
                     file_change_request.filename: str, new_file: str, changed_files: List[Tuple[str, str]]
                 )
             changed_files.append(
                 (
                     file_change_request.filename,
-                    generate_diff(contents, new_file),
+                    new_file,
                 )
             )
             return new_file, commit_message, sandbox_execution, changed_files
@@ -1223,6 +1208,26 @@ class SweepBot(CodeGenBot, GithubBot):
             branch=branch,
         )
 
+        if not sandbox_execution.success:
+            new_file_change_request = file_change_request
+            new_file_change_request.change_type = "modify"
+            new_file_change_request.instructions = sandbox_execution.executions[
+                -1
+            ].output
+            (
+                new_file_contents,
+                new_sandbox_execution,
+                commit_message,
+                changed_files,
+            ) = self.handle_modify_file(
+                file_change_request=new_file_change_request,
+                branch=branch,
+                sandbox=sandbox,
+                changed_files=changed_files,
+            )
+            file_change_request.new_content = new_file_contents
+            return True, new_sandbox_execution, commit_message
+
         file_change_request.new_content = file_change.code
 
         return True, sandbox_execution, result["commit"]
@@ -1234,9 +1239,10 @@ class SweepBot(CodeGenBot, GithubBot):
         commit_message: str = None,
         sandbox=None,
         changed_files: list[tuple[str, str]] = [],
-    ) -> tuple[str, Any, Commit, list]:
+        iteration_num=0,
+    ):
         CHUNK_SIZE = 600  # Number of lines to process at a time
-        sandbox_error = None
+        sandbox_execution = None
         try:
             file = self.get_file(file_change_request.filename, branch=branch)
             file_contents = file.decoded_content.decode("utf-8")
@@ -1340,7 +1346,7 @@ class SweepBot(CodeGenBot, GithubBot):
             (
                 new_file_contents,
                 commit_message,
-                sandbox_error,
+                sandbox_execution,
                 changed_files,
             ) = get_new_file()
 
@@ -1349,7 +1355,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 (
                     new_file_contents,
                     commit_message,
-                    sandbox_error,
+                    sandbox_execution,
                     changed_files,
                 ) = get_new_file(temperature=0.2)
 
@@ -1358,7 +1364,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 (
                     new_file_contents,
                     commit_message,
-                    sandbox_error,
+                    sandbox_execution,
                     changed_files,
                 ) = get_new_file(temperature=0.4)
 
@@ -1368,23 +1374,50 @@ class SweepBot(CodeGenBot, GithubBot):
                     f"No changes made to {file_change_request.filename}. Skipping file"
                     " update."
                 )
-                return False, sandbox_error, "No changes made to file.", changed_files
+                return (
+                    False,
+                    sandbox_execution,
+                    "No changes made to file.",
+                    changed_files,
+                )
             logger.debug(
                 f"{file_name}, {commit_message}, {new_file_contents}, {branch}"
             )
 
-            # Update the file with the new contents after all chunks have been processed
             try:
                 result = self.repo.update_file(
                     file_name,
-                    # commit_message.format(file_name=file_name),
                     commit_message,
                     new_file_contents,
                     file.sha,
                     branch=branch,
                 )
-                file_change_request.new_content = new_file_contents
-                return True, sandbox_error, result["commit"], changed_files
+                if (
+                    sandbox_execution
+                    and not sandbox_execution.success
+                    and iteration_num < 3
+                ):
+                    new_file_change_request = file_change_request
+                    new_file_change_request.instructions = sandbox_error_prompt.format(
+                        command=sandbox_execution.executions[-1].command.format(
+                            file_path=file_name
+                        ),
+                        error_logs=sandbox_execution.executions[-1].output,
+                    )
+                    logger.warning(sandbox_execution.executions[-1].output)
+                    (
+                        new_file_contents,
+                        sandbox_execution,
+                        commit_message,
+                        changed_files,
+                    ) = self.handle_modify_file(
+                        file_change_request=new_file_change_request,
+                        branch=branch,
+                        sandbox=sandbox,
+                        changed_files=changed_files,
+                        iteration_num=iteration_num + 1,
+                    )
+                    file_change_request.new_content = new_file_contents
             except SystemExit:
                 raise SystemExit
             except Exception as e:
@@ -1392,14 +1425,13 @@ class SweepBot(CodeGenBot, GithubBot):
                 file = self.get_file(file_change_request.filename, branch=branch)
                 result = self.repo.update_file(
                     file_name,
-                    # commit_message.format(file_name=file_name),
                     commit_message,
                     new_file_contents,
                     file.sha,
                     branch=branch,
                 )
-                file_change_request.new_content = new_file_contents
-                return True, sandbox_error, result["commit"], changed_files
+            file_change_request.new_content = new_file_contents
+            return True, sandbox_execution, result["commit"], changed_files
         except MaxTokensExceeded as e:
             raise e
         except SystemExit:
@@ -1407,7 +1439,7 @@ class SweepBot(CodeGenBot, GithubBot):
         except Exception as e:
             tb = traceback.format_exc()
             logger.info(f"Error in handle_modify_file: {tb}")
-            return False, sandbox_error, None, changed_files
+            return False, sandbox_execution, None, changed_files
 
 
 class ModifyBot:
@@ -1724,6 +1756,8 @@ class ModifyBot:
         new_code = []
         for idx, search in enumerate(selected_snippets):
             if idx not in updated_snippets:
+                continue
+            if selected_snippets.index(search) not in change_validator.updated_snippets:
                 continue
             replace = change_validator.updated_snippets[selected_snippets.index(search)]
             new_code.append(replace)
