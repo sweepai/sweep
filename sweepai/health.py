@@ -1,9 +1,10 @@
 import psutil
 import redis
 import requests
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pymongo import MongoClient
+
 from sweepai.config.server import IS_SELF_HOSTED, MONGODB_URI, REDIS_URL, SANDBOX_URL
 from sweepai.logn import logger
 
@@ -14,23 +15,26 @@ logger.init(
 
 app = FastAPI()
 
+
 def check_sandbox_health() -> str:
     try:
         response = requests.get(SANDBOX_URL)
         response.raise_for_status()
         return "UP"
     except Exception as e:
-        logger.exception(f"Error checking sandbox health: {e}")
+        logger.error(f"Error checking sandbox health: {e}", exc_info=True)
         return "DOWN"
+
 
 def check_mongodb_health() -> str:
     try:
         client = MongoClient(MONGODB_URI)
-        client.admin.command('ismaster')
+        client.admin.command("ismaster")
         return "UP"
     except Exception as e:
-        logger.exception(f"Error checking MongoDB health: {e}")
+        logger.error(f"Error checking MongoDB health: {e}", exc_info=True)
         return "DOWN"
+
 
 def check_redis_health() -> str:
     try:
@@ -38,8 +42,9 @@ def check_redis_health() -> str:
         redis_client.ping()
         return "UP"
     except Exception as e:
-        logger.exception(f"Error checking Redis health: {e}")
+        logger.error(f"Error checking Redis health: {e}", exc_info=True)
         return "DOWN"
+
 
 @app.get("/health")
 def health_check():
