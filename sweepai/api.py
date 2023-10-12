@@ -2,8 +2,8 @@
 import json
 import time
 
-import psutil
 
+from sweepai import health
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
 from sweepai.utils.buttons import (
@@ -12,7 +12,6 @@ from sweepai.utils.buttons import (
     check_button_activated,
     check_button_title_match,
 )
-from sweepai import health
 from sweepai.utils.safe_pqueue import SafePriorityQueue
 
 logger.init(
@@ -23,12 +22,10 @@ logger.init(
 import ctypes
 import threading
 
-import redis
 import requests
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
-from pymongo import MongoClient
 
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -48,10 +45,6 @@ from sweepai.config.server import (
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
-    IS_SELF_HOSTED,
-    MONGODB_URI,
-    REDIS_URL,
-    SANDBOX_URL,
 )
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
@@ -260,6 +253,7 @@ def call_write_documentation(*args, **kwargs):
 @app.get("/health")
 def redirect_to_health():
     return health.health_check()
+
 
 @app.get("/", response_class=HTMLResponse)
 def home():
@@ -797,7 +791,9 @@ async def webhook(raw_request: Request):
                     # on merge
                     call_on_merge(request_dict, chat_logger)
                     ref = request_dict["ref"] if "ref" in request_dict else ""
-                    if ref.startswith("refs/heads") and not ref.startswith("ref/heads/sweep"):
+                    if ref.startswith("refs/heads") and not ref.startswith(
+                        "ref/heads/sweep"
+                    ):
                         if request_dict["head_commit"] and (
                             "sweep.yaml" in request_dict["head_commit"]["added"]
                             or "sweep.yaml" in request_dict["head_commit"]["modified"]
@@ -818,7 +814,7 @@ async def webhook(raw_request: Request):
                                     installation_id=request_dict["installation"]["id"],
                                 )
                                 call_get_deeplake_vs_from_repo(cloned_repo)
-                            update_sweep_prs(
+                            update_sweep_prs_v2(
                                 request_dict["repository"]["full_name"],
                                 installation_id=request_dict["installation"]["id"],
                             )
