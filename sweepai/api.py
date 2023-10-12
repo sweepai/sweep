@@ -2,7 +2,7 @@
 import json
 import time
 
-from . import health
+from sweepai import health
 
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
@@ -261,6 +261,8 @@ def call_write_documentation(*args, **kwargs):
 def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
+
+from sweepai import health
 
 @app.post("/")
 async def webhook(raw_request: Request):
@@ -572,35 +574,11 @@ async def webhook(raw_request: Request):
                             },
                         )
                         call_on_comment(**pr_change_request.params)
-            case "pull_request_review_comment", "created":
-                logger.info(f"Received event: {event}, {action}")
-                # Add a separate endpoint for this
-                request = CommentCreatedRequest(**request_dict)
-                _, g = get_github_client(request.installation.id)
-                repo = g.get_repo(request.repository.full_name)
-                pr = repo.get_pull(request.pull_request.number)
-                labels = pr.get_labels()
-                comment = request.comment.body
-                if (
-                    comment.lower().startswith("sweep:")
-                    or any(label.name.lower() == "sweep" for label in labels)
-                ) and request.comment.user.type == "User":
-                    pr_change_request = PRChangeRequest(
-                        params={
-                            "comment_type": "comment",
-                            "repo_full_name": request.repository.full_name,
-                            "repo_description": request.repository.description,
-                            "comment": request.comment.body,
-                            "pr_path": request.comment.path,
-                            "pr_line_position": request.comment.original_line,
-                            "username": request.comment.user.login,
-                            "installation_id": request.installation.id,
-                            "pr_number": request.pull_request.number,
-                            "comment_id": request.comment.id,
-                        },
-                    )
-                    call_on_comment(**pr_change_request.params)
-                # Todo: update index on comments
+            from sweepai import health
+            
+            @app.get("/health")
+            def redirect_to_health():
+                return health.app
             case "pull_request_review", "submitted":
                 # request = ReviewSubmittedRequest(**request_dict)
                 pass
