@@ -1,9 +1,7 @@
 # Do not save logs for main process
 import json
-import os
 import time
 
-import psutil
 
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
@@ -24,7 +22,7 @@ import ctypes
 import threading
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
 from sweepai.config.client import (
@@ -45,10 +43,6 @@ from sweepai.config.server import (
     GITHUB_LABEL_COLOR,
     GITHUB_LABEL_DESCRIPTION,
     GITHUB_LABEL_NAME,
-    IS_SELF_HOSTED,
-    MONGODB_URI,
-    REDIS_URL,
-    SANDBOX_URL,
 )
 from sweepai.core.documentation import write_documentation
 from sweepai.core.entities import PRChangeRequest
@@ -254,9 +248,11 @@ def call_write_documentation(*args, **kwargs):
 
 from sweepai import health
 
+
 @app.get("/health")
 def health_check():
     return health.health_check()
+
 
 @app.get("/", response_class=HTMLResponse)
 def home():
@@ -274,6 +270,11 @@ async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
+        # update_sweep_prs is not defined
+        # update_sweep_prs(
+        #     request_dict["repository"]["full_name"],
+        #     installation_id=request_dict["installation"]["id"],
+        # )
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
 
@@ -692,13 +693,13 @@ async def webhook(raw_request: Request):
                         }
                         headers = {"Content-Type": "application/json"}
                         import requests
-                        
+
                         response = requests.post(
                             DISCORD_FEEDBACK_WEBHOOK_URL,
                             data=json.dumps(data),
                             headers=headers,
                         )
-                        
+
                         # Send feedback to PostHog
                         posthog.capture(
                             request.sender.login,
@@ -796,7 +797,9 @@ async def webhook(raw_request: Request):
                     # on merge
                     call_on_merge(request_dict, chat_logger)
                     ref = request_dict["ref"] if "ref" in request_dict else ""
-                    if ref.startswith("refs/heads") and not ref.startswith("ref/heads/sweep"):
+                    if ref.startswith("refs/heads") and not ref.startswith(
+                        "ref/heads/sweep"
+                    ):
                         if request_dict["head_commit"] and (
                             "sweep.yaml" in request_dict["head_commit"]["added"]
                             or "sweep.yaml" in request_dict["head_commit"]["modified"]
@@ -817,10 +820,10 @@ async def webhook(raw_request: Request):
                                     installation_id=request_dict["installation"]["id"],
                                 )
                                 call_get_deeplake_vs_from_repo(cloned_repo)
-                            update_sweep_prs(
-                                request_dict["repository"]["full_name"],
-                                installation_id=request_dict["installation"]["id"],
-                            )
+                            # update_sweep_prs(
+                            #     request_dict["repository"]["full_name"],
+                            #     installation_id=request_dict["installation"]["id"],
+                            # )
             case "ping", None:
                 return {"message": "pong"}
     except ValidationError as e:
