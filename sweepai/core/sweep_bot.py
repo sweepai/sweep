@@ -672,8 +672,18 @@ class SweepBot(CodeGenBot, GithubBot):
         changed_files: list[tuple[str, str]],
     ):
         # Format file
+        from sweepai.utils.github_utils import get_file_changes
+        from sweepai.core.entities import FileChangeRequest
+        from sweepai.logn import logger
+        
+        file_change_request = FileChangeRequest(filename=file_path, change_type="modify", instructions="")
+        file_changes = get_file_changes(self.repo, file_change_request)
+        
         sandbox_execution: SandboxResponse | None = None
         if SANDBOX_URL:
+            if not file_changes:
+                logger.info(f"No changes in {file_path}. Skipping sandbox execution.")
+                return content, sandbox_execution
             try:
                 output = SweepBot.run_sandbox(
                     token=self.sweep_context.token,
