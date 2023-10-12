@@ -921,13 +921,15 @@ def on_ticket(
             )
 
             def create_error_logs(
-                commit_url_display: str, sandbox_response: SandboxResponse
+                commit_url_display: str,
+                sandbox_response: SandboxResponse,
+                status: str = "✓",
             ):
                 return (
                     (
                         "<br/>"
                         + create_collapsible(
-                            f"Sandbox logs for {commit_url_display}",
+                            f"Sandbox logs for {commit_url_display} {status}",
                             blockquote(
                                 "\n\n".join(
                                     [
@@ -986,7 +988,11 @@ def on_ticket(
                     f"<a href='{commit_url}'><code>{commit_hash[:7]}</code></a>"
                 )
                 error_logs: str = create_error_logs(
-                    commit_url_display, sandbox_response
+                    commit_url_display,
+                    sandbox_response,
+                    status="✓"
+                    if (sandbox_response is None or sandbox_response.success)
+                    else "❌",
                 )
                 if changed_file:
                     logger.print("Changed File!")

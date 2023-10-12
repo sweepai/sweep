@@ -640,9 +640,6 @@ class SweepBot(CodeGenBot, GithubBot):
         changed_files: list[tuple[str, str]],
     ):
         # Format file
-        import pdb
-
-        pdb.set_trace()
         sandbox_execution: SandboxResponse | None = None
         if SANDBOX_URL:
             try:
@@ -1345,9 +1342,6 @@ class SweepBot(CodeGenBot, GithubBot):
                     changed_files,
                 )
 
-            import pdb
-
-            pdb.set_trace()
             try:
                 result = self.repo.update_file(
                     file_name,
