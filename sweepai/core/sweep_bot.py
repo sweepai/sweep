@@ -765,7 +765,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 _,
                 _,  # Don't use changed_files here
             ) = self.modify_file(
-                file_change_request,
+                new_fcr,
                 contents=file_contents,
                 changed_files=changed_files,
             )
