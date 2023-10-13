@@ -238,10 +238,10 @@ def on_ticket(
     posthog.capture(username, "started", properties=metadata)
 
     try:
-        logger.info(f"Getting repo {repo_full_name}")
+        loguru.logger.info(f"Getting repo {repo_full_name}")
 
         if current_issue.state == "closed":
-            logger.warning(f"Issue {issue_number} is closed")
+            loguru.logger.warning(f"Issue {issue_number} is closed")
             posthog.capture(
                 username,
                 "issue_closed",
@@ -268,7 +268,7 @@ def on_ticket(
         replies_text = ""
         comments = list(current_issue.get_comments())
         if comment_id:
-            logger.info(f"Replying to comment {comment_id}...")
+            loguru.logger.info(f"Replying to comment {comment_id}...")
             replies_text = "\nComments:\n" + "\n".join(
                 [
                     issue_comment_prompt.format(
@@ -397,7 +397,7 @@ def on_ticket(
         # Find Sweep's previous comment
         for comment in comments:
             if comment.user.login == GITHUB_BOT_USERNAME:
-                logger.print(
+                loguru.logger.print(
                     f"Found comment USERNAME {GITHUB_BOT_USERNAME} COMMENT {comment.user.login}"
                 )
                 issue_comment = comment
@@ -405,7 +405,7 @@ def on_ticket(
         try:
             config = SweepConfig.get_config(repo)
         except EmptyRepository as e:
-            logger.info("Empty repo")
+            loguru.logger.info("Empty repo")
             first_comment = (
                 "Sweep is currently not supported on empty repositories. Please add some"
                 f" code to your repository and try again.\n{sep}##"
@@ -497,7 +497,7 @@ def on_ticket(
             try:
                 issue_comment.edit(msg)
             except BadCredentialsException:
-                logger.error("Bad credentials, refreshing token")
+                loguru.logger.error("Bad credentials, refreshing token")
                 _user_token, g = get_github_client(installation_id)
                 repo = g.get_repo(repo_full_name)
 
@@ -516,7 +516,7 @@ def on_ticket(
                     issue_comment.edit(msg)
 
         if len(title + summary) < 20:
-            logger.info("Issue too short")
+            loguru.logger.info("Issue too short")
             edit_sweep_comment(
                 (
                     "Please add more details to your issue. I need at least 20 characters"
@@ -537,7 +537,7 @@ def on_ticket(
             and not is_consumer_tier
         ):
             if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
-                logger.info("Test repository detected")
+                loguru.logger.info("Test repository detected")
                 edit_sweep_comment(
                     (
                         "Sweep does not work on test repositories. Please create an issue"
@@ -565,7 +565,7 @@ def on_ticket(
         #     repo.html_url, file_path, None, user_token, only_lint=True
         # )
 
-        logger.info("Fetching relevant files...")
+        loguru.logger.info("Fetching relevant files...")
         try:
             snippets, tree, dir_obj = search_snippets(
                 cloned_repo,
@@ -574,7 +574,7 @@ def on_ticket(
             )
             assert len(snippets) > 0
         except SystemExit:
-            logger.warning("System exit")
+            loguru.logger.warning("System exit")
             posthog.capture(
                 username,
                 "failed",
@@ -587,8 +587,8 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             trace = traceback.format_exc()
-            logger.error(e)
-            logger.error(trace)
+            loguru.logger.error(e)
+            loguru.logger.error(trace)
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
@@ -641,7 +641,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
+            loguru.logger.error(f"Failed to extract docs: {e}")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -707,20 +707,20 @@ def on_ticket(
         # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
         if not sweep_yml_exists:
             try:
-                logger.info("Creating sweep.yaml file...")
+                loguru.logger.info("Creating sweep.yaml file...")
                 config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
                 config_pr_url = config_pr.html_url
                 edit_sweep_comment(message="", index=-2)
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(
+                loguru.logger.error(
                     "Failed to create new branch for sweep.yaml file.\n",
                     e,
                     traceback.format_exc(),
                 )
         else:
-            logger.info("sweep.yaml file already exists.")
+            loguru.logger.info("sweep.yaml file already exists.")
 
         try:
             # ANALYZE SNIPPETS
@@ -803,7 +803,7 @@ def on_ticket(
             # TODO: removed issue commenting here
             # TODO(william, luke) planning here
 
-            logger.info("Fetching files to modify/create...")
+            loguru.logger.info("Fetching files to modify/create...")
             non_python_count = sum(
                 not file_path.endswith(".py")
                 for file_path in human_message.get_file_paths()
@@ -856,9 +856,9 @@ def on_ticket(
                 tablefmt="pipe",
             )
             # CREATE PR METADATA
-            logger.info("Generating PR...")
+            loguru.logger.info("Generating PR...")
             pull_request = sweep_bot.generate_pull_request()
-            logger.info("Making PR...")
+            loguru.logger.info("Making PR...")
 
             files_progress: list[tuple[str, str, str, str]] = [
                 (
@@ -996,37 +996,12 @@ def on_ticket(
                     else "❌",
                 )
                 if changed_file:
-                    logger.print("Changed File!")
-                    entity_display = file_change_request.entity_display
-                    suffix = (
-                        f"✅ Commit {commit_url_display}"
-                        if (sandbox_response is None or sandbox_response.success)
-                        else f"⌛ Current Commit {commit_url_display}"
+                    loguru.logger.info(sandbox_response)
+                    commit_hash: str = (
+                        commit.sha
+                        if commit is not None
+                        else repo.get_branch(pull_request.branch_name).commit.sha
                     )
-                    update_progress(
-                        entity_display,
-                        f"`{entity_display}` {suffix}",
-                        error_logs,
-                    )
-                    changed_files.append(file_change_request.filename)
-                else:
-                    logger.print("Didn't change file!")
-                    entity_display = file_change_request.entity_display
-                    update_progress(
-                        entity_display,
-                        f"`{entity_display}` ⚠️ No Changes Made",
-                        error_logs,
-                    )
-                checkboxes_contents = "\n".join(
-                    [
-                        checkbox_template.format(
-                            check=check,
-                            filename=filename,
-                            instructions=blockquote(instructions),
-                        )
-                        for filename, instructions, check in checkboxes_progress
-                    ]
-                )
                 checkboxes_collapsible = collapsible_template.format(
                     summary="Checklist",
                     body=checkboxes_contents,
@@ -1051,8 +1026,8 @@ def on_ticket(
                 issue = repo.get_issue(number=issue_number)
                 issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
 
-                logger.info(files_progress)
-                logger.info(f"Edited {file_change_request.entity_display}")
+                loguru.logger.info(files_progress)
+                loguru.logger.info(f"Edited {file_change_request.entity_display}")
                 edit_sweep_comment(checkboxes_contents, 2)
             if not response.get("success"):
                 raise Exception(f"Failed to create PR: {response.get('error')}")
