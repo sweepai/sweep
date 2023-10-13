@@ -373,7 +373,7 @@ def on_comment(
                 tablefmt="pipe",
             )
             sweep_response = (
-                f"I decided to make the following changes:\n\n{table_message}"
+                f"I am making the following changes:\n\n{table_message}"
             )
         quoted_comment = "> " + comment.replace("\n", "\n> ")
         response_for_user = (
@@ -381,8 +381,6 @@ def on_comment(
         )
         if pr_number:
             edit_comment(response_for_user)
-            # pr.create_issue_comment(response_for_user)
-        logger.info("Making Code Changes...")
 
         blocked_dirs = get_blocked_dirs(sweep_bot.repo)
 
@@ -399,11 +397,9 @@ def on_comment(
         try:
             if comment_id:
                 if changes_made:
-                    # PR Review Comment Reply
-                    edit_comment("Done.")
+                    response_for_user = ("Done.")
                 else:
-                    # PR Review Comment Reply
-                    edit_comment(
+                    response_for_user = (
                         'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR(at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discord](https://discord.com/invite/sweep)'
                     )
         except SystemExit:
