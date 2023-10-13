@@ -66,8 +66,11 @@ from sweepai.handlers.create_pr import (
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
-from sweepai.logn import logger
+from loguru import logger
+from logtail import LogtailHandler
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
+
+logger.add(LogtailHandler('source_token'))
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
@@ -642,6 +645,7 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             logger.error(f"Failed to extract docs: {e}")
+            logger.bind(metadata=metadata)
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -708,6 +712,7 @@ def on_ticket(
         if not sweep_yml_exists:
             try:
                 logger.info("Creating sweep.yaml file...")
+                logger.bind(metadata=metadata)
                 config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
                 config_pr_url = config_pr.html_url
                 edit_sweep_comment(message="", index=-2)
@@ -719,8 +724,10 @@ def on_ticket(
                     e,
                     traceback.format_exc(),
                 )
+                logger.bind(metadata=metadata)
         else:
             logger.info("sweep.yaml file already exists.")
+            logger.bind(metadata=metadata)
 
         try:
             # ANALYZE SNIPPETS
@@ -1105,6 +1112,7 @@ def on_ticket(
                         + "\n\nI'm currently addressing these suggestions.",
                         3,
                     )
+                    logger.bind(metadata=metadata)
                     logger.info(f"Addressing review comment {review_comment}")
                     on_comment(
                         repo_full_name=repo_full_name,
@@ -1122,6 +1130,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
+                logger.bind(metadata=metadata)
                 logger.error(traceback.format_exc())
                 logger.error(e)
 
@@ -1186,8 +1195,10 @@ def on_ticket(
                 done=True,
             )
 
+            logger.bind(metadata=metadata)
             logger.info("Add successful ticket to counter")
         except MaxTokensExceeded as e:
+            logger.bind(metadata=metadata)
             logger.info("Max tokens exceeded")
             log_error(
                 is_paying_user,
@@ -1221,6 +1232,7 @@ def on_ticket(
             delete_branch = True
             raise e
         except NoFilesException as e:
+            logger.bind(metadata=metadata)
             logger.info("Sweep could not find files to modify")
             log_error(
                 is_paying_user,
@@ -1243,6 +1255,7 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.error.InvalidRequestError as e:
+            logger.bind(metadata=metadata)
             logger.error(traceback.format_exc())
             logger.error(e)
             edit_sweep_comment(
@@ -1278,6 +1291,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
+            logger.bind(metadata=metadata)
             logger.error(traceback.format_exc())
             logger.error(e)
             # title and summary are defined elsewhere
@@ -1317,6 +1331,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
+                logger.bind(metadata=metadata)
                 logger.error(e)
         finally:
             cloned_repo.delete()
@@ -1332,6 +1347,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
+                logger.bind(metadata=metadata)
                 logger.error(e)
                 logger.error(traceback.format_exc())
                 logger.print("Deleted branch", pull_request.branch_name)
