@@ -84,6 +84,9 @@ def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
 
 
+from loguru import logger
+from logtail import Logger
+
 def on_ticket(
     title: str,
     summary: str,
@@ -96,6 +99,7 @@ def on_ticket(
     comment_id: int = None,
     edited: bool = False,
 ):
+    logger.bind(title=title, summary=summary, issue_number=issue_number, issue_url=issue_url, username=username, repo_full_name=repo_full_name, repo_description=repo_description, installation_id=installation_id, comment_id=comment_id, edited=edited)
     (
         title,
         slow_mode,
@@ -136,7 +140,7 @@ def on_ticket(
 
     # Hydrate cache of sandbox
     if not DEBUG:
-        logger.info("Hydrating cache of sandbox.")
+        loguru.info("Hydrating cache of sandbox.")
         try:
             requests.post(
                 SANDBOX_URL,
@@ -147,21 +151,21 @@ def on_ticket(
                 timeout=2,
             )
         except Timeout:
-            logger.info("Sandbox hydration timed out.")
+            loguru.info("Sandbox hydration timed out.")
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error hydrating cache of sandbox: {e}")
-        logger.info("Done sending, letting it run in the background.")
+            loguru.warning(f"Error hydrating cache of sandbox: {e}")
+        loguru.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
     if branch_match:
         branch_name = branch_match.group(1)
         SweepConfig.get_branch(repo, branch_name)
-        logger.info(f"Overrides Branch name: {branch_name}")
+        loguru.info(f"Overrides Branch name: {branch_name}")
     else:
-        logger.info(f"Overrides not detected for branch {summary}")
+        loguru.info(f"Overrides not detected for branch {summary}")
 
     chat_logger = (
         ChatLogger(
@@ -238,10 +242,11 @@ def on_ticket(
     posthog.capture(username, "started", properties=metadata)
 
     try:
-        logger.info(f"Getting repo {repo_full_name}")
+        loguru.info(f"Getting repo {repo_full_name}")
+        loguru.bind(title=title, summary=summary, issue_number=issue_number, issue_url=issue_url, username=username, repo_full_name=repo_full_name, repo_description=repo_description, installation_id=installation_id, comment_id=comment_id, edited=edited)
 
         if current_issue.state == "closed":
-            logger.warning(f"Issue {issue_number} is closed")
+            loguru.warning(f"Issue {issue_number} is closed")
             posthog.capture(
                 username,
                 "issue_closed",
@@ -587,8 +592,9 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             trace = traceback.format_exc()
-            logger.error(e)
-            logger.error(trace)
+            loguru.error(e)
+            loguru.error(trace)
+            loguru.bind(title=title, summary=summary, issue_number=issue_number, issue_url=issue_url, username=username, repo_full_name=repo_full_name, repo_description=repo_description, installation_id=installation_id, comment_id=comment_id, edited=edited)
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
@@ -627,6 +633,7 @@ def on_ticket(
             repo_description = "No description provided."
 
         message_summary = summary + replies_text
+        logger.bind(title=title, message_summary=message_summary, user_dict=user_dict, chat_logger=chat_logger)
         external_results = ExternalSearcher.extract_summaries(message_summary)
         if external_results:
             message_summary += "\n\n" + external_results
@@ -641,7 +648,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
+            loguru.error(f"Failed to extract docs: {e}")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -705,22 +712,23 @@ def on_ticket(
                 break
 
         # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
+        logger.bind(sweep_bot=sweep_bot, cloned_repo=cloned_repo, sweep_yml_exists=sweep_yml_exists)
         if not sweep_yml_exists:
             try:
-                logger.info("Creating sweep.yaml file...")
+                loguru.info("Creating sweep.yaml file...")
                 config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
                 config_pr_url = config_pr.html_url
                 edit_sweep_comment(message="", index=-2)
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(
+                loguru.error(
                     "Failed to create new branch for sweep.yaml file.\n",
                     e,
                     traceback.format_exc(),
                 )
         else:
-            logger.info("sweep.yaml file already exists.")
+            loguru.info("sweep.yaml file already exists.")
 
         try:
             # ANALYZE SNIPPETS
@@ -1105,7 +1113,53 @@ def on_ticket(
                         + "\n\nI'm currently addressing these suggestions.",
                         3,
                     )
-                    logger.info(f"Addressing review comment {review_comment}")
+                    loguru.info(f"Addressing review comment {review_comment}")
+                    on_comment(
+                        repo_full_name=repo_full_name,
+                        repo_description=repo_description,
+                        comment=review_comment,
+                        username=username,
+                        installation_id=installation_id,
+                        pr_path=None,
+                        pr_line_position=None,
+                        pr_number=None,
+                        pr=pr_changes,
+                        chat_logger=chat_logger,
+                        repo=repo,
+                    )
+            except SystemExit:
+                raise SystemExit
+            logtail.bind(title=title, summary=summary, issue_number=issue_number, issue_url=issue_url, username=username, repo_full_name=repo_full_name, repo_description=repo_description, installation_id=installation_id, comment_id=comment_id, edited=edited)
+            try:
+                # CODE REVIEW
+                changes_required, review_comment = review_pr(
+                    repo=repo,
+                    pr=pr_changes,
+                    issue_url=issue_url,
+                    username=username,
+                    repo_description=repo_description,
+                    title=title,
+                    summary=summary,
+                    replies_text=replies_text,
+                    tree=tree,
+                    lint_output=lint_output,
+                    plan=plan,  # plan for the PR
+                    chat_logger=chat_logger,
+                    commit_history=commit_history,
+                )
+                lint_output = None
+                review_message += (
+                    f"Here is the {ordinal(1)} review\n"
+                    + blockquote(review_comment)
+                    + "\n\n"
+                )
+                if changes_required:
+                    edit_sweep_comment(
+                        review_message
+                        + "\n\nI'm currently addressing these suggestions.",
+                        3,
+                    )
+                    loguru.info(f"Addressing review comment {review_comment}")
                     on_comment(
                         repo_full_name=repo_full_name,
                         repo_description=repo_description,
@@ -1122,8 +1176,8 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
+                loguru.error(traceback.format_exc())
+                loguru.error(e)
 
             if changes_required:
                 edit_sweep_comment(
@@ -1186,9 +1240,9 @@ def on_ticket(
                 done=True,
             )
 
-            logger.info("Add successful ticket to counter")
+            loguru.info("Add successful ticket to counter")
         except MaxTokensExceeded as e:
-            logger.info("Max tokens exceeded")
+            loguru.info("Max tokens exceeded")
             log_error(
                 is_paying_user,
                 is_consumer_tier,
@@ -1221,7 +1275,7 @@ def on_ticket(
             delete_branch = True
             raise e
         except NoFilesException as e:
-            logger.info("Sweep could not find files to modify")
+            loguru.info("Sweep could not find files to modify")
             log_error(
                 is_paying_user,
                 is_consumer_tier,
@@ -1241,10 +1295,11 @@ def on_ticket(
                 -1,
             )
             delete_branch = True
+            loguru.bind(title=title, summary=summary, issue_number=issue_number, issue_url=issue_url, username=username, repo_full_name=repo_full_name, repo_description=repo_description, installation_id=installation_id, comment_id=comment_id, edited=edited)
             raise e
         except openai.error.InvalidRequestError as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            loguru.error(traceback.format_exc())
+            loguru.error(e)
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1277,9 +1332,10 @@ def on_ticket(
             raise e
         except SystemExit:
             raise SystemExit
+            loguru.bind(title=title, summary=summary, issue_number=issue_number, issue_url=issue_url, username=username, repo_full_name=repo_full_name, repo_description=repo_description, installation_id=installation_id, comment_id=comment_id, edited=edited)
         except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            loguru.error(traceback.format_exc())
+            loguru.error(e)
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1311,13 +1367,14 @@ def on_ticket(
             )
             raise e
         else:
+            loguru.bind(title=title, summary=summary, issue_number=issue_number, issue_url=issue_url, username=username, repo_full_name=repo_full_name, repo_description=repo_description, installation_id=installation_id, comment_id=comment_id, edited=edited)
             try:
                 item_to_react_to.delete_reaction(eyes_reaction.id)
                 item_to_react_to.create_reaction("rocket")
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
+                loguru.error(e)
         finally:
             cloned_repo.delete()
 
@@ -1332,9 +1389,9 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
-                logger.error(traceback.format_exc())
-                logger.print("Deleted branch", pull_request.branch_name)
+                loguru.error(e)
+                loguru.error(traceback.format_exc())
+                loguru.print("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
             username,
@@ -1353,5 +1410,5 @@ def on_ticket(
         "success",
         properties={**metadata, "duration": time() - on_ticket_start_time},
     )
-    logger.info("on_ticket success")
+    loguru.info("on_ticket success")
     return {"success": True}
