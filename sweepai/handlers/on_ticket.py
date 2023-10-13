@@ -397,7 +397,7 @@ def on_ticket(
         # Find Sweep's previous comment
         for comment in comments:
             if comment.user.login == GITHUB_BOT_USERNAME:
-                logger.print(
+                logger.info(
                     f"Found comment USERNAME {GITHUB_BOT_USERNAME} COMMENT {comment.user.login}"
                 )
                 issue_comment = comment
@@ -497,7 +497,7 @@ def on_ticket(
             try:
                 issue_comment.edit(msg)
             except BadCredentialsException:
-                logger.error("Bad credentials, refreshing token")
+                logger.exception("Bad credentials, refreshing token")
                 _user_token, g = get_github_client(installation_id)
                 repo = g.get_repo(repo_full_name)
 
@@ -587,8 +587,8 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             trace = traceback.format_exc()
-            logger.error(e)
-            logger.error(trace)
+            logger.exception(e)
+            logger.exception(trace)
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
@@ -641,7 +641,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
+            logger.exception(f"Failed to extract docs: {e}")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -714,7 +714,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(
+                logger.exception(
                     "Failed to create new branch for sweep.yaml file.\n",
                     e,
                     traceback.format_exc(),
@@ -978,7 +978,7 @@ def on_ticket(
                     break
                 file_change_request, changed_file, sandbox_response, commit = item
                 sandbox_response: SandboxResponse | None = sandbox_response
-                logger.print(sandbox_response)
+                logger.info(sandbox_response)
                 commit_hash: str = (
                     commit.sha
                     if commit is not None
@@ -996,7 +996,7 @@ def on_ticket(
                     else "❌",
                 )
                 if changed_file:
-                    logger.print("Changed File!")
+                    logger.info("Changed File!")
                     entity_display = file_change_request.entity_display
                     suffix = (
                         f"✅ Commit {commit_url_display}"
@@ -1010,7 +1010,7 @@ def on_ticket(
                     )
                     changed_files.append(file_change_request.filename)
                 else:
-                    logger.print("Didn't change file!")
+                    logger.info("Didn't change file!")
                     entity_display = file_change_request.entity_display
                     update_progress(
                         entity_display,
@@ -1122,8 +1122,8 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
+                logger.exception(traceback.format_exc())
+                logger.exception(e)
 
             if changes_required:
                 edit_sweep_comment(
@@ -1243,8 +1243,8 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.error.InvalidRequestError as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.exception(traceback.format_exc())
+            logger.exception(e)
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1278,8 +1278,8 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.exception(traceback.format_exc())
+            logger.exception(e)
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1317,7 +1317,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
+                logger.exception(e)
         finally:
             cloned_repo.delete()
 
@@ -1332,9 +1332,9 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
-                logger.error(traceback.format_exc())
-                logger.print("Deleted branch", pull_request.branch_name)
+                logger.exception(e)
+                logger.exception(traceback.format_exc())
+                logger.info("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
             username,
