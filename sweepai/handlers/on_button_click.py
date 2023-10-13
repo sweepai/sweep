@@ -69,6 +69,7 @@ def handle_revert(file_paths, pr_number, repo: Repository):
             if branch: return repo.get_contents(file_path, ref=branch)
             return repo.get_contents(file_path)
         except Exception as e:
+            logger.error(f"Error getting contents of file {file_path}: {e}")
             return None
     old_file_contents = [ get_contents_with_fallback(repo, file_path) for file_path in file_paths]
     for file_path, old_file_content in zip(file_paths, old_file_contents):
@@ -90,14 +91,14 @@ def handle_revert(file_paths, pr_number, repo: Repository):
                     branch=branch_name,
                 )
         except Exception as e:
-            pass # file may not exist and this is expected
+            logger.error(f"Error updating or deleting file {file_path}: {e}")
 
 def handle_rules(request_dict, rules, user_token, repo: Repository, gh_client):
     pr = repo.get_pull(request_dict["issue"]["number"])
     chat_logger = ChatLogger(
         {"username": request_dict["sender"]["login"]},
     )
-    comparison = repo.compare(pr.base.sha, pr.head.sha) # head is the most recent
+    comparison = repo.compare(pr.base.sha, pr.head.sha)
     commits_diff = comparison_to_diff(comparison)
     for rule in rules:
         changes_required, issue_title, issue_description = PostMerge(
