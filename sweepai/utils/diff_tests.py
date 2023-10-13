@@ -1,6 +1,7 @@
 import unittest
 import unittest.mock
 from sweepai.utils.diff import format_contents, is_markdown, diff_contains_dups_or_removals, generate_diff, revert_whitespace_changes, generate_new_file, match_string, get_snippet_with_padding, sliding_window_replacement, get_all_diffs, get_matches, generate_new_file_from_patch, join_contents_k
+from sweepai.utils.search_and_replace import Match
 
 class TestDiff(unittest.TestCase):
     def test_format_contents(self):
