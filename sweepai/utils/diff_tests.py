@@ -22,6 +22,14 @@ class TestDiffFunctions(unittest.TestCase):
         self.assertFalse(diff_contains_dups_or_removals("a\nb\nc", "a\nb\nc"))
         self.assertTrue(diff_contains_dups_or_removals("a\nb\nc", "a\nb\nb\nc"))
 
+    def test_lstrip_max(self):
+        self.assertEqual(lstrip_max("   test", " ", 2), " test")
+        self.assertEqual(lstrip_max("   test", " ", 0), "   test")
+
+    def test_get_all_diffs(self):
+        self.assertEqual(get_all_diffs("<<<<\na\n====\nb\n>>>>"), "<<<<\na\n====\nb\n>>>>")
+        self.assertEqual(get_all_diffs(""), "")
+
     def test_generate_diff(self):
         self.assertEqual(generate_diff("a\nb\nc", "a\nb\nc"), "")
         self.assertNotEqual(generate_diff("a\nb\nc", "a\nb\nb\nc"), "")
