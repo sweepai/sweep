@@ -1184,6 +1184,7 @@ File path: {file_path}
 Rewrite each of the {n} snippets above according to the request.
 * Do not delete whitespace or comments.
 * To delete code insert an empty string.
+* To add code before and after the snippet, be sure to copy the original snippet.
 
 Respond in the following format:
 
