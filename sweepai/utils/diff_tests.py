@@ -33,6 +33,7 @@ class TestDiffFunctions(unittest.TestCase):
     def test_get_all_diffs(self):
         self.assertEqual(get_all_diffs("<<<<\na\n====\nb\n>>>>"), "<<<<\na\n====\nb\n>>>>")
         self.assertEqual(get_all_diffs(""), "")
+        self.assertNotEqual(get_all_diffs("<<<<\na\n====\nb\n>>>>"), "<<<<\na\n====\nc\n>>>>")
 
     def test_generate_diff(self):
         self.assertEqual(generate_diff("a\nb\nc", "a\nb\nc"), "")
