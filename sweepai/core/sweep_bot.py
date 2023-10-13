@@ -10,6 +10,8 @@ from github.GithubException import GithubException, UnknownObjectException
 from github.Repository import Repository
 from pydantic import BaseModel
 
+from sweepai.agents.modify_bot import ModifyBot
+
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.graph_child import (
     GraphChildBot,
@@ -1414,6 +1416,27 @@ class SweepBot(CodeGenBot, GithubBot):
         return response
 
 
+# Necessary imports
+from typing import list
+
+from sweepai.core.chat import ChatGPT
+from sweepai.core.entities import Message
+from sweepai.agents.complete_code import ExtractLeftoverComments
+from sweepai.agents.prune_modify_snippets import PruneModifySnippets
+from sweepai.core.sweep_bot import SweepBot
+
+# Define or import the missing variables
+fetch_snippets_system_prompt = "Your definition or import here"
+update_snippets_system_prompt = "Your definition or import here"
+DEBUG = "Your definition or import here"
+fetch_snippets_prompt = "Your definition or import here"
+use_chunking_message = "Your definition or import here"
+dont_use_chunking_message = "Your definition or import here"
+extract_python_span = "Your definition or import here"
+strip_backticks = "Your definition or import here"
+UnneededEditError = "Your definition or import here"
+
+# ModifyBot class definition
 class ModifyBot:
     def __init__(
         self,
