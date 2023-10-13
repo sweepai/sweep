@@ -1149,7 +1149,7 @@ def on_ticket(
                 else ""
             )
             revert_buttons = []
-            for changed_file in changed_files:
+            for changed_file in set(changed_files):
                 revert_buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
             revert_buttons_list = ButtonList(
                 buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
