@@ -67,11 +67,9 @@ class ExtractLeftoverComments(ChatGPT):
 if __name__ == "__main__":
     leftover_comment_response = """<leftover_comments>
 <leftover_comment>
-TODO: Implement method to revert changes
-</leftover_comment>
-<leftover_comment>
-TODO: Implement method to regenerate changes
+TODO(sweep): We don't handle renamed files
 </leftover_comment>
 </leftover_comments>"""
 
     leftover_comments = LeftoverComments.from_string(leftover_comment_response)
+    print(leftover_comments.leftover_comments)
