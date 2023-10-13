@@ -203,7 +203,7 @@ def call_on_check_suite(*args, **kwargs):
 def call_on_comment(
     *args, **kwargs
 ):  # TODO: if its a GHA delete all previous GHA and append to the end
-    def worker():
+    def worker() -> None:
         while not events[key].empty():
             task_args, task_kwargs = events[key].get()
             run_on_comment(*task_args, **task_kwargs)
@@ -283,7 +283,7 @@ async def webhook(raw_request: Request):
                 pr = repo.get_pull(request_dict["pull_request"]["number"])
                 # if the pr already has a comment from sweep bot do nothing
 
-                def worker():
+                def worker() -> None:
                     time.sleep(60)
                     if any(
                         comment.user.login == GITHUB_BOT_USERNAME
