@@ -60,20 +60,6 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
         return
     comparison = repo.compare(before_sha, after_sha, context_lines=2)
     commits_diff = comparison_to_diff(comparison)
-    # rest of the code remains the same
-
-def on_merge(request_dict: dict, chat_logger: ChatLogger):
-    before_sha = request_dict['before']
-    after_sha = request_dict['after']
-    commit_author = request_dict['sender']['login']
-    ref = request_dict["ref"]
-    if not ref.startswith("refs/heads/"): return
-    user_token, g = get_github_client(request_dict["installation"]["id"])
-    repo = g.get_repo(request_dict["repository"]["full_name"]) # do this after checking ref
-    if ref[len("refs/heads/"):] != SweepConfig.get_branch(repo):
-        return
-    comparison = repo.compare(before_sha, after_sha)
-    commits_diff = comparison_to_diff(comparison)
     # check if the current repo is in the merge_rule_debounce dictionary
     # and if the difference between the current time and the time stored in the dictionary is less than DEBOUNCE_TIME seconds
     if (
