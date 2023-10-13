@@ -9,6 +9,13 @@ import re
 import traceback
 from time import time
 
+from loguru import logger
+import logtail
+from sweepai.config.server import LOGTAIL_SOURCE_KEY
+
+logger = logger.bind(time="time", level="level", message="message")
+logtail.start(LOGTAIL_SOURCE_KEY)
+
 import openai
 import requests
 from github import BadCredentialsException
@@ -66,7 +73,6 @@ from sweepai.handlers.create_pr import (
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
-from sweepai.logn import logger
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -151,7 +157,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error hydrating cache of sandbox: {e}")
+            logger.exception(f"Error hydrating cache of sandbox: {e}")
         logger.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
@@ -803,12 +809,24 @@ def on_ticket(
             # TODO: removed issue commenting here
             # TODO(william, luke) planning here
 
+            def validate_files(file_paths):
+                for file_path in file_paths:
+                    if not os.path.exists(file_path):
+                        raise Exception(f"File {file_path} does not exist.")
+                    if not os.access(file_path, os.W_OK):
+                        raise Exception(f"File {file_path} cannot be modified.")
+                    if not file_path.endswith(".py"):
+                        raise Exception(f"File {file_path} is not a Python file.")
+            
+            file_paths = human_message.get_file_paths()
+            validate_files(file_paths)
+            
             logger.info("Fetching files to modify/create...")
             non_python_count = sum(
                 not file_path.endswith(".py")
-                for file_path in human_message.get_file_paths()
+                for file_path in file_paths
             )
-            python_count = len(human_message.get_file_paths()) - non_python_count
+            python_count = len(file_paths) - non_python_count
             is_python_issue = python_count > non_python_count
             posthog.capture(
                 username,
