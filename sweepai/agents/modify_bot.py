@@ -1,12 +1,11 @@
 # Necessary imports
 
+from typing import Any
+
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.prune_modify_snippets import PruneModifySnippets
 from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import (
-    Message,
-)
-from sweepai.core.sweep_bot import SweepBot
+from sweepai.core.entities import Message
 
 
 # ModifyBot class definition
@@ -15,7 +14,7 @@ class ModifyBot:
         self,
         additional_messages: list[Message] = [],
         chat_logger=None,
-        parent_bot: SweepBot = None,
+        parent_bot: Any = None,
         is_pr: bool = False,
         **kwargs,
     ):
