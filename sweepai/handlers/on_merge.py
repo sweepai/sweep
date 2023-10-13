@@ -6,7 +6,7 @@ import copy
 import time
 
 from sweepai.logn import logger
-from sweepai.config.client import SweepConfig, get_rules
+from sweepai.config.client import SweepConfig, get_rules, get_blocked_dirs
 from sweepai.core.post_merge import PostMerge
 from sweepai.handlers.pr_utils import make_pr
 from sweepai.utils.chat_logger import ChatLogger
