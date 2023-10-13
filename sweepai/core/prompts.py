@@ -101,7 +101,6 @@ Issue Description:
 {description}
 </metadata>
 
-
 The code was written by an inexperienced programmer. Carefully review the code diffs in this pull request. Use the diffs along with the original plan to verify that each step of the plan was implemented correctly.
 
 Check for the following:
@@ -114,7 +113,7 @@ Indicate all breaking changes. Do not point out stylistic issues. Ensure that th
 Respond in the following format:
 
 <diff_analysis>
-Analysis of each diff and any potential errors in the diff. Reason about each change and highlight potential issues.
+Check each step of the plan and confirm whether it was both implemented and implemented correctly. Analyze each file_diff and highlight potential issues.
 ...
 </diff_analysis>
 
