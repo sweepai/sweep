@@ -11,12 +11,16 @@ class TestDiffFunctions(unittest.TestCase):
         self.assertEqual(format_contents("```test\ntest```", True), "test")
         self.assertEqual(format_contents("```test\ntest\ntest```", False), "test\ntest")
         self.assertEqual(format_contents("```test\ntest\ntest```", True), "test\ntest")
+        self.assertEqual(format_contents("```test\nspecial characters !@#$%^&*()\ntest```", False), "test\nspecial characters !@#$%^&*()\ntest")
+        self.assertEqual(format_contents("```test\nno markdown syntax\ntest```", True), "test\nno markdown syntax\ntest")
 
     def test_is_markdown(self):
         self.assertTrue(is_markdown("test.md"))
         self.assertTrue(is_markdown("test.rst"))
         self.assertTrue(is_markdown("test.txt"))
         self.assertFalse(is_markdown("test.py"))
+        self.assertFalse(is_markdown(None))
+        self.assertFalse(is_markdown(""))
 
     def test_diff_contains_dups_or_removals(self):
         self.assertFalse(diff_contains_dups_or_removals("a\nb\nc", "a\nb\nc"))
