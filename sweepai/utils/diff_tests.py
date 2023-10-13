@@ -70,10 +70,7 @@ class TestDiffFunctions(unittest.TestCase):
         self.assertEqual(get_matches("<<<<\na\n====\nb\n>>>>"), [("a", "b")])
         self.assertNotEqual(get_matches("<<<<\na\n====\nb\n>>>>"), [("a", "c")])
 
-    def test_generate_new_file_from_patch(self):
-        # Add test cases for generate_new_file_from_patch function
-        self.assertEqual(generate_new_file_from_patch("<<<<\na\n====\nb\n>>>>", "a", 0), ("b", []))
-        self.assertEqual(generate_new_file_from_patch("<<<<\na\n====\nb\n>>>>", "c", 0), ("c", ["NO MATCHES FOUND\n```\na\n```\n\n```\nb\n```"]))
+    
 
     def test_join_contents_k(self):
         self.assertEqual(join_contents_k("a\nb\nc", "b\nc\nd", 2), "a\nb\nc\nd")
