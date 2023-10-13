@@ -32,15 +32,18 @@ class TestDiffFunctions(unittest.TestCase):
 
     def test_match_string(self):
         # Add test cases for match_string function
-
-    def test_lstrip_max(self):
-        # Add test cases for lstrip_max function
+        self.assertEqual(match_string(["a", "b", "c"], ["b"]), Match(1, 2, 100))
+        self.assertEqual(match_string(["a", "b", "c"], ["d"]), Match(0, 0, 0))
 
     def test_get_snippet_with_padding(self):
         # Add test cases for get_snippet_with_padding function
+        self.assertEqual(get_snippet_with_padding(["a", "b", "c"], Match(1, 2, 100), ["b"]), (["b"], "", False))
+        self.assertEqual(get_snippet_with_padding(["a", "b", "c"], Match(0, 0, 0), ["d"]), ([], "", False))
 
     def test_sliding_window_replacement(self):
         # Add test cases for sliding_window_replacement function
+        self.assertEqual(sliding_window_replacement(["a", "b", "c"], ["b"], ["d"]), (["a", "d", "c"], Match(1, 2, 100), None))
+        self.assertEqual(sliding_window_replacement(["a", "b", "c"], ["d"], ["e"]), (["a", "b", "c"], Match(0, 0, 0), None))
 
     def test_get_all_diffs(self):
         # Add test cases for get_all_diffs function
@@ -50,6 +53,8 @@ class TestDiffFunctions(unittest.TestCase):
 
     def test_generate_new_file_from_patch(self):
         # Add test cases for generate_new_file_from_patch function
+        self.assertEqual(generate_new_file_from_patch("<<<<\na\n====\nb\n>>>>", "a", 0), ("b", []))
+        self.assertEqual(generate_new_file_from_patch("<<<<\na\n====\nb\n>>>>", "c", 0), ("c", ["NO MATCHES FOUND\n```\na\n```\n\n```\nb\n```"]))
 
     def test_join_contents_k(self):
         # Add test cases for join_contents_k function
