@@ -66,7 +66,8 @@ from sweepai.handlers.create_pr import (
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
-from sweepai.logn import logger
+from loguru import logger
+import logtail
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -136,7 +137,7 @@ def on_ticket(
 
     # Hydrate cache of sandbox
     if not DEBUG:
-        logger.info("Hydrating cache of sandbox.")
+        loguru.logger.info("Hydrating cache of sandbox.")
         try:
             requests.post(
                 SANDBOX_URL,
@@ -147,21 +148,21 @@ def on_ticket(
                 timeout=2,
             )
         except Timeout:
-            logger.info("Sandbox hydration timed out.")
+            loguru.logger.info("Sandbox hydration timed out.")
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error hydrating cache of sandbox: {e}")
-        logger.info("Done sending, letting it run in the background.")
+            loguru.logger.warning(f"Error hydrating cache of sandbox: {e}")
+        loguru.logger.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
     if branch_match:
         branch_name = branch_match.group(1)
         SweepConfig.get_branch(repo, branch_name)
-        logger.info(f"Overrides Branch name: {branch_name}")
+        loguru.logger.info(f"Overrides Branch name: {branch_name}")
     else:
-        logger.info(f"Overrides not detected for branch {summary}")
+        loguru.logger.info(f"Overrides not detected for branch {summary}")
 
     chat_logger = (
         ChatLogger(
@@ -234,6 +235,9 @@ def on_ticket(
         "fast_mode": fast_mode,
         "is_self_hosted": IS_SELF_HOSTED,
     }
+
+    logger = logger.bind(**metadata)
+    logtail.setup(token=LOGTAIL_TOKEN)
 
     posthog.capture(username, "started", properties=metadata)
 
