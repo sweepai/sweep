@@ -8,10 +8,6 @@ from sweepai.core.entities import (
 )
 from sweepai.core.sweep_bot import SweepBot
 
-# Define or import the missing variables
-fetch_snippets_system_prompt = "Your definition or import here"
-update_snippets_system_prompt = "Your definition or import here"
-
 
 # ModifyBot class definition
 class ModifyBot:
@@ -23,13 +19,9 @@ class ModifyBot:
         is_pr: bool = False,
         **kwargs,
     ):
-        self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
-            fetch_snippets_system_prompt, chat_logger=chat_logger, **kwargs
-        )
+        self.fetch_snippets_bot: ChatGPT = ChatGPT(chat_logger=chat_logger, **kwargs)
         self.fetch_snippets_bot.messages.extend(additional_messages)
-        self.update_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
-            update_snippets_system_prompt, chat_logger=chat_logger, **kwargs
-        )
+        self.update_snippets_bot: ChatGPT = ChatGPT(chat_logger=chat_logger, **kwargs)
         self.update_snippets_bot.messages.extend(additional_messages)
         self.parent_bot = parent_bot
 
