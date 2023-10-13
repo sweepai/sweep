@@ -27,37 +27,9 @@ diff_section_prompt = """
 {diffs}
 </file_diff>"""
 
-from sweepai.config.client import get_blocked_dirs
-
-def comparison_to_diff(comparison, repo):
+def comparison_to_diff(comparison):
     pr_diffs = []
-    blocked_dirs = get_blocked_dirs(repo)
     for file in comparison.files:
-        if any(file.filename.startswith(dir) for dir in blocked_dirs):
-            continue
-        diff = file.patch
-        if (
-            file.status == "added"
-            or file.status == "modified"
-            or file.status == "removed"
-            or file.status == "renamed"
-        ):
-            pr_diffs.append((file.filename, diff))
-        else:
-            logger.info(
-                f"File status {file.status} not recognized"
-            )
-    formatted_diffs = []
-    for file_name, file_patch in pr_diffs:
-        format_diff = diff_section_prompt.format(
-            diff_file_path=file_name, diffs=file_patch
-        )
-        formatted_diffs.append(format_diff)
-    return "\n".join(formatted_diffs)
-    blocked_dirs = get_blocked_dirs(repo)
-    for file in comparison.files:
-        if any(file.filename.startswith(dir) for dir in blocked_dirs):
-            continue
         diff = file.patch
         if (
             file.status == "added"
@@ -88,7 +60,7 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
     if ref[len("refs/heads/"):] != SweepConfig.get_branch(repo):
         return
     comparison = repo.compare(before_sha, after_sha)
-    commits_diff = comparison_to_diff(comparison, repo)
+    commits_diff = comparison_to_diff(comparison)
     # check if the current repo is in the merge_rule_debounce dictionary
     # and if the difference between the current time and the time stored in the dictionary is less than DEBOUNCE_TIME seconds
     if (
