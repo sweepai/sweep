@@ -29,9 +29,9 @@ diff_section_prompt = """
 
 from sweepai.config.client import get_blocked_dirs
 
-def comparison_to_diff(comparison):
+def comparison_to_diff(comparison, repo):
     pr_diffs = []
-    blocked_dirs = get_blocked_dirs()
+    blocked_dirs = get_blocked_dirs(repo)
     for file in comparison.files:
         if any(file.filename.startswith(dir) for dir in blocked_dirs):
             continue
@@ -42,10 +42,12 @@ def comparison_to_diff(comparison):
             or file.status == "removed"
         ):
             pr_diffs.append((file.filename, diff))
+        elif file.status == "renamed":
+            pr_diffs.append((f"{file.previous_filename} renamed to {file.filename}", diff))
         else:
             logger.info(
                 f"File status {file.status} not recognized"
-            )  # TODO(sweep): We don't handle renamed files
+            )
     formatted_diffs = []
     for file_name, file_patch in pr_diffs:
         format_diff = diff_section_prompt.format(
@@ -65,7 +67,7 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
     if ref[len("refs/heads/"):] != SweepConfig.get_branch(repo):
         return
     comparison = repo.compare(before_sha, after_sha)
-    commits_diff = comparison_to_diff(comparison)
+    commits_diff = comparison_to_diff(comparison, repo)
     # check if the current repo is in the merge_rule_debounce dictionary
     # and if the difference between the current time and the time stored in the dictionary is less than DEBOUNCE_TIME seconds
     if (
