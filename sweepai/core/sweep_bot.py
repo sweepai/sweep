@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from sweepai.agents.modify_bot import ModifyBot
 
+from sweepai.agents.modify_bot import ModifyBot
 from sweepai.agents.complete_code import ExtractLeftoverComments
 from sweepai.agents.graph_child import (
     GraphChildBot,
