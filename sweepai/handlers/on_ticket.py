@@ -74,7 +74,7 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 
-logtail.Logger(source_key=LOGTAIL_SOURCE_KEY)
+logtail_logger = logtail.Logger(source_key=LOGTAIL_SOURCE_KEY)
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.search_utils import search_snippets
 from sweepai.utils.ticket_utils import *
@@ -244,10 +244,10 @@ def on_ticket(
     posthog.capture(username, "started", properties=metadata)
 
     try:
-        logger.info(f"Getting repo {repo_full_name}")
+        loguru.logger.info(f"Getting repo {repo_full_name}")
 
         if current_issue.state == "closed":
-            logger.warning(f"Issue {issue_number} is closed")
+            loguru.logger.warning(f"Issue {issue_number} is closed")
             posthog.capture(
                 username,
                 "issue_closed",
@@ -274,7 +274,7 @@ def on_ticket(
         replies_text = ""
         comments = list(current_issue.get_comments())
         if comment_id:
-            logger.info(f"Replying to comment {comment_id}...")
+            loguru.logger.info(f"Replying to comment {comment_id}...")
             replies_text = "\nComments:\n" + "\n".join(
                 [
                     issue_comment_prompt.format(
@@ -593,8 +593,7 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             trace = traceback.format_exc()
-            logger.error(e)
-            logger.error(trace)
+            loguru.logger.error(e)
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
@@ -1134,7 +1133,7 @@ def on_ticket(
                             + "\n\nI'm currently addressing these suggestions.",
                             3,
                         )
-                        logtail.info(f"Addressing review comment {review_comment}")
+                        loguru.logger.info(f"Addressing review comment {review_comment}")
                         on_comment(
                             repo_full_name=repo_full_name,
                             repo_description=repo_description,
@@ -1152,7 +1151,6 @@ def on_ticket(
                     raise SystemExit
                 except Exception as e:
                     loguru.logger.error(traceback.format_exc())
-                    loguru.logger.error(e)
     
                 if changes_required:
                     edit_sweep_comment(
@@ -1215,9 +1213,9 @@ def on_ticket(
                 done=True,
             )
 
-            logtail.info("Add successful ticket to counter")
+            loguru.logger.info("Add successful ticket to counter")
         except MaxTokensExceeded as e:
-            logtail.info("Max tokens exceeded")
+            loguru.logger.info("Max tokens exceeded")
             log_error(
                 is_paying_user,
                 is_consumer_tier,
@@ -1250,7 +1248,7 @@ def on_ticket(
             delete_branch = True
             raise e
         except NoFilesException as e:
-            logtail.info("Sweep could not find files to modify")
+            loguru.logger.info("Sweep could not find files to modify")
             log_error(
                 is_paying_user,
                 is_consumer_tier,
@@ -1273,7 +1271,6 @@ def on_ticket(
             raise e
         except openai.error.InvalidRequestError as e:
             loguru.logger.error(traceback.format_exc())
-            loguru.logger.error(e)
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1308,7 +1305,6 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             loguru.logger.error(traceback.format_exc())
-            loguru.logger.error(e)
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1361,9 +1357,9 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logtail.error(e)
-                logtail.error(traceback.format_exc())
-                logtail.info("Deleted branch", pull_request.branch_name)
+                loguru.logger.error(e)
+                loguru.logger.error(traceback.format_exc())
+                loguru.logger.info("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
             username,
@@ -1382,5 +1378,5 @@ def on_ticket(
         "success",
         properties={**metadata, "duration": time() - on_ticket_start_time},
     )
-    logtail.info("on_ticket success")
+    loguru.logger.info("on_ticket success")
     return {"success": True}
