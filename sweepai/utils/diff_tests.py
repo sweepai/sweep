@@ -19,16 +19,20 @@ class TestDiffFunctions(unittest.TestCase):
         self.assertFalse(is_markdown("test.py"))
 
     def test_diff_contains_dups_or_removals(self):
-        # Add test cases for diff_contains_dups_or_removals function
+        self.assertFalse(diff_contains_dups_or_removals("a\nb\nc", "a\nb\nc"))
+        self.assertTrue(diff_contains_dups_or_removals("a\nb\nc", "a\nb\nb\nc"))
 
     def test_generate_diff(self):
-        # Add test cases for generate_diff function
+        self.assertEqual(generate_diff("a\nb\nc", "a\nb\nc"), "")
+        self.assertNotEqual(generate_diff("a\nb\nc", "a\nb\nb\nc"), "")
 
     def test_revert_whitespace_changes(self):
-        # Add test cases for revert_whitespace_changes function
+        self.assertEqual(revert_whitespace_changes("a\nb\nc", " a\n b\n c"), "a\nb\nc")
+        self.assertEqual(revert_whitespace_changes("a\nb\nc", "a\nb\n c"), "a\nb\nc")
 
     def test_generate_new_file(self):
-        # Add test cases for generate_new_file function
+        self.assertEqual(generate_new_file("<<<<\na\n====\nb\n>>>>", "a", 0), ("b", []))
+        self.assertEqual(generate_new_file("<<<<\na\n====\nb\n>>>>", "c", 0), ("c", ["NO MATCHES FOUND\n```\na\n```\n\n```\nb\n```"]))
 
     def test_match_string(self):
         # Add test cases for match_string function
@@ -46,10 +50,12 @@ class TestDiffFunctions(unittest.TestCase):
         self.assertEqual(sliding_window_replacement(["a", "b", "c"], ["d"], ["e"]), (["a", "b", "c"], Match(0, 0, 0), None))
 
     def test_get_all_diffs(self):
-        # Add test cases for get_all_diffs function
+        self.assertEqual(get_all_diffs("<<<<\na\n====\nb\n>>>>"), "<<<<\na\n====\nb\n>>>>")
+        self.assertNotEqual(get_all_diffs("<<<<\na\n====\nb\n>>>>"), "<<<<\na\n====\nc\n>>>>")
 
     def test_get_matches(self):
-        # Add test cases for get_matches function
+        self.assertEqual(get_matches("<<<<\na\n====\nb\n>>>>"), [("a", "b")])
+        self.assertNotEqual(get_matches("<<<<\na\n====\nb\n>>>>"), [("a", "c")])
 
     def test_generate_new_file_from_patch(self):
         # Add test cases for generate_new_file_from_patch function
@@ -57,7 +63,8 @@ class TestDiffFunctions(unittest.TestCase):
         self.assertEqual(generate_new_file_from_patch("<<<<\na\n====\nb\n>>>>", "c", 0), ("c", ["NO MATCHES FOUND\n```\na\n```\n\n```\nb\n```"]))
 
     def test_join_contents_k(self):
-        # Add test cases for join_contents_k function
+        self.assertEqual(join_contents_k("a\nb\nc", "b\nc\nd", 2), "a\nb\nc\nd")
+        self.assertNotEqual(join_contents_k("a\nb\nc", "b\nc\nd", 2), "a\nb\nc\nb\nc\nd")
 
 if __name__ == '__main__':
     unittest.main()
