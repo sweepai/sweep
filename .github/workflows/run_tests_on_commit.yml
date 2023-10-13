@@ -1,0 +1,33 @@
+name: Run tests on commit
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Get list of modified Python files
+        id: get-changed-files
+        run: |
+          echo "::set-output name=files::$(git diff --name-only HEAD^ HEAD | grep '\.py$' | sed 's/\.py$/_test.py/')"
+
+      - name: Run tests
+        run: |
+          for file in ${{ steps.get-changed-files.outputs.files }}
+          do
+            python -m unittest $file
+          done
