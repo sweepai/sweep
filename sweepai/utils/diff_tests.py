@@ -62,9 +62,7 @@ class TestDiffFunctions(unittest.TestCase):
         self.assertEqual(sliding_window_replacement(["a", "b", "c"], ["b"], ["d"]), (["a", "d", "c"], Match(1, 2, 100), None))
         self.assertEqual(sliding_window_replacement(["a", "b", "c"], ["d"], ["e"]), (["a", "b", "c"], Match(0, 0, 0), None))
 
-    def test_get_all_diffs(self):
-        self.assertEqual(get_all_diffs("<<<<\na\n====\nb\n>>>>"), "<<<<\na\n====\nb\n>>>>")
-        self.assertNotEqual(get_all_diffs("<<<<\na\n====\nb\n>>>>"), "<<<<\na\n====\nc\n>>>>")
+    # Removed duplicate test method
 
     def test_get_matches(self):
         self.assertEqual(get_matches("<<<<\na\n====\nb\n>>>>"), [("a", "b")])
