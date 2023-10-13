@@ -85,7 +85,10 @@ def center(text: str) -> str:
 
 
 from loguru import logger
-from logtail import Logger
+from logtail import LogtailHandler
+from sweepai.config.server import LOGTAIL_SOURCE_KEY
+
+logger.add(LogtailHandler(source_token=LOGTAIL_SOURCE_KEY))
 
 def on_ticket(
     title: str,
