@@ -17,6 +17,7 @@ from sweepai.agents.graph_child import (
     extract_python_span,
 )
 from sweepai.agents.graph_parent import GraphParentBot
+from sweepai.agents.prune_modify_snippets import PruneModifySnippets
 from sweepai.agents.validate_code import ChangeValidation, ChangeValidator
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
 from sweepai.config.server import DEBUG, SANDBOX_URL, SECONDARY_MODEL
@@ -829,7 +830,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 additional_messages = [
                     Message(
                         role="user",
-                        content="The following are the changes in the PR:\n"
+                        content="These changes have already been made:\n"
                         + self.comment_pr_diff_str,
                         key="pr_diffs",
                     )
@@ -1382,7 +1383,7 @@ class SweepBot(CodeGenBot, GithubBot):
         )
         yield file_changed, sandbox_response, commit_message, changed_files
         for _ in range(3):
-            if sandbox_response.success:
+            if sandbox_response and sandbox_response.success:
                 break
             if sandbox_response and not sandbox_response.success:
                 new_file_change_request = file_change_request
@@ -1435,11 +1436,11 @@ class ModifyBot:
         self.extract_leftover_comments_bot: ExtractLeftoverComments = (
             ExtractLeftoverComments(chat_logger=chat_logger, **kwargs)
         )
-
-        self.extract_leftover_comments_bot: ExtractLeftoverComments = (
-            ExtractLeftoverComments(chat_logger=chat_logger, **kwargs)
-        )
         self.extract_leftover_comments_bot.messages.extend(additional_messages)
+        self.prune_modify_snippets_bot: PruneModifySnippets = (
+            PruneModifySnippets(chat_logger=chat_logger, **kwargs)
+        )
+        self.prune_modify_snippets_bot.messages.extend(additional_messages)
         self.chat_logger = chat_logger
         self.additional_messages = additional_messages
 
@@ -1472,6 +1473,7 @@ class ModifyBot:
                 f"Address all of the unfinished code changes here: \n{joined_comments}"
             )
             self.fetch_snippets_bot.messages = self.fetch_snippets_bot.messages[:-2]
+            self.prune_modify_snippets_bot.messages = self.prune_modify_snippets_bot.messages[:-2]
             snippet_queries, extraction_terms = self.get_snippets_to_modify(
                 file_path=file_path,
                 file_contents=new_file,
@@ -1491,6 +1493,8 @@ class ModifyBot:
             file_change_request.new_content = new_file
             file_change_request.instructions = change_validation.additional_changes
             self.fetch_snippets_bot.messages = self.fetch_snippets_bot.messages[:-2]
+            self.prune_modify_snippets_bot.messages = self.prune_modify_snippets_bot.messages[:-2]
+            # TODO: delete messages in the bots themselves
             snippet_queries, extraction_terms = self.get_snippets_to_modify(
                 file_path=file_path,
                 file_contents=file_contents,
@@ -1673,6 +1677,24 @@ class ModifyBot:
             update_snippets_code = extract_python_span(
                 file_contents, [file_change_request.entity]
             ).content
+
+        indices_to_keep = self.prune_modify_snippets_bot.prune_modify_snippets(
+                snippets="\n\n".join(
+                    [
+                        f'<snippet index="{i}">\n{snippet}\n</snippet>'
+                        for i, snippet in enumerate(selected_snippets)
+                    ]
+                ),
+                file_path=file_path,
+                old_code=update_snippets_code,
+                request=file_change_request.instructions,
+            )
+        
+        pruned_snippets = []
+        for idx, snippet in enumerate(selected_snippets):
+            if idx in indices_to_keep:
+                pruned_snippets.append(snippet)
+        selected_snippets = pruned_snippets
 
         update_snippets_response = self.update_snippets_bot.chat(
             update_snippets_prompt.format(

@@ -12,13 +12,6 @@ from sweepai.utils.prompt_constructor import (
     HumanMessagePromptReview,
 )
 
-# Plan:
-# 1. Get PR
-# 2. Get files changed
-# 3. Come up with some comments for the PR
-# 4. Take comments and add them to the PR
-
-
 def get_pr_diffs(repo, pr):
     base_sha = pr.base.sha
     head_sha = pr.head.sha
