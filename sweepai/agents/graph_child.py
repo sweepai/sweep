@@ -145,7 +145,9 @@ class GraphChildBot(ChatGPT):
     ) -> GraphContextAndPlan:
         if not entities:
             return GraphContextAndPlan(
-                relevant_new_snippet=Snippet(file_path="", start=0, end=0, content=code),
+                relevant_new_snippet=[
+                    Snippet(file_path="", start=0, end=0, content=code)
+                ],
                 code_change_description="",
                 file_path=file_path,
             )
