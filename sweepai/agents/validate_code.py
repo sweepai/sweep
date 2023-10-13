@@ -229,6 +229,9 @@ class ChangeValidator(ChatGPT):
                     logger.warning(f"Invalid diff ID: {diff}")
                     continue
                 idx = alphabet.index(diff)
+                if idx not in self.updated_snippets:
+                    logger.warning(f"Invalid index: {idx}")
+                    continue
                 del self.updated_snippets[idx]
         new_code = self.create_new_file()
         return new_code

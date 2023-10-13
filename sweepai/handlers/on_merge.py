@@ -27,7 +27,7 @@ diff_section_prompt = """
 {diffs}
 </file_diff>"""
 
-def comparison_to_diff(comparison):
+def comparison_to_diff(comparison, blocked_dirs):
     pr_diffs = []
     for file in comparison.files:
         diff = file.patch
@@ -36,6 +36,8 @@ def comparison_to_diff(comparison):
             or file.status == "modified"
             or file.status == "removed"
         ):
+            if any(file.filename.startswith(dir) for dir in blocked_dirs):
+                continue
             pr_diffs.append((file.filename, diff))
         else:
             logger.info(
@@ -59,8 +61,9 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
     repo = g.get_repo(request_dict["repository"]["full_name"]) # do this after checking ref
     if ref[len("refs/heads/"):] != SweepConfig.get_branch(repo):
         return
+    blocked_dirs = SweepConfig.get_blocked_dirs(repo)
     comparison = repo.compare(before_sha, after_sha)
-    commits_diff = comparison_to_diff(comparison)
+    commits_diff = comparison_to_diff(comparison, blocked_dirs)
     # check if the current repo is in the merge_rule_debounce dictionary
     # and if the difference between the current time and the time stored in the dictionary is less than DEBOUNCE_TIME seconds
     if (
