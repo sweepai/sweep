@@ -980,9 +980,13 @@ def on_ticket(
                 sandbox_response: SandboxResponse | None = sandbox_response
                 logger.print(sandbox_response)
                 commit_hash: str = (
-                    commit.sha
-                    if commit is not None
-                    else repo.get_branch(pull_request.branch_name).commit.sha
+                    commit
+                    if isinstance(commit, str)
+                    else (
+                        commit.sha
+                        if commit is not None
+                        else repo.get_branch(pull_request.branch_name).commit.sha
+                    )
                 )
                 commit_url = f"https://github.com/{repo_full_name}/commit/{commit_hash}"
                 commit_url_display = (
