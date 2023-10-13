@@ -284,28 +284,39 @@ async def webhook(raw_request: Request):
                 # if the pr already has a comment from sweep bot do nothing
 
                 def worker():
-                    time.sleep(60)
-                    if any(
-                        comment.user.login == GITHUB_BOT_USERNAME
-                        for comment in pr.get_issue_comments()
-                    ):
-                        return {
-                            "success": True,
-                            "reason": "PR already has a comment from sweep bot",
-                        }
-                    rule_buttons = []
-                    for rule in get_rules(repo):
-                        rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-                    if not rule_buttons:
-                        for rule in DEFAULT_RULES:
+                    def create_rule_buttons(rules):
+                        rule_buttons = []
+                        for rule in rules:
                             rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-                    if rule_buttons:
-                        rules_buttons_list = ButtonList(
-                            buttons=rule_buttons, title=RULES_TITLE
-                        )
-                        pr.create_issue_comment(rules_buttons_list.serialize())
-
-                thread = threading.Thread(target=worker)
+                        return rule_buttons
+                    
+                    ...
+                    
+                    async def webhook(raw_request: Request):
+                        ...
+                    
+                        def worker():
+                            time.sleep(60)
+                            if any(
+                                comment.user.login == GITHUB_BOT_USERNAME
+                                for comment in pr.get_issue_comments()
+                            ):
+                                return {
+                                    "success": True,
+                                    "reason": "PR already has a comment from sweep bot",
+                                }
+                            rule_buttons = create_rule_buttons(get_rules(repo))
+                            if not rule_buttons:
+                                rule_buttons = create_rule_buttons(DEFAULT_RULES)
+                            rules_buttons_list = ButtonList(
+                                buttons=rule_buttons, title=RULES_TITLE
+                            )
+                            pr.create_issue_comment(rules_buttons_list.serialize())
+                    
+                        thread = threading.Thread(target=worker)
+                        thread.start()
+                    
+                        ...
                 thread.start()
             case "issues", "opened":
                 logger.info(f"Received event: {event}, {action}")
