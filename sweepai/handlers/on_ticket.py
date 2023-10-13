@@ -873,7 +873,7 @@ def on_ticket(
             checkboxes_progress: list[tuple[str, str, str]] = [
                 (
                     file_change_request.entity_display,
-                    file_change_request.instructions,
+                    file_change_request.instructions + "<hr/>",
                     " ",
                 )
                 for file_change_request in file_change_requests
@@ -964,7 +964,7 @@ def on_ticket(
                 for i, (entity_display_, instructions, status_) in enumerate(
                     checkboxes_progress
                 ):
-                    if entity_display_ == entity_display:
+                    if entity_display in entity_display_:
                         checkboxes_progress[i] = (
                             header,
                             instructions + error_logs,
