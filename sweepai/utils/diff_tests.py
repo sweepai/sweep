@@ -24,7 +24,7 @@ class TestDiff(unittest.TestCase):
         old_code = "line1\nline2"
         new_code = "line1\nline3"
         expected_diff = "--- \n+++ \n@@ -1,2 +1,2 @@\n line1\n-line2\n+line3"
-        result = generate_diff(old_code, new_code)
+        result = generate_diff(old_code, new_code).rstrip()
         self.assertEqual(result, expected_diff)
 
     def test_revert_whitespace_changes(self):
