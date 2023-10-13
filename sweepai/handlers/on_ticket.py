@@ -9,6 +9,13 @@ import re
 import traceback
 from time import time
 
+from loguru import logger
+from logtail import LogtailHandler
+from sweepai.config.server import LOGTAIL_SOURCE_KEY
+
+logtail_handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
+logger.add(logtail_handler)
+
 import openai
 import requests
 from github import BadCredentialsException
@@ -66,7 +73,6 @@ from sweepai.handlers.create_pr import (
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
-from sweepai.logn import logger
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -136,7 +142,8 @@ def on_ticket(
 
     # Hydrate cache of sandbox
     if not DEBUG:
-        logger.info("Hydrating cache of sandbox.")
+        metadata = {"message": "Hydrating cache of sandbox."}
+        logger.bind(**metadata).info("Hydrating cache of sandbox.")
         try:
             requests.post(
                 SANDBOX_URL,
@@ -147,21 +154,26 @@ def on_ticket(
                 timeout=2,
             )
         except Timeout:
-            logger.info("Sandbox hydration timed out.")
+            metadata = {"message": "Sandbox hydration timed out."}
+            logger.bind(**metadata).info("Sandbox hydration timed out.")
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error hydrating cache of sandbox: {e}")
-        logger.info("Done sending, letting it run in the background.")
+            metadata = {"message": f"Error hydrating cache of sandbox: {e}"}
+            logger.bind(**metadata).exception(f"Error hydrating cache of sandbox: {e}")
+        metadata = {"message": "Done sending, letting it run in the background."}
+        logger.bind(**metadata).info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
     if branch_match:
         branch_name = branch_match.group(1)
         SweepConfig.get_branch(repo, branch_name)
-        logger.info(f"Overrides Branch name: {branch_name}")
+        metadata = {"message": f"Overrides Branch name: {branch_name}"}
+        logger.bind(**metadata).info(f"Overrides Branch name: {branch_name}")
     else:
-        logger.info(f"Overrides not detected for branch {summary}")
+        metadata = {"message": f"Overrides not detected for branch {summary}"}
+        logger.bind(**metadata).info(f"Overrides not detected for branch {summary}")
 
     chat_logger = (
         ChatLogger(
@@ -1099,42 +1111,68 @@ def on_ticket(
                     + blockquote(review_comment)
                     + "\n\n"
                 )
+                try:
+                    # CODE REVIEW
+                    changes_required, review_comment = review_pr(
+                        repo=repo,
+                        pr=pr_changes,
+                        issue_url=issue_url,
+                        username=username,
+                        repo_description=repo_description,
+                        title=title,
+                        summary=summary,
+                        replies_text=replies_text,
+                        tree=tree,
+                        lint_output=lint_output,
+                        plan=plan,  # plan for the PR
+                        chat_logger=chat_logger,
+                        commit_history=commit_history,
+                    )
+                    lint_output = None
+                    review_message += (
+                        f"Here is the {ordinal(1)} review\n"
+                        + blockquote(review_comment)
+                        + "\n\n"
+                    )
+                    if changes_required:
+                        edit_sweep_comment(
+                            review_message
+                            + "\n\nI'm currently addressing these suggestions.",
+                            3,
+                        )
+                        metadata = {"message": f"Addressing review comment {review_comment}"}
+                        logger.bind(**metadata).info(f"Addressing review comment {review_comment}")
+                        on_comment(
+                            repo_full_name=repo_full_name,
+                            repo_description=repo_description,
+                            comment=review_comment,
+                            username=username,
+                            installation_id=installation_id,
+                            pr_path=None,
+                            pr_line_position=None,
+                            pr_number=None,
+                            pr=pr_changes,
+                            chat_logger=chat_logger,
+                            repo=repo,
+                        )
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    metadata = {"message": traceback.format_exc()}
+                    logger.bind(**metadata).exception(traceback.format_exc())
+                    metadata = {"message": str(e)}
+                    logger.bind(**metadata).exception(str(e))
+    
                 if changes_required:
                     edit_sweep_comment(
-                        review_message
-                        + "\n\nI'm currently addressing these suggestions.",
+                        review_message + "\n\nI finished incorporating these changes.",
                         3,
                     )
-                    logger.info(f"Addressing review comment {review_comment}")
-                    on_comment(
-                        repo_full_name=repo_full_name,
-                        repo_description=repo_description,
-                        comment=review_comment,
-                        username=username,
-                        installation_id=installation_id,
-                        pr_path=None,
-                        pr_line_position=None,
-                        pr_number=None,
-                        pr=pr_changes,
-                        chat_logger=chat_logger,
-                        repo=repo,
+                else:
+                    edit_sweep_comment(
+                        f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
+                        3,
                     )
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
-
-            if changes_required:
-                edit_sweep_comment(
-                    review_message + "\n\nI finished incorporating these changes.",
-                    3,
-                )
-            else:
-                edit_sweep_comment(
-                    f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
-                    3,
-                )
 
             pr_actions_message = (
                 create_action_buttons(
@@ -1188,7 +1226,8 @@ def on_ticket(
 
             logger.info("Add successful ticket to counter")
         except MaxTokensExceeded as e:
-            logger.info("Max tokens exceeded")
+            metadata = {"message": "Max tokens exceeded"}
+            logger.bind(**metadata).info("Max tokens exceeded")
             log_error(
                 is_paying_user,
                 is_consumer_tier,
@@ -1221,7 +1260,8 @@ def on_ticket(
             delete_branch = True
             raise e
         except NoFilesException as e:
-            logger.info("Sweep could not find files to modify")
+            metadata = {"message": "Sweep could not find files to modify"}
+            logger.bind(**metadata).info("Sweep could not find files to modify")
             log_error(
                 is_paying_user,
                 is_consumer_tier,
@@ -1243,8 +1283,10 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.error.InvalidRequestError as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            metadata = {"message": traceback.format_exc()}
+            logger.bind(**metadata).exception(traceback.format_exc())
+            metadata = {"message": str(e)}
+            logger.bind(**metadata).exception(str(e))
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1278,8 +1320,10 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            metadata = {"message": traceback.format_exc()}
+            logger.bind(**metadata).exception(traceback.format_exc())
+            metadata = {"message": str(e)}
+            logger.bind(**metadata).exception(str(e))
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1317,7 +1361,8 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
+                metadata = {"message": str(e)}
+                logger.bind(**metadata).exception(str(e))
         finally:
             cloned_repo.delete()
 
@@ -1332,8 +1377,10 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                metadata = {"message": str(e)}
+                logger.bind(**metadata).exception(str(e))
+                metadata = {"message": traceback.format_exc()}
+                logger.bind(**metadata).exception(traceback.format_exc())
                 logger.print("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
@@ -1353,5 +1400,6 @@ def on_ticket(
         "success",
         properties={**metadata, "duration": time() - on_ticket_start_time},
     )
-    logger.info("on_ticket success")
+    metadata = {"message": "on_ticket success"}
+    logger.bind(**metadata).info("on_ticket success")
     return {"success": True}
