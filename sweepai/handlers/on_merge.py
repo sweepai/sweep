@@ -27,9 +27,14 @@ diff_section_prompt = """
 {diffs}
 </file_diff>"""
 
+from sweepai.config.client import get_blocked_dirs
+
 def comparison_to_diff(comparison):
     pr_diffs = []
+    blocked_dirs = get_blocked_dirs()
     for file in comparison.files:
+        if any(file.filename.startswith(dir) for dir in blocked_dirs):
+            continue
         diff = file.patch
         if (
             file.status == "added"
