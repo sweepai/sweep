@@ -49,7 +49,7 @@ def comparison_to_diff(comparison):
         formatted_diffs.append(format_diff)
     return "\n".join(formatted_diffs)
 
-def on_merge(request_dict: dict, chat_logger: ChatLogger):
+def on_merge(request_dict: dict, chat_logger: ChatLogger, before_sha: str, after_sha: str, commit_author: str, ref: str):
     before_sha = request_dict['before']
     after_sha = request_dict['after']
     commit_author = request_dict['sender']['login']
@@ -82,16 +82,16 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
         ).check_for_issues(rule=rule, diff=commits_diff)
         if changes_required:
             make_pr(
-                title="[Sweep Rules] " + issue_title,
-                repo_description=repo.description,
-                summary=issue_description,
-                repo_full_name=request_dict["repository"]["full_name"],
-                installation_id=request_dict["installation"]["id"],
-                user_token=user_token,
-                use_faster_model=chat_logger.use_faster_model(g),
-                username=commit_author,
-                chat_logger=chat_logger,
-                rule=rule,
+                title="[Sweep Rules] " + issue_title: str,
+                repo_description=repo.description: str,
+                summary=issue_description: str,
+                repo_full_name=request_dict["repository"]["full_name"]: str,
+                installation_id=request_dict["installation"]["id"]: int,
+                user_token=user_token: str,
+                use_faster_model=chat_logger.use_faster_model(g): bool,
+                username=commit_author: str,
+                chat_logger=chat_logger: ChatLogger,
+                rule=rule: str,
             )
             posthog.capture(
                 commit_author,
