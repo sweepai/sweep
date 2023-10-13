@@ -873,7 +873,7 @@ def on_ticket(
             checkboxes_progress: list[tuple[str, str, str]] = [
                 (
                     file_change_request.entity_display,
-                    file_change_request.instructions,
+                    file_change_request.instructions + "<hr/>",
                     " ",
                 )
                 for file_change_request in file_change_requests
