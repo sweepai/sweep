@@ -15,8 +15,8 @@ class TestDiff(unittest.TestCase):
         self.assertTrue(result)
 
     def test_diff_contains_dups_or_removals(self):
-        diff = "-line1\n+line1\n+line1"
-        new_code = "line1\nline1"
+        diff = "-line1\n+line1\n+line1\n+line1"
+        new_code = "line1\nline1\nline1"
         result = diff_contains_dups_or_removals(diff, new_code)
         self.assertTrue(result)
 
