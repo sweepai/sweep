@@ -873,7 +873,7 @@ def on_ticket(
             checkboxes_progress: list[tuple[str, str, str]] = [
                 (
                     file_change_request.entity_display,
-                    file_change_request.instructions,
+                    file_change_request.instructions + "<hr/>",
                     " ",
                 )
                 for file_change_request in file_change_requests
@@ -964,7 +964,7 @@ def on_ticket(
                 for i, (entity_display_, instructions, status_) in enumerate(
                     checkboxes_progress
                 ):
-                    if entity_display_ == entity_display:
+                    if entity_display in entity_display_:
                         checkboxes_progress[i] = (
                             header,
                             instructions + error_logs,
@@ -1149,7 +1149,7 @@ def on_ticket(
                 else ""
             )
             revert_buttons = []
-            for changed_file in changed_files:
+            for changed_file in set(changed_files):
                 revert_buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
             revert_buttons_list = ButtonList(
                 buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
