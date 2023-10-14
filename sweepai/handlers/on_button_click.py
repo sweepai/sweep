@@ -1,4 +1,5 @@
 from loguru import logger
+import traceback
 from github.Repository import Repository
 from sweepai.config.client import RESET_FILE, REVERT_CHANGED_FILES_TITLE, RULES_LABEL, RULES_TITLE, get_rules, get_blocked_dirs
 from sweepai.utils.event_logger import posthog
@@ -57,10 +58,10 @@ def handle_button_click(request_dict):
             try:
                 comment.delete()
             except Exception as e:
-                logger.error(f"Error deleting comment: {e}")
-
-def handle_revert(file_paths, pr_number, repo: Repository):
-    pr = repo.get_pull(pr_number)
+                logger.error('An error occurred: {}\n{}'.format(e, traceback.format_exc()))
+            
+            def handle_revert(file_paths, pr_number, repo: Repository):
+                pr = repo.get_pull(pr_number)
     branch_name = pr.head.ref if pr_number else pr.pr_head
     def get_contents_with_fallback(repo: Repository, file_path: str, branch: str = None):
         try:
