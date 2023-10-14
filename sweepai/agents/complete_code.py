@@ -7,7 +7,7 @@ import re
 from loguru import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
-
+from sweepai.utils.comment_utils import check_comments_presence
 
 system_message_prompt = """You are a genius engineer tasked with identifying any incomplete logic for the following code change.
 You have been provided with the relevant metadata to the issue.
@@ -50,6 +50,8 @@ class LeftoverComments(RegexMatchableBaseModel):
 class ExtractLeftoverComments(ChatGPT):
     def extract_leftover_comments(self, new_code, file_path, old_code, request, **kwargs):
         try:
+            if not check_comments_presence(file_path, new_code):
+                return []
             if old_code: old_code = f"<old_code>\n```\n{old_code}\n```\n</old_code>"
             self.messages = [Message(role="system", content=system_message_prompt, key="system")]
             response = self.chat(user_prompt.format(new_code = new_code,
