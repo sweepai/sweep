@@ -102,7 +102,12 @@ def run_on_comment(*args, **kwargs):
     )
 
     with logger:
-        on_comment(*args, **kwargs)
+        comment = kwargs.get('comment', '')
+        if comment.startswith('Feedback: '):
+            chat_logger = ChatLogger(kwargs)
+            chat_logger.log_to_discord(comment)
+        else:
+            on_comment(*args, **kwargs)
 
 
 def run_on_button_click(*args, **kwargs):
@@ -129,7 +134,12 @@ def run_on_check_suite(*args, **kwargs):
             create_file=False,
         )
         with logger:
-            call_on_comment(**pr_change_request.params, comment_type="github_action")
+            comment = pr_change_request.params.get('comment', '')
+            if comment.startswith('Feedback: '):
+                chat_logger = ChatLogger(pr_change_request.params)
+                chat_logger.log_to_discord(comment)
+            else:
+                call_on_comment(**pr_change_request.params, comment_type="github_action")
         logger.info("Done with on_check_suite")
     else:
         logger.info("Skipping on_check_suite as no pr_change_request was returned")
@@ -533,17 +543,28 @@ async def webhook(raw_request: Request):
                     # stub.issue_lock[
                     #     (request.repository.full_name, request.issue.number)
                     # ] =
-                    call_on_ticket(
-                        title=request.issue.title,
-                        summary=request.issue.body,
-                        issue_number=request.issue.number,
-                        issue_url=request.issue.html_url,
-                        username=request.issue.user.login,
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        installation_id=request.installation.id,
-                        comment_id=request.comment.id,
-                    )
+                    comment = request.comment.body
+                    if comment.startswith('Feedback: '):
+                        chat_logger = ChatLogger({
+                            "username": request.issue.user.login,
+                            "repo_full_name": request.repository.full_name,
+                            "repo_description": request.repository.description,
+                            "installation_id": request.installation.id,
+                            "comment_id": request.comment.id,
+                        })
+                        chat_logger.log_to_discord(comment)
+                    else:
+                        call_on_ticket(
+                            title=request.issue.title,
+                            summary=request.issue.body,
+                            issue_number=request.issue.number,
+                            issue_url=request.issue.html_url,
+                            username=request.issue.user.login,
+                            repo_full_name=request.repository.full_name,
+                            repo_description=request.repository.description,
+                            installation_id=request.installation.id,
+                            comment_id=request.comment.id,
+                        )
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
                 ):  # TODO(sweep): set a limit
