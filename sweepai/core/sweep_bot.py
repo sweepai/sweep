@@ -1466,54 +1466,57 @@ class ModifyBot:
             extraction_terms=extraction_terms,
             chunking=chunking,
         )
-        if leftover_comments and not DEBUG:
-            joined_comments = "\n".join(leftover_comments)
-            file_change_request.new_content = new_file
-            file_change_request.instructions = (
-                f"Address all of the unfinished code changes here: \n{joined_comments}"
-            )
-            self.fetch_snippets_bot.messages = self.fetch_snippets_bot.messages[:-2]
-            self.prune_modify_snippets_bot.messages = (
-                self.prune_modify_snippets_bot.messages[:-2]
-            )
-            snippet_queries, extraction_terms = self.get_snippets_to_modify(
-                file_path=file_path,
-                file_contents=new_file,
-                file_change_request=file_change_request,
-                chunking=chunking,
-            )
-            self.update_snippets_bot.messages = self.update_snippets_bot.messages[:-2]
-            new_file, leftover_comments, _change_validation = self.update_file(
-                file_path=file_path,
-                file_contents=new_file,
-                file_change_request=file_change_request,
-                snippet_queries=snippet_queries,
-                extraction_terms=extraction_terms,
-                chunking=chunking,
-            )
-        if change_validation.additional_changes_required:
-            file_change_request.new_content = new_file
-            file_change_request.instructions = change_validation.additional_changes
-            self.fetch_snippets_bot.messages = self.fetch_snippets_bot.messages[:-2]
-            self.prune_modify_snippets_bot.messages = (
-                self.prune_modify_snippets_bot.messages[:-2]
-            )
-            # TODO: delete messages in the bots themselves
-            snippet_queries, extraction_terms = self.get_snippets_to_modify(
-                file_path=file_path,
-                file_contents=file_contents,
-                file_change_request=file_change_request,
-                chunking=chunking,
-            )
-            self.update_snippets_bot.messages = self.update_snippets_bot.messages[:-2]
-            new_file, leftover_comments, _change_validation = self.update_file(
-                file_path=file_path,
-                file_contents=file_contents,
-                file_change_request=file_change_request,
-                snippet_queries=snippet_queries,
-                extraction_terms=extraction_terms,
-                chunking=chunking,
-            )
+        for _ in range(3):
+            if leftover_comments and not DEBUG:
+                joined_comments = "\n".join(leftover_comments)
+                file_change_request.new_content = new_file
+                file_change_request.instructions = f"Address all of the unfinished code changes here: \n{joined_comments}"
+                self.fetch_snippets_bot.messages = self.fetch_snippets_bot.messages[:-2]
+                self.prune_modify_snippets_bot.messages = (
+                    self.prune_modify_snippets_bot.messages[:-2]
+                )
+                snippet_queries, extraction_terms = self.get_snippets_to_modify(
+                    file_path=file_path,
+                    file_contents=new_file,
+                    file_change_request=file_change_request,
+                    chunking=chunking,
+                )
+                self.update_snippets_bot.messages = self.update_snippets_bot.messages[
+                    :-2
+                ]
+                new_file, leftover_comments, change_validation = self.update_file(
+                    file_path=file_path,
+                    file_contents=new_file,
+                    file_change_request=file_change_request,
+                    snippet_queries=snippet_queries,
+                    extraction_terms=extraction_terms,
+                    chunking=chunking,
+                )
+            if change_validation.additional_changes_required:
+                file_change_request.new_content = new_file
+                file_change_request.instructions = change_validation.additional_changes
+                self.fetch_snippets_bot.messages = self.fetch_snippets_bot.messages[:-2]
+                self.prune_modify_snippets_bot.messages = (
+                    self.prune_modify_snippets_bot.messages[:-2]
+                )
+                # TODO: delete messages in the bots themselves
+                snippet_queries, extraction_terms = self.get_snippets_to_modify(
+                    file_path=file_path,
+                    file_contents=file_contents,
+                    file_change_request=file_change_request,
+                    chunking=chunking,
+                )
+                self.update_snippets_bot.messages = self.update_snippets_bot.messages[
+                    :-2
+                ]
+                new_file, leftover_comments, change_validation = self.update_file(
+                    file_path=file_path,
+                    file_contents=file_contents,
+                    file_change_request=file_change_request,
+                    snippet_queries=snippet_queries,
+                    extraction_terms=extraction_terms,
+                    chunking=chunking,
+                )
         return new_file
 
     def get_snippets_to_modify(
@@ -1682,17 +1685,20 @@ class ModifyBot:
                 file_contents, [file_change_request.entity]
             ).content
 
-        indices_to_keep = self.prune_modify_snippets_bot.prune_modify_snippets(
-            snippets="\n\n".join(
-                [
-                    f'<snippet index="{i}">\n{snippet}\n</snippet>'
-                    for i, snippet in enumerate(selected_snippets)
-                ]
-            ),
-            file_path=file_path,
-            old_code=update_snippets_code,
-            request=file_change_request.instructions,
-        )
+        if len(selected_snippets) > 1:
+            indices_to_keep = self.prune_modify_snippets_bot.prune_modify_snippets(
+                snippets="\n\n".join(
+                    [
+                        f'<snippet index="{i}">\n{snippet}\n</snippet>'
+                        for i, snippet in enumerate(selected_snippets)
+                    ]
+                ),
+                file_path=file_path,
+                old_code=update_snippets_code,
+                request=file_change_request.instructions,
+            )
+        else:
+            indices_to_keep = [0]
 
         pruned_snippets = []
         for idx, snippet in enumerate(selected_snippets):
