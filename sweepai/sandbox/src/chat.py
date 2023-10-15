@@ -90,38 +90,42 @@ class OpenAIProxy:
 
     def call_openai(self, model, messages, max_tokens, temperature):
         try:
-            engine = None
-            if (
-                model == "gpt-3.5-turbo-16k"
-                or model == "gpt-3.5-turbo-16k-0613"
-                and os.getenv("OPENAI_API_ENGINE_GPT35") is not None
-            ):
-                engine = os.getenv("OPENAI_API_ENGINE_GPT35")
-            elif (
-                model == "gpt-4"
-                or model == "gpt-4-0613"
-                and os.getenv("OPENAI_API_ENGINE_GPT4") is not None
-            ):
-                engine = os.getenv("OPENAI_API_ENGINE_GPT4")
-            elif (
-                model == "gpt-4-32k"
-                or model == "gpt-4-32k-0613"
-                and os.getenv("OPENAI_API_ENGINE_GPT4_32K") is not None
-            ):
-                engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
-            if os.getenv("OPENAI_API_TYPE") is None or engine is None:
-                openai.api_key = os.getenv("OPENAI_API_KEY")
-                openai.api_base = "https://api.openai.com/v1"
-                openai.api_version = None
-                openai.api_type = "open_ai"
-                logger.info(f"Calling {model} on OpenAI.")
-                response = openai.ChatCompletion.create(
-                    model=model,
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                )
-                return response["choices"][0].message.content
+            # engine = None
+            # if (
+            #     model == "gpt-3.5-turbo-16k"
+            #     or model == "gpt-3.5-turbo-16k-0613"
+            #     and os.getenv("OPENAI_API_ENGINE_GPT35") is not None
+            # ):
+            #     engine = os.getenv("OPENAI_API_ENGINE_GPT35")
+            # elif (
+            #     model == "gpt-4"
+            #     or model == "gpt-4-0613"
+            #     and os.getenv("OPENAI_API_ENGINE_GPT4") is not None
+            # ):
+            #     engine = os.getenv("OPENAI_API_ENGINE_GPT4")
+            # elif (
+            #     model == "gpt-4-32k"
+            #     or model == "gpt-4-32k-0613"
+            #     and os.getenv("OPENAI_API_ENGINE_GPT4_32K") is not None
+            # ):
+            #     engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
+            # if os.getenv("OPENAI_API_TYPE") is None or engine is None:
+            #     openai.api_key = os.getenv("OPENAI_API_KEY")
+            #     openai.api_base = "https://api.openai.com/v1"
+            #     openai.api_version = None
+            #     openai.api_type = "open_ai"
+            #     logger.info(f"Calling {model} on OpenAI.")
+            #     response = openai.ChatCompletion.create(
+            #         model=model,
+            #         messages=messages,
+            #         max_tokens=max_tokens,
+            #         temperature=temperature,
+            #     )
+            #     return response["choices"][0].message.content
+
+            model == "gpt-4-32k-0613"
+            engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
+
             OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
             logger.info(
                 f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
@@ -141,6 +145,7 @@ class OpenAIProxy:
         except SystemExit:
             raise SystemExit
         except Exception as e:
+            raise Exception(f"Mick error: {e}")
             if os.getenv("OPENAI_API_KEY"):
                 try:
                     openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -171,38 +176,42 @@ class OpenAIProxy:
 
     def call_openai(self, model, messages, max_tokens, temperature):
         try:
-            engine = None
-            if (
-                model == "gpt-3.5-turbo-16k"
-                or model == "gpt-3.5-turbo-16k-0613"
-                and os.getenv("OPENAI_API_ENGINE_GPT35") is not None
-            ):
-                engine = os.getenv("OPENAI_API_ENGINE_GPT35")
-            elif (
-                model == "gpt-4"
-                or model == "gpt-4-0613"
-                and os.getenv("OPENAI_API_ENGINE_GPT4") is not None
-            ):
-                engine = os.getenv("OPENAI_API_ENGINE_GPT4")
-            elif (
-                model == "gpt-4-32k"
-                or model == "gpt-4-32k-0613"
-                and os.getenv("OPENAI_API_ENGINE_GPT4_32K") is not None
-            ):
-                engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
-            if os.getenv("OPENAI_API_TYPE") is None or engine is None:
-                openai.api_key = os.getenv("OPENAI_API_KEY")
-                openai.api_base = "https://api.openai.com/v1"
-                openai.api_version = None
-                openai.api_type = "open_ai"
-                logger.info(f"Calling {model} on OpenAI.")
-                response = openai.ChatCompletion.create(
-                    model=model,
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                )
-                return response["choices"][0].message.content
+            # engine = None
+            # if (
+            #     model == "gpt-3.5-turbo-16k"
+            #     or model == "gpt-3.5-turbo-16k-0613"
+            #     and os.getenv("OPENAI_API_ENGINE_GPT35") is not None
+            # ):
+            #     engine = os.getenv("OPENAI_API_ENGINE_GPT35")
+            # elif (
+            #     model == "gpt-4"
+            #     or model == "gpt-4-0613"
+            #     and os.getenv("OPENAI_API_ENGINE_GPT4") is not None
+            # ):
+            #     engine = os.getenv("OPENAI_API_ENGINE_GPT4")
+            # elif (
+            #     model == "gpt-4-32k"
+            #     or model == "gpt-4-32k-0613"
+            #     and os.getenv("OPENAI_API_ENGINE_GPT4_32K") is not None
+            # ):
+            #     engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
+            # if os.getenv("OPENAI_API_TYPE") is None or engine is None:
+            #     openai.api_key = os.getenv("OPENAI_API_KEY")
+            #     openai.api_base = "https://api.openai.com/v1"
+            #     openai.api_version = None
+            #     openai.api_type = "open_ai"
+            #     logger.info(f"Calling {model} on OpenAI.")
+            #     response = openai.ChatCompletion.create(
+            #         model=model,
+            #         messages=messages,
+            #         max_tokens=max_tokens,
+            #         temperature=temperature,
+            #     )
+            #     return response["choices"][0].message.content
+
+            model == "gpt-4-32k-0613"
+            engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
+
             OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
             logger.info(
                 f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
@@ -222,25 +231,26 @@ class OpenAIProxy:
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            if os.getenv("OPENAI_API_KEY"):
-                try:
-                    openai.api_key = os.getenv("OPENAI_API_KEY")
-                    openai.api_base = "https://api.openai.com/v1"
-                    openai.api_version = None
-                    openai.api_type = "open_ai"
-                    logger.info(f"Calling {model} with OpenAI.")
-                    response = openai.ChatCompletion.create(
-                        model=model,
-                        messages=messages,
-                        max_tokens=max_tokens,
-                        temperature=temperature,
-                    )
-                    return response["choices"][0].message.content
-                except SystemExit:
-                    raise SystemExit
-                except Exception as e:
-                    logger.error(f"OpenAI API Key found but error: {e}")
-            logger.error(f"OpenAI API Key not found and Azure Error: {e}")
+            raise Exception(f"Mick 2 error: {e}")
+            # if os.getenv("OPENAI_API_KEY"):
+            #     try:
+            #         openai.api_key = os.getenv("OPENAI_API_KEY")
+            #         openai.api_base = "https://api.openai.com/v1"
+            #         openai.api_version = None
+            #         openai.api_type = "open_ai"
+            #         logger.info(f"Calling {model} with OpenAI.")
+            #         response = openai.ChatCompletion.create(
+            #             model=model,
+            #             messages=messages,
+            #             max_tokens=max_tokens,
+            #             temperature=temperature,
+            #         )
+            #         return response["choices"][0].message.content
+            #     except SystemExit:
+            #         raise SystemExit
+            #     except Exception as e:
+            #         logger.error(f"OpenAI API Key found but error: {e}")
+            # logger.error(f"OpenAI API Key not found and Azure Error: {e}")
 
 
 openai_proxy = OpenAIProxy()
@@ -253,11 +263,13 @@ class ChatGPT(BaseModel):
             content=sandbox_code_repair_modify_system_prompt,
         )
     ]
-    model: OpenAIModel = (
-        "gpt-4-32k-0613"
-        if os.getenv("OPENAI_DO_HAVE_32K_MODEL_ACCESS")
-        else "gpt-4-0613"
-    )
+    # model: OpenAIModel = (
+    #     "gpt-4-32k-0613"
+    #     if os.getenv("OPENAI_DO_HAVE_32K_MODEL_ACCESS")
+    #     else "gpt-4-0613"
+    # )
+    model: OpenAIModel = "gpt-4-32k-0613"
+
     file_change_paths: list = []
     chat_logger: ChatLogger = Field(default_factory=lambda: ChatLogger(data={}))
 
