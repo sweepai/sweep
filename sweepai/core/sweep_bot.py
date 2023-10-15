@@ -1685,17 +1685,20 @@ class ModifyBot:
                 file_contents, [file_change_request.entity]
             ).content
 
-        indices_to_keep = self.prune_modify_snippets_bot.prune_modify_snippets(
-            snippets="\n\n".join(
-                [
-                    f'<snippet index="{i}">\n{snippet}\n</snippet>'
-                    for i, snippet in enumerate(selected_snippets)
-                ]
-            ),
-            file_path=file_path,
-            old_code=update_snippets_code,
-            request=file_change_request.instructions,
-        )
+        if len(selected_snippets) > 1:
+            indices_to_keep = self.prune_modify_snippets_bot.prune_modify_snippets(
+                snippets="\n\n".join(
+                    [
+                        f'<snippet index="{i}">\n{snippet}\n</snippet>'
+                        for i, snippet in enumerate(selected_snippets)
+                    ]
+                ),
+                file_path=file_path,
+                old_code=update_snippets_code,
+                request=file_change_request.instructions,
+            )
+        else:
+            indices_to_keep = [0]
 
         pruned_snippets = []
         for idx, snippet in enumerate(selected_snippets):
