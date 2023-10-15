@@ -145,7 +145,7 @@ class OpenAIProxy:
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            raise Exception(f"Mick error: {e}")
+            raise e
             if os.getenv("OPENAI_API_KEY"):
                 try:
                     openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -214,6 +214,9 @@ class OpenAIProxy:
 
             OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
             logger.info(
+                f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
+            )
+            print(
                 f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."
             )
             openai.api_type = os.getenv("OPENAI_API_TYPE")
