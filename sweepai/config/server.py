@@ -173,7 +173,7 @@ SUPPORT_COUNTRY = os.environ.get("GDRP_LIST", "").split(",")
 
 WHITELISTED_REPOS = os.environ.get("WHITELISTED_REPOS", "").split(",")
 
-SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
+SECONDARY_MODEL = "gpt-4-32k-0613"
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 

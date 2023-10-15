@@ -23,7 +23,7 @@ class OpenAIProxy:
             # engine = None
             # if (
             #     model == "gpt-3.5-turbo-16k"
-            #     or model == "gpt-3.5-turbo-16k-0613"
+            #     or model == "gpt-4-32k-0613"
             #     and OPENAI_API_ENGINE_GPT35 is not None
             # ):
             #     engine = OPENAI_API_ENGINE_GPT35

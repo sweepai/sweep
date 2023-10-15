@@ -18,7 +18,7 @@ class CodeRepairChecker(ChatGPT):
         self.messages = [
             Message(role="system", content=code_repair_check_system_prompt)
         ]
-        self.model = "gpt-3.5-turbo-16k-0613"
+        self.model = "gpt-4-32k-0613"
         response = self.chat(
             code_repair_check_prompt.format(user_code=user_code),
             message_key="code_repair",
@@ -29,7 +29,7 @@ class CodeRepairChecker(ChatGPT):
 class CodeRepairer(ChatGPT):
     # idk why this part breaks
     # messages: list[Message] = [Message(role="system", content=code_repair_system_prompt)]
-    # model = "gpt-3.5-turbo-16k-0613"
+    # model = "gpt-4-32k-0613"
     code_repair_checker: CodeRepairChecker = CodeRepairChecker()
 
     @staticmethod
@@ -82,7 +82,7 @@ class CodeRepairer(ChatGPT):
                 role="system", content=code_repair_system_prompt.format(feature=feature)
             )
         ]
-        self.model = "gpt-3.5-turbo-16k-0613"
+        self.model = "gpt-4-32k-0613"
         if self.code_repair_checker.check_code(diff, user_code):
             return user_code
         retry_count = 0

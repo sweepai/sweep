@@ -57,7 +57,7 @@ OpenAIModel = (
     | Literal["gpt-4"]
     | Literal["gpt-4-0613"]
     | Literal["gpt-3.5-turbo-16k"]
-    | Literal["gpt-3.5-turbo-16k-0613"]
+    | Literal["gpt-4-32k-0613"]
     | Literal["gpt-4-32k"]
     | Literal["gpt-4-32k-0613"]
 )
@@ -69,7 +69,7 @@ model_to_max_tokens = {
     "claude-v1": 9000,
     "claude-v1.3-100k": 100000,
     "claude-instant-v1.3-100k": 100000,
-    "gpt-3.5-turbo-16k-0613": 16000,
+    "gpt-4-32k-0613": 16000,
     "gpt-4-32k-0613": 32000,
     "gpt-4-32k": 32000,
 }
@@ -93,7 +93,7 @@ class OpenAIProxy:
             # engine = None
             # if (
             #     model == "gpt-3.5-turbo-16k"
-            #     or model == "gpt-3.5-turbo-16k-0613"
+            #     or model == "gpt-4-32k-0613"
             #     and os.getenv("OPENAI_API_ENGINE_GPT35") is not None
             # ):
             #     engine = os.getenv("OPENAI_API_ENGINE_GPT35")
@@ -179,7 +179,7 @@ class OpenAIProxy:
             # engine = None
             # if (
             #     model == "gpt-3.5-turbo-16k"
-            #     or model == "gpt-3.5-turbo-16k-0613"
+            #     or model == "gpt-4-32k-0613"
             #     and os.getenv("OPENAI_API_ENGINE_GPT35") is not None
             # ):
             #     engine = os.getenv("OPENAI_API_ENGINE_GPT35")
@@ -326,7 +326,7 @@ class ChatGPT(BaseModel):
             max_tokens = min(max_tokens, 5000)
         # Fix for self hosting where TPM limit is super low for GPT-4
         if os.getenv("OPENAI_USE_3_5_MODEL_ONLY"):
-            model = "gpt-3.5-turbo-16k-0613"
+            model = "gpt-4-32k-0613"
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )

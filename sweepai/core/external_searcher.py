@@ -17,7 +17,7 @@ class ExternalSearcher(ChatGPT):
         page_metadata = extract_info(url)
 
         self.messages = [Message(role="system", content=external_search_system_prompt)]
-        self.model = "gpt-3.5-turbo-16k-0613"  # can be optimized
+        self.model = "gpt-4-32k-0613"  # can be optimized
         response = self.chat(
             external_search_prompt.format(
                 page_metadata=page_metadata,

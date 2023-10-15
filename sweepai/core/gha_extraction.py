@@ -31,7 +31,7 @@ class GHAExtractor(ChatGPT):
     def gha_extract(self, gha_logs: str) -> str:
         try:
             self.messages = [Message(role="system", content=gha_extraction_system_prompt)]
-            self.model = "gpt-3.5-turbo-16k-0613"  # can be optimized
+            self.model = "gpt-4-32k-0613"  # can be optimized
             logger.print(gha_logs)
             response = self.chat(gha_extraction_prompt.format(gha_logs=gha_logs))
             extracted_lines = ExtractLines.from_string(response).extracted_lines.strip()
