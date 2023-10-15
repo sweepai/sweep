@@ -58,11 +58,7 @@ class SweepYamlBot(ChatGPT):
         user_prompt = sweep_yaml_user_prompt.format(
             commit_history=commit_history,
         )
-        self.model = (
-            "gpt-4-32k-0613"
-            if (self.chat_logger and self.chat_logger.is_paying_user())
-            else "gpt-3.5-turbo-16k-0613"
-        )
+        self.model "gpt-4-32k-0613"
         response = self.chat(user_prompt)
         logger.info(f"CHAT GPT response {response} {type(response)}")
 
