@@ -395,11 +395,6 @@ async def webhook(raw_request: Request):
                             "reason": "Comment does not start with 'Sweep', passing",
                         }
 
-                    # Update before we handle the ticket to make sure index is up to date
-                    # other ways suboptimal
-
-                    (request.repository.full_name, request.issue.number)
-
                     call_on_ticket(
                         title=request.issue.title,
                         summary=request.issue.body,
