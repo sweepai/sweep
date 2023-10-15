@@ -479,7 +479,7 @@ def on_ticket(
                 if agg_message is None:
                     agg_message = msg
                 else:
-                    agg_message = agg_message + f"\n{sep}" + msg
+                    agg_message = agg_message + f"\n\n{sep}" + msg
 
             suffix = bot_suffix + discord_suffix
             if errored:
@@ -493,13 +493,13 @@ def on_ticket(
                 if table is not None:
                     agg_message = (
                         agg_message
-                        + f"\n{sep}Please look at the generated plan. If something looks"
+                        + f"\n\n{sep}Please look at the generated plan. If something looks"
                         f" wrong, please add more details to your issue.\n\n{table}"
                     )
                 suffix = bot_suffix  # don't include discord suffix for error messages
 
             # Update the issue comment
-            msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
+            msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n\n{sep}{agg_message}{suffix}"
             try:
                 issue_comment.edit(msg)
             except BadCredentialsException:
