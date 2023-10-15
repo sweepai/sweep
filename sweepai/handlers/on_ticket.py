@@ -66,7 +66,9 @@ from sweepai.handlers.create_pr import (
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
-from sweepai.logn import logger
+from loguru import logger
+from logtail import LogtailHandler
+from sweepai.config.server import LOGTAIL_SOURCE_KEY
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -234,6 +236,10 @@ def on_ticket(
         "fast_mode": fast_mode,
         "is_self_hosted": IS_SELF_HOSTED,
     }
+
+    logger = logger.bind(**metadata)
+    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
+    logger.add(handler)
 
     posthog.capture(username, "started", properties=metadata)
 
