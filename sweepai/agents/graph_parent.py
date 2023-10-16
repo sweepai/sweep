@@ -1,13 +1,15 @@
-from __future__ import annotations
+from sweepai.agents.modify_bot import ModifyBot
 
-import re
+class GraphParent:
+    def __init__(self):
+        # Initialize GraphParent here
+        pass
 
-from sweepai.core.chat import ChatGPT
-from sweepai.core.entities import Message, RegexMatchableBaseModel
-
-system_prompt = """You are an experienced software engineer working on a GitHub issue. Use the issue_metadata, relevant_snippets_in_repo, and symbols to extract the necessary symbols to solve the issue. Most symbols are not relevant. Provide at most 10 symbols, ideally fewer. They should be in descending order of relevance.
-
-The issue metadata, code, symbols, and files are provided in the below format:
+    def modify(self):
+        modify_bot = ModifyBot()
+        modify_bot.modify()
+        # Implement GraphParent functionality here
+        pass
 
 <issue_metadata>
 repository metadata
