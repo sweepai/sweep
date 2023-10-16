@@ -9,9 +9,12 @@ services:
       target: base
     image: sweepai/sweep
     volumes:
-      - .:/app
-      - /tmp/sweep_docs:/sweep_docs
-      - data:/app/data
+      # - .:/app
+      # - /tmp/sweep_docs:/sweep_docs
+      - .:/app  # mount the entire current directory to /app
+      - app_data:/app/data  # persist /app/data using a named volume
+      - tmp_data:/tmp  # persist /tmp/sweep_docs using another named volume
+    
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
     command: >
@@ -44,4 +47,5 @@ services:
 
 
 volumes:
-  data:
+  app_data:
+  tmp_data:
