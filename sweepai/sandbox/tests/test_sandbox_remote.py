@@ -1,7 +1,7 @@
-import requests
-from test_data import bad_file_contents, file_path
-
 if __name__ == "__main__":
+    import requests
+    from test_data import bad_file_contents, file_path
+
     url = "http://0.0.0.0:8081"
     headers = {"accept": "application/json", "Content-Type": "application/json"}
     data = {

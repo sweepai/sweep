@@ -1,15 +1,15 @@
 import unittest
-from unittest.mock import patch
+
 from sweepai.utils.search_and_replace import (
-    score_line,
-    match_without_whitespace,
-    line_cost,
-    score_multiline,
+    Match,
+    find_best_match,
     get_indent_type,
     get_max_indent,
-    find_best_match,
+    line_cost,
+    match_without_whitespace,
+    score_line,
+    score_multiline,
     split_ellipses,
-    Match,
 )
 
 
@@ -40,8 +40,12 @@ class TestSearchAndReplace(unittest.TestCase):
     def test_score_multiline(self):
         self.assertEqual(score_multiline(["abc"], ["abc"]), 100)
         self.assertEqual(score_multiline(["abc", "def"], ["abc", "def"]), 100)
-        self.assertEqual(score_multiline(["abc", "...", "def"], ["abc", "ghi", "def"]), 100)
-        self.assertEqual(score_multiline(["abc", "...", "def"], ["abc", "ghi", "jkl"]), 50)
+        self.assertEqual(
+            score_multiline(["abc", "...", "def"], ["abc", "ghi", "def"]), 100
+        )
+        self.assertEqual(
+            score_multiline(["abc", "...", "def"], ["abc", "ghi", "jkl"]), 50
+        )
 
     def test_get_indent_type(self):
         self.assertEqual(get_indent_type("  abc\n    def"), "  ")
@@ -58,15 +62,15 @@ class TestSearchAndReplace(unittest.TestCase):
 
     def test_split_ellipses(self):
         self.assertEqual(split_ellipses("abc\n...\ndef"), ["abc", "def"])
-        self.assertEqual(split_ellipses("abc\n...\ndef\n...\nghi"), ["abc", "def", "ghi"])
+        self.assertEqual(
+            split_ellipses("abc\n...\ndef\n...\nghi"), ["abc", "def", "ghi"]
+        )
 
     def test_Match(self):
         match = Match(0, 1, 100)
         self.assertEqual(match.start, 0)
         self.assertEqual(match.end, 1)
         self.assertEqual(match.score, 100)
-
-    
 
 
 if __name__ == "__main__":
