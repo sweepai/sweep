@@ -97,9 +97,18 @@ class ChatLogger(BaseModel):
                 {"$inc": {self.current_month: 1, self.current_date: 1}},
                 upsert=True,
             )
+        ticket_count = self.get_ticket_count()
+        if (self.is_paying_user() and ticket_count >= 500) or (
+            self.is_consumer_tier() and ticket_count >= 20
+        ):
+            self.ticket_collection.update_one(
+                {"username": username},
+                {"$inc": {"purchased_tickets": -1}},
+                upsert=True,
+            )
         logger.info(f"Added Successful Ticket for {username}")
 
-    def get_ticket_count(self, use_date=False, gpt3=False):
+    def get_ticket_count(self, use_date=False, gpt3=False, purchased=False):
         # gpt3 overrides use_date
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
@@ -108,17 +117,21 @@ class ChatLogger(BaseModel):
         tracking_date = self.current_date if use_date else self.current_month
         if gpt3:
             tracking_date = f"{self.current_month}_gpt3"
-        result = self.ticket_collection.aggregate(
-            [
-                {"$match": {"username": username}},
-                {"$project": {tracking_date: 1, "_id": 0}},
-            ]
-        )
-        result_list = list(result)
-        ticket_count = (
-            result_list[0].get(tracking_date, 0) if len(result_list) > 0 else 0
-        )
-        return ticket_count
+        if purchased:
+            result = self.ticket_collection.find_one({"username": username})
+            return result.get("purchased_tickets", 0) if result else 0
+        else:
+            result = self.ticket_collection.aggregate(
+                [
+                    {"$match": {"username": username}},
+                    {"$project": {tracking_date: 1, "_id": 0}},
+                ]
+            )
+            result_list = list(result)
+            ticket_count = (
+                result_list[0].get(tracking_date, 0) if len(result_list) > 0 else 0
+            )
+            return ticket_count
 
     def is_paying_user(self):
         if self.ticket_collection is None:
@@ -141,9 +154,11 @@ class ChatLogger(BaseModel):
             logger.error("Ticket Collection Does Not Exist")
             return True
         if self.is_paying_user():
-            return self.get_ticket_count() >= 500
+            purchased_tickets = self.get_ticket_count(purchased=True)
+            return self.get_ticket_count() >= 500 or purchased_tickets >= 1
         if self.is_consumer_tier():
-            return self.get_ticket_count() >= 20
+            purchased_tickets = self.get_ticket_count(purchased=True)
+            return self.get_ticket_count() >= 20 or purchased_tickets >= 1
 
         try:
             loc_user = g.get_user(self.data["username"]).location
