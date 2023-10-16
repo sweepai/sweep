@@ -5,8 +5,6 @@ if __name__ == "__main__":
     client = TestClient(app)
     data = {
         "repo_url": "https://github.com/sweepai/landing-page",
-        # "file_path": file_path,
-        # "content": bad_file_contents,
     }
     response = client.post("/", json=data)
     print(response.text)
