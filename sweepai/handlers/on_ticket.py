@@ -316,9 +316,10 @@ def on_ticket(
             tickets_allocated = 15
         if is_paying_user:
             tickets_allocated = 500
+        purchased_ticket_count = chat_logger.get_ticket_count(purchased=True)
         ticket_count = (
             max(tickets_allocated - chat_logger.get_ticket_count(), 0)
-            + chat_logger.get_ticket_count(purchased=True)
+            + purchased_ticket_count
             if chat_logger
             else 999
         )
