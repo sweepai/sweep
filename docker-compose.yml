@@ -8,6 +8,7 @@ services:
       dockerfile: Dockerfile
       target: base
     image: sweepai/sweep
+    network_mode: "host"
     volumes:
       - .:/app
       - /sweep_docs:/sweep_docs
@@ -17,8 +18,8 @@ services:
       sh -c "echo PORT: ${PORT:-8080} && . bin/startup.sh"
     stdin_open: true
     tty: true
-    links:
-      - sandbox-web
+    # links:
+    #   - sandbox-web
     environment:
       - PORT=${PORT:-8080}
   sandbox:
