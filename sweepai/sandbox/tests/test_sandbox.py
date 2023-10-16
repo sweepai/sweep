@@ -1,6 +1,6 @@
 if __name__ == "__main__":
     from fastapi.testclient import TestClient
-    from sweepai.sandbox.src.sandbox_local import app
+    from src.sandbox_local import app
 
     client = TestClient(app)
     data = {
