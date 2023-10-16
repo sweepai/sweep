@@ -263,7 +263,7 @@ def home():
 async def webhook(raw_request: Request):
     # Do not create logs for api
     logger.init(
-        metadata={"name": "webhook", "request": raw_request},
+        metadata={"name": "webhook", "request": await raw_request.json()},
         create_file=False,
     )
 
