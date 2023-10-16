@@ -1,31 +1,29 @@
-# **🗺️ Walking the Call Graph for Repository-Level Planning of Code Changes with AI**
+# **🗺️ How an AI plans code changes across an entire GitHub Repository**
 
 **William Zeng** - October 9th, 2023
 
 ---
 
-To generate high quality code from instructions, we need two high-level components. The first one is a planner, and a second one is an executor.
+GPT4 can generate unit tests, refactor a function, and add comments/docstrings to your code. You can even use GPT4 with a 32k context window to write an entire app from scratch.
 
-In this article, we’ll explore our planning engine for Sweep, but these two parts go hand in hand. As we'll discuss later, planning doesn’t end once we start executing and in fact should be dynamic.
-
-We'd like to turn the user input from an issue title and description into a set of instructions that can be translated to code changes. The process of turning natural language to repository-wide code changes looks like this:
+However, to get it to plan code changes at the repository level, such as while solving Jira tickets, we need to do a lot more work. We need to turn the user input from an issue title and description into a set of instructions, and then translate those to code changes. It should look like this:
 <br/>
 <img src="/deployment/fcr.png" alt="How Sweep turns GitHub issues to code changes with AI" />
 
-1. Turn the issue title and description to pairs of files and file change instructions in natural language.
-2. Turn the file change instructions from natural language to code changes.
+1. Turn the issue title and description to pairs of files and file-level instructions in natural language.
+2. Turn the file-level instructions from natural language to code changes.
 
-This should at least include a powerful search engine, but it needs more to truly plan accurately. By only relying on RAG (Retrieval-Augmented-Generation) we need a lot of luck to get the files we need.
+This must include a powerful search engine, but search is not sufficient. By only relying on RAG (Retrieval-Augmented-Generation) we need a lot of luck to get the files we need.
 
 ## Lexical search and context pruning
 
-Here are some ideas that we tried previously. We encountered an interesting issue everytime we added additional inputs. This will hurt our performance in the short term because of how GPT4 currently degrades in performance (both planning, coding, and instruction following) after ~20k tokens.
+We've tried a lot of strategies to manipulate and improve the input context. We encountered an interesting issue everytime we added additional inputs. This will hurt our performance in the short term because of how GPT4 currently degrades in performance (both planning, coding, and instruction following) after ~20k tokens.
 
-This is a prevalent effect known as lost-in-the-middle (LIM) where LLMs only really pay attention to context at the beginning and end of the prompt. Thus, when we try to add more context, GPT4 will also ignore a lot of it.
+This is a prevalent effect known as lost-in-the-middle (LIM) where LLMs only focus on the context at the beginning and end of the prompt. Thus, when we try to add more context, GPT4 will also ignore a lot of it.
 
 ### 1. Prune the Input Context(repository tree and files)
 
-One of the input contexts we tried was the repository tree. We already only expand directories that are related to files that hit the hybrid search index, but even this is not nearly enough.
+One of the input contexts we tried was the repository tree. We previously only expanded directories containing files that were fetched the hybrid search index, but this is not nearly enough.
 
 ```xml
 <repo_tree>
@@ -49,9 +47,9 @@ tests/
 </repo_tree>
 ```
 
-We prune the context by having GPT4 name what it wants to remove (say some snippets or paths/directories in the repo) that we clearly don’t need. We started by fetching everything, and only have GPT4 name what it wants to remove.
+We pruned the context by having GPT4 name what it wants to remove (say some snippets or paths/directories in the repo) that we clearly don’t need. We started by fetching everything, and only have GPT4 name what it wants to remove.
 
-We end up with a huge list of everything that’s irrelevant, and we hope GPT4 doesn’t name and remove something that’s needed. The entire pipeline would fail when GPT4 would prune something we needed, or forget to prune something that was useless.
+We end up with a huge list of everything that’s irrelevant, and we hope GPT4 doesn’t name and remove something that’s needed. The entire pipeline would fail when GPT4 pruned something we needed, or forgot to prune useless files.
 
 ```xml
 <paths_to_keep>
@@ -73,19 +71,19 @@ This allows us to stay within our context bound while still iterating towards th
 
 ### 2. Lexical search for code
 
-Something else that allows us to start at favorable initial conditions on top of our previous vector search, was lexical search. I looked around and tried to find a nice python library for TF-IDF, and I landed on [whoosh](https://whoosh.readthedocs.io/en/latest/). This library is unmaintained and unfortunately caused several deadlocks when we ran this in production with multiple threads trying to access the same cache, even if we set this to cache in memory instead of disk.
+Something else that allows us to start at favorable initial conditions in addition to vector search was lexical search. I looked around and tried to find a nice python library for computing TF-IDF, and I landed on [whoosh](https://whoosh.readthedocs.io/en/latest/). This library is unmaintained and unfortunately caused several deadlocks when we ran this in production with multiple threads trying to access the same cache, even if we set this to cache in memory instead of disk.
 
 So I hit it with the code interpreter hammer: "Write a simple class that implements TF-IDF in memory". We used a python dictionary, calculated document frequencies, and computed TF-IDF on the fly.
 
 [Code interpreters's tf-idf implementation.](https://github.com/sweepai/sweep/blob/main/sweepai/core/lexical_search.py#L12-L57) Now we have whoosh at home.
 
-It’s definitely not as performant and we lost a bunch of utilities. But we don’t segfault and we can always optimize later, so we need to choose our battles here.
+It’s definitely not as performant and we lost a bunch of utilities. But we don’t segfault and we can always optimize later so we need to choose our battles here.
 
-N-grams (another historical trick) also helps here. For context, TF-IDF leverages the inverse frequency of a term to boost the ranking. An N-gram captures patterns like `vector_db.search` or `logger.error(")`, giving us more context than just single tokens.
+N-grams (another historical trick) also helps here. TF-IDF(the backbone of most lexical search engines) leverages the inverse frequency of a term to boost the ranking. An N-gram captures patterns like `vector_db.search` or `logger.error(")`, giving us more context than just single tokens.
 
-We also [tokenized](https://github.com/sweepai/sweep/blob/main/sweepai/core/lexical_search.py#L70-L102) on pascal-case, camel-case, and snake-case. This means that `ChatGPT`, `chat_gpt`, and `chatGPT` all become `chat` and `GPT`.  This also allows us to heavily match any code that is copied verbatim as well as class definitions and instantiations.
+We also [tokenized the code](https://github.com/sweepai/sweep/blob/main/sweepai/core/lexical_search.py#L70-L102) on pascal-case, camel-case, and snake-case. This means that `ChatGPT`, `chat_gpt`, and `chatGPT` all become `chat` and `gpt`. This also allows us to heavily match any code that is copied verbatim as well as class definitions and instantiations.
 
-Finally, a title like "Change the ChatGPT.chat method to use the new API" can match `chat`, `gpt`, `chat_gpt.chat` and `class ChatGPT`. This works great for code when combined with vector search, which we discussed here: [https://docs.sweep.dev/blogs/search-infra](https://docs.sweep.dev/blogs/search-infra).
+For example, a title like "Refactor the ChatGPT.chat method to use the new API" can match `chat`, `gpt`, `chat_gpt.chat` and `class ChatGPT`. This works great for code when combined with vector search, which we discussed here: [https://docs.sweep.dev/blogs/search-infra](https://docs.sweep.dev/blogs/search-infra).
 
 ## Python AST graph-based planning
 
@@ -113,9 +111,9 @@ So we tried a bunch of stuff and have this nice graph. We can now plan in AST sp
 
 We get huge benefits from this graph of entities. The reason is that in our codebase, we have files that are 1.5k lines long. 2-3 of these will max out the context window of ChatGPT.
 
-So we want to plan in AST space because dropping any of these files into the plan will immediately fill up the entire context window. Even if the file doesn’t blow it up it’s going to destroy performance. Now image we want to orchestrate a change across mutliple files that are all >1k lines long.
+So we want to plan in AST space because dropping any of these files into the plan will immediately fill up the entire context window. Even if the file doesn’t blow it up it’s going to destroy performance. Now imagine if we want to orchestrate a change across multiple files that are all >1k lines long.
 
-It’s a fun problem to manage all of these. We do have a saving grace though, which is that code doesn't usually have truly huge functions, say:
+It’s a fun problem to manage all of these. We do have a saving grace though, which is that code doesn't usually have truly huge unbreakable functions, say:
 
 ```
 def print_1000x(text):
@@ -123,8 +121,27 @@ def print_1000x(text):
   print(text)
   ... # 998 more print statements
 ```
+^ this is hard to chunk!
+usually we'll have something more reasonable like:
 
-They’re typically broken into class methods or sub functions which are 150-200 lines long, and we only have to fit the functions and maybe a bit more in memory. For example, we might want the class method definition and a sample call to it.
+```
+def print_10x(text):
+  print(text)
+  print(text)
+  ... # 8 more print statements
+
+def print_100x(text):
+  print_10x(text)
+  print_10x(text)
+  ... # 8 more print statements
+
+def print_1000x(text):
+  print_100x(text)
+  print_100x(text)
+  ... # 8 more print statements
+```
+
+Code is typically separable by class methods or sub functions which are 150-200 lines long, and we only have to fit the functions and a bit more in memory. For example, we might want the class method definition and a sample call to the class.
 
 We used the CST of python to extract all spans that define or mention a certain class, function, or class method AKA entity (we can just check if `entity in span`). This is not as accurate as static analysis tools like LSPs and type-checkers, but it's a 99% solution. After getting this we can prune each file to only what’s needed to make the code change to it. But how do we get the entities?
 
