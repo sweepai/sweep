@@ -65,4 +65,10 @@ from sweepai.utils.search_and_replace import (
 from sweepai.utils.utils import chunk_code
 
 class ModifyBot(ChatGPT):
-    # The class implementation goes here
+    def perform_task1(self):
+        # Implementation of task 1 goes here
+        pass
+
+    def perform_task2(self):
+        # Implementation of task 2 goes here
+        pass
