@@ -1,8 +1,8 @@
 if __name__ == "__main__":
     from fastapi.testclient import TestClient
-    from sweepai.sandbox.src.sandbox_local import app
+    from sweepai.sandbox.src.chat import fix_file
 
-    client = TestClient(app)
+    client = TestClient(fix_file)
     data = {
         "repo_url": "https://github.com/sweepai/landing-page",
     }
