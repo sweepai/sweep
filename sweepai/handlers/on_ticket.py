@@ -8,6 +8,7 @@ import math
 import re
 import traceback
 from time import time
+import uuid
 
 import openai
 import requests
@@ -98,6 +99,7 @@ def on_ticket(
     comment_id: int = None,
     edited: bool = False,
 ):
+    tracking_id: str = str(uuid.uuid4())
     (
         title,
         slow_mode,
@@ -153,7 +155,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error hydrating cache of sandbox: {e}")
+            logger.exception(f"Error hydrating cache of sandbox: {e}. Tracking ID: {tracking_id}")
         logger.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
@@ -226,6 +228,7 @@ def on_ticket(
         "installation_id": installation_id,
         "function": "on_ticket",
         "edited": edited,
+        "tracking_id": tracking_id,
         "model": "gpt-3.5" if use_faster_model else "gpt-4",
         "tier": "pro" if is_paying_user else "free",
         "mode": ENV,
@@ -631,6 +634,7 @@ def on_ticket(
         snippets = post_process_snippets(
             snippets, max_num_of_snippets=2 if use_faster_model else 5
         )
+        tracking_id: str = str(uuid.uuid4())
         if not repo_description:
             repo_description = "No description provided."
 
@@ -649,7 +653,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
+            logger.error(f"Failed to extract docs: {e}. Tracking ID: {tracking_id}")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -713,6 +717,7 @@ def on_ticket(
                 break
 
         # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
+        tracking_id: str = str(uuid.uuid4())
         if not sweep_yml_exists:
             try:
                 logger.info("Creating sweep.yaml file...")
@@ -723,8 +728,7 @@ def on_ticket(
                 raise SystemExit
             except Exception as e:
                 logger.error(
-                    "Failed to create new branch for sweep.yaml file.\n",
-                    e,
+                    f"Failed to create new branch for sweep.yaml file.\n{e}. Tracking ID: {tracking_id}",
                     traceback.format_exc(),
                 )
         else:
@@ -1134,8 +1138,8 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
+                logger.error(f"{traceback.format_exc()}. Tracking ID: {tracking_id}")
+                logger.error(f"{e}. Tracking ID: {tracking_id}")
 
             if changes_required:
                 edit_sweep_comment(
@@ -1255,8 +1259,8 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.error.InvalidRequestError as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"{traceback.format_exc()}. Tracking ID: {tracking_id}")
+            logger.error(f"{e}. Tracking ID: {tracking_id}")
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1290,8 +1294,8 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"{traceback.format_exc()}. Tracking ID: {tracking_id}")
+            logger.error(f"{e}. Tracking ID: {tracking_id}")
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1329,7 +1333,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
+                logger.error(f"{e}. Tracking ID: {tracking_id}")
         finally:
             cloned_repo.delete()
 
@@ -1344,8 +1348,8 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                logger.error(f"{e}. Tracking ID: {tracking_id}")
+                logger.error(f"{traceback.format_exc()}. Tracking ID: {tracking_id}")
                 logger.print("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
