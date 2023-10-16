@@ -153,12 +153,11 @@ class ChatLogger(BaseModel):
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
             return True
+        purchased_tickets = self.get_ticket_count(purchased=True)
         if self.is_paying_user():
-            purchased_tickets = self.get_ticket_count(purchased=True)
-            return self.get_ticket_count() >= 500 or purchased_tickets >= 1
+            return self.get_ticket_count() >= 500 and purchased_tickets == 0
         if self.is_consumer_tier():
-            purchased_tickets = self.get_ticket_count(purchased=True)
-            return self.get_ticket_count() >= 20 or purchased_tickets >= 1
+            return self.get_ticket_count() >= 20 and purchased_tickets == 0
 
         try:
             loc_user = g.get_user(self.data["username"]).location
@@ -182,7 +181,9 @@ class ChatLogger(BaseModel):
             pass
 
         # Non-trial users can only create 2 GPT-4 tickets per day
-        return self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) > 3
+        return (
+            self.get_ticket_count() >= 5 or self.get_ticket_count(use_date=True) > 3
+        ) and purchased_tickets == 0
 
 
 def discord_log_error(content, priority=0):
