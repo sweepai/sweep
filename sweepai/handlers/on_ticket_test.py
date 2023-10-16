@@ -43,3 +43,20 @@ class TestOnTicket(unittest.TestCase):
             self.issue.installation_id
         )
         self.assertFalse(result['success'])
+
+    @patch('sweepai.handlers.on_ticket.get_github_client')
+    def test_logger_initialization(self, mock_get_github_client):
+        mock_get_github_client.return_value = (Mock(), Mock())
+        try:
+            on_ticket(
+                self.issue.title,
+                self.issue.summary,
+                self.issue.issue_number,
+                self.issue.issue_url,
+                self.issue.username,
+                self.issue.repo_full_name,
+                self.issue.repo_description,
+                self.issue.installation_id
+            )
+        except Exception as e:
+            self.fail(f"on_ticket raised an exception: {e}")
