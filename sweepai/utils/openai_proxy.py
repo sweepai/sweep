@@ -20,25 +20,26 @@ class OpenAIProxy:
     @file_cache(ignore_params=[])
     def call_openai(self, model, messages, max_tokens, temperature) -> str:
         try:
-            # engine = None
+            engine = None
             # if (
             #     model == "gpt-3.5-turbo-16k"
             #     or model == "gpt-4-32k-0613"
             #     and OPENAI_API_ENGINE_GPT35 is not None
             # ):
             #     engine = OPENAI_API_ENGINE_GPT35
-            # elif (
-            #     model == "gpt-4"
-            #     or model == "gpt-4-0613"
-            #     and OPENAI_API_ENGINE_GPT4 is not None
-            # ):
-            #     engine = OPENAI_API_ENGINE_GPT4
-            # elif (
-            #     model == "gpt-4-32k"
-            #     or model == "gpt-4-32k-0613"
-            #     and OPENAI_API_ENGINE_GPT4_32K is not None
-            # ):
-            #     engine = OPENAI_API_ENGINE_GPT4_32K
+            if (
+                model == "gpt-4"
+                or model == "gpt-4-0613"
+                and OPENAI_API_ENGINE_GPT4 is not None
+            ):
+                engine = OPENAI_API_ENGINE_GPT4
+            elif (
+                model == "gpt-4-32k"
+                or model == "gpt-4-32k-0613"
+                and OPENAI_API_ENGINE_GPT4_32K is not None
+            ):
+                engine = OPENAI_API_ENGINE_GPT4_32K
+
             # if OPENAI_API_TYPE is None or engine is None:
             #     openai.api_key = OPENAI_API_KEY
             #     openai.api_base = "https://api.openai.com/v1"
@@ -52,9 +53,6 @@ class OpenAIProxy:
             #         temperature=temperature,
             #     )
             #     return response["choices"][0].message.content
-
-            model == "gpt-4-32k-0613"
-            engine = OPENAI_API_ENGINE_GPT4_32K
 
             logger.info(
                 f"Calling {model} with engine {engine} on Azure url {OPENAI_API_BASE}."

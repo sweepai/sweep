@@ -90,41 +90,20 @@ class OpenAIProxy:
 
     def call_openai(self, model, messages, max_tokens, temperature):
         try:
-            # engine = None
-            # if (
-            #     model == "gpt-3.5-turbo-16k"
-            #     or model == "gpt-4-32k-0613"
-            #     and os.getenv("OPENAI_API_ENGINE_GPT35") is not None
-            # ):
-            #     engine = os.getenv("OPENAI_API_ENGINE_GPT35")
-            # elif (
-            #     model == "gpt-4"
-            #     or model == "gpt-4-0613"
-            #     and os.getenv("OPENAI_API_ENGINE_GPT4") is not None
-            # ):
-            #     engine = os.getenv("OPENAI_API_ENGINE_GPT4")
-            # elif (
-            #     model == "gpt-4-32k"
-            #     or model == "gpt-4-32k-0613"
-            #     and os.getenv("OPENAI_API_ENGINE_GPT4_32K") is not None
-            # ):
-            #     engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
-            # if os.getenv("OPENAI_API_TYPE") is None or engine is None:
-            #     openai.api_key = os.getenv("OPENAI_API_KEY")
-            #     openai.api_base = "https://api.openai.com/v1"
-            #     openai.api_version = None
-            #     openai.api_type = "open_ai"
-            #     logger.info(f"Calling {model} on OpenAI.")
-            #     response = openai.ChatCompletion.create(
-            #         model=model,
-            #         messages=messages,
-            #         max_tokens=max_tokens,
-            #         temperature=temperature,
-            #     )
-            #     return response["choices"][0].message.content
+            engine = None
+            if (
+                model == "gpt-4"
+                or model == "gpt-4-0613"
+                and os.getenv("OPENAI_API_ENGINE_GPT4") is not None
+            ):
+                engine = os.getenv("OPENAI_API_ENGINE_GPT4")
+            elif (
+                model == "gpt-4-32k"
+                or model == "gpt-4-32k-0613"
+                and os.getenv("OPENAI_API_ENGINE_GPT4_32K") is not None
+            ):
+                engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
 
-            model == "gpt-4-32k-0613"
-            engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
 
             OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
             logger.info(
@@ -176,41 +155,20 @@ class OpenAIProxy:
 
     def call_openai(self, model, messages, max_tokens, temperature):
         try:
-            # engine = None
-            # if (
-            #     model == "gpt-3.5-turbo-16k"
-            #     or model == "gpt-4-32k-0613"
-            #     and os.getenv("OPENAI_API_ENGINE_GPT35") is not None
-            # ):
-            #     engine = os.getenv("OPENAI_API_ENGINE_GPT35")
-            # elif (
-            #     model == "gpt-4"
-            #     or model == "gpt-4-0613"
-            #     and os.getenv("OPENAI_API_ENGINE_GPT4") is not None
-            # ):
-            #     engine = os.getenv("OPENAI_API_ENGINE_GPT4")
-            # elif (
-            #     model == "gpt-4-32k"
-            #     or model == "gpt-4-32k-0613"
-            #     and os.getenv("OPENAI_API_ENGINE_GPT4_32K") is not None
-            # ):
-            #     engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
-            # if os.getenv("OPENAI_API_TYPE") is None or engine is None:
-            #     openai.api_key = os.getenv("OPENAI_API_KEY")
-            #     openai.api_base = "https://api.openai.com/v1"
-            #     openai.api_version = None
-            #     openai.api_type = "open_ai"
-            #     logger.info(f"Calling {model} on OpenAI.")
-            #     response = openai.ChatCompletion.create(
-            #         model=model,
-            #         messages=messages,
-            #         max_tokens=max_tokens,
-            #         temperature=temperature,
-            #     )
-            #     return response["choices"][0].message.content
-
-            model == "gpt-4-32k-0613"
-            engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
+            engine = None
+            if (
+                model == "gpt-4"
+                or model == "gpt-4-0613"
+                and os.getenv("OPENAI_API_ENGINE_GPT4") is not None
+            ):
+                engine = os.getenv("OPENAI_API_ENGINE_GPT4")
+            elif (
+                model == "gpt-4-32k"
+                or model == "gpt-4-32k-0613"
+                and os.getenv("OPENAI_API_ENGINE_GPT4_32K") is not None
+            ):
+                engine = os.getenv("OPENAI_API_ENGINE_GPT4_32K")
+            
 
             OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
             logger.info(
@@ -234,7 +192,7 @@ class OpenAIProxy:
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            raise Exception(f"Mick 2 error: {e}")
+            raise e
             # if os.getenv("OPENAI_API_KEY"):
             #     try:
             #         openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -325,11 +283,11 @@ class ChatGPT(BaseModel):
         if "gpt-4" in model:
             max_tokens = min(max_tokens, 5000)
         # Fix for self hosting where TPM limit is super low for GPT-4
-        if os.getenv("OPENAI_USE_3_5_MODEL_ONLY"):
-            model = "gpt-4-32k-0613"
-            max_tokens = (
-                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
-            )
+        # if os.getenv("OPENAI_USE_3_5_MODEL_ONLY"):
+        #     model = "gpt-4-32k-0613"
+        #     max_tokens = (
+        #         model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
+        #     )
 
         # Fix for self hosting where TPM limit is super low for GPT-4
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")

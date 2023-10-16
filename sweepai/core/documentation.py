@@ -58,7 +58,7 @@ def write_documentation(doc_url):
             return False
         idx_name = remove_non_alphanumeric(doc_url)
         if not ACTIVELOOP_TOKEN:
-            path = f"sweep_docs/{idx_name}"
+            path = f"tmp/sweep_docs/{idx_name}"
             if os.path.exists(path):
                 logger.info(f"Path {path} already exists, not writing docs")
                 return True
@@ -102,7 +102,7 @@ def search_vector_store(doc_url, query, k=100):
     idx_name = remove_non_alphanumeric(doc_url)
     if not ACTIVELOOP_TOKEN:
         vector_store = VectorStore(
-            path=f"sweep_docs/{idx_name}",
+            path=f"/tmp/sweep_docs/{idx_name}",
             read_only=True,
         )
     else:

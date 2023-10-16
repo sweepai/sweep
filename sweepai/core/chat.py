@@ -1,7 +1,7 @@
 import time
 import traceback
 from typing import Any, Literal
-
+import os
 import anthropic
 import backoff
 import openai
@@ -11,7 +11,17 @@ from sweepai.config.client import get_description
 from sweepai.config.server import (
     OPENAI_DO_HAVE_32K_MODEL_ACCESS,
     OPENAI_USE_3_5_MODEL_ONLY,
+    AZURE_API_KEY,
+    OPENAI_API_BASE,
+    OPENAI_API_ENGINE_GPT4,
+    OPENAI_API_ENGINE_GPT4_32K,
+    OPENAI_API_ENGINE_GPT35,
+    OPENAI_API_KEY,
+    OPENAI_API_TYPE,
+    OPENAI_API_VERSION,
 )
+
+
 from sweepai.core.entities import Message, SweepContext
 from sweepai.core.prompts import (
     repo_description_prefix_prompt,
@@ -211,14 +221,16 @@ class ChatGPT(BaseModel):
         model: ChatModel | None = None,
         temperature=temperature,
     ):
-        if self.chat_logger is not None:
-            tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
-            tickets_count = self.chat_logger.get_ticket_count()
-            if tickets_count < tickets_allocated:
-                model = model or self.model
-                logger.info(f"{tickets_count} tickets found in MongoDB, using {model}")
-            else:
-                model = "gpt-4-32k-0613"
+        # if self.chat_logger is not None:
+        #     tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
+        #     tickets_count = self.chat_logger.get_ticket_count()
+        #     if tickets_count < tickets_allocated:
+        #         model = model or self.model
+        #         logger.info(f"{tickets_count} tickets found in MongoDB, using {model}")
+        #     else:
+        #         model = "gpt-4-32k-0613"
+
+        model = "gpt-4-32k-0613"
 
         count_tokens = Tiktoken().count
         messages_length = sum(
@@ -355,14 +367,17 @@ class ChatGPT(BaseModel):
         self,
         model: ChatModel | None = None,
     ):
-        if self.chat_logger is not None:
-            tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
-            tickets_count = self.chat_logger.get_ticket_count()
-            if tickets_count < tickets_allocated:
-                model = model or self.model
-                logger.info(f"{tickets_count} tickets found in MongoDB, using {model}")
-            else:
-                model = "gpt-4-32k-0613"
+        # if self.chat_logger is not None:
+        #     tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
+        #     tickets_count = self.chat_logger.get_ticket_count()
+            # if tickets_count < tickets_allocated:
+            #     model = model or self.model
+            #     logger.info(f"{tickets_count} tickets found in MongoDB, using {model}")
+            # else:
+            #     model = "gpt-4-32k-0613"
+        
+        model = "gpt-4-32k-0613"
+        engine = os.environ.get("OPENAI_API_ENGINE_GPT4_32K", None)
 
         count_tokens = Tiktoken().count
         messages_length = sum(
@@ -395,17 +410,18 @@ class ChatGPT(BaseModel):
         gpt_4_buffer = 800
         if int(messages_length) + gpt_4_buffer < 6000 and model == "gpt-4-32k-0613":
             model = "gpt-4-0613"
+            engine = os.environ.get("OPENAI_API_ENGINE_GPT4", None)
             max_tokens = (
                 model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
             )  # this is for the function tokens
         if "gpt-4" in model:
             max_tokens = min(max_tokens, 5000)
-        # Fix for self hosting where TPM limit is super low for GPT-4
-        if OPENAI_USE_3_5_MODEL_ONLY:
-            model = "gpt-4-32k-0613"
-            max_tokens = (
-                model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
-            )
+        # # Fix for self hosting where TPM limit is super low for GPT-4
+        # if OPENAI_USE_3_5_MODEL_ONLY:
+        #     model = "gpt-4-32k-0613"
+        #     max_tokens = (
+        #         model_to_max_tokens[model] - int(messages_length) - gpt_4_buffer
+        #     )
         logger.info(f"Using the model {model}, with {max_tokens} tokens remaining")
         global retry_counter
         retry_counter = 0
@@ -415,11 +431,20 @@ class ChatGPT(BaseModel):
                 global retry_counter
                 retry_counter += 1
                 token_sub = retry_counter * 200
+
+                # Mick: Force Azure
+                openai.api_type = OPENAI_API_TYPE
+                openai.api_base = OPENAI_API_BASE
+                openai.api_version = OPENAI_API_VERSION
+                openai.api_key = AZURE_API_KEY
+
                 try:
                     output = (
                         (
                             await openai.ChatCompletion.acreate(
                                 model=model,
+                                # Edit
+                                engine=engine,
                                 messages=self.messages_dicts,
                                 max_tokens=max_tokens - token_sub,
                                 temperature=default_temperature,

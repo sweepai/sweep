@@ -58,7 +58,7 @@ class SweepYamlBot(ChatGPT):
         user_prompt = sweep_yaml_user_prompt.format(
             commit_history=commit_history,
         )
-        self.model "gpt-4-32k-0613"
+        self.model = "gpt-4-32k-0613"
         response = self.chat(user_prompt)
         logger.info(f"CHAT GPT response {response} {type(response)}")
 

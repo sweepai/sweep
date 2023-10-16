@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import time
 from functools import lru_cache
@@ -54,7 +55,8 @@ def download_models():
 
 
 def init_deeplake_vs(repo_name):
-    deeplake_repo_path = f"mem://{int(time.time())}{repo_name}"
+    #deeplake_repo_path = f"mem://{int(time.time())}{repo_name}"
+    deeplake_repo_path = f"/app/data/embeddings"
     deeplake_vector_store = VectorStore(
         path=deeplake_repo_path, read_only=False, overwrite=False
     )
@@ -126,8 +128,14 @@ def embed_texts(texts: tuple[str]):
             embeddings = []
             for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
                 try:
+
+                    openai.api_type = os.getenv("OPENAI_API_TYPE")
+                    openai.api_base = os.getenv("OPENAI_API_BASE")
+                    openai.api_version = os.getenv("OPENAI_API_VERSION")
+                    openai.api_key = os.getenv("AZURE_API_KEY")
+
                     response = openai.Embedding.create(
-                        input=batch, model="text-embedding-ada-002"
+                        input=batch, engine=os.getenv("OPENAI_API_ENGINE_ADA"),  model="text-embedding-ada-002"
                     )
                     embeddings.extend([r["embedding"] for r in response["data"]])
                 except SystemExit:

@@ -10,7 +10,8 @@ services:
     image: sweepai/sweep
     volumes:
       - .:/app
-      - /sweep_docs:/sweep_docs
+      - /tmp/sweep_docs:/sweep_docs
+      - data:/app/data
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
     command: >
@@ -40,3 +41,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - 8081:8080
+
+
+volumes:
+  data:
