@@ -263,7 +263,7 @@ def home():
 async def webhook(raw_request: Request):
     # Do not create logs for api
     logger.init(
-        metadata=None,
+        metadata={"name": "webhook", "request": raw_request},
         create_file=False,
     )
 
@@ -435,11 +435,6 @@ async def webhook(raw_request: Request):
                                 "repo": repo,
                             },
                         )
-                        # push_to_queue(
-                        #     repo_full_name=request.repository.full_name,
-                        #     pr_id=request.issue.number,
-                        #     pr_change_request=pr_change_request,
-                        # )
             case "issues", "edited":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
@@ -450,15 +445,6 @@ async def webhook(raw_request: Request):
                     and not request.sender.login.startswith("sweep")
                 ):
                     logger.info("New issue edited")
-                    (request.repository.full_name, request.issue.number)
-                    # logger.info(f"Checking if {key} is in {stub.issue_lock}")
-                    # process = stub.issue_lock[key] if key in stub.issue_lock else None
-                    # if process:
-                    #     logger.info("Cancelling process")
-                    #     process.cancel()
-                    # stub.issue_lock[
-                    #     (request.repository.full_name, request.issue.number)
-                    # ] =
                     call_on_ticket(
                         title=request.issue.title,
                         summary=request.issue.body,
@@ -522,17 +508,6 @@ async def webhook(raw_request: Request):
                             "reason": "Comment does not start with 'Sweep', passing",
                         }
 
-                    # Update before we handle the ticket to make sure index is up to date
-                    # other ways suboptimal
-                    (request.repository.full_name, request.issue.number)
-                    # logger.info(f"Checking if {key} is in {stub.issue_lock}")
-                    # process = stub.issue_lock[key] if key in stub.issue_lock else None
-                    # if process:
-                    #     logger.info("Cancelling process")
-                    #     process.cancel()
-                    # stub.issue_lock[
-                    #     (request.repository.full_name, request.issue.number)
-                    # ] =
                     call_on_ticket(
                         title=request.issue.title,
                         summary=request.issue.body,
