@@ -53,9 +53,10 @@ def remove_non_alphanumeric(url):
 def write_documentation(doc_url):
     try:
         url_allowed = is_url_allowed(doc_url, user_agent="*")
-        if not url_allowed:
-            logger.info(f"URL {doc_url} is not allowed")
-            return False
+        # Always allow reading from the docs
+        # if not url_allowed:
+        #     logger.info(f"URL {doc_url} is not allowed")
+        #     return False
         idx_name = remove_non_alphanumeric(doc_url)
         if not ACTIVELOOP_TOKEN:
             path = f"tmp/sweep_docs/{idx_name}"
