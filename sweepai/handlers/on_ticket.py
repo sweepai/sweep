@@ -12,6 +12,8 @@ from time import time
 import openai
 import requests
 from github import BadCredentialsException
+from logtail import LogtailHandler
+from loguru import logger
 from requests.exceptions import Timeout
 from tabulate import tabulate
 from tqdm import tqdm
@@ -36,6 +38,7 @@ from sweepai.config.server import (
     GITHUB_BOT_USERNAME,
     GITHUB_LABEL_NAME,
     IS_SELF_HOSTED,
+    LOGTAIL_SOURCE_KEY,
     MONGODB_URI,
     OPENAI_API_KEY,
     OPENAI_USE_3_5_MODEL_ONLY,
@@ -66,9 +69,6 @@ from sweepai.handlers.create_pr import (
 )
 from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
-from loguru import logger
-from logtail import LogtailHandler
-from sweepai.config.server import LOGTAIL_SOURCE_KEY
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
@@ -237,7 +237,7 @@ def on_ticket(
         "is_self_hosted": IS_SELF_HOSTED,
     }
 
-    logger = logger.bind(**metadata)
+    logger.bind(**metadata)
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
     logger.add(handler)
 
@@ -318,6 +318,7 @@ def on_ticket(
             tickets_allocated = 500
         ticket_count = (
             max(tickets_allocated - chat_logger.get_ticket_count(), 0)
+            + chat_logger.get_ticket_count(purchased=True)
             if chat_logger
             else 999
         )
@@ -332,13 +333,13 @@ def on_ticket(
         )
 
         model_name = "GPT-3.5" if use_faster_model else "GPT-4"
-        payment_link = "https://buy.stripe.com/6oE5npbGVbhC97afZ4"
+        payment_link = "https://sweep.dev/pricing"
         daily_message = (
             f" and {daily_ticket_count} for the day"
             if not is_paying_user and not is_consumer_tier
             else ""
         )
-        user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Free Trial"
+        user_type = "💎 Sweep Pro" if is_paying_user else "⚡ Sweep Basic Tier"
         gpt_tickets_left_message = (
             f"{ticket_count} GPT-4 tickets left for the month"
             if not is_paying_user
@@ -879,7 +880,7 @@ def on_ticket(
             checkboxes_progress: list[tuple[str, str, str]] = [
                 (
                     file_change_request.entity_display,
-                    file_change_request.instructions + "<hr/>",
+                    file_change_request.instructions_display + "<br/><hr/>",
                     " ",
                 )
                 for file_change_request in file_change_requests

@@ -1,6 +1,7 @@
 import base64
 import os
 
+import requests
 from dotenv import load_dotenv
 from loguru import logger
 
@@ -178,9 +179,24 @@ SECONDARY_MODEL = "gpt-3.5-turbo-16k-0613"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 ACTIVELOOP_TOKEN = os.environ.get("ACTIVELOOP_TOKEN", None)
-SANDBOX_URL = os.environ.get("SANDBOX_URL", "http://0.0.0.0:8081")
+SANDBOX_URL = os.environ.get("SANDBOX_URL")
+if SANDBOX_URL is None:
+    try:
+        requests.get("https://0.0.0.0:8081/health").text.strip()
+        SANDBOX_URL = "https://0.0.0.0:8081"
+    except:
+        pass
+    try:
+        requests.get("https://sandbox-web:8080/health").text.strip()
+        SANDBOX_URL = "https://sandbox-web:8080"
+    except:
+        pass
+
+
 if SANDBOX_URL is not None:
     logger.print(f"Using Sandbox URL: {SANDBOX_URL}")
+else:
+    logger.print("No Sandbox URL found.")
 
 HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY", None)
 
