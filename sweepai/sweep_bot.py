@@ -63,6 +63,4 @@ from sweepai.utils.search_and_replace import (
     split_ellipses,
 )
 from sweepai.utils.utils import chunk_code
-
-class ModifyBot(ChatGPT):
-    # The class implementation goes here
+from sweepai.agents.modify_bot import ModifyBot
