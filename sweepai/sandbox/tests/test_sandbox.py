@@ -2,7 +2,7 @@ import sys; sys.path.insert(0, "/repo/sweepai/sandbox/")
 
 if __name__ == "__main__":
     from fastapi.testclient import TestClient
-    from sweepai.sandbox.src.chat import app  # Import the FastAPI application
+    from sweepai.sandbox.src.sandbox_local import app  # Import the FastAPI application
 
     client = TestClient(app)  # Use the FastAPI application
     data = {
