@@ -214,9 +214,15 @@ class ChatGPT(BaseModel):
         if self.chat_logger is not None:
             tickets_allocated = 120 if self.chat_logger.is_paying_user() else 5
             tickets_count = self.chat_logger.get_ticket_count()
+            purchased_tickets = self.chat_logger.get_ticket_count(purchased=True)
             if tickets_count < tickets_allocated:
                 model = model or self.model
                 logger.info(f"{tickets_count} tickets found in MongoDB, using {model}")
+            elif purchased_tickets > 0:
+                model = model or self.model
+                logger.info(
+                    f"{purchased_tickets} purchased tickets found in MongoDB, using {model}"
+                )
             else:
                 model = "gpt-3.5-turbo-16k-0613"
 
