@@ -105,7 +105,11 @@ def embed_replicate(texts: List[str]) -> List[np.ndarray]:
             logger.exception(f"Replicate timeout: {e}")
     else:
         raise Exception(f"Replicate timeout {e}")
-    return [output["embedding"] for output in outputs]
+    try:
+        # API format for all-mpnet-base-v2
+        return [output["embedding"] for output in outputs]
+    except:
+        return prediction.output
 
 
 @lru_cache(maxsize=64)
@@ -122,27 +126,105 @@ def embed_texts(texts: tuple[str]):
                 texts, show_progress_bar=True, batch_size=BATCH_SIZE
             )
             return vector
-        case "openai":
-            import openai
+        case "cloudflare":
+            CLOUDFLARE_EMBEDDING_MODEL = os.getenv("CLOUDFLARE_EMBEDDING_MODEL")
+            CLOUDFLARE_ACCOUNT_ID = os.getenv("CLOUDFLARE_ACCOUNT_ID")
+            CLOUDFLARE_API_TOKEN= os.getenv("CLOUDFLARE_API_TOKEN")
+            API_BASE_URL = f"https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/run/"
+            headers = {"Authorization": f"Bearer {CLOUDFLARE_API_TOKEN}"}
+
+            def run(model, input):
+                response = requests.post(f"{API_BASE_URL}{model}", headers=headers, json=input)
+                return response.json()
 
             embeddings = []
+            retries = 0
             for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
-                try:
+
+                # Retry exponential backoff to prevent OpenaI rate limit errors
+
+                # If retries exceed 1, delay the next batch by 5 seconds X retries
+                if retries > 1:
+                    logger.info(f"Delaying next batch by 5 seconds due to previous retries ({retries})")
+                    time.sleep(5*retries)
+
+                backoff_time = 5
+                retries = 0
+                while True:
+                    try:
+                        data = {"text": texts}
+                        print(data)
+                        response = requests.post(f"{API_BASE_URL}{CLOUDFLARE_EMBEDDING_MODEL}",
+                                                 headers=headers, 
+                                                 json=data)
+                        if response.ok:
+                            output = response.json()
+                            embeddings.extend([item for item in output['result']['data']])
+
+                            # Reset backoff time and retries if request was successful
+                            backoff_time = 5
+                            break
+                        else:
+                            # Log response error
+                            logger.info(f"Cloudflare response error: {response.json()}")
+                            time.sleep(backoff_time)
+
+                            # Increase backoff time for the next potential retry
+                            backoff_time = int(backoff_time * 1.5)
+                            retries += 1
+                    except Exception:
+
+                        logger.exception("Failed to get embeddings for batch using Cloudflare")
+                        logger.error(f"Failed to get embeddings using cloudflare for {batch}")
+
+        case "openai":
+            import openai
+            from openai.error import RateLimitError
+
+            embeddings = []
+            retries = 0
+            for batch in tqdm(chunk(texts, batch_size=BATCH_SIZE), disable=False):
+                # Retry exponential backoff to prevent OpenaI rate limit errors
 
                     openai.api_type = os.getenv("OPENAI_API_TYPE")
                     openai.api_base = os.getenv("OPENAI_API_BASE")
                     openai.api_version = os.getenv("OPENAI_API_VERSION")
                     openai.api_key = os.getenv("AZURE_API_KEY")
+                # If retries exceed 1, delay the next batch by 5 seconds X retries
+                if retries > 1:
+                    logger.info(f"Delaying next batch by 5 seconds due to previous retries ({retries})")
+                    time.sleep(5*retries)
 
-                    response = openai.Embedding.create(
-                        input=batch, engine=os.getenv("OPENAI_API_ENGINE_ADA"),  model="text-embedding-ada-002"
-                    )
-                    embeddings.extend([r["embedding"] for r in response["data"]])
-                except SystemExit:
-                    raise SystemExit
-                except Exception:
-                    logger.exception("Failed to get embeddings for batch")
-                    logger.error(f"Failed to get embeddings for {batch}")
+                backoff_time = 22
+                retries = 0
+                while True:
+                    try:
+                        response = openai.Embedding.create(
+                            input=batch, engine=os.getenv("OPENAI_API_ENGINE_ADA"), model="text-embedding-ada-002"
+                        )
+                        embeddings.extend([r["embedding"] for r in response["data"]])
+
+                        # Reset backoff time and retries if request was successful
+                        backoff_time = 22
+                        
+                        # Request was successful, break out of the loop
+                        break
+
+                    except SystemExit:
+                        raise SystemExit
+
+                    except RateLimitError:
+                        logger.info(f"Rate limit exceeded. Retrying after {backoff_time} seconds...")
+                        time.sleep(backoff_time)
+
+                        # Increase backoff time for the next potential retry
+                        backoff_time = int(backoff_time * 1.5)
+                        retries += 1
+
+                    except Exception:
+                        logger.exception("Failed to get embeddings for batch")
+                        logger.error(f"Failed to get embeddings for {batch}")
+                        break
             return embeddings
         case "huggingface":
             if HUGGINGFACE_URL and HUGGINGFACE_TOKEN:
