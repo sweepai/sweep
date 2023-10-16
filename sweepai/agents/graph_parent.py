@@ -95,8 +95,8 @@ class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
         )
 
 
-class GraphParentBot(ChatGPT):
-    def relevant_files_to_symbols(
+class ModifyBot:
+    def __init__(
         self, issue_metadata: str, relevant_snippets: str, symbols_to_files: str
     ):
         self.messages = [
@@ -124,59 +124,3 @@ class GraphParentBot(ChatGPT):
             relevant_symbols_and_files.relevant_files_to_symbols,
             relevant_symbols_and_files.relevant_symbols_string,
         )
-
-
-if __name__ == "__main__":
-    response = """<symbol_analysis>
-The issue is about refactoring the `messages` variable in the `ChatGPT` class, which is currently a list of `Message` objects. The `Message` class is defined in `sweepai/core/entities.py`. The `ChatGPT` class is defined in `sweepai/core/chat.py`. The `messages` variable is used in various methods within the `ChatGPT` class, such as `format_for_anthropic`, `from_system_message_content`, `select_message_from_message_key`, `delete_messages_from_chat`, `get_message_content_from_message_key`, `update_message_content_from_message_key`, `chat`, and `call_openai`.
-
-The `ChatGPT` class is used in several other files, including `sweepai/core/documentation_searcher.py`, `sweepai/core/code_repair.py`, `sweepai/core/context_pruning.py`, `sweepai/core/edit_chunk.py`, `sweepai/core/post_merge.py`, `sweepai/core/gha_extraction.py`, `sweepai/core/sweep_bot.py`, `sweepai/core/external_searcher.py`, `sweepai/core/slow_mode_expand.py`, and `tests/test_naive_chunker.py`.
-
-Therefore, these files might also need to be updated to accommodate the refactoring of the `messages` variable.
-</symbol_analysis>
-
-<relevant_symbols_to_files>
-Message:sweepai/core/entities.py
-ChatGPT:sweepai/core/chat.py
-ChatGPT:sweepai/core/documentation_searcher.py
-ChatGPT:sweepai/core/code_repair.py
-ChatGPT:sweepai/core/context_pruning.py
-ChatGPT:sweepai/core/edit_chunk.py
-ChatGPT:sweepai/core/post_merge.py
-ChatGPT:sweepai/core/gha_extraction.py
-ChatGPT:sweepai/core/sweep_bot.py
-ChatGPT:sweepai/core/external_searcher.py
-ChatGPT:sweepai/core/slow_mode_expand.py
-ChatGPT:tests/test_naive_chunker.py
-</relevant_symbols_to_files>"""
-
-    symbols_to_files = """\
-Message defined in sweepai/core/entities.py
-ChatGPT used in sweepai/core/documentation_searcher.py
-ChatGPT used in sweepai/core/code_repair.py
-ChatGPT used in sweepai/core/context_pruning.py
-ChatGPT used in sweepai/core/edit_chunk.py
-ChatGPT used in sweepai/core/post_merge.py
-ChatGPT used in sweepai/core/gha_extraction.py
-ChatGPT used in sweepai/core/sweep_bot.py
-ChatGPT used in sweepai/core/external_searcher.py
-ChatGPT used in sweepai/core/slow_mode_expand.py
-ChatGPT used in tests/test_naive_chunker.py
-"""
-    relevant_symbols_and_files = RelevantSymbolsAndFiles.from_string(
-        response, symbols_to_files
-    )
-    assert relevant_symbols_and_files.relevant_files_to_symbols == {
-        "sweepai/core/entities.py": ["Message"],
-        "sweepai/core/chat.py": ["ChatGPT"],
-        "sweepai/core/documentation_searcher.py": ["ChatGPT"],
-        "sweepai/core/code_repair.py": ["ChatGPT"],
-        "sweepai/core/context_pruning.py": ["ChatGPT"],
-        "sweepai/core/edit_chunk.py": ["ChatGPT"],
-        "sweepai/core/post_merge.py": ["ChatGPT"],
-        "sweepai/core/gha_extraction.py": ["ChatGPT"],
-        "sweepai/core/sweep_bot.py": ["ChatGPT"],
-        "sweepai/core/external_searcher.py": ["ChatGPT"],
-        "sweepai/core/slow_mode_expand.py": ["ChatGPT"],
-        "tests/test_naive_chunker.py": ["ChatGPT"],
-    }
