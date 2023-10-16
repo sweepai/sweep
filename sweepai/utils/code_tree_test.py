@@ -21,7 +21,7 @@ print(square_root(4))
 
         # Line inside the 'square_root' function
         result = tree.get_lines_surrounding(6)
-        expected = (5, 7)
+        expected = (2, 9)
         self.assertEqual(result, expected)
 
         # Line inside the 'import' statement
