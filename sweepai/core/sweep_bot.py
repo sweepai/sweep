@@ -434,6 +434,8 @@ class CodeGenBot(ChatGPT):
         raise Exception("Could not generate PR text")
 
 
+from sweepai.agents.modify_bot import ModifyBot
+
 class GithubBot(BaseModel):
     class Config:
         arbitrary_types_allowed = True  # for repo: Repository
@@ -1414,6 +1416,8 @@ class SweepBot(CodeGenBot, GithubBot):
         return response
 
 
+from sweepai.agents.modify_bot import ModifyBot
+
 class ModifyBot:
     def __init__(
         self,
@@ -1565,6 +1569,8 @@ class ModifyBot:
             raise UnneededEditError("No snippets found in file")
         return snippet_queries, extraction_terms
 
+    from sweepai.agents.modify_bot import ModifyBot
+    
     def update_file(
         self,
         file_path: str,
