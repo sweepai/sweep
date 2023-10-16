@@ -95,6 +95,60 @@ class RelevantSymbolsAndFiles(RegexMatchableBaseModel):
         )
 
 
+from __future__ import annotations
+
+import re
+
+from sweepai.core.chat import ChatGPT
+from sweepai.core.entities import Message, RegexMatchableBaseModel
+
+system_prompt = """You are an experienced software engineer working on a GitHub issue. Use the issue_metadata, relevant_snippets_in_repo, and symbols to extract the necessary symbols to solve the issue. Most symbols are not relevant. Provide at most 10 symbols, ideally fewer. They should be in descending order of relevance.
+
+The issue metadata, code, symbols, and files are provided in the below format:
+
+<issue_metadata>
+repository metadata
+issue title
+issue description
+</issue_metadata>
+
+<relevant_snippets_in_repo>
+<snippet source="file_path_1:start_line-end_line">
+relevant code snippet 1
+</snippet source>
+<snippet source="file_path_2:start_line-end_line">
+relevant code snippet 2
+</snippet source>
+...
+<relevant_snippets_in_repo>
+
+<symbols_to_files>
+symbols(function, variable, or classes) is used/defined in file
+<symbols_to_files>
+
+Provide your answer in the below format:
+
+<symbol_analysis>
+Extract the symbols that are needed to solve the issue and explain why. Do not mention it if it's "likely" or "possible", only choose ones you are certain about.
+</symbol_analysis>
+
+<relevant_symbols_to_files>
+{symbol}:{file_path}
+...
+</relevant_symbols_to_files>"""
+
+graph_user_prompt = """<metadata>
+{issue_metadata}
+</metadata>
+
+{relevant_snippets}
+
+<symbols_to_files>
+{symbols_to_files}</symbols_to_files>"""
+
+
+...
+
 class GraphParentBot(ChatGPT):
     def relevant_files_to_symbols(
         self, issue_metadata: str, relevant_snippets: str, symbols_to_files: str
