@@ -238,6 +238,8 @@ def on_ticket(
     }
 
     logger.bind(**metadata)
+    logger.info(f"Metadata: {metadata}")
+    
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
     logger.add(handler)
 
