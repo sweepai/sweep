@@ -237,9 +237,9 @@ def on_ticket(
         "is_self_hosted": IS_SELF_HOSTED,
     }
 
-    logger.info(f"Metadata: {metadata}")
-
     logger.bind(**metadata)
+    logger.info(f"Metadata: {metadata}")
+    
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
     logger.add(handler)
 
