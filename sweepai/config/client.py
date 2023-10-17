@@ -111,7 +111,7 @@ class SweepConfig(BaseModel):
                 raise SystemExit
             except Exception as e:
                 logger.warning(
-                    f"Error when getting branch: {e}, traceback: {traceback.format_exc()}"
+                    f"Error when getting branch: {e}, traceback: {traceback.format_exc()}, Tracking ID: {metadata['tracking_id']}"
                 )
 
         default_branch = repo.default_branch
@@ -134,7 +134,7 @@ class SweepConfig(BaseModel):
                 raise SystemExit
             except Exception as e:
                 logger.warning(
-                    f"Error when getting branch: {e}, traceback: {traceback.format_exc()}, creating branch"
+                    f"Error when getting branch: {e}, traceback: {traceback.format_exc()}, creating branch, Tracking ID: {metadata['tracking_id']}"
                 )
                 repo.create_git_ref(
                     f"refs/heads/{branch_name}",
@@ -155,7 +155,7 @@ class SweepConfig(BaseModel):
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error when getting config: {e}, returning empty dict")
+            logger.warning(f"Error when getting config: {e}, returning empty dict, Tracking ID: {metadata['tracking_id']}")
             if "This repository is empty." in str(e):
                 raise EmptyRepository()
             return SweepConfig()
@@ -169,7 +169,7 @@ class SweepConfig(BaseModel):
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error when getting draft: {e}, returning False")
+            logger.warning(f"Error when getting draft: {e}, returning False, Tracking ID: {metadata['tracking_id']}")
             return False
 
 
@@ -185,7 +185,7 @@ def get_gha_enabled(repo: Repository) -> bool:
         raise SystemExit
     except Exception as e:
         logger.warning(
-            f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True"
+            f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True, Tracking ID: {metadata['tracking_id']}"
         )
         return True
 
