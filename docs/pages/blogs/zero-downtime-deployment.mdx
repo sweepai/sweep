@@ -1,0 +1,104 @@
+# Zero Downtime Deployment with \<50 lines of bash
+
+**Sweep Team** - October 16th, 2023
+
+---
+
+When serving any hosted product, it's crucial to deploy updates without disrupting the user experience. At Sweep, we ensure that our service is continuously available, even during deployments with Zero Downtime Deployment (ZDD). We manage this with Docker containers to achieve seamless deployments through a script, which I'll outline throughout this blog.
+
+## Older Container Removal
+
+The initial step involves removing old processes to free up resources. The script starts by listing all active Docker containers by identifying containers beyond the most recent two for removal, allowing for a rollback capability if needed. To ensure that we do not interrupt any ongoing transactions, we let Docker containers finish processing their ongoing requests before removal.
+
+```bash filename="deploy.sh" showLineNumbers
+# Remove old docker images only after 2 runs to allow for rollbacks.
+# Docker images also need to finish processing their requests before they can be removed.
+echo `docker ps`
+containers_to_remove=$(docker ps -q | awk 'NR>2')
+```
+The awk `NR>2` command filters out the first two containers, ensuring they are kept for rollback purposes. The remaining containers are stored in the variable `containers_to_remove`.
+```bash filename="deploy.sh" showLineNumbers
+if [ ! -z "$containers_to_remove" ]; then
+    echo "Removing old docker runs"
+    docker rm -f $containers_to_remove
+else
+    echo "No old docker runs to remove"
+fi
+```
+
+The if statement checks if `containers_to_remove` is non-empty and if so the `docker rm -f $containers_to_remove` command forcefully removes the old containers, ensuring a resources are freed for the new deployment.
+
+
+## Port Allocation 
+
+Now we start preparing for the new deployment, starting by finding an available port. We do this by starting at `PORT=8081` and increment it until a free port is found.
+
+```bash filename="deploy.sh" showLineNumbers
+# Find next available port to deploy to
+PORT=8081
+is_port_free() {
+    lsof -i :$1 > /dev/null
+    return $?
+}
+
+while is_port_free $PORT; do
+    ((PORT++))
+done
+
+echo "Found open port: $PORT"
+```
+
+We check for free ports using `is_port_free()`, which uses `lsof`. `lsof -i :$1` lists all processes on port `$1`, where we check the exit code using `return $?`, which is 0 if the port is occupied and 1 otherwise.
+
+## New Container Deployment 
+Now we finally get to the deployment by going to the app directory, building a new Docker image, and deploying a new container on the allocated port.
+
+```bash filename="deploy.sh" showLineNumbers
+# Start new docker container on the next available port
+cd ~/sweep
+docker build -t sweepai/sweep:latest .
+docker run -v $(pwd)/sweep_docs:/app/sweep_docs --env-file .env -p $PORT:8080 -d sweepai/sweep:latest
+```
+
+## Health Check
+
+We now wait until it's up and running using the `/health` endpoint, and only moves on to switching the port until this is ready.
+
+```bash filename="deploy.sh" showLineNumbers
+# Wait until webhook is available before rerouting traffic to it
+echo "Waiting for server to start..."
+while true; do
+    curl --output /dev/null --silent --fail http://localhost:$PORT/health
+    if [ $? -eq 0 ]; then
+        echo "Received a good response!"
+        break
+    else
+        printf '.'
+        sleep 1
+    fi
+done
+```
+
+## Traffic Rerouting
+The final step is to ensure that our users are directed to the new version of sweep. Our script reroutes traffic to the new container by updating ngrok proxy to point to the new port. 
+
+```bash filename="deploy.sh" showLineNumbers
+# Update the ngrok proxy to point to the new port
+screen -list | grep -q "\bngrok\b"
+SESSION_EXISTS=$?
+
+if [ $SESSION_EXISTS -ne 0 ]; then
+    screen -S ngrok -d -m
+    echo creating new session
+    sleep 1
+fi
+
+# Kill the ngrok process if it's already running
+screen -S ngrok -X stuff $'\003'
+sleep 1
+screen -S ngrok -X stuff $'ngrok http --domain=sweep-prod.ngrok.dev '$PORT$'\n'
+```
+
+--- 
+
+We're excited to see what the future holds for code planning and to hear your thoughts on it. If you have ideas, feel free to share them in our [community](https://discord.gg/sweep).
