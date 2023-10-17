@@ -101,7 +101,7 @@ class SweepConfig(BaseModel):
         return cls.parse_obj(data)
 
     @staticmethod
-    def get_branch(repo: Repository, override_branch: str | None = None) -> str:
+    def get_branch(repo: Repository, override_branch: str | None = None, metadata: dict = None) -> str:
         if override_branch:
             branch_name = override_branch
             try:
@@ -111,7 +111,7 @@ class SweepConfig(BaseModel):
                 raise SystemExit
             except Exception as e:
                 logger.warning(
-                    f"Error when getting branch: {e}, traceback: {traceback.format_exc()}, Tracking ID: {metadata['tracking_id']}"
+                    f"Error when getting branch: {e}, traceback: {traceback.format_exc()}, Tracking ID: {metadata['tracking_id'] if metadata else 'N/A'}"
                 )
 
         default_branch = repo.default_branch
@@ -127,67 +127,48 @@ class SweepConfig(BaseModel):
             if "branch" not in sweep_yaml_dict:
                 return default_branch
             branch_name = sweep_yaml_dict["branch"]
+            @staticmethod
+            def get_config(repo: Repository, metadata: dict = None):
+                try:
+                    contents = repo.get_contents("sweep.yaml")
+                    config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
+                    return SweepConfig(**config)
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    logger.warning(f"Error when getting config: {e}, returning empty dict, Tracking ID: {metadata['tracking_id'] if metadata else 'N/A'}")
+                    if "This repository is empty." in str(e):
+                        raise EmptyRepository()
+                    return SweepConfig()
+        
+            @staticmethod
+            def get_draft(repo: Repository, metadata: dict = None):
+                try:
+                    contents = repo.get_contents("sweep.yaml")
+                    config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
+                    return config.get("draft", False)
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    logger.warning(f"Error when getting draft: {e}, returning False, Tracking ID: {metadata['tracking_id'] if metadata else 'N/A'}")
+                    return False
+        
+        
+        @lru_cache(maxsize=None)
+        def get_gha_enabled(repo: Repository, metadata: dict = None) -> bool:
             try:
-                repo.get_branch(branch_name)
-                return branch_name
+                contents = repo.get_contents("sweep.yaml")
+                gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
+                    "gha_enabled", True
+                )
+                return gha_enabled
             except SystemExit:
                 raise SystemExit
             except Exception as e:
                 logger.warning(
-                    f"Error when getting branch: {e}, traceback: {traceback.format_exc()}, creating branch, Tracking ID: {metadata['tracking_id']}"
+                    f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True, Tracking ID: {metadata['tracking_id'] if metadata else 'N/A'}"
                 )
-                repo.create_git_ref(
-                    f"refs/heads/{branch_name}",
-                    repo.get_branch(default_branch).commit.sha,
-                )
-                return branch_name
-        except SystemExit:
-            raise SystemExit
-        except Exception:
-            return default_branch
-
-    @staticmethod
-    def get_config(repo: Repository):
-        try:
-            contents = repo.get_contents("sweep.yaml")
-            config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
-            return SweepConfig(**config)
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.warning(f"Error when getting config: {e}, returning empty dict, Tracking ID: {metadata['tracking_id']}")
-            if "This repository is empty." in str(e):
-                raise EmptyRepository()
-            return SweepConfig()
-
-    @staticmethod
-    def get_draft(repo: Repository):
-        try:
-            contents = repo.get_contents("sweep.yaml")
-            config = yaml.safe_load(contents.decoded_content.decode("utf-8"))
-            return config.get("draft", False)
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.warning(f"Error when getting draft: {e}, returning False, Tracking ID: {metadata['tracking_id']}")
-            return False
-
-
-@lru_cache(maxsize=None)
-def get_gha_enabled(repo: Repository) -> bool:
-    try:
-        contents = repo.get_contents("sweep.yaml")
-        gha_enabled = yaml.safe_load(contents.decoded_content.decode("utf-8")).get(
-            "gha_enabled", True
-        )
-        return gha_enabled
-    except SystemExit:
-        raise SystemExit
-    except Exception as e:
-        logger.warning(
-            f"Error when getting gha enabled: {e}, traceback: {traceback.format_exc()}, falling back to True, Tracking ID: {metadata['tracking_id']}"
-        )
-        return True
+                return True
 
 
 @lru_cache(maxsize=None)
