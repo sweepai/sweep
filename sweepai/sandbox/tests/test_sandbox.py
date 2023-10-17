@@ -1,6 +1,6 @@
 if __name__ == "__main__":
     from fastapi.testclient import TestClient
-    from .sandbox_local import app
+    from sandbox_local import app
 
     client = TestClient(app)
     data = {
