@@ -238,6 +238,8 @@ def on_ticket(
     }
 
     logger.bind(**metadata)
+    logger.info(f"Metadata: {metadata}")
+    
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
     logger.add(handler)
 
@@ -1160,9 +1162,10 @@ def on_ticket(
                 if DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 else ""
             )
-            revert_buttons = []
-            for changed_file in set(changed_files):
-                revert_buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
+            revert_buttons = set()
+            for changed_file in changed_files:
+                revert_buttons.add(Button(label=f"{RESET_FILE} {changed_file}"))
+            revert_buttons = list(revert_buttons)
             revert_buttons_list = ButtonList(
                 buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
             )
