@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import requests
+from copy import deepcopy
 from geopy import Nominatim
 from pydantic import BaseModel, Field
 from pymongo import MongoClient
@@ -15,12 +16,16 @@ from sweepai.config.server import (
     SUPPORT_COUNTRY,
 )
 from sweepai.logn import logger
+from sweepai.sandbox.src import chat_logger
 
+global_mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=10000, socketTimeoutMS=10000)
 
 class ChatLogger(BaseModel):
     data: dict
     chat_collection: Any = None
     ticket_collection: Any = None
+    _ticket_count_cache = {}
+    _user_field_cache = {}
     expiration: datetime = None
     index: int = 0
     current_date: str = Field(
@@ -38,19 +43,19 @@ class ChatLogger(BaseModel):
             return
         if not mock:
             try:
-                client = MongoClient(
-                    key, serverSelectionTimeoutMS=10000, socketTimeoutMS=10000
-                )
+                client = global_mongo_client
                 db = client["llm"]
                 self.chat_collection = db["chat_history"]
                 self.ticket_collection = db["tickets"]
-                self.ticket_collection.create_index("username")
-                self.chat_collection.create_index(
-                    "expiration", expireAfterSeconds=2419200
-                )  # 28 days data persistence
-                self.expiration = datetime.utcnow() + timedelta(
-                    days=1
-                )  # 1 day since historical use case
+                # For 'username' index on ticket_collection
+                existing_indexes = self.ticket_collection.index_information()
+                if "username_1" not in existing_indexes:
+                    self.ticket_collection.create_index("username")
+
+                # For 'expiration' index on chat_collection
+                existing_indexes = self.chat_collection.index_information()
+                if "expiration_1" not in existing_indexes:
+                    self.chat_collection.create_index("expiration", expireAfterSeconds=2419200)
             except SystemExit:
                 raise SystemExit
             except Exception as e:
@@ -81,73 +86,77 @@ class ChatLogger(BaseModel):
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
             return
-        username = self.data["username"]
-        if "assignee" in self.data:
-            username = self.data["assignee"]
+
+        username = self.data.get("assignee", self.data["username"])
+        update_fields = {self.current_month: 1, self.current_date: 1}
+
         if gpt3:
             key = f"{self.current_month}_gpt3"
-            self.ticket_collection.update_one(
-                {"username": username},
-                {"$inc": {key: 1}},
-                upsert=True,
-            )
-        else:
-            self.ticket_collection.update_one(
-                {"username": username},
-                {"$inc": {self.current_month: 1, self.current_date: 1}},
-                upsert=True,
-            )
+            update_fields = {key: 1}
+
+        self.ticket_collection.update_one(
+            {"username": username},
+            {"$inc": update_fields},
+            upsert=True
+        )
+
         ticket_count = self.get_ticket_count()
-        if (self.is_paying_user() and ticket_count >= 500) or (
-            self.is_consumer_tier() and ticket_count >= 20
-        ):
+        should_decrement = (self.is_paying_user() and ticket_count >= 500) or \
+                        (self.is_consumer_tier() and ticket_count >= 20)
+
+        if should_decrement:
             self.ticket_collection.update_one(
                 {"username": username},
                 {"$inc": {"purchased_tickets": -1}},
-                upsert=True,
+                upsert=True
             )
+
         logger.info(f"Added Successful Ticket for {username}")
 
+    def _cache_key(self, username, field, metadata = ""):
+        return f"{username}_{field}_{metadata}"
+
     def get_ticket_count(self, use_date=False, gpt3=False, purchased=False):
-        # gpt3 overrides use_date
-        if self.ticket_collection is None:
-            logger.error("Ticket Collection Does Not Exist")
-            return 0
         username = self.data["username"]
+        cache_key = self._cache_key(username, "ticket_count", f"{use_date}_{gpt3}_{purchased}")
+        
+        if cache_key in self._ticket_count_cache:
+            return self._ticket_count_cache[cache_key]
         tracking_date = self.current_date if use_date else self.current_month
         if gpt3:
             tracking_date = f"{self.current_month}_gpt3"
+        query = {"username": username}
+        result = self.ticket_collection.find_one(query, {tracking_date: 1, "_id": 0})
         if purchased:
-            result = self.ticket_collection.find_one({"username": username})
-            return result.get("purchased_tickets", 0) if result else 0
+            ticket_count = result.get("purchased_tickets", 0) if result else 0
         else:
-            result = self.ticket_collection.aggregate(
-                [
-                    {"$match": {"username": username}},
-                    {"$project": {tracking_date: 1, "_id": 0}},
-                ]
-            )
-            result_list = list(result)
-            ticket_count = (
-                result_list[0].get(tracking_date, 0) if len(result_list) > 0 else 0
-            )
-            return ticket_count
+            ticket_count = result.get(tracking_date, 0) if result else 0
+        self._ticket_count_cache[cache_key] = ticket_count
+        return ticket_count
 
-    def is_paying_user(self):
+    def _get_user_field(self, field: str):
         if self.ticket_collection is None:
             logger.error("Ticket Collection Does Not Exist")
-            return False
+            return None
+
         username = self.data["username"]
-        result = self.ticket_collection.find_one({"username": username})
-        return result.get("is_paying_user", False) if result else False
+        cache_key = self._cache_key(username, field)
+
+        if cache_key in self._user_field_cache:
+            return self._user_field_cache[cache_key]
+
+        result = self.ticket_collection.find_one({"username": username}, {field: 1})
+
+        user_field_value = result.get(field, False) if result else False
+        self._user_field_cache[cache_key] = user_field_value
+
+        return user_field_value
 
     def is_consumer_tier(self):
-        if self.ticket_collection is None:
-            logger.error("Ticket Collection Does Not Exist")
-            return False
-        username = self.data["username"]
-        result = self.ticket_collection.find_one({"username": username})
-        return result.get("is_trial_user", False) if result else False
+        return self._get_user_field("is_trial_user")
+
+    def is_paying_user(self):
+        return self._get_user_field("is_paying_user")
 
     def use_faster_model(self, g):
         if self.ticket_collection is None:
@@ -205,3 +214,12 @@ def discord_log_error(content, priority=0):
         raise SystemExit
     except Exception as e:
         logger.error(f"Could not log to Discord: {e}")
+
+
+if __name__ == "__main__":
+    chat_logger = ChatLogger(
+        {
+            "username": "kevinlu1248",
+        }
+    )
+    print(chat_logger.get_ticket_count())
