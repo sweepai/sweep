@@ -466,9 +466,16 @@ def on_ticket(
         # Random variables to save in case of errors
         table = None  # Show plan so user can finetune prompt
 
-        def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
-            nonlocal current_index, user_token, g, repo, issue_comment
-            # -1 = error, -2 = retry
+        def handle_error(e, message, tracking_id):
+            logger.error(traceback.format_exc() + f" (tracking ID: {tracking_id})")
+            logger.error(str(e) + f" (tracking ID: {tracking_id})")
+            edit_sweep_comment(
+                (
+                    f"{message} If this error persists report it at"
+                    f" https://discord.gg/sweep. (tracking ID: {tracking_id})"
+                ),
+                -1,
+            )
             # Only update the progress bar if the issue generation errors.
             errored = index == -1
             if index >= 0:
@@ -535,13 +542,10 @@ def on_ticket(
                     issue_comment.edit(msg)
 
         if len(title + summary) < 20:
-            logger.info(f"Issue too short (tracking ID: {tracking_id})")
-            edit_sweep_comment(
-                (
-                    f"Please add more details to your issue. I need at least 20 characters"
-                    f" to generate a plan. (tracking ID: {tracking_id})"
-                ),
-                -1,
+            handle_error(
+                Exception("Issue too short"),
+                "Please add more details to your issue. I need at least 20 characters to generate a plan.",
+                tracking_id,
             )
             posthog.capture(
                 username,
@@ -556,14 +560,10 @@ def on_ticket(
             and not is_consumer_tier
         ):
             if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
-                logger.info(f"Test repository detected (tracking ID: {tracking_id})")
-                edit_sweep_comment(
-                    (
-                        f"Sweep does not work on test repositories. Please create an issue"
-                        f" on a real repository. If you think this is a mistake, please"
-                        f" report this at https://discord.gg/sweep. (tracking ID: {tracking_id})"
-                    ),
-                    -1,
+                handle_error(
+                    Exception("Test repository detected"),
+                    "Sweep does not work on test repositories. Please create an issue on a real repository. If you think this is a mistake, please report this at https://discord.gg/sweep.",
+                    tracking_id,
                 )
                 posthog.capture(
                     username,
@@ -586,6 +586,40 @@ def on_ticket(
         # )
 
         logger.info(f"Fetching relevant files... (tracking ID: {tracking_id})")
+        def handle_exception(e, message, tracking_id):
+            logger.error(f"{e} (tracking ID: {tracking_id})")
+            trace = traceback.format_exc()
+            logger.error(trace)
+            edit_sweep_comment(
+                (
+                    f"{message}"
+                    f" If this error persists"
+                    f" contact team@sweep.dev. (tracking ID: {tracking_id})\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch."
+                ),
+                -1,
+            )
+            log_error(
+                is_paying_user,
+                is_consumer_tier,
+                username,
+                issue_url,
+                "File Fetch",
+                str(e) + "\n" + traceback.format_exc(),
+                priority=1,
+                tracking_id=tracking_id
+            )
+            posthog.capture(
+                username,
+                "failed",
+                properties={
+                    **metadata,
+                    "error": str(e),
+                    "duration": time() - on_ticket_start_time,
+                    "tracking_id": tracking_id
+                },
+            )
+            raise e
+        
         try:
             snippets, tree, dir_obj = search_snippets(
                 cloned_repo,
@@ -607,57 +641,7 @@ def on_ticket(
             )
             raise SystemExit
         except Exception as e:
-            logger.error(f"{e} (tracking ID: {tracking_id})")
-            trace = traceback.format_exc()
-            logger.error(trace)
-            edit_sweep_comment(
-                (
-                    f"It looks like an issue has occurred around fetching the files."
-                    f" Perhaps the repo has not been initialized. If this error persists"
-                    f" contact team@sweep.dev. (tracking ID: {tracking_id})\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch."
-                ),
-                -1,
-            )
-            log_error(
-                is_paying_user,
-                is_consumer_tier,
-                username,
-                issue_url,
-                "File Fetch",
-                str(e) + "\n" + traceback.format_exc(),
-                priority=1,
-                tracking_id=tracking_id
-            )
-            
-            logger.error(e)
-            logger.error(trace)
-            edit_sweep_comment(
-                (
-                    "It looks like an issue has occurred around fetching the files."
-                    " Perhaps the repo has not been initialized. If this error persists"
-                    f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch."
-                ),
-                -1,
-            )
-            log_error(
-                is_paying_user,
-                is_consumer_tier,
-                username,
-                issue_url,
-                "File Fetch",
-                str(e) + "\n" + traceback.format_exc(),
-                priority=1,
-            )
-            posthog.capture(
-                username,
-                "failed",
-                properties={
-                    **metadata,
-                    "error": str(e),
-                    "duration": time() - on_ticket_start_time,
-                },
-            )
-            raise e
+            handle_exception(e, "It looks like an issue has occurred around fetching the files. Perhaps the repo has not been initialized.", tracking_id)
 
         # Fetch git commit history
         commit_history = cloned_repo.get_commit_history(username=username)
@@ -1145,58 +1129,89 @@ def on_ticket(
                     + blockquote(review_comment)
                     + "\n\n"
                 )
+                try:
+                    current_issue.delete_reaction(eyes_reaction.id)
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    handle_exception(e, "Failed to delete reaction", tracking_id)
+    
+                changes_required = False
+                try:
+                    # CODE REVIEW
+                    changes_required, review_comment = review_pr(
+                        repo=repo,
+                        pr=pr_changes,
+                        issue_url=issue_url,
+                        username=username,
+                        repo_description=repo_description,
+                        title=title,
+                        summary=summary,
+                        replies_text=replies_text,
+                        tree=tree,
+                        lint_output=lint_output,
+                        plan=plan,  # plan for the PR
+                        chat_logger=chat_logger,
+                        commit_history=commit_history,
+                    )
+                    lint_output = None
+                    review_message += (
+                        f"Here is the {ordinal(1)} review\n"
+                        + blockquote(review_comment)
+                        + "\n\n"
+                    )
+                    if changes_required:
+                        edit_sweep_comment(
+                            review_message
+                            + f"\n\nI'm currently addressing these suggestions. (tracking ID: {tracking_id})",
+                            3,
+                        )
+                        logger.info(f"Addressing review comment {review_comment} (tracking ID: {tracking_id})")
+                        on_comment(
+                            repo_full_name=repo_full_name,
+                            repo_description=repo_description,
+                            comment=review_comment,
+                            username=username,
+                            installation_id=installation_id,
+                            pr_path=None,
+                            pr_line_position=None,
+                            pr_number=None,
+                            pr=pr_changes,
+                            chat_logger=chat_logger,
+                            repo=repo,
+                        )
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    handle_exception(e, "Failed to review PR", tracking_id)
+    
                 if changes_required:
                     edit_sweep_comment(
-                        review_message
-                        + f"\n\nI'm currently addressing these suggestions. (tracking ID: {tracking_id})",
+                        review_message + f"\n\nI finished incorporating these changes. (tracking ID: {tracking_id})",
                         3,
                     )
-                    logger.info(f"Addressing review comment {review_comment} (tracking ID: {tracking_id})")
-                    on_comment(
-                        repo_full_name=repo_full_name,
-                        repo_description=repo_description,
-                        comment=review_comment,
-                        username=username,
-                        installation_id=installation_id,
-                        pr_path=None,
-                        pr_line_position=None,
-                        pr_number=None,
-                        pr=pr_changes,
-                        chat_logger=chat_logger,
-                        repo=repo,
+                else:
+                    edit_sweep_comment(
+                        f"I have finished reviewing the code for completeness. I did not find errors for {change_location}. (tracking ID: {tracking_id})",
+                        3,
                     )
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(traceback.format_exc() + f" (tracking ID: {tracking_id})")
-                logger.error(str(e) + f" (tracking ID: {tracking_id})")
-
-            if changes_required:
-                edit_sweep_comment(
-                    review_message + f"\n\nI finished incorporating these changes. (tracking ID: {tracking_id})",
-                    3,
+    
+                pr_actions_message = (
+                    create_action_buttons(
+                        [
+                            SWEEP_GOOD_FEEDBACK,
+                            SWEEP_BAD_FEEDBACK,
+                        ],
+                        header="### PR Feedback (click)\n",
+                    )
+                    + "\n"
+                    if DISCORD_FEEDBACK_WEBHOOK_URL is not None
+                    else ""
                 )
-            else:
-                edit_sweep_comment(
-                    f"I have finished reviewing the code for completeness. I did not find errors for {change_location}. (tracking ID: {tracking_id})",
-                    3,
-                )
-
-            pr_actions_message = (
-                create_action_buttons(
-                    [
-                        SWEEP_GOOD_FEEDBACK,
-                        SWEEP_BAD_FEEDBACK,
-                    ],
-                    header="### PR Feedback (click)\n",
-                )
-                + "\n"
-                if DISCORD_FEEDBACK_WEBHOOK_URL is not None
-                else ""
-            )
-            revert_buttons = []
-            for changed_file in set(changed_files):
-                revert_buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
+            revert_buttons = set()
+            for changed_file in changed_files:
+                revert_buttons.add(Button(label=f"{RESET_FILE} {changed_file}"))
+            revert_buttons = list(revert_buttons)
             revert_buttons_list = ButtonList(
                 buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
             )
@@ -1242,26 +1257,13 @@ def on_ticket(
                 str(e) + "\n" + traceback.format_exc() + f" (tracking ID: {tracking_id})",
                 priority=2,
             )
-            if chat_logger.is_paying_user():
-                edit_sweep_comment(
-                    (
-                        f"Sorry, I could not edit `{e.filename}` as this file is too long."
-                        " We are currently working on improved file streaming to address"
-                        " this issue.\n"
-                    ),
-                    -1,
-                )
-            else:
-                edit_sweep_comment(
-                    (
-                        f"Sorry, I could not edit `{e.filename}` as this file is too"
-                        " long.\n\nIf this file is incorrect, please describe the desired"
-                        " file in the prompt. However, if you would like to edit longer"
-                        " files, consider upgrading to [Sweep Pro](https://sweep.dev/) for"
-                        " longer context lengths.\n"
-                    ),
-                    -1,
-                )
+            handle_exception(
+                e,
+                f"Sorry, I could not edit `{e.filename}` as this file is too long."
+                " We are currently working on improved file streaming to address"
+                " this issue.\n",
+                tracking_id,
+            )
             delete_branch = True
             logger.info(f"Sweep could not find files to modify (tracking ID: {tracking_id})")
             log_error(
@@ -1273,62 +1275,36 @@ def on_ticket(
                 str(e) + "\n" + traceback.format_exc() + f" (tracking ID: {tracking_id})",
                 priority=2,
             )
-            edit_sweep_comment(
-                (
-                    "Sorry, Sweep could not find any appropriate files to edit to address"
-                    " this issue. If this is a mistake, please provide more context and I"
-                    f" will retry!\n\n> @{username}, please edit the issue description to"
-                    " include more details about this issue."
-                ),
-                -1,
+            handle_exception(
+                e,
+                "Sorry, Sweep could not find any appropriate files to edit to address"
+                " this issue. If this is a mistake, please provide more context and I"
+                f" will retry!\n\n> @{username}, please edit the issue description to"
+                " include more details about this issue.",
+                tracking_id,
             )
             delete_branch = True
-            logger.error(traceback.format_exc() + f" (tracking ID: {tracking_id})")
-            logger.error(str(e) + f" (tracking ID: {tracking_id})")
-            edit_sweep_comment(
-                (
-                    "I'm sorry, but it looks our model has ran out of context length. We're"
-                    " trying to make this happen less, but one way to mitigate this is to"
-                    " code smaller files. If this error persists report it at"
-                    f" https://discord.gg/sweep. (tracking ID: {tracking_id})"
-                ),
-                -1,
-            )
-            log_error(
-                is_paying_user,
-                is_consumer_tier,
+            posthog.capture(
                 username,
-                issue_url,
-                "Context Length",
-                str(e) + "\n" + traceback.format_exc(),
-                priority=2,
+                "failed",
+                properties={
+                    "error": str(e),
+                    "reason": "Invalid request error / context length",
+                    **metadata,
+                    "duration": time() - on_ticket_start_time,
+                },
             )
             delete_branch = True
+            raise e
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(traceback.format_exc() + f" (tracking ID: {tracking_id})")
-            logger.error(str(e) + f" (tracking ID: {tracking_id})")
-            # title and summary are defined elsewhere
-            if len(title + summary) < 60:
-                edit_sweep_comment(
-                    (
-                        "I'm sorry, but it looks like an error has occurred due to"
-                        " insufficient information. Be sure to create a more detailed issue"
-                        " so I can better address it. If this error persists report it at"
-                        f" https://discord.gg/sweep. (tracking ID: {tracking_id})"
-                    ),
-                    -1,
-                )
-            else:
-                edit_sweep_comment(
-                    (
-                        "I'm sorry, but it looks like an error has occurred. Try changing"
-                        " the issue description to re-trigger Sweep. If this error persists"
-                        f" report it at https://discord.gg/sweep. (tracking ID: {tracking_id})"
-                    ),
-                    -1,
-                )
+            handle_exception(
+                e,
+                "I'm sorry, but it looks like an error has occurred. Try changing"
+                " the issue description to re-trigger Sweep.",
+                tracking_id,
+            )
             log_error(
                 is_paying_user,
                 is_consumer_tier,
@@ -1346,7 +1322,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(str(e) + f" (tracking ID: {tracking_id})")
+                handle_exception(e, "Failed to react to item", tracking_id)
         finally:
             cloned_repo.delete()
 
@@ -1361,11 +1337,20 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(str(e) + f" (tracking ID: {tracking_id})")
-                logger.error(traceback.format_exc() + f" (tracking ID: {tracking_id})")
+                handle_exception(e, "Failed to delete branch", tracking_id)
                 logger.print("Deleted branch", pull_request.branch_name)
     except Exception as e:
-        pass
+        posthog.capture(
+            username,
+            "failed",
+            properties={
+                **metadata,
+                "error": str(e),
+                "trace": traceback.format_exc(),
+                "duration": time() - on_ticket_start_time,
+            },
+        )
+        raise e
 
     posthog.capture(
         username,
