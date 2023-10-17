@@ -1,8 +1,8 @@
 import re
-import traceback
 from typing import TypeVar
 
-from sweepai.logn import logger
+from loguru import logger
+
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message, RegexMatchableBaseModel
 
@@ -55,6 +55,7 @@ GitHub issue description for what we want to solve. Give general instructions on
 
 Self = TypeVar("Self", bound="RegexMatchableBaseModel")
 
+
 class IssueTitleAndDescription(RegexMatchableBaseModel):
     changes_required: bool = False
     issue_title: str
@@ -99,6 +100,7 @@ class IssueTitleAndDescription(RegexMatchableBaseModel):
             issue_description=issue_description,
         )
 
+
 class PostMerge(ChatGPT):
     def check_for_issues(self, rule, diff) -> tuple[str, str]:
         try:
@@ -114,10 +116,12 @@ class PostMerge(ChatGPT):
                 if (self.chat_logger and self.chat_logger.is_paying_user())
                 else "gpt-3.5-turbo-16k-0613"
             )
-            response = self.chat(user_message.format(
-                rule=rule,
-                diff=diff,
-            ))
+            response = self.chat(
+                user_message.format(
+                    rule=rule,
+                    diff=diff,
+                )
+            )
             issue_title_and_description = IssueTitleAndDescription.from_string(response)
             return (
                 issue_title_and_description.changes_required,
@@ -126,9 +130,10 @@ class PostMerge(ChatGPT):
             )
         except SystemExit:
             raise SystemExit
-        except Exception:
-            logger.error(f"An error occurred: {traceback.print_exc()}")
+        except Exception as e:
+            logger.exception(f"An error occurred: {e}")
             return False, "", ""
+
 
 if __name__ == "__main__":
     changes_required_response = """<rule_analysis>
