@@ -62,7 +62,7 @@ class PrunedSnippets(RegexMatchableBaseModel):
     snippet_indices: list[int] = []
 
     @classmethod
-    def from_string(cls, pruned_snippets_response: str, **kwargs):
+    def from_string(cls, pruned_snippets_response: str, **kwargs) -> 'PrunedSnippets':
         snippet_indices = []
         pruned_snippets_pattern = r"""<index>(\n)?(?P<index>.*?)</index>"""
         for match_ in re.finditer(
@@ -78,7 +78,7 @@ class PrunedSnippets(RegexMatchableBaseModel):
 
 
 class PruneModifySnippets(ChatGPT):
-    def prune_modify_snippets(self, snippets, file_path, old_code, request, **kwargs):
+    def prune_modify_snippets(self, snippets: list[str], file_path: str, old_code: str, request: str, **kwargs) -> list[int]:
         try:
             if old_code:
                 old_code = f"<old_code>\n```\n{old_code}\n```\n</old_code>"
