@@ -1699,6 +1699,9 @@ class ModifyBot:
         else:
             indices_to_keep = [0]
 
+        if len(indices_to_keep) == 0:
+            raise UnneededEditError("No snippets selected")
+
         pruned_snippets = []
         for idx, snippet in enumerate(selected_snippets):
             if idx in indices_to_keep:
