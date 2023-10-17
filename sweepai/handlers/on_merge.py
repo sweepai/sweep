@@ -27,10 +27,11 @@ diff_section_prompt = """
 {diffs}
 </file_diff>"""
 
+import requests
+
 def comparison_to_diff(comparison, blocked_dirs):
     pr_diffs = []
     for file in comparison.files:
-        diff = file.patch
         if (
             file.status == "added"
             or file.status == "modified"
@@ -38,6 +39,14 @@ def comparison_to_diff(comparison, blocked_dirs):
         ):
             if any(file.filename.startswith(dir) for dir in blocked_dirs):
                 continue
+            # Use the GitHub API to get the diff with the desired number of context lines
+            response = requests.get(
+                f"https://api.github.com/repos/{comparison.base.repo.owner}/{comparison.base.repo.name}/compare/{comparison.base.sha}...{comparison.head.sha}",
+                headers={"Accept": "application/vnd.github.v3.diff"},
+                params={"D": 2},  # Include 2 more context lines in the diff
+            )
+            response.raise_for_status()
+            diff = response.text
             pr_diffs.append((file.filename, diff))
         else:
             logger.info(
