@@ -8,10 +8,8 @@ import traceback
 from typing import Any
 
 import openai
-from github.Repository import Repository
 from tabulate import tabulate
 
-from sweepai.logn import logger
 from sweepai.config.client import get_blocked_dirs, get_documentation_dict
 from sweepai.config.server import ENV, GITHUB_BOT_USERNAME, MONGODB_URI, OPENAI_API_KEY
 from sweepai.core.documentation_searcher import extract_relevant_docs
@@ -24,6 +22,7 @@ from sweepai.core.entities import (
 )
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
+from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
@@ -66,6 +65,7 @@ def post_process_snippets(snippets: list[Snippet], max_num_of_snippets: int = 3)
         result_snippets.append(snippet)
     return result_snippets[:max_num_of_snippets]
 
+
 def on_comment(
     repo_full_name: str,
     repo_description: str,
@@ -94,18 +94,26 @@ def on_comment(
     if pr is None:
         pr = repo.get_pull(pr_number)
     pr_title = pr.title
-    pr_body = pr.body.split("🎉 Latest improvements to Sweep:")[0] if pr.body and "🎉 Latest improvements to Sweep:" in pr.body else pr.body
+    pr_body = (
+        pr.body.split("🎉 Latest improvements to Sweep:")[0]
+        if pr.body and "🎉 Latest improvements to Sweep:" in pr.body
+        else pr.body
+    )
     pr_file_path = None
     diffs = get_pr_diffs(repo, pr)
     pr_chunk = None
     formatted_pr_chunk = None
 
+    assignee = pr.assignee.login if pr.assignee else None
     issue_number_match = re.search(r"Fixes #(?P<issue_number>\d+).", pr_body)
     original_issue = None
-    if issue_number_match:
-        issue_number = issue_number_match.group("issue_number")
-        original_issue = repo.get_issue(int(issue_number))
-        author = original_issue.user.login
+    if issue_number_match or assignee:
+        if not assignee:
+            issue_number = issue_number_match.group("issue_number")
+            original_issue = repo.get_issue(int(issue_number))
+            author = original_issue.user.login
+        else:
+            author = assignee
         logger.info(f"Author of original issue is {author}")
         chat_logger = (
             chat_logger
@@ -176,7 +184,9 @@ def on_comment(
     # logger.bind(**metadata)
 
     elapsed_time = time.time() - start_time
-    posthog.capture(username, "started", properties={**metadata, "duration": elapsed_time})
+    posthog.capture(
+        username, "started", properties={**metadata, "duration": elapsed_time}
+    )
     logger.info(f"Getting repo {repo_full_name}")
     file_comment = bool(pr_path) and bool(pr_line_position)
 
@@ -291,8 +301,10 @@ def on_comment(
         commit_history = cloned_repo.get_commit_history(username=username)
         user_dict = get_documentation_dict(repo)
         docs_results = extract_relevant_docs(
-                pr_title + "\n" + pr_body + "\n" + f" User Comment: {comment}", user_dict, chat_logger
-            )
+            pr_title + "\n" + pr_body + "\n" + f" User Comment: {comment}",
+            user_dict,
+            chat_logger,
+        )
         logger.info("Getting response from ChatGPT...")
         human_message = HumanMessageCommentPrompt(
             comment=comment,
@@ -328,7 +340,12 @@ def on_comment(
         posthog.capture(
             username,
             "failed",
-            properties={"error": str(e), "reason": "Failed to get files", "duration": elapsed_time, **metadata},
+            properties={
+                "error": str(e),
+                "reason": "Failed to get files",
+                "duration": elapsed_time,
+                **metadata,
+            },
         )
         edit_comment(ERROR_FORMAT.format(title="Failed to get files"))
         raise e
@@ -339,8 +356,9 @@ def on_comment(
             file_change_requests = [
                 FileChangeRequest(
                     filename=pr_file_path,
-                    instructions=f"The user left a comment in this chunk of code:\n<review_code_chunk>{formatted_pr_chunk}\n</review_code_chunk>.\nResolve their comment.",
+                    instructions=f"The user left a comment in this chunk of code:\n<review_code_chunk>\n{formatted_pr_chunk}\n</review_code_chunk>.\nResolve their comment.",
                     change_type="modify",
+                    comment_line=pr_line_position + 1,
                 )
             ]
         else:
@@ -372,13 +390,9 @@ def on_comment(
                 headers=["File Path", "Proposed Changes"],
                 tablefmt="pipe",
             )
-            sweep_response = (
-                f"I am making the following changes:\n\n{table_message}"
-            )
+            sweep_response = f"I am making the following changes:\n\n{table_message}"
         quoted_comment = "> " + comment.replace("\n", "\n> ")
-        response_for_user = (
-            f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
-        )
+        response_for_user = f"{quoted_comment}\n\nHi @{username},\n\n{sweep_response}"
         if pr_number:
             edit_comment(response_for_user)
 
@@ -397,11 +411,9 @@ def on_comment(
         try:
             if comment_id:
                 if changes_made:
-                    response_for_user = ("Done.")
+                    response_for_user = "Done."
                 else:
-                    response_for_user = (
-                        'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR(at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discord](https://discord.com/invite/sweep)'
-                    )
+                    response_for_user = 'I wasn\'t able to make changes. This could be due to an unclear request or a bug in my code.\n As a reminder, comments on a file only modify that file. Comments on a PR (at the bottom of the "conversation" tab) can modify the entire PR. Please try again or contact us on [Discord](https://discord.gg/sweep)'
         except SystemExit:
             raise SystemExit
         except Exception as e:
@@ -470,6 +482,8 @@ def on_comment(
         pass
 
     elapsed_time = time.time() - start_time
-    posthog.capture(username, "success", properties={**metadata, "duration": elapsed_time})
+    posthog.capture(
+        username, "success", properties={**metadata, "duration": elapsed_time}
+    )
     logger.info("on_comment success")
     return {"success": True}
