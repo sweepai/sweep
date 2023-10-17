@@ -188,6 +188,7 @@ def make_pr(
         head=pr_changes.pr_head,
         base=branch_name if branch_name else SweepConfig.get_branch(repo),
     )
+    pr.add_to_assignees(username)
     buttons = []
     for changed_file in changed_files:
         buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
