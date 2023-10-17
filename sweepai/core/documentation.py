@@ -52,7 +52,7 @@ def remove_non_alphanumeric(url):
 
 def write_documentation(doc_url):
     try:
-        url_allowed = is_url_allowed(doc_url, user_agent="*")
+        #url_allowed = is_url_allowed(doc_url, user_agent="*")
         # Always allow reading from the docs
         # if not url_allowed:
         #     logger.info(f"URL {doc_url} is not allowed")
