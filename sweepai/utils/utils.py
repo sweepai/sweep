@@ -227,8 +227,7 @@ TIKTOKEN_CACHE_DIR = "/tmp/cache/tiktoken"
 
 class Tiktoken:
     openai_models = ["gpt-3.5-turbo", "gpt-4", "gpt-4-32k", "gpt-4-32k-0613"]
-    anthropic_models = ["claude-v1", "claude-v1.3-100k", "claude-instant-v1.3-100k"]
-    models = openai_models + anthropic_models
+    models = openai_models
 
     def __init__(self):
         self.openai_models = {
