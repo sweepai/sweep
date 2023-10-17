@@ -121,10 +121,13 @@ def webscrape(BASE_URL_PREFIX):
                 raise SystemExit
             except:
                 logger.warning(f"Failed to scrape {link}")
+                
 
     with sync_playwright() as p:
         browser = p.chromium.launch(timeout=0)
-        page = browser.new_page()
+        context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3")
+        page = context.new_page()
         scrape_page(page, BASE_URL_PREFIX)
         browser.close()
+        
     return all_files
