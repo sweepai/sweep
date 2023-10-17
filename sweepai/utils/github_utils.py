@@ -43,27 +43,28 @@ def get_jwt():
 def get_token(installation_id: int):
     for timeout in [5.5, 5.5, 10.5]:
         try:
-            jwt = get_jwt()
-            headers = {
-                "Accept": "application/vnd.github+json",
-                "Authorization": "Bearer " + jwt,
-                "X-GitHub-Api-Version": "2022-11-28",
-            }
-            response = requests.post(
-                f"https://api.github.com/app/installations/{int(installation_id)}/access_tokens",
-                headers=headers,
-            )
-            obj = response.json()
-            if "token" not in obj:
-                logger.error(obj)
-                raise Exception("Could not get token")
-            return obj["token"]
-        except SystemExit:
-            raise SystemExit
-        except Exception as e:
-            logger.error(e)
-            time.sleep(timeout)
-    raise Exception("Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after.")
+            try:
+                jwt = get_jwt()
+                headers = {
+                    "Accept": "application/vnd.github+json",
+                    "Authorization": "Bearer " + jwt,
+                    "X-GitHub-Api-Version": "2022-11-28",
+                }
+                response = requests.post(
+                    f"https://api.github.com/app/installations/{int(installation_id)}/access_tokens",
+                    headers=headers,
+                )
+                obj = response.json()
+                if "token" not in obj:
+                    logger.error(f"{obj}. Tracking ID: {tracking_id}")
+                    raise Exception("Could not get token")
+                return obj["token"]
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                logger.error(f"{e}. Tracking ID: {tracking_id}")
+                time.sleep(timeout)
+        raise Exception("Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after.")
 
 
 def get_github_client(installation_id: int):
@@ -136,7 +137,7 @@ class ClonedRepo:
             except SystemExit:
                 raise SystemExit
             except:
-                logger.error("Could not pull repo")
+                logger.error(f"Could not pull repo. Tracking ID: {tracking_id}")
                 self.git_repo = self.clone()
         self.git_repo = self.clone()
         self.repo = Github(self.token).get_repo(self.repo_full_name)
@@ -310,7 +311,7 @@ class ClonedRepo:
                 commit_history.append(f"<commit>\nAuthor: {commit.author.name}\nMessage: {commit.message}\n{diff}\n</commit>")
                 line_count += lines
         except:
-            logger.error(f"An error occurred: {traceback.print_exc()}")
+            logger.error(f"An error occurred: {traceback.print_exc()}. Tracking ID: {tracking_id}")
         return commit_history
 
 
