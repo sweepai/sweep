@@ -628,18 +628,7 @@ def on_ticket(
                 priority=1,
                 tracking_id=tracking_id
             )
-            posthog.capture(
-                username,
-                "failed",
-                properties={
-                    **metadata,
-                    "error": str(e),
-                    "duration": time() - on_ticket_start_time,
-                    "tracking_id": tracking_id
-                },
-            )
-            raise e
-            trace = traceback.format_exc()
+            
             logger.error(e)
             logger.error(trace)
             edit_sweep_comment(
@@ -1205,10 +1194,9 @@ def on_ticket(
                 if DISCORD_FEEDBACK_WEBHOOK_URL is not None
                 else ""
             )
-            revert_buttons = set()
-            for changed_file in changed_files:
-                revert_buttons.add(Button(label=f"{RESET_FILE} {changed_file}"))
-            revert_buttons = list(revert_buttons)
+            revert_buttons = []
+            for changed_file in set(changed_files):
+                revert_buttons.append(Button(label=f"{RESET_FILE} {changed_file}"))
             revert_buttons_list = ButtonList(
                 buttons=revert_buttons, title=REVERT_CHANGED_FILES_TITLE
             )
@@ -1315,18 +1303,7 @@ def on_ticket(
                 str(e) + "\n" + traceback.format_exc(),
                 priority=2,
             )
-            posthog.capture(
-                username,
-                "failed",
-                properties={
-                    "error": str(e),
-                    "reason": "Invalid request error / context length",
-                    **metadata,
-                    "duration": time() - on_ticket_start_time,
-                },
-            )
             delete_branch = True
-            raise e
         except SystemExit:
             raise SystemExit
         except Exception as e:
@@ -1388,17 +1365,7 @@ def on_ticket(
                 logger.error(traceback.format_exc() + f" (tracking ID: {tracking_id})")
                 logger.print("Deleted branch", pull_request.branch_name)
     except Exception as e:
-        posthog.capture(
-            username,
-            "failed",
-            properties={
-                **metadata,
-                "error": str(e),
-                "trace": traceback.format_exc(),
-                "duration": time() - on_ticket_start_time,
-            },
-        )
-        raise e
+        pass
 
     posthog.capture(
         username,
