@@ -8,6 +8,7 @@ import math
 import re
 import traceback
 from time import time
+import hashlib
 
 import openai
 import requests
@@ -108,6 +109,9 @@ def on_ticket(
         lint_mode,
     ) = strip_sweep(title)
 
+    # Generate a unique hash for the tracking ID
+    tracking_id = hashlib.sha256(f"{time()}-{issue_number}".encode()).hexdigest()
+
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -153,8 +157,8 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error hydrating cache of sandbox: {e}")
-        logger.info("Done sending, letting it run in the background.")
+            logger.warning(f"Error hydrating cache of sandbox: {e}. Tracking ID: {tracking_id}")
+        logger.info(f"Done sending, letting it run in the background. Tracking ID: {tracking_id}")
 
     # Check body for "branch: <branch_name>\n" using regex
     branch_match = re.search(r"branch: (.*)(\n\r)?", summary)
@@ -235,10 +239,11 @@ def on_ticket(
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
         "is_self_hosted": IS_SELF_HOSTED,
+        "tracking_id": tracking_id,
     }
 
     logger.bind(**metadata)
-    logger.info(f"Metadata: {metadata}")
+    logger.info(f"Metadata: {metadata}. Tracking ID: {tracking_id}")
     
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
     logger.add(handler)
@@ -584,7 +589,7 @@ def on_ticket(
             )
             assert len(snippets) > 0
         except SystemExit:
-            logger.warning("System exit")
+            logger.warning(f"System exit. Tracking ID: {metadata['tracking_id']}")
             posthog.capture(
                 username,
                 "failed",
@@ -596,6 +601,18 @@ def on_ticket(
             )
             raise SystemExit
         except Exception as e:
+            logger.error(f"An error occurred: {e}. Tracking ID: {metadata['tracking_id']}")
+            logger.error(traceback.format_exc())
+            posthog.capture(
+                username,
+                "failed",
+                properties={
+                    **metadata,
+                    "error": str(e),
+                    "duration": time() - on_ticket_start_time,
+                },
+            )
+            raise e
             trace = traceback.format_exc()
             logger.error(e)
             logger.error(trace)
@@ -651,7 +668,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
+            logger.error(f"Failed to extract docs: {e}. Tracking ID: {metadata['tracking_id']}")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -725,7 +742,7 @@ def on_ticket(
                 raise SystemExit
             except Exception as e:
                 logger.error(
-                    "Failed to create new branch for sweep.yaml file.\n",
+                    f"Failed to create new branch for sweep.yaml file. Tracking ID: {metadata['tracking_id']}\n",
                     e,
                     traceback.format_exc(),
                 )
@@ -1137,7 +1154,7 @@ def on_ticket(
                 raise SystemExit
             except Exception as e:
                 logger.error(traceback.format_exc())
-                logger.error(e)
+                logger.error(f"{e}. Tracking ID: {metadata['tracking_id']}")
 
             if changes_required:
                 edit_sweep_comment(
@@ -1259,7 +1276,7 @@ def on_ticket(
             raise e
         except openai.error.InvalidRequestError as e:
             logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"{e}. Tracking ID: {metadata['tracking_id']}")
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1284,6 +1301,7 @@ def on_ticket(
                 properties={
                     "error": str(e),
                     "reason": "Invalid request error / context length",
+                    "tracking_id": metadata['tracking_id'],
                     **metadata,
                     "duration": time() - on_ticket_start_time,
                 },
@@ -1294,7 +1312,7 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"{e}. Tracking ID: {metadata['tracking_id']}")
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1332,7 +1350,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
+                logger.error(f"{e}. Tracking ID: {metadata['tracking_id']}")
         finally:
             cloned_repo.delete()
 
@@ -1358,6 +1376,7 @@ def on_ticket(
                 **metadata,
                 "error": str(e),
                 "trace": traceback.format_exc(),
+                "tracking_id": metadata['tracking_id'],
                 "duration": time() - on_ticket_start_time,
             },
         )
