@@ -852,6 +852,7 @@ class SweepBot(CodeGenBot, GithubBot):
                     Message(
                         content=changed_files_summary,
                         role="user",
+                        key="changed_files_summary",
                     )
                 ]
             if file_change_request.relevant_files:
