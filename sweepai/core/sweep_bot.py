@@ -1236,7 +1236,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         ) = self.modify_file(
                             file_change_request,
                             contents="\n".join(lines),
-                            chunking=False,
+                            chunking=True,
                             temperature=temperature,
                             changed_files=changed_files,
                         )
@@ -1255,6 +1255,27 @@ class SweepBot(CodeGenBot, GithubBot):
                             temperature=temperature,
                         )
                         commit_message = suggested_commit_message
+                    elif file_change_request.comment_line is not None:
+                        # find the line with the comment
+                        comment_line = file_change_request.comment_line
+                        expand_size = 50
+                        start = max(0, comment_line - expand_size)
+                        end = min(len(lines), comment_line + expand_size)
+                        chunk = "\n".join(lines[start:end])
+                        (
+                            new_chunk,
+                            suggested_commit_message,
+                            sandbox_error,
+                            changed_files,
+                        ) = self.modify_file(
+                            file_change_request,
+                            contents=chunk,
+                            changed_files=changed_files,
+                            temperature=temperature,
+                        )
+                        new_lines = copy.deepcopy(lines)
+                        new_lines[start:end] = new_chunk.split("\n")
+                        new_file_contents = "\n".join(new_lines)
                     else:
                         for i, chunk in enumerate(
                             chunk_code(
@@ -1278,7 +1299,7 @@ class SweepBot(CodeGenBot, GithubBot):
                             ) = self.modify_file(
                                 file_change_request,
                                 contents=chunk_contents,
-                                chunking=chunking,
+                                chunking=True,
                                 changed_files=changed_files,
                                 temperature=temperature,
                             )
@@ -1729,31 +1750,11 @@ class ModifyBot:
 
         for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
             index = int(match_.group("index"))
-            position = match_.group("position")
             code = match_.group("code")
 
             formatted_code = strip_backticks(code)
             formatted_code = remove_line_numbers(formatted_code)
-            if position == "before":
-                current_contents = selected_snippets[index]
-                current_match = deduped_matches[index]
-                formatted_code = match_indent(formatted_code, current_contents)
-                formatted_code = formatted_code + "\n" + current_contents
-            elif position == "after":
-                current_contents = selected_snippets[index]
-                current_match = deduped_matches[index]
-                if current_match.end + 1 < len(file_contents_lines):
-                    line_after = file_contents_lines[current_match.end + 1]
-                    formatted_code = match_indent(formatted_code, line_after)
-                else:
-                    formatted_code = match_indent(
-                        formatted_code,
-                        file_contents_lines[
-                            min(current_match.end, len(file_contents_lines) - 1)
-                        ],
-                    )
-                formatted_code = current_contents + "\n" + formatted_code
-            updated_snippets[index] = formatted_code
+            updated_snippets[index] = match_indent(formatted_code, current_contents)
 
         change_validator = ChangeValidator.create(
             file_contents,
