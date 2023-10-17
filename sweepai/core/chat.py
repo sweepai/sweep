@@ -106,7 +106,7 @@ class ChatGPT(BaseModel):
         sweep_context=None,
         cloned_repo: ClonedRepo | None = None,
         **kwargs,
-    ) -> Any:
+    ):
         content = system_message_prompt
         repo = kwargs.get("repo")
         if repo:
