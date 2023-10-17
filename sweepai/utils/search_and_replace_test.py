@@ -62,9 +62,11 @@ class TestSearchAndReplace(unittest.TestCase):
 
     def test_split_ellipses(self):
         self.assertEqual(split_ellipses("abc\n...\ndef"), ["abc", "def"])
-        self.assertEqual(
-            split_ellipses("abc\n...\ndef\n...\nghi"), ["abc", "def", "ghi"]
-        )
+        self.assertEqual(split_ellipses("abc\n...\ndef\n...\nghi"), ["abc", "def", "ghi"])
+        self.assertEqual(split_ellipses(""), [""])
+        self.assertEqual(split_ellipses("abc"), ["abc"])
+        self.assertEqual(split_ellipses("abc\n...\n...\ndef"), ["abc", "", "def"])
+        self.assertEqual(split_ellipses("...\nabc\n...\ndef\n..."), ["", "abc", "def", ""])
 
     def test_Match(self):
         match = Match(0, 1, 100)
