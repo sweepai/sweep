@@ -1,13 +1,14 @@
+import datetime
+import difflib
 import hashlib
 import os
 import re
 import shutil
 import subprocess
 import time
+import traceback
 from dataclasses import dataclass
 from functools import cached_property
-import datetime
-import traceback
 
 import git
 import requests
@@ -18,9 +19,9 @@ from redis.backoff import ExponentialBackoff
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 from redis.retry import Retry
 
-from sweepai.logn import logger
 from sweepai.config.client import SweepConfig
 from sweepai.config.server import GITHUB_APP_ID, GITHUB_APP_PEM, REDIS_URL
+from sweepai.logn import logger
 from sweepai.utils.ctags import CTags
 from sweepai.utils.ctags_chunker import get_ctags_for_file
 from sweepai.utils.tree_utils import DirectoryTree
@@ -63,7 +64,9 @@ def get_token(installation_id: int):
         except Exception as e:
             logger.error(e)
             time.sleep(timeout)
-    raise Exception("Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after.")
+    raise Exception(
+        "Could not get token, please double check your PRIVATE_KEY and GITHUB_APP_ID in the .env file. Make sure to restart uvicorn after."
+    )
 
 
 def get_github_client(installation_id: int):
@@ -284,7 +287,9 @@ class ClonedRepo:
         file_list = self.get_file_list()
         return len(file_list)
 
-    def get_commit_history(self, username: str = "", limit : int = 200, time_limited: bool = True):
+    def get_commit_history(
+        self, username: str = "", limit: int = 200, time_limited: bool = True
+    ):
         commit_history = []
         try:
             if username != "":
@@ -292,22 +297,29 @@ class ClonedRepo:
             else:
                 commit_list = list(self.git_repo.iter_commits())
             line_count = 0
-            cut_off_date = datetime.datetime.now() - datetime.timedelta(days = 7)
+            cut_off_date = datetime.datetime.now() - datetime.timedelta(days=7)
             for commit in commit_list:
                 # must be within a week
-                if time_limited and commit.authored_datetime.replace(tzinfo=None) <= cut_off_date.replace(tzinfo=None):
+                if time_limited and commit.authored_datetime.replace(
+                    tzinfo=None
+                ) <= cut_off_date.replace(tzinfo=None):
                     logger.info(f"Exceeded cut off date, stopping...")
                     break
-                repo = get_github_client(self.installation_id)[1].get_repo(self.repo_full_name)
+                repo = get_github_client(self.installation_id)[1].get_repo(
+                    self.repo_full_name
+                )
                 branch = SweepConfig.get_branch(repo)
-                if branch not in self.git_repo.git.branch(): branch = f'origin/{branch}'
+                if branch not in self.git_repo.git.branch():
+                    branch = f"origin/{branch}"
                 diff = self.git_repo.git.diff(commit, branch, unified=1)
-                lines = diff.count('\n')
+                lines = diff.count("\n")
                 # total diff lines must not exceed 200
                 if lines + line_count > limit:
                     logger.info(f"Exceeded {limit} lines of diff, stopping...")
                     break
-                commit_history.append(f"<commit>\nAuthor: {commit.author.name}\nMessage: {commit.message}\n{diff}\n</commit>")
+                commit_history.append(
+                    f"<commit>\nAuthor: {commit.author.name}\nMessage: {commit.message}\n{diff}\n</commit>"
+                )
                 line_count += lines
         except:
             logger.error(f"An error occurred: {traceback.print_exc()}")
@@ -321,3 +333,39 @@ def get_file_names_from_query(query: str) -> list[str]:
         for query_file_name in query_file_names
         if len(query_file_name) > 3
     ]
+
+
+def get_hunks(a: str, b: str, context=10):
+    differ = difflib.Differ()
+    diff = [
+        line
+        for line in differ.compare(a.splitlines(), b.splitlines())
+        if line[0] in ("+", "-", " ")
+    ]
+
+    show = set()
+    hunks = []
+
+    for i, line in enumerate(diff):
+        if line.startswith(("+", "-")):
+            show.update(range(max(0, i - context), min(len(diff), i + context + 1)))
+
+    for i in range(len(diff)):
+        if i in show:
+            hunks.append(diff[i])
+        elif i - 1 in show:
+            hunks.append("...")
+
+    if len(hunks) > 0 and hunks[0] == "...":
+        hunks = hunks[1:]
+    if len(hunks) > 0 and hunks[-1] == "...":
+        hunks = hunks[:-1]
+
+    return "\n".join(hunks)
+
+
+str1 = "a\nline1\nline2\nline3\nline4\nline5\nline6\ntest\n"
+str2 = "a\nline1\nlineTwo\nline3\nline4\nline5\nlineSix\ntset\n"
+
+if __name__ == "__main__":
+    print(get_hunks(str1, str2, 1))

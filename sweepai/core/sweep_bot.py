@@ -49,6 +49,7 @@ from sweepai.core.prompts import (
     rewrite_file_prompt,
     rewrite_file_system_prompt,
     snippet_replacement,
+    update_snippets_system_prompt_python,
     snippet_replacement_system_message,
     subissues_prompt,
     update_snippets_prompt,
@@ -893,10 +894,19 @@ class SweepBot(CodeGenBot, GithubBot):
                             key="relevant_files_summary",
                         )
                     )
+            current_file_diff = ""
+            if changed_files:
+                for file_path, (old_contents, new_contents) in changed_files:
+                    if file_path == file_change_request.filename:
+                        current_file_diff += (
+                            generate_diff(old_contents, new_contents) + "\n"
+                        )
             modify_file_bot = ModifyBot(
                 additional_messages,
                 parent_bot=self,
                 chat_logger=self.chat_logger,
+                old_file_contents=contents,
+                current_file_diff=current_file_diff,
                 is_pr=bool(self.comment_pr_diff_str),
                 temperature=temperature,
             )
@@ -1293,14 +1303,13 @@ class SweepBot(CodeGenBot, GithubBot):
                         new_lines[start:end] = new_chunk.split("\n")
                         new_file_contents = "\n".join(new_lines)
                     else:
-                        for i, chunk in enumerate(
-                            chunk_code(
-                                file_contents,
-                                path=file_change_request.filename,
-                                MAX_CHARS=15_000,
-                                coalesce=5_000,
-                            )
-                        ):
+                        chunks = chunk_code(
+                            file_contents,
+                            path=file_change_request.filename,
+                            MAX_CHARS=15_000,
+                            coalesce=5_000,
+                        )
+                        for i, chunk in enumerate(chunks):
                             chunk.start += 1
                             if chunk.end >= len(lines) - 2:
                                 chunk.end += 1
@@ -1320,6 +1329,9 @@ class SweepBot(CodeGenBot, GithubBot):
                                 temperature=temperature,
                             )
                             commit_message = suggested_commit_message
+                            logger.info(
+                                f"Chunk {i} of {len(chunks)}: {generate_diff(chunk_contents, new_chunk)}"
+                            )
                             new_file_contents += new_chunk + "\n"
                         if len(lines) < 1000:
                             new_file_contents, sandbox_error = self.check_sandbox(
@@ -1469,7 +1481,8 @@ class ModifyBot:
         additional_messages: list[Message] = [],
         chat_logger=None,
         parent_bot: SweepBot = None,
-        is_pr: bool = False,
+        old_file_contents: str = "",
+        current_file_diff: str = "",
         **kwargs,
     ):
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
@@ -1492,6 +1505,25 @@ class ModifyBot:
         self.prune_modify_snippets_bot.messages.extend(additional_messages)
         self.chat_logger = chat_logger
         self.additional_messages = additional_messages
+        self.old_file_contents = old_file_contents
+        self.current_file_diff = current_file_diff
+        self.additional_diffs = ""
+
+    def get_diffs_message(self, file_contents: str):
+        if self.current_file_diff == "" and self.old_file_contents == file_contents:
+            return self.additional_diffs
+        elif self.current_file_diff == "":
+            diff = generate_diff(self.old_file_contents, file_contents)
+        elif self.old_file_contents == file_contents:
+            diff = self.current_file_diff
+        else:
+            diff = (
+                self.old_file_contents
+                + "\n...\n"
+                + generate_diff(self.old_file_contents, file_contents)
+            )
+        diff += self.additional_diffs
+        return f"\n# Changes Made\nHere are changes we already made to this file:\n<diff>\n{diff}\n</diff>\n"
 
     def try_update_file(
         self,
@@ -1519,8 +1551,9 @@ class ModifyBot:
         for _ in range(3):
             if leftover_comments and not DEBUG:
                 joined_comments = "\n".join(leftover_comments)
-                file_change_request.new_content = new_file
-                file_change_request.instructions = f"Address all of the unfinished code changes here: \n{joined_comments}"
+                new_file_change_request = copy.deepcopy(file_change_request)
+                new_file_change_request.new_content = new_file
+                new_file_change_request.instructions = f"Address all of the unfinished code changes here: \n{joined_comments}"
                 self.fetch_snippets_bot.messages = self.fetch_snippets_bot.messages[:-2]
                 self.prune_modify_snippets_bot.messages = (
                     self.prune_modify_snippets_bot.messages[:-2]
@@ -1528,7 +1561,7 @@ class ModifyBot:
                 snippet_queries, extraction_terms, analysis_and_identification = self.get_snippets_to_modify(
                     file_path=file_path,
                     file_contents=new_file,
-                    file_change_request=file_change_request,
+                    file_change_request=new_file_change_request,
                     chunking=chunking,
                 )
                 self.update_snippets_bot.messages = self.update_snippets_bot.messages[
@@ -1537,7 +1570,7 @@ class ModifyBot:
                 new_file, leftover_comments, change_validation = self.update_file(
                     file_path=file_path,
                     file_contents=new_file,
-                    file_change_request=file_change_request,
+                    file_change_request=new_file_change_request,
                     snippet_queries=snippet_queries,
                     extraction_terms=extraction_terms,
                     chunking=chunking,
@@ -1585,6 +1618,7 @@ class ModifyBot:
                 ).content
                 if file_change_request.entity
                 else file_contents,
+                changes_made=self.get_diffs_message(file_contents),
                 file_path=file_path,
                 request=file_change_request.instructions,
                 chunking_message=use_chunking_message
@@ -1751,6 +1785,7 @@ class ModifyBot:
                     ]
                 ),
                 file_path=file_path,
+                changes_made=self.get_diffs_message(file_contents),
                 old_code=update_snippets_code,
                 request=file_change_request.instructions + "\n" + analysis_and_identification,
             )
@@ -1765,6 +1800,9 @@ class ModifyBot:
             if idx in indices_to_keep:
                 pruned_snippets.append(snippet)
         selected_snippets = pruned_snippets
+
+        if is_python_file:
+            self.update_snippets_bot.messages[0].content = update_snippets_system_prompt_python
 
         if file_change_request.failed_sandbox_test:
             update_prompt = update_snippets_prompt_test
@@ -1810,16 +1848,6 @@ class ModifyBot:
             additional_changes_required_raw="no",
             diffs_to_revert_raw="",
         )
-        result = change_validator.apply_validated_changes(change_validation)
-
-        new_code = []
-        for idx, search in enumerate(selected_snippets):
-            if idx not in updated_snippets:
-                continue
-            if selected_snippets.index(search) not in change_validator.updated_snippets:
-                continue
-            replace = change_validator.updated_snippets[selected_snippets.index(search)]
-            new_code.append(replace)
 
         ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
         result = result.rstrip("\n") + "\n" * ending_newlines

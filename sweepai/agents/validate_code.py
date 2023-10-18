@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import difflib
-
 from loguru import logger
 
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import FileChangeRequest, Message, RegexMatchableBaseModel
 from sweepai.utils.chat_logger import ChatLogger
-from sweepai.utils.diff import sliding_window_replacement
+from sweepai.utils.diff import generate_diff, sliding_window_replacement
 from sweepai.utils.regex_utils import xml_pattern
 from sweepai.utils.search_and_replace import match_indent
 
@@ -82,10 +80,10 @@ B
 alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
-def generate_diff(str1, str2):
-    d = difflib.Differ()
-    diff = d.compare(str1.splitlines(), str2.splitlines())
-    return "\n".join(diff)
+# def generate_diff(str1, str2):
+#     d = difflib.Differ()
+#     diff = d.compare(str1.splitlines(), str2.splitlines())
+#     return "\n".join(diff)
 
 
 def git_conflict_format(diff_str):
@@ -196,7 +194,7 @@ class ChangeValidator(ChatGPT):
 
     @staticmethod
     def make_hunk(old_code: str, new_code: str, id_: str):
-        diff = git_conflict_format(generate_diff(old_code, new_code))
+        diff = generate_diff(old_code, new_code)
         return hunk_format.format(diff=diff, id=id_)
 
     def generate_diffs(self):

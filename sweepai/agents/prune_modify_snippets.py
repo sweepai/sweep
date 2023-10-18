@@ -32,6 +32,7 @@ Maximize information density.
 user_prompt = """# Code
 File path: {file_path}
 {old_code}
+{changes_made}
 # Original request
 {request}
 
@@ -62,8 +63,8 @@ class PrunedSnippets(RegexMatchableBaseModel):
     snippet_indices: list[int] = []
 
     @classmethod
-    def from_string(cls, pruned_snippets_response: str, **kwargs) -> 'PrunedSnippets':
-        snippet_indices = set()
+    def from_string(cls, pruned_snippets_response: str, **kwargs) -> "PrunedSnippets":
+        snippet_indices = set([0])
         pruned_snippets_pattern = r"""<index>(\n)?(?P<index>.*?)</index>"""
         for match_ in re.finditer(
             pruned_snippets_pattern, pruned_snippets_response, re.DOTALL
@@ -81,7 +82,15 @@ class PrunedSnippets(RegexMatchableBaseModel):
 
 
 class PruneModifySnippets(ChatGPT):
-    def prune_modify_snippets(self, snippets: list[str], file_path: str, old_code: str, request: str, **kwargs) -> list[int]:
+    def prune_modify_snippets(
+        self,
+        snippets: list[str],
+        file_path: str,
+        changes_made: str,
+        old_code: str,
+        request: str,
+        **kwargs,
+    ) -> list[int]:
         try:
             if old_code:
                 old_code = f"<old_code>\n```\n{old_code}\n```\n</old_code>"
@@ -92,6 +101,7 @@ class PruneModifySnippets(ChatGPT):
                 user_prompt.format(
                     snippets=snippets,
                     file_path=file_path,
+                    changes_made=changes_made,
                     old_code=old_code,
                     request=request,
                 )
