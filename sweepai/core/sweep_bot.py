@@ -89,7 +89,7 @@ sandbox_error_prompt_test = """The following error logs were returned from `{com
 
 Again, edit this file so that it passes the CI/CD.
 1. CLEARLY identify if the bug is in the unit tests or business logic. 
-2a. If there is a bug in the business logic skip or comment out the tests. 
+2a. If there is a bug in the business logic skip the failing tests with an explanation. Do not break correct tests, just skip them.
 2b. If the test itself is wrong match the input to the expected output."""
 
 def strip_backticks(s: str) -> str:
@@ -366,7 +366,8 @@ class CodeGenBot(ChatGPT):
                         )
 
                     if file_change_requests:
-                        return file_change_requests, files_to_change_response
+                        plan_str = "\n".join([fcr.instructions_display for fcr in file_change_requests])
+                        return file_change_requests, plan_str
             if not is_python_issue or not python_issue_worked:
                 if pr_diffs is not None:
                     self.delete_messages_from_chat("pr_diffs")
@@ -386,7 +387,8 @@ class CodeGenBot(ChatGPT):
                 )
 
             if file_change_requests:
-                return file_change_requests, files_to_change_response
+                plan_str = "\n".join([fcr.instructions_display for fcr in file_change_requests])
+                return file_change_requests, plan_str
         except RegexMatchError as e:
             logger.print(e)
             logger.warning("Failed to parse! Retrying...")
@@ -1186,7 +1188,6 @@ class SweepBot(CodeGenBot, GithubBot):
             sandbox_command = sandbox_response.executions[-1].command.format(
                 file_path=file_change_request.filename
             )
-            import pdb; pdb.set_trace()
             if "test" in sandbox_command:
                 sandbox_prompt = sandbox_error_prompt_test
                 new_file_change_request.failed_sandbox_test = True
@@ -1418,12 +1419,11 @@ class SweepBot(CodeGenBot, GithubBot):
             changed_files=changed_files,
         )
         yield file_changed, sandbox_response, commit_message, changed_files
-        prev_sandbox_response_str = ""
+        prev_sandbox_response_str = None
         prev_num_changed_files = []
         for _ in range(5):
             # if sandbox success, same response, or no changes, break
-            import pdb; pdb.set_trace()
-            sandbox_response_str = "\n".join(sandbox_response.error_messages)
+            sandbox_response_str = "\n".join(sandbox_response.error_messages) if sandbox_response else ""
             if sandbox_response and sandbox_response.success or \
                 prev_sandbox_response_str == sandbox_response_str or\
                 prev_num_changed_files == len(changed_files):
@@ -1433,7 +1433,6 @@ class SweepBot(CodeGenBot, GithubBot):
                 sandbox_command = sandbox_response.executions[-1].command.format(
                     file_path=file_change_request.filename
                 )
-                import pdb; pdb.set_trace()
                 if "test" in sandbox_command:
                     sandbox_prompt = sandbox_error_prompt_test
                     new_file_change_request.failed_sandbox_test = True
@@ -1501,7 +1500,7 @@ class ModifyBot:
         file_change_request: FileChangeRequest,
         chunking: bool = False,
     ):
-        snippet_queries, extraction_terms = self.get_snippets_to_modify(
+        snippet_queries, extraction_terms, analysis_and_identification = self.get_snippets_to_modify(
             file_path=file_path,
             file_contents=file_contents,
             file_change_request=file_change_request,
@@ -1515,6 +1514,7 @@ class ModifyBot:
             snippet_queries=snippet_queries,
             extraction_terms=extraction_terms,
             chunking=chunking,
+            analysis_and_identification=analysis_and_identification,
         )
         for _ in range(3):
             if leftover_comments and not DEBUG:
@@ -1525,7 +1525,7 @@ class ModifyBot:
                 self.prune_modify_snippets_bot.messages = (
                     self.prune_modify_snippets_bot.messages[:-2]
                 )
-                snippet_queries, extraction_terms = self.get_snippets_to_modify(
+                snippet_queries, extraction_terms, analysis_and_identification = self.get_snippets_to_modify(
                     file_path=file_path,
                     file_contents=new_file,
                     file_change_request=file_change_request,
@@ -1541,6 +1541,7 @@ class ModifyBot:
                     snippet_queries=snippet_queries,
                     extraction_terms=extraction_terms,
                     chunking=chunking,
+                    analysis_and_identification=analysis_and_identification,
                 )
             if change_validation.additional_changes_required:
                 file_change_request.new_content = new_file
@@ -1550,7 +1551,7 @@ class ModifyBot:
                     self.prune_modify_snippets_bot.messages[:-2]
                 )
                 # TODO: delete messages in the bots themselves
-                snippet_queries, extraction_terms = self.get_snippets_to_modify(
+                snippet_queries, extraction_terms, analysis_and_identification = self.get_snippets_to_modify(
                     file_path=file_path,
                     file_contents=file_contents,
                     file_change_request=file_change_request,
@@ -1566,6 +1567,7 @@ class ModifyBot:
                     snippet_queries=snippet_queries,
                     extraction_terms=extraction_terms,
                     chunking=chunking,
+                    analysis_and_identification=analysis_and_identification,
                 )
         return new_file
 
@@ -1590,6 +1592,11 @@ class ModifyBot:
                 else dont_use_chunking_message,
             )
         )
+        analysis_and_identification_pattern = (
+            r"<analysis_and_identification.*?>\n(?P<code>.*)\n</analysis_and_identification>"
+        )
+        analysis_and_identification_match = re.search(analysis_and_identification_pattern, fetch_snippets_response, re.DOTALL)
+        analysis_and_identifications_str = analysis_and_identification_match.group("code").strip() if analysis_and_identification_match else ""
 
         extraction_terms = []
         extraction_term_pattern = (
@@ -1613,7 +1620,7 @@ class ModifyBot:
 
         if len(snippet_queries) == 0:
             raise UnneededEditError("No snippets found in file")
-        return snippet_queries, extraction_terms
+        return snippet_queries, extraction_terms, analysis_and_identifications_str
 
     def update_file(
         self,
@@ -1623,6 +1630,7 @@ class ModifyBot:
         snippet_queries: list[str],
         extraction_terms: list[str],
         chunking: bool = False,
+        analysis_and_identification: str = "",
     ):
         is_python_file = file_path.strip().endswith(".py")
 
@@ -1708,7 +1716,6 @@ class ModifyBot:
                 deduped_matches.append(current_match)
                 current_match = next_match_
         deduped_matches.append(current_match)
-        import pdb; pdb.set_trace() # duplicate snippets 0 and 1
         if is_python_file:
             new_deduped_matches = []
             for match_ in deduped_matches:
@@ -1745,7 +1752,7 @@ class ModifyBot:
                 ),
                 file_path=file_path,
                 old_code=update_snippets_code,
-                request=file_change_request.instructions,
+                request=file_change_request.instructions + "\n" + analysis_and_identification,
             )
         else:
             indices_to_keep = [0]
@@ -1773,7 +1780,7 @@ class ModifyBot:
                         for i, snippet in enumerate(selected_snippets)
                     ]
                 ),
-                request=file_change_request.instructions,
+                request=file_change_request.instructions + "\n" + analysis_and_identification,
                 n=len(selected_snippets),
             )
         )
@@ -1797,15 +1804,12 @@ class ModifyBot:
             chat_logger=self.chat_logger,
             additional_messages=self.additional_messages,
         )
-        if DEBUG:
-            change_validation = ChangeValidation(
-                analysis="",
-                additional_changes="",
-                additional_changes_required_raw="no",
-                diffs_to_revert_raw="",
-            )
-        else:
-            change_validation = change_validator.validate_changes()
+        change_validation = ChangeValidation(
+            analysis="",
+            additional_changes="",
+            additional_changes_required_raw="no",
+            diffs_to_revert_raw="",
+        )
         result = change_validator.apply_validated_changes(change_validation)
 
         new_code = []

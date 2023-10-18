@@ -17,7 +17,7 @@ You will be given the old_file and potentially relevant code snippets. Describe 
 
 Respond in the following format:
 
-<snippets_and_plan_analysis>
+<snippets_and_plan_analysis file="file_path">
 Describe what should be changed to the snippets from the old_file to complete the request.
 Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed.
 Maximize information density.
@@ -41,7 +41,7 @@ File path: {file_path}
 
 Analyse the snippets and plan, and provide your response in the format:
 
-<snippets_and_plan_analysis>
+<snippets_and_plan_analysis file="file_path">
 Describe what should be changed to the snippets from the old_file to complete the request.
 Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed.
 Maximize information density.
@@ -63,7 +63,7 @@ class PrunedSnippets(RegexMatchableBaseModel):
 
     @classmethod
     def from_string(cls, pruned_snippets_response: str, **kwargs) -> 'PrunedSnippets':
-        snippet_indices = set([0])
+        snippet_indices = set()
         pruned_snippets_pattern = r"""<index>(\n)?(?P<index>.*?)</index>"""
         for match_ in re.finditer(
             pruned_snippets_pattern, pruned_snippets_response, re.DOTALL
@@ -72,6 +72,8 @@ class PrunedSnippets(RegexMatchableBaseModel):
             index = int(index)
             if index != None:
                 snippet_indices.add(index)
+        if len(snippet_indices) > 0:
+            snippet_indices.add(0) # always/only add this if it decides to modify something
         snippet_indices = list(snippet_indices)
         return cls(
             snippet_indices=snippet_indices,

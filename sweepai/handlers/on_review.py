@@ -4,7 +4,7 @@ Take a PR and provide an AI generated review of the PR.
 from sweepai.logn import logger
 from sweepai.config.server import MONGODB_URI
 from sweepai.core.entities import DiffSummarization, PullRequestComment
-from sweepai.core.prompts import review_prompt
+from sweepai.core.prompts import review_prompt, final_review_prompt
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.prompt_constructor import (
@@ -104,8 +104,7 @@ def review_pr(
         is_reply=False,
         chat_logger=chat_logger,
     )
-    import pdb; pdb.set_trace()
-    summarization_reply = sweep_bot.chat(
+    sweep_bot.chat(
         review_prompt.format(
             repo_name=repo_name,
             repo_description=repo_description,
@@ -116,15 +115,8 @@ def review_pr(
         ),
         message_key="review",
     )
-    extracted_summary = DiffSummarization.from_string(summarization_reply)
-    summarization_replies.append(extracted_summary.content)
-    final_review_prompt = HumanMessageFinalPRComment(
-        summarization_replies=summarization_replies
-    ).construct_prompt()
-
     reply = sweep_bot.chat(final_review_prompt, message_key="final_review")
     review_comment = PullRequestComment.from_string(reply)
     pr.create_review(body=review_comment.content, event="COMMENT", comments=[])
     changes_required = "yes" in review_comment.changes_required.lower()
-    logger.info(f"Changes required: {changes_required}")
     return changes_required, review_comment.content
