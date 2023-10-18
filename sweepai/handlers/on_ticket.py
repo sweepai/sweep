@@ -7,6 +7,7 @@ import math
 import re
 import traceback
 from time import time
+import hashlib
 
 import openai
 import requests
@@ -213,6 +214,9 @@ def on_ticket(
     )
 
     organization, repo_name = repo_full_name.split("/")
+    # Generate a hash for the issue_url to use as the tracking ID
+    tracking_id = hashlib.sha256(issue_url.encode()).hexdigest()[:10]
+
     metadata = {
         "issue_url": issue_url,
         "repo_full_name": repo_full_name,
@@ -234,6 +238,7 @@ def on_ticket(
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
         "is_self_hosted": IS_SELF_HOSTED,
+        "tracking_id": tracking_id,  # Add the tracking ID to the metadata
     }
 
     logger.bind(**metadata)
@@ -242,13 +247,17 @@ def on_ticket(
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
     logger.add(handler)
 
+    # Update logger.error and logger.exception calls to include the tracking ID
+    logger.error = lambda msg: logger.error(f"{msg} (tracking ID: {logger.context.get('tracking_id')})")
+    logger.exception = lambda msg: logger.exception(f"{msg} (tracking ID: {logger.context.get('tracking_id')})")
+
     posthog.capture(username, "started", properties=metadata)
 
     try:
         logger.info(f"Getting repo {repo_full_name}")
 
         if current_issue.state == "closed":
-            logger.warning(f"Issue {issue_number} is closed")
+            logger.warning(f"Issue {issue_number} is closed (tracking ID: {logger.context.get('tracking_id')})")
             posthog.capture(
                 username,
                 "issue_closed",
@@ -652,7 +661,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
+            logger.error(f"Failed to extract docs: {e} (tracking ID: {logger.context.get('tracking_id')})")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -724,8 +733,7 @@ def on_ticket(
                 raise SystemExit
             except Exception as e:
                 logger.error(
-                    "Failed to create new branch for sweep.yaml file.\n",
-                    e,
+                    f"Failed to create new branch for sweep.yaml file.\n {e} (tracking ID: {logger.context.get('tracking_id')})",
                     traceback.format_exc(),
                 )
         else:
@@ -1131,8 +1139,8 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
+                logger.error(f"{traceback.format_exc()} (tracking ID: {logger.context.get('tracking_id')})")
+                logger.error(f"{e} (tracking ID: {logger.context.get('tracking_id')})")
 
             if changes_required:
                 edit_sweep_comment(
@@ -1253,8 +1261,8 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.error.InvalidRequestError as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"{traceback.format_exc()} (tracking ID: {logger.context.get('tracking_id')})")
+            logger.error(f"{e} (tracking ID: {logger.context.get('tracking_id')})")
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1288,8 +1296,8 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"{traceback.format_exc()} (tracking ID: {logger.context.get('tracking_id')})")
+            logger.error(f"{e} (tracking ID: {logger.context.get('tracking_id')})")
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1327,7 +1335,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
+                logger.error(f"{e} (tracking ID: {logger.context.get('tracking_id')})")
         finally:
             cloned_repo.delete()
 
@@ -1342,8 +1350,8 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                logger.error(f"{e} (tracking ID: {logger.context.get('tracking_id')})")
+                logger.error(f"{traceback.format_exc()} (tracking ID: {logger.context.get('tracking_id')})")
                 logger.print("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
