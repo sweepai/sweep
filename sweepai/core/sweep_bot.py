@@ -1751,7 +1751,7 @@ class ModifyBot:
         for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
             index = int(match_.group("index"))
             code = match_.group("code")
-
+            current_contents = selected_snippets[index]
             formatted_code = strip_backticks(code)
             formatted_code = remove_line_numbers(formatted_code)
             updated_snippets[index] = match_indent(formatted_code, current_contents)
