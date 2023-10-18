@@ -8,6 +8,7 @@ from sweepai.health import (
     check_mongodb_health,
     check_redis_health,
     check_sandbox_health,
+    check_yaml_health
 )
 
 
@@ -45,8 +46,19 @@ class TestHealth(unittest.TestCase):
         response = check_redis_health()
         self.assertEqual(response, "DOWN")
 
+    @patch("sweepai.health.yaml.safe_load")
+    def test_check_yaml_health(self, mock_file, mock_yaml_load):
+        mock_yaml_load.return_value = {}
+        response = check_yaml_health()
+        self.assertEqual(response, "UP")
+
+        mock_yaml_load.side_effect = Exception()
+        response = check_yaml_health()
+        self.assertEqual(response, "DOWN")
+
     def test_health_check(self):
         response = self.client.get("/health")
         self.assertEqual(response.status_code, 200)
         self.assertIn("status", response.json())
         self.assertIn("details", response.json())
+    
