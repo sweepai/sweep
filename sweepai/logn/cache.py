@@ -42,11 +42,10 @@ def file_cache(ignore_params=[]):
     """Decorator to cache function output based on its inputs, ignoring specified parameters."""
 
     def decorator(func):
-        def wrapper(*args, **kwargs):
-            if GITHUB_BOT_USERNAME != TEST_BOT_NAME:
-                result = func(*args, **kwargs)
-                return result
+        if GITHUB_BOT_USERNAME != TEST_BOT_NAME:
+            return func
 
+        def wrapper(*args, **kwargs):
             cache_dir = "/tmp/file_cache"
             os.makedirs(cache_dir, exist_ok=True)
 

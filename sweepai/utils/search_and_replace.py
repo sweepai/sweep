@@ -276,6 +276,51 @@ def match_indent(generated: str, original: str) -> str:
     return generated
 
 
+old_code = """
+\"\"\"
+on_ticket is the main function that is called when a new issue is created.
+It is only called by the webhook handler in sweepai/api.py.
+\"\"\"
+# TODO: Add file validation
+
+import math
+import re
+import traceback
+from time import time
+
+import openai
+import requests
+from github import BadCredentialsException
+from logtail import LogtailHandler
+from loguru import logger
+from requests.exceptions import Timeout
+from tabulate import tabulate
+from tqdm import tqdm"""
+
+new_code = """
+\"\"\"
+on_ticket is the main function that is called when a new issue is created.
+It is only called by the webhook handler in sweepai/api.py.
+\"\"\"
+# TODO: Add file validation
+
+import math
+import re
+import traceback
+from time import time
+import hashlib
+
+import openai
+import requests
+from github import BadCredentialsException
+from logtail import LogtailHandler
+from loguru import logger
+from requests.exceptions import Timeout
+from tabulate import tabulate
+from tqdm import tqdm"""
+
+# print(match_indent(new_code, old_code))
+
 test_code = """\
 capture_posthog_event(username, "started", properties=metadata)
 ...

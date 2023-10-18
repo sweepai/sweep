@@ -1,5 +1,4 @@
 import copy
-import difflib
 import re
 import traceback
 from collections import OrderedDict
@@ -61,6 +60,7 @@ from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.function_call_utils import find_function_calls
+from sweepai.utils.github_utils import get_hunks
 from sweepai.utils.graph import Graph
 from sweepai.utils.search_and_replace import (
     Match,
@@ -886,6 +886,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 additional_messages,
                 parent_bot=self,
                 chat_logger=self.chat_logger,
+                old_file_contents=contents,
                 is_pr=bool(self.comment_pr_diff_str),
                 temperature=temperature,
             )
@@ -1469,15 +1470,10 @@ class ModifyBot:
         self.old_file_contents = old_file_contents
 
     def get_diffs(self, file_contents: str):
-        if file_contents == self.old_file_content:
+        if file_contents == self.old_file_contents:
             return ""
-        differ = difflib.Differ()
-        diff = list(
-            differ.compare(
-                self.old_file_content.splitlines(), file_contents.splitlines()
-            )
-        )
-        return "# Changes Made\n\n" + "\n".join(diff)
+        diff = get_hunks(self.old_file_contents, file_contents)
+        return f"# Changes Made\nHere are changes we already made:\n```\n{diff}\n```\n"
 
     def try_update_file(
         self,
@@ -1769,6 +1765,7 @@ class ModifyBot:
             index = int(match_.group("index"))
             code = match_.group("code")
 
+            current_contents = selected_snippets[index]
             formatted_code = strip_backticks(code)
             formatted_code = remove_line_numbers(formatted_code)
             updated_snippets[index] = match_indent(formatted_code, current_contents)
