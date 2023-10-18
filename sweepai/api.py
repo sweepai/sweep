@@ -307,6 +307,7 @@ async def webhook(raw_request: Request):
 
                 def worker() -> None:
                     time.sleep(60)
+                    print("Hello World")
                     if any(
                         comment.user.login == GITHUB_BOT_USERNAME
                         for comment in pr.get_issue_comments()
