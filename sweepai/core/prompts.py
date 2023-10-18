@@ -1180,7 +1180,6 @@ Then, for each snippet in a list, determine whether changes should be made. If s
 Maximize information density.
 </snippets_and_plan_analysis>
 
-
 <updated_snippets>
 <updated_snippet index="i">
 ```
