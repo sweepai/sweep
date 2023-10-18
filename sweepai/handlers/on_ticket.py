@@ -7,6 +7,7 @@ import math
 import re
 import traceback
 from time import time
+import hashlib
 
 import openai
 import requests
@@ -96,7 +97,7 @@ def on_ticket(
     installation_id: int,
     comment_id: int = None,
     edited: bool = False,
-):
+) -> None:
     (
         title,
         slow_mode,
@@ -115,6 +116,7 @@ def on_ticket(
     # 5. Create PR
 
     on_ticket_start_time = time()
+    tracking_id = hashlib.sha256(str(on_ticket_start_time).encode()).hexdigest()
     summary = summary or ""
     # Check for \r since GitHub issues may have \r\n
     summary = re.sub(
@@ -225,6 +227,7 @@ def on_ticket(
         "installation_id": installation_id,
         "function": "on_ticket",
         "edited": edited,
+        "tracking_id": tracking_id,
         "model": "gpt-3.5" if use_faster_model else "gpt-4",
         "tier": "pro" if is_paying_user else "free",
         "mode": ENV,
@@ -578,26 +581,34 @@ def on_ticket(
         # )
 
         logger.info(f"(tracking ID: {tracking_id}) Fetching relevant files...")
-        try:
-            snippets, tree, dir_obj = search_snippets(
-                cloned_repo,
-                f"{title}\n{summary}\n{replies_text}",
-                num_files=num_of_snippets_to_query,
-            )
-            assert len(snippets) > 0
-        except SystemExit:
-            logger.warning(f"(tracking ID: {tracking_id}) System exit")
-            posthog.capture(
-                username,
-                "failed",
-                properties={
-                    **metadata,
-                    "error": "System exit",
-                    "duration": time() - on_ticket_start_time,
-                    "tracking_id": tracking_id
-                },
-            )
-            raise SystemExit
+        # on_ticket_test.py
+        import unittest
+        from unittest.mock import patch
+        import hashlib
+        from time import time
+        from sweepai.handlers import on_ticket
+        
+        class TestOnTicket(unittest.TestCase):
+            @patch('sweepai.handlers.on_ticket.time')
+            def test_tracking_id_generation(self, mock_time):
+                mock_time.return_value = 1234567890.123456
+                expected_tracking_id = hashlib.sha256(str(mock_time.return_value).encode()).hexdigest()
+                on_ticket.on_ticket(123, 456, False)
+                self.assertEqual(on_ticket.tracking_id, expected_tracking_id)
+        
+            @patch('sweepai.handlers.on_ticket.metadata')
+            def test_tracking_id_in_metadata(self, mock_metadata):
+                on_ticket.on_ticket(123, 456, False)
+                self.assertIn('tracking_id', mock_metadata)
+        
+            @patch('sweepai.handlers.on_ticket.logger')
+            def test_tracking_id_in_log_messages(self, mock_logger):
+                on_ticket.on_ticket(123, 456, False)
+                mock_logger.warning.assert_called_with(f"(tracking ID: {on_ticket.tracking_id}) System exit")
+                mock_logger.error.assert_called_with(f"(tracking ID: {on_ticket.tracking_id}) {Exception}")
+        
+        if __name__ == '__main__':
+            unittest.main()
         except Exception as e:
             trace = traceback.format_exc()
             logger.error(f"(tracking ID: {tracking_id}) {e}")
@@ -1083,31 +1094,43 @@ def on_ticket(
             )
 
             lint_output = None
-            try:
-                current_issue.delete_reaction(eyes_reaction.id)
-            except SystemExit:
-                raise SystemExit
-            except:
-                pass
-
-            changes_required = False
-            try:
-                # CODE REVIEW
-                changes_required, review_comment = review_pr(
-                    repo=repo,
-                    pr=pr_changes,
-                    issue_url=issue_url,
-                    username=username,
-                    repo_description=repo_description,
-                    title=title,
-                    summary=summary,
-                    replies_text=replies_text,
-                    tree=tree,
-                    lint_output=lint_output,
-                    plan=plan,  # plan for the PR
-                    chat_logger=chat_logger,
-                    commit_history=commit_history,
-                )
+            import hashlib
+            
+            def on_ticket(
+                repo_full_name: str,
+                issue_number: int,
+                username: str,
+                installation_id: int,
+                comment_id: Optional[int] = None,
+                edited: bool = False,
+            ) -> Dict[str, bool]:
+                on_ticket_start_time = time()
+                tracking_id = hashlib.sha256(str(on_ticket_start_time).encode()).hexdigest()
+                try:
+                    current_issue.delete_reaction(eyes_reaction.id)
+                except SystemExit:
+                    raise SystemExit
+                except:
+                    pass
+            
+                changes_required = False
+                try:
+                    # CODE REVIEW
+                    changes_required, review_comment = review_pr(
+                        repo=repo,
+                        pr=pr_changes,
+                        issue_url=issue_url,
+                        username=username,
+                        repo_description=repo_description,
+                        title=title,
+                        summary=summary,
+                        replies_text=replies_text,
+                        tree=tree,
+                        lint_output=lint_output,
+                        plan=plan,  # plan for the PR
+                        chat_logger=chat_logger,
+                        commit_history=commit_history,
+                    )
                 logger.info(f"(tracking ID: {tracking_id}) Addressing review comment {review_comment}")
                 lint_output = None
                 review_message += (
