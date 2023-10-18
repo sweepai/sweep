@@ -94,9 +94,9 @@ def on_ticket(
     repo_full_name: str,
     repo_description: str,
     installation_id: int,
-    comment_id: int = None,
+    comment_id: Optional[int] = None,
     edited: bool = False,
-):
+) -> None:
     (
         title,
         slow_mode,
