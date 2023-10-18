@@ -787,8 +787,10 @@ def on_ticket(
                         for subissue in subissues
                     ]
                 )
+                from sweepai.utils import docker_utils
+                docker_version_update_time = docker_utils.get_latest_docker_version()
                 current_issue.edit(
-                    body=summary + "\n\n---\n\nChecklist:\n\n" + subissues_checklist
+                    body=summary + "\n\n---\n\nChecklist:\n\n" + subissues_checklist + "\n\nDocker Version Updated: " + docker_version_update_time
                 )
                 edit_sweep_comment(
                     f"I finished creating the subissues! Track them at:\n\n"
@@ -910,10 +912,12 @@ def on_ticket(
                 "Checklist", condensed_checkboxes_contents, opened=True
             )
 
-            issue = repo.get_issue(number=issue_number)
-            issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
-
-            delete_branch = False
+                from sweepai.utils import docker_utils
+                docker_version_update_time = docker_utils.get_latest_docker_version()
+                issue = repo.get_issue(number=issue_number)
+                issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible + "\n\nDocker Version Updated: " + docker_version_update_time)
+    
+                delete_branch = False
 
             generator = create_pr_changes(
                 file_change_requests,
@@ -1063,7 +1067,9 @@ def on_ticket(
                 )
 
                 issue = repo.get_issue(number=issue_number)
-                issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
+                from sweepai.utils import docker_utils
+                docker_version_update_time = docker_utils.get_latest_docker_version()
+                issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible + "\n\nDocker Version Updated: " + docker_version_update_time)
 
                 logger.info(files_progress)
                 logger.info(f"Edited {file_change_request.entity_display}")
