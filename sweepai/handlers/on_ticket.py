@@ -567,15 +567,6 @@ def on_ticket(
                 )
                 return {"success": False}
 
-        # if lint_mode:
-        # Get files to change
-        # Create new branch
-        # Send request to endpoint
-        # for file_path in []:
-        # SweepBot.run_sandbox(
-        #     repo.html_url, file_path, None, user_token, only_lint=True
-        # )
-
         logger.info("Fetching relevant files...")
         try:
             snippets, tree, dir_obj = search_snippets(
