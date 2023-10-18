@@ -1767,7 +1767,7 @@ class ModifyBot:
         snippet_sections = []
         current_section = []
         current_line_count = 0
-        SECTION_LINE_LIMIT = 40
+        SECTION_LINE_LIMIT = 60
         for snippet in selected_snippets:
             line_count = len(snippet.split("\n"))
             if line_count + current_line_count > SECTION_LINE_LIMIT:
@@ -1784,6 +1784,7 @@ class ModifyBot:
             snippet_sections.append(current_section)
 
         # for snippets in snippet_sections:
+        snippets = selected_snippets
         if True:
             update_snippets_response = self.update_snippets_bot.chat(
                 update_snippets_prompt.format(
@@ -1793,11 +1794,11 @@ class ModifyBot:
                     snippets="\n\n".join(
                         [
                             f'<snippet index="{i}">\n{snippet}\n</snippet>'
-                            for i, snippet in enumerate(selected_snippets)
+                            for i, snippet in enumerate(snippets)
                         ]
                     ),
                     request=file_change_request.instructions,
-                    n=len(selected_snippets),
+                    n=len(snippets),
                 )
             )
 
@@ -1809,7 +1810,7 @@ class ModifyBot:
             ):
                 index = int(match_.group("index"))
                 code = match_.group("code")
-                current_contents = selected_snippets[index]
+                current_contents = snippets[index]
                 formatted_code = strip_backticks(code)
                 formatted_code = remove_line_numbers(formatted_code)
                 updated_snippets[index] = match_indent(formatted_code, current_contents)
@@ -1834,21 +1835,18 @@ class ModifyBot:
             result = change_validator.apply_validated_changes(change_validation)
 
             new_code = []
-            for idx, search in enumerate(selected_snippets):
+            for idx, search in enumerate(snippets):
                 if idx not in updated_snippets:
                     continue
-                if (
-                    selected_snippets.index(search)
-                    not in change_validator.updated_snippets
-                ):
+                if snippets.index(search) not in change_validator.updated_snippets:
                     continue
-                replace = change_validator.updated_snippets[
-                    selected_snippets.index(search)
-                ]
+                replace = change_validator.updated_snippets[snippets.index(search)]
                 new_code.append(replace)
 
             ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
             result = result.rstrip("\n") + "\n" * ending_newlines
+
+            # self.diffs += generate_diff(file_contents, result)
 
         new_code = "\n".join(new_code)
         leftover_comments = (
