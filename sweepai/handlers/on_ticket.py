@@ -75,7 +75,8 @@ from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.search_utils import search_snippets
-from sweepai.utils.ticket_utils import *
+from sweepai.utils.docker_utils import get_latest_docker_version
+from sweepai.utils.ticket_utils import add_badge_to_ticket, *
 
 openai.api_key = OPENAI_API_KEY
 
@@ -107,6 +108,13 @@ def on_ticket(
         fast_mode,
         lint_mode,
     ) = strip_sweep(title)
+
+    # existing code...
+
+    duration = get_latest_docker_version()
+    ticket = add_badge_to_ticket(ticket, duration)
+
+    # existing code...
 
     # Flow:
     # 1. Get relevant files
@@ -256,6 +264,29 @@ def on_ticket(
                 properties={**metadata, "duration": time() - on_ticket_start_time},
             )
             return {"success": False, "reason": "Issue is closed"}
+
+        # Add :eyes: emoji to ticket
+        item_to_react_to = (
+            current_issue.get_comment(comment_id) if comment_id else current_issue
+        )
+        eyes_reaction = item_to_react_to.create_reaction("eyes")
+        # If SWEEP_BOT reacted to item_to_react_to with "rocket", then remove it.
+        reactions = item_to_react_to.get_reactions()
+        for reaction in reactions:
+            if (
+                reaction.content == "rocket"
+                and reaction.user.login == GITHUB_BOT_USERNAME
+            ):
+                item_to_react_to.delete_reaction(reaction.id)
+
+        current_issue.edit(body=summary)
+
+        # existing code...
+
+        duration = get_latest_docker_version()
+        ticket = add_badge_to_ticket(ticket, duration)
+
+        # existing code...
 
         # Add :eyes: emoji to ticket
         item_to_react_to = (
@@ -652,6 +683,13 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             logger.error(f"Failed to extract docs: {e}")
+
+        # existing code...
+
+        duration = get_latest_docker_version()
+        ticket = add_badge_to_ticket(ticket, duration)
+
+        # existing code...
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
