@@ -49,6 +49,7 @@ from sweepai.core.prompts import (
     rewrite_file_prompt,
     rewrite_file_system_prompt,
     snippet_replacement,
+    update_snippets_system_prompt_python,
     snippet_replacement_system_message,
     subissues_prompt,
     update_snippets_prompt,
@@ -1762,6 +1763,9 @@ class ModifyBot:
             if idx in indices_to_keep:
                 pruned_snippets.append(snippet)
         selected_snippets = pruned_snippets
+        
+        if is_python_file:
+            self.update_snippets_bot.messages[0].content = update_snippets_system_prompt_python
 
         # TODO: break snippets into sections
         snippet_sections = []

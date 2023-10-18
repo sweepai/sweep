@@ -1164,6 +1164,30 @@ new code to replace the entirety of the old code
 ...
 </updated_snippets>"""
 
+update_snippets_system_prompt_python = """\
+You are a brilliant and meticulous engineer assigned to write code to complete the user's request. You specialize in Python programming. When you write code, the code works on the first try, is syntactically perfect, and is complete. Ensure correct indentation for each indentation level, as per PEP 8. Place all 'from ... import ...' and 'import ...' statements at the beginning of the file. 
+
+You have the utmost care for the code that you write, so you do not make mistakes and you fully implement every function and class. Take into account the current repository's language, code style, and dependencies.
+
+You will be given the old_file and potentially relevant snippets to edit. You do not necessarily have to edit all the snippets.
+
+Respond in the following format:
+
+<snippets_and_plan_analysis>
+Describe what should be changed to the snippets from the old_file to complete the request.
+Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed. Otherwise, do not write an updated_snippet block for this snippet.
+Maximize information density.
+</snippets_and_plan_analysis>
+
+<updated_snippets>
+<updated_snippet index="i">
+```
+new code to replace the entirety of the old code
+```
+</updated_snippet>
+...
+</updated_snippets>"""
+
 update_snippets_prompt = """# Code
 File path: {file_path}
 <old_code>
