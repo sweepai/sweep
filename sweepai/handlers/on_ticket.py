@@ -507,7 +507,7 @@ def on_ticket(
             try:
                 issue_comment.edit(msg)
             except BadCredentialsException:
-                logger.error("Bad credentials, refreshing token")
+                logger.error(f"Bad credentials, refreshing token (tracking ID: {logger.get_tracking_id()})")
                 _user_token, g = get_github_client(installation_id)
                 repo = g.get_repo(repo_full_name)
 
@@ -651,7 +651,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
+            logger.error(f"Failed to extract docs: {e} (tracking ID: {logger.get_tracking_id()})")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -725,9 +725,7 @@ def on_ticket(
                 raise SystemExit
             except Exception as e:
                 logger.error(
-                    "Failed to create new branch for sweep.yaml file.\n",
-                    e,
-                    traceback.format_exc(),
+                    f"Failed to create new branch for sweep.yaml file.\n{e}\n{traceback.format_exc()} (tracking ID: {logger.get_tracking_id()})"
                 )
         else:
             logger.info("sweep.yaml file already exists.")
@@ -1136,8 +1134,8 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
+                logger.error(f"{traceback.format_exc()} (tracking ID: {logger.get_tracking_id()})")
+                logger.error(f"{e} (tracking ID: {logger.get_tracking_id()})")
 
             if changes_required:
                 edit_sweep_comment(
@@ -1258,8 +1256,8 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.error.InvalidRequestError as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"{traceback.format_exc()} (tracking ID: {logger.get_tracking_id()})")
+            logger.error(f"{e} (tracking ID: {logger.get_tracking_id()})")
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1293,8 +1291,8 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"{traceback.format_exc()} (tracking ID: {logger.get_tracking_id()})")
+            logger.error(f"{e} (tracking ID: {logger.get_tracking_id()})")
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1332,7 +1330,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
+                logger.error(f"{e} (tracking ID: {logger.get_tracking_id()})")
         finally:
             cloned_repo.delete()
 
@@ -1347,8 +1345,8 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                logger.error(f"{e} (tracking ID: {logger.get_tracking_id()})")
+                logger.error(f"{traceback.format_exc()} (tracking ID: {logger.get_tracking_id()})")
                 logger.print("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
