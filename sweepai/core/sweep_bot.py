@@ -49,25 +49,25 @@ from sweepai.core.prompts import (
     rewrite_file_prompt,
     rewrite_file_system_prompt,
     snippet_replacement,
-    update_snippets_system_prompt_python,
     snippet_replacement_system_message,
     subissues_prompt,
     update_snippets_prompt,
     update_snippets_system_prompt,
+    update_snippets_system_prompt_python,
     use_chunking_message,
 )
 from sweepai.logn import logger
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.code_tree import CodeTree
-from sweepai.utils.diff import format_contents, generate_diff, is_markdown
+from sweepai.utils.diff import (
+    format_contents,
+    generate_diff,
+    is_markdown,
+    sliding_window_replacement,
+)
 from sweepai.utils.function_call_utils import find_function_calls
 from sweepai.utils.graph import Graph
-from sweepai.utils.search_and_replace import (
-    Match,
-    find_best_match,
-    match_indent,
-    split_ellipses,
-)
+from sweepai.utils.search_and_replace import Match, find_best_match, split_ellipses
 from sweepai.utils.utils import chunk_code
 
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
@@ -1763,11 +1763,13 @@ class ModifyBot:
             if idx in indices_to_keep:
                 pruned_snippets.append(snippet)
         selected_snippets = pruned_snippets
-        
-        if is_python_file:
-            self.update_snippets_bot.messages[0].content = update_snippets_system_prompt_python
 
-        # TODO: break snippets into sections
+        if is_python_file:
+            self.update_snippets_bot.messages[
+                0
+            ].content = update_snippets_system_prompt_python
+
+        # THIS SECTION IS CURRENTLY UNUSED, it's intended for doing update in sections
         snippet_sections = []
         current_section = []
         current_line_count = 0
@@ -1786,71 +1788,76 @@ class ModifyBot:
                 current_line_count += line_count
         if current_section:
             snippet_sections.append(current_section)
+        # END OF UNUSED SECTION
 
-        # for snippets in snippet_sections:
         snippets = selected_snippets
-        if True:
-            update_snippets_response = self.update_snippets_bot.chat(
-                update_snippets_prompt.format(
-                    code=update_snippets_code,
-                    file_path=file_path,
-                    changes_made=self.get_diffs_message(file_contents),
-                    snippets="\n\n".join(
-                        [
-                            f'<snippet index="{i}">\n{snippet}\n</snippet>'
-                            for i, snippet in enumerate(snippets)
-                        ]
-                    ),
-                    request=file_change_request.instructions,
-                    n=len(snippets),
-                )
+        update_snippets_response = self.update_snippets_bot.chat(
+            update_snippets_prompt.format(
+                code=update_snippets_code,
+                file_path=file_path,
+                changes_made=self.get_diffs_message(file_contents),
+                snippets="\n\n".join(
+                    [
+                        f'<snippet index="{i}">\n{snippet}\n</snippet>'
+                        for i, snippet in enumerate(snippets)
+                    ]
+                ),
+                request=file_change_request.instructions,
+                n=len(snippets),
+            )
+        )
+
+        updated_snippets: dict[int, str] = {}
+        updated_pattern = r"<<<<<<<\s+ORIGINAL\s+\(index=(?P<index>\d+)\)(?P<original_code>.*?)=======(?P<updated_code>.*?)>>>>>>>\s+UPDATED"
+
+        for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
+            index = int(match_.group("index"))
+            original_code = match_.group("original_code").strip("\n")
+            updated_code = match_.group("updated_code").strip("\n")
+
+            current_contents = snippets[index]
+            if index not in updated_snippets:
+                updated_snippets[index] = current_contents
+            updated_snippets[index] = "\n".join(
+                sliding_window_replacement(
+                    original=current_contents.splitlines(),
+                    search=original_code.splitlines(),
+                    replace=updated_code.splitlines(),
+                )[0]
             )
 
-            updated_snippets: dict[int, str] = {}
-            updated_pattern = r"<updated_snippet index=\"(?P<index>\d+)\"( position=\"(?P<position>before|after)\")?>(?P<code>.*?)<\/updated_snippet>"
-
-            for match_ in re.finditer(
-                updated_pattern, update_snippets_response, re.DOTALL
-            ):
-                index = int(match_.group("index"))
-                code = match_.group("code")
-                current_contents = snippets[index]
-                formatted_code = strip_backticks(code)
-                formatted_code = remove_line_numbers(formatted_code)
-                updated_snippets[index] = match_indent(formatted_code, current_contents)
-
-            change_validator = ChangeValidator.create(
-                file_contents,
-                file_change_request,
-                selected_snippets,
-                updated_snippets,
-                chat_logger=self.chat_logger,
-                additional_messages=self.additional_messages,
+        change_validator = ChangeValidator.create(
+            file_contents,
+            file_change_request,
+            selected_snippets,
+            updated_snippets,
+            chat_logger=self.chat_logger,
+            additional_messages=self.additional_messages,
+        )
+        if DEBUG or True:
+            change_validation = ChangeValidation(
+                analysis="",
+                additional_changes="",
+                additional_changes_required_raw="no",
+                diffs_to_revert_raw="",
             )
-            if DEBUG or True:
-                change_validation = ChangeValidation(
-                    analysis="",
-                    additional_changes="",
-                    additional_changes_required_raw="no",
-                    diffs_to_revert_raw="",
-                )
-            else:
-                change_validation = change_validator.validate_changes()
-            result = change_validator.apply_validated_changes(change_validation)
+        else:
+            change_validation = change_validator.validate_changes()
+        result = change_validator.apply_validated_changes(change_validation)
 
-            new_code = []
-            for idx, search in enumerate(snippets):
-                if idx not in updated_snippets:
-                    continue
-                if snippets.index(search) not in change_validator.updated_snippets:
-                    continue
-                replace = change_validator.updated_snippets[snippets.index(search)]
-                new_code.append(replace)
+        new_code = []
+        for idx, search in enumerate(snippets):
+            if idx not in updated_snippets:
+                continue
+            if snippets.index(search) not in change_validator.updated_snippets:
+                continue
+            replace = change_validator.updated_snippets[snippets.index(search)]
+            new_code.append(replace)
 
-            ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
-            result = result.rstrip("\n") + "\n" * ending_newlines
+        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
+        result = result.rstrip("\n") + "\n" * ending_newlines
 
-            # self.diffs += generate_diff(file_contents, result)
+        # self.diffs += generate_diff(file_contents, result)
 
         new_code = "\n".join(new_code)
         leftover_comments = (
