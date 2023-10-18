@@ -2,7 +2,6 @@
 on_ticket is the main function that is called when a new issue is created.
 It is only called by the webhook handler in sweepai/api.py.
 """
-# TODO: Add file validation
 
 import math
 import re
@@ -239,7 +238,7 @@ def on_ticket(
 
     logger.bind(**metadata)
     logger.info(f"Metadata: {metadata}")
-    
+
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
     logger.add(handler)
 
@@ -318,7 +317,9 @@ def on_ticket(
             tickets_allocated = 15
         if is_paying_user:
             tickets_allocated = 500
-        purchased_ticket_count = chat_logger.get_ticket_count(purchased=True) if chat_logger else 0
+        purchased_ticket_count = (
+            chat_logger.get_ticket_count(purchased=True) if chat_logger else 0
+        )
         ticket_count = (
             max(tickets_allocated - chat_logger.get_ticket_count(), 0)
             + purchased_ticket_count
@@ -669,9 +670,7 @@ def on_ticket(
         (
             paths_to_keep,
             directories_to_expand,
-        ) = context_pruning.prune_context(  # TODO, ignore directories
-            human_message, repo=repo
-        )
+        ) = context_pruning.prune_context(human_message, repo=repo)
         if paths_to_keep and directories_to_expand:
             snippets = [
                 snippet
@@ -808,10 +807,6 @@ def on_ticket(
                     },
                 )
                 return {"success": True}
-
-            # COMMENT ON ISSUE
-            # TODO: removed issue commenting here
-            # TODO(william, luke) planning here
 
             logger.info("Fetching files to modify/create...")
             non_python_count = sum(
