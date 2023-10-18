@@ -101,8 +101,7 @@ class ContextPruning(ChatGPT):
                 content += f"{rules_prefix_prompt}:\n{repo_rules}"
             self.messages = [Message(role="system", content=content, key="system")]
             added_messages = (
-                human_message.construct_prompt(snippet_tag="snippets_in_repo", 
-                                               directory_tag="paths_in_repo")
+                human_message.construct_prompt(snippet_tag="snippets_in_repo", directory_tag="paths_in_repo")
             )  # [ { role, content }, ... ]
             for msg in added_messages:
                 self.messages.append(Message(**msg))
