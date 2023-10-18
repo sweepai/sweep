@@ -9,6 +9,7 @@ import traceback
 from time import time
 
 import openai
+import hashlib
 import requests
 from github import BadCredentialsException
 from logtail import LogtailHandler
@@ -106,6 +107,12 @@ def on_ticket(
         fast_mode,
         lint_mode,
     ) = strip_sweep(title)
+    
+    # Generate a unique hash for tracking
+    tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()
+    
+    # Add tracking_id to metadata
+    metadata["tracking_id"] = tracking_id
 
     # Flow:
     # 1. Get relevant files
@@ -152,7 +159,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error hydrating cache of sandbox: {e}")
+            logger.warning(f"Error hydrating cache of sandbox (tracking ID: {tracking_id}): {e}. Report this bug on Discord.")
         logger.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
@@ -247,8 +254,14 @@ def on_ticket(
     try:
         logger.info(f"Getting repo {repo_full_name}")
 
+        # Generate a unique hash for tracking
+        tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()
+        
+        # Add tracking_id to metadata
+        metadata["tracking_id"] = tracking_id
+
         if current_issue.state == "closed":
-            logger.warning(f"Issue {issue_number} is closed")
+            logger.warning(f"Issue {issue_number} is closed (tracking ID: {tracking_id}). Report this bug on Discord.")
             posthog.capture(
                 username,
                 "issue_closed",
@@ -652,7 +665,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
+            logger.error(f"Failed to extract docs (tracking ID: {tracking_id}): {e}")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -1131,8 +1144,8 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
+                logger.error(f"An error occurred (tracking ID: {tracking_id}). {traceback.format_exc()}")
+                logger.error(f"An error occurred (tracking ID: {tracking_id}). {e}")
 
             if changes_required:
                 edit_sweep_comment(
@@ -1253,8 +1266,8 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.error.InvalidRequestError as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"An error occurred (tracking ID: {tracking_id}). {traceback.format_exc()}")
+            logger.error(f"An error occurred (tracking ID: {tracking_id}). {e}")
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1288,8 +1301,8 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"An error occurred (tracking ID: {tracking_id}). {traceback.format_exc()}")
+            logger.error(f"An error occurred (tracking ID: {tracking_id}). {e}")
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1327,7 +1340,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
+                logger.error(f"An error occurred (tracking ID: {tracking_id}). {e}")
         finally:
             cloned_repo.delete()
 
