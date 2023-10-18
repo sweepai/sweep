@@ -257,17 +257,13 @@ def center(text: str) -> str:
 
     posthog.capture(username, "started", properties=metadata)
 
-    try:
-        logger.info(f"Getting repo {repo_full_name}")
-
-        if current_issue.state == "closed":
-            logger.warning(f"Issue {issue_number} is closed")
-            posthog.capture(
-                username,
-                "issue_closed",
-                properties={**metadata, "duration": time() - on_ticket_start_time},
-            )
-            return {"success": False, "reason": "Issue is closed"}
+    def add_badge_to_ticket(issue_number, badge_content):
+        # Get a GitHub client
+        g = get_github_client()
+        # Get the issue from the 'sweepai/sweep' repository
+        issue = g.get_repo('sweepai/sweep').get_issue(number=issue_number)
+        # Edit the body of the issue to append the badge_content at the end
+        issue.edit(body=issue.body + "\n" + badge_content)
 
         # Add :eyes: emoji to ticket
         item_to_react_to = (
@@ -664,6 +660,14 @@ def center(text: str) -> str:
             raise SystemExit
         except Exception as e:
             logger.error(f"Failed to extract docs: {e}")
+
+        def add_badge_to_ticket(issue_number, badge_content):
+            # Get a GitHub client
+            g = get_github_client()
+            # Get the issue from the 'sweepai/sweep' repository
+            issue = g.get_repo('sweepai/sweep').get_issue(number=issue_number)
+            # Edit the body of the issue to append the badge_content at the end
+            issue.edit(body=issue.body + "\n" + badge_content)
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
