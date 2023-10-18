@@ -9,6 +9,7 @@ import traceback
 from time import time
 
 import openai
+import hashlib
 import requests
 from github import BadCredentialsException
 from logtail import LogtailHandler
@@ -106,6 +107,12 @@ def on_ticket(
         fast_mode,
         lint_mode,
     ) = strip_sweep(title)
+    
+    # Generate a unique hash for tracking
+    tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()
+    
+    # Add tracking_id to metadata
+    metadata['tracking_id'] = tracking_id
 
     # Flow:
     # 1. Get relevant files
@@ -152,7 +159,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error hydrating cache of sandbox: {e}")
+            logger.warning(f"Error hydrating cache of sandbox (tracking ID: {tracking_id}): {e}")
         logger.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
@@ -248,7 +255,7 @@ def on_ticket(
         logger.info(f"Getting repo {repo_full_name}")
 
         if current_issue.state == "closed":
-            logger.warning(f"Issue {issue_number} is closed")
+            logger.warning(f"Issue {issue_number} is closed (tracking ID: {tracking_id})")
             posthog.capture(
                 username,
                 "issue_closed",
@@ -508,7 +515,7 @@ def on_ticket(
             try:
                 issue_comment.edit(msg)
             except BadCredentialsException:
-                logger.error("Bad credentials, refreshing token")
+                logger.error(f"Bad credentials, refreshing token (tracking ID: {tracking_id})")
                 _user_token, g = get_github_client(installation_id)
                 repo = g.get_repo(repo_full_name)
 
@@ -589,8 +596,8 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             trace = traceback.format_exc()
-            logger.error(e)
-            logger.error(trace)
+            logger.error(f"{e} (tracking ID: {tracking_id})")
+            logger.error(f"{trace} (tracking ID: {tracking_id})")
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
