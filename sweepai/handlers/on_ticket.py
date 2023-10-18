@@ -501,6 +501,7 @@ def on_ticket(
                     "## ❌ Unable to Complete PR"
                     + "\n"
                     + message
+                    + f" (tracking_id={tracking_id})"
                     + "\n\nFor bonus GPT-4 tickets, please report this bug on"
                     " **[Discord](https://discord.gg/invite/sweep)**."
                 )
@@ -1226,7 +1227,7 @@ def on_ticket(
                         " long.\n\nIf this file is incorrect, please describe the desired"
                         " file in the prompt. However, if you would like to edit longer"
                         " files, consider upgrading to [Sweep Pro](https://sweep.dev/) for"
-                        " longer context lengths.\n"
+                        f" longer context lengths. (tracking_id={tracking_id})\n"
                     ),
                     -1,
                 )
@@ -1262,7 +1263,7 @@ def on_ticket(
                     "I'm sorry, but it looks our model has ran out of context length. We're"
                     " trying to make this happen less, but one way to mitigate this is to"
                     " code smaller files. If this error persists report it at"
-                    " https://discord.gg/sweep."
+                    f" https://discord.gg/sweep. (tracking_id={tracking_id})"
                 ),
                 -1,
             )
@@ -1308,7 +1309,7 @@ def on_ticket(
                     (
                         "I'm sorry, but it looks like an error has occurred. Try changing"
                         " the issue description to re-trigger Sweep. If this error persists"
-                        " report it at https://discord.gg/sweep."
+                        f" report it at https://discord.gg/sweep. (tracking_id={tracking_id})"
                     ),
                     -1,
                 )
