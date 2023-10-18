@@ -1,22 +1,23 @@
-"""
-on_ticket is the main function that is called when a new issue is created.
-It is only called by the webhook handler in sweepai/api.py.
-"""
-# TODO: Add file validation
-
-import math
-import re
-import traceback
-from time import time
-
-import openai
-import requests
-from github import BadCredentialsException
-from logtail import LogtailHandler
-from loguru import logger
-from requests.exceptions import Timeout
-from tabulate import tabulate
-from tqdm import tqdm
+    """
+    on_ticket is the main function that is called when a new issue is created.
+    It is only called by the webhook handler in sweepai/api.py.
+    """
+    # TODO: Add file validation
+    
+    import math
+    import re
+    import traceback
+    from time import time
+    import hashlib
+    
+    import openai
+    import requests
+    from github import BadCredentialsException
+    from logtail import LogtailHandler
+    from loguru import logger
+    from requests.exceptions import Timeout
+    from tabulate import tabulate
+    from tqdm import tqdm
 
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -149,11 +150,11 @@ def on_ticket(
                 timeout=2,
             )
         except Timeout:
-            logger.info("Sandbox hydration timed out.")
+            logger.info(f"Sandbox hydration timed out. (tracking ID: {tracking_id})")
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error hydrating cache of sandbox: {e}")
+            logger.warning(f"Error hydrating cache of sandbox: {e}. (tracking ID: {tracking_id})")
         logger.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
@@ -214,6 +215,9 @@ def on_ticket(
     )
 
     organization, repo_name = repo_full_name.split("/")
+    # Generate a unique tracking ID
+    tracking_id = hashlib.sha256(f"{time()}-{issue_number}".encode()).hexdigest()
+
     metadata = {
         "issue_url": issue_url,
         "repo_full_name": repo_full_name,
@@ -235,6 +239,7 @@ def on_ticket(
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
         "is_self_hosted": IS_SELF_HOSTED,
+        "tracking_id": tracking_id,  # Add the tracking ID to the metadata
     }
 
     logger.bind(**metadata)
@@ -584,7 +589,7 @@ def on_ticket(
             )
             assert len(snippets) > 0
         except SystemExit:
-            logger.warning("System exit")
+            logger.warning(f"System exit. (tracking ID: {metadata['tracking_id']})")
             posthog.capture(
                 username,
                 "failed",
@@ -596,6 +601,9 @@ def on_ticket(
             )
             raise SystemExit
         except Exception as e:
+            trace = traceback.format_exc()
+            logger.error(f"{e} (tracking ID: {metadata['tracking_id']})")
+            logger.error(trace)
             trace = traceback.format_exc()
             logger.error(e)
             logger.error(trace)
@@ -651,7 +659,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
+            logger.error(f"Failed to extract docs: {e}. (tracking ID: {metadata['tracking_id']})")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -725,8 +733,7 @@ def on_ticket(
                 raise SystemExit
             except Exception as e:
                 logger.error(
-                    "Failed to create new branch for sweep.yaml file.\n",
-                    e,
+                    f"Failed to create new branch for sweep.yaml file.\n{e}. (tracking ID: {metadata['tracking_id']})",
                     traceback.format_exc(),
                 )
         else:
@@ -1113,42 +1120,73 @@ def on_ticket(
                     + blockquote(review_comment)
                     + "\n\n"
                 )
+                try:
+                    current_issue.delete_reaction(eyes_reaction.id)
+                except SystemExit:
+                    raise SystemExit
+                except:
+                    pass
+    
+                changes_required = False
+                try:
+                    # CODE REVIEW
+                    changes_required, review_comment = review_pr(
+                        repo=repo,
+                        pr=pr_changes,
+                        issue_url=issue_url,
+                        username=username,
+                        repo_description=repo_description,
+                        title=title,
+                        summary=summary,
+                        replies_text=replies_text,
+                        tree=tree,
+                        lint_output=lint_output,
+                        plan=plan,  # plan for the PR
+                        chat_logger=chat_logger,
+                        commit_history=commit_history,
+                    )
+                    lint_output = None
+                    review_message += (
+                        f"Here is the {ordinal(1)} review\n"
+                        + blockquote(review_comment)
+                        + "\n\n"
+                    )
+                    if changes_required:
+                        edit_sweep_comment(
+                            review_message
+                            + "\n\nI'm currently addressing these suggestions.",
+                            3,
+                        )
+                        logger.info(f"Addressing review comment {review_comment}")
+                        on_comment(
+                            repo_full_name=repo_full_name,
+                            repo_description=repo_description,
+                            comment=review_comment,
+                            username=username,
+                            installation_id=installation_id,
+                            pr_path=None,
+                            pr_line_position=None,
+                            pr_number=None,
+                            pr=pr_changes,
+                            chat_logger=chat_logger,
+                            repo=repo,
+                        )
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    logger.error(traceback.format_exc())
+                    logger.error(f"{e} (tracking ID: {metadata['tracking_id']})")
+    
                 if changes_required:
                     edit_sweep_comment(
-                        review_message
-                        + "\n\nI'm currently addressing these suggestions.",
+                        review_message + "\n\nI finished incorporating these changes.",
                         3,
                     )
-                    logger.info(f"Addressing review comment {review_comment}")
-                    on_comment(
-                        repo_full_name=repo_full_name,
-                        repo_description=repo_description,
-                        comment=review_comment,
-                        username=username,
-                        installation_id=installation_id,
-                        pr_path=None,
-                        pr_line_position=None,
-                        pr_number=None,
-                        pr=pr_changes,
-                        chat_logger=chat_logger,
-                        repo=repo,
+                else:
+                    edit_sweep_comment(
+                        f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
+                        3,
                     )
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
-
-            if changes_required:
-                edit_sweep_comment(
-                    review_message + "\n\nI finished incorporating these changes.",
-                    3,
-                )
-            else:
-                edit_sweep_comment(
-                    f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
-                    3,
-                )
 
             pr_actions_message = (
                 create_action_buttons(
@@ -1210,7 +1248,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Max Tokens Exceeded",
-                str(e) + "\n" + traceback.format_exc(),
+                str(e) + "\n" + traceback.format_exc() + f" (tracking ID: {metadata['tracking_id']})",
                 priority=2,
             )
             if chat_logger.is_paying_user():
@@ -1243,7 +1281,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Sweep could not find files to modify",
-                str(e) + "\n" + traceback.format_exc(),
+                str(e) + "\n" + traceback.format_exc() + f" (tracking ID: {metadata['tracking_id']})",
                 priority=2,
             )
             edit_sweep_comment(
@@ -1259,7 +1297,7 @@ def on_ticket(
             raise e
         except openai.error.InvalidRequestError as e:
             logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"{e} (tracking ID: {metadata['tracking_id']})")
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1294,7 +1332,7 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"{e} (tracking ID: {metadata['tracking_id']})")
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1332,7 +1370,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
+                logger.error(f"{e} (tracking ID: {metadata['tracking_id']})")
         finally:
             cloned_repo.delete()
 
