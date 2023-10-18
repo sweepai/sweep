@@ -880,10 +880,19 @@ class SweepBot(CodeGenBot, GithubBot):
                             key="relevant_files_summary",
                         )
                     )
+            current_file_diff = ""
+            if changed_files:
+                for file_path, (old_contents, new_contents) in changed_files:
+                    if file_path == file_change_request.filename:
+                        current_file_diff += (
+                            generate_diff(old_contents, new_contents) + "\n"
+                        )
             modify_file_bot = ModifyBot(
                 additional_messages,
                 parent_bot=self,
                 chat_logger=self.chat_logger,
+                old_file_contents=contents,
+                current_file_diff=current_file_diff,
                 is_pr=bool(self.comment_pr_diff_str),
                 temperature=temperature,
             )
@@ -1276,14 +1285,13 @@ class SweepBot(CodeGenBot, GithubBot):
                         new_lines[start:end] = new_chunk.split("\n")
                         new_file_contents = "\n".join(new_lines)
                     else:
-                        for i, chunk in enumerate(
-                            chunk_code(
-                                file_contents,
-                                path=file_change_request.filename,
-                                MAX_CHARS=15_000,
-                                coalesce=5_000,
-                            )
-                        ):
+                        chunks = chunk_code(
+                            file_contents,
+                            path=file_change_request.filename,
+                            MAX_CHARS=15_000,
+                            coalesce=5_000,
+                        )
+                        for i, chunk in enumerate(chunks):
                             chunk.start += 1
                             if chunk.end >= len(lines) - 2:
                                 chunk.end += 1
@@ -1303,6 +1311,9 @@ class SweepBot(CodeGenBot, GithubBot):
                                 temperature=temperature,
                             )
                             commit_message = suggested_commit_message
+                            logger.info(
+                                f"Chunk {i} of {len(chunks)}: {generate_diff(chunk_contents, new_chunk)}"
+                            )
                             new_file_contents += new_chunk + "\n"
                         if len(lines) < 1000:
                             new_file_contents, sandbox_error = self.check_sandbox(
@@ -1440,7 +1451,8 @@ class ModifyBot:
         additional_messages: list[Message] = [],
         chat_logger=None,
         parent_bot: SweepBot = None,
-        is_pr: bool = False,
+        old_file_contents: str = "",
+        current_file_diff: str = "",
         **kwargs,
     ):
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
@@ -1463,6 +1475,25 @@ class ModifyBot:
         self.prune_modify_snippets_bot.messages.extend(additional_messages)
         self.chat_logger = chat_logger
         self.additional_messages = additional_messages
+        self.old_file_contents = old_file_contents
+        self.current_file_diff = current_file_diff
+        self.additional_diffs = ""
+
+    def get_diffs_message(self, file_contents: str):
+        if self.current_file_diff == "" and self.old_file_contents == file_contents:
+            return self.additional_diffs
+        elif self.current_file_diff == "":
+            diff = generate_diff(self.old_file_contents, file_contents)
+        elif self.old_file_contents == file_contents:
+            diff = self.current_file_diff
+        else:
+            diff = (
+                self.old_file_contents
+                + "\n...\n"
+                + generate_diff(self.old_file_contents, file_contents)
+            )
+        diff += self.additional_diffs
+        return f"\n# Changes Made\nHere are changes we already made to this file:\n<diff>\n{diff}\n</diff>\n"
 
     def try_update_file(
         self,
@@ -1489,8 +1520,9 @@ class ModifyBot:
         for _ in range(3):
             if leftover_comments and not DEBUG:
                 joined_comments = "\n".join(leftover_comments)
-                file_change_request.new_content = new_file
-                file_change_request.instructions = f"Address all of the unfinished code changes here: \n{joined_comments}"
+                new_file_change_request = copy.deepcopy(file_change_request)
+                new_file_change_request.new_content = new_file
+                new_file_change_request.instructions = f"Address all of the unfinished code changes here: \n{joined_comments}"
                 self.fetch_snippets_bot.messages = self.fetch_snippets_bot.messages[:-2]
                 self.prune_modify_snippets_bot.messages = (
                     self.prune_modify_snippets_bot.messages[:-2]
@@ -1498,7 +1530,7 @@ class ModifyBot:
                 snippet_queries, extraction_terms = self.get_snippets_to_modify(
                     file_path=file_path,
                     file_contents=new_file,
-                    file_change_request=file_change_request,
+                    file_change_request=new_file_change_request,
                     chunking=chunking,
                 )
                 self.update_snippets_bot.messages = self.update_snippets_bot.messages[
@@ -1507,7 +1539,7 @@ class ModifyBot:
                 new_file, leftover_comments, change_validation = self.update_file(
                     file_path=file_path,
                     file_contents=new_file,
-                    file_change_request=file_change_request,
+                    file_change_request=new_file_change_request,
                     snippet_queries=snippet_queries,
                     extraction_terms=extraction_terms,
                     chunking=chunking,
@@ -1553,6 +1585,7 @@ class ModifyBot:
                 ).content
                 if file_change_request.entity
                 else file_contents,
+                changes_made=self.get_diffs_message(file_contents),
                 file_path=file_path,
                 request=file_change_request.instructions,
                 chunking_message=use_chunking_message
@@ -1714,6 +1747,7 @@ class ModifyBot:
                     ]
                 ),
                 file_path=file_path,
+                changes_made=self.get_diffs_message(file_contents),
                 old_code=update_snippets_code,
                 request=file_change_request.instructions,
             )
@@ -1729,62 +1763,90 @@ class ModifyBot:
                 pruned_snippets.append(snippet)
         selected_snippets = pruned_snippets
 
-        update_snippets_response = self.update_snippets_bot.chat(
-            update_snippets_prompt.format(
-                code=update_snippets_code,
-                file_path=file_path,
-                snippets="\n\n".join(
-                    [
-                        f'<snippet index="{i}">\n{snippet}\n</snippet>'
-                        for i, snippet in enumerate(selected_snippets)
-                    ]
-                ),
-                request=file_change_request.instructions,
-                n=len(selected_snippets),
+        # TODO: break snippets into sections
+        snippet_sections = []
+        current_section = []
+        current_line_count = 0
+        SECTION_LINE_LIMIT = 60
+        for snippet in selected_snippets:
+            line_count = len(snippet.split("\n"))
+            if line_count + current_line_count > SECTION_LINE_LIMIT:
+                snippet_sections.append(current_section)
+                current_section = []
+                current_line_count = 0
+            if line_count > SECTION_LINE_LIMIT:
+                snippet_sections.append([snippet])
+                current_line_count = 0
+            else:
+                current_section.append(snippet)
+                current_line_count += line_count
+        if current_section:
+            snippet_sections.append(current_section)
+
+        # for snippets in snippet_sections:
+        snippets = selected_snippets
+        if True:
+            update_snippets_response = self.update_snippets_bot.chat(
+                update_snippets_prompt.format(
+                    code=update_snippets_code,
+                    file_path=file_path,
+                    changes_made=self.get_diffs_message(file_contents),
+                    snippets="\n\n".join(
+                        [
+                            f'<snippet index="{i}">\n{snippet}\n</snippet>'
+                            for i, snippet in enumerate(snippets)
+                        ]
+                    ),
+                    request=file_change_request.instructions,
+                    n=len(snippets),
+                )
             )
-        )
 
-        updated_snippets: dict[int, str] = {}
-        updated_pattern = r"<updated_snippet index=\"(?P<index>\d+)\"( position=\"(?P<position>before|after)\")?>(?P<code>.*?)<\/updated_snippet>"
+            updated_snippets: dict[int, str] = {}
+            updated_pattern = r"<updated_snippet index=\"(?P<index>\d+)\"( position=\"(?P<position>before|after)\")?>(?P<code>.*?)<\/updated_snippet>"
 
-        for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
-            index = int(match_.group("index"))
-            code = match_.group("code")
-            current_contents = selected_snippets[index]
-            formatted_code = strip_backticks(code)
-            formatted_code = remove_line_numbers(formatted_code)
-            updated_snippets[index] = match_indent(formatted_code, current_contents)
+            for match_ in re.finditer(
+                updated_pattern, update_snippets_response, re.DOTALL
+            ):
+                index = int(match_.group("index"))
+                code = match_.group("code")
+                current_contents = snippets[index]
+                formatted_code = strip_backticks(code)
+                formatted_code = remove_line_numbers(formatted_code)
+                updated_snippets[index] = match_indent(formatted_code, current_contents)
 
-        change_validator = ChangeValidator.create(
-            file_contents,
-            file_change_request,
-            selected_snippets,
-            updated_snippets,
-            chat_logger=self.chat_logger,
-            additional_messages=self.additional_messages,
-        )
-        if DEBUG:
-            change_validation = ChangeValidation(
-                analysis="",
-                additional_changes="",
-                additional_changes_required_raw="no",
-                diffs_to_revert_raw="",
+            change_validator = ChangeValidator.create(
+                file_contents,
+                file_change_request,
+                selected_snippets,
+                updated_snippets,
+                chat_logger=self.chat_logger,
+                additional_messages=self.additional_messages,
             )
-        else:
-            change_validation = change_validator.validate_changes()
-        result = change_validator.apply_validated_changes(change_validation)
+            if DEBUG or True:
+                change_validation = ChangeValidation(
+                    analysis="",
+                    additional_changes="",
+                    additional_changes_required_raw="no",
+                    diffs_to_revert_raw="",
+                )
+            else:
+                change_validation = change_validator.validate_changes()
+            result = change_validator.apply_validated_changes(change_validation)
 
-        new_code = []
-        for idx, search in enumerate(selected_snippets):
-            if idx not in updated_snippets:
-                continue
-            if selected_snippets.index(search) not in change_validator.updated_snippets:
-                continue
-            replace = change_validator.updated_snippets[selected_snippets.index(search)]
-            new_code.append(replace)
+            new_code = []
+            for idx, search in enumerate(snippets):
+                if idx not in updated_snippets:
+                    continue
+                if snippets.index(search) not in change_validator.updated_snippets:
+                    continue
+                replace = change_validator.updated_snippets[snippets.index(search)]
+                new_code.append(replace)
 
-        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
-        result = result.rstrip("\n") + "\n" * ending_newlines
+            ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
+            result = result.rstrip("\n") + "\n" * ending_newlines
+
+            # self.diffs += generate_diff(file_contents, result)
 
         new_code = "\n".join(new_code)
         leftover_comments = (
