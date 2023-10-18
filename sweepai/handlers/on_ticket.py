@@ -245,14 +245,14 @@ def on_ticket(
     posthog.capture(username, "started", properties=metadata)
 
     try:
-        logger.info(f"Getting repo {repo_full_name}")
+        logger.info(f"(tracking ID: {tracking_id}) Getting repo {repo_full_name}")
 
         if current_issue.state == "closed":
-            logger.warning(f"Issue {issue_number} is closed")
+            logger.warning(f"(tracking ID: {tracking_id}) Issue {issue_number} is closed")
             posthog.capture(
                 username,
                 "issue_closed",
-                properties={**metadata, "duration": time() - on_ticket_start_time},
+                properties={**metadata, "duration": time() - on_ticket_start_time, "tracking_id": tracking_id},
             )
             return {"success": False, "reason": "Issue is closed"}
 
@@ -416,7 +416,7 @@ def on_ticket(
         try:
             config = SweepConfig.get_config(repo)
         except EmptyRepository as e:
-            logger.info("Empty repo")
+            logger.info(f"(tracking ID: {tracking_id}) Empty repo")
             first_comment = (
                 "Sweep is currently not supported on empty repositories. Please add some"
                 f" code to your repository and try again.\n{sep}##"
@@ -527,7 +527,7 @@ def on_ticket(
                     issue_comment.edit(msg)
 
         if len(title + summary) < 20:
-            logger.info("Issue too short")
+            logger.info(f"(tracking ID: {tracking_id}) Issue too short")
             edit_sweep_comment(
                 (
                     "Please add more details to your issue. I need at least 20 characters"
@@ -538,7 +538,7 @@ def on_ticket(
             posthog.capture(
                 username,
                 "issue_too_short",
-                properties={**metadata, "duration": time() - on_ticket_start_time},
+                properties={**metadata, "duration": time() - on_ticket_start_time, "tracking_id": tracking_id},
             )
             return {"success": True}
 
@@ -548,7 +548,7 @@ def on_ticket(
             and not is_consumer_tier
         ):
             if ("sweep" in repo_name.lower()) or ("test" in repo_name.lower()):
-                logger.info("Test repository detected")
+                logger.info(f"(tracking ID: {tracking_id}) Test repository detected")
                 edit_sweep_comment(
                     (
                         "Sweep does not work on test repositories. Please create an issue"
@@ -563,6 +563,7 @@ def on_ticket(
                     properties={
                         **metadata,
                         "duration": time() - on_ticket_start_time,
+                        "tracking_id": tracking_id
                     },
                 )
                 return {"success": False}
@@ -576,7 +577,7 @@ def on_ticket(
         #     repo.html_url, file_path, None, user_token, only_lint=True
         # )
 
-        logger.info("Fetching relevant files...")
+        logger.info(f"(tracking ID: {tracking_id}) Fetching relevant files...")
         try:
             snippets, tree, dir_obj = search_snippets(
                 cloned_repo,
@@ -585,7 +586,7 @@ def on_ticket(
             )
             assert len(snippets) > 0
         except SystemExit:
-            logger.warning("System exit")
+            logger.warning(f"(tracking ID: {tracking_id}) System exit")
             posthog.capture(
                 username,
                 "failed",
@@ -593,10 +594,14 @@ def on_ticket(
                     **metadata,
                     "error": "System exit",
                     "duration": time() - on_ticket_start_time,
+                    "tracking_id": tracking_id
                 },
             )
             raise SystemExit
         except Exception as e:
+            trace = traceback.format_exc()
+            logger.error(f"(tracking ID: {tracking_id}) {e}")
+            logger.error(trace)
             trace = traceback.format_exc()
             logger.error(e)
             logger.error(trace)
@@ -716,7 +721,7 @@ def on_ticket(
         # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
         if not sweep_yml_exists:
             try:
-                logger.info("Creating sweep.yaml file...")
+                logger.info(f"(tracking ID: {tracking_id}) Creating sweep.yaml file...")
                 config_pr = create_config_pr(sweep_bot, cloned_repo=cloned_repo)
                 config_pr_url = config_pr.html_url
                 edit_sweep_comment(message="", index=-2)
@@ -724,12 +729,12 @@ def on_ticket(
                 raise SystemExit
             except Exception as e:
                 logger.error(
-                    "Failed to create new branch for sweep.yaml file.\n",
+                    f"(tracking ID: {tracking_id}) Failed to create new branch for sweep.yaml file.\n",
                     e,
                     traceback.format_exc(),
                 )
         else:
-            logger.info("sweep.yaml file already exists.")
+            logger.info(f"(tracking ID: {tracking_id}) sweep.yaml file already exists.")
 
         try:
             # ANALYZE SNIPPETS
@@ -804,11 +809,12 @@ def on_ticket(
                         **metadata,
                         "count": len(subissues),
                         "duration": time() - on_ticket_start_time,
+                        "tracking_id": tracking_id
                     },
                 )
                 return {"success": True}
 
-            logger.info("Fetching files to modify/create...")
+            logger.info(f"(tracking ID: {tracking_id}) Fetching files to modify/create...")
             non_python_count = sum(
                 not file_path.endswith(".py")
                 for file_path in human_message.get_file_paths()
@@ -861,9 +867,9 @@ def on_ticket(
                 tablefmt="pipe",
             )
             # CREATE PR METADATA
-            logger.info("Generating PR...")
+            logger.info(f"(tracking ID: {tracking_id}) Generating PR...")
             pull_request = sweep_bot.generate_pull_request()
-            logger.info("Making PR...")
+            logger.info(f"(tracking ID: {tracking_id}) Making PR...")
 
             files_progress: list[tuple[str, str, str, str]] = [
                 (
@@ -1060,11 +1066,11 @@ def on_ticket(
                 issue = repo.get_issue(number=issue_number)
                 issue.edit(body=summary + "\n\n" + condensed_checkboxes_collapsible)
 
-                logger.info(files_progress)
-                logger.info(f"Edited {file_change_request.entity_display}")
+                logger.info(f"(tracking ID: {tracking_id}) {files_progress}")
+                logger.info(f"(tracking ID: {tracking_id}) Edited {file_change_request.entity_display}")
                 edit_sweep_comment(checkboxes_contents, 2)
             if not response.get("success"):
-                raise Exception(f"Failed to create PR: {response.get('error')}")
+                raise Exception(f"(tracking ID: {tracking_id}) Failed to create PR: {response.get('error')}")
             pr_changes = response["pull_request"]
 
             edit_sweep_comment(
@@ -1102,6 +1108,7 @@ def on_ticket(
                     chat_logger=chat_logger,
                     commit_history=commit_history,
                 )
+                logger.info(f"(tracking ID: {tracking_id}) Addressing review comment {review_comment}")
                 lint_output = None
                 review_message += (
                     f"Here is the {ordinal(1)} review\n"
@@ -1114,7 +1121,7 @@ def on_ticket(
                         + "\n\nI'm currently addressing these suggestions.",
                         3,
                     )
-                    logger.info(f"Addressing review comment {review_comment}")
+                    logger.info(f"(tracking ID: {tracking_id}) Addressing review comment {review_comment}")
                     on_comment(
                         repo_full_name=repo_full_name,
                         repo_description=repo_description,
@@ -1131,19 +1138,8 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
-
-            if changes_required:
-                edit_sweep_comment(
-                    review_message + "\n\nI finished incorporating these changes.",
-                    3,
-                )
-            else:
-                edit_sweep_comment(
-                    f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
-                    3,
-                )
+                logger.error(f"(tracking ID: {tracking_id}) {traceback.format_exc()}")
+                logger.error(f"(tracking ID: {tracking_id}) {e}")
 
             pr_actions_message = (
                 create_action_buttons(
@@ -1196,9 +1192,9 @@ def on_ticket(
                 done=True,
             )
 
-            logger.info("Add successful ticket to counter")
+            logger.info(f"(tracking ID: {tracking_id}) Add successful ticket to counter")
         except MaxTokensExceeded as e:
-            logger.info("Max tokens exceeded")
+            logger.info(f"(tracking ID: {tracking_id}) Max tokens exceeded")
             log_error(
                 is_paying_user,
                 is_consumer_tier,
@@ -1231,7 +1227,7 @@ def on_ticket(
             delete_branch = True
             raise e
         except NoFilesException as e:
-            logger.info("Sweep could not find files to modify")
+            logger.info(f"(tracking ID: {tracking_id}) Sweep could not find files to modify")
             log_error(
                 is_paying_user,
                 is_consumer_tier,
@@ -1253,8 +1249,8 @@ def on_ticket(
             delete_branch = True
             raise e
         except openai.error.InvalidRequestError as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"(tracking ID: {tracking_id}) {traceback.format_exc()}")
+            logger.error(f"(tracking ID: {tracking_id}) {e}")
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1281,6 +1277,7 @@ def on_ticket(
                     "reason": "Invalid request error / context length",
                     **metadata,
                     "duration": time() - on_ticket_start_time,
+                    "tracking_id": tracking_id
                 },
             )
             delete_branch = True
@@ -1288,8 +1285,8 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
+            logger.error(f"(tracking ID: {tracking_id}) {traceback.format_exc()}")
+            logger.error(f"(tracking ID: {tracking_id}) {e}")
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1327,7 +1324,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
+                logger.error(f"(tracking ID: {tracking_id}) {e}")
         finally:
             cloned_repo.delete()
 
@@ -1342,8 +1339,8 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(e)
-                logger.error(traceback.format_exc())
+                logger.error(f"(tracking ID: {tracking_id}) {e}")
+                logger.error(f"(tracking ID: {tracking_id}) {traceback.format_exc()}")
                 logger.print("Deleted branch", pull_request.branch_name)
     except Exception as e:
         posthog.capture(
@@ -1354,6 +1351,7 @@ def on_ticket(
                 "error": str(e),
                 "trace": traceback.format_exc(),
                 "duration": time() - on_ticket_start_time,
+                "tracking_id": tracking_id
             },
         )
         raise e
@@ -1361,7 +1359,7 @@ def on_ticket(
     posthog.capture(
         username,
         "success",
-        properties={**metadata, "duration": time() - on_ticket_start_time},
+        properties={**metadata, "duration": time() - on_ticket_start_time, "tracking_id": tracking_id},
     )
-    logger.info("on_ticket success")
+    logger.info(f"(tracking ID: {tracking_id}) on_ticket success")
     return {"success": True}
