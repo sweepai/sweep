@@ -1,42 +1,49 @@
-import datetime
-import inspect
-import json
-import logging
-import os
-import threading
-import traceback
-
-LOG_PATH = "logn_logs/logs"
-META_PATH = "logn_logs/meta"
-END_OF_LINE = "󰀀{level}󰀀\n"
-
-
-# Add logtail support
-try:
-    from logtail import LogtailHandler
-
-    from sweepai.config.server import LOGTAIL_SOURCE_KEY
-
-    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
-
-    def get_logtail_logger(logger_name):
+        import datetime
+        import inspect
+        import json
+        import logging
+        import os
+        import threading
+        import traceback
+        import hashlib
+        import time
+        
+        LOG_PATH = "logn_logs/logs"
+        META_PATH = "logn_logs/meta"
+        END_OF_LINE = "󰀀{level}󰀀\n"
+        
+        def get_tracking_id():
+            return hashlib.sha1(str(time.time()).encode()).hexdigest()[:10]
+        
+        # Add logtail support
         try:
-            logger = logging.getLogger(logger_name)
-            logger.setLevel(logging.INFO)
-            logger.handlers = []
-            logger.addHandler(handler)
-            return logger
-        except SystemExit:
-            raise SystemExit
-        except Exception:
-            return None
-
-except Exception as e:
-    print("Failed to import logtail")
-    print(e)
-
-    def get_logtail_logger(logger_name):
-        return None
+            from logtail import LogtailHandler
+        
+            from sweepai.config.server import LOGTAIL_SOURCE_KEY
+        
+            handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
+        
+            def get_logtail_logger(logger_name):
+                try:
+                    logger = logging.getLogger(logger_name)
+                    logger.setLevel(logging.INFO)
+                    logger.handlers = []
+                    logger.addHandler(handler)
+                    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s - tracking ID: %(tracking_id)s')
+                    handler.setFormatter(formatter)
+                    logger.addHandler(handler)
+                    return logger
+                except SystemExit:
+                    raise SystemExit
+                except Exception:
+                    return None
+        
+        except Exception as e:
+            print("Failed to import logtail")
+            print(e)
+        
+            def get_logtail_logger(logger_name):
+                return None
 
 
 class LogParser:
