@@ -50,4 +50,3 @@ class TestHealth(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("status", response.json())
         self.assertIn("details", response.json())
-    
