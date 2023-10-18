@@ -9,6 +9,7 @@ import traceback
 from time import time
 
 import openai
+from sweepai.utils.docker_utils import get_latest_docker_version
 import requests
 from github import BadCredentialsException
 from logtail import LogtailHandler
@@ -106,6 +107,14 @@ def on_ticket(
         fast_mode,
         lint_mode,
     ) = strip_sweep(title)
+
+    # Get the duration since the last docker version update
+    docker_update_duration = get_latest_docker_version()
+
+    # Add a badge to the ticket with the docker update duration
+    badge_text = f"Docker version updated: {docker_update_duration}"
+    issue = g.get_repo(repo_full_name).get_issue(number=issue_number)
+    issue.edit(body=f"{issue.body}\n\n{badge_text}")
 
     # Flow:
     # 1. Get relevant files
@@ -255,6 +264,14 @@ def on_ticket(
                 properties={**metadata, "duration": time() - on_ticket_start_time},
             )
             return {"success": False, "reason": "Issue is closed"}
+
+        # Get the duration since the last docker version update
+        docker_update_duration = get_latest_docker_version()
+
+        # Add a badge to the ticket with the docker update duration
+        badge_text = f"Docker version updated: {docker_update_duration}"
+        issue = g.get_repo(repo_full_name).get_issue(number=issue_number)
+        issue.edit(body=f"{issue.body}\n\n{badge_text}")
 
         # Add :eyes: emoji to ticket
         item_to_react_to = (
