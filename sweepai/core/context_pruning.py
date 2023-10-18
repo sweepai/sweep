@@ -111,7 +111,7 @@ class ContextPruning(ChatGPT):
                 else "gpt-3.5-turbo-16k-0613"
             )
             response = self.chat(pruning_prompt)
-            context_to_prune = ContextToPrune.from_string(response)         
+            context_to_prune = ContextToPrune.from_string(response)
             return context_to_prune.paths_to_keep, context_to_prune.directories_to_expand
         except SystemExit:
             raise SystemExit
