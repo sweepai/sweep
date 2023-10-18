@@ -1,7 +1,6 @@
 import psutil
 import redis
 import requests
-import yaml 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from loguru import logger
@@ -41,22 +40,11 @@ def check_redis_health() -> str:
         logger.exception(f"Error checking Redis health: {e}")
         return "DOWN"
 
-
-def check_yaml_health() -> str: 
-    try:
-        with open("sweep.yaml", "r") as file:
-            config = yaml.safe_load(file)
-        return "UP"
-    except yaml.YAMLError as e:
-        logger.exception(f"Error checking YAML health: {e}")
-        return "DOWN"
-
 @app.get("/health")
 def health_check():
     sandbox_status = check_sandbox_health()
     mongo_status = check_mongodb_health() if not IS_SELF_HOSTED else None
     redis_status = check_redis_health()
-    yaml_status = check_yaml_health() 
 
     cpu_usage = psutil.cpu_percent(interval=0.1)
     memory_info = psutil.virtual_memory()
@@ -74,9 +62,6 @@ def health_check():
             },
             "redis": {
                 "status": redis_status,
-            },
-            "yaml": {
-                "status": yaml_status,
             },
             "system_resources": {
                 "cpu_usage": cpu_usage,
