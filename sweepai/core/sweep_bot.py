@@ -49,13 +49,15 @@ from sweepai.core.prompts import (
     rewrite_file_prompt,
     rewrite_file_system_prompt,
     snippet_replacement,
-    update_snippets_system_prompt_python,
     snippet_replacement_system_message,
     subissues_prompt,
+    use_chunking_message,
+)
+from sweepai.core.update_prompts import (
     update_snippets_prompt,
     update_snippets_prompt_test,
     update_snippets_system_prompt,
-    use_chunking_message,
+    update_snippets_system_prompt_python,
 )
 from sweepai.logn import logger
 from sweepai.utils.chat_logger import discord_log_error
