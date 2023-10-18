@@ -49,11 +49,13 @@ from sweepai.core.prompts import (
     rewrite_file_prompt,
     rewrite_file_system_prompt,
     snippet_replacement,
+    update_snippets_system_prompt_python,
     snippet_replacement_system_message,
     subissues_prompt,
     update_snippets_prompt,
     update_snippets_system_prompt,
     use_chunking_message,
+    python_message_prompt
 )
 from sweepai.logn import logger
 from sweepai.utils.chat_logger import discord_log_error
@@ -1728,6 +1730,9 @@ class ModifyBot:
             if idx in indices_to_keep:
                 pruned_snippets.append(snippet)
         selected_snippets = pruned_snippets
+        
+        if is_python_file:
+            self.update_snippets_bot.messages[0].content = update_snippets_system_prompt_python
 
         update_snippets_response = self.update_snippets_bot.chat(
             update_snippets_prompt.format(

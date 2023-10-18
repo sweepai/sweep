@@ -101,8 +101,7 @@ class ContextPruning(ChatGPT):
                 content += f"{rules_prefix_prompt}:\n{repo_rules}"
             self.messages = [Message(role="system", content=content, key="system")]
             added_messages = (
-                human_message.construct_prompt(snippet_tag="snippets_in_repo", 
-                                               directory_tag="paths_in_repo")
+                human_message.construct_prompt(snippet_tag="snippets_in_repo", directory_tag="paths_in_repo")
             )  # [ { role, content }, ... ]
             for msg in added_messages:
                 self.messages.append(Message(**msg))
@@ -112,7 +111,7 @@ class ContextPruning(ChatGPT):
                 else "gpt-3.5-turbo-16k-0613"
             )
             response = self.chat(pruning_prompt)
-            context_to_prune = ContextToPrune.from_string(response)
+            context_to_prune = ContextToPrune.from_string(response)         
             return context_to_prune.paths_to_keep, context_to_prune.directories_to_expand
         except SystemExit:
             raise SystemExit
