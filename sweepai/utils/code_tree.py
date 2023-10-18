@@ -17,8 +17,7 @@ class CodeTree(BaseModel):
         tree = parser.parse(bytes(code, "utf8"))
         return cls(code=code, tree=tree)
 
-    # def get_branches(self, min_lines: int = 20):
-    #     current_
+    
 
     def get_path_to_line(self, min_line: int, max_line: int = -1) -> list[Node]:
         if max_line == -1:
