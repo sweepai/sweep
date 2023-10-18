@@ -1,4 +1,5 @@
 import copy
+import difflib
 import re
 import traceback
 from collections import OrderedDict
@@ -1441,6 +1442,7 @@ class ModifyBot:
         additional_messages: list[Message] = [],
         chat_logger=None,
         parent_bot: SweepBot = None,
+        old_file_contents: str = "",
         is_pr: bool = False,
         **kwargs,
     ):
@@ -1464,6 +1466,18 @@ class ModifyBot:
         self.prune_modify_snippets_bot.messages.extend(additional_messages)
         self.chat_logger = chat_logger
         self.additional_messages = additional_messages
+        self.old_file_contents = old_file_contents
+
+    def get_diffs(self, file_contents: str):
+        if file_contents == self.old_file_content:
+            return ""
+        differ = difflib.Differ()
+        diff = list(
+            differ.compare(
+                self.old_file_content.splitlines(), file_contents.splitlines()
+            )
+        )
+        return "# Changes Made\n\n" + "\n".join(diff)
 
     def try_update_file(
         self,
@@ -1554,6 +1568,7 @@ class ModifyBot:
                 ).content
                 if file_change_request.entity
                 else file_contents,
+                changes_made=self.get_diffs(file_contents),
                 file_path=file_path,
                 request=file_change_request.instructions,
                 chunking_message=use_chunking_message
@@ -1715,6 +1730,7 @@ class ModifyBot:
                     ]
                 ),
                 file_path=file_path,
+                changes_made=self.get_diffs(file_contents),
                 old_code=update_snippets_code,
                 request=file_change_request.instructions,
             )
@@ -1734,6 +1750,7 @@ class ModifyBot:
             update_snippets_prompt.format(
                 code=update_snippets_code,
                 file_path=file_path,
+                changes_made=self.get_diffs(file_contents),
                 snippets="\n\n".join(
                     [
                         f'<snippet index="{i}">\n{snippet}\n</snippet>'
