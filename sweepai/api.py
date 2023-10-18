@@ -618,7 +618,7 @@ async def webhook(raw_request: Request):
                         installation_id=repos_added_request.installation.id,
                     )
             case "installation", "created":
-                repos_added_request = InstallationCreatedRequest(**request_dict)
+                worker_wrapper(handle_installation_created, event, action, request_dict)
 
                 try:
                     add_config_to_top_repos(
@@ -638,7 +638,7 @@ async def webhook(raw_request: Request):
                         installation_id=repos_added_request.installation.id,
                     )
             case "pull_request", "edited":
-                request = PREdited(**request_dict)
+                worker_wrapper(handle_pull_request_edited, event, action, request_dict)
 
                 if (
                     request.pull_request.user.login == GITHUB_BOT_USERNAME
@@ -727,7 +727,7 @@ async def webhook(raw_request: Request):
                         except Exception as e:
                             logger.error(f"Failed to edit PR description: {e}")
             case "pull_request", "closed":
-                pr_request = PRRequest(**request_dict)
+                worker_wrapper(handle_pull_request_closed, event, action, request_dict)
                 organization, repo_name = pr_request.repository.full_name.split("/")
                 commit_author = pr_request.pull_request.user.login
                 merged_by = (
@@ -755,45 +755,16 @@ async def webhook(raw_request: Request):
                             + pr_request.pull_request.deletions,
                         },
                     )
-                chat_logger = ChatLogger({"username": merged_by})
-            case "push", None:
-                logger.info(f"Received event: {event}, {action}")
-                if event != "pull_request" or request_dict["base"]["merged"] == True:
-                    chat_logger = ChatLogger(
-                        {"username": request_dict["pusher"]["name"]}
-                    )
+                case "push", None:
+                    worker_wrapper(handle_push, event, action, request_dict)
                     # on merge
                     call_on_merge(request_dict, chat_logger)
                     ref = request_dict["ref"] if "ref" in request_dict else ""
                     if ref.startswith("refs/heads") and not ref.startswith(
                         "ref/heads/sweep"
                     ):
-                        if request_dict["head_commit"] and (
-                            "sweep.yaml" in request_dict["head_commit"]["added"]
-                            or "sweep.yaml" in request_dict["head_commit"]["modified"]
-                        ):
-                            _, g = get_github_client(request_dict["installation"]["id"])
-                            repo = g.get_repo(request_dict["repository"]["full_name"])
-                            docs = get_documentation_dict(repo)
-                            # Call the write_documentation function for each of the existing fields in the "docs" mapping
-                            for doc_url, _ in docs.values():
-                                logger.info(f"Writing documentation for {doc_url}")
-                                call_write_documentation(doc_url=doc_url)
-                        _, g = get_github_client(request_dict["installation"]["id"])
-                        repo = g.get_repo(request_dict["repository"]["full_name"])
-                        if ref[len("refs/heads/") :] == SweepConfig.get_branch(repo):
-                            if chat_logger.is_paying_user():
-                                cloned_repo = ClonedRepo(
-                                    request_dict["repository"]["full_name"],
-                                    installation_id=request_dict["installation"]["id"],
-                                )
-                                call_get_deeplake_vs_from_repo(cloned_repo)
-                            update_sweep_prs_v2(
-                                request_dict["repository"]["full_name"],
-                                installation_id=request_dict["installation"]["id"],
-                            )
-            case "ping", None:
-                return {"message": "pong"}
+                        case "ping", None:
+                            worker_wrapper(handle_ping, event, action, request_dict)
     except ValidationError as e:
         logger.warning(f"Failed to parse request: {e}")
         raise HTTPException(status_code=422, detail="Failed to parse request")
