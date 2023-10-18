@@ -745,7 +745,6 @@ class SweepBot(CodeGenBot, GithubBot):
             extract_leftover_comments_bot.extract_leftover_comments(
                 file_change.code,
                 file_change_request.filename,
-                "",
                 file_change_request.instructions,
             )
             if not DEBUG
