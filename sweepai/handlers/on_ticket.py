@@ -633,6 +633,8 @@ def on_ticket(
         snippets = post_process_snippets(
             snippets, max_num_of_snippets=2 if use_faster_model else 5
         )
+        from sweepai.utils.docker_utils import get_latest_docker_version
+
         if not repo_description:
             repo_description = "No description provided."
 
@@ -652,6 +654,9 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             logger.error(f"Failed to extract docs: {e}")
+
+        docker_update_time = get_latest_docker_version()
+        message_summary += f"\n\nDocker was last updated: {docker_update_time}"
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
