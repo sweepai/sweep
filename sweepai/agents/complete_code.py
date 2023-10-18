@@ -15,7 +15,6 @@ Please identify and extract any leftover comments from the new_code. If there ar
 
 user_prompt = """# Code
 File path: {file_path}
-{old_code}
 # Original request
 {request}
 
@@ -48,15 +47,13 @@ class LeftoverComments(RegexMatchableBaseModel):
         )
 
 class ExtractLeftoverComments(ChatGPT):
-    def extract_leftover_comments(self, new_code, file_path, old_code, request, **kwargs):
+    def extract_leftover_comments(self, new_code, file_path, request, **kwargs):
         try:
             if not check_comments_presence(file_path, new_code):
                 return []
-            if old_code: old_code = f"<old_code>\n```\n{old_code}\n```\n</old_code>"
             self.messages = [Message(role="system", content=system_message_prompt, key="system")]
             response = self.chat(user_prompt.format(new_code = new_code,
                                                      file_path = file_path,
-                                                     old_code = old_code,
                                                      request = request))
             leftover_comments = LeftoverComments.from_string(response)
             return leftover_comments.leftover_comments
