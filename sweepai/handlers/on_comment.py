@@ -8,10 +8,18 @@ import traceback
 from typing import Any
 
 import openai
+from logtail import LogtailHandler
+from loguru import logger
 from tabulate import tabulate
 
 from sweepai.config.client import get_blocked_dirs, get_documentation_dict
-from sweepai.config.server import ENV, GITHUB_BOT_USERNAME, MONGODB_URI, OPENAI_API_KEY
+from sweepai.config.server import (
+    ENV,
+    GITHUB_BOT_USERNAME,
+    LOGTAIL_SOURCE_KEY,
+    MONGODB_URI,
+    OPENAI_API_KEY,
+)
 from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import (
     FileChangeRequest,
@@ -22,7 +30,6 @@ from sweepai.core.entities import (
 )
 from sweepai.core.sweep_bot import SweepBot
 from sweepai.handlers.on_review import get_pr_diffs
-from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
@@ -82,6 +89,8 @@ def on_comment(
     comment_type: str = "comment",
     type: str = "comment",
 ):
+    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
+    logger.add(handler)
     logger.info(
         f"Calling on_comment() with the following arguments: {comment},"
         f" {repo_full_name}, {repo_description}, {pr_path}"
@@ -181,7 +190,8 @@ def on_comment(
         "comment": comment,
         "issue_number": issue_number if issue_number_match else "",
     }
-    # logger.bind(**metadata)
+
+    logger.bind(**metadata)
 
     elapsed_time = time.time() - start_time
     posthog.capture(

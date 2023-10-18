@@ -2,6 +2,8 @@
 import json
 import time
 
+import loguru
+
 from sweepai import health
 from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
@@ -81,28 +83,23 @@ on_ticket_events = {}
 
 
 def run_on_ticket(*args, **kwargs):
-    logger.init(
+    loguru.logger.bind(
         metadata={
             **kwargs,
             "name": "ticket_" + kwargs["username"],
         },
-        create_file=False,
     )
-    with logger:
-        on_ticket(*args, **kwargs)
+    on_ticket(*args, **kwargs)
 
 
 def run_on_comment(*args, **kwargs):
-    logger.init(
+    loguru.logger.bind(
         metadata={
             **kwargs,
             "name": "comment_" + kwargs["username"],
         },
-        create_file=False,
     )
-
-    with logger:
-        on_comment(*args, **kwargs)
+    on_comment(*args, **kwargs)
 
 
 def run_on_button_click(*args, **kwargs):
@@ -278,6 +275,7 @@ async def webhook(raw_request: Request):
         match event, action:
             case "pull_request", "opened":
                 logger.info(f"Received event: {event}, {action}")
+
                 def worker():
                     _, g = get_github_client(request_dict["installation"]["id"])
                     repo = g.get_repo(request_dict["repository"]["full_name"])
