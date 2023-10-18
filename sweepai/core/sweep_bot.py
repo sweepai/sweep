@@ -746,7 +746,6 @@ class SweepBot(CodeGenBot, GithubBot):
             extract_leftover_comments_bot.extract_leftover_comments(
                 file_change.code,
                 file_change_request.filename,
-                "",
                 file_change_request.instructions,
             )
             if not DEBUG
@@ -1764,7 +1763,6 @@ class ModifyBot:
         for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
             index = int(match_.group("index"))
             code = match_.group("code")
-
             current_contents = selected_snippets[index]
             formatted_code = strip_backticks(code)
             formatted_code = remove_line_numbers(formatted_code)
