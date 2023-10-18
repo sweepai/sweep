@@ -8,6 +8,7 @@ import math
 import re
 import traceback
 from time import time
+import hashlib
 
 import openai
 import requests
@@ -487,12 +488,13 @@ def on_ticket(
 
             suffix = bot_suffix + discord_suffix
             if errored:
+                tracking_id = hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
                 agg_message = (
-                    "## ❌ Unable to Complete PR"
+                    f"## ❌ Unable to Complete PR (tracking ID: {tracking_id})"
                     + "\n"
                     + message
                     + "\n\nFor bonus GPT-4 tickets, please report this bug on"
-                    " **[Discord](https://discord.gg/invite/sweep)**."
+                    f" **[Discord](https://discord.gg/invite/sweep)** (tracking ID: {tracking_id})."
                 )
                 if table is not None:
                     agg_message = (
