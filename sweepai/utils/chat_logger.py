@@ -16,7 +16,6 @@ from sweepai.config.server import (
     SUPPORT_COUNTRY,
 )
 from sweepai.logn import logger
-from sweepai.sandbox.src import chat_logger
 
 global_mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=10000, socketTimeoutMS=10000)
 
@@ -49,25 +48,19 @@ class ChatLogger(BaseModel):
                 self.ticket_collection = db["tickets"]
                 # For 'username' index on ticket_collection
                 existing_indexes = self.ticket_collection.index_information()
-                if "username_1" not in existing_indexes:
-                    self.ticket_collection.create_index("username")
+                self.ticket_collection.create_index("username")
 
                 # For 'expiration' index on chat_collection
                 existing_indexes = self.chat_collection.index_information()
-                if "expiration_1" not in existing_indexes:
-                    self.chat_collection.create_index("expiration", expireAfterSeconds=2419200)
+                self.chat_collection.create_index("expiration", expireAfterSeconds=2419200)
+                self.expiration = datetime.utcnow() + timedelta(
+                    days=1
+                )
             except SystemExit:
                 raise SystemExit
             except Exception as e:
                 logger.warning("Chat history could not connect to MongoDB")
                 logger.warning(e)
-
-    def get_chat_history(self, filters):
-        return (
-            self.chat_collection.find(filters)
-            .sort([("expiration", 1), ("index", 1)])
-            .limit(2000)
-        )
 
     def add_chat(self, additional_data):
         if self.chat_collection is None:
