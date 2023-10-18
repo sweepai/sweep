@@ -1090,10 +1090,7 @@ File path: {file_path}
 {code}
 ```
 </old_code>
-
-# Changes Made
 {changes_made}
-
 # Request
 {request}
 
@@ -1175,10 +1172,7 @@ File path: {file_path}
 {code}
 ```
 </old_code>
-
-# Changes Made
 {changes_made}
-
 # Request
 {request}
 

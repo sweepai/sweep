@@ -1472,7 +1472,7 @@ class ModifyBot:
         if file_contents == self.old_file_contents:
             return ""
         diff = get_hunks(self.old_file_contents, file_contents)
-        return f"# Changes Made\nHere are changes we already made:\n```\n{diff}\n```\n"
+        return f"\n# Changes Made\nHere are changes we already made:\n<diff>\n{diff}\n</diff>\n"
 
     def try_update_file(
         self,
