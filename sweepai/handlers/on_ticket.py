@@ -45,7 +45,15 @@ from sweepai.config.server import (
     SANDBOX_URL,
     WHITELISTED_REPOS,
 )
-from sweepai.core.context_pruning import ContextPruning
+from sweepai.utils.docker_utils import get_latest_docker_version
+
+        def add_badge_to_ticket(issue_number, badge_content):
+            # Use the GitHub API to add a badge to the specified issue
+            # The badge content should be the string passed as an argument to this function
+            g = get_github_client()
+            issue = g.get_repo('sweepai/sweep').get_issue(number=issue_number)
+            issue.edit(body=f"{issue.body}\n\n{badge_content}")
+        from sweepai.core.context_pruning import ContextPruning
 from sweepai.core.documentation_searcher import extract_relevant_docs
 from sweepai.core.entities import (
     EmptyRepository,
@@ -86,27 +94,31 @@ def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
 
 
-def on_ticket(
-    title: str,
-    summary: str,
-    issue_number: int,
-    issue_url: str,
-    username: str,
-    repo_full_name: str,
-    repo_description: str,
-    installation_id: int,
-    comment_id: int = None,
-    edited: bool = False,
-):
-    (
-        title,
-        slow_mode,
-        do_map,
-        subissues_mode,
-        sandbox_mode,
-        fast_mode,
-        lint_mode,
-    ) = strip_sweep(title)
+        def on_ticket(
+            title: str,
+            summary: str,
+            issue_number: int,
+            issue_url: str,
+            username: str,
+            repo_full_name: str,
+            repo_description: str,
+            installation_id: int,
+            comment_id: int = None,
+            edited: bool = False,
+        ):
+            (
+                title,
+                slow_mode,
+                do_map,
+                subissues_mode,
+                sandbox_mode,
+                fast_mode,
+                lint_mode,
+            ) = strip_sweep(title)
+        
+            # Add badge to ticket
+            docker_version = get_latest_docker_version()
+            add_badge_to_ticket(issue_number, f"Docker version updated: {docker_version}")
 
     # Flow:
     # 1. Get relevant files
