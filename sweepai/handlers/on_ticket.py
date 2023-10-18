@@ -669,7 +669,7 @@ def on_ticket(
         (
             paths_to_keep,
             directories_to_expand,
-        ) = context_pruning.prune_context(  # TODO, ignore directories
+        ) = context_pruning.prune_context(
             human_message, repo=repo
         )
         if paths_to_keep and directories_to_expand:
@@ -680,6 +680,7 @@ def on_ticket(
                     snippet.file_path.startswith(path_to_keep)
                     for path_to_keep in paths_to_keep
                 )
+                and not os.path.isdir(snippet.file_path)
             ]
             dir_obj.remove_all_not_included(paths_to_keep)
             dir_obj.expand_directory(directories_to_expand)
@@ -1113,6 +1114,7 @@ def on_ticket(
                     + blockquote(review_comment)
                     + "\n\n"
                 )
+                logger = logging.getLogger(__name__)
                 if changes_required:
                     edit_sweep_comment(
                         review_message
@@ -1133,22 +1135,22 @@ def on_ticket(
                         chat_logger=chat_logger,
                         repo=repo,
                     )
-            except SystemExit:
-                raise SystemExit
-            except Exception as e:
-                logger.error(traceback.format_exc())
-                logger.error(e)
-
-            if changes_required:
-                edit_sweep_comment(
-                    review_message + "\n\nI finished incorporating these changes.",
-                    3,
-                )
-            else:
-                edit_sweep_comment(
-                    f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
-                    3,
-                )
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    logger.error(traceback.format_exc())
+                    logger.error(e)
+                
+                if changes_required:
+                    edit_sweep_comment(
+                        review_message + "\n\nI finished incorporating these changes.",
+                        3,
+                    )
+                else:
+                    edit_sweep_comment(
+                        f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
+                        3,
+                    )
 
             pr_actions_message = (
                 create_action_buttons(
@@ -1201,18 +1203,19 @@ def on_ticket(
                 done=True,
             )
 
+            logger = logging.getLogger(__name__)
             logger.info("Add successful ticket to counter")
-        except MaxTokensExceeded as e:
-            logger.info("Max tokens exceeded")
-            log_error(
-                is_paying_user,
-                is_consumer_tier,
-                username,
-                issue_url,
-                "Max Tokens Exceeded",
-                str(e) + "\n" + traceback.format_exc(),
-                priority=2,
-            )
+            except MaxTokensExceeded as e:
+                logger.info("Max tokens exceeded")
+                log_error(
+                    is_paying_user,
+                    is_consumer_tier,
+                    username,
+                    issue_url,
+                    "Max Tokens Exceeded",
+                    str(e) + "\n" + traceback.format_exc(),
+                    priority=2,
+                )
             if chat_logger.is_paying_user():
                 edit_sweep_comment(
                     (
@@ -1234,18 +1237,19 @@ def on_ticket(
                     -1,
                 )
             delete_branch = True
+            logger = logging.getLogger(__name__)
             raise e
-        except NoFilesException as e:
-            logger.info("Sweep could not find files to modify")
-            log_error(
-                is_paying_user,
-                is_consumer_tier,
-                username,
-                issue_url,
-                "Sweep could not find files to modify",
-                str(e) + "\n" + traceback.format_exc(),
-                priority=2,
-            )
+            except NoFilesException as e:
+                logger.info("Sweep could not find files to modify")
+                log_error(
+                    is_paying_user,
+                    is_consumer_tier,
+                    username,
+                    issue_url,
+                    "Sweep could not find files to modify",
+                    str(e) + "\n" + traceback.format_exc(),
+                    priority=2,
+                )
             edit_sweep_comment(
                 (
                     "Sorry, Sweep could not find any appropriate files to edit to address"
@@ -1256,19 +1260,20 @@ def on_ticket(
                 -1,
             )
             delete_branch = True
+            logger = logging.getLogger(__name__)
             raise e
-        except openai.error.InvalidRequestError as e:
-            logger.error(traceback.format_exc())
-            logger.error(e)
-            edit_sweep_comment(
-                (
-                    "I'm sorry, but it looks our model has ran out of context length. We're"
-                    " trying to make this happen less, but one way to mitigate this is to"
-                    " code smaller files. If this error persists report it at"
-                    " https://discord.gg/sweep."
-                ),
-                -1,
-            )
+            except openai.error.InvalidRequestError as e:
+                logger.error(traceback.format_exc())
+                logger.error(e)
+                edit_sweep_comment(
+                    (
+                        "I'm sorry, but it looks our model has ran out of context length. We're"
+                        " trying to make this happen less, but one way to mitigate this is to"
+                        " code smaller files. If this error persists report it at"
+                        " https://discord.gg/sweep."
+                    ),
+                    -1,
+                )
             log_error(
                 is_paying_user,
                 is_consumer_tier,
@@ -1292,6 +1297,7 @@ def on_ticket(
             raise e
         except SystemExit:
             raise SystemExit
+        logger = logging.getLogger(__name__)
         except Exception as e:
             logger.error(traceback.format_exc())
             logger.error(e)
@@ -1326,6 +1332,7 @@ def on_ticket(
             )
             raise e
         else:
+            logger = logging.getLogger(__name__)
             try:
                 item_to_react_to.delete_reaction(eyes_reaction.id)
                 item_to_react_to.create_reaction("rocket")
@@ -1333,34 +1340,34 @@ def on_ticket(
                 raise SystemExit
             except Exception as e:
                 logger.error(e)
-        finally:
-            cloned_repo.delete()
-
-        if delete_branch:
-            try:
-                if pull_request.branch_name.startswith("sweep"):
-                    repo.get_git_ref(f"heads/{pull_request.branch_name}").delete()
-                else:
-                    raise Exception(
-                        f"Branch name {pull_request.branch_name} does not start with sweep/"
-                    )
-            except SystemExit:
-                raise SystemExit
+            finally:
+                cloned_repo.delete()
+            
+            if delete_branch:
+                try:
+                    if pull_request.branch_name.startswith("sweep"):
+                        repo.get_git_ref(f"heads/{pull_request.branch_name}").delete()
+                    else:
+                        raise Exception(
+                            f"Branch name {pull_request.branch_name} does not start with sweep/"
+                        )
+                except SystemExit:
+                    raise SystemExit
+                except Exception as e:
+                    logger.error(e)
+                    logger.error(traceback.format_exc())
+                    logger.print("Deleted branch", pull_request.branch_name)
             except Exception as e:
-                logger.error(e)
-                logger.error(traceback.format_exc())
-                logger.print("Deleted branch", pull_request.branch_name)
-    except Exception as e:
-        posthog.capture(
-            username,
-            "failed",
-            properties={
-                **metadata,
-                "error": str(e),
-                "trace": traceback.format_exc(),
-                "duration": time() - on_ticket_start_time,
-            },
-        )
+                posthog.capture(
+                    username,
+                    "failed",
+                    properties={
+                        **metadata,
+                        "error": str(e),
+                        "trace": traceback.format_exc(),
+                        "duration": time() - on_ticket_start_time,
+                    },
+                )
         raise e
 
     posthog.capture(
@@ -1368,5 +1375,6 @@ def on_ticket(
         "success",
         properties={**metadata, "duration": time() - on_ticket_start_time},
     )
+    logger = logging.getLogger(__name__)
     logger.info("on_ticket success")
     return {"success": True}
