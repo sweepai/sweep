@@ -17,6 +17,7 @@ from loguru import logger
 from requests.exceptions import Timeout
 from tabulate import tabulate
 from tqdm import tqdm
+from yamllint import linter, config 
 
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -713,6 +714,18 @@ def on_ticket(
         for content_file in repo.get_contents(""):
             if content_file.name == "sweep.yaml":
                 sweep_yml_exists = True
+                
+                # Check if YAML is valid 
+                yaml_content = content_file.decoded_content.decode()
+                linter_config = config.YamlLinterConfig('extends: default')
+                problems = list(linter.run(yaml_content, linter_config))
+                
+                if problems: 
+                    errors = [f"Line {problem.line}: {problem.desc} (rule: {problem.rule})" for problem in problems]
+                    error_message = "\n".join(errors)
+                    logger.error(f"The YAML file is not valid: \n{error_message}")
+                else:
+                    logger.info("The YAML file is valid. No errors found.")
                 break
 
         # If sweep.yaml does not exist, then create a new PR that simply creates the sweep.yaml file.
