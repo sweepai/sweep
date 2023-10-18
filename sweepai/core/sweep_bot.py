@@ -60,7 +60,6 @@ from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.code_tree import CodeTree
 from sweepai.utils.diff import format_contents, generate_diff, is_markdown
 from sweepai.utils.function_call_utils import find_function_calls
-from sweepai.utils.github_utils import get_hunks
 from sweepai.utils.graph import Graph
 from sweepai.utils.search_and_replace import (
     Match,
@@ -881,11 +880,19 @@ class SweepBot(CodeGenBot, GithubBot):
                             key="relevant_files_summary",
                         )
                     )
+            current_file_diff = ""
+            if changed_files:
+                for file_path, (old_contents, new_contents) in changed_files:
+                    if file_path == file_change_request.filename:
+                        current_file_diff += (
+                            generate_diff(old_contents, new_contents) + "\n"
+                        )
             modify_file_bot = ModifyBot(
                 additional_messages,
                 parent_bot=self,
                 chat_logger=self.chat_logger,
                 old_file_contents=contents,
+                current_file_diff=current_file_diff,
                 is_pr=bool(self.comment_pr_diff_str),
                 temperature=temperature,
             )
@@ -1278,14 +1285,13 @@ class SweepBot(CodeGenBot, GithubBot):
                         new_lines[start:end] = new_chunk.split("\n")
                         new_file_contents = "\n".join(new_lines)
                     else:
-                        for i, chunk in enumerate(
-                            chunk_code(
-                                file_contents,
-                                path=file_change_request.filename,
-                                MAX_CHARS=15_000,
-                                coalesce=5_000,
-                            )
-                        ):
+                        chunks = chunk_code(
+                            file_contents,
+                            path=file_change_request.filename,
+                            MAX_CHARS=15_000,
+                            coalesce=5_000,
+                        )
+                        for i, chunk in enumerate(chunks):
                             chunk.start += 1
                             if chunk.end >= len(lines) - 2:
                                 chunk.end += 1
@@ -1305,6 +1311,9 @@ class SweepBot(CodeGenBot, GithubBot):
                                 temperature=temperature,
                             )
                             commit_message = suggested_commit_message
+                            logger.info(
+                                f"Chunk {i} of {len(chunks)}: {generate_diff(chunk_contents, new_chunk)}"
+                            )
                             new_file_contents += new_chunk + "\n"
                         if len(lines) < 1000:
                             new_file_contents, sandbox_error = self.check_sandbox(
@@ -1443,7 +1452,7 @@ class ModifyBot:
         chat_logger=None,
         parent_bot: SweepBot = None,
         old_file_contents: str = "",
-        is_pr: bool = False,
+        current_file_diff: str = "",
         **kwargs,
     ):
         self.fetch_snippets_bot: ChatGPT = ChatGPT.from_system_message_string(
@@ -1467,12 +1476,22 @@ class ModifyBot:
         self.chat_logger = chat_logger
         self.additional_messages = additional_messages
         self.old_file_contents = old_file_contents
+        self.current_file_diff = current_file_diff
 
     def get_diffs(self, file_contents: str):
-        if file_contents == self.old_file_contents:
+        if self.current_file_diff == "" and self.old_file_contents == file_contents:
             return ""
-        diff = get_hunks(self.old_file_contents, file_contents)
-        return f"\n# Changes Made\nHere are changes we already made:\n<diff>\n{diff}\n</diff>\n"
+        elif self.current_file_diff == "":
+            diff = generate_diff(self.old_file_contents, file_contents)
+        elif self.old_file_contents == file_contents:
+            diff = self.current_file_diff
+        else:
+            diff = (
+                self.old_file_contents
+                + "\n...\n"
+                + generate_diff(self.old_file_contents, file_contents)
+            )
+        return f"\n# Changes Made\nHere are changes we already made to this file:\n<diff>\n{diff}\n</diff>\n"
 
     def try_update_file(
         self,
