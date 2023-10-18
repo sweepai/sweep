@@ -7,6 +7,7 @@ import math
 import re
 import traceback
 from time import time
+import hashlib
 
 import openai
 import requests
@@ -213,6 +214,9 @@ def on_ticket(
     )
 
     organization, repo_name = repo_full_name.split("/")
+    # Generate a hash for the issue_url to use as the tracking ID
+    tracking_id = hashlib.sha256(issue_url.encode()).hexdigest()[:10]
+
     metadata = {
         "issue_url": issue_url,
         "repo_full_name": repo_full_name,
@@ -234,6 +238,7 @@ def on_ticket(
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
         "is_self_hosted": IS_SELF_HOSTED,
+        "tracking_id": tracking_id,  # Add the tracking ID to the metadata
     }
 
     logger.bind(**metadata)
@@ -242,13 +247,17 @@ def on_ticket(
     handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
     logger.add(handler)
 
+    # Update logger.error and logger.exception calls to include the tracking ID
+    logger.error = lambda msg: logger.error(f"{msg} (tracking ID: {logger.context.get('tracking_id')})")
+    logger.exception = lambda msg: logger.exception(f"{msg} (tracking ID: {logger.context.get('tracking_id')})")
+
     posthog.capture(username, "started", properties=metadata)
 
     try:
         logger.info(f"Getting repo {repo_full_name}")
 
         if current_issue.state == "closed":
-            logger.warning(f"Issue {issue_number} is closed")
+            logger.warning(f"Issue {issue_number} is closed (tracking ID: {logger.context.get('tracking_id')})")
             posthog.capture(
                 username,
                 "issue_closed",
@@ -508,7 +517,7 @@ def on_ticket(
             try:
                 issue_comment.edit(msg)
             except BadCredentialsException:
-                logger.error("Bad credentials, refreshing token")
+                logger.error(f"Bad credentials, refreshing token (tracking ID: {logger.context.get('tracking_id')})")
                 _user_token, g = get_github_client(installation_id)
                 repo = g.get_repo(repo_full_name)
 
@@ -598,8 +607,8 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             trace = traceback.format_exc()
-            logger.error(e)
-            logger.error(trace)
+            logger.error(f"{e} (tracking ID: {logger.context.get('tracking_id')})")
+            logger.error(f"{trace} (tracking ID: {logger.context.get('tracking_id')})")
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
@@ -652,7 +661,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Failed to extract docs: {e}")
+            logger.error(f"Failed to extract docs: {e} (tracking ID: {logger.context.get('tracking_id')})")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -724,9 +733,7 @@ def on_ticket(
                 raise SystemExit
             except Exception as e:
                 logger.error(
-                    "Failed to create new branch for sweep.yaml file.\n",
-                    e,
-                    traceback.format_exc(),
+                    f"Failed to create new branch for sweep.yaml file.\n{e}\n{traceback.format_exc()} (tracking ID: {logger.context.get('tracking_id')})"
                 )
         else:
             logger.info("sweep.yaml file already exists.")
@@ -840,7 +847,7 @@ def on_ticket(
                         ),
                         -1,
                     )
-                raise Exception("No files to modify.")
+                raise Exception(f"No files to modify. (tracking ID: {logger.context.get('tracking_id')})")
 
             # sweep_bot.summarize_snippets()
 
@@ -1064,7 +1071,7 @@ def on_ticket(
                 logger.info(f"Edited {file_change_request.entity_display}")
                 edit_sweep_comment(checkboxes_contents, 2)
             if not response.get("success"):
-                raise Exception(f"Failed to create PR: {response.get('error')}")
+                raise Exception(f"Failed to create PR: {response.get('error')} (tracking ID: {logger.context.get('tracking_id')})")
             pr_changes = response["pull_request"]
 
             edit_sweep_comment(
