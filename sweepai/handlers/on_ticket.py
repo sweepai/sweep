@@ -1141,7 +1141,7 @@ def on_ticket(
                 )
             else:
                 edit_sweep_comment(
-                    f"I have finished reviewing the code for completeness. I did not find errors for {change_location}.",
+                    f"I have finished reviewing the code for completeness. I did not find errors for {change_location}",
                     3,
                 )
 

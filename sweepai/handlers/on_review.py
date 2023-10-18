@@ -104,6 +104,7 @@ def review_pr(
         is_reply=False,
         chat_logger=chat_logger,
     )
+    import pdb; pdb.set_trace()
     summarization_reply = sweep_bot.chat(
         review_prompt.format(
             repo_name=repo_name,

@@ -116,6 +116,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
     raw_relevant_files: str | None = None
     start_and_end_lines: list[tuple] | None = []
     comment_line: int | None = None
+    failed_sandbox_test: bool | None = False
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:

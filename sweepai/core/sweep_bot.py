@@ -52,6 +52,7 @@ from sweepai.core.prompts import (
     snippet_replacement_system_message,
     subissues_prompt,
     update_snippets_prompt,
+    update_snippets_prompt_test,
     update_snippets_system_prompt,
     use_chunking_message,
 )
@@ -72,14 +73,24 @@ from sweepai.utils.utils import chunk_code
 BOT_ANALYSIS_SUMMARY = "bot_analysis_summary"
 to_raw_string = lambda s: repr(s).lstrip("u")[1:-1]
 
-sandbox_error_prompt = """The following are the failing error logs from running `{command}`. Please make changes to the current file so that it passes this CI/CD command.
+sandbox_error_prompt = """The following error logs were returned from `{command}`. Make changes to the current file so that it passes this CI/CD command.
 
 ```
 {error_logs}
 ```
 
-Again, edit this file so that it passes the CI/CD. For unit tests, check the expected output and try to match the input to the expected output. If this absolutely cannot be resolved, consider skipping the failing tests."""
+Again, edit this file so that it passes the CI/CD."""
 
+sandbox_error_prompt_test = """The following error logs were returned from `{command}`. Make changes to the current file so that it passes this CI/CD command.
+
+```
+{error_logs}
+```
+
+Again, edit this file so that it passes the CI/CD.
+1. CLEARLY identify if the bug is in the unit tests or business logic. 
+2a. If there is a bug in the business logic skip or comment out the tests. 
+2b. If the test itself is wrong match the input to the expected output."""
 
 def strip_backticks(s: str) -> str:
     s = s.strip()
@@ -1172,12 +1183,17 @@ class SweepBot(CodeGenBot, GithubBot):
         if not sandbox_response.success:
             new_file_change_request = file_change_request
             new_file_change_request.change_type = "modify"
-            new_file_change_request.instructions = sandbox_error_prompt.format(
-                command=sandbox_response.executions[
-                    -1
-                ].command.format(  # can use prompt tuning here
-                    file_path=file_change_request.filename
-                ),
+            sandbox_command = sandbox_response.executions[-1].command.format(
+                file_path=file_change_request.filename
+            )
+            import pdb; pdb.set_trace()
+            if "test" in sandbox_command:
+                sandbox_prompt = sandbox_error_prompt_test
+                new_file_change_request.failed_sandbox_test = True
+            else:
+                sandbox_prompt = sandbox_error_prompt
+            new_file_change_request.instructions = sandbox_prompt.format(
+                command=sandbox_command,
                 error_logs=sandbox_response.executions[-1].output,
             )
             logger.warning(sandbox_response.executions[-1].output)
@@ -1402,17 +1418,29 @@ class SweepBot(CodeGenBot, GithubBot):
             changed_files=changed_files,
         )
         yield file_changed, sandbox_response, commit_message, changed_files
+        prev_sandbox_response_str = ""
+        prev_num_changed_files = []
         for _ in range(5):
-            if sandbox_response and sandbox_response.success:
+            # if sandbox success, same response, or no changes, break
+            import pdb; pdb.set_trace()
+            sandbox_response_str = "\n".join(sandbox_response.error_messages)
+            if sandbox_response and sandbox_response.success or \
+                prev_sandbox_response_str == sandbox_response_str or\
+                prev_num_changed_files == len(changed_files):
                 break
             if sandbox_response and not sandbox_response.success:
                 new_file_change_request = file_change_request
-                new_file_change_request.instructions = sandbox_error_prompt.format(
-                    command=sandbox_response.executions[
-                        -1
-                    ].command.format(  # can use prompt tuning here
-                        file_path=file_change_request.filename
-                    ),
+                sandbox_command = sandbox_response.executions[-1].command.format(
+                    file_path=file_change_request.filename
+                )
+                import pdb; pdb.set_trace()
+                if "test" in sandbox_command:
+                    sandbox_prompt = sandbox_error_prompt_test
+                    new_file_change_request.failed_sandbox_test = True
+                else:
+                    sandbox_prompt = sandbox_error_prompt
+                new_file_change_request.instructions = sandbox_prompt.format(
+                    command=sandbox_command,
                     error_logs=sandbox_response.executions[-1].output,
                 )
                 logger.warning(sandbox_response.executions[-1].output)
@@ -1426,6 +1454,8 @@ class SweepBot(CodeGenBot, GithubBot):
                     branch=branch,
                     changed_files=changed_files,
                 )
+            prev_num_changed_files = len(changed_files)
+            prev_sandbox_response_str = sandbox_response_str
             yield file_changed, sandbox_response, commit_message, changed_files
 
     def handle_modify_file(self, *args, **kwargs):
@@ -1668,17 +1698,17 @@ class ModifyBot:
 
         # Fuse & dedup
         FUSE_OFFSET = 5
-        for match_ in best_matches:
+        for next_match_ in best_matches[1:]:
             if (
-                current_match.end > match_.start
-                or abs(current_match.end - match_.start) <= FUSE_OFFSET
+                current_match.end > next_match_.start
+                or abs(current_match.end - next_match_.start) <= FUSE_OFFSET
             ):
-                current_match = fuse_matches(current_match, match_)
+                current_match = fuse_matches(current_match, next_match_)
             else:
                 deduped_matches.append(current_match)
-                current_match = match_
+                current_match = next_match_
         deduped_matches.append(current_match)
-
+        import pdb; pdb.set_trace() # duplicate snippets 0 and 1
         if is_python_file:
             new_deduped_matches = []
             for match_ in deduped_matches:
@@ -1729,8 +1759,12 @@ class ModifyBot:
                 pruned_snippets.append(snippet)
         selected_snippets = pruned_snippets
 
+        if file_change_request.failed_sandbox_test:
+            update_prompt = update_snippets_prompt_test
+        else:
+            update_prompt = update_snippets_prompt
         update_snippets_response = self.update_snippets_bot.chat(
-            update_snippets_prompt.format(
+            update_prompt.format(
                 code=update_snippets_code,
                 file_path=file_path,
                 snippets="\n\n".join(

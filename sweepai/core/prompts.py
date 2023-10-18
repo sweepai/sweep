@@ -107,13 +107,19 @@ Check for the following:
 * Missing imports
 * Incorrect functionality
 * Other errors not listed above
+* Broken tests
 
 Indicate all breaking changes. Do not point out stylistic issues. Ensure that the code resolves the issue requested by the user and every function and class is fully implemented.
 
 Respond in the following format:
 
+<plan_analysis>
+Check each step of the plan for completeness and correctness. Analyze and check each step of the plan, and report potential issues.
+...
+</plan_analysis>
+
 <diff_analysis>
-Check each step of the plan and confirm whether it was both implemented and implemented correctly. Analyze each file_diff and highlight potential issues.
+Check each file_diff and confirm whether it was both implemented and implemented correctly.
 ...
 </diff_analysis>
 
@@ -1052,7 +1058,7 @@ Extract the smallest spans that let you handle the request by adding blocks of s
 Then, write search terms to extract that we need to modify from the code. The system will then modify all of the lines containing the patterns. Use this to make many small changes, such as updating all function calls after changing the signature.
 
 # Format
-<analysis_and_identification>
+<analysis_and_identification file="file_name">
 Identify all changes that need to be made to the file.
 In a list, identify all code sections that should receive these changes and all locations code should be added. These snippets will go into the snippets_to_modify block. Pick many small snippets and locations to add code instead of a single large one.
 Then identify any patterns of code that should be modified, like all function calls of a particular function. These patterns will go into the patterns block.
@@ -1098,7 +1104,7 @@ File path: {file_path}
 {chunking_message}
 
 # Format
-<analysis_and_identification>
+<analysis_and_identification file="file_name">
 Identify all changes that need to be made to the file.
 In a list, identify all code sections that should receive these changes and all locations code should be added. These snippets will go into the snippets_to_modify block. Pick many small snippets and locations to add code instead of a single large one.
 Then identify any patterns of code that should be modified, like all function calls of a particular function. These patterns will go into the patterns block.
@@ -1191,6 +1197,47 @@ Respond in the following format:
 <snippets_and_plan_analysis>
 Describe what should be changed to the snippets from the old_file to complete the request.
 Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed. Otherwise, do not write an updated_snippet block for this snippet.
+Maximize information density.
+</snippets_and_plan_analysis>
+
+<updated_snippets>
+<updated_snippet index="i">
+```
+new code to replace the entirety of the old code
+```
+</updated_snippet>
+...
+</updated_snippets>"""
+
+update_snippets_prompt_test = """# Code
+File path: {file_path}
+<old_code>
+```
+{code}
+```
+</old_code>
+
+# Request
+{request}
+
+<snippets_to_update>
+{snippets}
+</snippets_to_update>
+
+# Instructions
+Rewrite each of the {n} snippets above according to the request.
+* Do not delete whitespace or comments.
+* To delete code insert an empty string.
+* To add code before and after the snippet, be sure to copy the original snippet.
+
+Respond in the following format:
+
+<snippets_and_plan_analysis>
+1. CLEARLY identify if the bug is in the unit tests or business logic. 
+2a. If there is a bug in the business logic skip or comment out the tests. 
+2b. If the test itself is wrong match the input to the expected output.
+
+For each snippet in a list, determine whether changes should be made. If so, describe the changes needed. Otherwise, do not write an updated_snippet block for this snippet.
 Maximize information density.
 </snippets_and_plan_analysis>
 
