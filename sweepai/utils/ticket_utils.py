@@ -3,6 +3,7 @@ import re
 from sweepai.config.client import UPDATES_MESSAGE, SweepConfig
 from sweepai.core.entities import Snippet
 from sweepai.utils.chat_logger import discord_log_error
+from sweepai.utils.docker_utils import get_latest_docker_version
 
 sep = "\n---\n"
 bot_suffix_starring = ""
@@ -10,6 +11,15 @@ bot_suffix = (
     f"\n{sep}\n{UPDATES_MESSAGE}\n{sep} 💡 To recreate the pull request edit the issue"
     " title or description. To tweak the pull request, leave a comment on the pull request."
 )
+
+
+def add_badge_to_ticket(ticket, badge):
+    duration = get_latest_docker_version()
+    badge = f"[![Docker Version Update](https://img.shields.io/badge/Docker%20Version%20Update-{duration}-blue)]"
+    ticket.description += f"\n{badge}"
+    return ticket
+
+
 discord_suffix = f"\n<sup>[Join Our Discord](https://discord.com/invite/sweep)"
 
 stars_suffix = ""
