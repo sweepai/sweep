@@ -197,21 +197,43 @@ def call_on_check_suite(*args, **kwargs):
     kwargs["request"].repository.full_name
     kwargs["request"].check_run.pull_requests[0].number
     thread = threading.Thread(target=run_on_check_suite, args=args, kwargs=kwargs)
-    thread.start()
-
-
-def call_on_comment(
-    *args, **kwargs
-):  # TODO: if its a GHA delete all previous GHA and append to the end
-    def worker() -> None:
-        while not events[key].empty():
-            task_args, task_kwargs = events[key].get()
-            run_on_comment(*task_args, **task_kwargs)
-
-    global events
-    repo_full_name = kwargs["repo_full_name"]
-    pr_id = kwargs["pr_number"]
-    key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
+    def call_on_comment(
+        *args, **kwargs
+    ):  # TODO: if its a GHA delete all previous GHA and append to the end
+        print(f"Arguments: {args}, Keyword Arguments: {kwargs}")
+        def worker() -> None:
+            while not events[key].empty():
+                task_args, task_kwargs = events[key].get()
+                run_on_comment(*task_args, **task_kwargs)
+    
+        global events
+        repo_full_name = kwargs["repo_full_name"]
+        pr_id = kwargs["pr_number"]
+        key = f"{repo_full_name}-{pr_id}"  # Full name, comment number as key
+    
+        comment_type = kwargs["comment_type"]
+        priority = (
+            0 if comment_type == "comment" else 1
+        )  # set priority to 0 if comment, 1 if GHA
+        logger.info(f"Received comment type: {comment_type}")
+    
+        if comment_type == "GHA":
+            # Delete all previous GHAs
+            while not events[key].empty():
+                task_args, task_kwargs = events[key].get()
+                if task_kwargs["comment_type"] == "GHA":
+                    continue
+                events[key].put(priority, (task_args, task_kwargs))
+    
+        # Add the new GHA to the end of the queue
+        events[key].put(priority, (args, kwargs))
+    
+        # If a thread isn't running, start one
+        if not any(
+            thread.name == key and thread.is_alive() for thread in threading.enumerate()
+        ):
+            thread = threading.Thread(target=worker, name=key)
+            thread.start()
 
     comment_type = kwargs["comment_type"]
     priority = (
