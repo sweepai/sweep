@@ -16,7 +16,6 @@ from sweepai.config.server import (
     SUPPORT_COUNTRY,
 )
 from sweepai.logn import logger
-from sweepai.sandbox.src import chat_logger
 
 global_mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=10000, socketTimeoutMS=10000)
 
@@ -61,13 +60,6 @@ class ChatLogger(BaseModel):
             except Exception as e:
                 logger.warning("Chat history could not connect to MongoDB")
                 logger.warning(e)
-
-    def get_chat_history(self, filters):
-        return (
-            self.chat_collection.find(filters)
-            .sort([("expiration", 1), ("index", 1)])
-            .limit(2000)
-        )
 
     def add_chat(self, additional_data):
         if self.chat_collection is None:

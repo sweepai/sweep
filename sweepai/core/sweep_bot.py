@@ -1810,7 +1810,6 @@ class ModifyBot:
                 self.extract_leftover_comments_bot.extract_leftover_comments(
                     new_code,
                     file_path,
-                    update_snippets_code,
                     file_change_request.instructions,
                 )
             )
