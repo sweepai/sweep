@@ -150,11 +150,11 @@ def on_ticket(
                 timeout=2,
             )
         except Timeout:
-            logger.info(f"Sandbox hydration timed out. (tracking ID: {tracking_id})")
+            logger.info(f"Sandbox hydration timed out. (tracking ID: {metadata['tracking_id'] if 'tracking_id' in metadata else 'N/A'})")
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error hydrating cache of sandbox: {e}. (tracking ID: {tracking_id})")
+            logger.warning(f"Error hydrating cache of sandbox: {e}. (tracking ID: {metadata['tracking_id'] if 'tracking_id' in metadata else 'N/A'})")
         logger.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
@@ -216,7 +216,7 @@ def on_ticket(
 
     organization, repo_name = repo_full_name.split("/")
     # Generate a unique tracking ID
-    tracking_id = hashlib.sha256(f"{time()}-{issue_number}".encode()).hexdigest()
+    tracking_id = hashlib.sha256(f"{str(time())}-{issue_number}".encode()).hexdigest()
 
     metadata = {
         "issue_url": issue_url,
@@ -659,7 +659,7 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.error(f"Failed to extract docs: {e}. (tracking ID: {metadata['tracking_id']})")
+            logger.error(f"Failed to extract docs: {e}. (tracking ID: {metadata['tracking_id'] if 'tracking_id' in metadata else 'N/A'})")
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
@@ -1175,8 +1175,7 @@ def on_ticket(
                     raise SystemExit
                 except Exception as e:
                     logger.error(traceback.format_exc())
-                    logger.error(f"{e} (tracking ID: {metadata['tracking_id']})")
-    
+                    logger.error(f"{e} (tracking ID: {metadata.get('tracking_id', 'N/A')})")
                 if changes_required:
                     edit_sweep_comment(
                         review_message + "\n\nI finished incorporating these changes.",
@@ -1248,7 +1247,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Max Tokens Exceeded",
-                str(e) + "\n" + traceback.format_exc() + f" (tracking ID: {metadata['tracking_id']})",
+                str(e) + "\n" + traceback.format_exc() + f" (tracking ID: {metadata.get('tracking_id', 'N/A')})",
                 priority=2,
             )
             if chat_logger.is_paying_user():
@@ -1281,7 +1280,7 @@ def on_ticket(
                 username,
                 issue_url,
                 "Sweep could not find files to modify",
-                str(e) + "\n" + traceback.format_exc() + f" (tracking ID: {metadata['tracking_id']})",
+                str(e) + "\n" + traceback.format_exc() + f" (tracking ID: {metadata.get('tracking_id', 'N/A')})",
                 priority=2,
             )
             edit_sweep_comment(
@@ -1297,7 +1296,7 @@ def on_ticket(
             raise e
         except openai.error.InvalidRequestError as e:
             logger.error(traceback.format_exc())
-            logger.error(f"{e} (tracking ID: {metadata['tracking_id']})")
+            logger.error(f"{e} (tracking ID: {metadata.get('tracking_id', 'N/A')})")
             edit_sweep_comment(
                 (
                     "I'm sorry, but it looks our model has ran out of context length. We're"
@@ -1332,7 +1331,7 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             logger.error(traceback.format_exc())
-            logger.error(f"{e} (tracking ID: {metadata['tracking_id']})")
+            logger.error(f"{e} (tracking ID: {metadata.get('tracking_id', 'N/A')})")
             # title and summary are defined elsewhere
             if len(title + summary) < 60:
                 edit_sweep_comment(
@@ -1370,7 +1369,7 @@ def on_ticket(
             except SystemExit:
                 raise SystemExit
             except Exception as e:
-                logger.error(f"{e} (tracking ID: {metadata['tracking_id']})")
+                logger.error(f"{e} (tracking ID: {metadata.get('tracking_id', 'N/A')})")
         finally:
             cloned_repo.delete()
 
