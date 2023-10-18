@@ -15,7 +15,6 @@ from pydantic import BaseModel
 from rich import console
 from tqdm import tqdm
 
-
 class SandboxContainer:
     def __init__(self, *args, **kwargs):
         self.container_name = "sandbox-{}".format(str(uuid.uuid4()))
@@ -41,6 +40,14 @@ class Sandbox(BaseModel):
         "trunk fmt {file_path}",
         "trunk check --fix --print-failures {file_path}",
     ]
+    
+    @classmethod
+    def validate_yaml(cls, path: str) -> bool: 
+        try:
+            subprocess.run(["yamllint", path], check=True)
+            return True 
+        except subprocess.CalledProcessError:
+            return False
 
     @classmethod
     def from_yaml(cls, yaml_string: str):
@@ -50,6 +57,8 @@ class Sandbox(BaseModel):
     @classmethod
     def from_config(cls, path: str = "sweep.yaml"):
         if os.path.exists(path):
+            if not cls.validate_yaml(path):
+                raise ValueError("The YAML File is not valid") 
             return cls.from_yaml(open(path).read())
         else:
             return cls()
