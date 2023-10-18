@@ -1769,27 +1769,6 @@ class ModifyBot:
                 0
             ].content = update_snippets_system_prompt_python
 
-        # THIS SECTION IS CURRENTLY UNUSED, it's intended for doing update in sections
-        snippet_sections = []
-        current_section = []
-        current_line_count = 0
-        SECTION_LINE_LIMIT = 60
-        for snippet in selected_snippets:
-            line_count = len(snippet.split("\n"))
-            if line_count + current_line_count > SECTION_LINE_LIMIT:
-                snippet_sections.append(current_section)
-                current_section = []
-                current_line_count = 0
-            if line_count > SECTION_LINE_LIMIT:
-                snippet_sections.append([snippet])
-                current_line_count = 0
-            else:
-                current_section.append(snippet)
-                current_line_count += line_count
-        if current_section:
-            snippet_sections.append(current_section)
-        # END OF UNUSED SECTION
-
         snippets = selected_snippets
         update_snippets_response = self.update_snippets_bot.chat(
             update_snippets_prompt.format(
