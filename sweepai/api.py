@@ -278,12 +278,11 @@ async def webhook(raw_request: Request):
         match event, action:
             case "pull_request", "opened":
                 logger.info(f"Received event: {event}, {action}")
-                _, g = get_github_client(request_dict["installation"]["id"])
-                repo = g.get_repo(request_dict["repository"]["full_name"])
-                pr = repo.get_pull(request_dict["pull_request"]["number"])
-                # if the pr already has a comment from sweep bot do nothing
-
                 def worker():
+                    _, g = get_github_client(request_dict["installation"]["id"])
+                    repo = g.get_repo(request_dict["repository"]["full_name"])
+                    pr = repo.get_pull(request_dict["pull_request"]["number"])
+                    # if the pr already has a comment from sweep bot do nothing
                     time.sleep(60)
                     if any(
                         comment.user.login == GITHUB_BOT_USERNAME
