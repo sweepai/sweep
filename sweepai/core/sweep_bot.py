@@ -1264,7 +1264,7 @@ class SweepBot(CodeGenBot, GithubBot):
                         chunk = "\n".join(lines[start:end])
                         (
                             new_chunk,
-                            suggested_commit_message,
+                            commit_message,
                             sandbox_error,
                             changed_files,
                         ) = self.modify_file(
