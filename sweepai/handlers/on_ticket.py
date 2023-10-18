@@ -7,8 +7,10 @@ import math
 import re
 import traceback
 from time import time
+from datetime import datetime
 
 import openai
+from sweepai.utils.docker_utils import get_latest_docker_version
 import requests
 from github import BadCredentialsException
 from logtail import LogtailHandler
@@ -106,6 +108,18 @@ def on_ticket(
         fast_mode,
         lint_mode,
     ) = strip_sweep(title)
+
+    # Get the datetime of the last Docker update
+    last_docker_update = get_latest_docker_version()
+
+    # Calculate the time elapsed since the last Docker update
+    elapsed_time = datetime.now() - last_docker_update
+
+    # Format the elapsed time into a string
+    elapsed_time_str = str(elapsed_time)
+
+    # Add the badge to the ticket with the formatted elapsed time
+    add_badge_to_ticket(issue_number, f"Docker updated {elapsed_time_str} ago")
 
     # Flow:
     # 1. Get relevant files
@@ -255,6 +269,18 @@ def on_ticket(
                 properties={**metadata, "duration": time() - on_ticket_start_time},
             )
             return {"success": False, "reason": "Issue is closed"}
+
+        # Get the datetime of the last Docker update
+        last_docker_update = get_latest_docker_version()
+
+        # Calculate the time elapsed since the last Docker update
+        elapsed_time = datetime.now() - last_docker_update
+
+        # Format the elapsed time into a string
+        elapsed_time_str = str(elapsed_time)
+
+        # Add the badge to the ticket with the formatted elapsed time
+        add_badge_to_ticket(issue_number, f"Docker updated {elapsed_time_str} ago")
 
         # Add :eyes: emoji to ticket
         item_to_react_to = (
