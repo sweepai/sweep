@@ -10,6 +10,7 @@ import docker
 import pathspec
 import typer
 import yaml
+from yamllint import linter, config 
 from posthog import Posthog
 from pydantic import BaseModel
 from rich import console
@@ -42,12 +43,23 @@ class Sandbox(BaseModel):
     ]
     
     @classmethod
-    def validate_yaml(cls, path: str) -> bool: 
+    def validate_yaml(cls, path: str) -> list: 
+        errors = [] 
         try:
-            subprocess.run(["yamllint", path], check=True)
-            return True 
-        except subprocess.CalledProcessError:
-            return False
+            with open(path, 'r') as f:
+                yaml_file = f.read() 
+            conf = config.YamlLintConfig('extends: default')
+            
+            problems = list(linter.run(yaml_file, conf))
+            if problems:
+                for problem in problems:
+                    errors.append(problem.desc)
+                return errors 
+            
+            return [] 
+        except Exception as e: 
+            errors.append(f"An exception occurred: {e}")
+            return errors
 
     @classmethod
     def from_yaml(cls, yaml_string: str):
@@ -57,9 +69,12 @@ class Sandbox(BaseModel):
     @classmethod
     def from_config(cls, path: str = "sweep.yaml"):
         if os.path.exists(path):
-            if not cls.validate_yaml(path):
-                raise ValueError("The YAML File is not valid") 
-            return cls.from_yaml(open(path).read())
+            errors = cls.validate_yaml(path)
+            if errors:
+                error_message = "\n".join(errors)
+                raise ValueError(f"The YAML File is not valid: {error_message}")
+            with open(path, "r") as f: 
+                return cls.from_yaml(open(path).read())
         else:
             return cls()
 
