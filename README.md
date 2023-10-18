@@ -8,6 +8,10 @@
     <a href="https://github.com/apps/sweep-ai">
         <img alt="Install" src="https://img.shields.io/badge/Install-GitHub App-purple?link=https://github.com/apps/sweep-ai">
     </a>
+    <a href="https://hub.docker.com/r/sweepai/sweep">
+        <img alt="Docker Updated" src="https://img.shields.io/badge/Docker Updated-Recently-green">
+    </a>
+</p>
     <a href="https://discord.gg/sweep">
         <img src="https://dcbadge.vercel.app/api/server/sweep?style=flat" />
     </a>
@@ -42,6 +46,7 @@ Describe bugs, small features, and refactors like you would to a junior develope
 * Addresses developer replies & comments on its PRs
 * Uses embedding-based code & online document search
 * Validates its changes with GitHub Actions and self-review
+* Displays how recently the Docker version was updated on a badge on the ticket
 
 ### How Sweep is Different
 
