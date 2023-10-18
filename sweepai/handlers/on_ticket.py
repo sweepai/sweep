@@ -9,6 +9,7 @@ import traceback
 from time import time
 
 import openai
+from sweepai.utils.docker_utils import get_latest_docker_version
 import requests
 from github import BadCredentialsException
 from logtail import LogtailHandler
@@ -106,6 +107,12 @@ def on_ticket(
         fast_mode,
         lint_mode,
     ) = strip_sweep(title)
+
+    # Get the duration since the last docker version update
+    docker_update_duration = get_latest_docker_version()
+
+    # Add a badge to the ticket with the docker update duration
+    summary += f"\n\n![Docker Version Update](https://img.shields.io/badge/Docker%20Version%20Update-{docker_update_duration}-blue)"
 
     # Flow:
     # 1. Get relevant files
@@ -653,6 +660,12 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             logger.error(f"Failed to extract docs: {e}")
+
+        # Get the duration since the last docker version update
+        docker_update_duration = get_latest_docker_version()
+
+        # Add a badge to the ticket with the docker update duration
+        summary += f"\n\n![Docker Version Update](https://img.shields.io/badge/Docker%20Version%20Update-{docker_update_duration}-blue)"
 
         human_message = HumanMessagePrompt(
             repo_name=repo_name,
