@@ -2,7 +2,6 @@ import time
 import traceback
 from typing import Any, Literal
 
-import anthropic
 import backoff
 import openai
 from pydantic import BaseModel
@@ -28,11 +27,6 @@ from sweepai.utils.utils import Tiktoken
 
 openai_proxy = OpenAIProxy()
 
-AnthropicModel = (
-    Literal["claude-v1"]
-    | Literal["claude-v1.3-100k"]
-    | Literal["claude-instant-v1.1-100k"]
-)
 OpenAIModel = (
     Literal["gpt-3.5-turbo"]
     | Literal["gpt-4"]
@@ -43,7 +37,7 @@ OpenAIModel = (
     | Literal["gpt-4-32k-0613"]
 )
 
-ChatModel = OpenAIModel | AnthropicModel
+ChatModel = OpenAIModel
 model_to_max_tokens = {
     "gpt-3.5-turbo": 4096,
     "gpt-4": 8192,
@@ -59,25 +53,6 @@ default_temperature = (
     0.0  # Lowered to 0 for mostly deterministic results for reproducibility
 )
 count_tokens = Tiktoken().count
-
-
-def format_for_anthropic(messages: list[Message]) -> str:
-    if len(messages) > 1:
-        new_messages: list[Message] = [
-            Message(
-                role="system", content=messages[0].content + "\n" + messages[1].content
-            )
-        ]
-        messages = messages[2:] if len(messages) >= 3 else []
-    else:
-        new_messages: list[Message] = []
-    for message in messages:
-        new_messages.append(message)
-    return "\n".join(
-        f"{anthropic.HUMAN_PROMPT if message.role != 'assistant' else anthropic.AI_PROMPT} {message.content}"
-        for message in new_messages
-    ) + (anthropic.AI_PROMPT if new_messages[-1].role != "assistant" else "")
-
 
 class ChatGPT(BaseModel):
     messages: list[Message] = [
@@ -233,7 +208,6 @@ class ChatGPT(BaseModel):
         max_tokens = (
             model_to_max_tokens[model] - int(messages_length) - 400
         )  # this is for the function tokens
-        # TODO: Add a check to see if the message is too long
         logger.info("file_change_paths" + str(self.file_change_paths))
         if len(self.file_change_paths) > 0:
             self.file_change_paths.remove(self.file_change_paths[0])
