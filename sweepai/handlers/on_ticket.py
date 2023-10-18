@@ -466,6 +466,47 @@ def on_ticket(
             if index >= 0:
                 past_messages[index] = message
                 current_index = index
+        
+            agg_message = None
+            # Include progress history
+            # index = -2 is reserved for
+            for i in range(
+                current_index + 2
+            ):  # go to next header (for Working on it... text)
+                if i == 0 or i >= len(progress_headers):
+                    continue  # skip None header
+                header = progress_headers[i]
+                if header is not None:
+                    header = "## " + header + "\n"
+                else:
+                    header = "No header\n"
+                msg = header + (past_messages.get(i) or "Working on it...")
+                if agg_message is None:
+                    agg_message = msg
+                else:
+                    agg_message = agg_message + f"\n{sep}" + msg
+        
+            suffix = bot_suffix + discord_suffix
+            if errored:
+                agg_message = (
+                    "## ❌ Unable to Complete PR"
+                    + "\n"
+                    + message
+                    + "\n\nFor bonus GPT-4 tickets, please report this bug on"
+                    " **[Discord](https://discord.gg/invite/sweep)**. Tracking ID: " + metadata['tracking_id']
+                )
+                if table is not None:
+                    agg_message = (
+                        agg_message
+                        + f"\n{sep}Please look at the generated plan. If something looks"
+                        f" wrong, please add more details to your issue.\n\n{table}"
+                    )
+                suffix = bot_suffix  # don't include discord suffix for error messages
+            # Only update the progress bar if the issue generation errors.
+            errored = index == -1
+            if index >= 0:
+                past_messages[index] = message
+                current_index = index
 
             agg_message = None
             # Include progress history
@@ -505,42 +546,21 @@ def on_ticket(
 
             # Update the issue comment
             msg = f"{get_comment_header(current_index, errored, pr_message, done=done)}\n{sep}{agg_message}{suffix}"
-            try:
-                issue_comment.edit(msg)
-            except BadCredentialsException:
-                logger.error("Bad credentials, refreshing token")
-                _user_token, g = get_github_client(installation_id)
-                repo = g.get_repo(repo_full_name)
-
-                for comment in comments:
-                    if comment.user.login == GITHUB_BOT_USERNAME:
-                        issue_comment = comment
-
-                if issue_comment is None:
-                    issue_comment = current_issue.create_comment(msg)
-                else:
-                    issue_comment = [
-                        comment
-                        for comment in issue.get_comments()
-                        if comment.user == GITHUB_BOT_USERNAME
-                    ][0]
-                    issue_comment.edit(msg)
-
-        if len(title + summary) < 20:
-            logger.info("Issue too short")
-            edit_sweep_comment(
-                (
-                    "Please add more details to your issue. I need at least 20 characters"
-                    " to generate a plan."
-                ),
-                -1,
-            )
-            posthog.capture(
-                username,
-                "issue_too_short",
-                properties={**metadata, "duration": time() - on_ticket_start_time},
-            )
-            return {"success": True}
+            if len(title + summary) < 20:
+                logger.info("Issue too short")
+                edit_sweep_comment(
+                    (
+                        "Please add more details to your issue. I need at least 20 characters"
+                        " to generate a plan. Tracking ID: " + metadata['tracking_id']
+                    ),
+                    -1,
+                )
+                posthog.capture(
+                    username,
+                    "issue_too_short",
+                    properties={**metadata, "duration": time() - on_ticket_start_time},
+                )
+                return {"success": True}
 
         if (
             repo_name.lower() not in WHITELISTED_REPOS
@@ -553,7 +573,7 @@ def on_ticket(
                     (
                         "Sweep does not work on test repositories. Please create an issue"
                         " on a real repository. If you think this is a mistake, please"
-                        " report this at https://discord.gg/sweep."
+                        " report this at https://discord.gg/sweep. Tracking ID: " + metadata['tracking_id']
                     ),
                     -1,
                 )
@@ -604,7 +624,7 @@ def on_ticket(
                 (
                     "It looks like an issue has occurred around fetching the files."
                     " Perhaps the repo has not been initialized. If this error persists"
-                    f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch."
+                    f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Tracking ID: " + metadata['tracking_id']
                 ),
                 -1,
             )
@@ -634,6 +654,13 @@ def on_ticket(
         snippets = post_process_snippets(
             snippets, max_num_of_snippets=2 if use_faster_model else 5
         )
+        import hashlib
+        import time
+
+        # Generate a unique hash for this on_ticket call
+        tracking_id = hashlib.sha256(str(time.time()).encode()).hexdigest()[:10]
+        metadata['tracking_id'] = tracking_id
+
         if not repo_description:
             repo_description = "No description provided."
 
@@ -724,7 +751,7 @@ def on_ticket(
                 raise SystemExit
             except Exception as e:
                 logger.error(
-                    "Failed to create new branch for sweep.yaml file.\n",
+                    f"Failed to create new branch for sweep.yaml file. Tracking ID: {metadata['tracking_id']}\n",
                     e,
                     traceback.format_exc(),
                 )
@@ -1101,6 +1128,22 @@ def on_ticket(
                     plan=plan,  # plan for the PR
                     chat_logger=chat_logger,
                     commit_history=commit_history,
+                )
+            except SystemExit:
+                raise SystemExit
+            except Exception as e:
+                logger.error(f"Error occurred. Tracking ID: {metadata['tracking_id']}\n" + traceback.format_exc())
+                logger.error(e)
+            
+            if changes_required:
+                edit_sweep_comment(
+                    review_message + f"\n\nI finished incorporating these changes. Tracking ID: {metadata['tracking_id']}",
+                    3,
+                )
+            else:
+                edit_sweep_comment(
+                    f"I have finished reviewing the code for completeness. I did not find errors for {change_location}. Tracking ID: {metadata['tracking_id']}",
+                    3,
                 )
                 lint_output = None
                 review_message += (
