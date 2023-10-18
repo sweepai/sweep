@@ -5,6 +5,7 @@ import logging
 import os
 import threading
 import traceback
+import uuid
 
 LOG_PATH = "logn_logs/logs"
 META_PATH = "logn_logs/meta"
@@ -28,7 +29,10 @@ try:
             return logger
         except SystemExit:
             raise SystemExit
-        except Exception:
+        except Exception as e:
+            tracking_id = str(uuid.uuid4())
+            print(f"Error occurred. Tracking ID: {tracking_id}")
+            print(e)
             return None
 
 except Exception as e:
@@ -127,6 +131,7 @@ class _Task:
             self.metadata = {}
         if "name" not in self.metadata:
             self.metadata["name"] = str(self.task_key.name.split(" ")[0])
+        self.metadata["tracking_id"] = str(uuid.uuid4())
         self.create_file = create_file
         self.name, self.log_path, self.meta_path = self.create_files()
         self.state = "Created"
@@ -146,6 +151,7 @@ class _Task:
             "state": self.state,
             "children": self.children,
             "exception": self.exception,
+            "tracking_id": self.metadata["tracking_id"],
         }
 
     @staticmethod
