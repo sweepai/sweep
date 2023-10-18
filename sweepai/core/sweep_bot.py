@@ -55,7 +55,6 @@ from sweepai.core.prompts import (
     update_snippets_prompt,
     update_snippets_system_prompt,
     use_chunking_message,
-    python_message_prompt
 )
 from sweepai.logn import logger
 from sweepai.utils.chat_logger import discord_log_error
