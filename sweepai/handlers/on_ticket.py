@@ -95,6 +95,7 @@ extends: relaxed
 
 rules:
     line-length: disable
+    indentation: disable
 """
 format_exit_code = lambda exit_code: "✓" if exit_code == 0 else f"❌ (`{exit_code}`)"
 
