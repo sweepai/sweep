@@ -11,6 +11,7 @@ from time import time
 
 import openai
 import requests
+import yamllint.config as yamllint_config
 from github import BadCredentialsException
 from logtail import LogtailHandler
 from loguru import logger
@@ -18,7 +19,6 @@ from requests.exceptions import Timeout
 from tabulate import tabulate
 from tqdm import tqdm
 from yamllint import linter
-import yamllint.config as yamllint_config 
 
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -83,15 +83,18 @@ openai.api_key = OPENAI_API_KEY
 
 sweeping_gif = """<a href="https://github.com/sweepai/sweep"><img class="swing" src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping"></a>"""
 
+
 def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
 
+
 custom_config = """
-extends: relaxed 
+extends: relaxed
 
 rules:
     line-length: disable
 """
+
 
 def on_ticket(
     title: str,
@@ -720,24 +723,26 @@ def on_ticket(
         for content_file in repo.get_contents(""):
             if content_file.name == "sweep.yaml":
                 sweep_yml_exists = True
-                
-                # Check if YAML is valid 
+
+                # Check if YAML is valid
                 yaml_content = content_file.decoded_content.decode()
                 # linter_config = yamllint_config.YamlLintConfig('extends: default')
                 linter_config = yamllint_config.YamlLintConfig(custom_config)
 
-
                 problems = list(linter.run(yaml_content, linter_config))
-                
-                if problems: 
-                    errors = [f"Line {problem.line}: {problem.desc} (rule: {problem.rule})" for problem in problems]
+
+                if problems:
+                    errors = [
+                        f"Line {problem.line}: {problem.desc} (rule: {problem.rule})"
+                        for problem in problems
+                    ]
                     error_message = "\n".join(errors)
                     markdown_error_message = f"**There is something wrong with the YAML file:**\n```\n{error_message}\n```"
 
                     logger.error(markdown_error_message)
                     edit_sweep_comment(markdown_error_message, -1)
                     return {"success": False}
-                
+
                 else:
                     logger.info("The YAML file is valid. No errors found.")
                 break
