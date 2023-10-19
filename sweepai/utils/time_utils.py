@@ -1,5 +1,6 @@
 import datetime
 
+
 def time_since(time: datetime.datetime) -> str:
     now = datetime.datetime.now()
     diff = now - time
