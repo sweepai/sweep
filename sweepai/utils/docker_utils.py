@@ -1,8 +1,11 @@
+import urllib
+from datetime import datetime, timezone
+
 import requests
-from datetime import datetime, timezone 
+from loguru import logger
+
 
 def get_latest_docker_version():
-
     def humanize_time(delta):
         seconds = delta.total_seconds()
         minutes, seconds = divmod(seconds, 60)
@@ -20,12 +23,22 @@ def get_latest_docker_version():
     url = "https://hub.docker.com/v2/namespaces/sweepai/repositories/sweep/tags"
     response = requests.get(url)
     data = response.json()
-    
+
     last_updated = datetime.fromisoformat(
-        data["results"][0]["last_updated"]
+        data["results"][0]["last_updated"].replace("Z", "+00:00")
     )
-    duration_since_last_update = (
-        datetime.now(timezone.utc) - last_updated
-    )
-    
+    duration_since_last_update = datetime.now(timezone.utc) - last_updated
+
     return humanize_time(duration_since_last_update)
+
+
+def get_docker_badge():
+    try:
+        docker_update_duration = get_latest_docker_version()
+        encoded_duration = urllib.parse.quote(docker_update_duration)
+        badge_url = f"https://img.shields.io/badge/Docker%20Version%20Update-{encoded_duration}-blue"
+        markdown_badge = f"\n![Docker Version Update]({badge_url})"
+        return markdown_badge
+    except:
+        logger.exception("Failed to get docker badge.")
+        return ""

@@ -11,7 +11,6 @@ from time import time
 
 import openai
 import requests
-import urllib.parse
 from github import BadCredentialsException
 from logtail import LogtailHandler
 from loguru import logger
@@ -19,8 +18,6 @@ from requests.exceptions import Timeout
 from tabulate import tabulate
 from tqdm import tqdm
 from yamllint import linter
-
-from sweepai.utils.docker_utils import get_latest_docker_version
 
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -76,6 +73,7 @@ from sweepai.handlers.on_review import review_pr
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
+from sweepai.utils.docker_utils import get_docker_badge
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
@@ -122,10 +120,7 @@ def on_ticket(
         lint_mode,
     ) = strip_sweep(title)
 
-    docker_update_duration = get_latest_docker_version()
-    encoded_duration = urllib.parse.quote(docker_update_duration)
-    badge_url = f"https://img.shields.io/badge/Docker%20Version%20Update-{encoded_duration}-blue"
-    markdown_badge = f"![Docker Version Update]({badge_url})"
+    markdown_badge = get_docker_badge()
 
     # Generate a unique hash for tracking
     tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()[:10]
@@ -429,8 +424,6 @@ def on_ticket(
                 return (
                     f"{center(sweeping_gif)}<br/>{center(pbar)}\n\n"
                     + f"\n\n---\n{actions_message}"
-                    
-                    
                 )
             pbar = f"\n\n<img src='https://progress-bar.dev/{index}/?&title=Progress&width=600' alt='{index}%' />"
             return (
@@ -438,7 +431,7 @@ def on_ticket(
                 + ("\n" + stars_suffix if index != -1 else "")
                 + "\n"
                 + center(payment_message_start)
-                + center(f"\n\n{markdown_badge}") 
+                + center(f"\n\n{markdown_badge}")
                 + config_pr_message
                 + f"\n\n---\n{actions_message}"
             )
@@ -580,8 +573,10 @@ def on_ticket(
             except:
                 ext = ""
             displayed_contents = file_contents.replace("```", "\`\`\`")
+            sha = repo.get_branch(repo.default_branch).commit.sha
+            permalink = f"https://github.com/{repo_full_name}/blob/{sha}/{file_name}#L1-L{len(file_contents.splitlines())}"
             edit_sweep_comment(
-                f"Running sandbox for {file_name}. Current Code:\n\n```{ext}\n{file_contents}\n```",
+                f"Running sandbox for {file_name}. Current Code:\n\n{permalink}",
                 1,
             )
             updated_contents, sandbox_response = sweep_bot.check_sandbox(
