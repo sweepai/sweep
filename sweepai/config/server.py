@@ -2,6 +2,7 @@ import base64
 import os
 
 import requests
+from loguru import logger
 # goes under Modal 'anthropic' secret name (optional, can leave env var blank)
 
 os.environ["GITHUB_APP_PEM"] = os.environ.get(
