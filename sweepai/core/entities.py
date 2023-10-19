@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import re
 import string
@@ -117,6 +119,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
     start_and_end_lines: list[tuple] | None = []
     comment_line: int | None = None
     failed_sandbox_test: bool | None = False
+    parent: FileChangeRequest | None = None
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
