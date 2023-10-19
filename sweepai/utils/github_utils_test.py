@@ -57,7 +57,10 @@ class TestGithubUtils(unittest.TestCase):
     @patch("difflib.Differ", return_value=MagicMock())
     def test_get_hunks(self, mock_differ):
         mock_differ.return_value.compare.return_value = ["+ line1", "- line2"]
-        result = get_hunks("str1", "str2", 1)
+        try:
+            result = get_hunks("str1", "str2", 1)
+        except Exception as e:
+            logger.exception(e)
         mock_differ.assert_called_once()
         self.assertEqual(result, "+ line1\n- line2")
 
