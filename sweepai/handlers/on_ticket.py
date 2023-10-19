@@ -11,6 +11,7 @@ from time import time
 
 import openai
 import requests
+import yaml
 import yamllint.config as yamllint_config
 from github import BadCredentialsException
 from logtail import LogtailHandler
@@ -808,12 +809,12 @@ def on_ticket(
                 sweep_yml_exists = True
 
                 # Check if YAML is valid
-                yaml_content = content_file.decoded_content.decode()
-                # linter_config = yamllint_config.YamlLintConfig('extends: default')
+                yaml_content = content_file.decoded_content.decode("utf-8")
+                sweep_yaml_dict = yaml.safe_load(yaml_content)
+                if len(sweep_yaml_dict) > 0:
+                    break
                 linter_config = yamllint_config.YamlLintConfig(custom_config)
-
                 problems = list(linter.run(yaml_content, linter_config))
-
                 if problems:
                     errors = [
                         f"Line {problem.line}: {problem.desc} (rule: {problem.rule})"
@@ -825,7 +826,6 @@ def on_ticket(
                     logger.error(markdown_error_message)
                     edit_sweep_comment(markdown_error_message, -1)
                     return {"success": False}
-
                 else:
                     logger.info("The YAML file is valid. No errors found.")
                 break

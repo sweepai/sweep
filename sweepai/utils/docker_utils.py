@@ -23,12 +23,10 @@ def get_latest_docker_version():
     url = "https://hub.docker.com/v2/namespaces/sweepai/repositories/sweep/tags"
     response = requests.get(url)
     data = response.json()
-
-    last_updated = datetime.fromisoformat(
-        data["results"][0]["last_updated"].replace("Z", "+00:00")
-    )
+    
+    truncated_time = data["results"][0]["last_updated"].split(".")[0]  # Truncate fractional seconds
+    last_updated = datetime.fromisoformat(f"{truncated_time}+00:00")
     duration_since_last_update = datetime.now(timezone.utc) - last_updated
-
     return humanize_time(duration_since_last_update)
 
 
