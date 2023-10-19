@@ -17,7 +17,7 @@ class TestCheckCommentsPresence(unittest.TestCase):
     @patch('os.path.splitext')
     def test_check_comments_presence_with_unsupported_file_extension(self, mock_splitext):
         mock_splitext.return_value = ('file', '.unsupported')
-        self.assertEqual(check_comments_presence('file.unsupported', 'This is not a comment'), False)
+        self.assertEqual(check_comments_presence('file.unsupported', 'This is a string without a comment'), False)
 
     @patch('os.path.splitext')
     def test_check_comments_presence_with_empty_new_code(self, mock_splitext):
