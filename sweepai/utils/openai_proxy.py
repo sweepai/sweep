@@ -1,3 +1,4 @@
+import baserun
 import openai
 
 from sweepai.logn import file_cache, logger
@@ -18,6 +19,7 @@ class OpenAIProxy:
         pass
 
     @file_cache(ignore_params=[])
+    @baserun.trace
     def call_openai(self, model, messages, max_tokens, temperature) -> str:
         try:
             engine = None

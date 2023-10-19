@@ -1,3 +1,4 @@
+import baserun
 import time
 import traceback
 from typing import Any, Literal
@@ -181,6 +182,7 @@ class ChatGPT(BaseModel):
 
     # Only works on functions without side effects
     # @file_cache(ignore_params=["chat_logger", "sweep_context", "cloned_repo"])
+    @baserun.trace
     def call_openai(
         self,
         model: ChatModel | None = None,
