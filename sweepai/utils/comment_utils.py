@@ -19,4 +19,4 @@ def check_comments_presence(file_path: str, new_code: str) -> bool:
     if file_extension not in comment_patterns:
         return False
     comment_pattern = comment_patterns.get(file_extension, "")
-    return bool(re.search(comment_pattern, new_code, re.MULTILINE))
+    return bool(re.search(comment_pattern, new_code, re.DOTALL))
