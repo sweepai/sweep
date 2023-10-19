@@ -277,11 +277,11 @@ def on_ticket(
         tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()[:10]
         
         title = add_docker_update_badge(title)
-            logger.warning(
-                f"Issue {issue_number} is closed (tracking ID: {tracking_id}). Please join our Discord server for support (tracking_id={tracking_id})"
-            )
-            posthog.capture(
-                username,
+        logger.warning(
+            f"Issue {issue_number} is closed (tracking ID: {tracking_id}). Please join our Discord server for support (tracking_id={tracking_id})"
+        )
+        posthog.capture(
+            username,
                 "issue_closed",
                 properties={**metadata, "duration": time() - on_ticket_start_time},
             )
@@ -602,17 +602,17 @@ def on_ticket(
 
         logger.info("Fetching relevant files...")
         def add_docker_update_badge(title: str) -> str:
-        docker_update_time = get_latest_docker_version()
-        time_difference = time_since(docker_update_time)
-        badge = f"[![Docker](https://img.shields.io/badge/Docker%20updated-{time_difference}-blue)](https://hub.docker.com/r/sweepai/sweep/tags)"
-        return f"{title} {badge}"
+            docker_update_time = get_latest_docker_version()
+            time_difference = time_since(docker_update_time)
+            badge = f"[![Docker](https://img.shields.io/badge/Docker%20updated-{time_difference}-blue)](https://hub.docker.com/r/sweepai/sweep/tags)"
+            return f"{title} {badge}"
         
         try:
-        snippets, tree, dir_obj = search_snippets(
-        cloned_repo,
-        f"{add_docker_update_badge(title)}\n{summary}\n{replies_text}",
-        num_files=num_of_snippets_to_query,
-        )
+            snippets, tree, dir_obj = search_snippets(
+                cloned_repo,
+                f"{add_docker_update_badge(title)}\n{summary}\n{replies_text}",
+                num_files=num_of_snippets_to_query,
+            )
         assert len(snippets) > 0
         except SystemExit:
         logger.warning("System exit")
