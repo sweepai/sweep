@@ -11,6 +11,7 @@ from time import time
 
 import openai
 import requests
+import yamllint.config as yamllint_config
 from github import BadCredentialsException
 from logtail import LogtailHandler
 from loguru import logger
