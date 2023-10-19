@@ -9,6 +9,7 @@ from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
 from sweepai.utils.buttons import (
     Button,
+from sweepai.utils.docker_utils import get_latest_docker_version
     ButtonList,
     check_button_activated,
     check_button_title_match,
@@ -186,6 +187,9 @@ def call_on_ticket(*args, **kwargs):
     on_ticket_events[key] = thread
     thread.start()
 
+    docker_version_badge = get_latest_docker_version()
+    github_utils.add_badge_to_issue(kwargs['repo_full_name'], kwargs['issue_number'], docker_version_badge)
+
     delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
     delayed_kill_thread.start()
 
@@ -256,6 +260,8 @@ def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
 
+from sweepai.utils.docker_utils import get_latest_docker_version
+
 @app.post("/")
 async def webhook(raw_request: Request):
     # Do not create logs for api
@@ -267,6 +273,8 @@ async def webhook(raw_request: Request):
     """Handle a webhook request from GitHub."""
     try:
         request_dict = await raw_request.json()
+        docker_version_badge = get_latest_docker_version()
+        github_utils.add_badge_to_issue(request_dict['repository']['full_name'], request_dict['issue']['number'], docker_version_badge)
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
 
@@ -555,6 +563,8 @@ async def webhook(raw_request: Request):
                     comment.lower().startswith("sweep:")
                     or any(label.name.lower() == "sweep" for label in labels)
                 ) and request.comment.user.type == "User":
+                    docker_version_badge = get_latest_docker_version()
+                    github_utils.add_badge_to_issue(request.repository.full_name, request.pull_request.number, docker_version_badge)
                     pr_change_request = PRChangeRequest(
                         params={
                             "comment_type": "comment",
