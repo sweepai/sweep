@@ -54,11 +54,12 @@ class TestGithubUtils(unittest.TestCase):
         get_file_names_from_query("query")
         mock_findall.assert_called_once_with(r"\b[\w\-\.\/]*\w+\.\w{1,6}\b", "query")
 
-    @patch("difflib.Differ")
+    @patch("difflib.Differ", return_value=MagicMock())
     def test_get_hunks(self, mock_differ):
-        get_hunks("str1", "str2", 1)
+        mock_differ.return_value.compare.return_value = ["+ line1", "- line2"]
+        result = get_hunks("str1", "str2", 1)
         mock_differ.assert_called_once()
-
+        self.assertEqual(result, "+ line1\n- line2")
 
 if __name__ == "__main__":
     unittest.main()
