@@ -885,6 +885,7 @@ def on_ticket(
                     " ",
                 )
                 for file_change_request in file_change_requests
+                if not file_change_request.change_type == "check"
             ]
             checkboxes_contents = "\n".join(
                 [
@@ -902,7 +903,6 @@ def on_ticket(
                 [
                     create_checkbox(f"`{filename}`", "", check == "X").strip()
                     for filename, instructions, check in checkboxes_progress
-                    if instructions.lower().startswith("check")
                 ]
             )
             condensed_checkboxes_collapsible = create_collapsible(
@@ -970,17 +970,17 @@ def on_ticket(
                 status: str = "X",
             ):
                 nonlocal checkboxes_progress
-                checkboxes_progress.append((header, error_logs, status))
-                # for i, (entity_display_, instructions, status_) in enumerate(
-                #     checkboxes_progress
-                # ):
-                #     if entity_display in entity_display_:
-                #         checkboxes_progress[i] = (
-                #             header,
-                #             instructions + error_logs,
-                #             status,
-                #         )
-                #         break
+                for i, (entity_display_, instructions, status_) in enumerate(
+                    checkboxes_progress
+                ):
+                    if entity_display in entity_display_:
+                        checkboxes_progress[i] = (
+                            header,
+                            instructions + error_logs,
+                            status,
+                        )
+                        return True
+                return False
 
             for item in generator:
                 if isinstance(item, dict):
@@ -1010,11 +1010,16 @@ def on_ticket(
                     else "❌",
                 )
                 if file_change_request.change_type == "check":
-                    status = "✅" if sandbox_response.success else "❌"
+                    status = (
+                        "✅ Sandbox ran successfully"
+                        if sandbox_response.success
+                        else "❌ Sandbox failed so I made additional changes"
+                    )
                     checkboxes_progress.append(
                         (
                             f"{file_change_request.entity_display} {status}",
-                            error_logs,
+                            "The following are the logs from running the sandbox:\n\n"
+                            + error_logs,
                             "X",
                         )
                     )
@@ -1027,20 +1032,37 @@ def on_ticket(
                             if (sandbox_response is None or sandbox_response.success)
                             else f"⌛ Current Commit {commit_url_display}"
                         )
-                        update_progress(
+                        was_added = update_progress(
                             entity_display,
                             f"`{entity_display}` {suffix}",
                             error_logs,
                         )
                         changed_files.append(file_change_request.filename)
+                        if not was_added:
+                            checkboxes_progress.append(
+                                (
+                                    f"`{entity_display}` {suffix}",
+                                    file_change_request.instructions,
+                                    "X",
+                                )
+                            )
                     else:
                         logger.print("Didn't change file!")
                         entity_display = file_change_request.entity_display
-                        update_progress(
+                        header = f"`{entity_display}` ⚠️ No Changes Made"
+                        was_added = update_progress(
                             entity_display,
-                            f"`{entity_display}` ⚠️ No Changes Made",
+                            header,
                             error_logs,
                         )
+                        if not was_added:
+                            checkboxes_progress.append(
+                                (
+                                    header,
+                                    file_change_request.instructions,
+                                    "X",
+                                )
+                            )
                 checkboxes_contents = "\n".join(
                     [
                         checkbox_template.format(
@@ -1064,6 +1086,7 @@ def on_ticket(
                             instructions="",
                         ).strip()
                         for filename, instructions, check in checkboxes_progress
+                        if not instructions.lower().startswith("run")
                     ]
                 )
                 condensed_checkboxes_collapsible = collapsible_template.format(
