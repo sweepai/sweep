@@ -1,4 +1,3 @@
-# yamllint disable-file
 gha_enabled: True
 branch: main
 blocked_dirs: ["tests/archive"]

@@ -83,10 +83,15 @@ openai.api_key = OPENAI_API_KEY
 
 sweeping_gif = """<a href="https://github.com/sweepai/sweep"><img class="swing" src="https://raw.githubusercontent.com/sweepai/sweep/main/.assets/sweeping.gif" width="100" style="width:50px; margin-bottom:10px" alt="Sweeping"></a>"""
 
-
 def center(text: str) -> str:
     return f"<div align='center'>{text}</div>"
 
+custom_config = """
+extends: relaxed 
+
+rules:
+    line-length: disable
+"""
 
 def on_ticket(
     title: str,
@@ -719,7 +724,7 @@ def on_ticket(
                 # Check if YAML is valid 
                 yaml_content = content_file.decoded_content.decode()
                 # linter_config = yamllint_config.YamlLintConfig('extends: default')
-                linter_config = yamllint_config.YamlLintConfig('extends: relaxed')
+                linter_config = yamllint_config.YamlLintConfig(custom_config)
 
 
                 problems = list(linter.run(yaml_content, linter_config))
