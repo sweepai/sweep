@@ -2,12 +2,7 @@ import base64
 import os
 
 import requests
-from dotenv import load_dotenv
-from loguru import logger
-
-logger.print = logger.info
-
-load_dotenv(dotenv_path=".env")
+# goes under Modal 'anthropic' secret name (optional, can leave env var blank)
 
 os.environ["GITHUB_APP_PEM"] = os.environ.get(
     "GITHUB_APP_PEM",
@@ -147,7 +142,6 @@ OPENAI_USE_3_5_MODEL_ONLY = (
 )
 
 # goes under Modal 'anthropic' secret name (optional, can leave env var blank)
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
 # goes under Modal 'mongodb' secret name
 MONGODB_URI = os.environ.get("MONGODB_URI")
