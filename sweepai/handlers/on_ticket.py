@@ -73,6 +73,7 @@ from sweepai.handlers.on_comment import on_comment
 from sweepai.handlers.on_review import review_pr
 from sweepai.utils.buttons import Button, ButtonList, create_action_buttons
 from sweepai.utils.chat_logger import ChatLogger
+from sweepai.utils.diff import generate_diff
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
@@ -94,6 +95,7 @@ extends: relaxed
 rules:
     line-length: disable
 """
+format_exit_code = lambda exit_code: "✓" if exit_code == 0 else f"❌ (`{exit_code}`)"
 
 
 def on_ticket(
@@ -214,7 +216,7 @@ def on_ticket(
     if fast_mode:
         use_faster_model = True
 
-    if not comment_id and not edited and chat_logger:
+    if not comment_id and not edited and chat_logger and not sandbox_mode:
         chat_logger.add_successful_ticket(
             gpt3=use_faster_model
         )  # moving higher, will increment the issue regardless of whether it's a success or not
@@ -320,12 +322,19 @@ def on_ticket(
                 success = safe_delete_sweep_branch(pr, repo)
 
         # Removed 1, 3
-        progress_headers = [
-            None,
-            "Step 1: 🔎 Searching",
-            "Step 2: ⌨️ Coding",
-            "Step 3: 🔁 Code Review",
-        ]
+        if not sandbox_mode:
+            progress_headers = [
+                None,
+                "Step 1: 🔎 Searching",
+                "Step 2: ⌨️ Coding",
+                "Step 3: 🔁 Code Review",
+            ]
+        else:
+            progress_headers = [
+                None,
+                "📖 Reading File",
+                "🛠️ Executing Sandbox",
+            ]
 
         config_pr_url = None
 
@@ -546,6 +555,73 @@ def on_ticket(
                         if comment.user == GITHUB_BOT_USERNAME
                     ][0]
                     issue_comment.edit(msg)
+
+        if sandbox_mode:
+            sweep_bot = SweepBot(
+                repo=repo,
+                sweep_context=sweep_context,
+            )
+            file_name = title.split(":")[1].strip()
+            file_contents = sweep_bot.get_contents(file_name).decoded_content.decode(
+                "utf-8"
+            )
+            try:
+                ext = file_name.split(".")[-1]
+            except:
+                ext = ""
+            displayed_contents = file_contents.replace("```", "\`\`\`")
+            edit_sweep_comment(
+                f"Running sandbox for {file_name}. Current Code:\n\n```{ext}\n{file_contents}\n```",
+                1,
+            )
+            updated_contents, sandbox_response = sweep_bot.check_sandbox(
+                file_name, file_contents, []
+            )
+
+            logs = (
+                (
+                    "<br/>"
+                    + create_collapsible(
+                        f"Sandbox logs",
+                        blockquote(
+                            "\n\n".join(
+                                [
+                                    create_collapsible(
+                                        f"<code>{execution.command.format(file_path=file_name)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
+                                        f"<pre>{clean_logs(execution.output)}</pre>",
+                                        i == len(sandbox_response.executions) - 1,
+                                    )
+                                    for i, execution in enumerate(
+                                        sandbox_response.executions
+                                    )
+                                    if len(sandbox_response.executions) > 0
+                                    # And error code check
+                                ]
+                            )
+                        ),
+                        opened=True,
+                    )
+                )
+                if sandbox_response
+                else ""
+            )
+
+            updated_contents = updated_contents.replace("```", "\`\`\`")
+            diff = generate_diff(file_contents, updated_contents).replace(
+                "```", "\`\`\`"
+            )
+            diff_display = (
+                f"Updated Code:\n\n```{ext}\n{updated_contents}```\nDiff:\n```diff\n{diff}\n```"
+                if diff
+                else f"Sandbox made not changes to {file_name} (formatters not configured or didn't make changes)."
+            )
+
+            edit_sweep_comment(
+                f"{logs}\n{diff_display}",
+                2,
+            )
+            edit_sweep_comment("N/A", 3)
+            return {"success": True}
 
         if len(title + summary) < 20:
             logger.info("Issue too short")
@@ -958,9 +1034,6 @@ def on_ticket(
             edit_sweep_comment(checkboxes_contents, 2)
             response = {"error": NoFilesException()}
             changed_files = []
-            format_exit_code = (
-                lambda exit_code: "✓" if exit_code == 0 else f"❌ (`{exit_code}`)"
-            )
 
             def create_error_logs(
                 commit_url_display: str,
