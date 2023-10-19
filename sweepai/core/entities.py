@@ -109,7 +109,7 @@ class FileChangeRequest(RegexMatchableBaseModel):
     instructions: str
     change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal[
         "rename"
-    ] | Literal["rewrite"]
+    ] | Literal["rewrite"] | Literal["check"]
     _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\"( entity=\"(.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?>(?P<instructions>.*?)<\/\1>"""
     entity: str | None = None
     new_content: str | None = None
@@ -164,6 +164,8 @@ class FileChangeRequest(RegexMatchableBaseModel):
             return f"Modify {self.filename} with contents:\n{self.instructions}"
         elif self.change_type == "rewrite":
             return f"Rewrite {self.filename} with contents:\n{self.instructions}"
+        elif self.change_type == "check":
+            return f"Run {self.filename} through the sandbox."
         else:
             raise ValueError(f"Unknown change type {self.change_type}")
 
