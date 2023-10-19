@@ -17,7 +17,7 @@ You will be given the old_file and potentially relevant code snippets. Describe 
 
 Respond in the following format:
 
-<snippets_and_plan_analysis>
+<snippets_and_plan_analysis file="file_path">
 Describe what should be changed to the snippets from the old_file to complete the request.
 Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed.
 Maximize information density.
@@ -42,7 +42,7 @@ File path: {file_path}
 
 Analyse the snippets and plan, and provide your response in the format:
 
-<snippets_and_plan_analysis>
+<snippets_and_plan_analysis file="file_path">
 Describe what should be changed to the snippets from the old_file to complete the request.
 Then, for each snippet in a list, determine whether changes should be made. If so, describe the changes needed.
 Maximize information density.

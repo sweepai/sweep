@@ -17,9 +17,6 @@ class CodeTree(BaseModel):
         tree = parser.parse(bytes(code, "utf8"))
         return cls(code=code, tree=tree)
 
-    # def get_branches(self, min_lines: int = 20):
-    #     current_
-
     def get_path_to_line(self, min_line: int, max_line: int = -1) -> list[Node]:
         if max_line == -1:
             max_line = min_line
@@ -45,7 +42,7 @@ class CodeTree(BaseModel):
         return path
 
     def get_lines_surrounding(
-        self, min_line: int, max_line: int = -1, threshold: int = 20
+        self, min_line: int, max_line: int = -1, threshold: int = 4
     ) -> tuple[int, int]:
         if max_line == -1:
             max_line = min_line
@@ -66,3 +63,47 @@ class CodeTree(BaseModel):
             return valid_span
         else:
             return (min_line, max_line)
+
+if __name__ == "__main__":
+    snippet = """\
+    @patch('os.path.splitext')
+    def test_check_comments_presence_with_unsupported_file_extension(self, mock_splitext):
+        mock_splitext.return_value = ('file', '.unsupported')
+        self.assertEqual(check_comments_presence('file.unsupported', '# This is a comment'), False)"""
+
+    full_code = """\
+import unittest
+from unittest.mock import patch
+from sweepai.utils.comment_utils import check_comments_presence
+
+class TestCheckCommentsPresence(unittest.TestCase):
+
+    @patch('os.path.splitext')
+    def test_check_comments_presence_with_comment(self, mock_splitext):
+        mock_splitext.return_value = ('file', '.py')
+        self.assertEqual(check_comments_presence('file.py', '# This is a comment'), True)
+
+    @patch('os.path.splitext')
+    def test_check_comments_presence_without_comment(self, mock_splitext):
+        mock_splitext.return_value = ('file', '.py')
+        self.assertEqual(check_comments_presence('file.py', 'This is not a comment'), False)
+
+    @patch('os.path.splitext')
+    def test_check_comments_presence_with_unsupported_file_extension(self, mock_splitext):
+        mock_splitext.return_value = ('file', '.unsupported')
+        self.assertEqual(check_comments_presence('file.unsupported', '# This is a comment'), False)
+
+    @patch('os.path.splitext')
+    def test_check_comments_presence_with_empty_new_code(self, mock_splitext):
+        mock_splitext.return_value = ('file', '.py')
+        self.assertEqual(check_comments_presence('file.py', ''), False)
+
+if __name__ == '__main__':
+    unittest.main()
+"""
+    split_code = full_code.split("\n")
+    match_start = 16
+    match_end = 20
+    code_tree = CodeTree.from_code(full_code)
+    print(code_tree.get_lines_surrounding(match_start)[0])
+    print(code_tree.get_lines_surrounding(match_end)[1])
