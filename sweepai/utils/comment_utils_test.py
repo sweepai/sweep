@@ -49,5 +49,15 @@ class TestCommentUtils(unittest.TestCase):
             check_comments_presence("test.txt", "Hello, World!"), False
         )
 
+        # Test Python file without a comment
+        self.assertEqual(
+            check_comments_presence("test.py", 'print("Hello, World!")'), False
+        )
+
+        # Test JavaScript file without a comment
+        self.assertEqual(
+            check_comments_presence("test.js", 'console.log("Hello, World!");'), False
+        )
+
 if __name__ == "__main__":
     unittest.main()
