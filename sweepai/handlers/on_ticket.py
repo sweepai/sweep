@@ -263,7 +263,7 @@ def on_ticket(
 
         if current_issue.state == "closed":
             logger.warning(
-                f"Issue {issue_number} is closed (tracking ID: {tracking_id})"
+                f"Issue {issue_number} is closed (tracking ID: {tracking_id}). Please join our Discord server for support (tracking_id={tracking_id})"
             )
             posthog.capture(
                 username,
@@ -549,7 +549,7 @@ def on_ticket(
             edit_sweep_comment(
                 (
                     "Please add more details to your issue. I need at least 20 characters"
-                    " to generate a plan."
+                    " to generate a plan. Please join our Discord server for support (tracking_id={tracking_id})"
                 ),
                 -1,
             )
@@ -571,7 +571,7 @@ def on_ticket(
                     (
                         "Sweep does not work on test repositories. Please create an issue"
                         " on a real repository. If you think this is a mistake, please"
-                        " report this at https://discord.gg/sweep."
+                        " report this at https://discord.gg/sweep. Please join our Discord server for support (tracking_id={tracking_id})"
                     ),
                     -1,
                 )
@@ -607,13 +607,13 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             trace = traceback.format_exc()
-            logger.error(f"{e} (tracking ID: {tracking_id})")
-            logger.error(f"{trace} (tracking ID: {tracking_id})")
+            logger.exception(f"{e} (tracking ID: {tracking_id})")
+            logger.exception(f"{trace} (tracking ID: {tracking_id})")
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."
                     " Perhaps the repo has not been initialized. If this error persists"
-                    f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch."
+                    f" contact team@sweep.dev.\n\n> @{username}, editing this issue description to include more details will automatically make me relaunch. Please join our Discord server for support (tracking_id={tracking_id})"
                 ),
                 -1,
             )
