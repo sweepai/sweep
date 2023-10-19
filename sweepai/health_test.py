@@ -49,5 +49,4 @@ class TestHealth(unittest.TestCase):
         response = self.client.get("/health")
         self.assertEqual(response.status_code, 200)
         self.assertIn("status", response.json())
-        self.assertIn("details", response.json())
-    
+        self.assertIn("details", response.json())    
