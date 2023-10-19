@@ -120,13 +120,7 @@ def on_ticket(
         lint_mode,
     ) = strip_sweep(title)
 
-    # Get the time the docker version was updated and the time difference
-    docker_update_time = get_latest_docker_version()
-    time_difference = time_since(docker_update_time)
-
-    # Add a badge to the ticket with the time difference
-    badge = f"[![Docker](https://img.shields.io/badge/Docker%20updated-{time_difference}-blue)](https://hub.docker.com/r/sweepai/sweep/tags)"
-    title = f"{title} {badge}"
+    title = add_docker_update_badge(title)
 
     # Generate a unique hash for tracking
     tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()[:10]
@@ -276,13 +270,7 @@ def on_ticket(
 
         tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()[:10]
         
-        # Get the time the docker version was updated and the time difference
-        docker_update_time = get_latest_docker_version()
-        time_difference = time_since(docker_update_time)
-        
-        # Add a badge to the ticket with the time difference
-        badge = f"[![Docker](https://img.shields.io/badge/Docker%20updated-{time_difference}-blue)](https://hub.docker.com/r/sweepai/sweep/tags)"
-        title = f"{title} {badge}"
+        title = add_docker_update_badge(title)
             logger.warning(
                 f"Issue {issue_number} is closed (tracking ID: {tracking_id}). Please join our Discord server for support (tracking_id={tracking_id})"
             )
@@ -667,13 +655,7 @@ def on_ticket(
         if not repo_description:
             repo_description = "No description provided."
 
-        # Get the time the docker version was updated and the time difference
-        docker_update_time = get_latest_docker_version()
-        time_difference = time_since(docker_update_time)
-
-        # Add a badge to the ticket with the time difference
-        badge = f"[![Docker](https://img.shields.io/badge/Docker%20updated-{time_difference}-blue)](https://hub.docker.com/r/sweepai/sweep/tags)"
-        title = f"{title} {badge}"
+        title = add_docker_update_badge(title)
 
         message_summary = summary + replies_text
         external_results = ExternalSearcher.extract_summaries(message_summary)
@@ -1042,8 +1024,12 @@ def on_ticket(
 
             for item in generator:
                 if isinstance(item, dict):
-                    response = item
-                    break
+             pr: PullRequest = repo.create_pull(
+                 title = add_docker_update_badge(pr_changes.title),
+                 body=pr_actions_message + pr_changes.body,
+                 head=pr_changes.pr_head,
+                 base=SweepConfig.get_branch(repo),
+             )
                 file_change_request, changed_file, sandbox_response, commit = item
                 sandbox_response: SandboxResponse | None = sandbox_response
                 logger.print(sandbox_response)
@@ -1189,10 +1175,7 @@ def on_ticket(
                     issue_url=issue_url,
                     username=username,
                     repo_description=repo_description,
-                    docker_update_time = get_latest_docker_version()
-                    time_difference = time_since(docker_update_time)
-                    badge = f"[![Docker](https://img.shields.io/badge/Docker%20updated-{time_difference}-blue)](https://hub.docker.com/r/sweepai/sweep/tags)"
-                    title = f"{title} {badge}"
+                    title = add_docker_update_badge(title)
                     summary=summary,
                     replies_text=replies_text,
                     tree=tree,
@@ -1274,10 +1257,7 @@ def on_ticket(
             rules_buttons_list = ButtonList(buttons=rule_buttons, title=RULES_TITLE)
 
             pr: PullRequest = repo.create_pull(
-                docker_update_time = get_latest_docker_version()
-                time_difference = time_since(docker_update_time)
-                badge = f"[![Docker](https://img.shields.io/badge/Docker%20updated-{time_difference}-blue)](https://hub.docker.com/r/sweepai/sweep/tags)"
-                title = f"{pr_changes.title} {badge}"
+                title = add_docker_update_badge(pr_changes.title)
                 body=pr_actions_message + pr_changes.body,
                 head=pr_changes.pr_head,
                 base=SweepConfig.get_branch(repo),
