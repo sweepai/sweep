@@ -11,11 +11,7 @@ from time import time
 
 import openai
 import requests
-<<<<<<< HEAD
-import yamllint.config as yamllint_config
-=======
 import urllib.parse
->>>>>>> 372f57128 (Docker version update integrated)
 from github import BadCredentialsException
 from logtail import LogtailHandler
 from loguru import logger
