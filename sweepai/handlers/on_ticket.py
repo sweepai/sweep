@@ -17,7 +17,8 @@ from loguru import logger
 from requests.exceptions import Timeout
 from tabulate import tabulate
 from tqdm import tqdm
-from yamllint import linter, config 
+from yamllint import linter
+import yamllint.config as yamllint_config 
 
 from sweepai.config.client import (
     DEFAULT_RULES,
@@ -717,13 +718,21 @@ def on_ticket(
                 
                 # Check if YAML is valid 
                 yaml_content = content_file.decoded_content.decode()
-                linter_config = config.YamlLinterConfig('extends: default')
+                # linter_config = yamllint_config.YamlLintConfig('extends: default')
+                linter_config = yamllint_config.YamlLintConfig('extends: relaxed')
+
+
                 problems = list(linter.run(yaml_content, linter_config))
                 
                 if problems: 
                     errors = [f"Line {problem.line}: {problem.desc} (rule: {problem.rule})" for problem in problems]
                     error_message = "\n".join(errors)
-                    logger.error(f"The YAML file is not valid: \n{error_message}")
+                    markdown_error_message = f"**There is something wrong with the YAML file:**\n```\n{error_message}\n```"
+
+                    logger.error(markdown_error_message)
+                    edit_sweep_comment(markdown_error_message, -1)
+                    return {"success": False}
+                
                 else:
                     logger.info("The YAML file is valid. No errors found.")
                 break

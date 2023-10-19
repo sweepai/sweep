@@ -295,4 +295,5 @@ Whoosh==2.7.4
 widgetsnbextension==4.0.9
 wrapt==1.15.0
 yarl==1.9.2
+yamllint==1.32.0
 zipp==3.17.0
