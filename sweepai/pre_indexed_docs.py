@@ -42,10 +42,6 @@ DOCS_ENDPOINTS = {
         "https://platform.openai.com/docs/",
         "OpenAI is a client for the OpenAI API.",
     ),
-    "Anthropic": (
-        "https://docs.anthropic.com/claude/docs",
-        "Anthropic is a client for the Anthropic API.",
-    ),
     "PyGitHub": (
         "https://pygithub.readthedocs.io/en/stable/",
         "PyGitHub is a client for the GitHub API.",
