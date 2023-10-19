@@ -3,6 +3,7 @@ on_ticket is the main function that is called when a new issue is created.
 It is only called by the webhook handler in sweepai/api.py.
 """
 
+import hashlib
 import math
 import re
 import traceback
@@ -107,6 +108,9 @@ def on_ticket(
         lint_mode,
     ) = strip_sweep(title)
 
+    # Generate a unique hash for tracking
+    tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()
+
     # Flow:
     # 1. Get relevant files
     # 2: Get human message
@@ -152,7 +156,9 @@ def on_ticket(
         except SystemExit:
             raise SystemExit
         except Exception as e:
-            logger.warning(f"Error hydrating cache of sandbox: {e}")
+            logger.warning(
+                f"Error hydrating cache of sandbox (tracking ID: {tracking_id}): {e}"
+            )
         logger.info("Done sending, letting it run in the background.")
 
     # Check body for "branch: <branch_name>\n" using regex
@@ -234,6 +240,7 @@ def on_ticket(
         "sandbox_mode": sandbox_mode,
         "fast_mode": fast_mode,
         "is_self_hosted": IS_SELF_HOSTED,
+        "tracking_id": tracking_id,
     }
 
     logger.bind(**metadata)
@@ -248,7 +255,9 @@ def on_ticket(
         logger.info(f"Getting repo {repo_full_name}")
 
         if current_issue.state == "closed":
-            logger.warning(f"Issue {issue_number} is closed")
+            logger.warning(
+                f"Issue {issue_number} is closed (tracking ID: {tracking_id})"
+            )
             posthog.capture(
                 username,
                 "issue_closed",
@@ -508,7 +517,9 @@ def on_ticket(
             try:
                 issue_comment.edit(msg)
             except BadCredentialsException:
-                logger.error("Bad credentials, refreshing token")
+                logger.error(
+                    f"Bad credentials, refreshing token (tracking ID: {tracking_id})"
+                )
                 _user_token, g = get_github_client(installation_id)
                 repo = g.get_repo(repo_full_name)
 
@@ -567,15 +578,6 @@ def on_ticket(
                 )
                 return {"success": False}
 
-        # if lint_mode:
-        # Get files to change
-        # Create new branch
-        # Send request to endpoint
-        # for file_path in []:
-        # SweepBot.run_sandbox(
-        #     repo.html_url, file_path, None, user_token, only_lint=True
-        # )
-
         logger.info("Fetching relevant files...")
         try:
             snippets, tree, dir_obj = search_snippets(
@@ -598,8 +600,8 @@ def on_ticket(
             raise SystemExit
         except Exception as e:
             trace = traceback.format_exc()
-            logger.error(e)
-            logger.error(trace)
+            logger.error(f"{e} (tracking ID: {tracking_id})")
+            logger.error(f"{trace} (tracking ID: {tracking_id})")
             edit_sweep_comment(
                 (
                     "It looks like an issue has occurred around fetching the files."

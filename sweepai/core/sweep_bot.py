@@ -62,7 +62,12 @@ from sweepai.core.update_prompts import (
 from sweepai.logn import logger
 from sweepai.utils.chat_logger import discord_log_error
 from sweepai.utils.code_tree import CodeTree
-from sweepai.utils.diff import format_contents, generate_diff, is_markdown
+from sweepai.utils.diff import (
+    format_contents,
+    generate_diff,
+    is_markdown,
+    sliding_window_replacement,
+)
 from sweepai.utils.function_call_utils import find_function_calls
 from sweepai.utils.graph import Graph
 from sweepai.utils.diff import (
@@ -1805,6 +1810,7 @@ class ModifyBot:
             if idx in indices_to_keep:
                 pruned_snippets.append(snippet)
         selected_snippets = pruned_snippets
+
 
         if is_python_file:
             self.update_snippets_bot.messages[0].content = update_snippets_system_prompt_python

@@ -64,7 +64,7 @@ class PrunedSnippets(RegexMatchableBaseModel):
 
     @classmethod
     def from_string(cls, pruned_snippets_response: str, **kwargs) -> "PrunedSnippets":
-        snippet_indices = set([0])
+        snippet_indices = set()
         pruned_snippets_pattern = r"""<index>(\n)?(?P<index>.*?)</index>"""
         for match_ in re.finditer(
             pruned_snippets_pattern, pruned_snippets_response, re.DOTALL
@@ -74,7 +74,7 @@ class PrunedSnippets(RegexMatchableBaseModel):
             if index != None:
                 snippet_indices.add(index)
         if len(snippet_indices) > 0:
-            snippet_indices.add(0) # always/only add this if it decides to modify something
+            snippet_indices.add(0)
         snippet_indices = list(snippet_indices)
         return cls(
             snippet_indices=snippet_indices,
