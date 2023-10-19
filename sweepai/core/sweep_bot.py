@@ -71,14 +71,6 @@ from sweepai.utils.diff import (
 )
 from sweepai.utils.function_call_utils import find_function_calls
 from sweepai.utils.graph import Graph
-from sweepai.utils.diff import (
-    format_contents,
-    generate_diff,
-    is_markdown,
-    sliding_window_replacement,
-)
-from sweepai.utils.function_call_utils import find_function_calls
-from sweepai.utils.graph import Graph
 from sweepai.utils.search_and_replace import Match, find_best_match, split_ellipses
 from sweepai.utils.utils import chunk_code
 
@@ -103,6 +95,7 @@ Edit old_code to pass the CI/CD.
 1. Analyze the business logic and tests. Identify whether the failure is in the unit tests or business logic.
 2a. If the business logic is correct fix the test to return the expected output.
 2b. If the business logic has a bug or you are unsure, skip the failing tests with an explanation."""
+
 
 def strip_backticks(s: str) -> str:
     s = s.strip()
@@ -383,7 +376,9 @@ class CodeGenBot(ChatGPT):
                             file_change_requests.append(new_file_change_request)
 
                     if file_change_requests:
-                        plan_str = "\n".join([fcr.instructions_display for fcr in file_change_requests])
+                        plan_str = "\n".join(
+                            [fcr.instructions_display for fcr in file_change_requests]
+                        )
                         return file_change_requests, plan_str
             if not is_python_issue or not python_issue_worked:
                 if pr_diffs is not None:
@@ -407,7 +402,9 @@ class CodeGenBot(ChatGPT):
                     file_change_requests.append(new_file_change_request)
 
             if file_change_requests:
-                plan_str = "\n".join([fcr.instructions_display for fcr in file_change_requests])
+                plan_str = "\n".join(
+                    [fcr.instructions_display for fcr in file_change_requests]
+                )
                 return file_change_requests, plan_str
         except RegexMatchError as e:
             logger.print(e)
@@ -1054,6 +1051,7 @@ class SweepBot(CodeGenBot, GithubBot):
 
     def get_files_to_change_from_sandbox(
         self,
+        file_path: str,
         file_contents: str,
         sandbox_response: SandboxResponse,
     ) -> list[FileChangeRequest]:
@@ -1065,7 +1063,7 @@ class SweepBot(CodeGenBot, GithubBot):
         new_self.delete_messages_from_chat("metadata")
         new_self.messages.append(
             Message(
-                content=f"<code>\n{file_contents}\n</code>\n\n"
+                content=f'<code file_path="{file_path}">\n{file_contents}\n</code>\n\n'
                 + sandbox_error_prompt.format(
                     command=sandbox_response.executions[-1].command,
                     error_logs=sandbox_response.executions[-1].output,
@@ -1189,7 +1187,9 @@ class SweepBot(CodeGenBot, GithubBot):
                         if sandbox_execution.success is False:
                             additional_file_change_requests = (
                                 self.get_files_to_change_from_sandbox(
-                                    updated_contents, sandbox_execution
+                                    file_change_request.filename,
+                                    updated_contents,
+                                    sandbox_execution,
                                 )
                             )
                             file_change_requests.extend(additional_file_change_requests)
@@ -1542,10 +1542,15 @@ class SweepBot(CodeGenBot, GithubBot):
         prev_num_changed_files = []
         for _ in range(5):
             # if sandbox success, same response, or no changes, break
-            sandbox_response_str = "\n".join(sandbox_response.error_messages) if sandbox_response else ""
-            if sandbox_response and sandbox_response.success or \
-                prev_sandbox_response_str == sandbox_response_str or\
-                prev_num_changed_files == len(changed_files):
+            sandbox_response_str = (
+                "\n".join(sandbox_response.error_messages) if sandbox_response else ""
+            )
+            if (
+                sandbox_response
+                and sandbox_response.success
+                or prev_sandbox_response_str == sandbox_response_str
+                or prev_num_changed_files == len(changed_files)
+            ):
                 break
             if sandbox_response and not sandbox_response.success:
                 new_file_change_request = file_change_request
@@ -1639,7 +1644,11 @@ class ModifyBot:
         file_change_request: FileChangeRequest,
         chunking: bool = False,
     ):
-        snippet_queries, extraction_terms, analysis_and_identification = self.get_snippets_to_modify(
+        (
+            snippet_queries,
+            extraction_terms,
+            analysis_and_identification,
+        ) = self.get_snippets_to_modify(
             file_path=file_path,
             file_contents=file_contents,
             file_change_request=file_change_request,
@@ -1665,7 +1674,11 @@ class ModifyBot:
                 self.prune_modify_snippets_bot.messages = (
                     self.prune_modify_snippets_bot.messages[:-2]
                 )
-                snippet_queries, extraction_terms, analysis_and_identification = self.get_snippets_to_modify(
+                (
+                    snippet_queries,
+                    extraction_terms,
+                    analysis_and_identification,
+                ) = self.get_snippets_to_modify(
                     file_path=file_path,
                     file_contents=new_file,
                     file_change_request=new_file_change_request,
@@ -1691,7 +1704,11 @@ class ModifyBot:
                     self.prune_modify_snippets_bot.messages[:-2]
                 )
                 # TODO: delete messages in the bots themselves
-                snippet_queries, extraction_terms, analysis_and_identification = self.get_snippets_to_modify(
+                (
+                    snippet_queries,
+                    extraction_terms,
+                    analysis_and_identification,
+                ) = self.get_snippets_to_modify(
                     file_path=file_path,
                     file_contents=file_contents,
                     file_change_request=file_change_request,
@@ -1733,11 +1750,15 @@ class ModifyBot:
                 else dont_use_chunking_message,
             )
         )
-        analysis_and_identification_pattern = (
-            r"<analysis_and_identification.*?>\n(?P<code>.*)\n</analysis_and_identification>"
+        analysis_and_identification_pattern = r"<analysis_and_identification.*?>\n(?P<code>.*)\n</analysis_and_identification>"
+        analysis_and_identification_match = re.search(
+            analysis_and_identification_pattern, fetch_snippets_response, re.DOTALL
         )
-        analysis_and_identification_match = re.search(analysis_and_identification_pattern, fetch_snippets_response, re.DOTALL)
-        analysis_and_identifications_str = analysis_and_identification_match.group("code").strip() if analysis_and_identification_match else ""
+        analysis_and_identifications_str = (
+            analysis_and_identification_match.group("code").strip()
+            if analysis_and_identification_match
+            else ""
+        )
 
         extraction_terms = []
         extraction_term_pattern = (
@@ -1894,7 +1915,9 @@ class ModifyBot:
                 file_path=file_path,
                 changes_made=self.get_diffs_message(file_contents),
                 old_code=update_snippets_code,
-                request=file_change_request.instructions + "\n" + analysis_and_identification,
+                request=file_change_request.instructions
+                + "\n"
+                + analysis_and_identification,
             )
         else:
             indices_to_keep = [0]
@@ -1908,9 +1931,10 @@ class ModifyBot:
                 pruned_snippets.append(snippet)
         selected_snippets = pruned_snippets
 
-
         if is_python_file:
-            self.update_snippets_bot.messages[0].content = update_snippets_system_prompt_python
+            self.update_snippets_bot.messages[
+                0
+            ].content = update_snippets_system_prompt_python
 
         if file_change_request.failed_sandbox_test:
             update_prompt = update_snippets_prompt_test
@@ -1926,7 +1950,9 @@ class ModifyBot:
                         for i, snippet in enumerate(selected_snippets)
                     ]
                 ),
-                request=file_change_request.instructions + "\n" + analysis_and_identification,
+                request=file_change_request.instructions
+                + "\n"
+                + analysis_and_identification,
                 n=len(selected_snippets),
                 changes_made=self.get_diffs_message(file_contents),
             )
@@ -1969,9 +1995,14 @@ class ModifyBot:
             for idx, search in enumerate(selected_snippets):
                 if idx not in updated_snippets:
                     continue
-                if selected_snippets.index(search) not in change_validator.updated_snippets:
+                if (
+                    selected_snippets.index(search)
+                    not in change_validator.updated_snippets
+                ):
                     continue
-                replace = change_validator.updated_snippets[selected_snippets.index(search)]
+                replace = change_validator.updated_snippets[
+                    selected_snippets.index(search)
+                ]
                 new_code.append(replace)
 
             ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
