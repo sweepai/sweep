@@ -41,14 +41,6 @@ class Sandbox(BaseModel):
         "trunk fmt {file_path}",
         "trunk check --fix --print-failures {file_path}",
     ]
-    
-    @classmethod
-    def validate_yaml(cls, path: str) -> bool: 
-        try:
-            subprocess.run(["yamllint", path], check=True)
-            return True 
-        except subprocess.CalledProcessError:
-            return False
 
     @classmethod
     def from_yaml(cls, yaml_string: str):
