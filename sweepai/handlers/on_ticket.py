@@ -11,6 +11,12 @@ from time import time
 from sweepai.utils.docker_utils import get_latest_docker_version
 from sweepai.utils.time_utils import time_since
 
+def add_docker_update_badge(title: str) -> str:
+    docker_update_time = get_latest_docker_version()
+    time_difference = time_since(docker_update_time)
+    badge = f"[![Docker](https://img.shields.io/badge/Docker%20updated-{time_difference}-blue)](https://hub.docker.com/r/sweepai/sweep/tags)"
+    return f"{title} {badge}"
+
 import openai
 import requests
 import yamllint.config as yamllint_config
@@ -595,17 +601,23 @@ def on_ticket(
                 return {"success": False}
 
         logger.info("Fetching relevant files...")
+        def add_docker_update_badge(title: str) -> str:
+        docker_update_time = get_latest_docker_version()
+        time_difference = time_since(docker_update_time)
+        badge = f"[![Docker](https://img.shields.io/badge/Docker%20updated-{time_difference}-blue)](https://hub.docker.com/r/sweepai/sweep/tags)"
+        return f"{title} {badge}"
+        
         try:
-            snippets, tree, dir_obj = search_snippets(
-                cloned_repo,
-                f"{title}\n{summary}\n{replies_text}",
-                num_files=num_of_snippets_to_query,
-            )
-            assert len(snippets) > 0
+        snippets, tree, dir_obj = search_snippets(
+        cloned_repo,
+        f"{add_docker_update_badge(title)}\n{summary}\n{replies_text}",
+        num_files=num_of_snippets_to_query,
+        )
+        assert len(snippets) > 0
         except SystemExit:
-            logger.warning("System exit")
-            posthog.capture(
-                username,
+        logger.warning("System exit")
+        posthog.capture(
+        username,
                 "failed",
                 properties={
                     **metadata,
