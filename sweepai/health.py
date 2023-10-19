@@ -40,6 +40,7 @@ def check_redis_health() -> str:
         logger.exception(f"Error checking Redis health: {e}")
         return "DOWN"
 
+
 @app.get("/health")
 def health_check():
     sandbox_status = check_sandbox_health()
