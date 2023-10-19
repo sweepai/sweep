@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch
-from sweep.sweepai.utils import github_utils
+from sweep.sweepai.utils.module_name import github_utils
 
 class TestFunctionName(unittest.TestCase):
     """Test case for the FunctionName function in github_utils.py"""
