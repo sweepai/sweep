@@ -50,8 +50,6 @@ class Sandbox(BaseModel):
     @classmethod
     def from_config(cls, path: str = "sweep.yaml"):
         if os.path.exists(path):
-            if not cls.validate_yaml(path):
-                raise ValueError("The YAML File is not valid") 
             return cls.from_yaml(open(path).read())
         else:
             return cls()
