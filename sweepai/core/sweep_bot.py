@@ -85,7 +85,7 @@ sandbox_error_prompt = """The following error logs were returned from `{command}
 {error_logs}
 ```
 
-Again, edit this file so that it passes the CI/CD."""
+Edit old_code to pass the CI/CD."""
 
 sandbox_error_prompt_test = """The following error logs were returned from `{command}`. Make changes to the current file so that it passes this CI/CD command.
 
@@ -93,10 +93,10 @@ sandbox_error_prompt_test = """The following error logs were returned from `{com
 {error_logs}
 ```
 
-Again, edit this file so that it passes the CI/CD.
-1. CLEARLY identify if the bug is in the unit tests or business logic. 
-2a. If there is a bug in the business logic skip the failing tests with an explanation. Do not break correct tests, just skip them.
-2b. If the test itself is wrong match the input to the expected output."""
+Edit old_code to pass the CI/CD.
+1. Analyze the business logic and tests. Identify whether the failure is in the unit tests or business logic.
+2a. If the business logic is correct fix the test to return the expected output.
+2b. If the business logic has a bug or you are unsure, skip the failing tests with an explanation."""
 
 def strip_backticks(s: str) -> str:
     s = s.strip()
@@ -1825,6 +1825,7 @@ class ModifyBot:
                 ),
                 request=file_change_request.instructions + "\n" + analysis_and_identification,
                 n=len(selected_snippets),
+                changes_made=self.get_diffs_message(file_contents),
             )
         )
         updated_snippets: dict[int, str] = {}
