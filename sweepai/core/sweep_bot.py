@@ -959,10 +959,6 @@ class SweepBot(CodeGenBot, GithubBot):
             else:
                 commit_message = f"feat: Updated {file_change_request.filename}"
             commit_message = commit_message[: min(len(commit_message), 50)]
-            # if not chunking and new_file is not None:
-            #     new_file, sandbox_execution = self.check_sandbox(
-            #         file_change_request.filename, new_file, changed_files
-            #     )
             changed_files.append(
                 (
                     file_change_request.filename,
@@ -1440,12 +1436,6 @@ class SweepBot(CodeGenBot, GithubBot):
                                 f"Chunk {i} of {len(chunks)}: {generate_diff(chunk_contents, new_chunk)}"
                             )
                             new_file_contents += new_chunk + "\n"
-                        # if len(lines) < 1000:
-                        #     new_file_contents, sandbox_error = self.check_sandbox(
-                        #         file_path=file_change_request.filename,
-                        #         content=new_file_contents,
-                        #         changed_files=changed_files,
-                        #     )
                 except Exception as e:
                     logger.print(e)
                     raise e
@@ -1959,6 +1949,12 @@ class ModifyBot:
         )
         updated_snippets: dict[int, str] = {}
         updated_pattern = r"<<<<<<<\s+ORIGINAL\s+\(index=(?P<index>\d+)\)(?P<original_code>.*?)=======(?P<updated_code>.*?)>>>>>>>\s+UPDATED"
+
+        if (
+            len(list(re.finditer(updated_pattern, update_snippets_response, re.DOTALL)))
+            == 0
+        ):
+            raise UnneededEditError("No snippets edited")
 
         for match_ in re.finditer(updated_pattern, update_snippets_response, re.DOTALL):
             index = int(match_.group("index"))
