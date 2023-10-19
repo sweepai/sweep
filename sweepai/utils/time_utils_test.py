@@ -1,6 +1,8 @@
 import unittest
 from datetime import datetime, timedelta
+
 from sweepai.utils.time_utils import time_since
+
 
 class TestTimeUtils(unittest.TestCase):
     def test_time_since(self):
