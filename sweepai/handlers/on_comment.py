@@ -413,7 +413,7 @@ def on_comment(
         changes_made = sum(
             [
                 change_made
-                for _, change_made, _, _ in sweep_bot.change_files_in_github_iterator(
+                for _, change_made, _, _, _ in sweep_bot.change_files_in_github_iterator(
                     file_change_requests, branch_name, blocked_dirs
                 )
             ]

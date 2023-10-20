@@ -1,11 +1,14 @@
+from __future__ import annotations
+
 import os
 import re
 import string
+import uuid
 from dataclasses import dataclass
 from typing import Any, ClassVar, List, Literal, Type, TypeVar
 from urllib.parse import quote
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from sweepai.logn import logger
 
@@ -109,14 +112,19 @@ class FileChangeRequest(RegexMatchableBaseModel):
     instructions: str
     change_type: Literal["modify"] | Literal["create"] | Literal["delete"] | Literal[
         "rename"
-    ] | Literal["rewrite"]
+    ] | Literal["rewrite"] | Literal["check"]
     _regex = r"""<(?P<change_type>[a-z]+)\s+file=\"(?P<filename>[a-zA-Z0-9/\\\.\[\]\(\)\_\+\- ]*?)\"( entity=\"(.*?)\")?( relevant_files=\"(?P<raw_relevant_files>.*?)\")?>(?P<instructions>.*?)<\/\1>"""
     entity: str | None = None
     new_content: str | None = None
     raw_relevant_files: str | None = None
-    start_and_end_lines: list[tuple] | None = []
+    start_and_end_lines: list[tuple] = []
     comment_line: int | None = None
     failed_sandbox_test: bool | None = False
+    parent: FileChangeRequest | None = None
+    status: Literal["succeeded"] | Literal["failed"] | Literal["queued"] | Literal[
+        "running"
+    ] = "queued"
+    id_: str = Field(default_factory=lambda: str(uuid.uuid4()))
 
     @classmethod
     def from_string(cls: Type[Self], string: str, **kwargs) -> Self:
@@ -146,11 +154,41 @@ class FileChangeRequest(RegexMatchableBaseModel):
             return f"`{self.filename}`"
 
     @property
+    def summary(self):
+        prefix = {"failed": "✗", "succeeded": "✓", "queued": "▶", "running": "⋯"}[
+            self.status
+        ] + " "
+        if self.change_type == "rename":
+            return prefix + f"Rename\n{self.filename} to {self.instructions}"
+        elif self.change_type == "delete":
+            return prefix + f"Delete\n{self.filename}"
+        elif self.change_type == "create":
+            return prefix + f"Create\n{self.filename}"
+        elif self.change_type == "modify":
+            return prefix + f"Modify\n{self.filename}"
+        elif self.change_type == "rewrite":
+            return prefix + f"Rewrite\n{self.filename}"
+        elif self.change_type == "check":
+            return prefix + f"Check\n{self.filename}"
+        else:
+            raise ValueError(f"Unknown change type {self.change_type}")
+
+    @property
+    def color(self):
+        color_map = {
+            "failed": "red",
+            "succeeded": "green",
+            "queued": "white",
+            "running": "yellow",
+        }
+        return color_map[self.status]
+
+    @property
     def entity_display_without_backtick(self):
         if self.entity:
-            return f"`{self.filename}:{self.entity}`"
+            return f"{self.filename}:{self.entity}"
         else:
-            return f"`{self.filename}`"
+            return f"{self.filename}"
 
     @property
     def instructions_display(self):
@@ -164,6 +202,8 @@ class FileChangeRequest(RegexMatchableBaseModel):
             return f"Modify {self.filename} with contents:\n{self.instructions}"
         elif self.change_type == "rewrite":
             return f"Rewrite {self.filename} with contents:\n{self.instructions}"
+        elif self.change_type == "check":
+            return f"Run {self.filename} through the sandbox."
         else:
             raise ValueError(f"Unknown change type {self.change_type}")
 
