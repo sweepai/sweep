@@ -1,6 +1,8 @@
 import copy
+import hashlib
 import re
 import traceback
+import uuid
 from collections import OrderedDict
 from typing import Dict, Generator
 
@@ -373,6 +375,8 @@ class CodeGenBot(ChatGPT):
                         if file_change_request.change_type in ("modify", "create"):
                             new_file_change_request = copy.deepcopy(file_change_request)
                             new_file_change_request.change_type = "check"
+                            new_file_change_request.parent = file_change_request
+                            new_file_change_request.id_ = str(uuid.uuid4())
                             file_change_requests.append(new_file_change_request)
 
                     if file_change_requests:
@@ -399,6 +403,8 @@ class CodeGenBot(ChatGPT):
                 if file_change_request.change_type in ("modify", "create"):
                     new_file_change_request = copy.deepcopy(file_change_request)
                     new_file_change_request.change_type = "check"
+                    new_file_change_request.parent = file_change_request
+                    new_file_change_request.id_ = str(uuid.uuid4())
                     file_change_requests.append(new_file_change_request)
 
             if file_change_requests:
@@ -624,9 +630,51 @@ class GithubBot(BaseModel):
         return file_change_requests
 
 
+ASSET_BRANCH_NAME = "sweep/assets"
+
+
 class SweepBot(CodeGenBot, GithubBot):
     comment_pr_diff_str: str | None = None
     comment_pr_files_modified: Dict[str, str] | None = None
+
+    def init_asset_branch(
+        self,
+        branch: str = ASSET_BRANCH_NAME,
+    ):
+        try:
+            self.repo.get_branch(branch)
+            return
+        except GithubException:
+            self.repo.create_git_ref(
+                f"refs/heads/{branch}",
+                self.repo.get_branch(self.repo.default_branch).commit.sha,
+            )
+
+    def update_asset(
+        self,
+        file_path: str,
+        content: str,
+    ):
+        self.init_asset_branch()
+        hash_ = hashlib.sha256(content.encode("utf-8")).hexdigest()
+        file_path = f"{hash_}_{file_path}"
+        try:
+            fetched_content = self.repo.get_contents(file_path, ASSET_BRANCH_NAME)
+            self.repo.update_file(
+                file_path,
+                "Update " + file_path,
+                content,
+                fetched_content.sha,
+                branch=ASSET_BRANCH_NAME,
+            )
+        except UnknownObjectException:
+            self.repo.create_file(
+                file_path,
+                "Add " + file_path,
+                content,
+                branch=ASSET_BRANCH_NAME,
+            )
+        return f"https://raw.githubusercontent.com/{self.repo.full_name}/{ASSET_BRANCH_NAME}/{file_path}"
 
     @staticmethod
     # @file_cache(ignore_params=["token"])
@@ -1027,29 +1075,12 @@ class SweepBot(CodeGenBot, GithubBot):
             self.delete_messages_from_chat(key)
         raise Exception("Failed to parse response after 5 attempts.")
 
-    def change_files_in_github(
-        self,
-        file_change_requests: list[FileChangeRequest],
-        branch: str,
-        blocked_dirs: list[str] = [],
-    ):
-        # should check if branch exists, if not, create it
-        logger.debug(file_change_requests)
-        num_fcr = len(file_change_requests)
-        completed = 0
-
-        for _, changed_file in self.change_files_in_github_iterator(
-            file_change_requests, branch, blocked_dirs
-        ):
-            if changed_file:
-                completed += 1
-        return completed, num_fcr
-
     def get_files_to_change_from_sandbox(
         self,
         file_path: str,
         file_contents: str,
         sandbox_response: SandboxResponse,
+        parent_fcr: FileChangeRequest | None = None,
     ) -> list[FileChangeRequest]:
         new_self = ChatGPT(chat_logger=self.chat_logger)
         new_self.messages = copy.deepcopy(self.messages)
@@ -1077,6 +1108,8 @@ class SweepBot(CodeGenBot, GithubBot):
             if file_change_request.change_type in ("modify", "create"):
                 new_file_change_request = copy.deepcopy(file_change_request)
                 new_file_change_request.change_type = "check"
+                new_file_change_request.id_ = str(uuid.uuid4())
+                new_file_change_request.parent = file_change_request
                 file_change_requests.append(new_file_change_request)
 
         return file_change_requests
@@ -1093,6 +1126,8 @@ class SweepBot(CodeGenBot, GithubBot):
         changed_files: list[tuple[str, str]] = []
 
         i = 0
+
+        file_change_requests[i].status = "running"
 
         while i < min(len(file_change_requests), 15):
             file_change_request = file_change_requests[i]
@@ -1127,11 +1162,15 @@ class SweepBot(CodeGenBot, GithubBot):
                             branch,
                             changed_files=changed_files,
                         )
+                        file_change_requests[i].status = "succeeded"
+                        if i + 1 < len(file_change_requests):
+                            file_change_requests[i + 1].status = "running"
                         yield (
                             file_change_request,
                             changed_file,
                             sandbox_response,
                             commit,
+                            file_change_requests,
                         )
                     case "modify" | "rewrite":
                         # Remove snippets from this file if they exist
@@ -1158,11 +1197,17 @@ class SweepBot(CodeGenBot, GithubBot):
                             branch=branch,
                             changed_files=changed_files,
                         )
+                        file_change_requests[i].status = (
+                            "succeeded" if changed_file else "failed"
+                        )
+                        if i + 1 < len(file_change_requests):
+                            file_change_requests[i + 1].status = "running"
                         yield (
                             file_change_request,
                             changed_file,
                             sandbox_execution,
                             commit,
+                            file_change_requests,
                         )
                     case "check":
                         contents_obj = self.get_contents(
@@ -1186,15 +1231,22 @@ class SweepBot(CodeGenBot, GithubBot):
                                     file_change_request.filename,
                                     updated_contents,
                                     sandbox_execution,
+                                    parent_fcr=file_change_request,
                                 )
                             )
                             file_change_requests.extend(additional_file_change_requests)
                             file_change_requests.append(file_change_request)
+                        file_change_requests[i].status = (
+                            "succeeded" if sandbox_execution.success else "failed"
+                        )
+                        if i + 1 < len(file_change_requests):
+                            file_change_requests[i + 1].status = "running"
                         yield (
                             file_change_request,
                             True,
                             sandbox_execution,
                             commit,
+                            file_change_requests,
                         )
                     case "delete":
                         contents = self.repo.get_contents(
@@ -1207,7 +1259,10 @@ class SweepBot(CodeGenBot, GithubBot):
                             branch=branch,
                         )
                         changed_file = True
-                        yield file_change_request, changed_file, sandbox_execution, commit
+                        file_change_requests[i].status = "succeeded"
+                        if i + 1 < len(file_change_requests):
+                            file_change_requests[i + 1].status = "running"
+                        yield file_change_request, changed_file, sandbox_execution, commit, file_change_requests
                     case "rename":
                         contents = self.repo.get_contents(
                             file_change_request.filename, ref=branch
@@ -1228,7 +1283,10 @@ class SweepBot(CodeGenBot, GithubBot):
                             branch=branch,
                         )
                         changed_file = True
-                        yield file_change_request, changed_file, sandbox_execution, commit
+                        file_change_requests[i].status = "succeeded"
+                        if i + 1 < len(file_change_requests):
+                            file_change_requests[i + 1].status = "running"
+                        yield file_change_request, changed_file, sandbox_execution, commit, file_change_requests
                     case _:
                         raise Exception(
                             f"Unknown change type {file_change_request.change_type}"
@@ -1298,6 +1356,7 @@ class SweepBot(CodeGenBot, GithubBot):
         if not sandbox_response.success:
             new_file_change_request = file_change_request
             new_file_change_request.change_type = "modify"
+            new_file_change_request.id_ = str(uuid.uuid4())
             sandbox_command = sandbox_response.executions[-1].command.format(
                 file_path=file_change_request.filename
             )
@@ -1544,6 +1603,7 @@ class SweepBot(CodeGenBot, GithubBot):
                 break
             if sandbox_response and not sandbox_response.success:
                 new_file_change_request = file_change_request
+                new_file_change_request.id_ = str(uuid.uuid4())
                 sandbox_command = sandbox_response.executions[-1].command.format(
                     file_path=file_change_request.filename
                 )
@@ -1659,6 +1719,7 @@ class ModifyBot:
                 joined_comments = "\n".join(leftover_comments)
                 new_file_change_request = copy.deepcopy(file_change_request)
                 new_file_change_request.new_content = new_file
+                new_file_change_request.id_ = str(uuid.uuid4())
                 new_file_change_request.instructions = f"Address all of the unfinished code changes here: \n{joined_comments}"
                 self.fetch_snippets_bot.messages = self.fetch_snippets_bot.messages[:-2]
                 self.prune_modify_snippets_bot.messages = (
