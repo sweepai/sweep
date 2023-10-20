@@ -8,8 +8,6 @@ from sweepai.api import app
 from sweepai.events import Account, Installation, IssueRequest
 from sweepai.utils.github_utils import get_github_client, get_installation_id
 
-client = TestClient(app)
-
 
 def fetch_issue_request(issue_url: str, __version__: str = "0"):
     (
@@ -78,9 +76,10 @@ def test_issue_url(
     print(f"Fetching issue metdata...")
     issue_request = fetch_issue_request(issue_url)
     print(f"Sending request...")
-    response = client.post(
-        "/", json=issue_request.dict(), headers={"X-GitHub-Event": "issues"}
-    )
+    with TestClient(app) as client:
+        response = client.post(
+            "/", json=issue_request.dict(), headers={"X-GitHub-Event": "issues"}
+        )
     print(response)
     better_stack_link = f"{better_stack_prefix}{html.escape(issue_url)}"
     print(f"Track the logs at the following link:\n\n{better_stack_link}")

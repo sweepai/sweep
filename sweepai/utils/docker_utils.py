@@ -21,9 +21,12 @@ def get_latest_docker_version():
             return "just now"
 
     url = "https://hub.docker.com/v2/namespaces/sweepai/repositories/sweep/tags"
-    response = requests.get(url)
-    data = response.json()
-
+    try:
+        response = requests.get(url, timeout=(2,2))
+        response.raise_for_status()  # Raises HTTPError for bad responses (4xx and 5xx)
+        data = response.json()
+    except Exception as e:
+        logger.error(f"Unknown docker error: {e}")
     truncated_time = data["results"][0]["last_updated"].split(".")[
         0
     ]  # Truncate fractional seconds
