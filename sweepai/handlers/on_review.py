@@ -1,16 +1,17 @@
 """
 Take a PR and provide an AI generated review of the PR.
 """
-from sweepai.logn import logger
 from sweepai.config.server import MONGODB_URI
 from sweepai.core.entities import DiffSummarization, PullRequestComment
-from sweepai.core.prompts import review_prompt, final_review_prompt
+from sweepai.core.prompts import final_review_prompt, review_prompt
 from sweepai.core.sweep_bot import SweepBot
+from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.prompt_constructor import (
     HumanMessageFinalPRComment,
     HumanMessagePromptReview,
 )
+
 
 def get_pr_diffs(repo, pr):
     base_sha = pr.base.sha

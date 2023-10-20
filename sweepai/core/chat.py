@@ -54,6 +54,7 @@ default_temperature = (
 )
 count_tokens = Tiktoken().count
 
+
 class ChatGPT(BaseModel):
     messages: list[Message] = [
         Message(

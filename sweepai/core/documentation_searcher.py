@@ -1,4 +1,3 @@
-from sweepai.logn import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.documentation import DOCS_ENDPOINTS, search_vector_store
 from sweepai.core.entities import Message
@@ -8,6 +7,7 @@ from sweepai.core.prompts import (
     docs_qa_system_prompt,
     docs_qa_user_prompt,
 )
+from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 
 DOCS_ENDPOINTS = DOCS_ENDPOINTS

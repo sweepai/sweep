@@ -1,7 +1,7 @@
 import html
 import multiprocessing
-import typer
 
+import typer
 from fastapi.testclient import TestClient
 from github import Github
 
@@ -68,6 +68,7 @@ def fetch_issue_request(issue_url: str, __version__: str = "0"):
 
     return issue_request
 
+
 def send_request(issue_request):
     with TestClient(app) as client:
         response = client.post(
@@ -75,20 +76,23 @@ def send_request(issue_request):
         )
         print(response)  # or return response, depending on your needs
 
+
 def test_issue_url(
     issue_url: str,
     better_stack_prefix: str = "https://logs.betterstack.com/team/199101/tail?rf=now-30m&q=metadata.issue_url%3A",
+    debug: bool = True,
 ):
     issue_url = issue_url or typer.prompt("Issue URL")
     print(f"Fetching issue metadata...")
     issue_request = fetch_issue_request(issue_url)
     print(f"Sending request...")
 
-    request_process = multiprocessing.Process(target=send_request, args=(issue_request,))
+    request_process = multiprocessing.Process(
+        target=send_request, args=(issue_request,)
+    )
     request_process.start()
 
-    # Wait for 150 seconds or until process finishes
-    request_process.join(timeout=150)
+    request_process.join(timeout=None if debug else 150)
 
     # If process is still alive after 5 seconds, terminate it
     if request_process.is_alive():
@@ -98,6 +102,7 @@ def test_issue_url(
 
     better_stack_link = f"{better_stack_prefix}{html.escape(issue_url)}"
     print(f"Track the logs at the following link:\n\n{better_stack_link}")
+
 
 if __name__ == "__main__":
     typer.run(test_issue_url)

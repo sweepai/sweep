@@ -58,10 +58,14 @@ class ExtractLeftoverComments(ChatGPT):
         try:
             if not check_comments_presence(file_path, new_code):
                 return []
-            self.messages = [Message(role="system", content=system_message_prompt, key="system")]
-            response = self.chat(user_prompt.format(new_code = new_code,
-                                                     file_path = file_path,
-                                                     request = request))
+            self.messages = [
+                Message(role="system", content=system_message_prompt, key="system")
+            ]
+            response = self.chat(
+                user_prompt.format(
+                    new_code=new_code, file_path=file_path, request=request
+                )
+            )
             leftover_comments = LeftoverComments.from_string(response)
             return leftover_comments.leftover_comments
         except SystemExit:

@@ -1,6 +1,5 @@
 import subprocess
 
-from sweepai.logn import logger
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import Message
 from sweepai.core.prompts import (
@@ -9,6 +8,7 @@ from sweepai.core.prompts import (
     code_repair_prompt,
     code_repair_system_prompt,
 )
+from sweepai.logn import logger
 
 response_regex = r"```[^\n]*(?P<response>.+)```"
 

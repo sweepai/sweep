@@ -5,10 +5,10 @@ on_merge is called by sweepai/api.py
 import copy
 import time
 
-from sweepai.logn import logger
-from sweepai.config.client import SweepConfig, get_rules, get_blocked_dirs
+from sweepai.config.client import SweepConfig, get_blocked_dirs, get_rules
 from sweepai.core.post_merge import PostMerge
 from sweepai.handlers.pr_utils import make_pr
+from sweepai.logn import logger
 from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.event_logger import posthog
 from sweepai.utils.github_utils import get_github_client
@@ -26,6 +26,7 @@ diff_section_prompt = """
 <file_diff file="{diff_file_path}">
 {diffs}
 </file_diff>"""
+
 
 def comparison_to_diff(comparison, blocked_dirs):
     pr_diffs = []
@@ -51,15 +52,19 @@ def comparison_to_diff(comparison, blocked_dirs):
         formatted_diffs.append(format_diff)
     return "\n".join(formatted_diffs)
 
+
 def on_merge(request_dict: dict, chat_logger: ChatLogger):
-    before_sha = request_dict['before']
-    after_sha = request_dict['after']
-    commit_author = request_dict['sender']['login']
+    before_sha = request_dict["before"]
+    after_sha = request_dict["after"]
+    commit_author = request_dict["sender"]["login"]
     ref = request_dict["ref"]
-    if not ref.startswith("refs/heads/"): return
+    if not ref.startswith("refs/heads/"):
+        return
     user_token, g = get_github_client(request_dict["installation"]["id"])
-    repo = g.get_repo(request_dict["repository"]["full_name"]) # do this after checking ref
-    if ref[len("refs/heads/"):] != SweepConfig.get_branch(repo):
+    repo = g.get_repo(
+        request_dict["repository"]["full_name"]
+    )  # do this after checking ref
+    if ref[len("refs/heads/") :] != SweepConfig.get_branch(repo):
         return
     blocked_dirs = get_blocked_dirs(repo)
     comparison = repo.compare(before_sha, after_sha)
@@ -72,9 +77,12 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
     ):
         return
     merge_rule_debounce[repo.full_name] = time.time()
-    if not (commits_diff.count("\n") > CHANGE_BOUNDS[0] and commits_diff.count("\n") < CHANGE_BOUNDS[1]):
+    if not (
+        commits_diff.count("\n") > CHANGE_BOUNDS[0]
+        and commits_diff.count("\n") < CHANGE_BOUNDS[1]
+    ):
         return
-    
+
     rules = get_rules(repo)
     if not rules:
         return
@@ -96,7 +104,4 @@ def on_merge(request_dict: dict, chat_logger: ChatLogger):
                 chat_logger=chat_logger,
                 rule=rule,
             )
-            posthog.capture(
-                commit_author,
-                "rule_pr_created"
-            )
+            posthog.capture(commit_author, "rule_pr_created")

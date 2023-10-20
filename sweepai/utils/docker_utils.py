@@ -22,7 +22,7 @@ def get_latest_docker_version():
 
     url = "https://hub.docker.com/v2/namespaces/sweepai/repositories/sweep/tags"
     try:
-        response = requests.get(url, timeout=(2,2))
+        response = requests.get(url, timeout=(2, 2))
         response.raise_for_status()  # Raises HTTPError for bad responses (4xx and 5xx)
         data = response.json()
     except Exception as e:
