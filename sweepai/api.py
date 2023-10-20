@@ -253,15 +253,159 @@ from sweepai.utils.worker_wrapper import WorkerWrapper
 
 @app.post("/")
 async def webhook(raw_request: Request):
-    # Do not create logs for api
-    logger.init(
-        metadata={"name": "webhook", "request": await raw_request.json()},
-        create_file=False,
-    )
-
-    """Handle a webhook request from GitHub."""
-    try:
-        request_dict = await raw_request.json()
+    if event == "pull_request" and action == "opened":
+        logger.info(f"Received event: {event}, {action}")
+        def worker():
+            _, g = get_github_client(request_dict["installation"]["id"])
+            repo = g.get_repo(request_dict["repository"]["full_name"])
+            pr = repo.get_pull(request_dict["pull_request"]["number"])
+            # if the pr already has a comment from sweep bot do nothing
+            time.sleep(60)
+            if any(
+                comment.user.login == GITHUB_BOT_USERNAME
+                for comment in pr.get_issue_comments()
+            ):
+                return {
+                    "success": True,
+                    "reason": "PR already has a comment from sweep bot",
+                }
+            rule_buttons = []
+        worker_wrapper = WorkerWrapper(worker)
+        worker_wrapper.start()
+    elif event == "issues" and action == "opened":
+        logger.info(f"Received event: {event}, {action}")
+        request = IssueRequest(**request_dict)
+        issue_title_lower = request.issue.title.lower()
+        if (
+            issue_title_lower.startswith("sweep")
+            or "sweep:" in issue_title_lower
+        ):
+            _, g = get_github_client(request.installation.id)
+            repo = g.get_repo(request.repository.full_name)
+    
+            labels = repo.get_labels()
+            label_names = [label.name for label in labels]
+    
+            if GITHUB_LABEL_NAME not in label_names:
+                repo.create_label(
+                    name=GITHUB_LABEL_NAME,
+                    color=GITHUB_LABEL_COLOR,
+                    description=GITHUB_LABEL_DESCRIPTION,
+                )
+            current_issue = repo.get_issue(number=request.issue.number)
+            current_issue.add_to_labels(GITHUB_LABEL_NAME)
+    elif event == "issue_comment" and action == "edited":
+        logger.info(f"Received event: {event}, {action}")
+        request = IssueCommentRequest(**request_dict)
+        sweep_labeled_issue = GITHUB_LABEL_NAME in [
+            label.name.lower() for label in request.issue.labels
+        ]
+        button_title_match = check_button_title_match(
+            REVERT_CHANGED_FILES_TITLE,
+            request.comment.body,
+            request.changes,
+        ) or check_button_title_match(
+            RULES_TITLE,
+            request.comment.body,
+            request.changes,
+        )
+        if (
+            request.comment.user.type == "Bot"
+            and GITHUB_BOT_USERNAME in request.comment.user.login
+            and request.changes.body_from is not None
+            and button_title_match
+            and request.sender.type == "User"
+        ):
+            run_on_button_click(request_dict)
+    
+        restart_sweep = False
+        if (
+            request.comment.user.type == "Bot"
+            and GITHUB_BOT_USERNAME in request.comment.user.login
+            and request.changes.body_from is not None
+            and check_button_activated(
+                RESTART_SWEEP_BUTTON, request.comment.body, request.changes
+            )
+            and sweep_labeled_issue
+            and request.sender.type == "User"
+        ):
+            # Restart Sweep on this issue
+            restart_sweep = True
+    
+        if (
+            request.issue is not None
+            and sweep_labeled_issue
+            and request.comment.user.type == "User"
+            and not request.comment.user.login.startswith("sweep")
+            and not (
+                request.issue.pull_request and request.issue.pull_request.url
+            )
+            or restart_sweep
+        ):
+            logger.info("New issue comment edited")
+            request.issue.body = request.issue.body or ""
+            request.repository.description = (
+                request.repository.description or ""
+            )
+    
+            if (
+                not request.comment.body.strip()
+                .lower()
+                .startswith(GITHUB_LABEL_NAME)
+                and not restart_sweep
+            ):
+                logger.info("Comment does not start with 'Sweep', passing")
+                return {
+                    "success": True,
+                    "reason": "Comment does not start with 'Sweep', passing",
+                }
+    
+            call_on_ticket(
+                title=request.issue.title,
+                summary=request.issue.body,
+                issue_number=request.issue.number,
+                issue_url=request.issue.html_url,
+                username=request.issue.user.login,
+                repo_full_name=request.repository.full_name,
+                repo_description=request.repository.description,
+                installation_id=request.installation.id,
+                comment_id=request.comment.id if not restart_sweep else None,
+                edited=True,
+            )
+        # Assuming the limit is on the number of comments
+        MAX_COMMENTS = 10  # Set this to the desired limit
+        comment_count = len(request.issue.pull_request.get_comments())
+        if comment_count > MAX_COMMENTS:
+            logger.info(f"Comment limit exceeded for PR: {request.issue.pull_request}")
+        else:
+            logger.info(f"Handling comment on PR: {request.issue.pull_request}")
+            _, g = get_github_client(request.installation.id)
+            repo = g.get_repo(request.repository.full_name)
+            pr = repo.get_pull(request.issue.number)
+            labels = pr.get_labels()
+            comment = request.comment.body
+            if comment.lower().startswith("sweep:") or any(
+                label.name.lower() == "sweep" for label in labels
+            ):
+                pr_change_request = PRChangeRequest(
+                    params={
+                        "comment_type": "comment",
+                        "repo_full_name": request.repository.full_name,
+                        "repo_description": request.repository.description,
+                        "comment": request.comment.body,
+                        "pr_path": None,
+                        "pr_line_position": None,
+                        "username": request.comment.user.login,
+                        "installation_id": request.installation.id,
+                        "pr_number": request.issue.number,
+                        "comment_id": request.comment.id,
+                    },
+                )
+                call_on_comment(**pr_change_request.params)
+            # Assuming the separate endpoint is a new route handler function
+    else:
+        # Handle other cases here
+        pass
         event = raw_request.headers.get("X-GitHub-Event")
         assert event is not None
 
@@ -539,7 +683,39 @@ async def webhook(raw_request: Request):
                 repo = g.get_repo(request.repository.full_name)
                 pr = repo.get_pull(request.pull_request.number)
                 labels = pr.get_labels()
+                if event == "pull_request_review_comment" and action == "created":
                     worker = WorkerWrapper(call_on_comment, **pr_change_request.params)
+                    worker.start()
+                elif event == "pull_request_review" and action == "submitted":
+                    request = ReviewSubmittedRequest(**request_dict)
+                    worker = WorkerWrapper(call_on_review, **request.params)
+                    worker.start()
+                elif event == "check_run" and action == "completed":
+                    request = CheckRunCompletedRequest(**request_dict)
+                    worker = WorkerWrapper(call_on_check_run, **request.params)
+                    worker.start()
+                elif event == "installation_repositories" and action == "added":
+                    repos_added_request = ReposAddedRequest(**request_dict)
+                    worker = WorkerWrapper(call_on_installation_repositories, **repos_added_request.params)
+                    worker.start()
+                elif event == "installation" and action == "created":
+                    repos_added_request = InstallationCreatedRequest(**request_dict)
+                    worker = WorkerWrapper(call_on_installation, **repos_added_request.params)
+                    worker.start()
+                elif event == "pull_request" and action == "edited":
+                    request = PREdited(**request_dict)
+                    worker = WorkerWrapper(call_on_pull_request, **request.params)
+                    worker.start()
+                elif event == "push" and action == None:
+                    logger.info(f"Received event: {event}, {action}")
+                    if event != "pull_request" or request_dict["base"]["merged"] == True:
+                        worker = WorkerWrapper(call_on_push, **request_dict)
+                        worker.start()
+                elif event == "pull_request" and action == "closed":
+                    worker = WorkerWrapper(handle_pull_request_closed, **request_dict)
+                    worker.start()
+                else:
+                    worker = WorkerWrapper(handle_general_case, **request_dict)
                     worker.start()
                 if (
                     comment.lower().startswith("sweep:")
