@@ -227,7 +227,6 @@ OPENAI_API_ENGINE_GPT35 = os.environ.get("OPENAI_API_ENGINE_GPT35", None)
 OPENAI_API_ENGINE_GPT4 = os.environ.get("OPENAI_API_ENGINE_GPT4", None)
 OPENAI_API_ENGINE_GPT4_32K = os.environ.get("OPENAI_API_ENGINE_GPT4_32K", None)
 MULTI_REGION_CONFIG = os.environ.get("MULTI_REGION_CONFIG", None)
-import pdb; pdb.set_trace()
 if isinstance(MULTI_REGION_CONFIG, str):
     MULTI_REGION_CONFIG = [item.split(",") for item in MULTI_REGION_CONFIG.strip("'").split("\\n")]
 
