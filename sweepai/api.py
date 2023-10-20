@@ -14,6 +14,7 @@ from sweepai.utils.buttons import (
     check_button_title_match,
 )
 from sweepai.utils.safe_pqueue import SafePriorityQueue
+from sweepai.utils.worker_wrapper import WorkerWrapper
 
 logger.init(
     metadata=None,
@@ -83,28 +84,18 @@ on_ticket_events = {}
 
 
 def run_on_ticket(*args, **kwargs):
-    loguru.logger.bind(
-        metadata={
-            **kwargs,
-            "name": "ticket_" + kwargs["username"],
-        },
-    )
-    on_ticket(*args, **kwargs)
+    worker = WorkerWrapper(on_ticket, *args, **kwargs)
+    worker.start()
 
 
 def run_on_comment(*args, **kwargs):
-    loguru.logger.bind(
-        metadata={
-            **kwargs,
-            "name": "comment_" + kwargs["username"],
-        },
-    )
-    on_comment(*args, **kwargs)
+    worker = WorkerWrapper(on_comment, *args, **kwargs)
+    worker.start()
 
 
 def run_on_button_click(*args, **kwargs):
-    thread = threading.Thread(target=handle_button_click, args=args, kwargs=kwargs)
-    thread.start()
+    worker = WorkerWrapper(handle_button_click, *args, **kwargs)
+    worker.start()
 
 
 def run_on_check_suite(*args, **kwargs):
@@ -182,8 +173,9 @@ def call_on_ticket(*args, **kwargs):
         logger.info(f"Found previous thread for key {key} and cancelling it")
         terminate_thread(e)
 
-    thread = threading.Thread(target=run_on_ticket, args=args, kwargs=kwargs)
-    on_ticket_events[key] = thread
+    worker = WorkerWrapper(run_on_ticket, *args, **kwargs)
+    on_ticket_events[key] = worker
+    worker.start()
     thread.start()
 
     delayed_kill_thread = threading.Thread(target=delayed_kill, args=(thread,))
@@ -203,7 +195,8 @@ def call_on_comment(
     def worker():
         while not events[key].empty():
             task_args, task_kwargs = events[key].get()
-            run_on_comment(*task_args, **task_kwargs)
+            worker = WorkerWrapper(run_on_comment, *task_args, **task_kwargs)
+            worker.start()
 
     global events
     repo_full_name = kwargs["repo_full_name"]
@@ -256,6 +249,8 @@ def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
 
+from sweepai.utils.worker_wrapper import WorkerWrapper
+
 @app.post("/")
 async def webhook(raw_request: Request):
     # Do not create logs for api
@@ -291,19 +286,8 @@ async def webhook(raw_request: Request):
                             "reason": "PR already has a comment from sweep bot",
                         }
                     rule_buttons = []
-                    for rule in get_rules(repo):
-                        rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-                    if not rule_buttons:
-                        for rule in DEFAULT_RULES:
-                            rule_buttons.append(Button(label=f"{RULES_LABEL} {rule}"))
-                    if rule_buttons:
-                        rules_buttons_list = ButtonList(
-                            buttons=rule_buttons, title=RULES_TITLE
-                        )
-                        pr.create_issue_comment(rules_buttons_list.serialize())
-
-                thread = threading.Thread(target=worker)
-                thread.start()
+                worker_wrapper = WorkerWrapper(worker)
+                worker_wrapper.start()
             case "issues", "opened":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
@@ -550,7 +534,8 @@ async def webhook(raw_request: Request):
                 repo = g.get_repo(request.repository.full_name)
                 pr = repo.get_pull(request.pull_request.number)
                 labels = pr.get_labels()
-                comment = request.comment.body
+                    worker = WorkerWrapper(call_on_comment, **pr_change_request.params)
+                    worker.start()
                 if (
                     comment.lower().startswith("sweep:")
                     or any(label.name.lower() == "sweep" for label in labels)
@@ -572,19 +557,17 @@ async def webhook(raw_request: Request):
                     call_on_comment(**pr_change_request.params)
                 # Todo: update index on comments
             case "pull_request_review", "submitted":
-                # request = ReviewSubmittedRequest(**request_dict)
-                pass
+                request = ReviewSubmittedRequest(**request_dict)
+                worker = WorkerWrapper(call_on_review, **request.params)
+                worker.start()
             case "check_run", "completed":
-                pass  # removed for now
+                request = CheckRunCompletedRequest(**request_dict)
+                worker = WorkerWrapper(call_on_check_run, **request.params)
+                worker.start()
             case "installation_repositories", "added":
                 repos_added_request = ReposAddedRequest(**request_dict)
-                metadata = {
-                    "installation_id": repos_added_request.installation.id,
-                    "repositories": [
-                        repo.full_name
-                        for repo in repos_added_request.repositories_added
-                    ],
-                }
+                worker = WorkerWrapper(call_on_installation_repositories, **repos_added_request.params)
+                worker.start()
 
                 try:
                     add_config_to_top_repos(
@@ -617,6 +600,8 @@ async def webhook(raw_request: Request):
                     )
             case "installation", "created":
                 repos_added_request = InstallationCreatedRequest(**request_dict)
+                worker = WorkerWrapper(call_on_installation, **repos_added_request.params)
+                worker.start()
 
                 try:
                     add_config_to_top_repos(
@@ -637,6 +622,8 @@ async def webhook(raw_request: Request):
                     )
             case "pull_request", "edited":
                 request = PREdited(**request_dict)
+                worker = WorkerWrapper(call_on_pull_request, **request.params)
+                worker.start()
 
                 if (
                     request.pull_request.user.login == GITHUB_BOT_USERNAME
@@ -757,6 +744,8 @@ async def webhook(raw_request: Request):
             case "push", None:
                 logger.info(f"Received event: {event}, {action}")
                 if event != "pull_request" or request_dict["base"]["merged"] == True:
+                    worker = WorkerWrapper(call_on_push, **request_dict)
+                    worker.start()
                     chat_logger = ChatLogger(
                         {"username": request_dict["pusher"]["name"]}
                     )
