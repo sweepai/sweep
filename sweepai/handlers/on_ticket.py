@@ -1064,7 +1064,7 @@ def on_ticket(
                                 "\n\n".join(
                                     [
                                         create_collapsible(
-                                            f"<code>{execution.command.format(file_path=file_change_request.entity_display_without_backtick)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
+                                            f"<code>{execution.command.format(file_path=file_change_request.filename)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
                                             f"<pre>{clean_logs(execution.output)}</pre>",
                                             i == len(sandbox_response.executions) - 1,
                                         )
@@ -1149,7 +1149,7 @@ def on_ticket(
                             for i, (entity_display_, _, _) in enumerate(
                                 checkboxes_progress
                             )
-                            if file_change_request.entity_display in entity_display
+                            if file_change_request.entity_display in entity_display_
                         ),
                         None,
                     )

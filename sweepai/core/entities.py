@@ -186,9 +186,9 @@ class FileChangeRequest(RegexMatchableBaseModel):
     @property
     def entity_display_without_backtick(self):
         if self.entity:
-            return f"`{self.filename}:{self.entity}`"
+            return f"{self.filename}:{self.entity}"
         else:
-            return f"`{self.filename}`"
+            return f"{self.filename}"
 
     @property
     def instructions_display(self):
