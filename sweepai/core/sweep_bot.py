@@ -1103,7 +1103,9 @@ class SweepBot(CodeGenBot, GithubBot):
         for re_match in re.finditer(
             FileChangeRequest._regex, files_to_change_response, re.DOTALL
         ):
-            file_change_request = FileChangeRequest.from_string(re_match.group(0))
+            file_change_request = FileChangeRequest.from_string(
+                re_match.group(0), parent=parent_fcr
+            )
             file_change_requests.append(file_change_request)
             if file_change_request.change_type in ("modify", "create"):
                 new_file_change_request = copy.deepcopy(file_change_request)
@@ -1234,8 +1236,15 @@ class SweepBot(CodeGenBot, GithubBot):
                                     parent_fcr=file_change_request,
                                 )
                             )
-                            file_change_requests.extend(additional_file_change_requests)
-                            file_change_requests.append(file_change_request)
+                            new_check_fcr = copy.deepcopy(file_change_request)
+                            new_check_fcr.status = "queued"
+                            new_check_fcr.id_ = str(uuid.uuid4())
+                            additional_file_change_requests.append(new_check_fcr)
+                            file_change_requests = (
+                                file_change_requests[: i + 1]
+                                + additional_file_change_requests
+                                + file_change_requests[i + 1 :]
+                            )
                         file_change_requests[i].status = (
                             "succeeded" if sandbox_execution.success else "failed"
                         )

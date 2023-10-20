@@ -1015,6 +1015,7 @@ def on_ticket(
                 "Checklist", checkboxes_contents, opened=True
             )
 
+            file_change_requests[0].status = "running"
             svg = create_digraph_svg(file_change_requests)
             svg_url = sweep_bot.update_asset(f"{issue_number}_flowchart.svg", svg)
 

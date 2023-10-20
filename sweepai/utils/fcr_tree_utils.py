@@ -6,6 +6,7 @@ from sweepai.core.entities import FileChangeRequest
 def create_digraph(file_change_requests: list[FileChangeRequest]):
     dot = Digraph(comment="FileChangeRequest Tree")
     dot.attr(pad="0.5")
+    dot.attr(label="Sweep's Plan & Progress", labelloc="t", labeljust="c")
 
     ranks = {}
 
@@ -20,10 +21,9 @@ def create_digraph(file_change_requests: list[FileChangeRequest]):
             if layer == 0:
                 c.attr(label="Original plan", labelloc="t", labeljust="l", rank="same")
                 c.node("start", "", shape="none", width="0")
+                c.node("end", "", shape="none", width="0")
             else:
                 c.attr(label=f"Layer {layer}", rank="same")
-            if layer == max(ranks.values()):
-                c.node("end", "", shape="none", width="0")
             for fcr in file_change_requests:
                 if ranks[fcr.id_] == layer:
                     if fcr.change_type == "check":
@@ -40,21 +40,24 @@ def create_digraph(file_change_requests: list[FileChangeRequest]):
                         )
 
     last_item_per_layer = {layer: None for layer in range(max(ranks.values()) + 1)}
+    last_fcr = None
 
     for fcr in file_change_requests:
+        if fcr.change_type != "check":
+            last_fcr = fcr
         if fcr.parent:
             if fcr.change_type == "check":
-                dot.edge(fcr.parent.id_, fcr.id_, label="Check changes", style="dashed")
+                dot.edge(fcr.parent.id_, fcr.id_, style="dashed")
             elif fcr.parent.change_type == "check":
-                dot.edge(fcr.parent.id_, fcr.id_, label="More changes required")
+                dot.edge(fcr.parent.id_, fcr.id_, label="Additional changes required")
             else:
                 dot.edge(fcr.parent.id_, fcr.id_)
         elif last_item_per_layer[ranks[fcr.id_]] is not None:
-            dot.edge(last_item_per_layer[ranks[fcr.id_]].id_, fcr.id_, label="Continue")
+            dot.edge(last_item_per_layer[ranks[fcr.id_]].id_, fcr.id_)
         last_item_per_layer[ranks[fcr.id_]] = fcr
 
     dot.edge("start", file_change_requests[0].id_, label="Start")
-    dot.edge(file_change_requests[-1].id_, "end", label="Finish")
+    dot.edge(last_fcr.id_, "end", label="Finish")
 
     return dot
 
