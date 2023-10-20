@@ -124,19 +124,14 @@ def on_ticket(
         lint_mode,
     ) = strip_sweep(title)
 
-    # Generate a unique hash for tracking
-    tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()[:10]
+    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
+    logger.add(handler)
 
-    # Flow:
-    # 1. Get relevant files
-    # 2: Get human message
-    # 3. Get files to change
-    # 4. Get file changes
-    # 5. Create PR
+    tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()[:10]
+    logger.bind(tracking_id=tracking_id)
 
     on_ticket_start_time = time()
     summary = summary or ""
-    # Check for \r since GitHub issues may have \r\n
     summary = re.sub(
         "<details (open)?>(\r)?\n<summary>Checklist</summary>.*",
         "",
@@ -262,9 +257,6 @@ def on_ticket(
 
     logger.bind(**metadata)
     logger.info(f"Metadata: {metadata}")
-
-    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
-    logger.add(handler)
 
     posthog.capture(username, "started", properties=metadata)
     markdown_badge = get_docker_badge()
@@ -528,7 +520,7 @@ def on_ticket(
                     + "\n"
                     + message
                     + "\n\nFor bonus GPT-4 tickets, please report this bug on"
-                    " **[Discord](https://discord.gg/invite/sweep)**."
+                    f" **[Discord](https://discord.gg/invite/sweep)** (tracking ID: {tracking_id})."
                 )
                 if table is not None:
                     agg_message = (

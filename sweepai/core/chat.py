@@ -1,4 +1,3 @@
-import baserun
 import time
 import traceback
 from typing import Any, Literal
@@ -54,6 +53,7 @@ default_temperature = (
     0.0  # Lowered to 0 for mostly deterministic results for reproducibility
 )
 count_tokens = Tiktoken().count
+
 
 class ChatGPT(BaseModel):
     messages: list[Message] = [
@@ -180,9 +180,7 @@ class ChatGPT(BaseModel):
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 
-    # Only works on functions without side effects
     # @file_cache(ignore_params=["chat_logger", "sweep_context", "cloned_repo"])
-    @baserun.trace
     def call_openai(
         self,
         model: ChatModel | None = None,

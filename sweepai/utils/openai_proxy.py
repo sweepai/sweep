@@ -1,9 +1,9 @@
 import baserun
 import openai
 
-from sweepai.logn import file_cache, logger
 from sweepai.config.server import (
     AZURE_API_KEY,
+    BASERUN_API_KEY,
     OPENAI_API_BASE,
     OPENAI_API_ENGINE_GPT4,
     OPENAI_API_ENGINE_GPT4_32K,
@@ -12,6 +12,11 @@ from sweepai.config.server import (
     OPENAI_API_TYPE,
     OPENAI_API_VERSION,
 )
+from sweepai.logn import file_cache, logger
+
+if BASERUN_API_KEY is not None:
+    baserun.init()
+    baserun.api_key = BASERUN_API_KEY
 
 
 class OpenAIProxy:

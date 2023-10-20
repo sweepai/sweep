@@ -1,2 +1,0 @@
-import baserun 
-baserun.init()

@@ -1,7 +1,7 @@
 import html
 import multiprocessing
-import typer
 
+import typer
 from fastapi.testclient import TestClient
 from github import Github
 
@@ -68,12 +68,14 @@ def fetch_issue_request(issue_url: str, __version__: str = "0"):
 
     return issue_request
 
+
 def send_request(issue_request):
     with TestClient(app) as client:
         response = client.post(
             "/", json=issue_request.dict(), headers={"X-GitHub-Event": "issues"}
         )
         print(response)  # or return response, depending on your needs
+
 
 def test_issue_url(
     issue_url: str,
@@ -84,13 +86,13 @@ def test_issue_url(
     issue_request = fetch_issue_request(issue_url)
     print(f"Sending request...")
 
-    request_process = multiprocessing.Process(target=send_request, args=(issue_request,))
+    request_process = multiprocessing.Process(
+        target=send_request, args=(issue_request,)
+    )
     request_process.start()
 
-    # Wait for 150 seconds or until process finishes
-    request_process.join(timeout=150)
+    request_process.join()
 
-    # If process is still alive after 5 seconds, terminate it
     if request_process.is_alive():
         print("Terminating the process...")
         request_process.terminate()
@@ -98,6 +100,7 @@ def test_issue_url(
 
     better_stack_link = f"{better_stack_prefix}{html.escape(issue_url)}"
     print(f"Track the logs at the following link:\n\n{better_stack_link}")
+
 
 if __name__ == "__main__":
     typer.run(test_issue_url)
