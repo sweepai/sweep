@@ -1,5 +1,6 @@
 import threading
 
+
 def run_in_worker(func, args):
     """
     Runs a given function in a new thread with the provided arguments.
