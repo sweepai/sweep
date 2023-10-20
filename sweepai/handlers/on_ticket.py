@@ -124,8 +124,6 @@ def on_ticket(
         lint_mode,
     ) = strip_sweep(title)
 
-    markdown_badge = get_docker_badge()
-
     # Generate a unique hash for tracking
     tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()[:10]
 
@@ -269,6 +267,7 @@ def on_ticket(
     logger.add(handler)
 
     posthog.capture(username, "started", properties=metadata)
+    markdown_badge = get_docker_badge()
 
     try:
         logger.info(f"Getting repo {repo_full_name}")
