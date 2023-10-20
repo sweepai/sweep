@@ -14,16 +14,16 @@ app.mount("/public", StaticFiles(directory="public"), name="public")
 
 
 class FilePayload(BaseModel):
-    data: str
+    content: str
     filename: str
 
 
-@app.post("/upload/")
+@app.post("/")
 async def upload_svg(payload: FilePayload):
     with lock:
         dest = storage_path / payload.filename
         with dest.open("w") as buffer:
-            buffer.write(payload.data)
+            buffer.write(payload.content)
 
     return {
         "url": f"/public/{payload.filename}",
