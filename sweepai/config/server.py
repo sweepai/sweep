@@ -98,7 +98,7 @@ GITHUB_DEFAULT_CONFIG = os.environ.get(
 
 # This setting contains a list of rules that Sweep will check for. If any of these rules are broken in a new commit, Sweep will create an pull request to fix the broken rule.
 rules:
-- "All docstrings and comments should be up to date."
+  - "All docstrings and comments should be up to date."
 {additional_rules}
 
 # This is the branch that Sweep will develop from and make pull requests to. Most people use 'main' or 'master' but some users also use 'dev' or 'staging'.
@@ -146,8 +146,6 @@ OPENAI_USE_3_5_MODEL_ONLY = (
     os.environ.get("OPENAI_USE_3_5_MODEL_ONLY", "false").lower() == "true"
 )
 
-# goes under Modal 'anthropic' secret name (optional, can leave env var blank)
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
 # goes under Modal 'mongodb' secret name
 MONGODB_URI = os.environ.get("MONGODB_URI")
@@ -198,11 +196,13 @@ if SANDBOX_URL is not None:
 else:
     logger.print("No Sandbox URL found.")
 
-HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY", None)
+MINIS3_URL = os.environ.get("MINIS3_URL", "http://0.0.0.0:8082")
 
 VECTOR_EMBEDDING_SOURCE = os.environ.get(
     "VECTOR_EMBEDDING_SOURCE", "sentence-transformers"
 )  # Alternate option is openai or huggingface and set the corresponding env vars
+
+BASERUN_API_KEY = os.environ.get("BASERUN_API_KEY", None)
 
 # Huggingface settings, only checked if VECTOR_EMBEDDING_SOURCE == "huggingface"
 HUGGINGFACE_URL = os.environ.get("HUGGINGFACE_URL", None)

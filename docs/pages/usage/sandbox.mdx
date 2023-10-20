@@ -1,12 +1,6 @@
 # Sandbox
 
-The sandbox executes a set of commands to validate Sweep's changes using linters and type-checkers after every edit. By default we use [Trunk](https://trunk.io), an opinionated super-linter that installs all the common formatters and linters for your codebase.
-
-To get started with the setup run the following installation script in the background, then follow the instructions below to set up your config:
-
-```sh
-curl https://raw.githubusercontent.com/sweepai/sweep/main/bin/install_sweep_sandbox.sh | sh
-```
+The sandbox executes a set of commands to validate Sweep's changes using linters and type-checkers after every edit and fixes them when they fail. By default we use [Trunk](https://trunk.io), an opinionated super-linter that installs all the common formatters and linters for your codebase.
 
 ## Configuration
 
@@ -101,20 +95,8 @@ We recommend starting with the formatters, followed by the linters and type-chec
 
 ## Testing
 
-To ensure that your sandbox is set up properly, you can test it locally.
+To ensure that your sandbox is set up properly, you can test it by creating an issue on a Sweep-installed repo with a title like
 
-If you ran the installation script at the top, `sweep-sandbox` should be fully installed by now. Ensure that `sweep-sandbox` is installed properly by running `sweep-sandbox --help`.
+> Sweep (sandbox): FILE_PATH
 
-Then, `cd` into the root of your directory and execute the following in the base of your repo in the following format:
-
-```sh
-sweep-sandbox
-```
-
-By default it will run this on the last file you edited. If you want to run it on a specific file or directory, you can run:
-
-```sh
-sweep-sandbox --file-path FILE_PATH
-```
-
-Replacing FILE_PATH with the file or directory you want `sweep-sandbox` to run on. For example in the Sweep repo, we run `sweep-sandbox sweepai/api.py` to check the file `api.py`.
+where FILE_PATH is the path to the file you want to run the sandbox on. For example, we can test the sandbox on `sweepai/api.py` by titling the issue **Sweep (sandbox): sweepai/api.py**. You can find this at https://github.com/sweepai/sweep/issues/2371.

@@ -1,4 +1,5 @@
 import html
+import multiprocessing
 
 import typer
 from fastapi.testclient import TestClient
@@ -7,8 +8,6 @@ from github import Github
 from sweepai.api import app
 from sweepai.events import Account, Installation, IssueRequest
 from sweepai.utils.github_utils import get_github_client, get_installation_id
-
-client = TestClient(app)
 
 
 def fetch_issue_request(issue_url: str, __version__: str = "0"):
@@ -70,18 +69,35 @@ def fetch_issue_request(issue_url: str, __version__: str = "0"):
     return issue_request
 
 
+def send_request(issue_request):
+    with TestClient(app) as client:
+        response = client.post(
+            "/", json=issue_request.dict(), headers={"X-GitHub-Event": "issues"}
+        )
+        print(response)  # or return response, depending on your needs
+
+
 def test_issue_url(
     issue_url: str,
     better_stack_prefix: str = "https://logs.betterstack.com/team/199101/tail?rf=now-30m&q=metadata.issue_url%3A",
 ):
     issue_url = issue_url or typer.prompt("Issue URL")
-    print(f"Fetching issue metdata...")
+    print(f"Fetching issue metadata...")
     issue_request = fetch_issue_request(issue_url)
     print(f"Sending request...")
-    response = client.post(
-        "/", json=issue_request.dict(), headers={"X-GitHub-Event": "issues"}
+
+    request_process = multiprocessing.Process(
+        target=send_request, args=(issue_request,)
     )
-    print(response)
+    request_process.start()
+
+    request_process.join()
+
+    if request_process.is_alive():
+        print("Terminating the process...")
+        request_process.terminate()
+        request_process.join()  # Ensure process has terminated before proceeding
+
     better_stack_link = f"{better_stack_prefix}{html.escape(issue_url)}"
     print(f"Track the logs at the following link:\n\n{better_stack_link}")
 
