@@ -22,7 +22,7 @@ from sweepai.agents.graph_parent import GraphParentBot
 from sweepai.agents.prune_modify_snippets import PruneModifySnippets
 from sweepai.agents.validate_code import ChangeValidation, ChangeValidator
 from sweepai.config.client import SweepConfig, get_blocked_dirs, get_branch_name_config
-from sweepai.config.server import DEBUG, SANDBOX_URL, SECONDARY_MODEL
+from sweepai.config.server import DEBUG, MINIS3_URL, SANDBOX_URL, SECONDARY_MODEL
 from sweepai.core.chat import ChatGPT
 from sweepai.core.entities import (
     FileChangeRequest,
@@ -655,26 +655,34 @@ class SweepBot(CodeGenBot, GithubBot):
         file_path: str,
         content: str,
     ):
-        self.init_asset_branch()
         hash_ = hashlib.sha256(content.encode("utf-8")).hexdigest()
         file_path = f"{hash_}_{file_path}"
         try:
-            fetched_content = self.repo.get_contents(file_path, ASSET_BRANCH_NAME)
-            self.repo.update_file(
-                file_path,
-                "Update " + file_path,
-                content,
-                fetched_content.sha,
-                branch=ASSET_BRANCH_NAME,
+            response = requests.post(
+                MINIS3_URL, json={"filename": file_path, "content": content}
             )
-        except UnknownObjectException:
-            self.repo.create_file(
-                file_path,
-                "Add " + file_path,
-                content,
-                branch=ASSET_BRANCH_NAME,
-            )
-        return f"https://raw.githubusercontent.com/{self.repo.full_name}/{ASSET_BRANCH_NAME}/{file_path}"
+            response.raise_for_status()
+            return MINIS3_URL.rstrip("/") + response.json()["url"]
+        except Exception as e:
+            logger.error(e)
+            self.init_asset_branch()
+            try:
+                fetched_content = self.repo.get_contents(file_path, ASSET_BRANCH_NAME)
+                self.repo.update_file(
+                    file_path,
+                    "Update " + file_path,
+                    content,
+                    fetched_content.sha,
+                    branch=ASSET_BRANCH_NAME,
+                )
+            except UnknownObjectException:
+                self.repo.create_file(
+                    file_path,
+                    "Add " + file_path,
+                    content,
+                    branch=ASSET_BRANCH_NAME,
+                )
+            return f"https://raw.githubusercontent.com/{self.repo.full_name}/{ASSET_BRANCH_NAME}/{file_path}"
 
     @staticmethod
     # @file_cache(ignore_params=["token"])

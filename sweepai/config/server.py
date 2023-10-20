@@ -196,6 +196,8 @@ if SANDBOX_URL is not None:
 else:
     logger.print("No Sandbox URL found.")
 
+MINIS3_URL = os.environ.get("MINIS3_URL", "http://0.0.0.0:8082")
+
 HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY", None)
 
 VECTOR_EMBEDDING_SOURCE = os.environ.get(
