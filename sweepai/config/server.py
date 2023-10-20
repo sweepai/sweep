@@ -199,11 +199,11 @@ else:
 
 MINIS3_URL = os.environ.get("MINIS3_URL", "http://0.0.0.0:8082")
 
-HIGHLIGHT_API_KEY = os.environ.get("HIGHLIGHT_API_KEY", None)
-
 VECTOR_EMBEDDING_SOURCE = os.environ.get(
     "VECTOR_EMBEDDING_SOURCE", "sentence-transformers"
 )  # Alternate option is openai or huggingface and set the corresponding env vars
+
+BASERUN_API_KEY = os.environ.get("BASERUN_API_KEY", None)
 
 # Huggingface settings, only checked if VECTOR_EMBEDDING_SOURCE == "huggingface"
 HUGGINGFACE_URL = os.environ.get("HUGGINGFACE_URL", None)

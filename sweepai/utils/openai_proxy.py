@@ -1,3 +1,4 @@
+import baserun
 import random
 
 import openai
@@ -5,6 +6,7 @@ from loguru import logger
 
 from sweepai.config.server import (
     AZURE_API_KEY,
+    BASERUN_API_KEY,
     MULTI_REGION_CONFIG,
     OPENAI_API_BASE,
     OPENAI_API_ENGINE_GPT4,
@@ -22,6 +24,7 @@ class OpenAIProxy:
         pass
 
     @file_cache(ignore_params=[])
+    @baserun.trace
     def call_openai(self, model, messages, max_tokens, temperature) -> str:
         try:
             engine = None

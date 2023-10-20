@@ -94,7 +94,6 @@ def test_issue_url(
 
     request_process.join(timeout=None if debug else 150)
 
-    # If process is still alive after 5 seconds, terminate it
     if request_process.is_alive():
         print("Terminating the process...")
         request_process.terminate()
