@@ -388,9 +388,12 @@ async def webhook(raw_request: Request):
                         comment_id=request.comment.id if not restart_sweep else None,
                         edited=True,
                     )
-                elif (
-                    request.issue.pull_request and request.comment.user.type == "User"
-                ):  # TODO(sweep): set a limit
+                # Assuming the limit is on the number of comments
+                MAX_COMMENTS = 10  # Set this to the desired limit
+                comment_count = len(request.issue.pull_request.get_comments())
+                if comment_count > MAX_COMMENTS:
+                    logger.info(f"Comment limit exceeded for PR: {request.issue.pull_request}")
+                else:
                     logger.info(f"Handling comment on PR: {request.issue.pull_request}")
                     _, g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
@@ -526,10 +529,12 @@ async def webhook(raw_request: Request):
                             },
                         )
                         call_on_comment(**pr_change_request.params)
-            case "pull_request_review_comment", "created":
-                logger.info(f"Received event: {event}, {action}")
-                # Add a separate endpoint for this
+            # Assuming the separate endpoint is a new route handler function
+            @app.post("/pull_request_review_comment")
+            async def handle_pull_request_review_comment(raw_request: Request):
+                request_dict = await raw_request.json()
                 request = CommentCreatedRequest(**request_dict)
+                logger.info(f"Received event: {event}, {action}")
                 _, g = get_github_client(request.installation.id)
                 repo = g.get_repo(request.repository.full_name)
                 pr = repo.get_pull(request.pull_request.number)
@@ -554,12 +559,14 @@ async def webhook(raw_request: Request):
                             "comment_id": request.comment.id,
                         },
                     )
+                    # Assuming the index is a database index
                     call_on_comment(**pr_change_request.params)
-                # Todo: update index on comments
-            case "pull_request_review", "submitted":
-                request = ReviewSubmittedRequest(**request_dict)
-                worker = WorkerWrapper(call_on_review, **request.params)
-                worker.start()
+                    # Update the index
+                    update_comment_index(pr_change_request.params['comment_id'])
+                    case "pull_request_review", "submitted":
+                        request = ReviewSubmittedRequest(**request_dict)
+                        worker = WorkerWrapper(call_on_review, **request.params)
+                        worker.start()
             case "check_run", "completed":
                 request = CheckRunCompletedRequest(**request_dict)
                 worker = WorkerWrapper(call_on_check_run, **request.params)
