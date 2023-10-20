@@ -3,7 +3,7 @@ from graphviz import Digraph
 from sweepai.core.entities import FileChangeRequest
 
 
-def create_digraph(file_change_requests: list[FileChangeRequest]):
+def create_digraph(file_change_requests: list[FileChangeRequest]) -> Digraph:
     dot = Digraph(comment="FileChangeRequest Tree")
     dot.attr(pad="0.5")
     dot.attr(label="Sweep's Plan & Progress\n\n", labelloc="t", labeljust="c")
