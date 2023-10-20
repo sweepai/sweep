@@ -54,6 +54,7 @@ default_temperature = (
 )
 count_tokens = Tiktoken().count
 
+
 class ChatGPT(BaseModel):
     messages: list[Message] = [
         Message(
@@ -179,7 +180,6 @@ class ChatGPT(BaseModel):
         self.prev_message_states.append(self.messages)
         return self.messages[-1].content
 
-    # Only works on functions without side effects
     # @file_cache(ignore_params=["chat_logger", "sweep_context", "cloned_repo"])
     def call_openai(
         self,
