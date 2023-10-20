@@ -77,6 +77,7 @@ from sweepai.utils.chat_logger import ChatLogger
 from sweepai.utils.diff import generate_diff
 from sweepai.utils.docker_utils import get_docker_badge
 from sweepai.utils.event_logger import posthog
+from sweepai.utils.fcr_tree_utils import create_digraph_svg
 from sweepai.utils.github_utils import ClonedRepo, get_github_client
 from sweepai.utils.prompt_constructor import HumanMessagePrompt
 from sweepai.utils.search_utils import search_snippets
@@ -122,8 +123,6 @@ def on_ticket(
         fast_mode,
         lint_mode,
     ) = strip_sweep(title)
-
-    markdown_badge = get_docker_badge()
 
     # Generate a unique hash for tracking
     tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()[:10]
@@ -221,6 +220,7 @@ def on_ticket(
     if fast_mode:
         use_faster_model = True
 
+    chat_logger.reset_ticket_count()
     if not comment_id and not edited and chat_logger and not sandbox_mode:
         chat_logger.add_successful_ticket(
             gpt3=use_faster_model
@@ -267,6 +267,7 @@ def on_ticket(
     logger.add(handler)
 
     posthog.capture(username, "started", properties=metadata)
+    markdown_badge = get_docker_badge()
 
     try:
         logger.info(f"Getting repo {repo_full_name}")
@@ -1014,11 +1015,18 @@ def on_ticket(
                 "Checklist", checkboxes_contents, opened=True
             )
 
-            condensed_checkboxes_contents = "\n".join(
-                [
-                    create_checkbox(f"`{filename}`", "", check == "X").strip()
-                    for filename, instructions, check in checkboxes_progress
-                ]
+            file_change_requests[0].status = "running"
+            svg = create_digraph_svg(file_change_requests)
+            svg_url = sweep_bot.update_asset(f"{issue_number}_flowchart.svg", svg)
+
+            condensed_checkboxes_contents = (
+                "\n".join(
+                    [
+                        create_checkbox(f"`{filename}`", "", check == "X").strip()
+                        for filename, instructions, check in checkboxes_progress
+                    ]
+                )
+                + f"\n\n![{issue_number}_flowchart.svg]({svg_url})"
             )
             condensed_checkboxes_collapsible = create_collapsible(
                 "Checklist", condensed_checkboxes_contents, opened=True
@@ -1056,7 +1064,7 @@ def on_ticket(
                                 "\n\n".join(
                                     [
                                         create_collapsible(
-                                            f"<code>{execution.command.format(file_path=file_change_request.entity_display_without_backtick)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
+                                            f"<code>{execution.command.format(file_path=file_change_request.filename)}</code> {i + 1}/{len(sandbox_response.executions)} {format_exit_code(execution.exit_code)}",
                                             f"<pre>{clean_logs(execution.output)}</pre>",
                                             i == len(sandbox_response.executions) - 1,
                                         )
@@ -1098,9 +1106,17 @@ def on_ticket(
                 if isinstance(item, dict):
                     response = item
                     break
-                file_change_request, changed_file, sandbox_response, commit = item
+                (
+                    file_change_request,
+                    changed_file,
+                    sandbox_response,
+                    commit,
+                    file_change_requests,
+                ) = item
+                svg = create_digraph_svg(file_change_requests)
+                svg_url = sweep_bot.update_asset(f"{issue_number}_flowchart.svg", svg)
                 sandbox_response: SandboxResponse | None = sandbox_response
-                logger.print(sandbox_response)
+                logger.info(sandbox_response)
                 commit_hash: str = (
                     commit
                     if isinstance(commit, str)
@@ -1127,13 +1143,24 @@ def on_ticket(
                         if sandbox_response.success
                         else "❌ Sandbox failed so I made additional changes"
                     )
-                    checkboxes_progress.append(
+                    index = next(
+                        (
+                            i
+                            for i, (entity_display_, _, _) in enumerate(
+                                checkboxes_progress
+                            )
+                            if file_change_request.entity_display in entity_display_
+                        ),
+                        None,
+                    )
+                    checkboxes_progress.insert(
+                        index + 1,
                         (
                             f"{file_change_request.entity_display} {status}",
                             "The following are the logs from running the sandbox:\n\n"
                             + error_logs,
                             "X",
-                        )
+                        ),
                     )
                 else:
                     if changed_file:
@@ -1190,16 +1217,19 @@ def on_ticket(
                     body=checkboxes_contents,
                     opened="open",
                 )
-                condensed_checkboxes_contents = "\n".join(
-                    [
-                        checkbox_template.format(
-                            check=check,
-                            filename=filename,
-                            instructions="",
-                        ).strip()
-                        for filename, instructions, check in checkboxes_progress
-                        if not instructions.lower().startswith("run")
-                    ]
+                condensed_checkboxes_contents = (
+                    "\n".join(
+                        [
+                            checkbox_template.format(
+                                check=check,
+                                filename=filename,
+                                instructions="",
+                            ).strip()
+                            for filename, instructions, check in checkboxes_progress
+                            if not instructions.lower().startswith("run")
+                        ]
+                    )
+                    + f"\n\n![Flowchart]({svg_url})"
                 )
                 condensed_checkboxes_collapsible = collapsible_template.format(
                     summary="Checklist",
