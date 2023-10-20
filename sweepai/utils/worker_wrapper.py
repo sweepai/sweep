@@ -1,20 +1,22 @@
 import threading
+
 from loguru import logger
+
 
 class WorkerWrapper:
     """
     A class that runs a given function in a separate worker thread.
-    
+
     Example usage:
-    
+
     def my_function(arg1, arg2):
         # Do something
         pass
-    
+
     worker = WorkerWrapper(my_function, arg1, arg2)
     worker.start()
     """
-    
+
     def __init__(self, func, *args, **kwargs):
         self.func = func
         self.args = args
