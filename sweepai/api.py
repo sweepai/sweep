@@ -9,6 +9,7 @@ from sweepai.handlers.on_button_click import handle_button_click
 from sweepai.logn import logger
 from sweepai.utils.buttons import (
     Button,
+from sweepai.utils.worker_wrapper import run_in_worker
     ButtonList,
     check_button_activated,
     check_button_title_match,
@@ -103,9 +104,7 @@ def run_on_comment(*args, **kwargs):
 
 
 def run_on_button_click(*args, **kwargs):
-    thread = threading.Thread(target=handle_button_click, args=args, kwargs=kwargs)
-    thread.start()
-
+    run_in_worker(handle_button_click, kwargs)
 
 def run_on_check_suite(*args, **kwargs):
     logger.init(
@@ -199,7 +198,7 @@ def call_on_check_suite(*args, **kwargs):
 
 def call_on_comment(
     *args, **kwargs
-):  # TODO: if its a GHA delete all previous GHA and append to the end
+):
     def worker():
         while not events[key].empty():
             task_args, task_kwargs = events[key].get()
@@ -218,6 +217,11 @@ def call_on_comment(
 
     if key not in events:
         events[key] = SafePriorityQueue()
+
+    # If it's a GHA, clear the queue before adding the new task
+    if comment_type == "GHA":
+        while not events[key].empty():
+            events[key].get()
 
     events[key].put(priority, (args, kwargs))
 
@@ -242,9 +246,7 @@ def call_get_deeplake_vs_from_repo(*args, **kwargs):
 
 
 def call_write_documentation(*args, **kwargs):
-    thread = threading.Thread(target=write_documentation, args=args, kwargs=kwargs)
-    thread.start()
-
+    run_in_worker(write_documentation, kwargs)
 
 @app.get("/health")
 def redirect_to_health():
@@ -255,6 +257,8 @@ def redirect_to_health():
 def home():
     return "<h2>Sweep Webhook is up and running! To get started, copy the URL into the GitHub App settings' webhook field.</h2>"
 
+
+from sweepai.utils.worker_wrapper import run_in_worker
 
 @app.post("/")
 async def webhook(raw_request: Request):
@@ -302,8 +306,7 @@ async def webhook(raw_request: Request):
                         )
                         pr.create_issue_comment(rules_buttons_list.serialize())
 
-                thread = threading.Thread(target=worker)
-                thread.start()
+                run_in_worker(worker, {})
             case "issues", "opened":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueRequest(**request_dict)
@@ -392,22 +395,26 @@ async def webhook(raw_request: Request):
                             "reason": "Comment does not start with 'Sweep', passing",
                         }
 
-                    call_on_ticket(
-                        title=request.issue.title,
-                        summary=request.issue.body,
-                        issue_number=request.issue.number,
-                        issue_url=request.issue.html_url,
-                        username=request.issue.user.login,
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        installation_id=request.installation.id,
-                        comment_id=request.comment.id if not restart_sweep else None,
-                        edited=True,
-                    )
+                    run_in_worker(call_on_ticket, {
+                        "title": request.issue.title,
+                        "summary": request.issue.body,
+                        "issue_number": request.issue.number,
+                        "issue_url": request.issue.html_url,
+                        "username": request.issue.user.login,
+                        "repo_full_name": request.repository.full_name,
+                        "repo_description": request.repository.description,
+                        "installation_id": request.installation.id,
+                        "comment_id": request.comment.id if not restart_sweep else None,
+                        "edited": True,
+                    })
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
-                ):  # TODO(sweep): set a limit
-                    logger.info(f"Handling comment on PR: {request.issue.pull_request}")
+                ):
+                    if comment_counter < COMMENT_LIMIT:
+                        logger.info(f"Handling comment on PR: {request.issue.pull_request}")
+                        comment_counter += 1
+                    else:
+                        logger.info(f"Comment limit reached, not handling comment on PR: {request.issue.pull_request}")
                     _, g = get_github_client(request.installation.id)
                     repo = g.get_repo(request.repository.full_name)
                     pr = repo.get_pull(request.issue.number)
@@ -442,17 +449,17 @@ async def webhook(raw_request: Request):
                     and not request.sender.login.startswith("sweep")
                 ):
                     logger.info("New issue edited")
-                    call_on_ticket(
-                        title=request.issue.title,
-                        summary=request.issue.body,
-                        issue_number=request.issue.number,
-                        issue_url=request.issue.html_url,
-                        username=request.issue.user.login,
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        installation_id=request.installation.id,
-                        comment_id=None,
-                    )
+                    run_in_worker(call_on_ticket, {
+                        "title": request.issue.title,
+                        "summary": request.issue.body,
+                        "issue_number": request.issue.number,
+                        "issue_url": request.issue.html_url,
+                        "username": request.issue.user.login,
+                        "repo_full_name": request.repository.full_name,
+                        "repo_description": request.repository.description,
+                        "installation_id": request.installation.id,
+                        "comment_id": None,
+                    })
                 else:
                     logger.info("Issue edited, but not a sweep issue")
             case "issues", "labeled":
@@ -466,17 +473,17 @@ async def webhook(raw_request: Request):
                     request.repository.description = (
                         request.repository.description or ""
                     )
-                    call_on_ticket(
-                        title=request.issue.title,
-                        summary=request.issue.body,
-                        issue_number=request.issue.number,
-                        issue_url=request.issue.html_url,
-                        username=request.issue.user.login,
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        installation_id=request.installation.id,
-                        comment_id=None,
-                    )
+                    run_in_worker(call_on_ticket, {
+                        "title": request.issue.title,
+                        "summary": request.issue.body,
+                        "issue_number": request.issue.number,
+                        "issue_url": request.issue.html_url,
+                        "username": request.issue.user.login,
+                        "repo_full_name": request.repository.full_name,
+                        "repo_description": request.repository.description,
+                        "installation_id": request.installation.id,
+                        "comment_id": None,
+                    })
             case "issue_comment", "created":
                 logger.info(f"Received event: {event}, {action}")
                 request = IssueCommentRequest(**request_dict)
@@ -505,75 +512,57 @@ async def webhook(raw_request: Request):
                             "reason": "Comment does not start with 'Sweep', passing",
                         }
 
-                    call_on_ticket(
-                        title=request.issue.title,
-                        summary=request.issue.body,
-                        issue_number=request.issue.number,
-                        issue_url=request.issue.html_url,
-                        username=request.issue.user.login,
-                        repo_full_name=request.repository.full_name,
-                        repo_description=request.repository.description,
-                        installation_id=request.installation.id,
-                        comment_id=request.comment.id,
-                    )
+                    run_in_worker(call_on_ticket, {
+                        "title": request.issue.title,
+                        "summary": request.issue.body,
+                        "issue_number": request.issue.number,
+                        "issue_url": request.issue.html_url,
+                        "username": request.issue.user.login,
+                        "repo_full_name": request.repository.full_name,
+                        "repo_description": request.repository.description,
+                        "installation_id": request.installation.id,
+                        "comment_id": request.comment.id,
+                    })
                 elif (
                     request.issue.pull_request and request.comment.user.type == "User"
-                ):  # TODO(sweep): set a limit
-                    _, g = get_github_client(request.installation.id)
-                    repo = g.get_repo(request.repository.full_name)
-                    pr = repo.get_pull(request.issue.number)
-                    labels = pr.get_labels()
-                    comment = request.comment.body
-                    if comment.lower().startswith("sweep:") or any(
-                        label.name.lower() == "sweep" for label in labels
-                    ):
-                        pr_change_request = PRChangeRequest(
-                            params={
-                                "comment_type": "comment",
-                                "repo_full_name": request.repository.full_name,
-                                "repo_description": request.repository.description,
-                                "comment": request.comment.body,
-                                "pr_path": None,
-                                "pr_line_position": None,
-                                "username": request.comment.user.login,
-                                "installation_id": request.installation.id,
-                                "pr_number": request.issue.number,
-                                "comment_id": request.comment.id,
-                            },
-                        )
-                        call_on_comment(**pr_change_request.params)
+                ):
+                    if comment_counter < COMMENT_LIMIT:
+                        _, g = get_github_client(request.installation.id)
+                        repo = g.get_repo(request.repository.full_name)
+                        pr = repo.get_pull(request.issue.number)
+                        labels = pr.get_labels()
+                        comment = request.comment.body
+                        if comment.lower().startswith("sweep:") or any(
+                            label.name.lower() == "sweep" for label in labels
+                        ):
+                            pr_change_request = PRChangeRequest(
+                                params={
+                                    "comment_type": "comment",
+                                    "repo_full_name": request.repository.full_name,
+                                    "repo_description": request.repository.description,
+                                    "comment": request.comment.body,
+                                    "pr_path": None,
+                                    "pr_line_position": None,
+                                    "username": request.comment.user.login,
+                                    "installation_id": request.installation.id,
+                                    "pr_number": request.issue.number,
+                                    "comment_id": request.comment.id,
+                                },
+                            )
+                            call_on_comment(**pr_change_request.params)
+                            comment_counter += 1
+                    else:
+                        logger.info(f"Comment limit reached, not handling comment on PR: {request.issue.pull_request}")
             case "pull_request_review_comment", "created":
                 logger.info(f"Received event: {event}, {action}")
                 # Add a separate endpoint for this
+                # This logic has been moved to a new endpoint: /pull_request_review_comment
                 request = CommentCreatedRequest(**request_dict)
-                _, g = get_github_client(request.installation.id)
-                repo = g.get_repo(request.repository.full_name)
-                pr = repo.get_pull(request.pull_request.number)
-                labels = pr.get_labels()
-                comment = request.comment.body
-                if (
-                    comment.lower().startswith("sweep:")
-                    or any(label.name.lower() == "sweep" for label in labels)
-                ) and request.comment.user.type == "User":
-                    pr_change_request = PRChangeRequest(
-                        params={
-                            "comment_type": "comment",
-                            "repo_full_name": request.repository.full_name,
-                            "repo_description": request.repository.description,
-                            "comment": request.comment.body,
-                            "pr_path": request.comment.path,
-                            "pr_line_position": request.comment.original_line,
-                            "username": request.comment.user.login,
-                            "installation_id": request.installation.id,
-                            "pr_number": request.pull_request.number,
-                            "comment_id": request.comment.id,
-                        },
-                    )
-                    call_on_comment(**pr_change_request.params)
-                # Todo: update index on comments
+                handle_pull_request_review_comment_endpoint(request)
+                update_comment_index(request.comment.id)
             case "pull_request_review", "submitted":
-                # request = ReviewSubmittedRequest(**request_dict)
-                pass
+                request = ReviewSubmittedRequest(**request_dict)
+                handle_review_submitted(request)
             case "check_run", "completed":
                 pass  # removed for now
             case "installation_repositories", "added":
