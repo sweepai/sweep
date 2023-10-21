@@ -59,11 +59,20 @@ class TestClonedRepo(unittest.TestCase):
 
     def test_get_commit_history(self):
         # Test the get_commit_history method with various inputs and assert the expected outputs
-        pass
+        result = self.cloned_repo.get_commit_history(username="test_user", limit=10, time_limited=True)
+        self.assertIsInstance(result, list)
+        self.assertTrue(all(isinstance(item, str) for item in result))
 
     def tearDown(self):
         # Clean up any resources that were created for the test
-        # Assuming the cloned_repo object needs to be deleted
+        self.cloned_repo.clone.reset_mock()
+        self.cloned_repo.delete.reset_mock()
+        self.cloned_repo.list_directory_tree.reset_mock()
+        self.cloned_repo.get_file_list.reset_mock()
+        self.cloned_repo.get_tree_and_file_list.reset_mock()
+        self.cloned_repo.get_file_contents.reset_mock()
+        self.cloned_repo.get_num_files_from_repo.reset_mock()
+        self.cloned_repo.get_commit_history.reset_mock()
         del self.cloned_repo
 
 
