@@ -42,6 +42,8 @@ def get_jwt():
 
 
 def get_token(installation_id: int):
+    if not GITHUB_APP_PEM:
+        return "dummy_token"
     for timeout in [5.5, 5.5, 10.5]:
         try:
             jwt = get_jwt()
