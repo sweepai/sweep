@@ -155,7 +155,7 @@ extension_to_language = {
     "erb": "html",
     "ejs": "html",
     "html": "html",
-    "vue": "vue",
+    "vue": "html",
     "php": "php",
 }
 
