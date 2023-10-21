@@ -40,7 +40,7 @@ class TestClonedRepo(unittest.TestCase):
         self.assertEqual(len(files), 2)
 
     @patch("os.path.join")
-    @patch("open")
+    @patch("builtins.open")
     def test_get_file_contents(self, mock_open, mock_join):
         mock_join.return_value = "/tmp/cache/repos/sweepai/sweep/main/file1"
         mock_open.return_value.__enter__.return_value.read.return_value = "file content"
