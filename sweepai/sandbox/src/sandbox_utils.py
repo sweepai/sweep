@@ -129,4 +129,19 @@ class Sandbox(BaseModel):
             if os.path.exists(os.path.join(path, filename)):
                 logger.info(f"Found {filename} in repo, installing {script}")
                 sandbox.install = [script] + sandbox.install
+        if "requirements.txt" in os.listdir(path) or "pyproject.toml" in os.listdir(
+            path
+        ):
+            sandbox.check.append(
+                "[[ $(echo \"{file_name}\" | grep 'test.*\.py$') ]] && PYTHONPATH=. python {file_path} || return 0"
+            )
+            contents = ""
+            if "requirements.txt" in os.listdir(path):
+                contents = open(os.path.join(path, "requirements.txt")).read()
+            elif "pyproject.toml" in os.listdir(path):
+                contents = open(os.path.join(path, "pyproject.toml")).read()
+            if "pytest" in contents:
+                sandbox.check.append(
+                    'if [[ "{file_path}" == *.py ]]; then PYTHONPATH=. poetry run pytest {file_path} || { ret=$?; [ $ret -eq 5 ] || exit $ret; }; else return 0; fi'
+                )
         return sandbox
