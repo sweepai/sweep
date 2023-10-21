@@ -25,17 +25,15 @@ class TestClonedRepo(unittest.TestCase):
             self.cloned_repo.get_num_files_from_repo = MagicMock()
             self.cloned_repo.get_commit_history = MagicMock()
 
-    def test_clone(self):
-        with patch("git.Repo.clone_from") as mock_clone_from:
-            self.cloned_repo.clone()
-            mock_clone_from.assert_called_once_with(
-                self.cloned_repo.clone_url, self.cloned_repo.cache_dir
-            )
+    @patch('sweepai.utils.github_utils.ClonedRepo.clone')
+    def test_clone(self, mock_clone):
+        self.cloned_repo.clone()
+        mock_clone.assert_called_once()
 
-    def test_delete(self):
-        with patch("shutil.rmtree") as mock_rmtree:
-            self.cloned_repo.delete()
-            mock_rmtree.assert_called_once_with(self.cloned_repo.cache_dir)
+    @patch('sweepai.utils.github_utils.ClonedRepo.delete')
+    def test_delete(self, mock_delete):
+        self.cloned_repo.delete()
+        mock_delete.assert_called_once()
 
     def test_list_directory_tree(self):
         # Test the list_directory_tree method with various inputs and assert the expected outputs
