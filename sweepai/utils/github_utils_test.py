@@ -13,9 +13,7 @@ class TestClonedRepo(unittest.TestCase):
         self.mock_ctags = MagicMock(spec=CTags)
         self.cloned_repo = ClonedRepo(
             repo_full_name="test/repo",
-            installation_id="1234",
-            sweep_config=self.mock_sweep_config,
-            ctags=self.mock_ctags,
+            installation_id="1234"
         )
 
     def test_clone(self):
