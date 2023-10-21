@@ -48,8 +48,6 @@ def create_digraph(file_change_requests: list[FileChangeRequest]):
     last_item_per_layer = {layer: None for layer in range(max(ranks.values()) + 1)}
 
     for fcr in file_change_requests:
-        if fcr.change_type != "check":
-            last_fcr = fcr
         if fcr.parent:
             if fcr.change_type == "check":
                 dot.edge(fcr.parent.id_, fcr.id_, style="dashed")
