@@ -39,7 +39,7 @@ def get_docker_badge():
     try:
         docker_update_duration = get_latest_docker_version()
         encoded_duration = urllib.parse.quote(docker_update_duration)
-        badge_url = f"https://img.shields.io/badge/Docker%20Version%20Update-{encoded_duration}-blue"
+        badge_url = f"https://img.shields.io/badge/Docker%20Version%20Updated-{encoded_duration}-blue"
         markdown_badge = f"<br/>![Docker Version Updated]({badge_url})"
         return markdown_badge
     except:
