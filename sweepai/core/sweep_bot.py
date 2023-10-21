@@ -2051,38 +2051,35 @@ class ModifyBot:
                     replace=updated_code.splitlines(),
                 )[0]
             )
-            change_validator = ChangeValidator.create(
-                file_contents,
-                file_change_request,
-                selected_snippets,
-                updated_snippets,
-                chat_logger=self.chat_logger,
-                additional_messages=self.additional_messages,
-            )
-            change_validation = ChangeValidation(
-                analysis="",
-                additional_changes="",
-                additional_changes_required_raw="no",
-                diffs_to_revert_raw="",
-            )
-            result = change_validator.apply_validated_changes(change_validation)
 
-            new_code = []
-            for idx, search in enumerate(selected_snippets):
-                if idx not in updated_snippets:
-                    continue
-                if (
-                    selected_snippets.index(search)
-                    not in change_validator.updated_snippets
-                ):
-                    continue
-                replace = change_validator.updated_snippets[
-                    selected_snippets.index(search)
-                ]
-                new_code.append(replace)
+        change_validator = ChangeValidator.create(
+            file_contents,
+            file_change_request,
+            selected_snippets,
+            updated_snippets,
+            chat_logger=self.chat_logger,
+            additional_messages=self.additional_messages,
+        )
+        change_validation = ChangeValidation(
+            analysis="",
+            additional_changes="",
+            additional_changes_required_raw="no",
+            diffs_to_revert_raw="",
+        )
+        result = change_validator.apply_validated_changes(change_validation)
 
-            ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
-            result = result.rstrip("\n") + "\n" * ending_newlines
+        new_code = []
+        for idx, search in enumerate(selected_snippets):
+            if idx not in updated_snippets:
+                continue
+            if selected_snippets.index(search) not in change_validator.updated_snippets:
+                continue
+            replace = change_validator.updated_snippets[selected_snippets.index(search)]
+            new_code.append(replace)
+
+        ending_newlines = len(file_contents) - len(file_contents.rstrip("\n"))
+        result = result.rstrip("\n") + "\n" * ending_newlines
+
         new_code = "\n".join(new_code)
         leftover_comments = (
             (

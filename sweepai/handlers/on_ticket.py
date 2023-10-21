@@ -1159,6 +1159,11 @@ def on_ticket(
                         ),
                         None,
                     )
+                    while (
+                        index + 1 < len(checkboxes_progress)
+                        and "sandbox" in checkboxes_progress[index + 1][0].lower()
+                    ):
+                        index += 1
                     checkboxes_progress.insert(
                         index + 1,
                         (
