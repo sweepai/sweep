@@ -15,6 +15,15 @@ class TestClonedRepo(unittest.TestCase):
             repo_full_name="test/repo",
             installation_id="1234"
         )
+        if self.cloned_repo.token == "dummy_token":
+            self.cloned_repo.clone = MagicMock()
+            self.cloned_repo.delete = MagicMock()
+            self.cloned_repo.list_directory_tree = MagicMock()
+            self.cloned_repo.get_file_list = MagicMock()
+            self.cloned_repo.get_tree_and_file_list = MagicMock()
+            self.cloned_repo.get_file_contents = MagicMock()
+            self.cloned_repo.get_num_files_from_repo = MagicMock()
+            self.cloned_repo.get_commit_history = MagicMock()
 
     def test_clone(self):
         with patch("git.Repo.clone_from") as mock_clone_from:
