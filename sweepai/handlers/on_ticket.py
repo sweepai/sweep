@@ -14,7 +14,7 @@ import requests
 import yaml
 import yamllint.config as yamllint_config
 from github import BadCredentialsException
-from logtail import LogtailHandler
+from logtail import LogtailContext, LogtailHandler
 from loguru import logger
 from requests.exceptions import Timeout
 from tabulate import tabulate
@@ -124,7 +124,20 @@ def on_ticket(
         lint_mode,
     ) = strip_sweep(title)
 
-    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY)
+    context = LogtailContext()
+    context.context(
+        task={
+            "issue_url": issue_url,
+            "issue_number": issue_number,
+            "repo_full_name": repo_full_name,
+            "repo_description": repo_description,
+            "username": username,
+            "comment_id": comment_id,
+            "edited": edited,
+            "issue_title": title,
+        }
+    )
+    handler = LogtailHandler(source_token=LOGTAIL_SOURCE_KEY, context=context)
     logger.add(handler)
 
     tracking_id = hashlib.sha256(str(time()).encode()).hexdigest()[:10]
@@ -255,6 +268,7 @@ def on_ticket(
         "tracking_id": tracking_id,
     }
 
+    context.context(metadata=metadata)
     logger.bind(**metadata)
     logger.info(f"Metadata: {metadata}")
 
