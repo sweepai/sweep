@@ -111,9 +111,9 @@ def on_ticket(
     repo_full_name: str,
     repo_description: str,
     installation_id: int,
-    comment_id: int = None,
+    comment_id: Optional[int] = None,
     edited: bool = False,
-):
+) -> None:
     (
         title,
         slow_mode,
@@ -499,7 +499,7 @@ def on_ticket(
         # Random variables to save in case of errors
         table = None  # Show plan so user can finetune prompt
 
-        def edit_sweep_comment(message: str, index: int, pr_message="", done=False):
+        def edit_sweep_comment(message: str, index: int, pr_message: str = "", done: bool = False) -> None:
             nonlocal current_index, user_token, g, repo, issue_comment
             # -1 = error, -2 = retry
             # Only update the progress bar if the issue generation errors.
