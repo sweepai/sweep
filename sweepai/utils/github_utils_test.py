@@ -16,7 +16,7 @@ class TestClonedRepo(unittest.TestCase):
             installation_id="1234"
         )
         if self.cloned_repo.token == "dummy_token":
-            self.cloned_repo.clone = MagicMock()
+            self.cloned_repo.clone = MagicMock(return_value=MagicMock())
             self.cloned_repo.delete = MagicMock()
             self.cloned_repo.list_directory_tree = MagicMock()
             self.cloned_repo.get_file_list = MagicMock()
