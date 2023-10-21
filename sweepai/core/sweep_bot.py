@@ -2042,6 +2042,8 @@ class ModifyBot:
             current_contents = selected_snippets[index]
             if index not in updated_snippets:
                 updated_snippets[index] = current_contents
+            else:
+                current_contents = updated_snippets[index]
             updated_snippets[index] = "\n".join(
                 sliding_window_replacement(
                     original=current_contents.splitlines(),

@@ -404,7 +404,6 @@ class _LogN(_Logger):
             self.close()
 
 
-
 class LogN:
     @staticmethod
     def print():

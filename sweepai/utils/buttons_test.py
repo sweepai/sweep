@@ -1,7 +1,6 @@
 import unittest
 import unittest.mock
 
-
 from sweepai.utils.buttons import (
     Button,
     ButtonList,

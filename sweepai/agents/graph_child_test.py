@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import patch
+
 from sweepai.agents.graph_child import GraphChildBot, extract_python_span
+
 
 class TestGraphChild(unittest.TestCase):
     def setUp(self):
@@ -14,7 +16,14 @@ class TestGraphChild(unittest.TestCase):
         previous_snippets = "Test snippets"
         all_symbols_and_files = "Test symbols and files"
 
-        result = self.bot.code_plan_extraction(code, file_path, entities, issue_metadata, previous_snippets, all_symbols_and_files)
+        result = self.bot.code_plan_extraction(
+            code,
+            file_path,
+            entities,
+            issue_metadata,
+            previous_snippets,
+            all_symbols_and_files,
+        )
 
         self.assertEqual(result.relevant_new_snippet.content, code)
         self.assertEqual(result.code_change_description, "")
@@ -31,7 +40,14 @@ class TestGraphChild(unittest.TestCase):
 
         mock_extract.return_value = "Test snippet"
 
-        result = self.bot.code_plan_extraction(code, file_path, entities, issue_metadata, previous_snippets, all_symbols_and_files)
+        result = self.bot.code_plan_extraction(
+            code,
+            file_path,
+            entities,
+            issue_metadata,
+            previous_snippets,
+            all_symbols_and_files,
+        )
 
         mock_extract.assert_called_once_with(code, entities)
         self.assertEqual(result.relevant_new_snippet, "Test snippet")
@@ -53,6 +69,7 @@ class TestGraphChild(unittest.TestCase):
         result = extract_python_span(code, entities)
 
         self.assertIn(entities[0], result.content)
+
 
 if __name__ == "__main__":
     unittest.main()

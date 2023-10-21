@@ -1,6 +1,8 @@
 import copy
-from sweepai.logn import logger
 from collections import OrderedDict
+
+from sweepai.logn import logger
+
 
 class Line:
     def __init__(self, indent_count, text, parent=None, is_dir=False):
@@ -11,17 +13,26 @@ class Line:
 
     def full_path(self):
         return self.text if not self.is_dir else self.text
-    
+
     def __eq__(self, other):
-        full_relative_path = self.parent.full_path() + self.full_path() if self.parent else self.full_path()
-        other_full_relative_path = other.parent.full_path() + other.full_path() if other.parent else other.full_path()
+        full_relative_path = (
+            self.parent.full_path() + self.full_path()
+            if self.parent
+            else self.full_path()
+        )
+        other_full_relative_path = (
+            other.parent.full_path() + other.full_path()
+            if other.parent
+            else other.full_path()
+        )
         return full_relative_path == other_full_relative_path
-    
+
     def __str__(self):
         return self.full_path()
-    
+
     def __repr__(self):
         return self.full_path()
+
 
 class DirectoryTree:
     def __init__(self):
@@ -71,8 +82,15 @@ class DirectoryTree:
             if line.is_dir:
                 full_relative_path = line.full_path()
             else:
-                full_relative_path = line.parent.full_path() + line.full_path() if line.parent else line.full_path()
-            if any(full_relative_path.startswith(included_path) for included_path in included):
+                full_relative_path = (
+                    line.parent.full_path() + line.full_path()
+                    if line.parent
+                    else line.full_path()
+                )
+            if any(
+                full_relative_path.startswith(included_path)
+                for included_path in included
+            ):
                 parent_list = []
                 curr_parent = line.parent
                 while curr_parent and curr_parent not in new_lines:
@@ -85,14 +103,20 @@ class DirectoryTree:
         self.lines = new_lines
 
     def expand_directory(self, dirs_to_expand):
-        parent_dirs = lambda path: [path[:i + 1] for i in range(len(path)) if path[i] == '/']
+        parent_dirs = lambda path: [
+            path[: i + 1] for i in range(len(path)) if path[i] == "/"
+        ]
         dir_parents = []
         for dir in dirs_to_expand:
             dir_parents.extend(parent_dirs(dir))
         dirs_to_expand = list(set(dirs_to_expand))
         expanded_lines = []
         for line in self.original_lines:
-            if line.parent and any(line.parent.full_path() == dir for dir in dirs_to_expand) or line.full_path() in dir_parents:
+            if (
+                line.parent
+                and any(line.parent.full_path() == dir for dir in dirs_to_expand)
+                or line.full_path() in dir_parents
+            ):
                 expanded_lines.append(line)
             elif line in self.lines:
                 expanded_lines.append(line)

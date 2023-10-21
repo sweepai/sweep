@@ -3,9 +3,9 @@ import os
 
 from tqdm import tqdm
 
-from sweepai.logn import logger
 from sweepai.config.client import SweepConfig
 from sweepai.core.entities import Snippet
+from sweepai.logn import logger
 from sweepai.utils.utils import chunk_code
 
 

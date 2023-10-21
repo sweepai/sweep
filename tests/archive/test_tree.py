@@ -340,9 +340,7 @@ context_to_prune = ContextToPrune.from_string(response)
 
 tree = DirectoryTree()
 tree.parse(tree_str)
-serialized_list = [
-    'docs/pages/'
-]
+serialized_list = ["docs/pages/"]
 # tree.remove_all_not_included(context_to_prune.paths_to_keep)
 tree.remove_all_not_included([])
 # print()

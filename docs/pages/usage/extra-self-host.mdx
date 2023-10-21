@@ -40,7 +40,7 @@ OPENAI_DO_HAVE_32K_MODEL_ACCESS=true
 ##### Create OpenAI-proxy
 We'll use [LiteLLM](https://docs.litellm.ai/docs/) to create an OpenAI-compatible endpoint, that translates OpenAI calls to any of the [supported providers](https://docs.litellm.ai/docs/providers).
 
-Example to use a local CodeLLama model from Ollama.ai with Sweep: 
+Example to use a local CodeLLama model from Ollama.ai with Sweep:
 
 Let's spin up a proxy server to route any OpenAI call from Sweep to Ollama/CodeLlama
 ```python
@@ -56,7 +56,7 @@ $ litellm --model ollama/codellama
 
 ### Update Sweep
 
-Update your .env 
+Update your .env
 
 ```shell
 os.environ["OPENAI_API_BASE"] = "http://0.0.0.0:8000"
